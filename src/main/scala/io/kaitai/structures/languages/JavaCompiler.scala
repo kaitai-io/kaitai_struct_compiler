@@ -94,8 +94,8 @@ class JavaCompiler(outDir: String) extends LanguageCompiler with UpperCamelCaseC
   override def normalIO: String = "_io"
 
   override def allocateIO(varName: String): String = {
-    val ioName = "_io_#{varName}"
-    out.puts(s"KaitaiStream ${ioName} = new KaitaiStream(${varName});")
+    val ioName = s"_io_${lowerCamelCase(varName)}"
+    out.puts(s"KaitaiStream ${ioName} = new KaitaiStream(${lowerCamelCase(varName)});")
     ioName
   }
 
