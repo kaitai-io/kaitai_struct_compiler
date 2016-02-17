@@ -3,13 +3,17 @@ package io.kaitai.structures.languages
 import io.kaitai.structures.LanguageOutputWriter
 import io.kaitai.structures.format.AttrSpec
 
-class JavaCompiler(outDir: String) extends LanguageCompiler with UpperCamelCaseClasses {
+class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCompiler with UpperCamelCaseClasses {
   var out: LanguageOutputWriter = null
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
     out = new LanguageOutputWriter(s"${outDir}/${type2class(topClassName)}.java", "    ")
 
     out.puts(s"// This file was generated from '${sourceFileName}' with kaitai-structures compiler")
+    if (!destPackage.isEmpty) {
+      out.puts
+      out.puts(s"package ${destPackage};")
+    }
     out.puts
     out.puts("import io.kaitai.structures.KaitaiStruct;")
     out.puts("import io.kaitai.structures.KaitaiStream;")
