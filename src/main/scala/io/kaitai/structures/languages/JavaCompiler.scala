@@ -19,6 +19,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     out.puts("import io.kaitai.structures.KaitaiStream;")
     out.puts
     out.puts("import java.io.IOException;")
+    out.puts("import java.util.ArrayList;")
     out.puts
   }
 
@@ -104,8 +105,29 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   }
 
   def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
-    // TODO: implement repeat
-    out.puts(s"this.${lowerCamelCase(attr.id)} = ${expr};")
+    attr.repeat match {
+      case Some("eos") =>
+        out.puts(s"${attr.id} = new ArrayList<${type2class(attr.dataType)}>();")
+        out.puts(s"while (!${io}.isEof()) {")
+        out.inc
+        out.puts(s"${attr.id}.add(${expr});")
+        out.dec
+        out.puts("}")
+      case Some("expr") =>
+        attr.repeatExpr match {
+          case Some(repeatExpr) =>
+            out.puts(s"${attr.id} = new ArrayList<${type2class(attr.dataType)}>((int) (${repeatExpr}));")
+            out.puts(s"for (int i = 0; i < ${repeatExpr}; i++) {")
+            out.inc
+            out.puts(s"${attr.id}.set(i, ${expr});")
+            out.dec
+            out.puts("}")
+          case None =>
+            throw new RuntimeException("repeat: expr, but no repeat-expr value given")
+        }
+      case None =>
+        out.puts(s"this.${lowerCamelCase(attr.id)} = ${expr};")
+    }
   }
 
   def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
