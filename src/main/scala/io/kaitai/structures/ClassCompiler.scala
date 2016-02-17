@@ -1,7 +1,6 @@
 package io.kaitai.structures
 
 import java.io.FileReader
-import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.util
 
@@ -10,7 +9,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.kaitai.structures.format._
 import io.kaitai.structures.languages.LanguageCompiler
 
-import collection.JavaConversions._
+import scala.collection.JavaConversions._
 
 class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
   val reader = new FileReader(yamlFilename)
@@ -53,7 +52,12 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
       case (typeName, intClass) => compileClass(typeName, intClass)
     })
 
-    // TODO: instances
+    curClass.instances.foreach((instanceMap) => instanceMap.foreach {
+      case (instName, instSpec) =>
+        Console.println(s"instName = ${instName}")
+        Console.println(s"instSpec = ${instSpec}")
+        compileInstance(instName, instSpec)
+    })
 
     // TODO: maps
 
@@ -72,6 +76,11 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
         lang.attrStdTypeParse(attr, endian)
       }
     }
+  }
+
+  def compileInstance(instName: String, instSpec: InstanceSpec): Unit = {
+    lang.instanceHeader(instName, instSpec.dataType)
+    lang.instanceFooter
   }
 
   def parseContentSpec(attr: AttrSpec): Array[Byte] = {

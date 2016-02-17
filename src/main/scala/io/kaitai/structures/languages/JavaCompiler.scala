@@ -104,6 +104,13 @@ class JavaCompiler(outDir: String) extends LanguageCompiler with UpperCamelCaseC
     }
   }
 
+  override def instanceHeader(instName: String, dataType: String): Unit = {
+    out.puts(s"public ${kaitaiType2JavaType(dataType)} ${instName}() {")
+    out.inc
+  }
+
+  override def instanceFooter: Unit = classFooter
+
   def kaitaiType2JavaType(attrType: String): String = {
     attrType match {
       case "u1" => "int"

@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 class ClassSpec(@JsonProperty("meta") _meta: JMap[String, String],
                 @JsonProperty("seq") _seq: JList[AttrSpec],
                 @JsonProperty("types") _types: JMap[String, ClassSpec],
-                @JsonProperty("instances") _instances: JMap[String, Object],
+                @JsonProperty("instances") _instances: JMap[String, InstanceSpec],
                 @JsonProperty("maps") _maps: JMap[String, Object]) {
   val meta: Map[String, String] = if (_meta == null) {
     Map()
@@ -25,7 +25,7 @@ class ClassSpec(@JsonProperty("meta") _meta: JMap[String, String],
   } else {
     Some(_types.toMap)
   }
-  val instances: Option[Map[String, Object]] = if (_instances == null) {
+  val instances: Option[Map[String, InstanceSpec]] = if (_instances == null) {
     None
   } else {
     Some(_instances.toMap)

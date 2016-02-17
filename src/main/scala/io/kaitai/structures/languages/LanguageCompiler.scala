@@ -16,4 +16,7 @@ trait LanguageCompiler {
 
   def attrFixedContentsParse(attrName: String, contents: Array[Byte])
   def attrStdTypeParse(attr: AttrSpec, endian: Option[String])
+
+  def instanceHeader(instName: String, dataType: String)
+  def instanceFooter
 }

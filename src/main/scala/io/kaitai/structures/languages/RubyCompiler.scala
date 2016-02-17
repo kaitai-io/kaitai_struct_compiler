@@ -68,4 +68,11 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
       case _ => "foo"
     }
   }
+
+  override def instanceHeader(instName: String, dataType: String): Unit = {
+    out.puts(s"def ${instName}")
+    out.inc
+  }
+
+  override def instanceFooter: Unit = classFooter
 }
