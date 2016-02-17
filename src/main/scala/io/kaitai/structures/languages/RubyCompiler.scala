@@ -62,7 +62,7 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
         s"read_${attr.dataType}"
       case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
         endian match {
-          case Some(e) => s"read_${attr.dataType}${e}()"
+          case Some(e) => s"read_${attr.dataType}${e}"
           case None => throw new RuntimeException(s"Unable to parse ${attr.dataType} with no default endianess defined")
         }
       case _ => "foo"
