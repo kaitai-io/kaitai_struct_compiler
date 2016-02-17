@@ -85,13 +85,17 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
         out.dec
         out.puts("end")
       case Some("expr") =>
-//        repeat_expr = node['repeat-expr']
-//        raise FormatError.new(self, node, "repeat: expr, but no repeat-expr value given") unless repeat_expr
-//        @out.puts "@#{node_id} = Array.new(#{repeat_expr}) {"
-//        @out.inc
-//        @out.puts "#{class_name}.new(#{io_name})"
-//        @out.dec
-//        @out.puts "}"
+        attr.repeatExpr match {
+          case Some(repeatExpr) =>
+            out.puts(s"@${attr.id} = Array.new(${repeatExpr}) {")
+            out.inc
+            out.puts(expr)
+            out.dec
+            out.puts("}")
+
+          case None =>
+            throw new RuntimeException("repeat: expr, but no repeat-expr value given")
+        }
       case None => out.puts(s"@${attr.id} = ${expr}")
     }
   }
