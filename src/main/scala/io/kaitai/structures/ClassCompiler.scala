@@ -53,10 +53,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     })
 
     curClass.instances.foreach((instanceMap) => instanceMap.foreach {
-      case (instName, instSpec) =>
-        Console.println(s"instName = ${instName}")
-        Console.println(s"instSpec = ${instSpec}")
-        compileInstance(instName, instSpec)
+      case (instName, instSpec) => compileInstance(instName, instSpec)
     })
 
     // TODO: maps
@@ -64,17 +61,40 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     lang.classFooter
   }
 
-  def compileAttribute(attr: AttrSpec, id: String, ioName: String = "@_io"): Unit = {
+  def compileAttribute(attr: AttrSpec, id: String): Unit = {
     if (attr.contents != null) {
       lang.attrFixedContentsParse(id, parseContentSpec(attr))
     } else {
       if (userTypes.contains(attr.dataType)) {
-        // TODO: parse user datatypes
+        val newIO = if (compileAttributeNoType(attr, s"_raw_${id}")) {
+          // we have a fixed buffer, thus we shall create separate IO for it
+          lang.allocateIO(s"_raw_${id}")
+        } else {
+          lang.normalIO
+        }
+        lang.attrUserTypeParse(attr, newIO)
+      } else if (attr.dataType == null) {
+        if (!compileAttributeNoType(attr, attr.id)) {
+          throw new RuntimeException("no type encountered and bad size / size_eos spec")
+        }
       } else {
-        if (ioName != "@_io")
-          throw new RuntimeException("unable to read non-standard IO for standard type")
         lang.attrStdTypeParse(attr, endian)
       }
+    }
+  }
+
+  def compileAttributeNoType(attr: AttrSpec, id: String): Boolean = {
+    (attr.size, attr.sizeEos) match {
+      case (Some(sizeVar: String), false) =>
+        lang.attrNoTypeWithSize(id, sizeVar)
+        // TODO: call postprocess here
+        true
+      case (None, true) =>
+        lang.attrNoTypeWithSizeEos(id)
+        // TODO: call postprocess here
+        true
+      case _ =>
+        false
     }
   }
 

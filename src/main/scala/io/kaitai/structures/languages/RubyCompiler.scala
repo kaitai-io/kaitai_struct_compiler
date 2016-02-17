@@ -52,8 +52,48 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
     out.puts(s"@${attrName} = ensure_fixed_contents(${contents.size}, [${contents.mkString(", ")}])")
   }
 
+  override def attrNoTypeWithSize(varName: String, size: String) {
+    out.puts(s"this.${varName} = @_io.read(${size})")
+  }
+
+  override def attrNoTypeWithSizeEos(varName: String) {
+    out.puts(s"this.${varName} = @_io.read)")
+  }
+
   override def attrStdTypeParse(attr: AttrSpec, endian: Option[String]): Unit = {
-    out.puts(s"@${attr.id} = ${stdTypeParseExpr(attr, endian)}")
+    handleAssignment(attr, stdTypeParseExpr(attr, endian), normalIO)
+  }
+
+  override def attrUserTypeParse(attr: AttrSpec, io: String): Unit = {
+    handleAssignment(attr, s"${type2class(attr.dataType)}.new(${io}, self)", io)
+  }
+
+  override def normalIO: String = "@_io"
+
+  override def allocateIO(varName: String): String = {
+    out.puts(s"io = StringIO.new(@${varName})")
+    "io"
+  }
+
+  def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
+    attr.repeat match {
+      case Some("eos") =>
+        out.puts(s"@${attr.id} = []")
+        out.puts(s"while not ${io}.eof?")
+        out.inc
+        out.puts(s"@${attr.id} << ${expr}")
+        out.dec
+        out.puts("end")
+      case Some("expr") =>
+//        repeat_expr = node['repeat-expr']
+//        raise FormatError.new(self, node, "repeat: expr, but no repeat-expr value given") unless repeat_expr
+//        @out.puts "@#{node_id} = Array.new(#{repeat_expr}) {"
+//        @out.inc
+//        @out.puts "#{class_name}.new(#{io_name})"
+//        @out.dec
+//        @out.puts "}"
+      case None => out.puts(s"@${attr.id} = ${expr}")
+    }
   }
 
   def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
@@ -65,6 +105,7 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
           case Some(e) => s"read_${attr.dataType}${e}"
           case None => throw new RuntimeException(s"Unable to parse ${attr.dataType} with no default endianess defined")
         }
+      case null => throw new RuntimeException("should never happen")
       case _ => "foo"
     }
   }

@@ -75,8 +75,33 @@ class JavaCompiler(outDir: String) extends LanguageCompiler with UpperCamelCaseC
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.size}, new byte[] { ${contents.mkString(", ")} });")
   }
 
+  override def attrNoTypeWithSize(varName: String, size: String): Unit = {
+    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression2Java(size)});")
+  }
+
+  override def attrNoTypeWithSizeEos(varName: String): Unit = {
+    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytesFull();")
+  }
+
   override def attrStdTypeParse(attr: AttrSpec, endian: Option[String]): Unit = {
-    out.puts(s"this.${lowerCamelCase(attr.id)} = ${stdTypeParseExpr(attr, endian)};")
+    handleAssignment(attr, stdTypeParseExpr(attr, endian), normalIO)
+  }
+
+  override def attrUserTypeParse(attr: AttrSpec, io: String): Unit = {
+    handleAssignment(attr, s"new ${type2class(attr.dataType)}(${io}, this)", io)
+  }
+
+  override def normalIO: String = "_io"
+
+  override def allocateIO(varName: String): String = {
+    val ioName = "_io_#{varName}"
+    out.puts(s"KaitaiStream ${ioName} = new KaitaiStream(${varName});")
+    ioName
+  }
+
+  def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
+    // TODO: implement repeat
+    out.puts(s"this.${lowerCamelCase(attr.id)} = ${expr};")
   }
 
   def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
@@ -88,18 +113,7 @@ class JavaCompiler(outDir: String) extends LanguageCompiler with UpperCamelCaseC
           case Some(e) => s"_io.read${capitalize(attr.dataType)}${e}()"
           case None => throw new RuntimeException(s"Unable to parse ${attr.dataType} with no default endianess defined")
         }
-      case null =>
-        val size = attr.size
-        val sizeEos = attr.sizeEos
-        if ((size != null) && (sizeEos)) {
-          throw new scala.RuntimeException("not type and both size and size_eos specified")
-        } else if (size != null) {
-          s"_io.readBytes(${expression2Java(size)})"
-        } else if (sizeEos) {
-          "_io.readBytesFull()"
-        } else {
-          throw new scala.RuntimeException("not type and no size or size_eos specified")
-        }
+      case null => throw new RuntimeException("should never happen")
       case _ => "foo"
     }
   }
