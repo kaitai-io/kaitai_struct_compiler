@@ -76,6 +76,11 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
   }
 
   def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
+    if (attr.ifExpr.isDefined) {
+      out.puts(s"if ${attr.ifExpr.get}")
+      out.inc
+    }
+
     attr.repeat match {
       case Some("eos") =>
         out.puts(s"@${attr.id} = []")
@@ -97,6 +102,11 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
             throw new RuntimeException("repeat: expr, but no repeat-expr value given")
         }
       case None => out.puts(s"@${attr.id} = ${expr}")
+    }
+
+    if (attr.ifExpr.isDefined) {
+      out.dec
+      out.puts("end")
     }
   }
 
