@@ -48,7 +48,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, [${contents.mkString(", ")}])")
+    out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
   }
 
   override def attrNoTypeWithSize(varName: String, size: String) {
