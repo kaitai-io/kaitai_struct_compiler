@@ -137,10 +137,23 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
       case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
         endian match {
           case Some(e) => s"_io.read${capitalize(attr.dataType)}${e}()"
-          case None => throw new RuntimeException(s"Unable to parse ${attr.dataType} with no default endianess defined")
+          case None => throw new RuntimeException(s"type ${attr.dataType}: unable to parse with no default endianess defined")
         }
       case null => throw new RuntimeException("should never happen")
-      case _ => "foo"
+      case "str" =>
+        // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
+        ((attr.byteSize, attr.sizeEos)) match {
+          case (Some(bs: String), false) =>
+            s"_io.readStrByteLimit(${bs}, " + '"' + attr.encoding.get + "\")"
+          case (None, true) =>
+            "_io.readStrEos(\"" + attr.encoding.get + "\")"
+          case (None, false) =>
+            throw new RuntimeException("type str: either \"byte_size\" or \"size_eos\" must be specified")
+          case (Some(_), true) =>
+            throw new RuntimeException("type str: only one of \"byte_size\" or \"size_eos\" must be specified")
+        }
+      case "strz" =>
+        "foo"
     }
   }
 

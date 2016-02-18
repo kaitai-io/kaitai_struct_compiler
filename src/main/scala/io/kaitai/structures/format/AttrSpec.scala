@@ -9,7 +9,7 @@ case class AttrSpec(@JsonProperty("id") id: String,
                     @JsonProperty("type") dataType: String,
                     @JsonProperty("process") process: String,
                     @JsonProperty("contents") contents: Object,
-                    @JsonProperty("byte_size") byteSize: String,
+                    @JsonProperty("byte_size") _byteSize: String,
                     @JsonProperty("size") _size: String,
                     @JsonProperty("size_eos") sizeEos: Boolean,
                     @JsonProperty("if") _ifExpr: String,
@@ -20,6 +20,7 @@ case class AttrSpec(@JsonProperty("id") id: String,
                     @JsonProperty("consume") consume: Boolean,
                     @JsonProperty("include") include: Boolean
                   ) {
+  val byteSize = Option(_byteSize)
   val size = Option(_size)
   val ifExpr = Option(_ifExpr)
   val encoding = Option(_encoding)
