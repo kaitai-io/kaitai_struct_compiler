@@ -105,6 +105,11 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   }
 
   def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
+    if (attr.ifExpr.isDefined) {
+      out.puts(s"if (${attr.ifExpr.get}) {")
+      out.inc
+    }
+
     attr.repeat match {
       case Some("eos") =>
         out.puts(s"${attr.id} = new ${kaitaiType2JavaType(attr.dataType, true)}();")
@@ -127,6 +132,11 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
         }
       case None =>
         out.puts(s"this.${lowerCamelCase(attr.id)} = ${expr};")
+    }
+
+    if (attr.ifExpr.isDefined) {
+      out.dec
+      out.puts("}")
     }
   }
 
