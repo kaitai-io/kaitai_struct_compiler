@@ -68,12 +68,12 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
 
   override def classConstructorFooter: Unit = classFooter
 
-  override def attributeDeclaration(attrName: String, attrType: String): Unit = {
-    out.puts(s"private ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)};")
+  override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {
+    out.puts(s"private ${kaitaiType2JavaType(attrType, isArray)} ${lowerCamelCase(attrName)};")
   }
 
-  override def attributeReader(attrName: String, attrType: String): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)}() { return ${lowerCamelCase(attrName)}; }")
+  override def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit = {
+    out.puts(s"public ${kaitaiType2JavaType(attrType, isArray)} ${lowerCamelCase(attrName)}() { return ${lowerCamelCase(attrName)}; }")
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
@@ -107,7 +107,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
     attr.repeat match {
       case Some("eos") =>
-        out.puts(s"${attr.id} = new ArrayList<${type2class(attr.dataType)}>();")
+        out.puts(s"${attr.id} = new ${kaitaiType2JavaType(attr.dataType, true)}();")
         out.puts(s"while (!${io}.isEof()) {")
         out.inc
         out.puts(s"${attr.id}.add(${expr});")
@@ -116,8 +116,8 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"${attr.id} = new ArrayList<${type2class(attr.dataType)}>((int) (${repeatExpr}));")
-            out.puts(s"for (int i = 0; i < ${repeatExpr}; i++) {")
+            out.puts(s"${attr.id} = new ${kaitaiType2JavaType(attr.dataType, true)}((int) (${expression2Java(repeatExpr)}));")
+            out.puts(s"for (int i = 0; i < ${expression2Java(repeatExpr)}; i++) {")
             out.inc
             out.puts(s"${attr.id}.set(i, ${expr});")
             out.dec
@@ -144,30 +144,51 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     }
   }
 
-  override def instanceHeader(instName: String, dataType: String): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(dataType)} ${instName}() {")
+  override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
+    out.puts(s"public ${kaitaiType2JavaType(dataType, isArray)} ${instName}() {")
     out.inc
   }
 
   override def instanceFooter: Unit = classFooter
 
-  def kaitaiType2JavaType(attrType: String): String = {
-    attrType match {
-      case "u1" => "int"
-      case "u2" | "u2le" | "u2be" => "int"
-      case "u4" | "u4le" | "u4be" => "long"
-      case "u8" | "u8le" | "u8be" => "long"
+  def kaitaiType2JavaType(attrType: String, isArray: Boolean): String = {
+    if (isArray) {
+      val primType = attrType match {
+        case "u1" => "Integer"
+        case "u2" | "u2le" | "u2be" => "Integer"
+        case "u4" | "u4le" | "u4be" => "Long"
+        case "u8" | "u8le" | "u8be" => "Long"
 
-      case "s1" => "byte"
-      case "s2" | "s2le" | "s2be" => "short"
-      case "s4" | "s4le" | "s4be" => "int"
-      case "s8" | "s8le" | "s8be" => "long"
+        case "s1" => "Byte"
+        case "s2" | "s2le" | "s2be" => "Short"
+        case "s4" | "s4le" | "s4be" => "Int"
+        case "s8" | "s8le" | "s8be" => "Long"
 
-      case "str" | "strz" => "String"
+        case "str" | "strz" => "String"
 
-      case null => "byte[]"
+        case null => "byte[]"
 
-      case _ => type2class(attrType)
+        case _ => type2class(attrType)
+      }
+      s"ArrayList<${primType}>"
+    } else {
+      attrType match {
+        case "u1" => "int"
+        case "u2" | "u2le" | "u2be" => "int"
+        case "u4" | "u4le" | "u4be" => "long"
+        case "u8" | "u8le" | "u8be" => "long"
+
+        case "s1" => "byte"
+        case "s2" | "s2le" | "s2be" => "short"
+        case "s4" | "s4le" | "s4be" => "int"
+        case "s8" | "s8le" | "s8be" => "long"
+
+        case "str" | "strz" => "String"
+
+        case null => "byte[]"
+
+        case _ => type2class(attrType)
+      }
     }
   }
 

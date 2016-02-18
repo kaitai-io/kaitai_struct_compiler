@@ -25,4 +25,6 @@ case class AttrSpec(@JsonProperty("id") id: String,
   val encoding = Option(_encoding)
   val repeat = Option(_repeat)
   val repeatExpr = Option(_repeatExpr)
+
+  def isArray: Boolean = repeat.isDefined
 }

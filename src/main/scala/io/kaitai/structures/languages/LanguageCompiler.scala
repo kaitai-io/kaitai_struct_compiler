@@ -11,8 +11,8 @@ trait LanguageCompiler {
   def classConstructorHeader(name: String): Unit
   def classConstructorFooter: Unit
 
-  def attributeDeclaration(attrName: String, attrType: String): Unit
-  def attributeReader(attrName: String, attrType: String): Unit
+  def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit
+  def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit
 
   def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit
   def attrNoTypeWithSize(varName: String, size: String): Unit
@@ -23,6 +23,6 @@ trait LanguageCompiler {
   def normalIO: String
   def allocateIO(varName: String): String
 
-  def instanceHeader(instName: String, dataType: String): Unit
+  def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit
   def instanceFooter: Unit
 }

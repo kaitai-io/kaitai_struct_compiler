@@ -9,4 +9,7 @@ case class InstanceSpec(
   @JsonProperty("type") dataType: String,
   @JsonProperty("position_abs") positionAbs: String,
   @JsonProperty("size") size: String
-)
+) {
+  // TODO: implement repeats for instances
+  def isArray: Boolean = false
+}

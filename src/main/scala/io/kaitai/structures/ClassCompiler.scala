@@ -39,13 +39,13 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
   def compileClass(name: String, curClass: ClassSpec): Unit = {
     lang.classHeader(name)
 
-    curClass.seq.foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataType))
+    curClass.seq.foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataType, attr.isArray))
 
     lang.classConstructorHeader(name)
     curClass.seq.foreach((attr) => compileAttribute(attr, attr.id))
     lang.classConstructorFooter
 
-    curClass.seq.foreach((attr) => lang.attributeReader(attr.id, attr.dataType))
+    curClass.seq.foreach((attr) => lang.attributeReader(attr.id, attr.dataType, attr.isArray))
 
     // Recursive types
     curClass.types.foreach((typeMap) => typeMap.foreach {
@@ -99,7 +99,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
   }
 
   def compileInstance(instName: String, instSpec: InstanceSpec): Unit = {
-    lang.instanceHeader(instName, instSpec.dataType)
+    lang.instanceHeader(instName, instSpec.dataType, instSpec.isArray)
     lang.instanceFooter
   }
 

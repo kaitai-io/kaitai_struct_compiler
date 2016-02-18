@@ -42,9 +42,9 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
 
   override def classConstructorFooter: Unit = classFooter
 
-  override def attributeDeclaration(attrName: String, attrType: String): Unit = {}
+  override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: String): Unit = {
+  override def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit = {
     out.puts(s"attr_reader :${attrName}")
   }
 
@@ -114,7 +114,7 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
     }
   }
 
-  override def instanceHeader(instName: String, dataType: String): Unit = {
+  override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
     out.puts(s"def ${instName}")
     out.inc
   }
