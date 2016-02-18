@@ -132,7 +132,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
 
   def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
-      case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be"  =>
+      case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" =>
         s"_io.read${capitalize(attr.dataType)}()"
       case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
         endian match {
@@ -140,8 +140,9 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
           case None => throw new RuntimeException(s"type ${attr.dataType}: unable to parse with no default endianess defined")
         }
       case null => throw new RuntimeException("should never happen")
+
+      // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case "str" =>
-        // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
         ((attr.byteSize, attr.sizeEos)) match {
           case (Some(bs: String), false) =>
             s"_io.readStrByteLimit(${bs}, " + '"' + attr.encoding.get + "\")"
@@ -153,7 +154,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
             throw new RuntimeException("type str: only one of \"byte_size\" or \"size_eos\" must be specified")
         }
       case "strz" =>
-        "foo"
+        "_io.readStrz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
     }
   }
 
