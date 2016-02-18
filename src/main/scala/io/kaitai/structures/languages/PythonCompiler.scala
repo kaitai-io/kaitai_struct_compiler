@@ -123,7 +123,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
           case (Some(bs: String), false) =>
-            s"self.read_str_byte_limit(${bs}, " + '"' + attr.encoding.get + "\")"
+            s"self.read_str_byte_limit(${expression2Python(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "self.read_str_eos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
