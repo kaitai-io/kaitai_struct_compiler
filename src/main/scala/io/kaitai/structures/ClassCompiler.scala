@@ -16,7 +16,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
   val mapper = new ObjectMapper(new YAMLFactory())
   val desc: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
   val userTypes = gatherUserTypes(desc).toSet
-  val endian: Option[String] = Option(desc.meta("endian"))
+  val endian: Option[String] = desc.meta.get("endian")
 
   def gatherUserTypes(curClass: ClassSpec): List[String] = {
     curClass.types match {
