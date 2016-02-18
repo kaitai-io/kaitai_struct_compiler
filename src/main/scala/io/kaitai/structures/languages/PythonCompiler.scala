@@ -43,9 +43,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
 
   override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit = {
-    //out.puts(s"attr_reader :${attrName}")
-  }
+  override def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit = {}
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
     out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
