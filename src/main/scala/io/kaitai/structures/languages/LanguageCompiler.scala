@@ -25,4 +25,6 @@ trait LanguageCompiler {
 
   def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit
   def instanceFooter: Unit
+  def instanceCheckCacheAndReturn(instName: String): Unit
+  def instanceReturn(instName: String): Unit
 }

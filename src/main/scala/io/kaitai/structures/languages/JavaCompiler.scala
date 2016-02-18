@@ -145,11 +145,22 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   }
 
   override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(dataType, isArray)} ${instName}() {")
+    out.puts(s"public ${kaitaiType2JavaType(dataType, isArray)} ${instName}() throws IOException {")
     out.inc
   }
 
   override def instanceFooter: Unit = classFooter
+
+  override def instanceCheckCacheAndReturn(instName: String): Unit = {
+    out.puts(s"if (${lowerCamelCase(instName)} != null)")
+    out.inc
+    instanceReturn(instName)
+    out.dec
+  }
+
+  override def instanceReturn(instName: String): Unit = {
+    out.puts(s"return ${lowerCamelCase(instName)};")
+  }
 
   def kaitaiType2JavaType(attrType: String, isArray: Boolean): String = {
     if (isArray) {

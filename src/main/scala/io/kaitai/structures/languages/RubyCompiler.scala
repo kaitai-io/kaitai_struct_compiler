@@ -120,4 +120,12 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
   }
 
   override def instanceFooter: Unit = classFooter
+
+  override def instanceCheckCacheAndReturn(instName: String): Unit = {
+    out.puts(s"return @${instName} if @${instName}")
+  }
+
+  override def instanceReturn(instName: String): Unit = {
+    out.puts(s"@${instName}")
+  }
 }

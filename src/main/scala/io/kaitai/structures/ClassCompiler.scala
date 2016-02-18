@@ -99,7 +99,15 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
   }
 
   def compileInstance(instName: String, instSpec: InstanceSpec): Unit = {
+    // Declare caching variable
+    lang.attributeDeclaration(instName, instSpec.dataType, instSpec.isArray)
+
     lang.instanceHeader(instName, instSpec.dataType, instSpec.isArray)
+    // TODO: "inside" support
+    lang.instanceCheckCacheAndReturn(instName)
+    // FIXME: make AttrSpec <=> InstanceSpec interchangeable
+    compileAttribute(AttrSpec(instName, instSpec.dataType, null, null, null, instSpec.size, false, null, null, null, null, null, true, false), instName)
+    lang.instanceReturn(instName)
     lang.instanceFooter
   }
 
