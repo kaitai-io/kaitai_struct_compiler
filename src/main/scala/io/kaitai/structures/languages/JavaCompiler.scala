@@ -119,7 +119,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
             out.puts(s"${attr.id} = new ${kaitaiType2JavaType(attr.dataType, true)}((int) (${expression2Java(repeatExpr)}));")
             out.puts(s"for (int i = 0; i < ${expression2Java(repeatExpr)}; i++) {")
             out.inc
-            out.puts(s"${attr.id}.set(i, ${expr});")
+            out.puts(s"${attr.id}.add(${expr});")
             out.dec
             out.puts("}")
           case None =>
