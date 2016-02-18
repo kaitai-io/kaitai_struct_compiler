@@ -89,11 +89,12 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"@${attr.id} = Array.new(${repeatExpr}) {")
+            out.puts(s"self.${attr.id} = [None] * ${expression2Python(repeatExpr)}")
+            out.puts(s"for i in xrange(${expression2Python(repeatExpr)}):")
             out.inc
-            out.puts(expr)
+            out.puts(s"self.${attr.id}[i] = ${expr}")
             out.dec
-            out.puts("}")
+            out.puts
 
           case None =>
             throw new RuntimeException("repeat: expr, but no repeat-expr value given")
@@ -131,7 +132,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
             throw new RuntimeException("type str: only one of \"byte_size\" or \"size_eos\" must be specified")
         }
       case "strz" =>
-        "self.read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
+        "self.read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${bool2Py(attr.include)}, ${bool2Py(attr.consume)}, ${bool2Py(attr.eosError)})"
     }
   }
 
@@ -156,4 +157,16 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   override def instanceReturn(instName: String): Unit = {
     out.puts(s"return self.${instanceAttrName(instName)}")
   }
+
+  val ReInt = "^\\d+$".r
+  val ReLiteral = "^[A-Za-z][A-Za-z0-9_]*$".r
+
+  def expression2Python(s: String): String = {
+    s match {
+      case ReInt() => s
+      case ReLiteral() => s"self.${s}"
+    }
+  }
+
+  def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 }
