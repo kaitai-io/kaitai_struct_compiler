@@ -74,18 +74,18 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
 
   def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
-      out.puts(s"if ${attr.ifExpr.get}")
+      out.puts(s"if ${attr.ifExpr.get}:")
       out.inc
     }
 
     attr.repeat match {
       case Some("eos") =>
-        out.puts(s"@${attr.id} = []")
-        out.puts(s"while not ${io}.eof?")
+        out.puts(s"self.${attr.id} = []")
+        out.puts(s"while not self.is_io_eof(${io}):")
         out.inc
-        out.puts(s"@${attr.id} << ${expr}")
+        out.puts(s"self.${attr.id}.append(${expr})")
         out.dec
-        out.puts("end")
+        out.puts
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
@@ -103,7 +103,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
 
     if (attr.ifExpr.isDefined) {
       out.dec
-      out.puts("end")
+      out.puts
     }
   }
 
