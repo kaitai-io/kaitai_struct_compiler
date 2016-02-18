@@ -110,7 +110,21 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
           case None => throw new RuntimeException(s"Unable to parse ${attr.dataType} with no default endianess defined")
         }
       case null => throw new RuntimeException("should never happen")
-      case _ => "foo"
+      // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
+
+      case "str" =>
+        ((attr.byteSize, attr.sizeEos)) match {
+          case (Some(bs: String), false) =>
+            s"read_str_byte_limit(${bs}, " + '"' + attr.encoding.get + "\")"
+          case (None, true) =>
+            "read_str_eos(\"" + attr.encoding.get + "\")"
+          case (None, false) =>
+            throw new RuntimeException("type str: either \"byte_size\" or \"size_eos\" must be specified")
+          case (Some(_), true) =>
+            throw new RuntimeException("type str: only one of \"byte_size\" or \"size_eos\" must be specified")
+        }
+      case "strz" =>
+        "read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
     }
   }
 
