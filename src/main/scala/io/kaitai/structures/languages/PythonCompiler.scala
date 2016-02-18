@@ -10,6 +10,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
     out.puts(s"# This file was generated from '${sourceFileName}' with kaitai-structures compiler")
     out.puts
     out.puts("from kaitaistructures import KaitaiStruct")
+    out.puts("import array")
     out.puts
   }
 
@@ -47,15 +48,15 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"self.${attrName} = ensure_fixed_contents(${contents.size}, [${contents.mkString(", ")}])")
+    out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, [${contents.mkString(", ")}])")
   }
 
   override def attrNoTypeWithSize(varName: String, size: String) {
-    out.puts(s"self.${varName} = @_io.read(${size})")
+    out.puts(s"self.${varName} = self._io.read(${size})")
   }
 
   override def attrNoTypeWithSizeEos(varName: String) {
-    out.puts(s"self.${varName} = @_io.read)")
+    out.puts(s"self.${varName} = self._io.read()")
   }
 
   override def attrStdTypeParse(attr: AttrSpec, endian: Option[String]): Unit = {
@@ -63,10 +64,10 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   }
 
   override def attrUserTypeParse(attr: AttrSpec, io: String): Unit = {
-    handleAssignment(attr, s"${type2class(attr.dataType)}.new(${io}, self)", io)
+    handleAssignment(attr, s"self.${type2class(attr.dataType)}(${io}, self)", io)
   }
 
-  override def normalIO: String = "@_io"
+  override def normalIO: String = "self._io"
 
   override def allocateIO(varName: String): String = {
     out.puts(s"io = StringIO.new(@${varName})")
@@ -137,17 +138,23 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   }
 
   override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
-    out.puts(s"def ${instName}")
+    out.puts(s"def ${instName}(self):")
     out.inc
   }
+
+  override def instanceAttrName(instName: String) = s"_m_${instName}"
 
   override def instanceFooter: Unit = classFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"return @${instName} if @${instName}")
+    out.puts(s"if hasattr(self, '${instanceAttrName(instName)}'):")
+    out.inc
+    instanceReturn(instName)
+    out.dec
+    out.puts
   }
 
   override def instanceReturn(instName: String): Unit = {
-    out.puts(s"@${instName}")
+    out.puts(s"return self.${instanceAttrName(instName)}")
   }
 }

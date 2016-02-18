@@ -106,7 +106,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     // TODO: "inside" support
     lang.instanceCheckCacheAndReturn(instName)
     // FIXME: make AttrSpec <=> InstanceSpec interchangeable
-    compileAttribute(AttrSpec(instName, instSpec.dataType, null, null, null, instSpec.size, false, null, null, null, null, null, null, null, null), instName)
+    compileAttribute(AttrSpec(lang.instanceAttrName(instName), instSpec.dataType, null, null, null, instSpec.size, false, null, null, null, null, null, null, null, null), instName)
     lang.instanceReturn(instName)
     lang.instanceFooter
   }

@@ -173,6 +173,8 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     out.inc
   }
 
+  override def instanceAttrName(instName: String): String = instName
+
   override def instanceFooter: Unit = classFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {

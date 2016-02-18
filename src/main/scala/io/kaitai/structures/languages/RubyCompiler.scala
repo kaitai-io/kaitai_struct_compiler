@@ -143,6 +143,8 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
     out.inc
   }
 
+  override def instanceAttrName(instName: String): String = instName
+
   override def instanceFooter: Unit = classFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {

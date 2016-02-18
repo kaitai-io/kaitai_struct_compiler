@@ -24,6 +24,7 @@ trait LanguageCompiler {
   def allocateIO(varName: String): String
 
   def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit
+  def instanceAttrName(instName: String): String
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: String): Unit
   def instanceReturn(instName: String): Unit
