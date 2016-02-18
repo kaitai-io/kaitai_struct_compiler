@@ -239,7 +239,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   }
 
   val ReInt = "^\\d+$".r
-  val ReLiteral = "^[A-Za-z_][A-Za-z0-9_]*$".r
+  val ReLiteral = "^[A-Za-z][A-Za-z0-9_]*$".r
 
   def expression2Java(s: String): String = {
     s match {
