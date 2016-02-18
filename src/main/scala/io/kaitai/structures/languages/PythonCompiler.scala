@@ -136,6 +136,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   }
 
   override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
+    out.puts("@property")
     out.puts(s"def ${instName}(self):")
     out.inc
   }
