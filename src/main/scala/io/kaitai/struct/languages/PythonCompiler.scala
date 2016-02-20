@@ -7,9 +7,9 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   val out = new LanguageOutputWriter(outFileName, "    ")
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
-    out.puts(s"# This file was generated from '${sourceFileName}' with kaitai-structures compiler")
+    out.puts(s"# This file was generated from '${sourceFileName}' with kaitai_struct compiler")
     out.puts
-    out.puts("from kaitaistructures import KaitaiStruct")
+    out.puts("from kaitaistruct import KaitaiStruct")
     out.puts("import array")
     out.puts
   }

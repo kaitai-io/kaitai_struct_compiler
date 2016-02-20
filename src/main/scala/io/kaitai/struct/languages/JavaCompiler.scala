@@ -9,14 +9,14 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
     out = new LanguageOutputWriter(s"${outDir}/${type2class(topClassName)}.java", "    ")
 
-    out.puts(s"// This file was generated from '${sourceFileName}' with kaitai-structures compiler")
+    out.puts(s"// This file was generated from '${sourceFileName}' with kaitai-struct compiler")
     if (!destPackage.isEmpty) {
       out.puts
       out.puts(s"package ${destPackage};")
     }
     out.puts
-    out.puts("import io.kaitai.structures.KaitaiStruct;")
-    out.puts("import io.kaitai.structures.KaitaiStream;")
+    out.puts("import io.kaitai.struct.KaitaiStruct;")
+    out.puts("import io.kaitai.struct.KaitaiStream;")
     out.puts
     out.puts("import java.io.IOException;")
     out.puts("import java.util.ArrayList;")
@@ -77,7 +77,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.size}, new byte[] { ${contents.mkString(", ")} });")
+    out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
   override def attrNoTypeWithSize(varName: String, size: String): Unit = {

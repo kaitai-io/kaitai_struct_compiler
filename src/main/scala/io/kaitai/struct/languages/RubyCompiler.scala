@@ -7,16 +7,16 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
   val out = new LanguageOutputWriter(outFileName, "  ")
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
-    out.puts(s"# This file was generated from '${sourceFileName}' with kaitai-structures compiler")
+    out.puts(s"# This file was generated from '${sourceFileName}' with kaitai_struct compiler")
     out.puts
-    out.puts("require 'kaitai_structures'")
+    out.puts("require 'kaitai_struct'")
     out.puts
   }
 
   override def classHeader(name: String): Unit = {
     out.puts(s"class ${type2class(name)}")
     out.inc
-    out.puts("include KaitaiStructures")
+    out.puts("include KaitaiStruct")
     out.puts
 
     // Helper method to read from local file
