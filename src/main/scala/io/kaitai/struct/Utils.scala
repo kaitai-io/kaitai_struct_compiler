@@ -1,4 +1,4 @@
-package io.kaitai.structures
+package io.kaitai.struct
 
 object Utils {
   private val RDecimal = "^(-?[0-9]+)$".r

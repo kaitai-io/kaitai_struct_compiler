@@ -1,7 +1,7 @@
-package io.kaitai.structures.languages
+package io.kaitai.struct.languages
 
-import io.kaitai.structures.LanguageOutputWriter
-import io.kaitai.structures.format.AttrSpec
+import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.format.AttrSpec
 
 class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCompiler with UpperCamelCaseClasses {
   var out: LanguageOutputWriter = null

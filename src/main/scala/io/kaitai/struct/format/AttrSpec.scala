@@ -1,8 +1,8 @@
-package io.kaitai.structures.format
+package io.kaitai.struct.format
 
 import java.util.{List => JList, Map => JMap}
 
-import io.kaitai.structures.Utils
+import io.kaitai.struct.Utils
 
 import collection.JavaConversions._
 import com.fasterxml.jackson.annotation.JsonProperty

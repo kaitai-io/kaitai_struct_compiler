@@ -1,6 +1,6 @@
-package io.kaitai.structures
+package io.kaitai.struct
 
-import io.kaitai.structures.languages.{JavaCompiler, RubyCompiler}
+import io.kaitai.struct.languages.{JavaCompiler, RubyCompiler}
 
 object Main {
   def main(args : Array[String]): Unit = {

@@ -1,4 +1,4 @@
-package io.kaitai.structures
+package io.kaitai.struct
 
 import java.io.{FileOutputStream, OutputStreamWriter, PrintWriter}
 import java.nio.charset.StandardCharsets

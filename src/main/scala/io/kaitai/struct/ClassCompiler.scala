@@ -1,4 +1,4 @@
-package io.kaitai.structures
+package io.kaitai.struct
 
 import java.io.FileReader
 import java.nio.charset.Charset
@@ -6,8 +6,8 @@ import java.util
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import io.kaitai.structures.format._
-import io.kaitai.structures.languages.LanguageCompiler
+import io.kaitai.struct.format._
+import io.kaitai.struct.languages.LanguageCompiler
 
 import scala.collection.JavaConversions._
 

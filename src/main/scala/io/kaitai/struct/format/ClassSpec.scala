@@ -1,4 +1,4 @@
-package io.kaitai.structures.format
+package io.kaitai.struct.format
 
 import java.util.{List => JList, Map => JMap}
 

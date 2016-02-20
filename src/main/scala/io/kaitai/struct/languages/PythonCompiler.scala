@@ -1,63 +1,60 @@
-package io.kaitai.structures.languages
+package io.kaitai.struct.languages
 
-import io.kaitai.structures.LanguageOutputWriter
-import io.kaitai.structures.format.AttrSpec
+import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.format.AttrSpec
 
-class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamelCaseClasses {
-  val out = new LanguageOutputWriter(outFileName, "  ")
+class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCamelCaseClasses {
+  val out = new LanguageOutputWriter(outFileName, "    ")
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
     out.puts(s"# This file was generated from '${sourceFileName}' with kaitai-structures compiler")
     out.puts
-    out.puts("require 'kaitai_structures'")
+    out.puts("from kaitaistructures import KaitaiStruct")
+    out.puts("import array")
     out.puts
   }
 
   override def classHeader(name: String): Unit = {
-    out.puts(s"class ${type2class(name)}")
+    out.puts(s"class ${type2class(name)}(KaitaiStruct):")
     out.inc
-    out.puts("include KaitaiStructures")
-    out.puts
 
     // Helper method to read from local file
-    out.puts("def self.from_file(filename)")
+    out.puts("@staticmethod")
+    out.puts("def from_file(filename):")
     out.inc
-    out.puts("self.new(File.open(filename, 'rb:ASCII-8BIT'))")
+    out.puts(s"return ${type2class(name)}(open(filename, 'rb'))")
     out.dec
-    out.puts("end")
     out.puts
   }
 
   override def classFooter: Unit = {
     out.dec
-    out.puts("end")
+    out.puts
   }
 
   override def classConstructorHeader(name: String): Unit = {
-    out.puts("def initialize(io, parent = nil)")
+    out.puts("def __init__(self, _io, _parent = None):")
     out.inc
-    out.puts("@_io = io")
-    out.puts("@_parent = parent")
+    out.puts("self._io = _io")
+    out.puts("self._parent = _parent")
   }
 
   override def classConstructorFooter: Unit = classFooter
 
   override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit = {
-    out.puts(s"attr_reader :${attrName}")
-  }
+  override def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit = {}
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"@${attrName} = ensure_fixed_contents(${contents.size}, [${contents.mkString(", ")}])")
+    out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
   }
 
   override def attrNoTypeWithSize(varName: String, size: String) {
-    out.puts(s"this.${varName} = @_io.read(${size})")
+    out.puts(s"self.${varName} = self._io.read(${size})")
   }
 
   override def attrNoTypeWithSizeEos(varName: String) {
-    out.puts(s"this.${varName} = @_io.read)")
+    out.puts(s"self.${varName} = self._io.read()")
   }
 
   override def attrStdTypeParse(attr: AttrSpec, endian: Option[String]): Unit = {
@@ -65,10 +62,10 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
   }
 
   override def attrUserTypeParse(attr: AttrSpec, io: String): Unit = {
-    handleAssignment(attr, s"${type2class(attr.dataType)}.new(${io}, self)", io)
+    handleAssignment(attr, s"self.${type2class(attr.dataType)}(${io}, self)", io)
   }
 
-  override def normalIO: String = "@_io"
+  override def normalIO: String = "self._io"
 
   override def allocateIO(varName: String): String = {
     out.puts(s"io = StringIO.new(@${varName})")
@@ -77,46 +74,47 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
 
   def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
-      out.puts(s"if ${attr.ifExpr.get}")
+      out.puts(s"if ${attr.ifExpr.get}:")
       out.inc
     }
 
     attr.repeat match {
       case Some("eos") =>
-        out.puts(s"@${attr.id} = []")
-        out.puts(s"while not ${io}.eof?")
+        out.puts(s"self.${attr.id} = []")
+        out.puts(s"while not self.is_io_eof(${io}):")
         out.inc
-        out.puts(s"@${attr.id} << ${expr}")
+        out.puts(s"self.${attr.id}.append(${expr})")
         out.dec
-        out.puts("end")
+        out.puts
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"@${attr.id} = Array.new(${repeatExpr}) {")
+            out.puts(s"self.${attr.id} = [None] * ${expression2Python(repeatExpr)}")
+            out.puts(s"for i in xrange(${expression2Python(repeatExpr)}):")
             out.inc
-            out.puts(expr)
+            out.puts(s"self.${attr.id}[i] = ${expr}")
             out.dec
-            out.puts("}")
+            out.puts
 
           case None =>
             throw new RuntimeException("repeat: expr, but no repeat-expr value given")
         }
-      case None => out.puts(s"@${attr.id} = ${expr}")
+      case None => out.puts(s"self.${attr.id} = ${expr}")
     }
 
     if (attr.ifExpr.isDefined) {
       out.dec
-      out.puts("end")
+      out.puts
     }
   }
 
   def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
       case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be"  =>
-        s"read_${attr.dataType}"
+        s"self.read_${attr.dataType}()"
       case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
         endian match {
-          case Some(e) => s"read_${attr.dataType}${e}"
+          case Some(e) => s"self.read_${attr.dataType}${e}()"
           case None => throw new RuntimeException(s"Unable to parse ${attr.dataType} with no default endianess defined")
         }
       case null => throw new RuntimeException("should never happen")
@@ -125,33 +123,50 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
           case (Some(bs: String), false) =>
-            s"read_str_byte_limit(${bs}, " + '"' + attr.encoding.get + "\")"
+            s"self.read_str_byte_limit(${expression2Python(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
-            "read_str_eos(\"" + attr.encoding.get + "\")"
+            "self.read_str_eos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
             throw new RuntimeException("type str: either \"byte_size\" or \"size_eos\" must be specified")
           case (Some(_), true) =>
             throw new RuntimeException("type str: only one of \"byte_size\" or \"size_eos\" must be specified")
         }
       case "strz" =>
-        "read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
+        "self.read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${bool2Py(attr.include)}, ${bool2Py(attr.consume)}, ${bool2Py(attr.eosError)})"
     }
   }
 
   override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
-    out.puts(s"def ${instName}")
+    out.puts("@property")
+    out.puts(s"def ${instName}(self):")
     out.inc
   }
 
-  override def instanceAttrName(instName: String): String = instName
+  override def instanceAttrName(instName: String) = s"_m_${instName}"
 
   override def instanceFooter: Unit = classFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"return @${instName} if @${instName}")
+    out.puts(s"if hasattr(self, '${instanceAttrName(instName)}'):")
+    out.inc
+    instanceReturn(instName)
+    out.dec
+    out.puts
   }
 
   override def instanceReturn(instName: String): Unit = {
-    out.puts(s"@${instName}")
+    out.puts(s"return self.${instanceAttrName(instName)}")
   }
+
+  val ReInt = "^\\d+$".r
+  val ReLiteral = "^[A-Za-z][A-Za-z0-9_]*$".r
+
+  def expression2Python(s: String): String = {
+    s match {
+      case ReInt() => s
+      case ReLiteral() => s"self.${s}"
+    }
+  }
+
+  def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 }

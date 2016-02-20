@@ -1,6 +1,6 @@
-package io.kaitai.structures.languages
+package io.kaitai.struct.languages
 
-import io.kaitai.structures.format.AttrSpec
+import io.kaitai.struct.format.AttrSpec
 
 trait LanguageCompiler {
   def fileHeader(sourceFileName: String, topClassName: String): Unit
