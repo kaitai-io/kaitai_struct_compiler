@@ -2,10 +2,10 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/../runtime/java/kaitai_struct_java_runtime.iml" filepath="$PROJECT_DIR$/../runtime/java/kaitai_struct_java_runtime.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../tests/spec/java/kaitai_struct_java_tests.iml" filepath="$PROJECT_DIR$/../tests/spec/java/kaitai_struct_java_tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/kaitai_struct_compiler.iml" filepath="$PROJECT_DIR$/.idea/modules/kaitai_struct_compiler.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/kaitai_struct_compiler-build.iml" filepath="$PROJECT_DIR$/.idea/modules/kaitai_struct_compiler-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../runtime/java/kaitai_struct_java_runtime.iml" filepath="$PROJECT_DIR$/../runtime/java/kaitai_struct_java_runtime.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../tests/spec/java/kaitai_struct_java_tests.iml" filepath="$PROJECT_DIR$/../tests/spec/java/kaitai_struct_java_tests.iml" />
     </modules>
   </component>
 </project>
