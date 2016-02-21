@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.languages.{JavaCompiler, RubyCompiler}
+import io.kaitai.struct.languages.{PythonCompiler, JavaCompiler, RubyCompiler}
 
 object Main {
   def main(args : Array[String]): Unit = {
@@ -10,8 +10,9 @@ object Main {
     }
 
     val langCompiler = args(0) match {
-      case "ruby" => new RubyCompiler(args(2))
       case "java" => new JavaCompiler(args(2))
+      case "python" => new PythonCompiler(args(2))
+      case "ruby" => new RubyCompiler(args(2))
     }
 
     val compiler = new ClassCompiler(args(1), langCompiler)
