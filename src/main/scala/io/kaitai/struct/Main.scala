@@ -6,7 +6,8 @@ import io.kaitai.struct.languages.{PythonCompiler, JavaCompiler, RubyCompiler}
 
 object Main {
   def allInputFilesInDir(dir: String): List[String] = {
-    new File(dir).listFiles.filter((f) =>
+    val f = new File(dir)
+    f.listFiles.filter((f) =>
       f.isFile && f.getName.endsWith(".ksy")
     ).map(_.toString).toList
   }
@@ -21,10 +22,10 @@ object Main {
       case "all" =>
         val outDir = args(2)
         allInputFilesInDir(args(1)).foreach((fn) => {
-          val origId = fn.replace(".ksy", "")
+          val origId = new File(fn).getName.replace(".ksy", "")
           new ClassCompiler(fn, new JavaCompiler(s"${outDir}/java")).compile
-          new ClassCompiler(fn, new PythonCompiler(s"${outDir}/python/${origId}.py}")).compile
-          new ClassCompiler(fn, new RubyCompiler(s"${outDir}/ruby/${origId}.rb}")).compile
+          new ClassCompiler(fn, new PythonCompiler(s"${outDir}/python/${origId}.py")).compile
+          new ClassCompiler(fn, new RubyCompiler(s"${outDir}/ruby/${origId}.rb")).compile
         })
         return
       case "java" => new JavaCompiler(args(2))
