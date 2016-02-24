@@ -46,3 +46,41 @@ class AttrSpec(
     }
   }
 }
+
+object AttrSpec {
+  def create(
+              id: String = null,
+              dataType: String = null,
+              process: String = null,
+              contents: Object = null,
+              byteSize: String = null,
+              size: String = null,
+              sizeEos: Boolean = false,
+              ifExpr: String = null,
+              encoding: String = null,
+              repeat: String = null,
+              repeatExpr: String = null,
+              terminator: String = null,
+              consume: String = null,
+              include: String = null,
+              eosError: String = null
+            ): AttrSpec = {
+    new AttrSpec(
+      id,
+      dataType,
+      process,
+      contents,
+      byteSize,
+      size,
+      sizeEos,
+      ifExpr,
+      encoding,
+      repeat,
+      repeatExpr,
+      terminator,
+      consume,
+      include,
+      eosError
+    )
+  }
+}
