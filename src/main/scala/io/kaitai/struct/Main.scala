@@ -12,6 +12,17 @@ object Main {
     ).map(_.toString).toList
   }
 
+  def safeGuardAll(procName: String, f: () => Unit): Unit = {
+    try {
+      f.apply
+      Console.print(s" $procName")
+    } catch {
+      case e: Error =>
+        Console.println(s" $procName!")
+        e.printStackTrace()
+    }
+  }
+
   def main(args : Array[String]): Unit = {
     if (args.length != 3) {
       Console.println("Usage: compiler <lang> <input.yaml> <output.lang>")
@@ -26,12 +37,9 @@ object Main {
           val origId = new File(fn).getName.replace(".ksy", "")
           Console.print(s"${origId} ->")
 
-          new ClassCompiler(fn, new JavaCompiler(s"${outDir}/java/src/${javaPackage.replace('.', '/')}", javaPackage)).compile
-          Console.print(" java")
-          new ClassCompiler(fn, new PythonCompiler(s"${outDir}/python/${origId}.py")).compile
-          Console.print(" py")
-          new ClassCompiler(fn, new RubyCompiler(s"${outDir}/ruby/${origId}.rb")).compile
-          Console.print(" rb")
+          safeGuardAll("java", () => new ClassCompiler(fn, new JavaCompiler(s"${outDir}/java/src/${javaPackage.replace('.', '/')}", javaPackage)).compile)
+          safeGuardAll("py", () => new ClassCompiler(fn, new PythonCompiler(s"${outDir}/python/${origId}.py")).compile)
+          safeGuardAll("rb", () => new ClassCompiler(fn, new RubyCompiler(s"${outDir}/ruby/${origId}.rb")).compile)
 
           Console.println
         })
