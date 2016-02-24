@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.{Utils, LanguageOutputWriter}
 import io.kaitai.struct.format.AttrSpec
 
 class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
@@ -143,10 +143,10 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   override def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
       case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" =>
-        s"_io.read${capitalize(attr.dataType)}()"
+        s"_io.read${Utils.capitalize(attr.dataType)}()"
       case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
         endian match {
-          case Some(e) => s"_io.read${capitalize(attr.dataType)}${e}()"
+          case Some(e) => s"_io.read${Utils.capitalize(attr.dataType)}${e}()"
           case None => throw new RuntimeException(s"type ${attr.dataType}: unable to parse with no default endianess defined")
         }
       case null => throw new RuntimeException("should never happen")
@@ -229,13 +229,12 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     }
   }
 
-  def lowerCamelCase(s: String) = {
-    val firstWord :: restWords = s.split("_").toList
-    (firstWord :: restWords.map(capitalize)).mkString
-  }
-
-  def capitalize(x: String): String = {
-    x.charAt(0).toUpper + x.substring(1)
+  def lowerCamelCase(s: String): String = {
+    if (s.startsWith("_raw_")) {
+      return "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))
+    } else {
+      Utils.lowerCamelCase(s)
+    }
   }
 
   val ReInt = "^\\d+$".r

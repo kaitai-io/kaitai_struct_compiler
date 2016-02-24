@@ -11,4 +11,13 @@ object Utils {
       case RHex(hex) => Some(Integer.parseInt(hex, 16))
     }
   }
+
+  def lowerCamelCase(s: String): String = {
+    val firstWord :: restWords = s.split("_").toList
+    (firstWord :: restWords.map(capitalize)).mkString
+  }
+
+  def capitalize(s: String): String = {
+    s.charAt(0).toUpper + s.substring(1)
+  }
 }
