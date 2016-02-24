@@ -68,6 +68,10 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
     "io"
   }
 
+  override def seek(io: String, pos: String): Unit = {
+    out.puts(s"${io}.seek(${expression2Python(pos)})")
+  }
+
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
       out.puts(s"if ${attr.ifExpr.get}:")

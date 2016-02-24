@@ -103,9 +103,12 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     lang.attributeDeclaration(instName, instSpec.dataType, instSpec.isArray)
 
     lang.instanceHeader(instName, instSpec.dataType, instSpec.isArray)
-    // TODO: "inside" support
     lang.instanceCheckCacheAndReturn(instName)
+
+    // TODO: "inside" support
+    instSpec.positionAbs.foreach((pos) => lang.seek(lang.normalIO, pos))
     compileAttribute(instSpec, lang.instanceAttrName(instName))
+
     lang.instanceReturn(instName)
     lang.instanceFooter
   }

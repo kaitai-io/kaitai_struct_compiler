@@ -22,6 +22,7 @@ trait LanguageCompiler {
 
   def normalIO: String
   def allocateIO(varName: String): String
+  def seek(io: String, pos: String): Unit
 
   def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit
   def instanceAttrName(instName: String): String

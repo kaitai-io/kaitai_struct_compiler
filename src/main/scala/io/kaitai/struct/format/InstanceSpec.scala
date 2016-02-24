@@ -22,6 +22,7 @@ class InstanceSpec(
   @JsonProperty("include") _include: String,
   @JsonProperty("eos_error") _eosError: String,
 
-  @JsonProperty("position_abs") positionAbs: String
+  @JsonProperty("position_abs") _positionAbs: String
 ) extends AttrSpec(id, dataType, process, contents, _byteSize, _size, sizeEos, _ifExpr, _encoding, _repeat, _repeatExpr, _terminator, _consume, _include, _eosError) {
+  val positionAbs = Option(_positionAbs)
 }

@@ -100,6 +100,10 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     ioName
   }
 
+  override def seek(io: String, pos: String): Unit = {
+    out.puts(s"${io}.seek(${expression2Java(pos)});")
+  }
+
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
       out.puts(s"if (${attr.ifExpr.get}) {")

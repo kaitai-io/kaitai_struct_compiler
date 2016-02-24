@@ -71,6 +71,10 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
     "io"
   }
 
+  override def seek(io: String, pos: String): Unit = {
+    out.puts(s"${io}.seek(${pos})")
+  }
+
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
       out.puts(s"if ${attr.ifExpr.get}")
