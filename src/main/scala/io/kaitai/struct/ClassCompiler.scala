@@ -10,6 +10,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.LanguageCompiler
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.ListBuffer
 
 class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
   val reader = new FileReader(yamlFilename)
@@ -39,13 +40,11 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
   def compileClass(name: String, curClass: ClassSpec): Unit = {
     lang.classHeader(name)
 
-    curClass.seq.foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataType, attr.isArray))
+    val extraAttrs = ListBuffer[AttrSpec]()
 
     lang.classConstructorHeader(name)
-    curClass.seq.foreach((attr) => compileAttribute(attr, attr.id))
+    curClass.seq.foreach((attr) => compileAttribute(attr, attr.id, extraAttrs))
     lang.classConstructorFooter
-
-    curClass.seq.foreach((attr) => lang.attributeReader(attr.id, attr.dataType, attr.isArray))
 
     // Recursive types
     curClass.types.foreach((typeMap) => typeMap.foreach {
@@ -53,21 +52,26 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     })
 
     curClass.instances.foreach((instanceMap) => instanceMap.foreach {
-      case (instName, instSpec) => compileInstance(instName, instSpec)
+      case (instName, instSpec) => compileInstance(instName, instSpec, extraAttrs)
     })
+
+    // Attributes declarations and readers
+    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataType, attr.isArray))
+    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataType, attr.isArray))
 
     // TODO: maps
 
     lang.classFooter
   }
 
-  def compileAttribute(attr: AttrSpec, id: String): Unit = {
+  def compileAttribute(attr: AttrSpec, id: String, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     if (attr.contents != null) {
       lang.attrFixedContentsParse(id, parseContentSpec(attr))
     } else {
       if (userTypes.contains(attr.dataType)) {
         val newIO = if (compileAttributeNoType(attr, s"_raw_${id}")) {
           // we have a fixed buffer, thus we shall create separate IO for it
+          extraAttrs += AttrSpec.create(s"_raw_${id}")
           lang.allocateIO(s"_raw_${id}")
         } else {
           lang.normalIO
@@ -98,7 +102,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     }
   }
 
-  def compileInstance(instName: String, instSpec: InstanceSpec): Unit = {
+  def compileInstance(instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Declare caching variable
     lang.attributeDeclaration(instName, instSpec.dataType, instSpec.isArray)
 
@@ -107,7 +111,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
 
     // TODO: "inside" support
     instSpec.positionAbs.foreach((pos) => lang.seek(lang.normalIO, pos))
-    compileAttribute(instSpec, lang.instanceAttrName(instName))
+    compileAttribute(instSpec, lang.instanceAttrName(instName), extraAttrs)
 
     lang.instanceReturn(instName)
     lang.instanceFooter
