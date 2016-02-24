@@ -11,6 +11,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
     out.puts
     out.puts("from kaitaistruct import KaitaiStruct")
     out.puts("import array")
+    out.puts("import cStringIO")
     out.puts
   }
 
@@ -50,7 +51,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   }
 
   override def attrNoTypeWithSize(varName: String, size: String) {
-    out.puts(s"self.${varName} = self._io.read(${size})")
+    out.puts(s"self.${varName} = self._io.read(${expression2Python(size)})")
   }
 
   override def attrNoTypeWithSizeEos(varName: String) {
@@ -64,7 +65,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   override def normalIO: String = "self._io"
 
   override def allocateIO(varName: String): String = {
-    out.puts(s"io = StringIO.new(@${varName})")
+    out.puts(s"io = cStringIO.StringIO(self.${varName})")
     "io"
   }
 
