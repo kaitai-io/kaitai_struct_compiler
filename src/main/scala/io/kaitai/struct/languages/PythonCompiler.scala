@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.LanguageOutputWriter
-import io.kaitai.struct.format.{ProcessExpr, AttrSpec}
+import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
 
 class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
   val out = new LanguageOutputWriter(outFileName, "    ")
@@ -62,7 +62,19 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
     handleAssignment(id, attr, s"self.${type2class(attr.dataType)}(${io}, self)", io)
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = ???
+  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
+    proc match {
+      case ProcessXor(xorValue) =>
+        out.puts(s"self.$varDest = array.array('B', self.$varSrc);")
+        out.puts(s"for i in xrange(len(self.$varDest)):")
+        out.inc
+        out.puts(s"self.$varDest[i] ^= ${expression2Python(xorValue)}")
+        out.dec
+        out.puts
+        out.puts(s"self.$varDest = self.$varDest.tostring()")
+    }
+  }
+
 
   override def normalIO: String = "self._io"
 
@@ -162,11 +174,12 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
   }
 
   val ReInt = "^\\d+$".r
+  val ReHexInt = "^0x[0-9a-fA-F]+$".r
   val ReLiteral = "^[A-Za-z][A-Za-z0-9_]*$".r
 
   def expression2Python(s: String): String = {
     s match {
-      case ReInt() => s
+      case ReInt() | ReHexInt() => s
       case ReLiteral() => s"self.${s}"
     }
   }
