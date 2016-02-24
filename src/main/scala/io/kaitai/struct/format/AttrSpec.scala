@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 class AttrSpec(
   @JsonProperty("id") val id: String,
   @JsonProperty("type") val dataType: String,
-  @JsonProperty("process") process: String,
+  @JsonProperty("process") _process: String,
   @JsonProperty("contents") val contents: Object,
   @JsonProperty("byte_size") _byteSize: String,
   @JsonProperty("size") _size: String,
@@ -37,6 +37,8 @@ class AttrSpec(
   val eosError = boolFromStr(_eosError, true)
 
   def isArray: Boolean = repeat.isDefined
+
+  val process = ProcessExpr.fromStr(_process)
 
   private def boolFromStr(s: String, byDef: Boolean): Boolean = {
     s match {

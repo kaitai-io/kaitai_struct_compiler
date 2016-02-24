@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.{Utils, LanguageOutputWriter}
-import io.kaitai.struct.format.AttrSpec
+import io.kaitai.struct.format.{ProcessExpr, AttrSpec}
 
 class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
   var out: LanguageOutputWriter = null
@@ -91,6 +91,8 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
     handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this)", io)
   }
+
+  override def attrProcess(proc: ProcessExpr, var1: String, var2: String): Unit = ???
 
   override def normalIO: String = "_io"
 

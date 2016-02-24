@@ -78,9 +78,14 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
         }
         lang.attrUserTypeParse(id, attr, newIO)
       } else if (attr.dataType == null) {
-        if (!compileAttributeNoType(attr, attr.id)) {
+        val rawId = attr.process match {
+          case None => id
+          case Some(_) => s"_raw_${id}"
+        }
+        if (!compileAttributeNoType(attr, rawId)) {
           throw new RuntimeException("no type encountered and bad size / size_eos spec")
         }
+        attr.process.foreach((proc) => lang.attrProcess(proc, rawId, id))
       } else {
         lang.attrStdTypeParse(attr, endian)
       }

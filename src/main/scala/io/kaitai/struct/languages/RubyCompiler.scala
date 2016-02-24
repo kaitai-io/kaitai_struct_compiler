@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.LanguageOutputWriter
-import io.kaitai.struct.format.AttrSpec
+import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
 
 class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
   val out = new LanguageOutputWriter(outFileName, "  ")
@@ -62,6 +62,13 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
 
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
     handleAssignment(id, attr, s"${type2class(attr.dataType)}.new(${io}, self)", io)
+  }
+
+  override def attrProcess(proc: ProcessExpr, var1: String, var2: String): Unit = {
+    out.puts(proc match {
+      case ProcessXor(xorValue) =>
+        s"@$var2 = @$var1.bytes.map { |x| (x ^ $xorValue) }.pack('C*')"
+    })
   }
 
   override def normalIO: String = "@_io"
