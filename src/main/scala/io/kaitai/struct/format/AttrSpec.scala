@@ -7,22 +7,23 @@ import io.kaitai.struct.Utils
 import collection.JavaConversions._
 import com.fasterxml.jackson.annotation.JsonProperty
 
-case class AttrSpec(@JsonProperty("id") id: String,
-                    @JsonProperty("type") dataType: String,
-                    @JsonProperty("process") process: String,
-                    @JsonProperty("contents") contents: Object,
-                    @JsonProperty("byte_size") _byteSize: String,
-                    @JsonProperty("size") _size: String,
-                    @JsonProperty("size_eos") sizeEos: Boolean,
-                    @JsonProperty("if") _ifExpr: String,
-                    @JsonProperty("encoding") _encoding: String,
-                    @JsonProperty("repeat") _repeat: String,
-                    @JsonProperty("repeat-expr") _repeatExpr: String,
-                    @JsonProperty("terminator") _terminator: String,
-                    @JsonProperty("consume") _consume: String,
-                    @JsonProperty("include") _include: String,
-                    @JsonProperty("eos_error") _eosError: String
-                  ) {
+class AttrSpec(
+  @JsonProperty("id") val id: String,
+  @JsonProperty("type") val dataType: String,
+  @JsonProperty("process") process: String,
+  @JsonProperty("contents") val contents: Object,
+  @JsonProperty("byte_size") _byteSize: String,
+  @JsonProperty("size") _size: String,
+  @JsonProperty("size_eos") val sizeEos: Boolean,
+  @JsonProperty("if") _ifExpr: String,
+  @JsonProperty("encoding") _encoding: String,
+  @JsonProperty("repeat") _repeat: String,
+  @JsonProperty("repeat-expr") _repeatExpr: String,
+  @JsonProperty("terminator") _terminator: String,
+  @JsonProperty("consume") _consume: String,
+  @JsonProperty("include") _include: String,
+  @JsonProperty("eos_error") _eosError: String
+) {
   val byteSize = Option(_byteSize)
   val size = Option(_size)
   val ifExpr = Option(_ifExpr)

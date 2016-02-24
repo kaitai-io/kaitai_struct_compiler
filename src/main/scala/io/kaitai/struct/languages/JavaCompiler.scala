@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.format.AttrSpec
 
-class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCompiler with UpperCamelCaseClasses {
+class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
   var out: LanguageOutputWriter = null
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
@@ -88,12 +88,8 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytesFull();")
   }
 
-  override def attrStdTypeParse(attr: AttrSpec, endian: Option[String]): Unit = {
-    handleAssignment(attr, stdTypeParseExpr(attr, endian), normalIO)
-  }
-
-  override def attrUserTypeParse(attr: AttrSpec, io: String): Unit = {
-    handleAssignment(attr, s"new ${type2class(attr.dataType)}(${io}, this)", io)
+  override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
+    handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this)", io)
   }
 
   override def normalIO: String = "_io"
@@ -104,7 +100,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     ioName
   }
 
-  def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
+  override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
       out.puts(s"if (${attr.ifExpr.get}) {")
       out.inc
@@ -112,26 +108,26 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
 
     attr.repeat match {
       case Some("eos") =>
-        out.puts(s"${attr.id} = new ${kaitaiType2JavaType(attr.dataType, true)}();")
+        out.puts(s"${id} = new ${kaitaiType2JavaType(attr.dataType, true)}();")
         out.puts(s"while (!${io}.isEof()) {")
         out.inc
-        out.puts(s"${attr.id}.add(${expr});")
+        out.puts(s"${id}.add(${expr});")
         out.dec
         out.puts("}")
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"${attr.id} = new ${kaitaiType2JavaType(attr.dataType, true)}((int) (${expression2Java(repeatExpr)}));")
+            out.puts(s"${id} = new ${kaitaiType2JavaType(attr.dataType, true)}((int) (${expression2Java(repeatExpr)}));")
             out.puts(s"for (int i = 0; i < ${expression2Java(repeatExpr)}; i++) {")
             out.inc
-            out.puts(s"${attr.id}.add(${expr});")
+            out.puts(s"${id}.add(${expr});")
             out.dec
             out.puts("}")
           case None =>
             throw new RuntimeException("repeat: expr, but no repeat-expr value given")
         }
       case None =>
-        out.puts(s"this.${lowerCamelCase(attr.id)} = ${expr};")
+        out.puts(s"this.${lowerCamelCase(id)} = ${expr};")
     }
 
     if (attr.ifExpr.isDefined) {
@@ -140,7 +136,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     }
   }
 
-  def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
+  override def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
       case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" =>
         s"_io.read${capitalize(attr.dataType)}()"

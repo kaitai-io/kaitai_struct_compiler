@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.format.AttrSpec
 
-class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamelCaseClasses {
+class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
   val out = new LanguageOutputWriter(outFileName, "  ")
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
@@ -60,12 +60,8 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
     out.puts(s"this.${varName} = @_io.read)")
   }
 
-  override def attrStdTypeParse(attr: AttrSpec, endian: Option[String]): Unit = {
-    handleAssignment(attr, stdTypeParseExpr(attr, endian), normalIO)
-  }
-
-  override def attrUserTypeParse(attr: AttrSpec, io: String): Unit = {
-    handleAssignment(attr, s"${type2class(attr.dataType)}.new(${io}, self)", io)
+  override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
+    handleAssignment(id, attr, s"${type2class(attr.dataType)}.new(${io}, self)", io)
   }
 
   override def normalIO: String = "@_io"
@@ -75,7 +71,7 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
     "io"
   }
 
-  def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
+  override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
       out.puts(s"if ${attr.ifExpr.get}")
       out.inc
@@ -83,16 +79,16 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
 
     attr.repeat match {
       case Some("eos") =>
-        out.puts(s"@${attr.id} = []")
+        out.puts(s"@${id} = []")
         out.puts(s"while not ${io}.eof?")
         out.inc
-        out.puts(s"@${attr.id} << ${expr}")
+        out.puts(s"@${id} << ${expr}")
         out.dec
         out.puts("end")
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"@${attr.id} = Array.new(${repeatExpr}) {")
+            out.puts(s"@${id} = Array.new(${repeatExpr}) {")
             out.inc
             out.puts(expr)
             out.dec
@@ -101,7 +97,7 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
           case None =>
             throw new RuntimeException("repeat: expr, but no repeat-expr value given")
         }
-      case None => out.puts(s"@${attr.id} = ${expr}")
+      case None => out.puts(s"@${id} = ${expr}")
     }
 
     if (attr.ifExpr.isDefined) {

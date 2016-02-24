@@ -72,7 +72,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
         } else {
           lang.normalIO
         }
-        lang.attrUserTypeParse(attr, newIO)
+        lang.attrUserTypeParse(id, attr, newIO)
       } else if (attr.dataType == null) {
         if (!compileAttributeNoType(attr, attr.id)) {
           throw new RuntimeException("no type encountered and bad size / size_eos spec")
@@ -105,8 +105,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     lang.instanceHeader(instName, instSpec.dataType, instSpec.isArray)
     // TODO: "inside" support
     lang.instanceCheckCacheAndReturn(instName)
-    // FIXME: make AttrSpec <=> InstanceSpec interchangeable
-    compileAttribute(AttrSpec(lang.instanceAttrName(instName), instSpec.dataType, null, null, null, instSpec.size, false, null, null, null, null, null, null, null, null), instName)
+    compileAttribute(instSpec, lang.instanceAttrName(instName))
     lang.instanceReturn(instName)
     lang.instanceFooter
   }

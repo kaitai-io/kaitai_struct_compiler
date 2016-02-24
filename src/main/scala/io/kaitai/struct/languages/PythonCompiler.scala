@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.format.AttrSpec
 
-class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCamelCaseClasses {
+class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
   val out = new LanguageOutputWriter(outFileName, "    ")
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
@@ -57,12 +57,8 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
     out.puts(s"self.${varName} = self._io.read()")
   }
 
-  override def attrStdTypeParse(attr: AttrSpec, endian: Option[String]): Unit = {
-    handleAssignment(attr, stdTypeParseExpr(attr, endian), normalIO)
-  }
-
-  override def attrUserTypeParse(attr: AttrSpec, io: String): Unit = {
-    handleAssignment(attr, s"self.${type2class(attr.dataType)}(${io}, self)", io)
+  override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
+    handleAssignment(id, attr, s"self.${type2class(attr.dataType)}(${io}, self)", io)
   }
 
   override def normalIO: String = "self._io"
@@ -72,7 +68,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
     "io"
   }
 
-  def handleAssignment(attr: AttrSpec, expr: String, io: String): Unit = {
+  override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
       out.puts(s"if ${attr.ifExpr.get}:")
       out.inc
@@ -80,26 +76,26 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
 
     attr.repeat match {
       case Some("eos") =>
-        out.puts(s"self.${attr.id} = []")
+        out.puts(s"self.${id} = []")
         out.puts(s"while not self.is_io_eof(${io}):")
         out.inc
-        out.puts(s"self.${attr.id}.append(${expr})")
+        out.puts(s"self.${id}.append(${expr})")
         out.dec
         out.puts
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"self.${attr.id} = [None] * ${expression2Python(repeatExpr)}")
+            out.puts(s"self.${id} = [None] * ${expression2Python(repeatExpr)}")
             out.puts(s"for i in xrange(${expression2Python(repeatExpr)}):")
             out.inc
-            out.puts(s"self.${attr.id}[i] = ${expr}")
+            out.puts(s"self.${id}[i] = ${expr}")
             out.dec
             out.puts
 
           case None =>
             throw new RuntimeException("repeat: expr, but no repeat-expr value given")
         }
-      case None => out.puts(s"self.${attr.id} = ${expr}")
+      case None => out.puts(s"self.${id} = ${expr}")
     }
 
     if (attr.ifExpr.isDefined) {
@@ -108,7 +104,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
     }
   }
 
-  def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
+  override def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
       case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be"  =>
         s"self.read_${attr.dataType}()"

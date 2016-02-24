@@ -18,7 +18,7 @@ trait LanguageCompiler {
   def attrNoTypeWithSize(varName: String, size: String): Unit
   def attrNoTypeWithSizeEos(varName: String): Unit
   def attrStdTypeParse(attr: AttrSpec, endian: Option[String]): Unit
-  def attrUserTypeParse(attr: AttrSpec, io: String): Unit
+  def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit
 
   def normalIO: String
   def allocateIO(varName: String): String
