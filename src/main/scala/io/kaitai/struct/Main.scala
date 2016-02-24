@@ -24,9 +24,16 @@ object Main {
         val outDir = args(2)
         allInputFilesInDir(args(1)).foreach((fn) => {
           val origId = new File(fn).getName.replace(".ksy", "")
+          Console.print(s"${origId} ->")
+
           new ClassCompiler(fn, new JavaCompiler(s"${outDir}/java/src/${javaPackage.replace('.', '/')}", javaPackage)).compile
+          Console.print(" java")
           new ClassCompiler(fn, new PythonCompiler(s"${outDir}/python/${origId}.py")).compile
+          Console.print(" py")
           new ClassCompiler(fn, new RubyCompiler(s"${outDir}/ruby/${origId}.rb")).compile
+          Console.print(" rb")
+
+          Console.println
         })
         return
       case "java" => new JavaCompiler(args(2))
