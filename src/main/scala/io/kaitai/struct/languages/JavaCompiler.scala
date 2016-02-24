@@ -92,7 +92,7 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this)", io)
   }
 
-  override def attrProcess(proc: ProcessExpr, var1: String, var2: String): Unit = ???
+  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = ???
 
   override def normalIO: String = "_io"
 

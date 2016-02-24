@@ -62,7 +62,7 @@ class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCam
     handleAssignment(id, attr, s"self.${type2class(attr.dataType)}(${io}, self)", io)
   }
 
-  override def attrProcess(proc: ProcessExpr, var1: String, var2: String): Unit = ???
+  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = ???
 
   override def normalIO: String = "self._io"
 

@@ -64,10 +64,10 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
     handleAssignment(id, attr, s"${type2class(attr.dataType)}.new(${io}, self)", io)
   }
 
-  override def attrProcess(proc: ProcessExpr, var1: String, var2: String): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     out.puts(proc match {
       case ProcessXor(xorValue) =>
-        s"@$var2 = @$var1.bytes.map { |x| (x ^ $xorValue) }.pack('C*')"
+        s"@$varDest = @$varSrc.bytes.map { |x| (x ^ $xorValue) }.pack('C*')"
     })
   }
 
