@@ -20,10 +20,11 @@ object Main {
 
     val langCompiler = args(0) match {
       case "all" =>
+        val javaPackage = "io.kaitai.struct.testformats"
         val outDir = args(2)
         allInputFilesInDir(args(1)).foreach((fn) => {
           val origId = new File(fn).getName.replace(".ksy", "")
-          new ClassCompiler(fn, new JavaCompiler(s"${outDir}/java")).compile
+          new ClassCompiler(fn, new JavaCompiler(s"${outDir}/java/src/${javaPackage.replace('.', '/')}", javaPackage)).compile
           new ClassCompiler(fn, new PythonCompiler(s"${outDir}/python/${origId}.py")).compile
           new ClassCompiler(fn, new RubyCompiler(s"${outDir}/ruby/${origId}.rb")).compile
         })
