@@ -57,7 +57,7 @@ class RubyCompiler(outFileName: String) extends LanguageCompiler with UpperCamel
   }
 
   override def attrNoTypeWithSizeEos(varName: String) {
-    out.puts(s"@${varName} = @_io.read)")
+    out.puts(s"@${varName} = @_io.read")
   }
 
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
