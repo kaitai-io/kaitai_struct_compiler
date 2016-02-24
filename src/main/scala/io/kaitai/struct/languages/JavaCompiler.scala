@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.{Utils, LanguageOutputWriter}
-import io.kaitai.struct.format.{ProcessExpr, AttrSpec}
+import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
 
 class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
   var out: LanguageOutputWriter = null
@@ -92,7 +92,17 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
     handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this)", io)
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = ???
+  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
+    proc match {
+      case ProcessXor(xorValue) =>
+        out.puts(s"this.$varDest = new byte[this.$varSrc.length];")
+        out.puts(s"for (int i = 0; i < this.$varSrc.length; i++) {")
+        out.inc
+        out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression2Java(xorValue)}));")
+        out.dec
+        out.puts("}")
+    }
+  }
 
   override def normalIO: String = "_io"
 
@@ -240,11 +250,12 @@ class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCom
   }
 
   val ReInt = "^\\d+$".r
+  val ReHexInt = "^0x[0-9a-fA-F]+$".r
   val ReLiteral = "^[A-Za-z][A-Za-z0-9_]*$".r
 
   def expression2Java(s: String): String = {
     s match {
-      case ReInt() => s
+      case ReInt() | ReHexInt() => s
       case ReLiteral() => lowerCamelCase(s)
     }
   }

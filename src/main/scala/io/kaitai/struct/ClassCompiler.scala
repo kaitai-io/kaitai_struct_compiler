@@ -78,13 +78,19 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
         }
         lang.attrUserTypeParse(id, attr, newIO)
       } else if (attr.dataType == null) {
+        // use intermediate variable name, if we'll be doing post-processing
         val rawId = attr.process match {
           case None => id
-          case Some(_) => s"_raw_${id}"
+          case Some(_) =>
+            extraAttrs += AttrSpec.create(s"_raw_${id}")
+            s"_raw_${id}"
         }
+
         if (!compileAttributeNoType(attr, rawId)) {
           throw new RuntimeException("no type encountered and bad size / size_eos spec")
         }
+
+        // apply post-processing
         attr.process.foreach((proc) => lang.attrProcess(proc, rawId, id))
       } else {
         lang.attrStdTypeParse(attr, endian)
