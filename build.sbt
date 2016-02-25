@@ -4,7 +4,10 @@ version := "0.1"
 
 scalaVersion := "2.11.7"
 
+resolvers += Resolver.sonatypeRepo("public")
+
 libraryDependencies ++= Seq(
+  "com.github.scopt" %% "scopt" % "3.4.0",
   "org.yaml" % "snakeyaml" % "1.16",
   "com.fasterxml.jackson.core" % "jackson-core" % "2.1.1",
   "com.fasterxml.jackson.core" % "jackson-annotations" % "2.1.1",
@@ -30,3 +33,10 @@ maintainer in Windows := "Kaitai Project"
 maintainer in Debian := "Mikhail Yakshin <greycat@kaitai.io>"
 
 mainClass in Compile := Some("io.kaitai.struct.Main")
+
+lazy val compiler = (project in file(".")).
+  enablePlugins(BuildInfoPlugin).
+    settings(
+      buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+      buildInfoPackage := "io.kaitai.struct"
+    )
