@@ -2,8 +2,16 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.Utils
 import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
+import io.kaitai.struct.languages.JavaScriptCompiler.{KaitaiStreamAPI, DataStreamAPI, RuntimeAPI}
 
-class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+object JavaScriptCompiler {
+  sealed abstract class RuntimeAPI
+  case object DataStreamAPI extends RuntimeAPI
+  case object KaitaiStreamAPI extends RuntimeAPI
+}
+
+class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = KaitaiStreamAPI) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
   override def indent: String = "  "
 
@@ -73,7 +81,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
   }
 
   override def attrNoTypeWithSize(varName: String, size: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression2Java(size)});")
+    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression2JavaScript(size)});")
   }
 
   override def attrNoTypeWithSizeEos(varName: String): Unit = {
@@ -90,7 +98,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
         out.puts(s"this.$varDest = new byte[this.$varSrc.length];")
         out.puts(s"for (int i = 0; i < this.$varSrc.length; i++) {")
         out.inc
-        out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression2Java(xorValue)}));")
+        out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression2JavaScript(xorValue)}));")
         out.dec
         out.puts("}")
     }
@@ -105,7 +113,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
   }
 
   override def seek(io: String, pos: String): Unit = {
-    out.puts(s"${io}.seek(${expression2Java(pos)});")
+    out.puts(s"${io}.seek(${expression2JavaScript(pos)});")
   }
 
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
@@ -125,8 +133,8 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"${id} = new Array(${expression2Java(repeatExpr)});")
-            out.puts(s"for (int i = 0; i < ${expression2Java(repeatExpr)}; i++) {")
+            out.puts(s"${id} = new Array(${expression2JavaScript(repeatExpr)});")
+            out.puts(s"for (int i = 0; i < ${expression2JavaScript(repeatExpr)}; i++) {")
             out.inc
             out.puts(s"${id}.add(${expr});")
             out.dec
@@ -145,10 +153,41 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
   }
 
   override def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
+    api match {
+      case DataStreamAPI => stdTypeDataStream(attr, endian)
+      case KaitaiStreamAPI => stdTypeKaitaiStream(attr, endian)
+    }
+  }
+
+  def stdTypeDataStream(attr: AttrSpec, endian: Option[String]): String = {
+    val exactType = attr.dataType match {
+      case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
+        endian match {
+          case Some(e) => s"${attr.dataType}${e}"
+          case None => throw new RuntimeException(s"type ${attr.dataType}: unable to parse with no default endianess defined")
+        }
+      case t => t
+    }
+
+    exactType match {
+      case "u1" => "_io.readUint8()"
+      case "s1" => "_io.readSint8()"
+      case "u2le" => "_io.readUint16(1)"
+      case "u2be" => "_io.readUint16()"
+      case "u4le" => "_io.readUint32(1)"
+      case "u4be" => "_io.readUint32()"
+      // "u8le" | "u8be"
+      case "s2le" => "_io.readInt16(1)"
+      case "s2be" => "_io.readInt16()"
+      case "s4le" => "_io.readInt32(1)"
+      case "s4be" => "_io.readInt32()"
+      // "s8le" | "s8be"
+    }
+  }
+
+  def stdTypeKaitaiStream(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
-      case "u1" =>
-        s"_io.readUint8()"
-      case "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" =>
+      case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" =>
         s"_io.read${Utils.capitalize(attr.dataType)}()"
       case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
         endian match {
@@ -206,7 +245,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
   val ReHexInt = "^0x[0-9a-fA-F]+$".r
   val ReLiteral = "^[A-Za-z][A-Za-z0-9_]*$".r
 
-  def expression2Java(s: String): String = {
+  def expression2JavaScript(s: String): String = {
     s match {
       case ReInt() | ReHexInt() => s
       case ReLiteral() => lowerCamelCase(s)
