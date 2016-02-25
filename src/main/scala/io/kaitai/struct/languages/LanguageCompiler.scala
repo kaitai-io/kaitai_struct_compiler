@@ -20,7 +20,7 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def fileHeader(sourceFileName: String, topClassName: String): Unit
 
   def classHeader(name: String): Unit
-  def classFooter: Unit
+  def classFooter(name: String): Unit
 
   def classConstructorHeader(name: String): Unit
   def classConstructorFooter: Unit

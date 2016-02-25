@@ -63,7 +63,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
 
     // TODO: maps
 
-    lang.classFooter
+    lang.classFooter(name)
   }
 
   def compileAttribute(attr: AttrSpec, id: String, extraAttrs: ListBuffer[AttrSpec]): Unit = {

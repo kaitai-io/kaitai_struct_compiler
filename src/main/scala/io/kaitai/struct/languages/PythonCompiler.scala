@@ -29,7 +29,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts
   }
 
-  override def classFooter: Unit = {
+  override def classFooter(name: String): Unit = {
     out.dec
     out.puts
   }
@@ -41,7 +41,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts("self._parent = _parent")
   }
 
-  override def classConstructorFooter: Unit = classFooter
+  override def classConstructorFooter: Unit = classFooter(null)
 
   override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {}
 
@@ -160,7 +160,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
   override def instanceAttrName(instName: String) = s"_m_${instName}"
 
-  override def instanceFooter: Unit = classFooter
+  override def instanceFooter: Unit = classConstructorFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
     out.puts(s"if hasattr(self, '${instanceAttrName(instName)}'):")

@@ -39,7 +39,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts("}")
   }
 
-  override def classFooter: Unit = {
+  override def classFooter(name: String): Unit = {
     out.dec
     out.puts("}")
   }
@@ -65,7 +65,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.inc
   }
 
-  override def classConstructorFooter: Unit = classFooter
+  override def classConstructorFooter: Unit = classFooter(null)
 
   override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {
     out.puts(s"private ${kaitaiType2JavaType(attrType, isArray)} ${lowerCamelCase(attrName)};")
@@ -186,7 +186,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   override def instanceAttrName(instName: String): String = instName
 
-  override def instanceFooter: Unit = classFooter
+  override def instanceFooter: Unit = classConstructorFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
     out.puts(s"if (${lowerCamelCase(instName)} != null)")

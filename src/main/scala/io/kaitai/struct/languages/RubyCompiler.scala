@@ -29,7 +29,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts
   }
 
-  override def classFooter: Unit = {
+  override def classFooter(name: String = null): Unit = {
     out.dec
     out.puts("end")
   }
@@ -41,7 +41,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts("@_parent = parent")
   }
 
-  override def classConstructorFooter: Unit = classFooter
+  override def classConstructorFooter: Unit = classFooter()
 
   override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {}
 
@@ -153,7 +153,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
 
   override def instanceAttrName(instName: String): String = instName
 
-  override def instanceFooter: Unit = classFooter
+  override def instanceFooter: Unit = classFooter()
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
     out.puts(s"return @${instName} if @${instName}")
