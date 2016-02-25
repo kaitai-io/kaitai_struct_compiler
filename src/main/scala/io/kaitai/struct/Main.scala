@@ -14,7 +14,7 @@ object Main {
     javaPackage: String = ""
   )
 
-  val ALL_LANGS = Set("java", "python", "ruby")
+  val ALL_LANGS = Set("java", "javascript", "python", "ruby")
   val VALID_LANGS = ALL_LANGS + "all"
 
   def parseCommandLine(args: Array[String]): Option[Config] = {
@@ -70,6 +70,7 @@ object Main {
 
       val lc = lang match {
         case "java" => new JavaCompiler(config.verbose, s"${outDir}/src/${config.javaPackage.replace('.', '/')}", config.javaPackage)
+        case "javascript" => new JavaScriptCompiler(config.verbose, outDir)
         case "python" => new PythonCompiler(config.verbose, outDir)
         case "ruby" => new RubyCompiler(config.verbose, outDir)
       }
