@@ -51,3 +51,6 @@ src_managed/
 project/boot/
 .history
 .cache
+
+# Unpacking complete binaries for testing purposes
+/runnable
