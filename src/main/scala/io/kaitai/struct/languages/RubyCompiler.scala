@@ -4,7 +4,7 @@ import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
 
 class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
-  override def outFileName(topClassName: String): String = s"${topClassName}.py"
+  override def outFileName(topClassName: String): String = s"${topClassName}.rb"
   override def indent: String = "  "
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
