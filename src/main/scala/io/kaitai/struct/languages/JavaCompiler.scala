@@ -3,12 +3,11 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.{Utils, LanguageOutputWriter}
 import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
 
-class JavaCompiler(outDir: String, destPackage: String = "") extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
-  var out: LanguageOutputWriter = null
+class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
+  override def indent: String = "    "
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
-    out = new LanguageOutputWriter(s"${outDir}/${type2class(topClassName)}.java", "    ")
-
     out.puts(s"// This file was generated from '${sourceFileName}' with kaitai-struct compiler")
     if (!destPackage.isEmpty) {
       out.puts

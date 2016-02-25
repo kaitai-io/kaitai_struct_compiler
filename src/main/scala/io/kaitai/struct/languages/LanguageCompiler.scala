@@ -1,8 +1,22 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.format.{ProcessExpr, AttrSpec}
 
-trait LanguageCompiler {
+abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
+  protected var out: LanguageOutputWriter = null
+
+  def open(topClassName: String): Unit = {
+    val fn = s"$outDir/${outFileName(topClassName)}"
+    if (verbose)
+      Console.println(s"... => ${fn}")
+    out = new LanguageOutputWriter(fn, indent)
+  }
+  def close = out.close
+
+  def outFileName(topClassName: String): String
+  def indent: String
+
   def fileHeader(sourceFileName: String, topClassName: String): Unit
 
   def classHeader(name: String): Unit

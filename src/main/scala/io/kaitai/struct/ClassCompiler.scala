@@ -33,8 +33,10 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
 
   def compile {
     val topClass = desc.meta("id")
+    lang.open(topClass)
     lang.fileHeader(yamlFilename, topClass)
     compileClass(topClass, desc)
+    lang.close
   }
 
   def compileClass(name: String, curClass: ClassSpec): Unit = {

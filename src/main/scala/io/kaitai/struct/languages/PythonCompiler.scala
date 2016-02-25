@@ -3,8 +3,9 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
 
-class PythonCompiler(outFileName: String) extends LanguageCompiler with UpperCamelCaseClasses with EveryReadIsExpression {
-  val out = new LanguageOutputWriter(outFileName, "    ")
+class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+  override def outFileName(topClassName: String): String = s"${topClassName}.py"
+  override def indent: String = "    "
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
     out.puts(s"# This file was generated from '${sourceFileName}' with kaitai_struct compiler")
