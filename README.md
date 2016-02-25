@@ -43,6 +43,46 @@ with the source code then.
 
 ## Usage
 
+`kaitai-struct-compiler [options] <file>...`
+
+Common options:
+
+* `<file>...` — source files (.ksy)
+* `-t <language> | --target <language>` — target languages (`java`, `python`, `ruby`, `all`)
+  * `all` is a special case: it compiles all possible target
+    languages, creating language-specific directories (i.e. `java/`,
+    `python/`, `ruby/`) inside output directory, and then creating
+    output module(s) for each language starting from there
+* `-d <directory> | --outdir <directory>` — output directory (filenames will be auto-generated)
+
+Language-specific options:
+
+* `--java-package <package>` — Java package (Java only, default: root package)
+
+Misc options:
+
+* `--verbose` — verbose output
+* `--help` — display usage information and exit
+* `--version` — output version information and exit
+
+A few examples, given that file `foo.ksy` exists in current directory
+and describes format with ID `foo`:
+
+* `kaitai-struct-compiler -t python foo.ksy` — compile format in
+  `foo.ksy`, write output in current directory to file `foo.py`
+* `kaitai-struct-compiler -t java foo.ksy` — compile format in
+  `foo.ksy`, create "src" subdir in current one and write output in
+  `src/Foo.java`
+* `kaitai-struct-compiler -t java --java-package org.example foo.ksy`
+  — compile format in `foo.ksy`, create "src/org/example" subdir tree
+  in current one and write output in `src/org/example/Foo.java`;
+  resulting file will bear correct Java package clause.
+* `kaitai-struct-compiler -t all -d /tmp/out --java-package org.example foo.ksy`
+  — compile format in `foo.ksy`, creating a hierarchy of files:
+  * `/tmp/out/java/src/org/example/Foo.java`
+  * `/tmp/out/python/foo.py`
+  * `/tmp/out/ruby/foo.rb`
+
 ## Development
 
 KS compiler itself is written in [Scala language](http://www.scala-lang.org/).
