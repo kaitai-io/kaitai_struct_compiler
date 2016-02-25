@@ -18,6 +18,7 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def indent: String
 
   def fileHeader(sourceFileName: String, topClassName: String): Unit
+  def fileFooter(topClassName: String): Unit = {}
 
   def classHeader(name: String): Unit
   def classFooter(name: String): Unit

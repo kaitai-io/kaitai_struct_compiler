@@ -36,6 +36,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     lang.open(topClass)
     lang.fileHeader(yamlFilename, topClass)
     compileClass(topClass, desc)
+    lang.fileFooter(topClass)
     lang.close
   }
 
