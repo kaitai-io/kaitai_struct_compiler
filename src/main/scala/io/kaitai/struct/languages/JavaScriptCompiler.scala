@@ -104,7 +104,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     }
   }
 
-  override def normalIO: String = "_io"
+  override def normalIO: String = "this._io"
 
   override def allocateIO(varName: String): String = {
     val ioName = s"_io_${lowerCamelCase(varName)}"
@@ -214,28 +214,34 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   }
 
   override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
-    out.puts(s"${type2class(className)}.prototype.someInstance = function() {")
+    out.puts(s"${type2class(className)}.prototype.${lowerCamelCase(instName)} = function() {")
     out.inc
   }
 
-  override def instanceAttrName(instName: String): String = instName
+  override def instanceAttrName(instName: String) = s"_m_${instName}"
 
   override def instanceFooter: Unit = classConstructorFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"if (${lowerCamelCase(instName)} != null)")
+    out.puts(s"if (this.${instanceAttrName(instName)} !== undefined)")
     out.inc
     instanceReturn(instName)
     out.dec
   }
 
   override def instanceReturn(instName: String): Unit = {
-    out.puts(s"return ${lowerCamelCase(instName)};")
+    out.puts(s"return this.${instanceAttrName(instName)};")
   }
 
   def lowerCamelCase(s: String): String = {
-    if (s.startsWith("_raw_")) {
-      return "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))
+    if (s.charAt(0) == '_') {
+      if (s.startsWith("_raw_")) {
+        return "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))
+      } else if (s.startsWith("_m_")) {
+        return "_m_" + Utils.lowerCamelCase(s.substring("_m_".length))
+      } else {
+        throw new RuntimeException(s"internal error: don't know how to make '$s' a field name")
+      }
     } else {
       Utils.lowerCamelCase(s)
     }
@@ -248,7 +254,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   def expression2JavaScript(s: String): String = {
     s match {
       case ReInt() | ReHexInt() => s
-      case ReLiteral() => lowerCamelCase(s)
+      case ReLiteral() => s"this.${lowerCamelCase(s)}"
     }
   }
 }
