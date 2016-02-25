@@ -116,7 +116,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
 
     attr.repeat match {
       case Some("eos") =>
-        out.puts(s"${id} = new ${kaitaiType2JavaType(attr.dataType, true)}();")
+        out.puts(s"${id} = [];")
         out.puts(s"while (!${io}.isEof()) {")
         out.inc
         out.puts(s"${id}.add(${expr});")
@@ -125,7 +125,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"${id} = new ${kaitaiType2JavaType(attr.dataType, true)}((int) (${expression2Java(repeatExpr)}));")
+            out.puts(s"${id} = new Array(${expression2Java(repeatExpr)});")
             out.puts(s"for (int i = 0; i < ${expression2Java(repeatExpr)}; i++) {")
             out.inc
             out.puts(s"${id}.add(${expr});")
@@ -174,8 +174,8 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
     }
   }
 
-  override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(dataType, isArray)} ${instName}() throws IOException {")
+  override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
+    out.puts(s"${type2class(className)}.prototype.someInstance = function() {")
     out.inc
   }
 
@@ -192,47 +192,6 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String) extends LanguageCompi
 
   override def instanceReturn(instName: String): Unit = {
     out.puts(s"return ${lowerCamelCase(instName)};")
-  }
-
-  def kaitaiType2JavaType(attrType: String, isArray: Boolean): String = {
-    if (isArray) {
-      val primType = attrType match {
-        case "u1" => "Integer"
-        case "u2" | "u2le" | "u2be" => "Integer"
-        case "u4" | "u4le" | "u4be" => "Long"
-        case "u8" | "u8le" | "u8be" => "Long"
-
-        case "s1" => "Byte"
-        case "s2" | "s2le" | "s2be" => "Short"
-        case "s4" | "s4le" | "s4be" => "Int"
-        case "s8" | "s8le" | "s8be" => "Long"
-
-        case "str" | "strz" => "String"
-
-        case null => "byte[]"
-
-        case _ => type2class(attrType)
-      }
-      s"ArrayList<${primType}>"
-    } else {
-      attrType match {
-        case "u1" => "int"
-        case "u2" | "u2le" | "u2be" => "int"
-        case "u4" | "u4le" | "u4be" => "long"
-        case "u8" | "u8le" | "u8be" => "long"
-
-        case "s1" => "byte"
-        case "s2" | "s2le" | "s2be" => "short"
-        case "s4" | "s4le" | "s4be" => "int"
-        case "s8" | "s8le" | "s8be" => "long"
-
-        case "str" | "strz" => "String"
-
-        case null => "byte[]"
-
-        case _ => type2class(attrType)
-      }
-    }
   }
 
   def lowerCamelCase(s: String): String = {

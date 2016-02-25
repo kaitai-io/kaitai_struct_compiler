@@ -55,7 +55,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     })
 
     curClass.instances.foreach((instanceMap) => instanceMap.foreach {
-      case (instName, instSpec) => compileInstance(instName, instSpec, extraAttrs)
+      case (instName, instSpec) => compileInstance(name, instName, instSpec, extraAttrs)
     })
 
     // Attributes declarations and readers
@@ -116,11 +116,11 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     }
   }
 
-  def compileInstance(instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+  def compileInstance(className: String, instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Declare caching variable
     lang.attributeDeclaration(instName, instSpec.dataType, instSpec.isArray)
 
-    lang.instanceHeader(instName, instSpec.dataType, instSpec.isArray)
+    lang.instanceHeader(className, instName, instSpec.dataType, instSpec.isArray)
     lang.instanceCheckCacheAndReturn(instName)
 
     // TODO: "inside" support

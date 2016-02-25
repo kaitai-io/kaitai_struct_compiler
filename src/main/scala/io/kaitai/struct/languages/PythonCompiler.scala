@@ -152,7 +152,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     }
   }
 
-  override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
+  override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
     out.puts("@property")
     out.puts(s"def ${instName}(self):")
     out.inc

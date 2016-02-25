@@ -41,7 +41,7 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def allocateIO(varName: String): String
   def seek(io: String, pos: String): Unit
 
-  def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit
+  def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit
   def instanceAttrName(instName: String): String
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: String): Unit

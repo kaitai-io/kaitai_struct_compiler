@@ -146,7 +146,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     }
   }
 
-  override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
+  override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
     out.puts(s"def ${instName}")
     out.inc
   }

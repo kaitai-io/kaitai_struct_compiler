@@ -179,7 +179,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     }
   }
 
-  override def instanceHeader(instName: String, dataType: String, isArray: Boolean): Unit = {
+  override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
     out.puts(s"public ${kaitaiType2JavaType(dataType, isArray)} ${instName}() throws IOException {")
     out.inc
   }
