@@ -124,19 +124,19 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
 
     attr.repeat match {
       case Some("eos") =>
-        out.puts(s"${id} = [];")
+        out.puts(s"this.${id} = [];")
         out.puts(s"while (!${io}.isEof()) {")
         out.inc
-        out.puts(s"${id}.add(${expr});")
+        out.puts(s"this.${id}.push(${expr});")
         out.dec
         out.puts("}")
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"${id} = new Array(${expression2JavaScript(repeatExpr)});")
+            out.puts(s"this.${id} = new Array(${expression2JavaScript(repeatExpr)});")
             out.puts(s"for (int i = 0; i < ${expression2JavaScript(repeatExpr)}; i++) {")
             out.inc
-            out.puts(s"${id}.add(${expr});")
+            out.puts(s"this.${id}[i] = ${expr};")
             out.dec
             out.puts("}")
           case None =>
