@@ -134,7 +134,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
         attr.repeatExpr match {
           case Some(repeatExpr) =>
             out.puts(s"this.${id} = new Array(${expression2JavaScript(repeatExpr)});")
-            out.puts(s"for (int i = 0; i < ${expression2JavaScript(repeatExpr)}; i++) {")
+            out.puts(s"for (var i = 0; i < ${expression2JavaScript(repeatExpr)}; i++) {")
             out.inc
             out.puts(s"this.${id}[i] = ${expr};")
             out.dec
@@ -200,7 +200,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
           case (Some(bs: String), false) =>
-            s"_io.readStrByteLimit(${bs}, " + '"' + attr.encoding.get + "\")"
+            s"_io.readStrByteLimit(${expression2JavaScript(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "_io.readStrEos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
