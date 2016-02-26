@@ -166,7 +166,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
           case (Some(bs: String), false) =>
-            s"_io.readStrByteLimit(${bs}, " + '"' + attr.encoding.get + "\")"
+            s"_io.readStrByteLimit(${expression2Java(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "_io.readStrEos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
