@@ -44,7 +44,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   }
 
   override def classHeader(name: String): Unit = {
-    out.puts(s"${type2class(name)} = (function() {")
+    out.puts(s"var ${type2class(name)} = (function() {")
     out.inc
   }
 
