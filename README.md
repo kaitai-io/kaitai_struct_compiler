@@ -48,12 +48,14 @@ with the source code then.
 Common options:
 
 * `<file>...` — source files (.ksy)
-* `-t <language> | --target <language>` — target languages (`java`, `python`, `ruby`, `all`)
+* `-t <language> | --target <language>` — target languages (`java`,
+  `javascript`, `python`, `ruby`, `all`)
   * `all` is a special case: it compiles all possible target
-    languages, creating language-specific directories (i.e. `java/`,
-    `python/`, `ruby/`) inside output directory, and then creating
-    output module(s) for each language starting from there
-* `-d <directory> | --outdir <directory>` — output directory (filenames will be auto-generated)
+    languages, creating language-specific directories (as per language
+    identifiers) inside output directory, and then creating output
+    module(s) for each language starting from there
+* `-d <directory> | --outdir <directory>` — output directory
+  (filenames will be auto-generated)
 
 Language-specific options:
 
