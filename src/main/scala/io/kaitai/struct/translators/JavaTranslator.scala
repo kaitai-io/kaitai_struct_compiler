@@ -1,10 +1,11 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 
 object JavaTranslator extends BaseTranslator {
-  override def doName(s: String) = s"$s"
+  override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     if (op == Ast.cmpop.Eq) {

@@ -1,9 +1,10 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast.expr
 
 object JavaScriptTranslator extends BaseTranslator {
-  override def doName(s: String) = s"this.$s"
+  override def doName(s: String) = s"this.${Utils.lowerCamelCase(s)}"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
