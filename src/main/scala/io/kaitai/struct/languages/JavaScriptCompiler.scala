@@ -83,7 +83,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   }
 
   override def attrNoTypeWithSize(varName: String, size: Ast.expr): Unit = {
-    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression2JavaScript(size)});")
+    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression(size)});")
   }
 
   override def attrNoTypeWithSizeEos(varName: String): Unit = {
@@ -100,7 +100,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
         out.puts(s"this.$varDest = new byte[this.$varSrc.length];")
         out.puts(s"for (int i = 0; i < this.$varSrc.length; i++) {")
         out.inc
-        out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression2JavaScript(xorValue)}));")
+        out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression(xorValue)}));")
         out.dec
         out.puts("}")
     }
@@ -115,7 +115,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   }
 
   override def seek(io: String, pos: Ast.expr): Unit = {
-    out.puts(s"${io}.seek(${expression2JavaScript(pos)});")
+    out.puts(s"${io}.seek(${expression(pos)});")
   }
 
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
@@ -135,8 +135,8 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"this.${id} = new Array(${expression2JavaScript(repeatExpr)});")
-            out.puts(s"for (var i = 0; i < ${expression2JavaScript(repeatExpr)}; i++) {")
+            out.puts(s"this.${id} = new Array(${expression(repeatExpr)});")
+            out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
             out.inc
             out.puts(s"this.${id}[i] = ${expr};")
             out.dec
@@ -202,7 +202,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
           case (Some(bs: Ast.expr), false) =>
-            s"_io.readStrByteLimit(${expression2JavaScript(bs)}, " + '"' + attr.encoding.get + "\")"
+            s"_io.readStrByteLimit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "_io.readStrEos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
@@ -249,7 +249,5 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     }
   }
 
-  def expression2JavaScript(s: Ast.expr): String = {
-    JavaScriptTranslator.translate(s)
-  }
+  override def expression(s: Ast.expr): String = JavaScriptTranslator.translate(s)
 }

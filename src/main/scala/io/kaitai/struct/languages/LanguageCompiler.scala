@@ -47,4 +47,6 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: String): Unit
   def instanceReturn(instName: String): Unit
+
+  def expression(e: Ast.expr): String
 }

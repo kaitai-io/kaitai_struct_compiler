@@ -54,7 +54,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
   }
 
   override def attrNoTypeWithSize(varName: String, size: Ast.expr) {
-    out.puts(s"self.${varName} = self._io.read(${expression2Python(size)})")
+    out.puts(s"self.${varName} = self._io.read(${expression(size)})")
   }
 
   override def attrNoTypeWithSizeEos(varName: String) {
@@ -71,7 +71,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
         out.puts(s"self.$varDest = array.array('B', self.$varSrc);")
         out.puts(s"for i in xrange(len(self.$varDest)):")
         out.inc
-        out.puts(s"self.$varDest[i] ^= ${expression2Python(xorValue)}")
+        out.puts(s"self.$varDest[i] ^= ${expression(xorValue)}")
         out.dec
         out.puts
         out.puts(s"self.$varDest = self.$varDest.tostring()")
@@ -86,12 +86,12 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
   }
 
   override def seek(io: String, pos: Ast.expr): Unit = {
-    out.puts(s"${io}.seek(${expression2Python(pos)})")
+    out.puts(s"${io}.seek(${expression(pos)})")
   }
 
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
-      out.puts(s"if ${expression2Python(attr.ifExpr.get)}:")
+      out.puts(s"if ${expression(attr.ifExpr.get)}:")
       out.inc
     }
 
@@ -106,8 +106,8 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"self.${id} = [None] * ${expression2Python(repeatExpr)}")
-            out.puts(s"for i in xrange(${expression2Python(repeatExpr)}):")
+            out.puts(s"self.${id} = [None] * ${expression(repeatExpr)}")
+            out.puts(s"for i in xrange(${expression(repeatExpr)}):")
             out.inc
             out.puts(s"self.${id}[i] = ${expr}")
             out.dec
@@ -140,7 +140,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
           case (Some(bs: Ast.expr), false) =>
-            s"self.read_str_byte_limit(${expression2Python(bs)}, " + '"' + attr.encoding.get + "\")"
+            s"self.read_str_byte_limit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "self.read_str_eos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
@@ -175,7 +175,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts(s"return self.${instanceAttrName(instName)}")
   }
 
-  def expression2Python(s: Ast.expr): String = PythonTranslator.translate(s)
+  override def expression(s: Ast.expr): String = PythonTranslator.translate(s)
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 }

@@ -82,7 +82,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   override def attrNoTypeWithSize(varName: String, size: Ast.expr): Unit = {
-    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression2Java(size)});")
+    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression(size)});")
   }
 
   override def attrNoTypeWithSizeEos(varName: String): Unit = {
@@ -99,7 +99,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
         out.puts(s"this.$varDest = new byte[this.$varSrc.length];")
         out.puts(s"for (int i = 0; i < this.$varSrc.length; i++) {")
         out.inc
-        out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression2Java(xorValue)}));")
+        out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression(xorValue)}));")
         out.dec
         out.puts("}")
     }
@@ -114,7 +114,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   override def seek(io: String, pos: Ast.expr): Unit = {
-    out.puts(s"${io}.seek(${expression2Java(pos)});")
+    out.puts(s"${io}.seek(${expression(pos)});")
   }
 
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
@@ -134,8 +134,8 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"${id} = new ${kaitaiType2JavaType(attr.dataType, true)}((int) (${expression2Java(repeatExpr)}));")
-            out.puts(s"for (int i = 0; i < ${expression2Java(repeatExpr)}; i++) {")
+            out.puts(s"${id} = new ${kaitaiType2JavaType(attr.dataType, true)}((int) (${expression(repeatExpr)}));")
+            out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
             out.inc
             out.puts(s"${id}.add(${expr});")
             out.dec
@@ -168,7 +168,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
           case (Some(bs: Ast.expr), false) =>
-            s"_io.readStrByteLimit(${expression2Java(bs)}, " + '"' + attr.encoding.get + "\")"
+            s"_io.readStrByteLimit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "_io.readStrEos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
@@ -250,7 +250,5 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     }
   }
 
-  def expression2Java(s: Ast.expr): String = {
-    JavaTranslator.translate(s)
-  }
+  override def expression(s: Ast.expr): String = JavaTranslator.translate(s)
 }
