@@ -3,6 +3,7 @@ package io.kaitai.struct.format
 import java.util.{List => JList, Map => JMap}
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.exprlang.Expressions
 
 import collection.JavaConversions._
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -24,12 +25,12 @@ class AttrSpec(
   @JsonProperty("include") _include: String,
   @JsonProperty("eos_error") _eosError: String
 ) {
-  val byteSize = Option(_byteSize)
-  val size = Option(_size)
-  val ifExpr = Option(_ifExpr)
+  val byteSize = Option(_byteSize).map(Expressions.parse)
+  val size = Option(_size).map(Expressions.parse)
+  val ifExpr = Option(_ifExpr).map(Expressions.parse)
   val encoding = Option(_encoding)
   val repeat = Option(_repeat)
-  val repeatExpr = Option(_repeatExpr)
+  val repeatExpr = Option(_repeatExpr).map(Expressions.parse)
   val terminator = Utils.strToOptInt(_terminator).getOrElse(0)
 
   val consume = boolFromStr(_consume, true)

@@ -1,5 +1,7 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.translators.JavaTranslator
 import io.kaitai.struct.{Utils, LanguageOutputWriter}
 import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
 
@@ -79,7 +81,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
-  override def attrNoTypeWithSize(varName: String, size: String): Unit = {
+  override def attrNoTypeWithSize(varName: String, size: Ast.expr): Unit = {
     out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression2Java(size)});")
   }
 
@@ -111,7 +113,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     ioName
   }
 
-  override def seek(io: String, pos: String): Unit = {
+  override def seek(io: String, pos: Ast.expr): Unit = {
     out.puts(s"${io}.seek(${expression2Java(pos)});")
   }
 
@@ -165,7 +167,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
-          case (Some(bs: String), false) =>
+          case (Some(bs: Ast.expr), false) =>
             s"_io.readStrByteLimit(${expression2Java(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "_io.readStrEos(\"" + attr.encoding.get + "\")"
@@ -248,14 +250,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     }
   }
 
-  val ReInt = "^\\d+$".r
-  val ReHexInt = "^0x[0-9a-fA-F]+$".r
-  val ReLiteral = "^[A-Za-z][A-Za-z0-9_]*$".r
-
-  def expression2Java(s: String): String = {
-    s match {
-      case ReInt() | ReHexInt() => s
-      case ReLiteral() => lowerCamelCase(s)
-    }
+  def expression2Java(s: Ast.expr): String = {
+    JavaTranslator.translate(s)
   }
 }

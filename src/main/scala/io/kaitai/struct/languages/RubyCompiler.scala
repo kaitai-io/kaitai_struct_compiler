@@ -1,7 +1,10 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
+import io.kaitai.struct.translators.RubyTranslator
 
 class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
   override def outFileName(topClassName: String): String = s"${topClassName}.rb"
@@ -53,8 +56,8 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts(s"@${attrName} = ensure_fixed_contents(${contents.size}, [${contents.mkString(", ")}])")
   }
 
-  override def attrNoTypeWithSize(varName: String, size: String) {
-    out.puts(s"@${varName} = @_io.read(${size})")
+  override def attrNoTypeWithSize(varName: String, size: Ast.expr) {
+    out.puts(s"@${varName} = @_io.read(${expression(size)})")
   }
 
   override def attrNoTypeWithSizeEos(varName: String) {
@@ -68,7 +71,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     out.puts(proc match {
       case ProcessXor(xorValue) =>
-        s"@$varDest = @$varSrc.bytes.map { |x| (x ^ $xorValue) }.pack('C*')"
+        s"@$varDest = @$varSrc.bytes.map { |x| (x ^ (${expression(xorValue)})) }.pack('C*')"
     })
   }
 
@@ -79,13 +82,13 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     "io"
   }
 
-  override def seek(io: String, pos: String): Unit = {
-    out.puts(s"${io}.seek(${pos})")
+  override def seek(io: String, pos: Ast.expr): Unit = {
+    out.puts(s"${io}.seek(${expression(pos)})")
   }
 
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
-      out.puts(s"if ${attr.ifExpr.get}")
+      out.puts(s"if ${expression(attr.ifExpr.get)}")
       out.inc
     }
 
@@ -100,7 +103,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
       case Some("expr") =>
         attr.repeatExpr match {
           case Some(repeatExpr) =>
-            out.puts(s"@${id} = Array.new(${repeatExpr}) {")
+            out.puts(s"@${id} = Array.new(${expression(repeatExpr)}) {")
             out.inc
             out.puts(expr)
             out.dec
@@ -132,8 +135,8 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
 
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
-          case (Some(bs: String), false) =>
-            s"read_str_byte_limit(${bs}, " + '"' + attr.encoding.get + "\")"
+          case (Some(bs: Ast.expr), false) =>
+            s"read_str_byte_limit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "read_str_eos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
@@ -162,4 +165,6 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   override def instanceReturn(instName: String): Unit = {
     out.puts(s"@${instName}")
   }
+
+  def expression(e: expr) = RubyTranslator.translate(e)
 }

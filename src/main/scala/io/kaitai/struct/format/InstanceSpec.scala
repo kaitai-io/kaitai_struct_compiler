@@ -2,6 +2,8 @@ package io.kaitai.struct.format
 
 import java.util.{List => JList, Map => JMap}
 
+import io.kaitai.struct.exprlang.Expressions
+
 import collection.JavaConversions._
 import com.fasterxml.jackson.annotation.JsonProperty
 
@@ -24,5 +26,5 @@ class InstanceSpec(
 
   @JsonProperty("position_abs") _positionAbs: String
 ) extends AttrSpec(id, dataType, process, contents, _byteSize, _size, sizeEos, _ifExpr, _encoding, _repeat, _repeatExpr, _terminator, _consume, _include, _eosError) {
-  val positionAbs = Option(_positionAbs)
+  val positionAbs = Option(_positionAbs).map(Expressions.parse)
 }

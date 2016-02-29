@@ -1,7 +1,9 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
+import io.kaitai.struct.translators.PythonTranslator
 
 class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
   override def outFileName(topClassName: String): String = s"${topClassName}.py"
@@ -51,7 +53,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
   }
 
-  override def attrNoTypeWithSize(varName: String, size: String) {
+  override def attrNoTypeWithSize(varName: String, size: Ast.expr) {
     out.puts(s"self.${varName} = self._io.read(${expression2Python(size)})")
   }
 
@@ -76,7 +78,6 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     }
   }
 
-
   override def normalIO: String = "self._io"
 
   override def allocateIO(varName: String): String = {
@@ -84,13 +85,13 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     "io"
   }
 
-  override def seek(io: String, pos: String): Unit = {
+  override def seek(io: String, pos: Ast.expr): Unit = {
     out.puts(s"${io}.seek(${expression2Python(pos)})")
   }
 
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
-      out.puts(s"if ${attr.ifExpr.get}:")
+      out.puts(s"if ${expression2Python(attr.ifExpr.get)}:")
       out.inc
     }
 
@@ -138,7 +139,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
-          case (Some(bs: String), false) =>
+          case (Some(bs: Ast.expr), false) =>
             s"self.read_str_byte_limit(${expression2Python(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "self.read_str_eos(\"" + attr.encoding.get + "\")"
@@ -174,16 +175,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts(s"return self.${instanceAttrName(instName)}")
   }
 
-  val ReInt = "^\\d+$".r
-  val ReHexInt = "^0x[0-9a-fA-F]+$".r
-  val ReLiteral = "^[A-Za-z][A-Za-z0-9_]*$".r
-
-  def expression2Python(s: String): String = {
-    s match {
-      case ReInt() | ReHexInt() => s
-      case ReLiteral() => s"self.${s}"
-    }
-  }
+  def expression2Python(s: Ast.expr): String = PythonTranslator.translate(s)
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 }

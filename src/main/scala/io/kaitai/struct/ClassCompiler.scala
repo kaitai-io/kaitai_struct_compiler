@@ -6,6 +6,7 @@ import java.util
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.LanguageCompiler
 
@@ -103,7 +104,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
 
   def compileAttributeNoType(attr: AttrSpec, id: String): Boolean = {
     (attr.size, attr.sizeEos) match {
-      case (Some(sizeVar: String), false) =>
+      case (Some(sizeVar: Ast.expr), false) =>
         lang.attrNoTypeWithSize(id, sizeVar)
         // TODO: call postprocess here
         true

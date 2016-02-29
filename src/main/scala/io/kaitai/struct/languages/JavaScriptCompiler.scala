@@ -1,8 +1,10 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
 import io.kaitai.struct.languages.JavaScriptCompiler.{KaitaiStreamAPI, DataStreamAPI, RuntimeAPI}
+import io.kaitai.struct.translators.{JavaScriptTranslator, JavaTranslator}
 
 object JavaScriptCompiler {
   sealed abstract class RuntimeAPI
@@ -80,7 +82,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
-  override def attrNoTypeWithSize(varName: String, size: String): Unit = {
+  override def attrNoTypeWithSize(varName: String, size: Ast.expr): Unit = {
     out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression2JavaScript(size)});")
   }
 
@@ -112,7 +114,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     ioName
   }
 
-  override def seek(io: String, pos: String): Unit = {
+  override def seek(io: String, pos: Ast.expr): Unit = {
     out.puts(s"${io}.seek(${expression2JavaScript(pos)});")
   }
 
@@ -199,7 +201,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case "str" =>
         ((attr.byteSize, attr.sizeEos)) match {
-          case (Some(bs: String), false) =>
+          case (Some(bs: Ast.expr), false) =>
             s"_io.readStrByteLimit(${expression2JavaScript(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "_io.readStrEos(\"" + attr.encoding.get + "\")"
@@ -247,14 +249,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     }
   }
 
-  val ReInt = "^\\d+$".r
-  val ReHexInt = "^0x[0-9a-fA-F]+$".r
-  val ReLiteral = "^[A-Za-z][A-Za-z0-9_]*$".r
-
-  def expression2JavaScript(s: String): String = {
-    s match {
-      case ReInt() | ReHexInt() => s
-      case ReLiteral() => s"this.${lowerCamelCase(s)}"
-    }
+  def expression2JavaScript(s: Ast.expr): String = {
+    JavaScriptTranslator.translate(s)
   }
 }
