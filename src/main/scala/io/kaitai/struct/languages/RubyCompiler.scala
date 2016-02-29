@@ -166,5 +166,9 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts(s"@${instName}")
   }
 
+  override def instanceCalculate(instName: String, value: expr): Unit = {
+    out.puts(s"@${instanceAttrName(instName)} = ${expression(value)}")
+  }
+
   def expression(e: expr) = RubyTranslator.translate(e)
 }

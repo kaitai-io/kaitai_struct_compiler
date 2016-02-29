@@ -201,6 +201,10 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"return ${lowerCamelCase(instName)};")
   }
 
+  override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
+    out.puts(s"${instanceAttrName(instName)} = ${expression(value)};")
+  }
+
   def kaitaiType2JavaType(attrType: String, isArray: Boolean): String = {
     if (isArray) {
       val primType = attrType match {

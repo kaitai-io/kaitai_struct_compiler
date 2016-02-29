@@ -2,9 +2,9 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
-import io.kaitai.struct.languages.JavaScriptCompiler.{KaitaiStreamAPI, DataStreamAPI, RuntimeAPI}
-import io.kaitai.struct.translators.{JavaScriptTranslator, JavaTranslator}
+import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
+import io.kaitai.struct.languages.JavaScriptCompiler.{DataStreamAPI, KaitaiStreamAPI, RuntimeAPI}
+import io.kaitai.struct.translators.JavaScriptTranslator
 
 object JavaScriptCompiler {
   sealed abstract class RuntimeAPI
@@ -233,6 +233,10 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
 
   override def instanceReturn(instName: String): Unit = {
     out.puts(s"return this.${instanceAttrName(instName)};")
+  }
+
+  override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
+    out.puts(s"this.${instanceAttrName(instName)} = ${expression(value)};")
   }
 
   def lowerCamelCase(s: String): String = {
