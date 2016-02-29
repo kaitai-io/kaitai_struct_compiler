@@ -1,6 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{BooleanType, BaseType, IntType, StrType}
 
 abstract trait BaseTranslator {
@@ -81,6 +82,8 @@ abstract trait BaseTranslator {
         val rtype = detectType(right)
         if (ltype == IntType && rtype == IntType) {
           intBinOp(left, op, right)
+        } else if (ltype == StrType && rtype == StrType && op == Ast.operator.Add) {
+          strConcat(left, right)
         } else {
           throw new RuntimeException(s"can't do ${ltype} ${op} ${rtype}")
         }
@@ -157,6 +160,7 @@ abstract trait BaseTranslator {
   def doName(s: String): String
 
   // Predefined methods of various types
+  def strConcat(left: expr, right: expr): String = s"${translate(left)} + ${translate(right)}"
   def strToInt(s: Ast.expr, base: Ast.expr): String
   def strLength(s: Ast.expr): String
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
