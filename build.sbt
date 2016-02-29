@@ -9,6 +9,7 @@ resolvers += Resolver.sonatypeRepo("public")
 libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "2.2.6" % "test",
   "com.github.scopt" %% "scopt" % "3.4.0",
+  "com.lihaoyi" %% "fastparse" % "0.3.5",
   "org.yaml" % "snakeyaml" % "1.16",
   "com.fasterxml.jackson.core" % "jackson-core" % "2.1.1",
   "com.fasterxml.jackson.core" % "jackson-annotations" % "2.1.1",
