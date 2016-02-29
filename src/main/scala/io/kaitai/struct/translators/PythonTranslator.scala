@@ -1,0 +1,21 @@
+package io.kaitai.struct.translators
+
+import io.kaitai.struct.exprlang.Ast
+
+object PythonTranslator extends BaseTranslator {
+  override def doStringLiteral(s: String): String = "u\"" + s + "\""
+  override def doName(s: String) = s"self.$s"
+
+  override def booleanOp(op: Ast.boolop) = op match {
+    case Ast.boolop.Or => "or"
+    case Ast.boolop.Or => "and"
+  }
+
+  // Predefined methods of various types
+  override def strToInt(s: Ast.expr, base: Ast.expr): String =
+    ???
+  override def strLength(value: Ast.expr): String =
+    s"len(${translate(value)})"
+  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
+    s"${translate(s)}[${translate(from)}:${translate(to)}]"
+}
