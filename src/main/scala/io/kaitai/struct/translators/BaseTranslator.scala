@@ -5,59 +5,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{BooleanType, BaseType, IntType, StrType}
 
 abstract trait BaseTranslator {
-  class TypeMismatchError extends RuntimeException
-
-  def detectType(v: Ast.expr): BaseType = {
-    v match {
-      case Ast.expr.Num(_) => IntType
-      case Ast.expr.Str(_) => StrType
-      case Ast.expr.Name(name: Ast.identifier, ctx: Ast.expr_context) => IntType
-      case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
-        val ltype = detectType(left)
-        val rtype = detectType(right)
-        if (ltype == rtype) {
-          BooleanType
-        } else {
-          throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
-        }
-      case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
-        val ltype = detectType(left)
-        val rtype = detectType(right)
-        if (ltype == rtype) {
-          ltype
-        } else {
-          throw new RuntimeException(s"can't apply operator ${op} to ${ltype} and ${rtype}")
-        }
-      case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
-        values.foreach(v => {
-          val t = detectType(v)
-          if (t != BooleanType) {
-            throw new RuntimeException(s"unable to use ${t} argument in ${op} boolean expression")
-          }
-        })
-        BooleanType
-      case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
-        val valType = detectType(value)
-        valType match {
-          case StrType =>
-            attr.name match {
-              case "length" => IntType
-              case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
-            }
-          case IntType =>
-            throw new RuntimeException(s"don't know how to call anything on ${valType}")
-        }
-      case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
-        func match {
-          case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
-            val objType = detectType(obj)
-            (objType, methodName.name) match {
-              case (StrType, "substring") => StrType
-              case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
-            }
-        }
-    }
-  }
+  import BaseTranslator._
 
   def translate(v: Ast.expr): String = {
     v match {
@@ -164,4 +112,60 @@ abstract trait BaseTranslator {
   def strToInt(s: Ast.expr, base: Ast.expr): String
   def strLength(s: Ast.expr): String
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
+}
+
+object BaseTranslator {
+  class TypeMismatchError extends RuntimeException
+
+  def detectType(v: Ast.expr): BaseType = {
+    v match {
+      case Ast.expr.Num(_) => IntType
+      case Ast.expr.Str(_) => StrType
+      case Ast.expr.Name(name: Ast.identifier, ctx: Ast.expr_context) => IntType
+      case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
+        val ltype = detectType(left)
+        val rtype = detectType(right)
+        if (ltype == rtype) {
+          BooleanType
+        } else {
+          throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
+        }
+      case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
+        val ltype = detectType(left)
+        val rtype = detectType(right)
+        if (ltype == rtype) {
+          ltype
+        } else {
+          throw new RuntimeException(s"can't apply operator ${op} to ${ltype} and ${rtype}")
+        }
+      case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
+        values.foreach(v => {
+          val t = detectType(v)
+          if (t != BooleanType) {
+            throw new RuntimeException(s"unable to use ${t} argument in ${op} boolean expression")
+          }
+        })
+        BooleanType
+      case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
+        val valType = detectType(value)
+        valType match {
+          case StrType =>
+            attr.name match {
+              case "length" => IntType
+              case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
+            }
+          case IntType =>
+            throw new RuntimeException(s"don't know how to call anything on ${valType}")
+        }
+      case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
+        func match {
+          case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
+            val objType = detectType(obj)
+            (objType, methodName.name) match {
+              case (StrType, "substring") => StrType
+              case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
+            }
+        }
+    }
+  }
 }
