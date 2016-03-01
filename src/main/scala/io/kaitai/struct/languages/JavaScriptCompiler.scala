@@ -97,10 +97,10 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"this.$varDest = new byte[this.$varSrc.length];")
-        out.puts(s"for (int i = 0; i < this.$varSrc.length; i++) {")
+        out.puts(s"this.$varDest = new Uint8Array(this.$varSrc.length);")
+        out.puts(s"for (var i = 0; i < this.$varSrc.length; i++) {")
         out.inc
-        out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression(xorValue)}));")
+        out.puts(s"this.$varDest[i] = this.$varSrc[i] ^ (${expression(xorValue)});")
         out.dec
         out.puts("}")
     }
