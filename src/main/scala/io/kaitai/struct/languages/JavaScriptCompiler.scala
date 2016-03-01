@@ -109,8 +109,8 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   override def normalIO: String = "this._io"
 
   override def allocateIO(varName: String): String = {
-    val ioName = s"_io_${lowerCamelCase(varName)}"
-    out.puts(s"KaitaiStream ${ioName} = new KaitaiStream(${lowerCamelCase(varName)});")
+    val ioName = s"this._io_${lowerCamelCase(varName)}"
+    out.puts(s"${ioName} = new KaitaiStream(this.${lowerCamelCase(varName)});")
     ioName
   }
 
