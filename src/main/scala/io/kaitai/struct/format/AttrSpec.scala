@@ -13,9 +13,8 @@ class AttrSpec(
   @JsonProperty("type") val dataType: String,
   @JsonProperty("process") _process: String,
   @JsonProperty("contents") val contents: Object,
-  @JsonProperty("byte_size") _byteSize: String,
   @JsonProperty("size") _size: String,
-  @JsonProperty("size_eos") val sizeEos: Boolean,
+  @JsonProperty("size-eos") val sizeEos: Boolean,
   @JsonProperty("if") _ifExpr: String,
   @JsonProperty("encoding") _encoding: String,
   @JsonProperty("repeat") _repeat: String,
@@ -23,9 +22,8 @@ class AttrSpec(
   @JsonProperty("terminator") _terminator: String,
   @JsonProperty("consume") _consume: String,
   @JsonProperty("include") _include: String,
-  @JsonProperty("eos_error") _eosError: String
+  @JsonProperty("eos-error") _eosError: String
 ) {
-  val byteSize = Option(_byteSize).map(Expressions.parse)
   val size = Option(_size).map(Expressions.parse)
   val ifExpr = Option(_ifExpr).map(Expressions.parse)
   val encoding = Option(_encoding)
@@ -56,7 +54,6 @@ object AttrSpec {
               dataType: String = null,
               process: String = null,
               contents: Object = null,
-              byteSize: String = null,
               size: String = null,
               sizeEos: Boolean = false,
               ifExpr: String = null,
@@ -73,7 +70,6 @@ object AttrSpec {
       dataType,
       process,
       contents,
-      byteSize,
       size,
       sizeEos,
       ifExpr,

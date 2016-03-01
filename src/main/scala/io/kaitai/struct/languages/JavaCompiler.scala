@@ -166,7 +166,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case "str" =>
-        ((attr.byteSize, attr.sizeEos)) match {
+        ((attr.size, attr.sizeEos)) match {
           case (Some(bs: Ast.expr), false) =>
             s"_io.readStrByteLimit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>

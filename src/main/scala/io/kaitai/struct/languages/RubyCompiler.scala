@@ -134,15 +134,15 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
 
       case "str" =>
-        ((attr.byteSize, attr.sizeEos)) match {
+        ((attr.size, attr.sizeEos)) match {
           case (Some(bs: Ast.expr), false) =>
             s"read_str_byte_limit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
             "read_str_eos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
-            throw new RuntimeException("type str: either \"byte_size\" or \"size_eos\" must be specified")
+            throw new RuntimeException("type str: either \"size\" or \"size-eos\" must be specified")
           case (Some(_), true) =>
-            throw new RuntimeException("type str: only one of \"byte_size\" or \"size_eos\" must be specified")
+            throw new RuntimeException("type str: only one of \"size\" or \"size-eos\" must be specified")
         }
       case "strz" =>
         "read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
