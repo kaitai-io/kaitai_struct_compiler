@@ -7,8 +7,10 @@ import java.util
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.DataType.{BooleanType, IntType, StrType}
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.LanguageCompiler
+import io.kaitai.struct.translators.BaseTranslator
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
@@ -118,10 +120,22 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
   }
 
   def compileInstance(className: String, instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
-    // Declare caching variable
-    lang.attributeDeclaration(instName, instSpec.dataType, instSpec.isArray)
+    // Determine datatype
+    val dataType = instSpec.value match {
+      case Some(e: Ast.expr) =>
+        BaseTranslator.detectType(e) match {
+          case IntType => "s4"
+          case StrType => "str"
+          case BooleanType => "bool"
+        }
+      case None =>
+        instSpec.dataType
+    }
 
-    lang.instanceHeader(className, instName, instSpec.dataType, instSpec.isArray)
+    // Declare caching variable
+    lang.instanceDeclaration(instName, dataType, instSpec.isArray)
+
+    lang.instanceHeader(className, instName, dataType, instSpec.isArray)
     lang.instanceCheckCacheAndReturn(instName)
 
     instSpec.value match {
