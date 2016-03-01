@@ -181,8 +181,12 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     }
   }
 
+  override def instanceDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {
+    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType, isArray)} ${lowerCamelCase(attrName)};")
+  }
+
   override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(dataType, isArray)} ${instName}() throws IOException {")
+    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType, isArray)} ${lowerCamelCase(instName)}() throws IOException {")
     out.inc
   }
 
@@ -202,47 +206,74 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
-    out.puts(s"${instanceAttrName(instName)} = ${expression(value)};")
+    out.puts(s"${lowerCamelCase(instName)} = ${expression(value)};")
   }
 
   def kaitaiType2JavaType(attrType: String, isArray: Boolean): String = {
     if (isArray) {
-      val primType = attrType match {
-        case "u1" => "Integer"
-        case "u2" | "u2le" | "u2be" => "Integer"
-        case "u4" | "u4le" | "u4be" => "Long"
-        case "u8" | "u8le" | "u8be" => "Long"
-
-        case "s1" => "Byte"
-        case "s2" | "s2le" | "s2be" => "Short"
-        case "s4" | "s4le" | "s4be" => "Int"
-        case "s8" | "s8le" | "s8be" => "Long"
-
-        case "str" | "strz" => "String"
-
-        case null => "byte[]"
-
-        case _ => type2class(attrType)
-      }
-      s"ArrayList<${primType}>"
+      kaitaiType2JavaTypeBoxed(attrType, true)
     } else {
-      attrType match {
-        case "u1" => "int"
-        case "u2" | "u2le" | "u2be" => "int"
-        case "u4" | "u4le" | "u4be" => "long"
-        case "u8" | "u8le" | "u8be" => "long"
+      kaitaiType2JavaTypePrim(attrType)
+    }
+  }
 
-        case "s1" => "byte"
-        case "s2" | "s2le" | "s2be" => "short"
-        case "s4" | "s4le" | "s4be" => "int"
-        case "s8" | "s8le" | "s8be" => "long"
+  /**
+    * Determine Java data type corresponding to a KS data type. A "primitive" type (i.e. "int", "long", etc) will
+    * be returned if possible.
+    *
+    * @param attrType KS data type
+    * @return Java data type
+    */
+  def kaitaiType2JavaTypePrim(attrType: String): String = {
+    attrType match {
+      case "u1" => "int"
+      case "u2" | "u2le" | "u2be" => "int"
+      case "u4" | "u4le" | "u4be" => "long"
+      case "u8" | "u8le" | "u8be" => "long"
 
-        case "str" | "strz" => "String"
+      case "s1" => "byte"
+      case "s2" | "s2le" | "s2be" => "short"
+      case "s4" | "s4le" | "s4be" => "int"
+      case "s8" | "s8le" | "s8be" => "long"
 
-        case null => "byte[]"
+      case "str" | "strz" => "String"
 
-        case _ => type2class(attrType)
-      }
+      case null => "byte[]"
+
+      case _ => type2class(attrType)
+    }
+  }
+
+  /**
+    * Determine Java data type corresponding to a KS data type. A non-primitive type (i.e. "Integer", "Long", etc) will
+    * be returned, to be used when proper objects should be used.
+    *
+    * @param attrType KS data type
+    * @return Java data type
+    */
+  def kaitaiType2JavaTypeBoxed(attrType: String, isArray: Boolean = false): String = {
+    val r = attrType match {
+      case "u1" => "Integer"
+      case "u2" | "u2le" | "u2be" => "Integer"
+      case "u4" | "u4le" | "u4be" => "Long"
+      case "u8" | "u8le" | "u8be" => "Long"
+
+      case "s1" => "Byte"
+      case "s2" | "s2le" | "s2be" => "Short"
+      case "s4" | "s4le" | "s4be" => "Integer"
+      case "s8" | "s8le" | "s8be" => "Long"
+
+      case "str" | "strz" => "String"
+
+      case null => "byte[]"
+
+      case _ => type2class(attrType)
+    }
+
+    if (isArray) {
+      s"ArrayList<$r>"
+    } else {
+      r
     }
   }
 

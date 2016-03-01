@@ -42,6 +42,7 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def allocateIO(varName: String): String
   def seek(io: String, pos: Ast.expr): Unit
 
+  def instanceDeclaration(attrName: String, attrType: String, isArray: Boolean) = attributeDeclaration(attrName, attrType, isArray)
   def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit
   def instanceAttrName(instName: String): String
   def instanceFooter: Unit
