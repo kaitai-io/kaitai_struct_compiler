@@ -120,7 +120,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
 
   override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
     if (attr.ifExpr.isDefined) {
-      out.puts(s"if (${attr.ifExpr.get}) {")
+      out.puts(s"if (${expression(attr.ifExpr.get)}) {")
       out.inc
     }
 
