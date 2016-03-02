@@ -99,7 +99,7 @@ object Expressions {
       }
   }
   val atom: P[Ast.expr] = {
-    val empty_list = ("[" ~ "]").map(_ => Ast.expr.List(Nil, Ast.expr_context.Load))
+    val empty_list = ("[" ~ "]").map(_ => Ast.expr.List(Nil))
     val empty_dict = ("{" ~ "}").map(_ => Ast.expr.Dict(Nil, Nil))
     P(
       empty_list |
@@ -112,7 +112,7 @@ object Expressions {
     )
   }
   val list_contents = P( test.rep(1, ",") ~ ",".? )
-  val list = P( list_contents ).map(Ast.expr.List(_, Ast.expr_context.Load))
+  val list = P( list_contents ).map(Ast.expr.List(_))
 
   val trailer: P[Ast.expr => Ast.expr] = {
     val call = P("(" ~ arglist ~ ")").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Call(lhs, args)}

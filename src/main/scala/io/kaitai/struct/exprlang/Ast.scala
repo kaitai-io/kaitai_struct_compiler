@@ -41,17 +41,7 @@ object Ast {
     case class Attribute(value: expr, attr: identifier) extends expr
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
-    case class List(elts: Seq[expr], ctx: expr_context) extends expr
-  }
-
-  sealed trait expr_context
-  object expr_context {
-    case object Load extends expr_context
-    case object Store extends expr_context
-    case object Del extends expr_context
-    case object AugLoad extends expr_context
-    case object AugStore extends expr_context
-    case object Param extends expr_context
+    case class List(elts: Seq[expr]) extends expr
   }
 
   sealed trait boolop
@@ -98,14 +88,4 @@ object Ast {
     case object In extends cmpop
     case object NotIn extends cmpop
   }
-
-  case class comprehension(target: expr, iter: expr, ifs: Seq[expr])
-
-  case class arguments(args: Seq[expr], vararg: Option[identifier], kwarg: Option[identifier], defaults: Seq[expr])
-
-  // keyword arguments supplied to call
-  case class keyword(arg: identifier, value: expr)
-
-  // import name with optional 'as' alias.
-  case class alias(name: identifier, asname: Option[identifier])
 }
