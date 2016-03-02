@@ -108,6 +108,7 @@ object Expressions {
     P(
       empty_list |
       empty_dict |
+      "(" ~ test ~ ")" |
       "[" ~ list ~ "]" |
       "{" ~ dictorsetmaker ~ "}" |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
