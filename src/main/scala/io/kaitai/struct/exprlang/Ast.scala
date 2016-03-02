@@ -46,8 +46,6 @@ object Ast {
     case class Name(id: identifier, ctx: expr_context) extends expr
     case class List(elts: Seq[expr], ctx: expr_context) extends expr
   }
-  // col_offset is the byte offset in the utf8 string the parser uses
-  case class attributes(lineno: Int, col_offset: Int)
 
   sealed trait expr_context
   object expr_context {
