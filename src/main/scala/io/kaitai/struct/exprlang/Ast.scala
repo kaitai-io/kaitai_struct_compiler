@@ -63,7 +63,6 @@ object Ast {
     case object BitOr  extends operator
     case object BitXor  extends operator
     case object BitAnd  extends operator
-    case object FloorDiv extends operator
   }
 
   sealed trait unaryop

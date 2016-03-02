@@ -71,7 +71,6 @@ object Expressions {
   val Mult= op("*", Ast.operator.Mult)
   val Div = op("/", Ast.operator.Div)
   val Mod = op("%", Ast.operator.Mod)
-  val FloorDiv = op("//", Ast.operator.FloorDiv)
   val BitOr = op("|", Ast.operator.BitOr)
   val BitAnd = op("&", Ast.operator.BitAnd)
   val BitXor = op("^", Ast.operator.BitXor)
@@ -88,7 +87,7 @@ object Expressions {
   val shift_expr: P[Ast.expr] = P( Chain(arith_expr, LShift | RShift) )
 
   val arith_expr: P[Ast.expr] = P( Chain(term, Add | Sub) )
-  val term: P[Ast.expr] = P( Chain(factor, Mult | Div | Mod | FloorDiv) )
+  val term: P[Ast.expr] = P( Chain(factor, Mult | Div | Mod) )
   val factor: P[Ast.expr] = P( ("+"|"-"|"~") ~ factor | power )
   val power: P[Ast.expr] = P( atom ~ trailer.rep ~ (Pow ~ factor).? ).map{
     case (lhs, trailers, rhs) =>
