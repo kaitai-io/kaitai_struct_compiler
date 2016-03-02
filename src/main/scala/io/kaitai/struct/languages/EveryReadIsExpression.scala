@@ -8,8 +8,8 @@ import io.kaitai.struct.format.AttrSpec
   * "handleAssignment".
   */
 trait EveryReadIsExpression extends LanguageCompiler {
-  override def attrStdTypeParse(attr: AttrSpec, endian: Option[String]): Unit = {
-    handleAssignment(attr.id, attr, stdTypeParseExpr(attr, endian), normalIO)
+  override def attrStdTypeParse(id: String, attr: AttrSpec, endian: Option[String]): Unit = {
+    handleAssignment(id, attr, stdTypeParseExpr(attr, endian), normalIO)
   }
 
   def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String
