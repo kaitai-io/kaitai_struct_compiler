@@ -3,6 +3,7 @@ package io.kaitai.struct.format
 import java.util.{List => JList, Map => JMap}
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.exprlang.Expressions
 
 import collection.JavaConversions._
@@ -44,6 +45,28 @@ class AttrSpec(
       case "true" | "yes" | "1" => true
       case "false" | "no" | "0" | "" => false
       case null => byDef
+    }
+  }
+
+  def dataTypeAsBaseType: BaseType = {
+    val t = dataType match {
+      case "u1" | "s1" |
+           "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" |
+           "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" |
+           "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
+        IntType
+      case "str" | "strz" =>
+        StrType
+      case null =>
+        BytesType
+      case _ =>
+        UserType(dataType)
+    }
+
+    if (isArray) {
+      ArrayType(t)
+    } else {
+      t
     }
   }
 }
