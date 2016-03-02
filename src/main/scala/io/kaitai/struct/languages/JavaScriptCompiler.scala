@@ -195,7 +195,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
         s"_io.read${Utils.capitalize(attr.dataType)}()"
       case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
         endian match {
-          case Some(e) => s"_io.read${Utils.capitalize(attr.dataType)}${e}()"
+          case Some(e) => s"this._io.read${Utils.capitalize(attr.dataType)}${e}()"
           case None => throw new RuntimeException(s"type ${attr.dataType}: unable to parse with no default endianess defined")
         }
       case null => throw new RuntimeException("should never happen")
@@ -204,16 +204,16 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
       case "str" =>
         ((attr.size, attr.sizeEos)) match {
           case (Some(bs: Ast.expr), false) =>
-            s"_io.readStrByteLimit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
+            s"this._io.readStrByteLimit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
           case (None, true) =>
-            "_io.readStrEos(\"" + attr.encoding.get + "\")"
+            "this._io.readStrEos(\"" + attr.encoding.get + "\")"
           case (None, false) =>
             throw new RuntimeException("type str: either \"size\" or \"size-eos\" must be specified")
           case (Some(_), true) =>
             throw new RuntimeException("type str: only one of \"size\" or \"size-eos\" must be specified")
         }
       case "strz" =>
-        "_io.readStrz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
+        "this._io.readStrz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
     }
   }
 
