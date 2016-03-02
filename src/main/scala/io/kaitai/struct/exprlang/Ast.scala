@@ -21,8 +21,6 @@ package io.kaitai.struct.exprlang
   */
 object Ast {
   case class identifier(name: String)
-  type bool = Boolean
-  type int = Int
 
   // BoolOp() can use left & right?
   sealed trait expr
