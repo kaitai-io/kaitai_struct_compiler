@@ -1,5 +1,6 @@
 package io.kaitai.struct.exprlang
 
+import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.exprlang.Ast.expr._
 import io.kaitai.struct.exprlang.Ast.operator._
 import io.kaitai.struct.exprlang.Ast.cmpop._
@@ -14,6 +15,10 @@ class ExpressionsSpec extends FunSpec {
 
     it("parses single negative integer") {
       Expressions.parse("-456") should be (Num(-456))
+    }
+
+    it("parses hex integer") {
+      Expressions.parse("0x1234") should be (Num(0x1234))
     }
 
     it("parses 1 + 2") {
@@ -38,6 +43,19 @@ class ExpressionsSpec extends FunSpec {
 
     it("parses 1 < 2") {
       Expressions.parse("1 < 2") should be (Compare(Num(1), Lt, Num(2)))
+    }
+
+    it("parses a[42]") {
+      Expressions.parse("a[42]") should be (Subscript(Name(identifier("a")), Num(42)))
+    }
+
+    it("parses a[42 - 2]") {
+      Expressions.parse("a[42 - 2]") should be (
+        Subscript(
+          Name(identifier("a")),
+          BinOp(Num(42), Sub, Num(2))
+        )
+      )
     }
   }
 }
