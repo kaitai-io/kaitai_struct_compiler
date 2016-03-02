@@ -42,8 +42,8 @@ object Ast {
 
     // the following expression can appear in assignment context
     case class Attribute(value: expr, attr: identifier) extends expr
-    case class Subscript(value: expr, slice: slice) extends expr
-    case class Name(id: identifier, ctx: expr_context) extends expr
+    case class Subscript(value: expr, idx: expr) extends expr
+    case class Name(id: identifier) extends expr
     case class List(elts: Seq[expr], ctx: expr_context) extends expr
   }
 
@@ -55,14 +55,6 @@ object Ast {
     case object AugLoad extends expr_context
     case object AugStore extends expr_context
     case object Param extends expr_context
-  }
-  sealed trait slice
-  object slice {
-
-    case object Ellipsis extends slice
-    case class Slice(lower: Option[expr], upper: Option[expr], step: Option[expr]) extends slice
-    case class ExtSlice(dims: Seq[slice]) extends slice
-    case class Index(value: expr) extends slice
   }
 
   sealed trait boolop

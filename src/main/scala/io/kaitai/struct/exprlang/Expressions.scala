@@ -107,7 +107,7 @@ object Expressions {
       "[" ~ list ~ "]" |
       "{" ~ dictorsetmaker ~ "}" |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
-      NAME.map(Ast.expr.Name(_, Ast.expr_context.Load)) |
+      NAME.map(Ast.expr.Name(_)) |
       NUMBER
     )
   }
@@ -116,28 +116,11 @@ object Expressions {
 
   val trailer: P[Ast.expr => Ast.expr] = {
     val call = P("(" ~ arglist ~ ")").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Call(lhs, args)}
-    val slice = P("[" ~ subscriptlist ~ "]").map(args => (lhs: Ast.expr) => Ast.expr.Subscript(lhs, args))
+    val slice = P("[" ~ test ~ "]").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Subscript(lhs, args)}
     val attr = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id))
     P( call | slice | attr )
   }
-  val subscriptlist = P( subscript.rep(1, ",") ~ ",".? ).map{
-    case Seq(x) => x
-    case xs => Ast.slice.ExtSlice(xs)
-  }
-  val subscript: P[Ast.slice] = {
-    val ellipses = P( ("." ~ "." ~ ".").map(_ => Ast.slice.Ellipsis) )
-    val single = P( test.map(Ast.slice.Index) )
-    val multi = P(test.? ~ ":" ~ test.? ~ sliceop.?).map { case (lower, upper, step) =>
-      Ast.slice.Slice(
-        lower,
-        upper,
-        step.map(_.getOrElse(Ast.expr.Name(Ast.identifier("None"), Ast.expr_context.Load)))
-      )
-    }
-    P( ellipses | multi | single )
-  }
 
-  val sliceop = P( ":" ~ test.? )
   val exprlist: P[Seq[Ast.expr]] = P( expr.rep(1, sep = ",") ~ ",".? )
   val testlist: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") ~ ",".? )
   val dictorsetmaker: P[Ast.expr] = {

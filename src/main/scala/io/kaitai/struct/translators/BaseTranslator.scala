@@ -13,7 +13,7 @@ abstract trait BaseTranslator {
         doIntLiteral(n)
       case Ast.expr.Str(s) =>
         doStringLiteral(s)
-      case Ast.expr.Name(name: Ast.identifier, ctx: Ast.expr_context) =>
+      case Ast.expr.Name(name: Ast.identifier) =>
         doName(name.name)
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         val ltype = detectType(left)
@@ -121,7 +121,7 @@ object BaseTranslator {
     v match {
       case Ast.expr.Num(_) => IntType
       case Ast.expr.Str(_) => StrType
-      case Ast.expr.Name(name: Ast.identifier, ctx: Ast.expr_context) => IntType
+      case Ast.expr.Name(name: Ast.identifier) => IntType
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         val ltype = detectType(left)
         val rtype = detectType(right)
