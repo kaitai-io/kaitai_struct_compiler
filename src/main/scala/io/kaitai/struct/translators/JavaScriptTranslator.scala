@@ -8,6 +8,8 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
+  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
+    s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =

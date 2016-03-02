@@ -44,6 +44,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         }
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         doBooleanOp(op, values)
+      case Ast.expr.IfExp(condition: expr, ifTrue: expr, ifFalse: expr) =>
+        doIfExp(condition, ifTrue, ifFalse)
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         doSubscript(container, idx)
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
@@ -117,6 +119,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   }
 
   def doSubscript(container: expr, idx: expr): String
+  def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String
 
   // Literals
   def doIntLiteral(n: Any): String = n.toString
@@ -165,6 +168,18 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           }
         })
         BooleanType
+      case Ast.expr.IfExp(condition: expr, ifTrue: expr, ifFalse: expr) =>
+        detectType(condition) match {
+          case BooleanType =>
+            val trueType = detectType(ifTrue)
+            val falseType = detectType(ifFalse)
+            if (trueType == falseType) {
+              trueType
+            } else {
+              throw new TypeMismatchError(s"ternary operator with different output types: ${trueType} vs ${falseType}")
+            }
+          case other => throw new TypeMismatchError(s"unable to switch over ${other}")
+        }
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         detectType(container) match {
           case ArrayType(elType: BaseType) =>

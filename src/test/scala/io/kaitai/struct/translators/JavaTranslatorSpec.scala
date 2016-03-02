@@ -53,23 +53,17 @@ class JavaTranslatorSpec extends FunSpec {
     it("parses a[42 - 2]") {
       tryOne(ArrayType(StrType), "a[42 - 2]", "a().get((42 - 2))", StrType)
     }
-/*
+
     it("parses 2 < 3 ? \"foo\" : \"bar\"") {
-      Expressions.parse("2 < 3 ? \"foo\" : \"bar\"") should be (
-        IfExp(
-          Compare(Num(2), Lt, Num(3)),
-          Str("foo"),
-          Str("bar")
-        )
-      )
+      tryOne(IntType, "2 < 3 ? \"foo\" : \"bar\"", "2 < 3 ? \"foo\" : \"bar\"", StrType)
     }
 
     it("parses bitwise invert operation") {
-      Expressions.parse("~777") should be (UnaryOp(Invert, Num(777)))
+      tryOne(IntType, "~777", "~777", IntType)
     }
 
     it("parses ~(7+3)") {
-      Expressions.parse("~(7+3)") should be (UnaryOp(Invert, BinOp(Num(7), Add, Num(3))))
-    }*/
+      tryOne(IntType, "~(7+3)", "~(7 + 3)", IntType)
+    }
   }
 }
