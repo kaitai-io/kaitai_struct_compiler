@@ -6,21 +6,23 @@ import java.util
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.DataType.{BooleanType, IntType, StrType}
+import io.kaitai.struct.exprlang.{Ast, DataType}
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.LanguageCompiler
-import io.kaitai.struct.translators.BaseTranslator
+import io.kaitai.struct.translators.TypeProvider
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
 
-class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
+class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extends TypeProvider {
   val reader = new FileReader(yamlFilename)
   val mapper = new ObjectMapper(new YAMLFactory())
   val desc: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
   val userTypes = gatherUserTypes(desc).toSet
   val endian: Option[String] = desc.meta.get("endian")
+
+  var nowClass: ClassSpec = desc
 
   def gatherUserTypes(curClass: ClassSpec): List[String] = {
     curClass.types match {
@@ -36,7 +38,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
 
   def compile {
     val topClass = desc.meta("id")
-    lang.open(topClass)
+    lang.open(topClass, this)
     lang.fileHeader(yamlFilename, topClass)
     compileClass(topClass, desc)
     lang.fileFooter(topClass)
@@ -44,6 +46,8 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
   }
 
   def compileClass(name: String, curClass: ClassSpec): Unit = {
+    nowClass = curClass
+
     lang.classHeader(name)
 
     val extraAttrs = ListBuffer[AttrSpec]()
@@ -123,7 +127,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     // Determine datatype
     val dataType = instSpec.value match {
       case Some(e: Ast.expr) =>
-        BaseTranslator.detectType(e) match {
+        lang.translator.detectType(e) match {
           case IntType => "s4"
           case StrType => "str"
           case BooleanType => "bool"
@@ -172,5 +176,9 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) {
     } else {
       throw new RuntimeException(s"Unable to parse fixed content: ${c.getClass}")
     }
+  }
+
+  def determineType(name: String): DataType.BaseType = {
+    IntType
   }
 }

@@ -4,7 +4,7 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
 import io.kaitai.struct.languages.JavaScriptCompiler.{DataStreamAPI, KaitaiStreamAPI, RuntimeAPI}
-import io.kaitai.struct.translators.JavaScriptTranslator
+import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, JavaScriptTranslator}
 
 object JavaScriptCompiler {
   sealed abstract class RuntimeAPI
@@ -13,6 +13,8 @@ object JavaScriptCompiler {
 }
 
 class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = KaitaiStreamAPI) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
 
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
   override def indent: String = "  "
@@ -252,6 +254,4 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
       Utils.lowerCamelCase(s)
     }
   }
-
-  override def expression(s: Ast.expr): String = JavaScriptTranslator.translate(s)
 }

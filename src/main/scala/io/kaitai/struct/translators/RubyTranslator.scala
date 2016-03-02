@@ -2,7 +2,7 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast.expr
 
-object RubyTranslator extends BaseTranslator {
+class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doName(s: String) = s"$s"
 
   // Predefined methods of various types

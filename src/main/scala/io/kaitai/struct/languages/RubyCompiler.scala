@@ -4,9 +4,11 @@ import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
-import io.kaitai.struct.translators.RubyTranslator
+import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, RubyTranslator}
 
 class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
+
   override def outFileName(topClassName: String): String = s"${topClassName}.rb"
   override def indent: String = "  "
 
@@ -169,6 +171,4 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   override def instanceCalculate(instName: String, value: expr): Unit = {
     out.puts(s"@${instanceAttrName(instName)} = ${expression(value)}")
   }
-
-  def expression(e: expr) = RubyTranslator.translate(e)
 }

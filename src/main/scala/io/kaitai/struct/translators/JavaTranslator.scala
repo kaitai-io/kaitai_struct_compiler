@@ -4,7 +4,7 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 
-object JavaTranslator extends BaseTranslator {
+class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {

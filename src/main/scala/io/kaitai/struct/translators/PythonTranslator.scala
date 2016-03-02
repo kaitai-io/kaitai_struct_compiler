@@ -2,7 +2,7 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
 
-object PythonTranslator extends BaseTranslator {
+class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doStringLiteral(s: String): String = "u\"" + s + "\""
   override def doName(s: String) = s"self.$s"
 

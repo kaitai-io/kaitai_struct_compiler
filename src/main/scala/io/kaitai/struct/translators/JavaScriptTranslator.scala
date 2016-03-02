@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast.expr
 
-object JavaScriptTranslator extends BaseTranslator {
+class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doName(s: String) = s"this.${Utils.lowerCamelCase(s)}"
 
   // Predefined methods of various types

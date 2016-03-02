@@ -1,11 +1,13 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.translators.JavaTranslator
-import io.kaitai.struct.{Utils, LanguageOutputWriter}
-import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
+import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
+import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
 
 class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
+
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
   override def indent: String = "    "
 
@@ -284,6 +286,4 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
       Utils.lowerCamelCase(s)
     }
   }
-
-  override def expression(s: Ast.expr): String = JavaTranslator.translate(s)
 }

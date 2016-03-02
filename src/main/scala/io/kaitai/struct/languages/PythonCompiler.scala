@@ -2,9 +2,11 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
-import io.kaitai.struct.translators.PythonTranslator
+import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, PythonTranslator}
 
 class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
+
   override def outFileName(topClassName: String): String = s"${topClassName}.py"
   override def indent: String = "    "
 
@@ -177,8 +179,6 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
   override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
     out.puts(s"self.${instanceAttrName(instName)} = ${expression(value)};")
   }
-
-  override def expression(s: Ast.expr): String = PythonTranslator.translate(s)
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 }

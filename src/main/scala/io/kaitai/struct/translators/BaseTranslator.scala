@@ -1,12 +1,15 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{BooleanType, BaseType, IntType, StrType}
 
-abstract trait BaseTranslator {
-  import BaseTranslator._
+trait TypeProvider {
+  def determineType(name: String): BaseType
+}
 
+class TypeMismatchError extends RuntimeException
+
+abstract class BaseTranslator(val provider: TypeProvider) {
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.Num(n) =>
@@ -15,6 +18,8 @@ abstract trait BaseTranslator {
         doStringLiteral(s)
       case Ast.expr.Name(name: Ast.identifier) =>
         doName(name.name)
+      case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
+        s"${unaryOp(op)}${translate(v)}"
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         val ltype = detectType(left)
         val rtype = detectType(right)
@@ -101,6 +106,12 @@ abstract trait BaseTranslator {
     case Ast.boolop.Or => "&&"
   }
 
+  def unaryOp(op: Ast.unaryop) = op match {
+    case Ast.unaryop.Invert => "~"
+    case Ast.unaryop.Minus => "-"
+    case Ast.unaryop.Not => "!"
+  }
+
   // Literals
   def doIntLiteral(n: Any): String = n.toString
   def doStringLiteral(s: String): String = "\"" + s + "\""
@@ -108,20 +119,22 @@ abstract trait BaseTranslator {
   def doName(s: String): String
 
   // Predefined methods of various types
-  def strConcat(left: expr, right: expr): String = s"${translate(left)} + ${translate(right)}"
+  def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
   def strToInt(s: Ast.expr, base: Ast.expr): String
   def strLength(s: Ast.expr): String
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
-}
-
-object BaseTranslator {
-  class TypeMismatchError extends RuntimeException
 
   def detectType(v: Ast.expr): BaseType = {
     v match {
       case Ast.expr.Num(_) => IntType
       case Ast.expr.Str(_) => StrType
       case Ast.expr.Name(name: Ast.identifier) => IntType
+      case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
+        val t = detectType(v)
+        t match {
+          case IntType => IntType
+          case _ => throw new RuntimeException(s"unable to apply unary operator ${op} to ${t}")
+        }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         val ltype = detectType(left)
         val rtype = detectType(right)
