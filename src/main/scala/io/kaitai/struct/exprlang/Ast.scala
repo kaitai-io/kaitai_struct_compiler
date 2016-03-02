@@ -66,16 +66,14 @@ object Ast {
   }
 
   sealed trait unaryop
-  object unaryop{
-
+  object unaryop {
     case object Invert extends unaryop
     case object Not extends unaryop
-    case object UAdd extends unaryop
-    case object USubextends extends unaryop
+    case object Minus extends unaryop
   }
-  sealed trait cmpop
-  object cmpop{
 
+  sealed trait cmpop
+  object cmpop {
     case object Eq extends cmpop
     case object NotEq extends cmpop
     case object Lt extends cmpop

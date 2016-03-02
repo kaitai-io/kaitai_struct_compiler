@@ -4,6 +4,7 @@ import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.exprlang.Ast.expr._
 import io.kaitai.struct.exprlang.Ast.operator._
 import io.kaitai.struct.exprlang.Ast.cmpop._
+import io.kaitai.struct.exprlang.Ast.unaryop._
 import org.scalatest.FunSpec
 import org.scalatest.Matchers._
 
@@ -14,7 +15,7 @@ class ExpressionsSpec extends FunSpec {
     }
 
     it("parses single negative integer") {
-      Expressions.parse("-456") should be (Num(-456))
+      Expressions.parse("-456") should be (UnaryOp(Minus, Num(456)))
     }
 
     it("parses hex integer") {
@@ -66,6 +67,14 @@ class ExpressionsSpec extends FunSpec {
           Str("bar")
         )
       )
+    }
+
+    it("parses bitwise invert operation") {
+      Expressions.parse("~777") should be (UnaryOp(Invert, Num(777)))
+    }
+
+    it("parses ~(7+3)") {
+      Expressions.parse("~(7+3)") should be (UnaryOp(Invert, BinOp(Num(7), Add, Num(3))))
     }
   }
 }

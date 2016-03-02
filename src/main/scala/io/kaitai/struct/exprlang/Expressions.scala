@@ -88,7 +88,12 @@ object Expressions {
 
   val arith_expr: P[Ast.expr] = P( Chain(term, Add | Sub) )
   val term: P[Ast.expr] = P( Chain(factor, Mult | Div | Mod) )
-  val factor: P[Ast.expr] = P( ("+"|"-"|"~") ~ factor | power )
+  val factor: P[Ast.expr] = P(
+    ("+" ~ factor) |
+    ("-" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Minus, _)) |
+    ("~" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Invert, _)) |
+    power
+  )
   val power: P[Ast.expr] = P( atom ~ trailer.rep ~ (Pow ~ factor).? ).map{
     case (lhs, trailers, rhs) =>
       val left = trailers.foldLeft(lhs)((l, t) => t(l))
