@@ -183,6 +183,11 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
       if (el.id == name)
         return el.dataTypeAsBaseType
     }
+    nowClass.instances.foreach(instances => instances.foreach {
+      case(instName: String, inst: InstanceSpec) =>
+        if (instName == name)
+          return inst.dataTypeAsBaseType
+    })
     throw new RuntimeException(s"Unable to access ${name} in ${nowClass} context")
   }
 
