@@ -1,15 +1,17 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.DataType.{BooleanType, BaseType, IntType, StrType}
+import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.exprlang.DataType._
 
 trait TypeProvider {
   def determineType(name: String): BaseType
 }
 
-class TypeMismatchError extends RuntimeException
+class TypeMismatchError(msg: String) extends RuntimeException(msg)
 
 abstract class BaseTranslator(val provider: TypeProvider) {
+
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.Num(n) =>
@@ -42,6 +44,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         }
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         doBooleanOp(op, values)
+      case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
+        doSubscript(container, idx)
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
         valType match {
@@ -112,6 +116,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     case Ast.unaryop.Not => "!"
   }
 
+  def doSubscript(container: expr, idx: expr): String
+
   // Literals
   def doIntLiteral(n: Any): String = n.toString
   def doStringLiteral(s: String): String = "\"" + s + "\""
@@ -128,7 +134,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     v match {
       case Ast.expr.Num(_) => IntType
       case Ast.expr.Str(_) => StrType
-      case Ast.expr.Name(name: Ast.identifier) => IntType
+      case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
         t match {
@@ -159,6 +165,15 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           }
         })
         BooleanType
+      case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
+        detectType(container) match {
+          case ArrayType(elType: BaseType) =>
+            detectType(idx) match {
+              case IntType => elType
+              case idxType => throw new TypeMismatchError(s"unable to index an array using ${idxType}")
+            }
+          case cntType => throw new TypeMismatchError(s"unable to apply operation [] to ${cntType}")
+        }
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
         valType match {

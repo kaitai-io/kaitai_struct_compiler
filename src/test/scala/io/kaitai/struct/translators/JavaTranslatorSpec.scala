@@ -47,11 +47,11 @@ class JavaTranslatorSpec extends FunSpec {
     }
 
     it("parses a[42]") {
-      tryOne(ArrayType(StrType), "a[42]", "a[42]", StrType)
+      tryOne(ArrayType(StrType), "a[42]", "a().get(42)", StrType)
     }
 
     it("parses a[42 - 2]") {
-      tryOne(ArrayType(StrType), "a[42 - 2]", "a[(42 - 2)]", StrType)
+      tryOne(ArrayType(StrType), "a[42 - 2]", "a().get((42 - 2))", StrType)
     }
 /*
     it("parses 2 < 3 ? \"foo\" : \"bar\"") {

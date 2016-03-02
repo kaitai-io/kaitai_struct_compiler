@@ -17,6 +17,10 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     }
   }
 
+  override def doSubscript(container: expr, idx: expr): String = {
+    s"${translate(container)}.get(${translate(idx)})"
+  }
+
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
     s"Long.parseLong(${translate(s)}, ${translate(base)})"

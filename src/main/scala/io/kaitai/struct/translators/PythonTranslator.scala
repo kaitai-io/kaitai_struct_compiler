@@ -1,6 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 
 class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doStringLiteral(s: String): String = "u\"" + s + "\""
@@ -10,6 +11,9 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     case Ast.boolop.Or => "or"
     case Ast.boolop.Or => "and"
   }
+
+  override def doSubscript(container: expr, idx: expr): String =
+    s"${translate(container)}[${translate(idx)}]"
 
   // Predefined methods of various types
   override def strToInt(s: Ast.expr, base: Ast.expr): String =
