@@ -31,9 +31,8 @@ object Ast {
     case class BinOp(left: expr, op: operator, right: expr) extends expr
     case class UnaryOp(op: unaryop, operand: expr) extends expr
     case class Lambda(args: arguments, body: expr) extends expr
-    case class IfExp(test: expr, body: expr, orelse: expr) extends expr
+    case class IfExp(condition: expr, ifTrue: expr, ifFalse: expr) extends expr
     case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
-    case class Set(elts: Seq[expr]) extends expr
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
     case class Repr(value: expr) extends expr

@@ -29,9 +29,9 @@ object Expressions {
   val NUMBER: P[Ast.expr.Num] = P( Lexical.floatnumber | Lexical.integer ).map(Ast.expr.Num)
   val STRING: P[String] = Lexical.stringliteral
 
-  val test: P[Ast.expr] = P( or_test ~ (kw("if") ~ or_test ~ kw("else") ~ test).? ).map{
+  val test: P[Ast.expr] = P( or_test ~ ("?" ~ test ~ ":" ~ test).? ).map{
       case (x, None) => x
-      case (x, Some((test, neg))) => Ast.expr.IfExp(test, x, neg)
+      case (condition, Some((ifTrue, ifFalse))) => Ast.expr.IfExp(condition, ifTrue, ifFalse)
     }
   val or_test = P( and_test.rep(1, kw("or")) ).map{
     case Seq(x) => x

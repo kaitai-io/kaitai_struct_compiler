@@ -57,5 +57,15 @@ class ExpressionsSpec extends FunSpec {
         )
       )
     }
+
+    it("parses 2 < 3 ? \"foo\" : \"bar\"") {
+      Expressions.parse("2 < 3 ? \"foo\" : \"bar\"") should be (
+        IfExp(
+          Compare(Num(2), Lt, Num(3)),
+          Str("foo"),
+          Str("bar")
+        )
+      )
+    }
   }
 }
