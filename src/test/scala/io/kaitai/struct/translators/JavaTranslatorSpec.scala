@@ -8,11 +8,16 @@ import org.scalatest.Matchers._
 class JavaTranslatorSpec extends FunSpec {
   case class Always(t: BaseType) extends TypeProvider {
     override def determineType(name: String): BaseType = t
+    override def determineType(parentType: String, name: String): BaseType = t
   }
 
   def tryOne(t: BaseType, srcStr: String, expectedStr: String, expectedType: BaseType): Unit = {
+    tryOne(Always(t), srcStr, expectedStr, expectedType)
+  }
+
+  def tryOne(tp: TypeProvider, srcStr: String, expectedStr: String, expectedType: BaseType): Unit = {
     val e = Expressions.parse(srcStr)
-    val tr = new JavaTranslator(Always(t))
+    val tr = new JavaTranslator(tp)
     tr.detectType(e) should be(expectedType)
     tr.translate(e) should be(expectedStr)
   }
@@ -64,6 +69,38 @@ class JavaTranslatorSpec extends FunSpec {
 
     it("parses ~(7+3)") {
       tryOne(IntType, "~(7+3)", "~(7 + 3)", IntType)
+    }
+
+    it("parses foo of string type") {
+      tryOne(StrType, "foo", "foo()", StrType)
+    }
+
+    it("parses foo of user type") {
+      tryOne(UserType("block"), "foo", "foo()", UserType("block"))
+    }
+
+    class FooBarProvider extends TypeProvider {
+      override def determineType(name: String): BaseType = {
+        name match {
+          case "foo" => UserType("block")
+        }
+      }
+
+      override def determineType(parentType: String, name: String): BaseType = {
+        (parentType, name) match {
+          case ("block", "bar") => StrType
+          case ("block", "inner") => UserType("innerblock")
+          case ("innerblock", "baz") => IntType
+        }
+      }
+    }
+
+    it("parses foo.bar") {
+      tryOne(new FooBarProvider, "foo.bar", "foo().bar()", StrType)
+    }
+
+    it("parses foo.inner.baz") {
+      tryOne(new FooBarProvider, "foo.inner.baz", "foo().inner().baz()", IntType)
     }
   }
 }

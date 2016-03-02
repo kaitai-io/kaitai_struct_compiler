@@ -6,8 +6,8 @@ import java.util
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import io.kaitai.struct.exprlang.DataType.{BooleanType, IntType, StrType}
-import io.kaitai.struct.exprlang.{Ast, DataType}
+import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.LanguageCompiler
 import io.kaitai.struct.translators.TypeProvider
@@ -178,7 +178,11 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     }
   }
 
-  def determineType(name: String): DataType.BaseType = {
+  override def determineType(name: String): BaseType = {
+    IntType
+  }
+
+  override def determineType(parentType: String, name: String): BaseType = {
     IntType
   }
 }

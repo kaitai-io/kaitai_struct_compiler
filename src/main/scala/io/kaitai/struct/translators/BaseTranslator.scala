@@ -1,17 +1,17 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.exprlang.Ast.{identifier, expr}
 import io.kaitai.struct.exprlang.DataType._
 
 trait TypeProvider {
+  def determineType(parentType: String, name: String): BaseType
   def determineType(name: String): BaseType
 }
 
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
 
 abstract class BaseTranslator(val provider: TypeProvider) {
-
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.Num(n) =>
@@ -51,6 +51,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
         valType match {
+          case UserType(_) =>
+            userTypeField(value, attr.name)
           case StrType =>
             attr.name match {
               case "length" => strLength(value)
@@ -126,6 +128,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def doStringLiteral(s: String): String = "\"" + s + "\""
 
   def doName(s: String): String
+  def userTypeField(value: expr, attrName: String): String =
+    s"${translate(value)}.${doName(attrName)}"
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
@@ -192,6 +196,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
         valType match {
+          case UserType(parentClass) =>
+            provider.determineType(parentClass, attr.name)
           case StrType =>
             attr.name match {
               case "length" => IntType
