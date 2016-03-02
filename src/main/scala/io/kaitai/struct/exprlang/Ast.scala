@@ -30,12 +30,10 @@ object Ast {
     case class BoolOp(op: boolop, values: Seq[expr]) extends expr
     case class BinOp(left: expr, op: operator, right: expr) extends expr
     case class UnaryOp(op: unaryop, operand: expr) extends expr
-    case class Lambda(args: arguments, body: expr) extends expr
     case class IfExp(condition: expr, ifTrue: expr, ifFalse: expr) extends expr
     case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
-    case class Repr(value: expr) extends expr
     case class Num(n: Any) extends expr // a number as a PyObject.
     case class Str(s: String) extends expr
 
