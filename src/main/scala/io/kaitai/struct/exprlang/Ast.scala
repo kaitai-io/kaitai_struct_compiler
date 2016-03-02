@@ -32,10 +32,9 @@ object Ast {
     case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
-    case class Num(n: Any) extends expr // a number as a PyObject.
+    case class Num(n: Any) extends expr
     case class Str(s: String) extends expr
 
-    // the following expression can appear in assignment context
     case class Attribute(value: expr, attr: identifier) extends expr
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
