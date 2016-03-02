@@ -179,7 +179,11 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   }
 
   override def determineType(name: String): BaseType = {
-    IntType
+    nowClass.seq.foreach { el =>
+      if (el.id == name)
+        return el.dataTypeAsBaseType
+    }
+    throw new RuntimeException(s"Unable to access ${name} in ${nowClass} context")
   }
 
   override def determineType(parentType: String, name: String): BaseType = {
