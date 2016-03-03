@@ -189,12 +189,10 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   }
 
   override def determineType(attrName: String): BaseType = {
-    Console.println(s"determineType: $attrName")
     determineType(nowClass, nowClassName, attrName)
   }
 
   override def determineType(typeName: String, attrName: String): BaseType = {
-    Console.println(s"determineType: ($typeName, $attrName)")
     getTypeByName(nowClass, typeName) match {
       case Some(t) => determineType(t, typeName, attrName)
       case None => throw new RuntimeException(s"Unable to determine type for ${attrName} in type ${typeName}")
