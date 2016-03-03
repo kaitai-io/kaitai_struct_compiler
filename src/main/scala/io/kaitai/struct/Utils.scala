@@ -12,6 +12,8 @@ object Utils {
     }
   }
 
+  def upperCamelCase(s: String) = s.split("_").map(x => x.charAt(0).toUpper + x.substring(1)).mkString
+
   def lowerCamelCase(s: String): String = {
     val firstWord :: restWords = s.split("_").toList
     (firstWord :: restWords.map(capitalize)).mkString
