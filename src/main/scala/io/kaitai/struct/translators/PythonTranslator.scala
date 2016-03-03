@@ -5,7 +5,8 @@ import io.kaitai.struct.exprlang.Ast.expr
 
 class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doStringLiteral(s: String): String = "u\"" + s + "\""
-  override def doName(s: String) = s"self.$s"
+  override def doLocalName(s: String) = s"self.${doName(s)}"
+  override def doName(s: String) = s
 
   override def booleanOp(op: Ast.boolop) = op match {
     case Ast.boolop.Or => "or"

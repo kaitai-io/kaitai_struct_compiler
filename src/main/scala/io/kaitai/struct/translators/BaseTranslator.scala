@@ -19,7 +19,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Str(s) =>
         doStringLiteral(s)
       case Ast.expr.Name(name: Ast.identifier) =>
-        doName(name.name)
+        doLocalName(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         s"${unaryOp(op)}${translate(v)}"
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
@@ -127,9 +127,10 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def doIntLiteral(n: Any): String = n.toString
   def doStringLiteral(s: String): String = "\"" + s + "\""
 
+  def doLocalName(s: String): String = doName(s)
   def doName(s: String): String
   def userTypeField(value: expr, attrName: String): String =
-    s"${translate(value)}.${attrName}"
+    s"${translate(value)}.${doName(attrName)}"
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"

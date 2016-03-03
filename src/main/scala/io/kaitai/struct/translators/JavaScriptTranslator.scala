@@ -4,7 +4,8 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast.expr
 
 class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
-  override def doName(s: String) = s"this.${Utils.lowerCamelCase(s)}"
+  override def doLocalName(s: String) = s"this.${doName(s)}"
+  override def doName(s: String) = Utils.lowerCamelCase(s)
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
