@@ -1,9 +1,19 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 
 class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def intBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+    op match {
+      case Ast.operator.Div =>
+        s"Math.floor(${translate(left)} / ${translate(right)})"
+      case _ =>
+        super.intBinOp(left, op, right)
+    }
+  }
+
   override def doLocalName(s: String) = s"this.${doName(s)}"
   override def doName(s: String) = Utils.lowerCamelCase(s)
 

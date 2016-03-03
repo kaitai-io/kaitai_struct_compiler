@@ -25,6 +25,10 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
       tryOne(IntType, "1 + 2", "(1 + 2)", IntType)
     }
 
+    it("parses 3 / 2") {
+      tryOne(IntType, "3 / 2", "3 / 2", IntType)
+    }
+
     it("parses 1 + 2 + 5") {
       tryOne(IntType, "1 + 2 + 5", "((1 + 2) + 5)", IntType)
     }

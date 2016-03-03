@@ -23,12 +23,16 @@ class JavaScriptTranslatorSpec extends FunSpec with BaseTranslatorSpec {
       tryOne(IntType, "1 + 2", "(1 + 2)", IntType)
     }
 
+    it("parses 3 / 2") {
+      tryOne(IntType, "3 / 2", "Math.floor(3 / 2)", IntType)
+    }
+
     it("parses 1 + 2 + 5") {
       tryOne(IntType, "1 + 2 + 5", "((1 + 2) + 5)", IntType)
     }
 
     it("parses (1 + 2) / (7 * 8)") {
-      tryOne(IntType, "(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", IntType)
+      tryOne(IntType, "(1 + 2) / (7 * 8)", "Math.floor((1 + 2) / (7 * 8))", IntType)
     }
 
     it("parses 1 < 2") {
