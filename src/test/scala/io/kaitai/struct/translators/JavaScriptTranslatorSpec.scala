@@ -1,12 +1,10 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.exprlang.Expressions
 import org.scalatest.FunSpec
-import org.scalatest.Matchers._
 
-class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
+class JavaScriptTranslatorSpec extends FunSpec with BaseTranslatorSpec {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
 
   describe("JavaTranslator.translate") {
     it("parses single positive integer") {
@@ -38,11 +36,11 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     }
 
     it("parses a[42]") {
-      tryOne(ArrayType(StrType), "a[42]", "a().get(42)", StrType)
+      tryOne(ArrayType(StrType), "a[42]", "this.a[42]", StrType)
     }
 
     it("parses a[42 - 2]") {
-      tryOne(ArrayType(StrType), "a[42 - 2]", "a().get((42 - 2))", StrType)
+      tryOne(ArrayType(StrType), "a[42 - 2]", "this.a[(42 - 2)]", StrType)
     }
 
     it("parses 2 < 3 ? \"foo\" : \"bar\"") {
@@ -58,11 +56,11 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     }
 
     it("parses foo of string type") {
-      tryOne(StrType, "foo", "foo()", StrType)
+      tryOne(StrType, "foo", "this.foo", StrType)
     }
 
     it("parses foo of user type") {
-      tryOne(UserType("block"), "foo", "foo()", UserType("block"))
+      tryOne(UserType("block"), "foo", "this.foo", UserType("block"))
     }
 
     class FooBarProvider extends TypeProvider {
@@ -82,11 +80,11 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     }
 
     it("parses foo.bar") {
-      tryOne(new FooBarProvider, "foo.bar", "foo().bar()", StrType)
+      tryOne(new FooBarProvider, "foo.bar", "this.foo.bar", StrType)
     }
 
     it("parses foo.inner.baz") {
-      tryOne(new FooBarProvider, "foo.inner.baz", "foo().inner().baz()", IntType)
+      tryOne(new FooBarProvider, "foo.inner.baz", "this.foo.inner.baz", IntType)
     }
   }
 }
