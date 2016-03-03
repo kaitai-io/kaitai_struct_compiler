@@ -218,13 +218,20 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   }
 
   override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
-    out.puts(s"${type2class(className)}.prototype.${lowerCamelCase(instName)} = function() {")
+    out.puts(s"Object.defineProperty(${type2class(className)}.prototype, '${lowerCamelCase(instName)}', {")
+    out.inc
+    out.puts("get: function() {")
     out.inc
   }
 
   override def instanceAttrName(instName: String) = s"_m_${instName}"
 
-  override def instanceFooter: Unit = classConstructorFooter
+  override def instanceFooter: Unit = {
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("});")
+  }
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
     out.puts(s"if (this.${instanceAttrName(instName)} !== undefined)")
