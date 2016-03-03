@@ -129,7 +129,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
 
   def doName(s: String): String
   def userTypeField(value: expr, attrName: String): String =
-    s"${translate(value)}.${doName(attrName)}"
+    s"${translate(value)}.${attrName}"
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
