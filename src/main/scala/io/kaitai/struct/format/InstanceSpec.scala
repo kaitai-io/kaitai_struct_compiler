@@ -2,6 +2,7 @@ package io.kaitai.struct.format
 
 import java.util.{List => JList, Map => JMap}
 
+import io.kaitai.struct.exprlang.DataType.BaseType
 import io.kaitai.struct.exprlang.Expressions
 
 import collection.JavaConversions._
@@ -46,4 +47,22 @@ class InstanceSpec(
       Expressions.parse(e)
     }
   )
+
+  // Memorize if we'll have our type calculated at some point of time
+  private var _calcDataType: Option[String] = None
+  def calcDataType = _calcDataType
+  def calcDataType_=(x: String): Unit = {
+    _calcDataType = Some(x)
+  }
+
+  override def dataTypeAsBaseType: BaseType = {
+    _calcDataType match {
+      case Some(t) => AttrSpec.dataTypeToBaseType(t, isArray)
+      case None =>
+        value match {
+          case Some(_) => throw new RuntimeException(s"accessing value instance ${this} BaseType, but it's not yet calculated")
+          case None => AttrSpec.dataTypeToBaseType(dataType, isArray)
+        }
+    }
+  }
 }

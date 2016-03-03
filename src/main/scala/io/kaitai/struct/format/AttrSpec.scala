@@ -48,27 +48,7 @@ class AttrSpec(
     }
   }
 
-  def dataTypeAsBaseType: BaseType = {
-    val t = dataType match {
-      case "u1" | "s1" |
-           "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" |
-           "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" |
-           "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
-        IntType
-      case "str" | "strz" =>
-        StrType
-      case null =>
-        BytesType
-      case _ =>
-        UserType(dataType)
-    }
-
-    if (isArray) {
-      ArrayType(t)
-    } else {
-      t
-    }
-  }
+  def dataTypeAsBaseType: BaseType = AttrSpec.dataTypeToBaseType(dataType, isArray)
 }
 
 object AttrSpec {
@@ -104,5 +84,27 @@ object AttrSpec {
       include,
       eosError
     )
+  }
+
+  def dataTypeToBaseType(dt: String, isArray: Boolean): BaseType = {
+    val t = dt match {
+      case "u1" | "s1" |
+           "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" |
+           "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" |
+           "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
+        IntType
+      case "str" | "strz" =>
+        StrType
+      case null =>
+        BytesType
+      case _ =>
+        UserType(dt)
+    }
+
+    if (isArray) {
+      ArrayType(t)
+    } else {
+      t
+    }
   }
 }

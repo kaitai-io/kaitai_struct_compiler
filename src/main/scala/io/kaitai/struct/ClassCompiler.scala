@@ -6,8 +6,8 @@ import java.util
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.LanguageCompiler
 import io.kaitai.struct.translators.TypeProvider
@@ -22,6 +22,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   val userTypes = gatherUserTypes(desc).toSet
   val endian: Option[String] = desc.meta.get("endian")
 
+  var nowClassName: String = "[root]"
   var nowClass: ClassSpec = desc
 
   def gatherUserTypes(curClass: ClassSpec): List[String] = {
@@ -47,6 +48,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
 
   def compileClass(name: String, curClass: ClassSpec): Unit = {
     nowClass = curClass
+    nowClassName = name
 
     lang.classHeader(name)
 
@@ -60,6 +62,9 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     curClass.types.foreach((typeMap) => typeMap.foreach {
       case (typeName, intClass) => compileClass(typeName, intClass)
     })
+
+    nowClass = curClass
+    nowClassName = name
 
     curClass.instances.foreach((instanceMap) => instanceMap.foreach {
       case (instName, instSpec) => compileInstance(name, instName, instSpec, extraAttrs)
@@ -131,10 +136,15 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
           case IntType => "s4"
           case StrType => "str"
           case BooleanType => "bool"
+          case BytesType => null
+          case UserType(x) => x
         }
       case None =>
         instSpec.dataType
     }
+
+    // Memorize it for further use
+    instSpec.calcDataType = dataType
 
     // Declare caching variable
     lang.instanceDeclaration(instName, dataType, instSpec.isArray)
@@ -178,20 +188,49 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     }
   }
 
-  override def determineType(name: String): BaseType = {
-    nowClass.seq.foreach { el =>
-      if (el.id == name)
-        return el.dataTypeAsBaseType
-    }
-    nowClass.instances.foreach(instances => instances.foreach {
-      case(instName: String, inst: InstanceSpec) =>
-        if (instName == name)
-          return inst.dataTypeAsBaseType
-    })
-    throw new RuntimeException(s"Unable to access ${name} in ${nowClass} context")
+  override def determineType(attrName: String): BaseType = {
+    Console.println(s"determineType: $attrName")
+    determineType(nowClass, nowClassName, attrName)
   }
 
-  override def determineType(parentType: String, name: String): BaseType = {
-    IntType
+  override def determineType(typeName: String, attrName: String): BaseType = {
+    Console.println(s"determineType: ($typeName, $attrName)")
+    getTypeByName(nowClass, typeName) match {
+      case Some(t) => determineType(t, typeName, attrName)
+      case None => throw new RuntimeException(s"Unable to determine type for ${attrName} in type ${typeName}")
+    }
+  }
+
+  def determineType(classSpec: ClassSpec, className: String, attrName: String): BaseType = {
+    classSpec.seq.foreach { el =>
+      if (el.id == attrName)
+        return el.dataTypeAsBaseType
+    }
+    classSpec.instances.foreach(instances => instances.foreach {
+      case(instName: String, inst: InstanceSpec) =>
+        if (instName == attrName)
+          return inst.dataTypeAsBaseType
+    })
+    throw new RuntimeException(s"Unable to access ${attrName} in ${className} context")
+  }
+
+  def getTypeByName(inClass: ClassSpec, name: String): Option[ClassSpec] = {
+    if (inClass.types.isEmpty)
+      return None
+
+    val types = inClass.types.get
+    types.get(name) match {
+      case Some(x) => Some(x)
+      case None => {
+        types.foreach { case (inTypesKey, inTypesValue) =>
+          if (inTypesValue != inClass) {
+            val r = getTypeByName(inTypesValue, name)
+            if (r.isDefined)
+              return r
+          }
+        }
+        None
+      }
+    }
   }
 }
