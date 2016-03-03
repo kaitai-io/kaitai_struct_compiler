@@ -189,7 +189,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   def stdTypeKaitaiStream(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
       case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" =>
-        s"_io.read${Utils.capitalize(attr.dataType)}()"
+        s"this._io.read${Utils.capitalize(attr.dataType)}()"
       case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
         endian match {
           case Some(e) => s"this._io.read${Utils.capitalize(attr.dataType)}${e}()"
