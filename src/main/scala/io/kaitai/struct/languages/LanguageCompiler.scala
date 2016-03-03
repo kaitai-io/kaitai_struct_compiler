@@ -36,8 +36,8 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit
 
   def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit
-  def attrNoTypeWithSize(varName: String, size: Ast.expr): Unit
-  def attrNoTypeWithSizeEos(varName: String): Unit
+  def attrNoTypeWithSize(id: String, attr: AttrSpec): Unit
+  def attrNoTypeWithSizeEos(id: String, attr: AttrSpec): Unit
   def attrStdTypeParse(id: String, attr: AttrSpec, endian: Option[String]): Unit
   def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit
 

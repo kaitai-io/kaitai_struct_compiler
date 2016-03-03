@@ -116,11 +116,11 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   def compileAttributeNoType(attr: AttrSpec, id: String): Boolean = {
     (attr.size, attr.sizeEos) match {
       case (Some(sizeVar: Ast.expr), false) =>
-        lang.attrNoTypeWithSize(id, sizeVar)
+        lang.attrNoTypeWithSize(id, attr)
         // TODO: call postprocess here
         true
       case (None, true) =>
-        lang.attrNoTypeWithSizeEos(id)
+        lang.attrNoTypeWithSizeEos(id, attr)
         // TODO: call postprocess here
         true
       case _ =>

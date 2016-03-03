@@ -2,6 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
 import io.kaitai.struct.languages.JavaScriptCompiler.{DataStreamAPI, KaitaiStreamAPI, RuntimeAPI}
 import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, JavaScriptTranslator}
@@ -84,14 +85,6 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
-  override def attrNoTypeWithSize(varName: String, size: Ast.expr): Unit = {
-    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression(size)});")
-  }
-
-  override def attrNoTypeWithSizeEos(varName: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytesFull();")
-  }
-
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
     handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this)", io)
   }
@@ -162,6 +155,10 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
       case KaitaiStreamAPI => stdTypeKaitaiStream(attr, endian)
     }
   }
+
+  override def noTypeWithSizeExpr(size: expr): String = s"this._io.readBytes(${expression(size)})"
+
+  override def noTypeWithSizeEosExpr: String = "this._io.readBytesFull()"
 
   def stdTypeDataStream(attr: AttrSpec, endian: Option[String]): String = {
     val exactType = attr.dataType match {

@@ -58,14 +58,6 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts(s"@${attrName} = ensure_fixed_contents(${contents.size}, [${contents.mkString(", ")}])")
   }
 
-  override def attrNoTypeWithSize(varName: String, size: Ast.expr) {
-    out.puts(s"@${varName} = @_io.read(${expression(size)})")
-  }
-
-  override def attrNoTypeWithSizeEos(varName: String) {
-    out.puts(s"@${varName} = @_io.read")
-  }
-
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
     handleAssignment(id, attr, s"${type2class(attr.dataType)}.new(${io}, self)", io)
   }
@@ -150,6 +142,10 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
         "read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
     }
   }
+
+  override def noTypeWithSizeExpr(size: expr): String = s"@_io.read(${expression(size)})"
+
+  override def noTypeWithSizeEosExpr: String = s"@_io.read"
 
   override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
     out.puts(s"def ${instName}")

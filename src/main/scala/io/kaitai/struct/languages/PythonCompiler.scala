@@ -1,6 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
 import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, PythonTranslator}
 
@@ -52,14 +53,6 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
     out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
-  }
-
-  override def attrNoTypeWithSize(varName: String, size: Ast.expr) {
-    out.puts(s"self.${varName} = self._io.read(${expression(size)})")
-  }
-
-  override def attrNoTypeWithSizeEos(varName: String) {
-    out.puts(s"self.${varName} = self._io.read()")
   }
 
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
@@ -153,6 +146,10 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
         "self.read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${bool2Py(attr.include)}, ${bool2Py(attr.consume)}, ${bool2Py(attr.eosError)})"
     }
   }
+
+  override def noTypeWithSizeExpr(size: expr): String = s"self._io.read(${expression(size)})"
+
+  override def noTypeWithSizeEosExpr: String = s"self._io.read()"
 
   override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
     out.puts("@property")

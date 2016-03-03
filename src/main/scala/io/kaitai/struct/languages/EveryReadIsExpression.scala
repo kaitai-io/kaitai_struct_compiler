@@ -1,5 +1,6 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.AttrSpec
 
 /**
@@ -12,6 +13,16 @@ trait EveryReadIsExpression extends LanguageCompiler {
     handleAssignment(id, attr, stdTypeParseExpr(attr, endian), normalIO)
   }
 
+  override def attrNoTypeWithSize(id: String, attr: AttrSpec): Unit = {
+    handleAssignment(id, attr, noTypeWithSizeExpr(attr.size.get), normalIO)
+  }
+
+  override def attrNoTypeWithSizeEos(id: String, attr: AttrSpec): Unit = {
+    handleAssignment(id, attr, noTypeWithSizeEosExpr, normalIO)
+  }
+
   def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String
+  def noTypeWithSizeExpr(size: Ast.expr): String
+  def noTypeWithSizeEosExpr: String
   def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit
 }

@@ -2,6 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
 import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
 
@@ -81,14 +82,6 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
-  }
-
-  override def attrNoTypeWithSize(varName: String, size: Ast.expr): Unit = {
-    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytes(${expression(size)});")
-  }
-
-  override def attrNoTypeWithSizeEos(varName: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(varName)} = _io.readBytesFull();")
   }
 
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
@@ -182,6 +175,10 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
         "_io.readStrz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
     }
   }
+
+  override def noTypeWithSizeExpr(size: expr): String = s"_io.readBytes(${expression(size)})"
+
+  override def noTypeWithSizeEosExpr: String = s"_io.readBytesFull()"
 
   override def instanceDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType, isArray)} ${lowerCamelCase(attrName)};")
