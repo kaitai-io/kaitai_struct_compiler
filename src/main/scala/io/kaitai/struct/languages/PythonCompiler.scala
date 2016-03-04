@@ -43,7 +43,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.inc
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
-    out.puts("self._root = _root")
+    out.puts("self._root = _root if _root else self")
   }
 
   override def classConstructorFooter: Unit = classFooter(null)
@@ -57,7 +57,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
   }
 
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
-    handleAssignment(id, attr, s"self.${type2class(attr.dataType)}(${io}, self)", io)
+    handleAssignment(id, attr, s"self._root.${type2class(attr.dataType)}(${io}, self, self._root)", io)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
