@@ -203,6 +203,8 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts(s"this.${instanceAttrName(instName)} = ${expression(value)};")
   }
 
+  override def enumDeclaration(enumName: String, enumColl: Map[Long, String]): Unit = ???
+
   def lowerCamelCase(s: String): String = {
     if (s.charAt(0) == '_') {
       if (s.startsWith("_raw_")) {

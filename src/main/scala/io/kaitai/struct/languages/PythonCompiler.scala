@@ -165,5 +165,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts(s"self.${instanceAttrName(instName)} = ${expression(value)};")
   }
 
+  override def enumDeclaration(enumName: String, enumColl: Map[Long, String]): Unit = ???
+
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 }

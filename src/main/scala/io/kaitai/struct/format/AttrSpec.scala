@@ -24,7 +24,8 @@ class AttrSpec(
   @JsonProperty("terminator") _terminator: String,
   @JsonProperty("consume") _consume: String,
   @JsonProperty("include") _include: String,
-  @JsonProperty("eos-error") _eosError: String
+  @JsonProperty("eos-error") _eosError: String,
+  @JsonProperty("enum") _enum: String
 ) {
   val ifExpr = Option(_ifExpr).map(Expressions.parse)
   val repeat = Option(_repeat)
@@ -80,7 +81,8 @@ object AttrSpec {
               terminator: String = null,
               consume: String = null,
               include: String = null,
-              eosError: String = null
+              eosError: String = null,
+              _enum: String = null
             ): AttrSpec = {
     new AttrSpec(
       id,
@@ -96,7 +98,8 @@ object AttrSpec {
       terminator,
       consume,
       include,
-      eosError
+      eosError,
+      _enum
     )
   }
 

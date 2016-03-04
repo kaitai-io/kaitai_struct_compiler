@@ -9,7 +9,7 @@ class ClassSpec(@JsonProperty("meta") _meta: JMap[String, String],
                 @JsonProperty("seq") _seq: JList[AttrSpec],
                 @JsonProperty("types") _types: JMap[String, ClassSpec],
                 @JsonProperty("instances") _instances: JMap[String, InstanceSpec],
-                @JsonProperty("maps") _maps: JMap[String, Object]) {
+                @JsonProperty("enums") _enums: JMap[String, JMap[String, String]]) {
   val meta: Map[String, String] = if (_meta == null) {
     Map()
   } else {
@@ -30,10 +30,10 @@ class ClassSpec(@JsonProperty("meta") _meta: JMap[String, String],
   } else {
     Some(_instances.toMap)
   }
-  val maps: Option[Map[String, Object]] = if (_maps == null) {
-    None
+  val enums: Map[String, Map[Long, String]] = if (_enums == null) {
+    Map()
   } else {
-    Some(_maps.toMap)
+    _enums.toMap.map { case(k, v) => (k, v.toMap.map { case (enumId, enumLabel) => (enumId.toLong, enumLabel) }) }
   }
 
   var _parentType: Option[(String, ClassSpec)] = None

@@ -23,10 +23,11 @@ class InstanceSpec(
   @JsonProperty("consume") _consume: String,
   @JsonProperty("include") _include: String,
   @JsonProperty("eos-error") _eosError: String,
+  @JsonProperty("enum") _enum: String,
 
   @JsonProperty("position-abs") _positionAbs: String,
   @JsonProperty("value") _value: String
-) extends AttrSpec(id, dataType, process, contents, _size, sizeEos, _ifExpr, _encoding, _repeat, _repeatExpr, _terminator, _consume, _include, _eosError) {
+) extends AttrSpec(id, dataType, process, contents, _size, sizeEos, _ifExpr, _encoding, _repeat, _repeatExpr, _terminator, _consume, _include, _eosError, _enum) {
   val positionAbs = Option(_positionAbs).map(Expressions.parse)
   val value = Option(_value).map(e =>
     if (dataType != null) {

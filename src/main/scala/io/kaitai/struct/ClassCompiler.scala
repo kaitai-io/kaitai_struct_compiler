@@ -98,7 +98,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataType, attr.isArray))
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataType, attr.isArray))
 
-    // TODO: maps
+    curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
 
     lang.classFooter(name)
   }
@@ -239,5 +239,9 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
 //        userTypes.get(name)
 //      }
 //    }
+  }
+
+  def compileEnum(enumName: String, enumColl: Map[Long, String]): Unit = {
+    lang.enumDeclaration(enumName, enumColl)
   }
 }

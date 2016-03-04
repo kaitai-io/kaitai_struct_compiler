@@ -60,6 +60,8 @@ object DataType {
   case class UserTypeByteLimit(_name: String, size: Ast.expr) extends UserType(_name)
   case class UserTypeEos(_name: String) extends UserType(_name)
 
+  case class EnumType(name: String, basedOn: IntType) extends BaseType
+
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
 
   def yamlToDataType(

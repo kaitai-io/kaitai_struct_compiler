@@ -153,4 +153,6 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   override def instanceCalculate(instName: String, value: expr): Unit = {
     out.puts(s"@${instanceAttrName(instName)} = ${expression(value)}")
   }
+
+  override def enumDeclaration(enumName: String, enumColl: Map[Long, String]): Unit = ???
 }
