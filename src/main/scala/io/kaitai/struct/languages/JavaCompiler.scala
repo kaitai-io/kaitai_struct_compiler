@@ -177,6 +177,8 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
         "_io.readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         "_io.readStrz(\"" + encoding + '"' + s", ${terminator}, ${include}, ${consume}, ${eosError})"
+      case EnumType(enumName, t) =>
+        s"${type2class(enumName)}.byId(_io.read${Utils.capitalize(t.apiCall)}())"
     }
   }
 
@@ -281,6 +283,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
       case _: BytesType => "byte[]"
 
       case t: UserType => type2class(t.name)
+      case EnumType(name, _) => type2class(name)
     }
   }
 
@@ -309,6 +312,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
       case _: BytesType => "byte[]"
 
       case t: UserType => type2class(t.name)
+      case EnumType(name, _) => type2class(name)
     }
 
     if (isArray) {
