@@ -38,11 +38,12 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts
   }
 
-  override def classConstructorHeader(name: String): Unit = {
-    out.puts("def __init__(self, _io, _parent = None):")
+  override def classConstructorHeader(name: String, rootClassName: String): Unit = {
+    out.puts("def __init__(self, _io, _parent = None, _root = None):")
     out.inc
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
+    out.puts("self._root = _root")
   }
 
   override def classConstructorFooter: Unit = classFooter(null)

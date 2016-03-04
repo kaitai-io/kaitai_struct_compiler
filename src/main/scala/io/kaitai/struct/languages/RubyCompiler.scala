@@ -39,11 +39,12 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts("end")
   }
 
-  override def classConstructorHeader(name: String): Unit = {
-    out.puts("def initialize(io, parent = nil)")
+  override def classConstructorHeader(name: String, rootClassName: String): Unit = {
+    out.puts("def initialize(io, parent = nil, root = nil)")
     out.inc
     out.puts("@_io = io")
     out.puts("@_parent = parent")
+    out.puts("@_root = root")
   }
 
   override def classConstructorFooter: Unit = classFooter()

@@ -53,8 +53,9 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     lang.classHeader(name)
 
     val extraAttrs = ListBuffer[AttrSpec]()
+    extraAttrs += AttrSpec.create(id = "_root", dataType = topClassName)
 
-    lang.classConstructorHeader(name)
+    lang.classConstructorHeader(name, topClassName)
     curClass.seq.foreach((attr) => compileAttribute(attr, attr.id, extraAttrs))
     lang.classConstructorFooter
 

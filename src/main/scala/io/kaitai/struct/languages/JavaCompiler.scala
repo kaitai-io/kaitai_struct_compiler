@@ -49,11 +49,13 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts("}")
   }
 
-  override def classConstructorHeader(name: String): Unit = {
+  override def classConstructorHeader(name: String, rootClassName: String): Unit = {
     out.puts
     out.puts(s"public ${type2class(name)}(KaitaiStream _io) throws IOException {")
     out.inc
     out.puts("super(_io);")
+    if (name == rootClassName)
+      out.puts("this._root = this;")
     out.puts("_parse();")
     out.dec
     out.puts("}")
@@ -62,6 +64,17 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"public ${type2class(name)}(KaitaiStream _io, KaitaiStruct _parent) throws IOException {")
     out.inc
     out.puts("super(_io, _parent);")
+    if (name == rootClassName)
+      out.puts("this._root = this;")
+    out.puts("_parse();")
+    out.dec
+    out.puts("}")
+
+    out.puts
+    out.puts(s"public ${type2class(name)}(KaitaiStream _io, KaitaiStruct _parent, ${type2class(rootClassName)} _root) throws IOException {")
+    out.inc
+    out.puts("super(_io, _parent);")
+    out.puts("this._root = _root;")
     out.puts("_parse();")
     out.dec
     out.puts("}")
@@ -85,7 +98,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
-    handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this)", io)
+    handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this, _root)", io)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
@@ -277,7 +290,9 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   def lowerCamelCase(s: String): String = {
-    if (s.startsWith("_raw_")) {
+    if (s == "_root") {
+      s
+    } else if (s.startsWith("_raw_")) {
       return "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))
     } else {
       Utils.lowerCamelCase(s)
