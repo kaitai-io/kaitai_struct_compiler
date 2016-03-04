@@ -74,9 +74,10 @@ object DataType {
     include: Boolean,
     consume: Boolean,
     eosError: Boolean,
-    contents: Option[Array[Byte]]
+    contents: Option[Array[Byte]],
+    enumRef: Option[String]
   ): BaseType = {
-    dt match {
+    val r = dt match {
       case "u1" => Int1Type(false)
       case "s1" => Int1Type(true)
       case ReIntType(signStr, widthStr, endianStr) =>
@@ -138,6 +139,17 @@ object DataType {
           case (Some(_), true) =>
             throw new RuntimeException("user type '" + dt + "': only one of \"size\" or \"size-eos\" must be specified")
         }
+    }
+
+    enumRef match {
+      case Some(enumName) =>
+        r match {
+          case numType: IntType => EnumType(enumName, numType)
+          case _ =>
+            throw new RuntimeException(s"tried to resolve non-integer $r to enum")
+        }
+      case None =>
+        r
     }
   }
 }

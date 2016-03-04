@@ -43,7 +43,7 @@ class AttrSpec(
   private val include = boolFromStr(_include, false)
   private val eosError = boolFromStr(_eosError, true)
 
-  lazy val dataType = DataType.yamlToDataType(_dataType, "le", size, sizeEos, encoding, terminator, include, consume, eosError, contents)
+  lazy val dataType = DataType.yamlToDataType(_dataType, "le", size, sizeEos, encoding, terminator, include, consume, eosError, contents, Option(_enum))
 
   def isArray: Boolean = repeat.isDefined
 
