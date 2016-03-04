@@ -26,7 +26,7 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     }
 
     it("parses 3 / 2") {
-      tryOne(IntType, "3 / 2", "3 / 2", IntType)
+      tryOne(IntType, "3 / 2", "(3 / 2)", IntType)
     }
 
     it("parses 1 + 2 + 5") {
@@ -91,6 +91,10 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
 
     it("parses foo.inner.baz") {
       tryOne(new FooBarProvider, "foo.inner.baz", "foo().inner().baz()", IntType)
+    }
+
+    it("parses _root.foo") {
+      tryOne(UserType("block"), "_root.foo", "_root.foo()", UserType("block"))
     }
   }
 }

@@ -21,6 +21,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   val desc: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
   val userTypes = gatherUserTypes(desc).toSet
   val endian: Option[String] = desc.meta.get("endian")
+  val topClassName = desc.meta("id")
 
   var nowClassName: String = "[root]"
   var nowClass: ClassSpec = desc
@@ -38,11 +39,10 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   }
 
   def compile {
-    val topClass = desc.meta("id")
-    lang.open(topClass, this)
-    lang.fileHeader(yamlFilename, topClass)
-    compileClass(topClass, desc)
-    lang.fileFooter(topClass)
+    lang.open(topClassName, this)
+    lang.fileHeader(yamlFilename, topClassName)
+    compileClass(topClassName, desc)
+    lang.fileFooter(topClassName)
     lang.close
   }
 
@@ -200,19 +200,27 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   }
 
   def determineType(classSpec: ClassSpec, className: String, attrName: String): BaseType = {
-    classSpec.seq.foreach { el =>
-      if (el.id == attrName)
-        return el.dataTypeAsBaseType
+    attrName match {
+      case "_root" =>
+        UserType(topClassName)
+      case _ =>
+        classSpec.seq.foreach { el =>
+          if (el.id == attrName)
+            return el.dataTypeAsBaseType
+        }
+        classSpec.instances.foreach(instances => instances.foreach {
+          case(instName: String, inst: InstanceSpec) =>
+            if (instName == attrName)
+              return inst.dataTypeAsBaseType
+        })
+        throw new RuntimeException(s"Unable to access ${attrName} in ${className} context")
     }
-    classSpec.instances.foreach(instances => instances.foreach {
-      case(instName: String, inst: InstanceSpec) =>
-        if (instName == attrName)
-          return inst.dataTypeAsBaseType
-    })
-    throw new RuntimeException(s"Unable to access ${attrName} in ${className} context")
   }
 
   def getTypeByName(inClass: ClassSpec, name: String): Option[ClassSpec] = {
+    if (name == topClassName)
+      return Some(desc)
+
     if (inClass.types.isEmpty)
       return None
 
