@@ -15,7 +15,12 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   }
 
   override def doLocalName(s: String) = s"this.${doName(s)}"
-  override def doName(s: String) = Utils.lowerCamelCase(s)
+  override def doName(s: String) = {
+    s match {
+      case "_root" | "_parent" => s
+      case _ => Utils.lowerCamelCase(s)
+    }
+  }
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"

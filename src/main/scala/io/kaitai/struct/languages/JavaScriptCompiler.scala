@@ -65,7 +65,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.inc
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
-    out.puts("this._root = _root;")
+    out.puts("this._root = _root || this;")
     out.puts
   }
 
@@ -83,7 +83,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   }
 
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
-    handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this)", io)
+    handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this, this._root)", io)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
