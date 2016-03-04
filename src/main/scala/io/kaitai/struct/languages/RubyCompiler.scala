@@ -40,7 +40,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   }
 
   override def classConstructorHeader(name: String, rootClassName: String): Unit = {
-    out.puts("def initialize(io, parent = nil, root = nil)")
+    out.puts("def initialize(io, parent = nil, root = self)")
     out.inc
     out.puts("@_io = io")
     out.puts("@_parent = parent")
@@ -60,7 +60,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   }
 
   override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
-    handleAssignment(id, attr, s"${type2class(attr.dataType)}.new(${io}, self)", io)
+    handleAssignment(id, attr, s"${type2class(attr.dataType)}.new(${io}, self, @_root)", io)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
