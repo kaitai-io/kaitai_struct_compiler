@@ -29,7 +29,7 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def classHeader(name: String): Unit
   def classFooter(name: String): Unit
 
-  def classConstructorHeader(name: String, rootClassName: String): Unit
+  def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit
   def classConstructorFooter: Unit
 
   def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit

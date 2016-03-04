@@ -6,10 +6,10 @@ import io.kaitai.struct.exprlang.Ast._
 
 class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doName(s: String) =
-    if (s.charAt(0) == '_') {
-      s
-    } else {
-      s"${Utils.lowerCamelCase(s)}()"
+    s match {
+      case "_root" => s
+      case "_parent" => "_parent()"
+      case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {

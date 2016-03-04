@@ -35,4 +35,12 @@ class ClassSpec(@JsonProperty("meta") _meta: JMap[String, String],
   } else {
     Some(_maps.toMap)
   }
+
+  var _parentType: Option[(String, ClassSpec)] = None
+
+  def parentTypeName: String = _parentType match {
+    case Some((name: String, _)) => name
+    case None => "kaitai_struct"
+  }
+  def parentType: ClassSpec = _parentType.get._2
 }

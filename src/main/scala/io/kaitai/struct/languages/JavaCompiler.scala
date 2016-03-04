@@ -49,7 +49,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts("}")
   }
 
-  override def classConstructorHeader(name: String, rootClassName: String): Unit = {
+  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts
     out.puts(s"public ${type2class(name)}(KaitaiStream _io) throws IOException {")
     out.inc
@@ -61,9 +61,10 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts("}")
 
     out.puts
-    out.puts(s"public ${type2class(name)}(KaitaiStream _io, KaitaiStruct _parent) throws IOException {")
+    out.puts(s"public ${type2class(name)}(KaitaiStream _io, ${type2class(parentClassName)} _parent) throws IOException {")
     out.inc
-    out.puts("super(_io, _parent);")
+    out.puts("super(_io);")
+    out.puts("this._parent = _parent;")
     if (name == rootClassName)
       out.puts("this._root = this;")
     out.puts("_parse();")
@@ -71,9 +72,10 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts("}")
 
     out.puts
-    out.puts(s"public ${type2class(name)}(KaitaiStream _io, KaitaiStruct _parent, ${type2class(rootClassName)} _root) throws IOException {")
+    out.puts(s"public ${type2class(name)}(KaitaiStream _io, ${type2class(parentClassName)} _parent, ${type2class(rootClassName)} _root) throws IOException {")
     out.inc
-    out.puts("super(_io, _parent);")
+    out.puts("super(_io);")
+    out.puts("this._parent = _parent;")
     out.puts("this._root = _root;")
     out.puts("_parse();")
     out.dec
@@ -290,7 +292,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   def lowerCamelCase(s: String): String = {
-    if (s == "_root") {
+    if (s == "_root" || s == "_parent") {
       s
     } else if (s.startsWith("_raw_")) {
       return "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))

@@ -19,22 +19,39 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   val reader = new FileReader(yamlFilename)
   val mapper = new ObjectMapper(new YAMLFactory())
   val desc: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
-  val userTypes = gatherUserTypes(desc).toSet
   val endian: Option[String] = desc.meta.get("endian")
   val topClassName = desc.meta("id")
 
-  var nowClassName: String = "[root]"
+  val userTypes = gatherUserTypes(desc) ++ Map(topClassName -> desc)
+  markupParentTypes(topClassName, desc)
+
+  var nowClassName: String = topClassName
   var nowClass: ClassSpec = desc
 
-  def gatherUserTypes(curClass: ClassSpec): List[String] = {
+  def gatherUserTypes(curClass: ClassSpec): Map[String, ClassSpec] = {
     curClass.types match {
       case Some(typeMap) =>
-        val curValues: List[String] = typeMap.keys.toList
-        val recValues = typeMap.map {
+        val curValues: Map[String, ClassSpec] = typeMap
+        val recValues: Map[String, ClassSpec] = typeMap.map {
           case (typeName, intClass) => gatherUserTypes(intClass)
-        }.flatten
+        }.flatten.toMap
         curValues ++ recValues
-      case None => List()
+      case None => Map()
+    }
+  }
+
+  def markupParentTypes(curClassName: String, curClass: ClassSpec): Unit = {
+    curClass.seq.foreach { attr =>
+      userTypes.get(attr.dataType).foreach { usedClass =>
+        usedClass._parentType match {
+          case None =>
+            usedClass._parentType = Some((curClassName, curClass))
+            markupParentTypes(attr.dataType, usedClass)
+          case Some((curClassName, curClass)) => // already done, don't do anything
+          case Some((otherName, otherClass)) =>
+            throw new RuntimeException("type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
+        }
+      }
     }
   }
 
@@ -54,8 +71,9 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
 
     val extraAttrs = ListBuffer[AttrSpec]()
     extraAttrs += AttrSpec.create(id = "_root", dataType = topClassName)
+    extraAttrs += AttrSpec.create(id = "_parent", dataType = curClass.parentTypeName)
 
-    lang.classConstructorHeader(name, topClassName)
+    lang.classConstructorHeader(name, curClass.parentTypeName, topClassName)
     curClass.seq.foreach((attr) => compileAttribute(attr, attr.id, extraAttrs))
     lang.classConstructorFooter
 
@@ -204,6 +222,8 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     attrName match {
       case "_root" =>
         UserType(topClassName)
+      case "_parent" =>
+        UserType(classSpec.parentTypeName)
       case _ =>
         classSpec.seq.foreach { el =>
           if (el.id == attrName)
@@ -219,25 +239,30 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   }
 
   def getTypeByName(inClass: ClassSpec, name: String): Option[ClassSpec] = {
-    if (name == topClassName)
-      return Some(desc)
+    userTypes.get(name)
 
-    if (inClass.types.isEmpty)
-      return None
-
-    val types = inClass.types.get
-    types.get(name) match {
-      case Some(x) => Some(x)
-      case None => {
-        types.foreach { case (inTypesKey, inTypesValue) =>
-          if (inTypesValue != inClass) {
-            val r = getTypeByName(inTypesValue, name)
-            if (r.isDefined)
-              return r
-          }
-        }
-        None
-      }
-    }
+    // Some special code to support non-unique type names lookup - might come useful in future
+//    if (name == topClassName)
+//      return Some(desc)
+//
+//    if (inClass.types.isEmpty)
+//      return None
+//
+//    val types = inClass.types.get
+//    val r = types.get(name) match {
+//      case Some(x) => Some(x)
+//      case None => {
+//        types.foreach { case (inTypesKey, inTypesValue) =>
+//          if (inTypesValue != inClass) {
+//            val r = getTypeByName(inTypesValue, name)
+//            if (r.isDefined)
+//              return r
+//          }
+//        }
+//
+//        // Look up global names list
+//        userTypes.get(name)
+//      }
+//    }
   }
 }

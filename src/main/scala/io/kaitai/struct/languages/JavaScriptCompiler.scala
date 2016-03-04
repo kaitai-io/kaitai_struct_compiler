@@ -60,7 +60,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts("})();")
   }
 
-  override def classConstructorHeader(name: String, rootClassName: String): Unit = {
+  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts(s"function ${type2class(name)}(_io, _parent, _root) {")
     out.inc
     out.puts("this._io = _io;")
