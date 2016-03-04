@@ -126,6 +126,8 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
         "read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         "read_strz(\"" + encoding + '"' + s", ${terminator}, ${include}, ${consume}, ${eosError})"
+      case EnumType(enumName, t) =>
+        s"${value2Const(enumName)}[read_${t.apiCall}]"
     }
   }
 
@@ -154,5 +156,18 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts(s"@${instanceAttrName(instName)} = ${expression(value)}")
   }
 
-  override def enumDeclaration(enumName: String, enumColl: Map[Long, String]): Unit = ???
+  override def enumDeclaration(enumName: String, enumColl: Map[Long, String]): Unit = {
+    out.puts
+    out.puts(s"${value2Const(enumName)} = {")
+    out.inc
+    enumColl.foreach { case (id, label) =>
+      out.puts(s"$id => ${enumValue(enumName, label)},")
+    }
+    out.dec
+    out.puts("}")
+  }
+
+  def enumValue(enumName: String, enumLabel: String) = s":${enumName}_${enumLabel}"
+
+  def value2Const(s: String) = s.toUpperCase
 }
