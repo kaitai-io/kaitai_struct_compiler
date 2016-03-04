@@ -1,6 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.DataType.{UserTypeByteLimit, BytesLimitType}
 import io.kaitai.struct.format.AttrSpec
 
 /**
@@ -14,7 +15,12 @@ trait EveryReadIsExpression extends LanguageCompiler {
   }
 
   override def attrNoTypeWithSize(id: String, attr: AttrSpec): Unit = {
-    handleAssignment(id, attr, noTypeWithSizeExpr(attr.size.get), normalIO)
+    attr.dataType match {
+      case BytesLimitType(size) =>
+        handleAssignment(id, attr, noTypeWithSizeExpr(size), normalIO)
+      case UserTypeByteLimit(_, size) =>
+        handleAssignment(id, attr, noTypeWithSizeExpr(size), normalIO)
+    }
   }
 
   override def attrNoTypeWithSizeEos(id: String, attr: AttrSpec): Unit = {

@@ -1,19 +1,20 @@
 package io.kaitai.struct.format
 
+import java.nio.charset.Charset
+import java.util
 import java.util.{List => JList, Map => JMap}
+import collection.JavaConversions._
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.exprlang.Expressions
-
-import collection.JavaConversions._
-import com.fasterxml.jackson.annotation.JsonProperty
+import io.kaitai.struct.exprlang.{DataType, Expressions}
 
 class AttrSpec(
   @JsonProperty("id") val id: String,
-  @JsonProperty("type") val dataType: String,
+  @JsonProperty("type") _dataType: String,
   @JsonProperty("process") _process: String,
-  @JsonProperty("contents") val contents: Object,
+  @JsonProperty("contents") _contents: Object,
   @JsonProperty("size") _size: String,
   @JsonProperty("size-eos") val sizeEos: Boolean,
   @JsonProperty("if") _ifExpr: String,
@@ -25,16 +26,23 @@ class AttrSpec(
   @JsonProperty("include") _include: String,
   @JsonProperty("eos-error") _eosError: String
 ) {
-  val size = Option(_size).map(Expressions.parse)
   val ifExpr = Option(_ifExpr).map(Expressions.parse)
-  val encoding = Option(_encoding)
   val repeat = Option(_repeat)
   val repeatExpr = Option(_repeatExpr).map(Expressions.parse)
-  val terminator = Utils.strToOptInt(_terminator).getOrElse(0)
 
-  val consume = boolFromStr(_consume, true)
-  val include = boolFromStr(_include, false)
-  val eosError = boolFromStr(_eosError, true)
+  private val contents = if (_contents != null) {
+    Some(AttrSpec.parseContentSpec(_contents))
+  } else {
+    None
+  }
+  private val size = Option(_size).map(Expressions.parse)
+  private val encoding = Option(_encoding)
+  private val terminator = Utils.strToOptInt(_terminator).getOrElse(0)
+  private val consume = boolFromStr(_consume, true)
+  private val include = boolFromStr(_include, false)
+  private val eosError = boolFromStr(_eosError, true)
+
+  lazy val dataType = DataType.yamlToDataType(_dataType, "le", size, sizeEos, encoding, terminator, include, consume, eosError, contents)
 
   def isArray: Boolean = repeat.isDefined
 
@@ -48,7 +56,13 @@ class AttrSpec(
     }
   }
 
-  def dataTypeAsBaseType: BaseType = AttrSpec.dataTypeToBaseType(dataType, isArray)
+  def dataTypeComposite: BaseType = {
+    if (isArray) {
+      ArrayType(dataType)
+    } else {
+      dataType
+    }
+  }
 }
 
 object AttrSpec {
@@ -86,25 +100,25 @@ object AttrSpec {
     )
   }
 
-  def dataTypeToBaseType(dt: String, isArray: Boolean): BaseType = {
-    val t = dt match {
-      case "u1" | "s1" |
-           "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" |
-           "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" |
-           "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
-        IntType
-      case "str" | "strz" =>
-        StrType
-      case null =>
-        BytesType
-      case _ =>
-        UserType(dt)
-    }
-
-    if (isArray) {
-      ArrayType(t)
+  def parseContentSpec(c: Object): Array[Byte] = {
+    if (c.isInstanceOf[String]) {
+      c.asInstanceOf[String].getBytes(Charset.forName("UTF-8"))
+    } else if (c.isInstanceOf[util.ArrayList[Object]]) {
+      val arr = c.asInstanceOf[util.ArrayList[Object]].toList
+      val bb = new scala.collection.mutable.ArrayBuffer[Byte]
+      arr.foreach((el) =>
+        if (el.isInstanceOf[String]) {
+          val strBytes = el.asInstanceOf[String].getBytes(Charset.forName("UTF-8"))
+          bb.appendAll(strBytes)
+        } else if (el.isInstanceOf[Integer]) {
+          bb.append(el.asInstanceOf[Integer].toByte)
+        } else {
+          throw new RuntimeException(s"Unable to parse fixed content in array: ${el}")
+        }
+      )
+      bb.toArray
     } else {
-      t
+      throw new RuntimeException(s"Unable to parse fixed content: ${c.getClass}")
     }
   }
 }

@@ -1,7 +1,9 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
 import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, PythonTranslator}
 
@@ -48,17 +50,16 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
   override def classConstructorFooter: Unit = classFooter(null)
 
-  override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {}
+  override def attributeDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit = {}
+  override def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {}
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
     out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
   }
 
-  override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
-    handleAssignment(id, attr, s"self._root.${type2class(attr.dataType)}(${io}, self, self._root)", io)
-  }
+  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrSpec, io: String): Unit =
+    handleAssignment(id, attr, s"self._root.${type2class(attrType.name)}(${io}, self, self._root)", io)
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
@@ -122,29 +123,15 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
   override def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
-      case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be"  =>
-        s"self.read_${attr.dataType}()"
-      case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
-        endian match {
-          case Some(e) => s"self.read_${attr.dataType}${e}()"
-          case None => throw new RuntimeException(s"Unable to parse ${attr.dataType} with no default endianess defined")
-        }
-      case null => throw new RuntimeException("should never happen")
+      case t: IntType =>
+        s"self.read_${t.apiCall}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-
-      case "str" =>
-        ((attr.size, attr.sizeEos)) match {
-          case (Some(bs: Ast.expr), false) =>
-            s"self.read_str_byte_limit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
-          case (None, true) =>
-            "self.read_str_eos(\"" + attr.encoding.get + "\")"
-          case (None, false) =>
-            throw new RuntimeException("type str: either \"size\" or \"size-eos\" must be specified")
-          case (Some(_), true) =>
-            throw new RuntimeException("type str: only one of \"size\" or \"size-eos\" must be specified")
-        }
-      case "strz" =>
-        "self.read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${bool2Py(attr.include)}, ${bool2Py(attr.consume)}, ${bool2Py(attr.eosError)})"
+      case StrByteLimitType(bs, encoding) =>
+        s"self.read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
+      case StrEosType(encoding) =>
+        "self.read_str_eos(\"" + encoding + "\")"
+      case StrZType(encoding, terminator, include, consume, eosError) =>
+        "self.read_strz(\"" + encoding + '"' + s", ${terminator}, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
     }
   }
 
@@ -152,7 +139,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
   override def noTypeWithSizeEosExpr: String = s"self._io.read()"
 
-  override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
+  override def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit = {
     out.puts("@property")
     out.puts(s"def ${instName}(self):")
     out.inc

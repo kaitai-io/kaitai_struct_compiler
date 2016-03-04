@@ -23,24 +23,22 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         s"${unaryOp(op)}${translate(v)}"
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
-        val ltype = detectType(left)
-        val rtype = detectType(right)
-        if (ltype == IntType && rtype == IntType) {
-          doIntCompareOp(left, op, right)
-        } else if (ltype == StrType && rtype == StrType) {
-          doStrCompareOp(left, op, right)
-        } else {
-          throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
+        (detectType(left), detectType(right)) match {
+          case (_: IntType, _: IntType) =>
+            doIntCompareOp(left, op, right)
+          case (_: StrType, _: StrType) =>
+            doStrCompareOp(left, op, right)
+          case (ltype, rtype) =>
+            throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
         }
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
-        val ltype = detectType(left)
-        val rtype = detectType(right)
-        if (ltype == IntType && rtype == IntType) {
-          intBinOp(left, op, right)
-        } else if (ltype == StrType && rtype == StrType && op == Ast.operator.Add) {
-          strConcat(left, right)
-        } else {
-          throw new RuntimeException(s"can't do ${ltype} ${op} ${rtype}")
+        (detectType(left), detectType(right), op) match {
+          case (_: IntType, _: IntType, _) =>
+            intBinOp(left, op, right)
+          case (_: StrType, _: StrType, Ast.operator.Add) =>
+            strConcat(left, right)
+          case (ltype, rtype, _) =>
+            throw new RuntimeException(s"can't do ${ltype} ${op} ${rtype}")
         }
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         doBooleanOp(op, values)
@@ -51,13 +49,13 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
         valType match {
-          case UserType(_) =>
+          case _: UserType =>
             userTypeField(value, attr.name)
-          case StrType =>
+          case _: StrType =>
             attr.name match {
               case "length" => strLength(value)
             }
-          case IntType =>
+          case _: IntType =>
             throw new RuntimeException(s"don't know how to call anything on ${valType}")
         }
       case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
@@ -65,7 +63,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
             val objType = detectType(obj)
             (objType, methodName.name) match {
-              case (StrType, "substring") => strSubstring(obj, args(0), args(1))
+              case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
@@ -140,13 +138,13 @@ abstract class BaseTranslator(val provider: TypeProvider) {
 
   def detectType(v: Ast.expr): BaseType = {
     v match {
-      case Ast.expr.Num(_) => IntType
-      case Ast.expr.Str(_) => StrType
+      case Ast.expr.Num(_) => CalcIntType
+      case Ast.expr.Str(_) => CalcStrType
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
         t match {
-          case IntType => IntType
+          case _: IntType => t
           case _ => throw new RuntimeException(s"unable to apply unary operator ${op} to ${t}")
         }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
@@ -158,12 +156,11 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
         }
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
-        val ltype = detectType(left)
-        val rtype = detectType(right)
-        if (ltype == rtype) {
-          ltype
-        } else {
-          throw new RuntimeException(s"can't apply operator ${op} to ${ltype} and ${rtype}")
+        (detectType(left), detectType(right), op) match {
+          case (_: IntType, _: IntType, _) => CalcIntType
+          case (_: StrType, _: StrType, Ast.operator.Add) => CalcStrType
+          case (ltype, rtype, _) =>
+            throw new RuntimeException(s"can't apply operator ${op} to ${ltype} and ${rtype}")
         }
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         values.foreach(v => {
@@ -189,7 +186,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         detectType(container) match {
           case ArrayType(elType: BaseType) =>
             detectType(idx) match {
-              case IntType => elType
+              case _: IntType => elType
               case idxType => throw new TypeMismatchError(s"unable to index an array using ${idxType}")
             }
           case cntType => throw new TypeMismatchError(s"unable to apply operation [] to ${cntType}")
@@ -197,14 +194,14 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
         valType match {
-          case UserType(parentClass) =>
-            provider.determineType(parentClass, attr.name)
-          case StrType =>
+          case t: UserType =>
+            provider.determineType(t.name, attr.name)
+          case _: StrType =>
             attr.name match {
-              case "length" => IntType
+              case "length" => CalcIntType
               case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
             }
-          case IntType =>
+          case _ =>
             throw new RuntimeException(s"don't know how to call anything on ${valType}")
         }
       case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
@@ -212,7 +209,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
             val objType = detectType(obj)
             (objType, methodName.name) match {
-              case (StrType, "substring") => StrType
+              case (_: StrType, "substring") => CalcStrType
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }

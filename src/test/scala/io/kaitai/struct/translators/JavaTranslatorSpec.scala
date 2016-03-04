@@ -10,91 +10,91 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
 
   describe("JavaTranslator.translate") {
     it("parses single positive integer") {
-      tryOne(IntType, "123", "123", IntType)
+      tryOne(CalcIntType, "123", "123", CalcIntType)
     }
 
     it("parses single negative integer") {
-      tryOne(IntType, "-456", "-456", IntType)
+      tryOne(CalcIntType, "-456", "-456", CalcIntType)
     }
 
     it("parses hex integer") {
-      tryOne(IntType, "0x1234", "4660", IntType)
+      tryOne(CalcIntType, "0x1234", "4660", CalcIntType)
     }
 
     it("parses 1 + 2") {
-      tryOne(IntType, "1 + 2", "(1 + 2)", IntType)
+      tryOne(CalcIntType, "1 + 2", "(1 + 2)", CalcIntType)
     }
 
     it("parses 3 / 2") {
-      tryOne(IntType, "3 / 2", "(3 / 2)", IntType)
+      tryOne(CalcIntType, "3 / 2", "(3 / 2)", CalcIntType)
     }
 
     it("parses 1 + 2 + 5") {
-      tryOne(IntType, "1 + 2 + 5", "((1 + 2) + 5)", IntType)
+      tryOne(CalcIntType, "1 + 2 + 5", "((1 + 2) + 5)", CalcIntType)
     }
 
     it("parses (1 + 2) / (7 * 8)") {
-      tryOne(IntType, "(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", IntType)
+      tryOne(CalcIntType, "(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", CalcIntType)
     }
 
     it("parses 1 < 2") {
-      tryOne(IntType, "1 < 2", "1 < 2", BooleanType)
+      tryOne(CalcIntType, "1 < 2", "1 < 2", BooleanType)
     }
 
     it("parses a[42]") {
-      tryOne(ArrayType(StrType), "a[42]", "a().get(42)", StrType)
+      tryOne(ArrayType(CalcStrType), "a[42]", "a().get(42)", CalcStrType)
     }
 
     it("parses a[42 - 2]") {
-      tryOne(ArrayType(StrType), "a[42 - 2]", "a().get((42 - 2))", StrType)
+      tryOne(ArrayType(CalcStrType), "a[42 - 2]", "a().get((42 - 2))", CalcStrType)
     }
 
     it("parses 2 < 3 ? \"foo\" : \"bar\"") {
-      tryOne(IntType, "2 < 3 ? \"foo\" : \"bar\"", "2 < 3 ? \"foo\" : \"bar\"", StrType)
+      tryOne(CalcIntType, "2 < 3 ? \"foo\" : \"bar\"", "2 < 3 ? \"foo\" : \"bar\"", CalcStrType)
     }
 
     it("parses bitwise invert operation") {
-      tryOne(IntType, "~777", "~777", IntType)
+      tryOne(CalcIntType, "~777", "~777", CalcIntType)
     }
 
     it("parses ~(7+3)") {
-      tryOne(IntType, "~(7+3)", "~(7 + 3)", IntType)
+      tryOne(CalcIntType, "~(7+3)", "~(7 + 3)", CalcIntType)
     }
 
     it("parses foo of string type") {
-      tryOne(StrType, "foo", "foo()", StrType)
+      tryOne(CalcStrType, "foo", "foo()", CalcStrType)
     }
 
     it("parses foo of user type") {
-      tryOne(UserType("block"), "foo", "foo()", UserType("block"))
+      tryOne(UserTypeInstream("block"), "foo", "foo()", UserTypeInstream("block"))
     }
 
     class FooBarProvider extends TypeProvider {
       override def determineType(name: String): BaseType = {
         name match {
-          case "foo" => UserType("block")
+          case "foo" => UserTypeInstream("block")
         }
       }
 
       override def determineType(parentType: String, name: String): BaseType = {
         (parentType, name) match {
-          case ("block", "bar") => StrType
-          case ("block", "inner") => UserType("innerblock")
-          case ("innerblock", "baz") => IntType
+          case ("block", "bar") => CalcStrType
+          case ("block", "inner") => UserTypeInstream("innerblock")
+          case ("innerblock", "baz") => CalcIntType
         }
       }
     }
 
     it("parses foo.bar") {
-      tryOne(new FooBarProvider, "foo.bar", "foo().bar()", StrType)
+      tryOne(new FooBarProvider, "foo.bar", "foo().bar()", CalcStrType)
     }
 
     it("parses foo.inner.baz") {
-      tryOne(new FooBarProvider, "foo.inner.baz", "foo().inner().baz()", IntType)
+      tryOne(new FooBarProvider, "foo.inner.baz", "foo().inner().baz()", CalcIntType)
     }
 
     it("parses _root.foo") {
-      tryOne(UserType("block"), "_root.foo", "_root.foo()", UserType("block"))
+      tryOne(UserTypeInstream("block"), "_root.foo", "_root.foo()", UserTypeInstream("block"))
     }
   }
 }

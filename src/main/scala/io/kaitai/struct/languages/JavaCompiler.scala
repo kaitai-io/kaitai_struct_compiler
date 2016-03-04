@@ -3,6 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
 import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
 
@@ -87,11 +88,11 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   override def classConstructorFooter: Unit = classFooter(null)
 
-  override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {
+  override def attributeDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {
     out.puts(s"private ${kaitaiType2JavaType(attrType, isArray)} ${lowerCamelCase(attrName)};")
   }
 
-  override def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit = {
+  override def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {
     out.puts(s"public ${kaitaiType2JavaType(attrType, isArray)} ${lowerCamelCase(attrName)}() { return ${lowerCamelCase(attrName)}; }")
   }
 
@@ -99,9 +100,8 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
-  override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
-    handleAssignment(id, attr, s"new ${type2class(attr.dataType)}(${io}, this, _root)", io)
-  }
+  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrSpec, io: String): Unit =
+    handleAssignment(id, attr, s"new ${type2class(attrType.name)}(${io}, this, _root)", io)
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
@@ -165,29 +165,15 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   override def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
-      case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be" =>
-        s"_io.read${Utils.capitalize(attr.dataType)}()"
-      case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
-        endian match {
-          case Some(e) => s"_io.read${Utils.capitalize(attr.dataType)}${e}()"
-          case None => throw new RuntimeException(s"type ${attr.dataType}: unable to parse with no default endianess defined")
-        }
-      case null => throw new RuntimeException("should never happen")
-
+      case t: IntType =>
+        s"_io.read${Utils.capitalize(t.apiCall)}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-      case "str" =>
-        ((attr.size, attr.sizeEos)) match {
-          case (Some(bs: Ast.expr), false) =>
-            s"_io.readStrByteLimit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
-          case (None, true) =>
-            "_io.readStrEos(\"" + attr.encoding.get + "\")"
-          case (None, false) =>
-            throw new RuntimeException("type str: either \"byte_size\" or \"size_eos\" must be specified")
-          case (Some(_), true) =>
-            throw new RuntimeException("type str: only one of \"byte_size\" or \"size_eos\" must be specified")
-        }
-      case "strz" =>
-        "_io.readStrz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
+      case StrByteLimitType(bs, encoding) =>
+        s"_io.readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
+      case StrEosType(encoding) =>
+        "_io.readStrEos(\"" + encoding + "\")"
+      case StrZType(encoding, terminator, include, consume, eosError) =>
+        "_io.readStrz(\"" + encoding + '"' + s", ${terminator}, ${include}, ${consume}, ${eosError})"
     }
   }
 
@@ -195,11 +181,11 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   override def noTypeWithSizeEosExpr: String = s"_io.readBytesFull()"
 
-  override def instanceDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {
+  override def instanceDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType, isArray)} ${lowerCamelCase(attrName)};")
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
+  override def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit = {
     out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType, isArray)} ${lowerCamelCase(instName)}() throws IOException {")
     out.inc
   }
@@ -223,7 +209,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"${lowerCamelCase(instName)} = ${expression(value)};")
   }
 
-  def kaitaiType2JavaType(attrType: String, isArray: Boolean): String = {
+  def kaitaiType2JavaType(attrType: BaseType, isArray: Boolean): String = {
     if (isArray) {
       kaitaiType2JavaTypeBoxed(attrType, true)
     } else {
@@ -238,23 +224,22 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     * @param attrType KS data type
     * @return Java data type
     */
-  def kaitaiType2JavaTypePrim(attrType: String): String = {
+  def kaitaiType2JavaTypePrim(attrType: BaseType): String = {
     attrType match {
-      case "u1" => "int"
-      case "u2" | "u2le" | "u2be" => "int"
-      case "u4" | "u4le" | "u4be" => "long"
-      case "u8" | "u8le" | "u8be" => "long"
+      case Int1Type(false) => "int"
+      case IntMultiType(false, Width2, _) => "int"
+      case IntMultiType(false, Width4, _) => "long"
+      case IntMultiType(false, Width8, _) => "long"
 
-      case "s1" => "byte"
-      case "s2" | "s2le" | "s2be" => "short"
-      case "s4" | "s4le" | "s4be" => "int"
-      case "s8" | "s8le" | "s8be" => "long"
+      case Int1Type(true) => "byte"
+      case IntMultiType(true, Width2, _) => "short"
+      case IntMultiType(true, Width4, _) => "int"
+      case IntMultiType(true, Width8, _) => "long"
 
-      case "str" | "strz" => "String"
+      case _: StrType => "String"
+      case _: BytesType => "byte[]"
 
-      case null => "byte[]"
-
-      case _ => type2class(attrType)
+      case t: UserType => type2class(t.name)
     }
   }
 
@@ -265,23 +250,24 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     * @param attrType KS data type
     * @return Java data type
     */
-  def kaitaiType2JavaTypeBoxed(attrType: String, isArray: Boolean = false): String = {
+  def kaitaiType2JavaTypeBoxed(attrType: BaseType, isArray: Boolean = false): String = {
     val r = attrType match {
-      case "u1" => "Integer"
-      case "u2" | "u2le" | "u2be" => "Integer"
-      case "u4" | "u4le" | "u4be" => "Long"
-      case "u8" | "u8le" | "u8be" => "Long"
+      case Int1Type(false) => "Integer"
+      case IntMultiType(false, Width2, _) => "Integer"
+      case IntMultiType(false, Width4, _) => "Long"
+      case IntMultiType(false, Width8, _) => "Long"
 
-      case "s1" => "Byte"
-      case "s2" | "s2le" | "s2be" => "Short"
-      case "s4" | "s4le" | "s4be" => "Integer"
-      case "s8" | "s8le" | "s8be" => "Long"
+      case Int1Type(true) => "Byte"
+      case IntMultiType(true, Width2, _) => "Short"
+      case IntMultiType(true, Width4, _) => "Integer"
+      case IntMultiType(true, Width8, _) => "Long"
 
-      case "str" | "strz" => "String"
+      case CalcIntType => "Integer"
 
-      case null => "byte[]"
+      case _: StrType => "String"
+      case _: BytesType => "byte[]"
 
-      case _ => type2class(attrType)
+      case t: UserType => type2class(t.name)
     }
 
     if (isArray) {

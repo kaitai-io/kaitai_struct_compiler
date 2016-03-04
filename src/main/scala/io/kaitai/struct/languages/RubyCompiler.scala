@@ -1,10 +1,10 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.{ProcessXor, ProcessExpr, AttrSpec}
-import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, RubyTranslator}
+import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
+import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
 
 class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
@@ -49,9 +49,9 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
 
   override def classConstructorFooter: Unit = classFooter()
 
-  override def attributeDeclaration(attrName: String, attrType: String, isArray: Boolean): Unit = {}
+  override def attributeDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: String, isArray: Boolean): Unit = {
+  override def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {
     out.puts(s"attr_reader :${attrName}")
   }
 
@@ -59,9 +59,8 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts(s"@${attrName} = ensure_fixed_contents(${contents.size}, [${contents.mkString(", ")}])")
   }
 
-  override def attrUserTypeParse(id: String, attr: AttrSpec, io: String): Unit = {
-    handleAssignment(id, attr, s"${type2class(attr.dataType)}.new(${io}, self, @_root)", io)
-  }
+  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrSpec, io: String): Unit =
+    handleAssignment(id, attr, s"${type2class(attrType.name)}.new(${io}, self, @_root)", io)
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     out.puts(proc match {
@@ -118,29 +117,15 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
 
   def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
     attr.dataType match {
-      case "u1" | "s1" | "u2le" | "u2be" | "u4le" | "u4be" | "u8le" | "u8be" | "s2le" | "s2be" | "s4le" | "s4be" | "s8le" | "s8be"  =>
-        s"read_${attr.dataType}"
-      case "u2" | "u4" | "u8" | "s2" | "s4" | "s8" =>
-        endian match {
-          case Some(e) => s"read_${attr.dataType}${e}"
-          case None => throw new RuntimeException(s"Unable to parse ${attr.dataType} with no default endianess defined")
-        }
-      case null => throw new RuntimeException("should never happen")
+      case t: IntType =>
+        s"read_${t.apiCall}"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-
-      case "str" =>
-        ((attr.size, attr.sizeEos)) match {
-          case (Some(bs: Ast.expr), false) =>
-            s"read_str_byte_limit(${expression(bs)}, " + '"' + attr.encoding.get + "\")"
-          case (None, true) =>
-            "read_str_eos(\"" + attr.encoding.get + "\")"
-          case (None, false) =>
-            throw new RuntimeException("type str: either \"size\" or \"size-eos\" must be specified")
-          case (Some(_), true) =>
-            throw new RuntimeException("type str: only one of \"size\" or \"size-eos\" must be specified")
-        }
-      case "strz" =>
-        "read_strz(\"" + attr.encoding.get + '"' + s", ${attr.terminator}, ${attr.include}, ${attr.consume}, ${attr.eosError})"
+      case StrByteLimitType(bs, encoding) =>
+        s"read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
+      case StrEosType(encoding) =>
+        "read_str_eos(\"" + encoding + "\")"
+      case StrZType(encoding, terminator, include, consume, eosError) =>
+        "read_strz(\"" + encoding + '"' + s", ${terminator}, ${include}, ${consume}, ${eosError})"
     }
   }
 
@@ -148,7 +133,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
 
   override def noTypeWithSizeEosExpr: String = s"@_io.read"
 
-  override def instanceHeader(className: String, instName: String, dataType: String, isArray: Boolean): Unit = {
+  override def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit = {
     out.puts(s"def ${instName}")
     out.inc
   }

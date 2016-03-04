@@ -42,15 +42,20 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
 
   def markupParentTypes(curClassName: String, curClass: ClassSpec): Unit = {
     curClass.seq.foreach { attr =>
-      userTypes.get(attr.dataType).foreach { usedClass =>
-        usedClass._parentType match {
-          case None =>
-            usedClass._parentType = Some((curClassName, curClass))
-            markupParentTypes(attr.dataType, usedClass)
-          case Some((curClassName, curClass)) => // already done, don't do anything
-          case Some((otherName, otherClass)) =>
-            throw new RuntimeException("type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
-        }
+      attr.dataType match {
+        case userType: UserType =>
+          val ut = userType.name
+          userTypes.get(ut).foreach { usedClass =>
+            usedClass._parentType match {
+              case None =>
+                usedClass._parentType = Some((curClassName, curClass))
+                markupParentTypes(ut, usedClass)
+              case Some((curClassName, curClass)) => // already done, don't do anything
+              case Some((otherName, otherClass)) =>
+                throw new RuntimeException("type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
+            }
+          }
+        case _ => // ignore, it's standard type
       }
     }
   }
@@ -99,24 +104,26 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   }
 
   def compileAttribute(attr: AttrSpec, id: String, extraAttrs: ListBuffer[AttrSpec]): Unit = {
-    if (attr.contents != null) {
-      lang.attrFixedContentsParse(id, parseContentSpec(attr))
-    } else {
-      if (userTypes.contains(attr.dataType)) {
+    attr.dataType match {
+      case FixedBytesType(c) =>
+        lang.attrFixedContentsParse(id, c)
+      case t: UserType =>
         val newIO = if (compileAttributeNoType(attr, s"_raw_${id}")) {
           // we have a fixed buffer, thus we shall create separate IO for it
-          extraAttrs += AttrSpec.create(s"_raw_${id}")
+          // FIXME: technically, should bear something CalcBytesType
+          extraAttrs += AttrSpec.create(s"_raw_${id}", sizeEos = true)
           lang.allocateIO(s"_raw_${id}")
         } else {
           lang.normalIO
         }
-        lang.attrUserTypeParse(id, attr, newIO)
-      } else if (attr.dataType == null) {
+        lang.attrUserTypeParse(id, t, attr, newIO)
+      case _: BytesType =>
         // use intermediate variable name, if we'll be doing post-processing
         val rawId = attr.process match {
           case None => id
           case Some(_) =>
-            extraAttrs += AttrSpec.create(s"_raw_${id}")
+            // FIXME: technically, should bear something CalcBytesType
+            extraAttrs += AttrSpec.create(s"_raw_${id}", sizeEos = true)
             s"_raw_${id}"
         }
 
@@ -126,19 +133,18 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
 
         // apply post-processing
         attr.process.foreach((proc) => lang.attrProcess(proc, rawId, id))
-      } else {
+      case _ =>
         lang.attrStdTypeParse(id, attr, endian)
-      }
     }
   }
 
   def compileAttributeNoType(attr: AttrSpec, id: String): Boolean = {
-    (attr.size, attr.sizeEos) match {
-      case (Some(sizeVar: Ast.expr), false) =>
+    attr.dataType match {
+      case BytesLimitType(_) | UserTypeByteLimit(_, _) =>
         lang.attrNoTypeWithSize(id, attr)
         // TODO: call postprocess here
         true
-      case (None, true) =>
+      case BytesEosType | UserTypeEos(_) =>
         lang.attrNoTypeWithSizeEos(id, attr)
         // TODO: call postprocess here
         true
@@ -150,16 +156,8 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   def compileInstance(className: String, instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
     val dataType = instSpec.value match {
-      case Some(e: Ast.expr) =>
-        lang.translator.detectType(e) match {
-          case IntType => "s4"
-          case StrType => "str"
-          case BooleanType => "bool"
-          case BytesType => null
-          case UserType(x) => x
-        }
-      case None =>
-        instSpec.dataType
+      case Some(e: Ast.expr) => lang.translator.detectType(e)
+      case None => instSpec.dataType
     }
 
     // Memorize it for further use
@@ -184,29 +182,6 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     lang.instanceFooter
   }
 
-  def parseContentSpec(attr: AttrSpec): Array[Byte] = {
-    val c = attr.contents
-    if (c.isInstanceOf[String]) {
-      c.asInstanceOf[String].getBytes(Charset.forName("UTF-8"))
-    } else if (c.isInstanceOf[util.ArrayList[Object]]) {
-      val arr = c.asInstanceOf[util.ArrayList[Object]].toList
-      val bb = new scala.collection.mutable.ArrayBuffer[Byte]
-      arr.foreach((el) =>
-        if (el.isInstanceOf[String]) {
-          val strBytes = el.asInstanceOf[String].getBytes(Charset.forName("UTF-8"))
-          bb.appendAll(strBytes)
-        } else if (el.isInstanceOf[Integer]) {
-          bb.append(el.asInstanceOf[Integer].toByte)
-        } else {
-          throw new RuntimeException(s"Unable to parse fixed content in array: ${el}")
-        }
-      )
-      bb.toArray
-    } else {
-      throw new RuntimeException(s"Unable to parse fixed content: ${c.getClass}")
-    }
-  }
-
   override def determineType(attrName: String): BaseType = {
     determineType(nowClass, nowClassName, attrName)
   }
@@ -221,18 +196,18 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   def determineType(classSpec: ClassSpec, className: String, attrName: String): BaseType = {
     attrName match {
       case "_root" =>
-        UserType(topClassName)
+        UserTypeInstream(topClassName)
       case "_parent" =>
-        UserType(classSpec.parentTypeName)
+        UserTypeInstream(classSpec.parentTypeName)
       case _ =>
         classSpec.seq.foreach { el =>
           if (el.id == attrName)
-            return el.dataTypeAsBaseType
+            return el.dataTypeComposite
         }
         classSpec.instances.foreach(instances => instances.foreach {
           case(instName: String, inst: InstanceSpec) =>
             if (instName == attrName)
-              return inst.dataTypeAsBaseType
+              return inst.dataTypeComposite
         })
         throw new RuntimeException(s"Unable to access ${attrName} in ${className} context")
     }
