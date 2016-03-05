@@ -19,6 +19,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts("from kaitaistruct import KaitaiStruct")
     out.puts("import array")
     out.puts("import cStringIO")
+    out.puts("from enum import Enum")
     out.puts
   }
 
@@ -132,6 +133,8 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
         "self.read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         "self.read_strz(\"" + encoding + '"' + s", ${terminator}, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
+      case EnumType(enumName, t) =>
+        s"self.${type2class(enumName)}(self.read_${t.apiCall}())"
     }
   }
 
@@ -165,7 +168,13 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts(s"self.${instanceAttrName(instName)} = ${expression(value)};")
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = ???
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
+    out.puts
+    out.puts(s"class ${type2class(enumName)}(Enum):")
+    out.inc
+    enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = $id") }
+    out.dec
+  }
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 }
