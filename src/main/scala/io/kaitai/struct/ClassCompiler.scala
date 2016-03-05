@@ -242,6 +242,6 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   }
 
   def compileEnum(enumName: String, enumColl: Map[Long, String]): Unit = {
-    lang.enumDeclaration(enumName, enumColl)
+    lang.enumDeclaration(nowClassName, enumName, enumColl)
   }
 }

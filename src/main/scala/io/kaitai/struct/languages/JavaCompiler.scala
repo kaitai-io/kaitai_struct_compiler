@@ -214,7 +214,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"${lowerCamelCase(instName)} = ${expression(value)};")
   }
 
-  override def enumDeclaration(enumName: String, enumColl: Map[Long, String]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     val enumClass = type2class(enumName)
 
     out.puts

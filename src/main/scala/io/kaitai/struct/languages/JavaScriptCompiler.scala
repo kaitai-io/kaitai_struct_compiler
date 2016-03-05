@@ -169,6 +169,9 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
         "this._io.readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         "this._io.readStrz(\"" + encoding + '"' + s", ${terminator}, ${include}, ${consume}, ${eosError})"
+      case EnumType(enumName, t) =>
+        // Just an integer, without any casts / resolutions - one would have to look up constants manually
+        s"this._io.read${Utils.capitalize(t.apiCall)}()"
     }
   }
 
@@ -203,7 +206,18 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts(s"this.${instanceAttrName(instName)} = ${expression(value)};")
   }
 
-  override def enumDeclaration(enumName: String, enumColl: Map[Long, String]): Unit = ???
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
+    out.puts
+    out.puts(s"${type2class(curClass)}.${type2class(enumName)} = Object.freeze({")
+    out.inc
+    enumColl.foreach { case (id, label) =>
+      out.puts(s"${enumValue(enumName, label)}: $id,")
+    }
+    out.dec
+    out.puts("});")
+  }
+
+  def enumValue(enumName: String, label: String) = label.toUpperCase
 
   def lowerCamelCase(s: String): String = {
     if (s.charAt(0) == '_') {

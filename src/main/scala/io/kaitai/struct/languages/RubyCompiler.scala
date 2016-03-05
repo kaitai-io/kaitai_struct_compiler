@@ -156,7 +156,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts(s"@${instanceAttrName(instName)} = ${expression(value)}")
   }
 
-  override def enumDeclaration(enumName: String, enumColl: Map[Long, String]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     out.puts
     out.puts(s"${value2Const(enumName)} = {")
     out.inc

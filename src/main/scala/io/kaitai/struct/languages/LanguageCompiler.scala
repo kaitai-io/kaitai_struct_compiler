@@ -56,7 +56,7 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def instanceReturn(instName: String): Unit
   def instanceCalculate(instName: String, value: Ast.expr)
 
-  def enumDeclaration(enumName: String, enumColl: Map[Long, String]): Unit
+  def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit
 
   def expression(e: Ast.expr): String = translator.translate(e)
 }
