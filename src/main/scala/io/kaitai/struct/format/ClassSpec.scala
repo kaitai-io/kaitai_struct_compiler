@@ -2,6 +2,8 @@ package io.kaitai.struct.format
 
 import java.util.{List => JList, Map => JMap}
 
+import io.kaitai.struct.Utils
+
 import collection.JavaConversions._
 import com.fasterxml.jackson.annotation.JsonProperty
 
@@ -33,7 +35,7 @@ class ClassSpec(@JsonProperty("meta") _meta: JMap[String, String],
   val enums: Map[String, Map[Long, String]] = if (_enums == null) {
     Map()
   } else {
-    _enums.toMap.map { case(k, v) => (k, v.toMap.map { case (enumId, enumLabel) => (enumId.toLong, enumLabel) }) }
+    _enums.toMap.map { case(k, v) => (k, v.toMap.map { case (enumId, enumLabel) => (Utils.strToLong(enumId), enumLabel) }) }
   }
 
   var _parentType: Option[(String, ClassSpec)] = None

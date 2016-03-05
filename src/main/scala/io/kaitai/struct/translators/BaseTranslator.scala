@@ -1,7 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.{identifier, expr}
+import io.kaitai.struct.exprlang.Ast.{cmpop, identifier, expr}
 import io.kaitai.struct.exprlang.DataType._
 
 trait TypeProvider {
@@ -12,12 +12,15 @@ trait TypeProvider {
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
 
 abstract class BaseTranslator(val provider: TypeProvider) {
+
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.Num(n) =>
         doIntLiteral(n)
       case Ast.expr.Str(s) =>
         doStringLiteral(s)
+      case Ast.expr.EnumByLabel(enumType, label) =>
+        doEnumByLabel(enumType.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         doLocalName(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
@@ -28,6 +31,12 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             doIntCompareOp(left, op, right)
           case (_: StrType, _: StrType) =>
             doStrCompareOp(left, op, right)
+          case (EnumType(ltype, _), EnumType(rtype, _)) =>
+            if (ltype != rtype) {
+              throw new TypeMismatchError(s"can't compare enums type ${ltype} and ${rtype}")
+            } else {
+              doEnumCompareOp(left, op, right)
+            }
           case (ltype, rtype) =>
             throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
         }
@@ -91,6 +100,10 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
   }
 
+  def doEnumCompareOp(left: expr, op: cmpop, right: expr): String = {
+    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+  }
+
   def cmpOp(op: Ast.cmpop): String = {
     op match {
       case Ast.cmpop.Lt => "<"
@@ -129,6 +142,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def doName(s: String): String
   def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
+  def doEnumByLabel(enumType: String, label: String): String
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
@@ -140,6 +154,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     v match {
       case Ast.expr.Num(_) => CalcIntType
       case Ast.expr.Str(_) => CalcStrType
+      case Ast.expr.EnumByLabel(enumType, _) => EnumType(enumType.name, CalcIntType)
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
@@ -151,6 +166,15 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         val ltype = detectType(left)
         val rtype = detectType(right)
         if (ltype == rtype) {
+          ltype match {
+            case _: StrType | _: IntType => // everything is ok
+            case EnumType(_, _) =>
+              op match {
+                case Ast.cmpop.Eq | Ast.cmpop.NotEq => // ok
+                case _ =>
+                  throw new TypeMismatchError(s"can't use comparison operator ${op} on enums")
+              }
+          }
           BooleanType
         } else {
           throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")

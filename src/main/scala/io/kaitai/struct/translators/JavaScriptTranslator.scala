@@ -22,6 +22,9 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     }
   }
 
+  override def doEnumByLabel(enumType: String, label: String): String =
+    s"this._root.constructor.${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"
+
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =

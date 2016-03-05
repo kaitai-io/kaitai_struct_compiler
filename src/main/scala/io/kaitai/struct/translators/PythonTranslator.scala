@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 
@@ -7,6 +8,9 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   override def doStringLiteral(s: String): String = "u\"" + s + "\""
   override def doLocalName(s: String) = s"self.${doName(s)}"
   override def doName(s: String) = s
+
+  override def doEnumByLabel(enumType: String, label: String): String =
+    s"self._root.${Utils.upperCamelCase(enumType)}.${label}"
 
   override def booleanOp(op: Ast.boolop) = op match {
     case Ast.boolop.Or => "or"

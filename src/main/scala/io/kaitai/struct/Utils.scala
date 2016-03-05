@@ -12,6 +12,13 @@ object Utils {
     }
   }
 
+  def strToLong(s: String): Long = {
+    s match {
+      case RDecimal(_) => s.toLong
+      case RHex(hex) => java.lang.Long.parseLong(hex, 16)
+    }
+  }
+
   def upperCamelCase(s: String) = s.split("_").map(x => x.charAt(0).toUpper + x.substring(1)).mkString
 
   def lowerCamelCase(s: String): String = {

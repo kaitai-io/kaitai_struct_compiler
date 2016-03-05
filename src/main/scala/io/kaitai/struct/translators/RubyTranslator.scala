@@ -3,7 +3,10 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.exprlang.Ast.expr
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
-  override def doName(s: String) = s"$s"
+  override def doName(s: String) = s
+
+  override def doEnumByLabel(enumType: String, label: String): String =
+    s":${enumType}_${label}"
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"

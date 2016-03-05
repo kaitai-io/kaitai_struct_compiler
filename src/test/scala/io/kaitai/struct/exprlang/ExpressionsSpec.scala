@@ -76,5 +76,26 @@ class ExpressionsSpec extends FunSpec {
     it("parses ~(7+3)") {
       Expressions.parse("~(7+3)") should be (UnaryOp(Invert, BinOp(Num(7), Add, Num(3))))
     }
+
+    it("parses port::http") {
+      Expressions.parse("port::http") should be (EnumByLabel(identifier("port"), identifier("http")))
+    }
+
+    it("parses port::http.to_i + 8000 == 8080") {
+      Expressions.parse("port::http.to_i + 8000 == 8080") should be (
+        Compare(
+          BinOp(
+            Attribute(
+              EnumByLabel(identifier("port"),identifier("http")),
+              identifier("to_i")
+            ),
+            Add,
+            Num(8000)
+          ),
+          Eq,
+          Num(8080)
+        )
+      )
+    }
   }
 }

@@ -12,6 +12,9 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 
+  override def doEnumByLabel(enumType: String, label: String): String =
+    s"${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"
+
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     if (op == Ast.cmpop.Eq) {
       s"${translate(left)}.equals(${translate(right)})"

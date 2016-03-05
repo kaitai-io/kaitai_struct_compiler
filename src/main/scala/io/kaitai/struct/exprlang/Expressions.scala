@@ -111,6 +111,7 @@ object Expressions {
       "(" ~ test ~ ")" |
       "[" ~ list ~ "]" |
       "{" ~ dictorsetmaker ~ "}" |
+      enumByName |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
       NAME.map(Ast.expr.Name(_)) |
       NUMBER
@@ -144,6 +145,10 @@ object Expressions {
   val comp_if: P[Ast.expr] = P( "if" ~ test )
 
   val testlist1: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") )
+
+  val enumByName: P[Ast.expr.EnumByLabel] = P( (NAME) ~ "::" ~ (NAME) ).map {
+    case(enumName, enumLabel) => Ast.expr.EnumByLabel(enumName, enumLabel)
+  }
 
   val topExpr: P[Ast.expr] = P( test ~ End )
 

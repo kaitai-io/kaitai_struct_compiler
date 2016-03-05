@@ -134,7 +134,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
       case StrZType(encoding, terminator, include, consume, eosError) =>
         "self.read_strz(\"" + encoding + '"' + s", ${terminator}, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
       case EnumType(enumName, t) =>
-        s"self.${type2class(enumName)}(self.read_${t.apiCall}())"
+        s"self._root.${type2class(enumName)}(self.read_${t.apiCall}())"
     }
   }
 
