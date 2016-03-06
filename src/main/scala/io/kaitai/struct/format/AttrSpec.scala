@@ -10,6 +10,8 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.exprlang.{DataType, Expressions}
 
+import scala.util.matching.Regex
+
 class AttrSpec(
   @JsonProperty("id") val id: String,
   @JsonProperty("type") _dataType: String,
@@ -111,10 +113,9 @@ object AttrSpec {
       val bb = new scala.collection.mutable.ArrayBuffer[Byte]
       arr.foreach((el) =>
         if (el.isInstanceOf[String]) {
-          val strBytes = el.asInstanceOf[String].getBytes(Charset.forName("UTF-8"))
-          bb.appendAll(strBytes)
+          bb.appendAll(Utils.strToBytes(el.asInstanceOf[String]))
         } else if (el.isInstanceOf[Integer]) {
-          bb.append(el.asInstanceOf[Integer].toByte)
+          bb.append(Utils.clampIntToByte(el.asInstanceOf[Integer]))
         } else {
           throw new RuntimeException(s"Unable to parse fixed content in array: ${el}")
         }
