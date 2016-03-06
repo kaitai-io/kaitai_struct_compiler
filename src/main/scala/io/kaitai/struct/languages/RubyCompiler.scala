@@ -56,7 +56,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"@${attrName} = ensure_fixed_contents(${contents.size}, [${contents.mkString(", ")}])")
+    out.puts(s"@${attrName} = ensure_fixed_contents(${contents.size}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
   }
 
   override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrSpec, io: String): Unit =
