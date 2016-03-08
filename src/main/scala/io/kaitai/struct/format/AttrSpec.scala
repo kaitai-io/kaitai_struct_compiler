@@ -40,42 +40,6 @@ case class AttrSpec(
                    ) extends AttrLikeSpec
 
 object AttrSpec {
-//  def create(
-//              id: String = null,
-//              dataType: String = null,
-//              process: String = null,
-//              contents: Object = null,
-//              size: String = null,
-//              sizeEos: Boolean = false,
-//              ifExpr: String = null,
-//              encoding: String = null,
-//              repeat: String = null,
-//              repeatExpr: String = null,
-//              terminator: String = null,
-//              consume: String = null,
-//              include: String = null,
-//              eosError: String = null,
-//              _enum: String = null
-//            ): AttrSpec = {
-//    new AttrSpec(
-//      id,
-//      dataType,
-//      process,
-//      contents,
-//      size,
-//      sizeEos,
-//      ifExpr,
-//      encoding,
-//      repeat,
-//      repeatExpr,
-//      terminator,
-//      consume,
-//      include,
-//      eosError,
-//      _enum
-//    )
-//  }
-
   def parseContentSpec(c: Object): Array[Byte] = {
     if (c.isInstanceOf[String]) {
       c.asInstanceOf[String].getBytes(Charset.forName("UTF-8"))
