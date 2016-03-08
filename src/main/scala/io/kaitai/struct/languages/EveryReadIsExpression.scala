@@ -71,4 +71,3 @@ trait EveryReadIsExpression extends LanguageCompiler {
 
   def handleAssignmentSimple(id: String, expr: String): Unit
 }
-
