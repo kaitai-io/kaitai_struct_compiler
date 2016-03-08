@@ -12,7 +12,7 @@ import io.kaitai.struct.format._
   */
 trait EveryReadIsExpression extends LanguageCompiler {
   override def attrStdTypeParse(id: String, attr: AttrLikeSpec): Unit = {
-    handleAssignment(id, attr, stdTypeParseExpr(attr), normalIO)
+    handleAssignment(id, attr, stdTypeParseExpr(attr.dataType), normalIO)
   }
 
   override def attrNoTypeWithSize(id: String, attr: AttrLikeSpec): Unit = {
@@ -28,7 +28,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
     handleAssignment(id, attr, noTypeWithSizeEosExpr, normalIO)
   }
 
-  def stdTypeParseExpr(attr: AttrLikeSpec): String
+  def stdTypeParseExpr(dataType: BaseType): String
   def noTypeWithSizeExpr(size: Ast.expr): String
   def noTypeWithSizeEosExpr: String
 

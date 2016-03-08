@@ -121,8 +121,8 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
   override def handleAssignmentSimple(id: String, expr: String): Unit =
     out.puts(s"self.${id} = ${expr}")
 
-  override def stdTypeParseExpr(attr: AttrLikeSpec): String = {
-    attr.dataType match {
+  override def stdTypeParseExpr(dataType: BaseType): String = {
+    dataType match {
       case t: IntType =>
         s"self.read_${t.apiCall}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476

@@ -14,10 +14,10 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   override def indent: String = "    "
 
   override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
-    out.puts(s"// This file was generated from '${sourceFileName}' with kaitai-struct compiler")
+    out.puts(s"// This file was generated from '$sourceFileName' with kaitai-struct compiler")
     if (!destPackage.isEmpty) {
       out.puts
-      out.puts(s"package ${destPackage};")
+      out.puts(s"package $destPackage;")
     }
     out.puts
     out.puts("import io.kaitai.struct.KaitaiStruct;")
@@ -104,7 +104,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit =
-    handleAssignment(id, attr, s"new ${type2class(attrType.name)}(${io}, this, _root)", io)
+    handleAssignment(id, attr, s"new ${type2class(attrType.name)}($io, this, _root)", io)
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
@@ -122,12 +122,12 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   override def allocateIO(varName: String): String = {
     val ioName = s"_io_${lowerCamelCase(varName)}"
-    out.puts(s"KaitaiStream ${ioName} = new KaitaiStream(${lowerCamelCase(varName)});")
+    out.puts(s"KaitaiStream $ioName = new KaitaiStream(${lowerCamelCase(varName)});")
     ioName
   }
 
   override def seek(io: String, pos: Ast.expr): Unit = {
-    out.puts(s"${io}.seek(${expression(pos)});")
+    out.puts(s"$io.seek(${expression(pos)});")
   }
 
   override def condIfHeader(expr: expr): Unit = {
@@ -142,12 +142,12 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit = {
     out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(dataType, true)}();")
-    out.puts(s"while (!${io}.isEof()) {")
+    out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.add(${expr});")
+    out.puts(s"this.${lowerCamelCase(id)}.add($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -162,7 +162,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.add(${expr});")
+    out.puts(s"this.${lowerCamelCase(id)}.add($expr);")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -171,11 +171,11 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   override def handleAssignmentSimple(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)} = ${expr};")
+    out.puts(s"this.${lowerCamelCase(id)} = $expr;")
   }
 
-  override def stdTypeParseExpr(attr: AttrLikeSpec): String = {
-    attr.dataType match {
+  override def stdTypeParseExpr(dataType: BaseType): String = {
+    dataType match {
       case t: IntType =>
         s"_io.read${Utils.capitalize(t.apiCall)}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
@@ -184,7 +184,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
       case StrEosType(encoding) =>
         "_io.readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        "_io.readStrz(\"" + encoding + '"' + s", ${terminator}, ${include}, ${consume}, ${eosError})"
+        "_io.readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
         s"${type2class(enumName)}.byId(_io.read${Utils.capitalize(t.apiCall)}())"
     }
@@ -334,7 +334,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     if (s == "_root" || s == "_parent") {
       s
     } else if (s.startsWith("_raw_")) {
-      return "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))
+      "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))
     } else {
       Utils.lowerCamelCase(s)
     }

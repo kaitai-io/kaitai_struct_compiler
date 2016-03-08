@@ -154,10 +154,10 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts(s"this.${lowerCamelCase(id)} = ${expr};")
   }
 
-  override def stdTypeParseExpr(attr: AttrLikeSpec): String = {
+  override def stdTypeParseExpr(dataType: BaseType): String = {
     api match {
 //      case DataStreamAPI => stdTypeDataStream(attr)
-      case KaitaiStreamAPI => stdTypeKaitaiStream(attr)
+      case KaitaiStreamAPI => stdTypeKaitaiStream(dataType)
     }
   }
 
@@ -165,8 +165,8 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
 
   override def noTypeWithSizeEosExpr: String = "this._io.readBytesFull()"
 
-  def stdTypeKaitaiStream(attr: AttrLikeSpec): String = {
-    attr.dataType match {
+  def stdTypeKaitaiStream(dataType: BaseType): String = {
+    dataType match {
       case t: IntType =>
         s"this._io.read${Utils.capitalize(t.apiCall)}()"
 
