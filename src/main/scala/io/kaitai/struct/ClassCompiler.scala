@@ -18,14 +18,14 @@ import scala.collection.mutable.ListBuffer
 class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extends TypeProvider {
   val reader = new FileReader(yamlFilename)
   val mapper = new ObjectMapper(new YAMLFactory())
-  val desc: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
-  val endian: Option[String] = desc.meta.get("endian")
-  val topClassName = desc.meta("id")
+  val topClass: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
+  val endian: Option[String] = topClass.meta.get("endian")
+  val topClassName = topClass.meta("id")
 
-  val userTypes = gatherUserTypes(desc) ++ Map(topClassName -> desc)
+  val userTypes = gatherUserTypes(topClass) ++ Map(topClassName -> topClass)
 
   var nowClassName: String = topClassName
-  var nowClass: ClassSpec = desc
+  var nowClass: ClassSpec = topClass
 
   def gatherUserTypes(curClass: ClassSpec): Map[String, ClassSpec] = {
     curClass.types match {
@@ -80,10 +80,10 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     lang.open(topClassName, this)
 
     deriveValueTypes
-    markupParentTypes(topClassName, desc)
+    markupParentTypes(topClassName, topClass)
 
     lang.fileHeader(yamlFilename, topClassName)
-    compileClass(topClassName, desc)
+    compileClass(topClassName, topClass)
     lang.fileFooter(topClassName)
     lang.close
   }
