@@ -95,11 +95,11 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     lang.classHeader(name)
 
     val extraAttrs = ListBuffer[AttrSpec]()
-    extraAttrs += AttrSpec(Some("_root"), UserTypeInstream(topClassName))
-    extraAttrs += AttrSpec(Some("_parent"), UserTypeInstream(curClass.parentTypeName))
+    extraAttrs += AttrSpec("_root", UserTypeInstream(topClassName))
+    extraAttrs += AttrSpec("_parent", UserTypeInstream(curClass.parentTypeName))
 
     lang.classConstructorHeader(name, curClass.parentTypeName, topClassName)
-    curClass.seq.foreach((attr) => compileAttribute(attr, attr.id.get, extraAttrs))
+    curClass.seq.foreach((attr) => compileAttribute(attr, attr.id, extraAttrs))
     lang.classConstructorFooter
 
     // Recursive types
@@ -115,8 +115,8 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     })
 
     // Attributes declarations and readers
-    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id.get, attr.dataType, attr.isArray))
-    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id.get, attr.dataType, attr.isArray))
+    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataType, attr.isArray))
+    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataType, attr.isArray))
 
     curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
 
@@ -131,7 +131,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
         val newIO = if (compileAttributeNoType(attr, s"_raw_${id}")) {
           // we have a fixed buffer, thus we shall create separate IO for it
           // FIXME: technically, should bear something CalcBytesType
-          extraAttrs += AttrSpec(Some(s"_raw_${id}"), BytesEosType(None))
+          extraAttrs += AttrSpec(s"_raw_${id}", BytesEosType(None))
           lang.allocateIO(s"_raw_${id}")
         } else {
           lang.normalIO
@@ -143,7 +143,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
           case None => id
           case Some(_) =>
             // FIXME: technically, should bear something CalcBytesType
-            extraAttrs += AttrSpec(Some(s"_raw_${id}"), BytesEosType(None))
+            extraAttrs += AttrSpec(s"_raw_${id}", BytesEosType(None))
             s"_raw_${id}"
         }
 

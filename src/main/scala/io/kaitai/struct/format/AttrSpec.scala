@@ -19,7 +19,6 @@ case object NoRepeat extends RepeatSpec
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 
 trait AttrLikeSpec {
-  def id: Option[String]
   def dataType: BaseType
   def cond: ConditionalSpec
 
@@ -35,7 +34,7 @@ trait AttrLikeSpec {
 }
 
 case class AttrSpec(
-                     id: Option[String],
+                     id: String,
                      dataType: BaseType,
                      cond: ConditionalSpec = ConditionalSpec(None, NoRepeat)
                    ) extends AttrLikeSpec
@@ -116,6 +115,9 @@ object AttrSpec {
               @JsonProperty("eos-error") _eosError: String,
               @JsonProperty("enum") _enum: String
             ): AttrSpec = {
+    if (id == null)
+      throw new RuntimeException("id is mandatory for an attribute")
+
     val ifExpr = Option(_ifExpr).map(Expressions.parse)
     val repeat = Option(_repeat)
     val repeatExpr = Option(_repeatExpr).map(Expressions.parse)
@@ -141,7 +143,7 @@ object AttrSpec {
       case None => NoRepeat
     }
 
-    AttrSpec(Option(id), dataType, ConditionalSpec(ifExpr, repeatSpec))
+    AttrSpec(id, dataType, ConditionalSpec(ifExpr, repeatSpec))
   }
 
   private def boolFromStr(s: String, byDef: Boolean): Boolean = {

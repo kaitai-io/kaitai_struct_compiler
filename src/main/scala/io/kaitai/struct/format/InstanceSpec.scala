@@ -52,12 +52,11 @@ class YamlInstanceSpec(
 */
 abstract class InstanceSpec
 case class ValueInstanceSpec(value: Ast.expr, var dataType: Option[BaseType]) extends InstanceSpec
-case class ParseInstanceSpec(id: Option[String], dataType: BaseType, cond: ConditionalSpec, positionAbs: Option[Ast.expr]) extends InstanceSpec with AttrLikeSpec
+case class ParseInstanceSpec(dataType: BaseType, cond: ConditionalSpec, positionAbs: Option[Ast.expr]) extends InstanceSpec with AttrLikeSpec
 
 object InstanceSpec {
   @JsonCreator
   def create(
-              @JsonProperty("id") id: String,
               @JsonProperty("type") dataType: String,
               @JsonProperty("process") process: String,
               @JsonProperty("contents") contents: Object,
@@ -80,19 +79,19 @@ object InstanceSpec {
 
     val value = Option(_value).map(e =>
       if (dataType != null) {
-        throw new RuntimeException(s"instance '${id}': can't specify both 'value' and 'type'")
+        throw new RuntimeException("instance: can't specify both 'value' and 'type'")
       } else if (process != null) {
-        throw new RuntimeException(s"instance '${id}': can't specify both 'value' and 'process'")
+        throw new RuntimeException("instance: can't specify both 'value' and 'process'")
       } else if (contents != null) {
-        throw new RuntimeException(s"instance '${id}': can't specify both 'value' and 'contents'")
+        throw new RuntimeException("instance: can't specify both 'value' and 'contents'")
       } else if (_size != null) {
-        throw new RuntimeException(s"instance '${id}': can't specify both 'value' and 'size'")
+        throw new RuntimeException("instance: can't specify both 'value' and 'size'")
       } else if (_repeat != null) {
-        throw new RuntimeException(s"instance '${id}': can't specify both 'value' and 'repeat'")
+        throw new RuntimeException("instance: can't specify both 'value' and 'repeat'")
       } else if (_repeatExpr != null) {
-        throw new RuntimeException(s"instance '${id}': can't specify both 'value' and 'repeat-expr'")
+        throw new RuntimeException("instance: can't specify both 'value' and 'repeat-expr'")
       } else if (positionAbs.isDefined) {
-        throw new RuntimeException(s"instance '${id}': can't specify both 'value' and 'position-abs'")
+        throw new RuntimeException("instance: can't specify both 'value' and 'position-abs'")
       } else {
         Expressions.parse(e)
       }
@@ -101,7 +100,7 @@ object InstanceSpec {
     value match {
       case None =>
         val a = AttrSpec.create(
-          id,
+          "fake_id",
           dataType,
           process,
           contents,
@@ -117,7 +116,7 @@ object InstanceSpec {
           _eosError,
           _enum
         )
-        ParseInstanceSpec(a.id, a.dataType, a.cond, positionAbs)
+        ParseInstanceSpec(a.dataType, a.cond, positionAbs)
       case Some(v) =>
         ValueInstanceSpec(v, None)
     }
