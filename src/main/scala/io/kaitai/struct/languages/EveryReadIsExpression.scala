@@ -45,7 +45,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
         val newIO = t match {
           case UserTypeByteLimit(_, _) | UserTypeEos(_) =>
             // we have a fixed buffer, thus we shall create separate IO for it
-            val rawId = s"_raw_${id}"
+            val rawId = s"_raw_$id"
             val byteType = t match {
               case UserTypeByteLimit(_, size) => BytesLimitType(size, None)
               case UserTypeEos(_) => BytesEosType(None)
@@ -68,8 +68,8 @@ trait EveryReadIsExpression extends LanguageCompiler {
         val rawId = t.process match {
           case None => id
           case Some(_) =>
-            extraAttrs += AttrSpec(s"_raw_${id}", t)
-            s"_raw_${id}"
+            extraAttrs += AttrSpec(s"_raw_$id", t)
+            s"_raw_$id"
         }
 
         val expr = parseExpr(dataType, io)
