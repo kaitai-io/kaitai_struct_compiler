@@ -154,7 +154,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
         // apply post-processing
         t.process.foreach((proc) => lang.attrProcess(proc, rawId, id))
       case _ =>
-        lang.attrStdTypeParse(id, attr, endian)
+        lang.attrStdTypeParse(id, attr)
     }
   }
 

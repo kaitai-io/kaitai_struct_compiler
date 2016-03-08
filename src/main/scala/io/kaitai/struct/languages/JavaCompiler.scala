@@ -174,7 +174,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"this.${lowerCamelCase(id)} = ${expr};")
   }
 
-  override def stdTypeParseExpr(attr: AttrLikeSpec, endian: Option[String]): String = {
+  override def stdTypeParseExpr(attr: AttrLikeSpec): String = {
     attr.dataType match {
       case t: IntType =>
         s"_io.read${Utils.capitalize(t.apiCall)}()"

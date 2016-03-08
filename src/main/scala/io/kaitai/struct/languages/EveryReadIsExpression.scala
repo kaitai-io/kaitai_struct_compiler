@@ -11,8 +11,8 @@ import io.kaitai.struct.format._
   * "handleAssignment".
   */
 trait EveryReadIsExpression extends LanguageCompiler {
-  override def attrStdTypeParse(id: String, attr: AttrLikeSpec, endian: Option[String]): Unit = {
-    handleAssignment(id, attr, stdTypeParseExpr(attr, endian), normalIO)
+  override def attrStdTypeParse(id: String, attr: AttrLikeSpec): Unit = {
+    handleAssignment(id, attr, stdTypeParseExpr(attr), normalIO)
   }
 
   override def attrNoTypeWithSize(id: String, attr: AttrLikeSpec): Unit = {
@@ -28,7 +28,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
     handleAssignment(id, attr, noTypeWithSizeEosExpr, normalIO)
   }
 
-  def stdTypeParseExpr(attr: AttrLikeSpec, endian: Option[String]): String
+  def stdTypeParseExpr(attr: AttrLikeSpec): String
   def noTypeWithSizeExpr(size: Ast.expr): String
   def noTypeWithSizeEosExpr: String
 

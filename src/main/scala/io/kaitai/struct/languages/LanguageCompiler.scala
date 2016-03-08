@@ -39,7 +39,7 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit
   def attrNoTypeWithSize(id: String, attr: AttrLikeSpec): Unit
   def attrNoTypeWithSizeEos(id: String, attr: AttrLikeSpec): Unit
-  def attrStdTypeParse(id: String, attr: AttrLikeSpec, endian: Option[String]): Unit
+  def attrStdTypeParse(id: String, attr: AttrLikeSpec): Unit
   def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit
 
   def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit

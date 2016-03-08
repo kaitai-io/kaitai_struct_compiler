@@ -121,7 +121,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
   override def handleAssignmentSimple(id: String, expr: String): Unit =
     out.puts(s"self.${id} = ${expr}")
 
-  override def stdTypeParseExpr(attr: AttrLikeSpec, endian: Option[String]): String = {
+  override def stdTypeParseExpr(attr: AttrLikeSpec): String = {
     attr.dataType match {
       case t: IntType =>
         s"self.read_${t.apiCall}()"

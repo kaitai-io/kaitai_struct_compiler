@@ -114,7 +114,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   override def handleAssignmentSimple(id: String, expr: String): Unit =
     out.puts(s"@${id} = ${expr}")
 
-  override def stdTypeParseExpr(attr: AttrLikeSpec, endian: Option[String]): String = {
+  override def stdTypeParseExpr(attr: AttrLikeSpec): String = {
     attr.dataType match {
       case t: IntType =>
         s"read_${t.apiCall}"
