@@ -128,15 +128,27 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
       case FixedBytesType(c, _) =>
         lang.attrFixedContentsParse(id, c)
       case t: UserType =>
-        val newIO = if (compileAttributeNoType(attr, s"_raw_${id}")) {
-          // we have a fixed buffer, thus we shall create separate IO for it
-          // FIXME: technically, should bear something CalcBytesType
-          extraAttrs += AttrSpec(s"_raw_${id}", BytesEosType(None))
-          lang.allocateIO(s"_raw_${id}")
-        } else {
-          lang.normalIO
+        val newIO = t match {
+          case UserTypeByteLimit(_, _) | UserTypeEos(_) =>
+            // we have a fixed buffer, thus we shall create separate IO for it
+            val rawId = s"_raw_${id}"
+            t match {
+              case UserTypeByteLimit(_, _) => lang.attrNoTypeWithSize(rawId, attr)
+              case UserTypeEos(_) => lang.attrNoTypeWithSizeEos(id, attr)
+            }
+
+            // FIXME: technically, should bear something CalcBytesType
+            extraAttrs += AttrSpec(rawId, BytesEosType(None))
+
+            lang.allocateIO(rawId)
+          case UserTypeInstream(_) =>
+            // no fixed buffer, just use regular IO
+            lang.normalIO
         }
         lang.attrUserTypeParse(id, t, attr, newIO)
+
+        // TODO: call postprocess here
+
       case t: BytesType =>
         // use intermediate variable name, if we'll be doing post-processing
         val rawId = t.process match {
@@ -147,29 +159,15 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
             s"_raw_${id}"
         }
 
-        if (!compileAttributeNoType(attr, rawId)) {
-          throw new RuntimeException("no type encountered and bad size / size_eos spec")
+        t match {
+          case BytesLimitType(_, _) => lang.attrNoTypeWithSize(rawId, attr)
+          case BytesEosType(_) => lang.attrNoTypeWithSizeEos(rawId, attr)
         }
 
         // apply post-processing
         t.process.foreach((proc) => lang.attrProcess(proc, rawId, id))
       case _ =>
         lang.attrStdTypeParse(id, attr)
-    }
-  }
-
-  def compileAttributeNoType(attr: AttrLikeSpec, id: String): Boolean = {
-    attr.dataType match {
-      case BytesLimitType(_, _) | UserTypeByteLimit(_, _) =>
-        lang.attrNoTypeWithSize(id, attr)
-        // TODO: call postprocess here
-        true
-      case BytesEosType(_) | UserTypeEos(_) =>
-        lang.attrNoTypeWithSizeEos(id, attr)
-        // TODO: call postprocess here
-        true
-      case _ =>
-        false
     }
   }
 
