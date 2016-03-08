@@ -4,7 +4,7 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
+import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
 
 class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
@@ -103,7 +103,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
-  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrSpec, io: String): Unit =
+  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit =
     handleAssignment(id, attr, s"new ${type2class(attrType.name)}(${io}, this, _root)", io)
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
@@ -130,43 +130,51 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"${io}.seek(${expression(pos)});")
   }
 
-  override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
-    if (attr.ifExpr.isDefined) {
-      out.puts(s"if (${expression(attr.ifExpr.get)}) {")
-      out.inc
-    }
-
-    attr.repeat match {
-      case Some("eos") =>
-        out.puts(s"${id} = new ${kaitaiType2JavaType(attr.dataType, true)}();")
-        out.puts(s"while (!${io}.isEof()) {")
-        out.inc
-        out.puts(s"${id}.add(${expr});")
-        out.dec
-        out.puts("}")
-      case Some("expr") =>
-        attr.repeatExpr match {
-          case Some(repeatExpr) =>
-            out.puts(s"${id} = new ${kaitaiType2JavaType(attr.dataType, true)}((int) (${expression(repeatExpr)}));")
-            out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
-            out.inc
-            out.puts(s"${id}.add(${expr});")
-            out.dec
-            out.puts("}")
-          case None =>
-            throw new RuntimeException("repeat: expr, but no repeat-expr value given")
-        }
-      case None =>
-        out.puts(s"this.${lowerCamelCase(id)} = ${expr};")
-    }
-
-    if (attr.ifExpr.isDefined) {
-      out.dec
-      out.puts("}")
-    }
+  override def condIfHeader(expr: expr): Unit = {
+    out.puts(s"if (${expression(expr)}) {")
+    out.inc
   }
 
-  override def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
+  override def condIfFooter(expr: expr): Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit = {
+    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(dataType, true)}();")
+    out.puts(s"while (!${io}.isEof()) {")
+    out.inc
+  }
+
+  override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
+    out.puts(s"this.${lowerCamelCase(id)}.add(${expr});")
+  }
+
+  override def condRepeatEosFooter: Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit = {
+    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(dataType, true)}((int) (${expression(repeatExpr)}));")
+    out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
+    out.inc
+  }
+
+  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
+    out.puts(s"this.${lowerCamelCase(id)}.add(${expr});")
+  }
+
+  override def condRepeatExprFooter: Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  override def handleAssignmentSimple(id: String, expr: String): Unit = {
+    out.puts(s"this.${lowerCamelCase(id)} = ${expr};")
+  }
+
+  override def stdTypeParseExpr(attr: AttrLikeSpec, endian: Option[String]): String = {
     attr.dataType match {
       case t: IntType =>
         s"_io.read${Utils.capitalize(t.apiCall)}()"

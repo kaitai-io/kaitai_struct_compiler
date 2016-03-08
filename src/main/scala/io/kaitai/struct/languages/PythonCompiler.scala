@@ -1,11 +1,10 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.format.{AttrSpec, ProcessExpr, ProcessXor}
-import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, PythonTranslator}
+import io.kaitai.struct.format.{AttrLikeSpec, AttrSpec, ProcessExpr, ProcessXor}
+import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvider}
 
 class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
@@ -59,7 +58,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
   }
 
-  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrSpec, io: String): Unit =
+  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit =
     handleAssignment(id, attr, s"self._root.${type2class(attrType.name)}(${io}, self, self._root)", io)
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
@@ -86,43 +85,43 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts(s"${io}.seek(${expression(pos)})")
   }
 
-  override def handleAssignment(id: String, attr: AttrSpec, expr: String, io: String): Unit = {
-    if (attr.ifExpr.isDefined) {
-      out.puts(s"if ${expression(attr.ifExpr.get)}:")
-      out.inc
-    }
-
-    attr.repeat match {
-      case Some("eos") =>
-        out.puts(s"self.${id} = []")
-        out.puts(s"while not self.is_io_eof(${io}):")
-        out.inc
-        out.puts(s"self.${id}.append(${expr})")
-        out.dec
-        out.puts
-      case Some("expr") =>
-        attr.repeatExpr match {
-          case Some(repeatExpr) =>
-            out.puts(s"self.${id} = [None] * ${expression(repeatExpr)}")
-            out.puts(s"for i in xrange(${expression(repeatExpr)}):")
-            out.inc
-            out.puts(s"self.${id}[i] = ${expr}")
-            out.dec
-            out.puts
-
-          case None =>
-            throw new RuntimeException("repeat: expr, but no repeat-expr value given")
-        }
-      case None => out.puts(s"self.${id} = ${expr}")
-    }
-
-    if (attr.ifExpr.isDefined) {
-      out.dec
-      out.puts
-    }
+  override def condIfHeader(expr: Ast.expr): Unit = {
+    out.puts(s"if ${expression(expr)}:")
+    out.inc
+  }
+  override def condIfFooter(expr: Ast.expr): Unit = {
+    out.dec
+    out.puts
   }
 
-  override def stdTypeParseExpr(attr: AttrSpec, endian: Option[String]): String = {
+  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit = {
+    out.puts(s"self.${id} = []")
+    out.puts(s"while not self.is_io_eof(${io}):")
+    out.inc
+  }
+  override def handleAssignmentRepeatEos(id: String, expr: String): Unit =
+    out.puts(s"self.${id}.append(${expr})")
+  override def condRepeatEosFooter: Unit = {
+    out.dec
+    out.puts
+  }
+
+  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit = {
+    out.puts(s"self.${id} = [None] * ${expression(repeatExpr)}")
+    out.puts(s"for i in xrange(${expression(repeatExpr)}):")
+    out.inc
+  }
+  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit =
+    out.puts(s"self.${id}[i] = ${expr}")
+  override def condRepeatExprFooter: Unit = {
+    out.dec
+    out.puts
+  }
+
+  override def handleAssignmentSimple(id: String, expr: String): Unit =
+    out.puts(s"self.${id} = ${expr}")
+
+  override def stdTypeParseExpr(attr: AttrLikeSpec, endian: Option[String]): String = {
     attr.dataType match {
       case t: IntType =>
         s"self.read_${t.apiCall}()"

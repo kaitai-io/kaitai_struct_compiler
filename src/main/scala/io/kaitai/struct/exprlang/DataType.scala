@@ -1,5 +1,7 @@
 package io.kaitai.struct.exprlang
 
+import io.kaitai.struct.format.ProcessExpr
+
 object DataType {
   abstract class IntWidth(val width: Int)
   case object Width1 extends IntWidth(1)
@@ -33,11 +35,15 @@ object DataType {
     }
   }
 
-  abstract class BytesType extends BaseType
+  trait Processing {
+    def process: Option[ProcessExpr]
+  }
+
+  abstract class BytesType extends BaseType with Processing
   case object CalcBytesType extends StrType
-  case class FixedBytesType(contents: Array[Byte]) extends BytesType
-  case object BytesEosType extends BytesType
-  case class BytesLimitType(s: Ast.expr) extends BytesType
+  case class FixedBytesType(contents: Array[Byte], override val process: Option[ProcessExpr]) extends BytesType
+  case class BytesEosType(override val process: Option[ProcessExpr]) extends BytesType
+  case class BytesLimitType(s: Ast.expr, override val process: Option[ProcessExpr]) extends BytesType
 
   abstract class StrType extends BaseType
   case object CalcStrType extends StrType
@@ -75,7 +81,8 @@ object DataType {
     consume: Boolean,
     eosError: Boolean,
     contents: Option[Array[Byte]],
-    enumRef: Option[String]
+    enumRef: Option[String],
+    process: Option[ProcessExpr]
   ): BaseType = {
     val r = dt match {
       case "u1" => Int1Type(false)
@@ -105,11 +112,11 @@ object DataType {
         )
       case null =>
         contents match {
-          case Some(c) => FixedBytesType(c)
+          case Some(c) => FixedBytesType(c, process)
           case _ =>
             ((size, sizeEos)) match {
-              case (Some(bs: Ast.expr), false) => BytesLimitType(bs)
-              case (None, true) => BytesEosType
+              case (Some(bs: Ast.expr), false) => BytesLimitType(bs, process)
+              case (None, true) => BytesEosType(process)
               case (None, false) =>
                 throw new RuntimeException("no type: either \"size\" or \"size-eos\" must be specified")
               case (Some(_), true) =>

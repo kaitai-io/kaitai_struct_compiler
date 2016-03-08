@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.DataType.{UserType, BaseType}
-import io.kaitai.struct.format.{ProcessExpr, AttrSpec}
+import io.kaitai.struct.format.{AttrLikeSpec, ProcessExpr, AttrSpec}
 import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
 
 abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
@@ -37,10 +37,10 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit
 
   def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit
-  def attrNoTypeWithSize(id: String, attr: AttrSpec): Unit
-  def attrNoTypeWithSizeEos(id: String, attr: AttrSpec): Unit
-  def attrStdTypeParse(id: String, attr: AttrSpec, endian: Option[String]): Unit
-  def attrUserTypeParse(id: String, attrType: UserType, attr: AttrSpec, io: String): Unit
+  def attrNoTypeWithSize(id: String, attr: AttrLikeSpec): Unit
+  def attrNoTypeWithSizeEos(id: String, attr: AttrLikeSpec): Unit
+  def attrStdTypeParse(id: String, attr: AttrLikeSpec, endian: Option[String]): Unit
+  def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit
 
   def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit
 

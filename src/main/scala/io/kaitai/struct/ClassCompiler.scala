@@ -23,7 +23,6 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   val topClassName = desc.meta("id")
 
   val userTypes = gatherUserTypes(desc) ++ Map(topClassName -> desc)
-  markupParentTypes(topClassName, desc)
 
   var nowClassName: String = topClassName
   var nowClass: ClassSpec = desc
@@ -52,7 +51,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
                 markupParentTypes(ut, usedClass)
               case Some((curClassName, curClass)) => // already done, don't do anything
               case Some((otherName, otherClass)) =>
-                throw new RuntimeException("type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
+                throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
             }
           }
         case _ => // ignore, it's standard type
@@ -60,8 +59,29 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     }
   }
 
+  def deriveValueTypes {
+    userTypes.foreach { case (name, spec) => deriveValueType(spec) }
+  }
+
+  def deriveValueType(curClass: ClassSpec): Unit = {
+    nowClass = curClass
+    curClass.instances.foreach { realInstances => realInstances.foreach {
+      case (instName, inst) =>
+        inst match {
+          case vi: ValueInstanceSpec =>
+            vi.dataType = Some(lang.translator.detectType(vi.value))
+          case _ =>
+            // do nothing
+        }
+    }}
+  }
+
   def compile {
     lang.open(topClassName, this)
+
+    deriveValueTypes
+    markupParentTypes(topClassName, desc)
+
     lang.fileHeader(yamlFilename, topClassName)
     compileClass(topClassName, desc)
     lang.fileFooter(topClassName)
@@ -75,11 +95,11 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     lang.classHeader(name)
 
     val extraAttrs = ListBuffer[AttrSpec]()
-    extraAttrs += AttrSpec.create(id = "_root", dataType = topClassName)
-    extraAttrs += AttrSpec.create(id = "_parent", dataType = curClass.parentTypeName)
+    extraAttrs += AttrSpec(Some("_root"), UserTypeInstream(topClassName))
+    extraAttrs += AttrSpec(Some("_parent"), UserTypeInstream(curClass.parentTypeName))
 
     lang.classConstructorHeader(name, curClass.parentTypeName, topClassName)
-    curClass.seq.foreach((attr) => compileAttribute(attr, attr.id, extraAttrs))
+    curClass.seq.foreach((attr) => compileAttribute(attr, attr.id.get, extraAttrs))
     lang.classConstructorFooter
 
     // Recursive types
@@ -95,35 +115,35 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     })
 
     // Attributes declarations and readers
-    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataType, attr.isArray))
-    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataType, attr.isArray))
+    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id.get, attr.dataType, attr.isArray))
+    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id.get, attr.dataType, attr.isArray))
 
     curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
 
     lang.classFooter(name)
   }
 
-  def compileAttribute(attr: AttrSpec, id: String, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+  def compileAttribute(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     attr.dataType match {
-      case FixedBytesType(c) =>
+      case FixedBytesType(c, _) =>
         lang.attrFixedContentsParse(id, c)
       case t: UserType =>
         val newIO = if (compileAttributeNoType(attr, s"_raw_${id}")) {
           // we have a fixed buffer, thus we shall create separate IO for it
           // FIXME: technically, should bear something CalcBytesType
-          extraAttrs += AttrSpec.create(s"_raw_${id}", sizeEos = true)
+          extraAttrs += AttrSpec(Some(s"_raw_${id}"), BytesEosType(None))
           lang.allocateIO(s"_raw_${id}")
         } else {
           lang.normalIO
         }
         lang.attrUserTypeParse(id, t, attr, newIO)
-      case _: BytesType =>
+      case t: BytesType =>
         // use intermediate variable name, if we'll be doing post-processing
-        val rawId = attr.process match {
+        val rawId = t.process match {
           case None => id
           case Some(_) =>
             // FIXME: technically, should bear something CalcBytesType
-            extraAttrs += AttrSpec.create(s"_raw_${id}", sizeEos = true)
+            extraAttrs += AttrSpec(Some(s"_raw_${id}"), BytesEosType(None))
             s"_raw_${id}"
         }
 
@@ -132,19 +152,19 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
         }
 
         // apply post-processing
-        attr.process.foreach((proc) => lang.attrProcess(proc, rawId, id))
+        t.process.foreach((proc) => lang.attrProcess(proc, rawId, id))
       case _ =>
         lang.attrStdTypeParse(id, attr, endian)
     }
   }
 
-  def compileAttributeNoType(attr: AttrSpec, id: String): Boolean = {
+  def compileAttributeNoType(attr: AttrLikeSpec, id: String): Boolean = {
     attr.dataType match {
-      case BytesLimitType(_) | UserTypeByteLimit(_, _) =>
+      case BytesLimitType(_, _) | UserTypeByteLimit(_, _) =>
         lang.attrNoTypeWithSize(id, attr)
         // TODO: call postprocess here
         true
-      case BytesEosType | UserTypeEos(_) =>
+      case BytesEosType(_) | UserTypeEos(_) =>
         lang.attrNoTypeWithSizeEos(id, attr)
         // TODO: call postprocess here
         true
@@ -155,27 +175,23 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
 
   def compileInstance(className: String, instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
-    val dataType = instSpec.value match {
-      case Some(e: Ast.expr) => lang.translator.detectType(e)
-      case None => instSpec.dataType
+    val (dataType, isArray) = instSpec match {
+      case t: ValueInstanceSpec => (t.dataType.get, false)
+      case t: ParseInstanceSpec => (t.dataType, t.isArray)
     }
 
-    // Memorize it for further use
-    instSpec.calcDataType = dataType
-
     // Declare caching variable
-    lang.instanceDeclaration(instName, dataType, instSpec.isArray)
+    lang.instanceDeclaration(instName, dataType, isArray)
 
-    lang.instanceHeader(className, instName, dataType, instSpec.isArray)
+    lang.instanceHeader(className, instName, dataType, isArray)
     lang.instanceCheckCacheAndReturn(instName)
 
-    instSpec.value match {
-      case Some(e: Ast.expr) =>
-        lang.instanceCalculate(instName, e)
-      case None =>
+    instSpec match {
+      case ValueInstanceSpec(value, _) => lang.instanceCalculate(instName, value)
+      case i: ParseInstanceSpec =>
         // TODO: "inside" support
-        instSpec.positionAbs.foreach((pos) => lang.seek(lang.normalIO, pos))
-        compileAttribute(instSpec, lang.instanceAttrName(instName), extraAttrs)
+        i.positionAbs.foreach((pos) => lang.seek(lang.normalIO, pos))
+        compileAttribute(i, lang.instanceAttrName(instName), extraAttrs)
     }
 
     lang.instanceReturn(instName)
@@ -204,11 +220,13 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
           if (el.id == attrName)
             return el.dataTypeComposite
         }
-        classSpec.instances.foreach(instances => instances.foreach {
-          case(instName: String, inst: InstanceSpec) =>
-            if (instName == attrName)
-              return inst.dataTypeComposite
-        })
+        classSpec.instances.foreach(instances =>
+          instances.get(attrName) match {
+            case Some(i: ValueInstanceSpec) => return i.dataType.get
+            case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
+            case None => // do nothing
+          }
+        )
         throw new RuntimeException(s"Unable to access ${attrName} in ${className} context")
     }
   }
