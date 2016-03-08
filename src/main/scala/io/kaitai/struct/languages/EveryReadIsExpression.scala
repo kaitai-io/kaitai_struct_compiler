@@ -1,9 +1,10 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{BaseType, UserTypeByteLimit, BytesLimitType}
+import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
+
+import scala.collection.mutable.ListBuffer
 
 /**
   * Helper trait for languages where single parsing of every standard or user data type is done as expression, i.e. an
@@ -11,28 +12,7 @@ import io.kaitai.struct.format._
   * "handleAssignment".
   */
 trait EveryReadIsExpression extends LanguageCompiler {
-  override def attrStdTypeParse(id: String, attr: AttrLikeSpec): Unit = {
-    handleAssignment(id, attr, stdTypeParseExpr(attr.dataType), normalIO)
-  }
-
-  override def attrNoTypeWithSize(id: String, attr: AttrLikeSpec): Unit = {
-    attr.dataType match {
-      case BytesLimitType(size, _) =>
-        handleAssignment(id, attr, noTypeWithSizeExpr(size), normalIO)
-      case UserTypeByteLimit(_, size) =>
-        handleAssignment(id, attr, noTypeWithSizeExpr(size), normalIO)
-    }
-  }
-
-  override def attrNoTypeWithSizeEos(id: String, attr: AttrLikeSpec): Unit = {
-    handleAssignment(id, attr, noTypeWithSizeEosExpr, normalIO)
-  }
-
-  def stdTypeParseExpr(dataType: BaseType): String
-  def noTypeWithSizeExpr(size: Ast.expr): String
-  def noTypeWithSizeEosExpr: String
-
-  def handleAssignment(id: String, attr: AttrLikeSpec, expr: String, io: String) = {
+  override def attrParse(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec], io: String): Unit = {
     attr.cond.ifExpr match {
       case Some(e) => condIfHeader(e)
       case None => // ignore
@@ -41,15 +21,14 @@ trait EveryReadIsExpression extends LanguageCompiler {
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosHeader(id, io, attr.dataType)
-        handleAssignmentRepeatEos(id, expr)
-        //out.puts(s"${id}.add(${expr});")
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
         condRepeatEosFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
         condRepeatExprHeader(id, io, attr.dataType, repeatExpr)
-        handleAssignmentRepeatExpr(id, expr)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
         condRepeatExprFooter
       case NoRepeat =>
-        handleAssignmentSimple(id, expr)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
     }
 
     attr.cond.ifExpr match {
@@ -58,16 +37,63 @@ trait EveryReadIsExpression extends LanguageCompiler {
     }
   }
 
-  def condIfHeader(expr: Ast.expr): Unit
-  def condIfFooter(expr: Ast.expr): Unit
+  def attrParse2(id: String, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+    dataType match {
+      case FixedBytesType(c, _) =>
+        attrFixedContentsParse(id, c)
+      case t: UserType =>
+        val newIO = t match {
+          case UserTypeByteLimit(_, _) | UserTypeEos(_) =>
+            // we have a fixed buffer, thus we shall create separate IO for it
+            val rawId = s"_raw_${id}"
+            val byteType = t match {
+              case UserTypeByteLimit(_, size) => BytesLimitType(size, None)
+              case UserTypeEos(_) => BytesEosType(None)
+            }
 
-  def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit
+            attrParse2(rawId, byteType, io, extraAttrs, rep)
+
+            extraAttrs += AttrSpec(rawId, byteType)
+
+            allocateIO(rawId)
+          case UserTypeInstream(_) =>
+            // no fixed buffer, just use regular IO
+            normalIO
+        }
+        val expr = parseExpr(dataType, newIO)
+        handleAssignment(id, expr, rep)
+
+      case t: BytesType =>
+        // use intermediate variable name, if we'll be doing post-processing
+        val rawId = t.process match {
+          case None => id
+          case Some(_) =>
+            extraAttrs += AttrSpec(s"_raw_${id}", t)
+            s"_raw_${id}"
+        }
+
+        val expr = parseExpr(dataType, io)
+        handleAssignment(rawId, expr, rep)
+
+        // apply post-processing
+        t.process.foreach((proc) => attrProcess(proc, rawId, id))
+      case _ =>
+        val expr = parseExpr(dataType, io)
+        handleAssignment(id, expr, rep)
+    }
+  }
+
+  def handleAssignment(id: String, expr: String, rep: RepeatSpec): Unit = {
+    rep match {
+      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
+      case RepeatEos => handleAssignmentRepeatEos(id, expr)
+      case NoRepeat => handleAssignmentSimple(id, expr)
+    }
+  }
+
   def handleAssignmentRepeatEos(id: String, expr: String): Unit
-  def condRepeatEosFooter: Unit
-
-  def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit
   def handleAssignmentRepeatExpr(id: String, expr: String): Unit
-  def condRepeatExprFooter: Unit
-
   def handleAssignmentSimple(id: String, expr: String): Unit
+
+  def parseExpr(dataType: BaseType, io: String): String
 }

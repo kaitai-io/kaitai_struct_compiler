@@ -99,7 +99,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     extraAttrs += AttrSpec("_parent", UserTypeInstream(curClass.parentTypeName))
 
     lang.classConstructorHeader(name, curClass.parentTypeName, topClassName)
-    curClass.seq.foreach((attr) => compileAttribute(attr, attr.id, extraAttrs))
+    curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs, lang.normalIO))
     lang.classConstructorFooter
 
     // Recursive types
@@ -123,54 +123,6 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     lang.classFooter(name)
   }
 
-  def compileAttribute(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec]): Unit = {
-    attr.dataType match {
-      case FixedBytesType(c, _) =>
-        lang.attrFixedContentsParse(id, c)
-      case t: UserType =>
-        val newIO = t match {
-          case UserTypeByteLimit(_, _) | UserTypeEos(_) =>
-            // we have a fixed buffer, thus we shall create separate IO for it
-            val rawId = s"_raw_${id}"
-            t match {
-              case UserTypeByteLimit(_, _) => lang.attrNoTypeWithSize(rawId, attr)
-              case UserTypeEos(_) => lang.attrNoTypeWithSizeEos(id, attr)
-            }
-
-            // FIXME: technically, should bear something CalcBytesType
-            extraAttrs += AttrSpec(rawId, BytesEosType(None))
-
-            lang.allocateIO(rawId)
-          case UserTypeInstream(_) =>
-            // no fixed buffer, just use regular IO
-            lang.normalIO
-        }
-        lang.attrUserTypeParse(id, t, attr, newIO)
-
-        // TODO: call postprocess here
-
-      case t: BytesType =>
-        // use intermediate variable name, if we'll be doing post-processing
-        val rawId = t.process match {
-          case None => id
-          case Some(_) =>
-            // FIXME: technically, should bear something CalcBytesType
-            extraAttrs += AttrSpec(s"_raw_${id}", BytesEosType(None))
-            s"_raw_${id}"
-        }
-
-        t match {
-          case BytesLimitType(_, _) => lang.attrNoTypeWithSize(rawId, attr)
-          case BytesEosType(_) => lang.attrNoTypeWithSizeEos(rawId, attr)
-        }
-
-        // apply post-processing
-        t.process.foreach((proc) => lang.attrProcess(proc, rawId, id))
-      case _ =>
-        lang.attrStdTypeParse(id, attr)
-    }
-  }
-
   def compileInstance(className: String, instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
     val (dataType, isArray) = instSpec match {
@@ -189,7 +141,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
       case i: ParseInstanceSpec =>
         // TODO: "inside" support
         i.positionAbs.foreach((pos) => lang.seek(lang.normalIO, pos))
-        compileAttribute(i, lang.instanceAttrName(instName), extraAttrs)
+        lang.attrParse(i, lang.instanceAttrName(instName), extraAttrs, lang.normalIO)
     }
 
     lang.instanceReturn(instName)

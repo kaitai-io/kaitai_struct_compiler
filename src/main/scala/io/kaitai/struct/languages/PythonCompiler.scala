@@ -58,9 +58,6 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
   }
 
-  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit =
-    handleAssignment(id, attr, s"self._root.${type2class(attrType.name)}(${io}, self, self._root)", io)
-
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
@@ -121,7 +118,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
   override def handleAssignmentSimple(id: String, expr: String): Unit =
     out.puts(s"self.${id} = ${expr}")
 
-  override def stdTypeParseExpr(dataType: BaseType): String = {
+  override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: IntType =>
         s"self.read_${t.apiCall}()"
@@ -134,12 +131,15 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
         "self.read_strz(\"" + encoding + '"' + s", ${terminator}, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
       case EnumType(enumName, t) =>
         s"self._root.${type2class(enumName)}(self.read_${t.apiCall}())"
+
+      case BytesLimitType(size, _) =>
+        s"self._io.read(${expression(size)})"
+      case BytesEosType(_) =>
+        s"self._io.read()"
+      case t: UserType =>
+        s"self._root.${type2class(t.name)}($io, self, self._root)"
     }
   }
-
-  override def noTypeWithSizeExpr(size: expr): String = s"self._io.read(${expression(size)})"
-
-  override def noTypeWithSizeEosExpr: String = s"self._io.read()"
 
   override def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit = {
     out.puts("@property")

@@ -59,9 +59,6 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts(s"@$attrName = ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
   }
 
-  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit =
-    handleAssignment(id, attr, s"${type2class(attrType.name)}.new($io, self, @_root)", io)
-
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     out.puts(proc match {
       case ProcessXor(xorValue) =>
@@ -114,7 +111,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   override def handleAssignmentSimple(id: String, expr: String): Unit =
     out.puts(s"@$id = $expr")
 
-  override def stdTypeParseExpr(dataType: BaseType): String = {
+  override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: IntType =>
         s"read_${t.apiCall}"
@@ -127,12 +124,15 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
         "read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
         s"${value2Const(enumName)}[read_${t.apiCall}]"
+
+      case BytesLimitType(size, _) =>
+        s"$io.read(${expression(size)})"
+      case BytesEosType(_) =>
+        s"$io.read"
+      case t: UserType =>
+        s"${type2class(t.name)}.new($io, self, @_root)"
     }
   }
-
-  override def noTypeWithSizeExpr(size: expr): String = s"@_io.read(${expression(size)})"
-
-  override def noTypeWithSizeEosExpr: String = s"@_io.read"
 
   override def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit = {
     out.puts(s"def $instName")

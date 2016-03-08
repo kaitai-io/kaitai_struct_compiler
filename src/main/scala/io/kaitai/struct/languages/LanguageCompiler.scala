@@ -2,9 +2,12 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{UserType, BaseType}
-import io.kaitai.struct.format.{AttrLikeSpec, ProcessExpr, AttrSpec}
+import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
+
+import scala.collection.mutable.ListBuffer
 
 abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   protected var _translator: Option[BaseTranslator] = None
@@ -36,11 +39,18 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def attributeDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit
   def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit
 
+  def attrParse(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec], io: String): Unit
+
   def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit
-  def attrNoTypeWithSize(id: String, attr: AttrLikeSpec): Unit
-  def attrNoTypeWithSizeEos(id: String, attr: AttrLikeSpec): Unit
-  def attrStdTypeParse(id: String, attr: AttrLikeSpec): Unit
-  def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit
+
+  def condIfHeader(expr: Ast.expr): Unit
+  def condIfFooter(expr: Ast.expr): Unit
+
+  def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit
+  def condRepeatEosFooter: Unit
+
+  def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit
+  def condRepeatExprFooter: Unit
 
   def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit
 

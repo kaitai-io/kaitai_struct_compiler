@@ -103,9 +103,6 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
-  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit =
-    handleAssignment(id, attr, s"new ${type2class(attrType.name)}($io, this, _root)", io)
-
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
@@ -174,25 +171,27 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts(s"this.${lowerCamelCase(id)} = $expr;")
   }
 
-  override def stdTypeParseExpr(dataType: BaseType): String = {
+  override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: IntType =>
-        s"_io.read${Utils.capitalize(t.apiCall)}()"
+        s"$io.read${Utils.capitalize(t.apiCall)}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
-        s"_io.readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
+        s"$io.readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
       case StrEosType(encoding) =>
-        "_io.readStrEos(\"" + encoding + "\")"
+        io + ".readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        "_io.readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
+        io + ".readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"${type2class(enumName)}.byId(_io.read${Utils.capitalize(t.apiCall)}())"
+        s"${type2class(enumName)}.byId($io.read${Utils.capitalize(t.apiCall)}())"
+      case BytesLimitType(size, _) =>
+        s"$io.readBytes(${expression(size)})"
+      case BytesEosType(_) =>
+        s"$io.readBytesFull()"
+      case t: UserType =>
+        s"new ${type2class(t.name)}($io, this, _root)"
     }
   }
-
-  override def noTypeWithSizeExpr(size: expr): String = s"_io.readBytes(${expression(size)})"
-
-  override def noTypeWithSizeEosExpr: String = s"_io.readBytesFull()"
 
   override def instanceDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType, isArray)} ${lowerCamelCase(attrName)};")

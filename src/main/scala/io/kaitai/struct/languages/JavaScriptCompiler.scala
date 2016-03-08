@@ -83,9 +83,6 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
-  override def attrUserTypeParse(id: String, attrType: UserType, attr: AttrLikeSpec, io: String): Unit =
-    handleAssignment(id, attr, s"new ${type2class(attrType.name)}(${io}, this, this._root)", io)
-
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
@@ -154,18 +151,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts(s"this.${lowerCamelCase(id)} = ${expr};")
   }
 
-  override def stdTypeParseExpr(dataType: BaseType): String = {
-    api match {
-//      case DataStreamAPI => stdTypeDataStream(attr)
-      case KaitaiStreamAPI => stdTypeKaitaiStream(dataType)
-    }
-  }
-
-  override def noTypeWithSizeExpr(size: expr): String = s"this._io.readBytes(${expression(size)})"
-
-  override def noTypeWithSizeEosExpr: String = "this._io.readBytesFull()"
-
-  def stdTypeKaitaiStream(dataType: BaseType): String = {
+  override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: IntType =>
         s"this._io.read${Utils.capitalize(t.apiCall)}()"
@@ -180,6 +166,13 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
       case EnumType(enumName, t) =>
         // Just an integer, without any casts / resolutions - one would have to look up constants manually
         s"this._io.read${Utils.capitalize(t.apiCall)}()"
+
+      case BytesLimitType(size, _) =>
+        s"this._io.readBytes(${expression(size)})"
+      case BytesEosType(_) =>
+        "this._io.readBytesFull()"
+      case t: UserType =>
+        s"new ${type2class(t.name)}($io, this, this._root)"
     }
   }
 
