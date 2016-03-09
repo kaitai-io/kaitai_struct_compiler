@@ -70,7 +70,8 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
 
   override def allocateIO(varName: String, rep: RepeatSpec): String = {
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"@$varName.last"
+      case RepeatEos => s"@$varName.last"
+      case RepeatExpr(_) => s"@$varName[i]"
       case NoRepeat => s"@$varName"
     }
 
