@@ -103,11 +103,12 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     val ioName = s"this._io_$langName"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$langName[$langName.length - 1]"
-      case NoRepeat => langName
+      case RepeatEos => s"this.$langName[this.$langName.length - 1]"
+      case RepeatExpr(_) => s"this.$langName[i]"
+      case NoRepeat => s"this.$langName"
     }
 
-    out.puts(s"$ioName = new KaitaiStream(this.$args);")
+    out.puts(s"$ioName = new KaitaiStream($args);")
     ioName
   }
 
@@ -127,14 +128,14 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"this._raw_$id = [];")
-    out.puts(s"this.$id = [];")
+      out.puts(s"this._raw_${lowerCamelCase(id)} = [];")
+    out.puts(s"this.${lowerCamelCase(id)} = [];")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
-    out.puts(s"this.${id}.push(${expr});")
+    out.puts(s"this.${lowerCamelCase(id)}.push(${expr});")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -144,14 +145,14 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
 
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"this._raw_$id = new Array(${expression(repeatExpr)});")
-    out.puts(s"this.$id = new Array(${expression(repeatExpr)});")
+      out.puts(s"this._raw_${lowerCamelCase(id)} = new Array(${expression(repeatExpr)});")
+    out.puts(s"this.${lowerCamelCase(id)} = new Array(${expression(repeatExpr)});")
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
-    out.puts(s"this.${id}[i] = ${expr};")
+    out.puts(s"this.${lowerCamelCase(id)}[i] = ${expr};")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -195,7 +196,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.inc
   }
 
-  override def instanceAttrName(instName: String) = s"_m_${instName}"
+  override def instanceAttrName(instName: String) = s"_m_$instName"
 
   override def instanceFooter: Unit = {
     out.dec
@@ -205,18 +206,18 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   }
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"if (this.${instanceAttrName(instName)} !== undefined)")
+    out.puts(s"if (this.${lowerCamelCase(instanceAttrName(instName))} !== undefined)")
     out.inc
     instanceReturn(instName)
     out.dec
   }
 
   override def instanceReturn(instName: String): Unit = {
-    out.puts(s"return this.${instanceAttrName(instName)};")
+    out.puts(s"return this.${lowerCamelCase(instanceAttrName(instName))};")
   }
 
   override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
-    out.puts(s"this.${instanceAttrName(instName)} = ${expression(value)};")
+    out.puts(s"this.${lowerCamelCase(instanceAttrName(instName))} = ${expression(value)};")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
@@ -234,7 +235,9 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
 
   def lowerCamelCase(s: String): String = {
     if (s.charAt(0) == '_') {
-      if (s.startsWith("_raw_")) {
+      if (s.startsWith("_raw__m_")) {
+        return "_raw__m_" + Utils.lowerCamelCase(s.substring("_raw__m_".length))
+      } else if (s.startsWith("_raw_")) {
         return "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))
       } else if (s.startsWith("_m_")) {
         return "_m_" + Utils.lowerCamelCase(s.substring("_m_".length))
