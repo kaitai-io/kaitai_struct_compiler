@@ -20,18 +20,8 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   }
 
   override def classHeader(name: String): Unit = {
-    out.puts(s"class ${type2class(name)}")
+    out.puts(s"class ${type2class(name)} < KaitaiStruct")
     out.inc
-    out.puts("include KaitaiStruct")
-    out.puts
-
-    // Helper method to read from local file
-    out.puts("def self.from_file(filename)")
-    out.inc
-    out.puts("self.new(File.open(filename, 'rb:ASCII-8BIT'))")
-    out.dec
-    out.puts("end")
-    out.puts
   }
 
   override def classFooter(name: String = null): Unit = {
@@ -40,11 +30,9 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   }
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
-    out.puts("def initialize(io, parent = nil, root = self)")
+    out.puts("def initialize(_io, _parent = nil, _root = self)")
     out.inc
-    out.puts("@_io = io")
-    out.puts("@_parent = parent")
-    out.puts("@_root = root")
+    out.puts("super(_io, _parent, _root)")
   }
 
   override def classConstructorFooter: Unit = classFooter()
@@ -56,7 +44,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"@$attrName = ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
+    out.puts(s"@$attrName = @_io.ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
@@ -75,7 +63,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
       case NoRepeat => s"@$varName"
     }
 
-    out.puts(s"io = StringIO.new($args)")
+    out.puts(s"io = KaitaiStream.new($args)")
     "io"
   }
 
@@ -132,21 +120,21 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: IntType =>
-        s"read_${t.apiCall}"
+        s"$io.read_${t.apiCall}"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
-        s"read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
+        s"$io.read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
       case StrEosType(encoding) =>
-        "read_str_eos(\"" + encoding + "\")"
+        io + ".read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        "read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
+        io + ".read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"${value2Const(enumName)}[read_${t.apiCall}]"
+        s"${value2Const(enumName)}[$io.read_${t.apiCall}]"
 
       case BytesLimitType(size, _) =>
-        s"$io.read(${expression(size)})"
+        s"$io.read_bytes(${expression(size)})"
       case BytesEosType(_) =>
-        s"$io.read"
+        s"$io.read_bytes_full"
       case t: UserType =>
         s"${type2class(t.name)}.new($io, self, @_root)"
     }
