@@ -75,7 +75,8 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
   override def allocateIO(varName: String, rep: RepeatSpec): String = {
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$varName[-1]"
+      case RepeatEos => s"$varName[-1]"
+      case RepeatExpr(_) => s"$varName[i]"
       case NoRepeat => varName
     }
 
@@ -112,7 +113,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"self._raw_${id} = []")
+      out.puts(s"self._raw_${id} = [None] * ${expression(repeatExpr)}")
     out.puts(s"self.${id} = [None] * ${expression(repeatExpr)}")
     out.puts(s"for i in xrange(${expression(repeatExpr)}):")
     out.inc
