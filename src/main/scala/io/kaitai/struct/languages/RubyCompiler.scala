@@ -91,7 +91,10 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts("end")
   }
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit = {
+  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+    if (needRaw)
+      out.puts(s"@_raw_$id = []")
+
     out.puts(s"@$id = []")
     out.puts(s"while not $io.eof?")
     out.inc
@@ -103,11 +106,15 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     out.puts("end")
   }
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit = {
-    out.puts(s"@$id = Array.new(${expression(repeatExpr)}) {")
+  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+    if (needRaw)
+      out.puts(s"@_raw_$id = Array.new(${expression(repeatExpr)})")
+    out.puts(s"@$id = Array.new(${expression(repeatExpr)})")
+    out.puts(s"(${expression(repeatExpr)}).times { |i|")
     out.inc
   }
-  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = out.puts(expr)
+  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit =
+    out.puts(s"@$id[i] = $expr")
   override def condRepeatExprFooter: Unit = {
     out.dec
     out.puts("}")

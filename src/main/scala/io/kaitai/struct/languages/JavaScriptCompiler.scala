@@ -125,9 +125,11 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts("}")
   }
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit = {
-    out.puts(s"this.${id} = [];")
-    out.puts(s"while (!${io}.isEof()) {")
+  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+    if (needRaw)
+      out.puts(s"this._raw_$id = [];")
+    out.puts(s"this.$id = [];")
+    out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
 
@@ -140,8 +142,10 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit = {
-    out.puts(s"this.${id} = new Array(${expression(repeatExpr)});")
+  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+    if (needRaw)
+      out.puts(s"this._raw_$id = new Array(${expression(repeatExpr)});")
+    out.puts(s"this.$id = new Array(${expression(repeatExpr)});")
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }

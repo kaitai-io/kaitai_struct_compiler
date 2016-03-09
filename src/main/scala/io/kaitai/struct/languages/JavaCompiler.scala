@@ -145,8 +145,10 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts("}")
   }
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit = {
-    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+    if (needRaw)
+      out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>();")
+    out.puts(s"this.${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
@@ -160,7 +162,9 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+    if (needRaw)
+      out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc

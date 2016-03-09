@@ -46,10 +46,10 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter(expr: Ast.expr): Unit
 
-  def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit
+  def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit
   def condRepeatEosFooter: Unit
 
-  def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit
+  def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit
   def condRepeatExprFooter: Unit
 
   def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit

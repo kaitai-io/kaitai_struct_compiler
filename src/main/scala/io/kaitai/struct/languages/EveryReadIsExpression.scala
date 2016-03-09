@@ -20,11 +20,11 @@ trait EveryReadIsExpression extends LanguageCompiler {
 
     attr.cond.repeat match {
       case RepeatEos =>
-        condRepeatEosHeader(id, io, attr.dataType)
+        condRepeatEosHeader(id, io, attr.dataType, needRaw(attr.dataType))
         attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
         condRepeatEosFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
-        condRepeatExprHeader(id, io, attr.dataType, repeatExpr)
+        condRepeatExprHeader(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
         attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
         condRepeatExprFooter
       case NoRepeat =>
@@ -42,28 +42,27 @@ trait EveryReadIsExpression extends LanguageCompiler {
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
-        val newIO = t match {
-          case UserTypeByteLimit(_, _) | UserTypeEos(_) =>
-            // we have a fixed buffer, thus we shall create separate IO for it
-            val rawId = s"_raw_$id"
-            val byteType = t match {
-              case UserTypeByteLimit(_, size) => BytesLimitType(size, None)
-              case UserTypeEos(_) => BytesEosType(None)
-            }
+        val newIO = if (needRaw(t)) {
+          // we have a fixed buffer, thus we shall create separate IO for it
+          val rawId = s"_raw_$id"
+          val byteType = t match {
+            case UserTypeByteLimit(_, size) => BytesLimitType(size, None)
+            case UserTypeEos(_) => BytesEosType(None)
+          }
 
-            attrParse2(rawId, byteType, io, extraAttrs, rep)
+          attrParse2(rawId, byteType, io, extraAttrs, rep)
 
-            val extraType = rep match {
-              case NoRepeat => byteType
-              case _ => ArrayType(byteType)
-            }
+          val extraType = rep match {
+            case NoRepeat => byteType
+            case _ => ArrayType(byteType)
+          }
 
-            extraAttrs += AttrSpec(rawId, extraType)
+          extraAttrs += AttrSpec(rawId, extraType)
 
-            allocateIO(rawId, rep)
-          case UserTypeInstream(_) =>
-            // no fixed buffer, just use regular IO
-            normalIO
+          allocateIO(rawId, rep)
+        } else {
+          // no fixed buffer, just use regular IO
+          normalIO
         }
         val expr = parseExpr(dataType, newIO)
         handleAssignment(id, expr, rep)
@@ -85,6 +84,13 @@ trait EveryReadIsExpression extends LanguageCompiler {
       case _ =>
         val expr = parseExpr(dataType, io)
         handleAssignment(id, expr, rep)
+    }
+  }
+
+  def needRaw(dataType: BaseType): Boolean = {
+    dataType match {
+      case UserTypeByteLimit(_, _) | UserTypeEos(_) => true
+      case _ => false
     }
   }
 

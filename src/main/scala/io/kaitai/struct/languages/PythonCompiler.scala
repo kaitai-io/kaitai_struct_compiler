@@ -96,7 +96,9 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts
   }
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit = {
+  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+    if (needRaw)
+      out.puts(s"self._raw_${id} = []")
     out.puts(s"self.${id} = []")
     out.puts(s"while not self.is_io_eof(${io}):")
     out.inc
@@ -108,7 +110,9 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     out.puts
   }
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+    if (needRaw)
+      out.puts(s"self._raw_${id} = []")
     out.puts(s"self.${id} = [None] * ${expression(repeatExpr)}")
     out.puts(s"for i in xrange(${expression(repeatExpr)}):")
     out.inc
