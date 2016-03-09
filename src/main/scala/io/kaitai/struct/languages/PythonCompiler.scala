@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.format.{AttrLikeSpec, AttrSpec, ProcessExpr, ProcessXor}
+import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvider}
 
 class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
@@ -50,9 +50,9 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
   override def classConstructorFooter: Unit = classFooter(null)
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {}
+  override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {}
+  override def attributeReader(attrName: String, attrType: BaseType): Unit = {}
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
     out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
@@ -73,8 +73,13 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
 
   override def normalIO: String = "self._io"
 
-  override def allocateIO(varName: String): String = {
-    out.puts(s"io = cStringIO.StringIO(self.${varName})")
+  override def allocateIO(varName: String, rep: RepeatSpec): String = {
+    val args = rep match {
+      case RepeatEos | RepeatExpr(_) => s"$varName[-1]"
+      case NoRepeat => varName
+    }
+
+    out.puts(s"io = cStringIO.StringIO(self.$args)")
     "io"
   }
 
@@ -141,7 +146,7 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     }
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit = {
+  override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
     out.puts("@property")
     out.puts(s"def ${instName}(self):")
     out.inc

@@ -115,8 +115,8 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     })
 
     // Attributes declarations and readers
-    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataType, attr.isArray))
-    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataType, attr.isArray))
+    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite))
+    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataTypeComposite))
 
     curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
 
@@ -125,15 +125,15 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
 
   def compileInstance(className: String, instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
-    val (dataType, isArray) = instSpec match {
-      case t: ValueInstanceSpec => (t.dataType.get, false)
-      case t: ParseInstanceSpec => (t.dataType, t.isArray)
+    val dataType = instSpec match {
+      case t: ValueInstanceSpec => t.dataType.get
+      case t: ParseInstanceSpec => t.dataTypeComposite
     }
 
     // Declare caching variable
-    lang.instanceDeclaration(instName, dataType, isArray)
+    lang.instanceDeclaration(instName, dataType)
 
-    lang.instanceHeader(className, instName, dataType, isArray)
+    lang.instanceHeader(className, instName, dataType)
     lang.instanceCheckCacheAndReturn(instName)
 
     instSpec match {

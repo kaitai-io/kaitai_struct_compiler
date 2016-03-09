@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.format.{AttrLikeSpec, ProcessExpr, ProcessXor}
+import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
 
 class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
@@ -49,9 +49,9 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
 
   override def classConstructorFooter: Unit = classFooter()
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {}
+  override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {
+  override def attributeReader(attrName: String, attrType: BaseType): Unit = {
     out.puts(s"attr_reader :$attrName")
   }
 
@@ -68,8 +68,13 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
 
   override def normalIO: String = "@_io"
 
-  override def allocateIO(varName: String): String = {
-    out.puts(s"io = StringIO.new(@$varName)")
+  override def allocateIO(varName: String, rep: RepeatSpec): String = {
+    val args = rep match {
+      case RepeatEos | RepeatExpr(_) => s"@$varName.last"
+      case NoRepeat => s"@$varName"
+    }
+
+    out.puts(s"io = StringIO.new($args)")
     "io"
   }
 
@@ -134,7 +139,7 @@ class RubyCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(ve
     }
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit = {
+  override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
     out.puts(s"def $instName")
     out.inc
   }

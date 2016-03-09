@@ -53,9 +53,14 @@ trait EveryReadIsExpression extends LanguageCompiler {
 
             attrParse2(rawId, byteType, io, extraAttrs, rep)
 
-            extraAttrs += AttrSpec(rawId, byteType)
+            val extraType = rep match {
+              case NoRepeat => byteType
+              case _ => ArrayType(byteType)
+            }
 
-            allocateIO(rawId)
+            extraAttrs += AttrSpec(rawId, extraType)
+
+            allocateIO(rawId, rep)
           case UserTypeInstream(_) =>
             // no fixed buffer, just use regular IO
             normalIO

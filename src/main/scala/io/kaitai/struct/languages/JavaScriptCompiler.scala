@@ -4,7 +4,7 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.format.{AttrLikeSpec, AttrSpec, ProcessExpr, ProcessXor}
+import io.kaitai.struct.format._
 import io.kaitai.struct.languages.JavaScriptCompiler.{DataStreamAPI, KaitaiStreamAPI, RuntimeAPI}
 import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, JavaScriptTranslator}
 
@@ -75,9 +75,9 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     out.puts("}")
   }
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {}
+  override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {}
+  override def attributeReader(attrName: String, attrType: BaseType): Unit = {}
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
     out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
@@ -97,9 +97,17 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
 
   override def normalIO: String = "this._io"
 
-  override def allocateIO(varName: String): String = {
-    val ioName = s"this._io_${lowerCamelCase(varName)}"
-    out.puts(s"${ioName} = new KaitaiStream(this.${lowerCamelCase(varName)});")
+  override def allocateIO(varName: String, rep: RepeatSpec): String = {
+    val langName = lowerCamelCase(varName)
+
+    val ioName = s"this._io_$langName"
+
+    val args = rep match {
+      case RepeatEos | RepeatExpr(_) => s"$langName[$langName.length - 1]"
+      case NoRepeat => langName
+    }
+
+    out.puts(s"$ioName = new KaitaiStream(this.$args);")
     ioName
   }
 
@@ -176,7 +184,7 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     }
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit = {
+  override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
     out.puts(s"Object.defineProperty(${type2class(className)}.prototype, '${lowerCamelCase(instName)}', {")
     out.inc
     out.puts("get: function() {")

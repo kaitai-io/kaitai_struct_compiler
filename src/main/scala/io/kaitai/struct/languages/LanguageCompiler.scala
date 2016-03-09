@@ -36,8 +36,8 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit
   def classConstructorFooter: Unit
 
-  def attributeDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit
-  def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit
+  def attributeDeclaration(attrName: String, attrType: BaseType): Unit
+  def attributeReader(attrName: String, attrType: BaseType): Unit
 
   def attrParse(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec], io: String): Unit
 
@@ -55,11 +55,11 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit
 
   def normalIO: String
-  def allocateIO(varName: String): String
+  def allocateIO(varName: String, rep: RepeatSpec): String
   def seek(io: String, pos: Ast.expr): Unit
 
-  def instanceDeclaration(attrName: String, attrType: BaseType, isArray: Boolean) = attributeDeclaration(attrName, attrType, isArray)
-  def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit
+  def instanceDeclaration(attrName: String, attrType: BaseType) = attributeDeclaration(attrName, attrType)
+  def instanceHeader(className: String, instName: String, dataType: BaseType): Unit
   def instanceAttrName(instName: String): String
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: String): Unit

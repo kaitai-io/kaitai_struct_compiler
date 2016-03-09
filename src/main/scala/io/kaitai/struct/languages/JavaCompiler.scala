@@ -91,12 +91,12 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   override def classConstructorFooter: Unit = classFooter(null)
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {
-    out.puts(s"private ${kaitaiType2JavaType(attrType, isArray)} ${lowerCamelCase(attrName)};")
+  override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {
+    out.puts(s"private ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)};")
   }
 
-  override def attributeReader(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(attrType, isArray)} ${lowerCamelCase(attrName)}() { return ${lowerCamelCase(attrName)}; }")
+  override def attributeReader(attrName: String, attrType: BaseType): Unit = {
+    out.puts(s"public ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)}() { return ${lowerCamelCase(attrName)}; }")
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
@@ -117,9 +117,17 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   override def normalIO: String = "_io"
 
-  override def allocateIO(varName: String): String = {
-    val ioName = s"_io_${lowerCamelCase(varName)}"
-    out.puts(s"KaitaiStream $ioName = new KaitaiStream(${lowerCamelCase(varName)});")
+  override def allocateIO(varName: String, rep: RepeatSpec): String = {
+    val javaName = lowerCamelCase(varName)
+
+    val ioName = s"_io_$javaName"
+
+    val args = rep match {
+      case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
+      case NoRepeat => javaName
+    }
+
+    out.puts(s"KaitaiStream $ioName = new KaitaiStream($args);")
     ioName
   }
 
@@ -138,7 +146,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType): Unit = {
-    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(dataType, true)}();")
+    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
@@ -153,7 +161,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, repeatExpr: expr): Unit = {
-    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(dataType, true)}((int) (${expression(repeatExpr)}));")
+    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
@@ -193,12 +201,12 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     }
   }
 
-  override def instanceDeclaration(attrName: String, attrType: BaseType, isArray: Boolean): Unit = {
-    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType, isArray)} ${lowerCamelCase(attrName)};")
+  override def instanceDeclaration(attrName: String, attrType: BaseType): Unit = {
+    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${lowerCamelCase(attrName)};")
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: BaseType, isArray: Boolean): Unit = {
-    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType, isArray)} ${lowerCamelCase(instName)}() throws IOException {")
+  override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
+    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${lowerCamelCase(instName)}() throws IOException {")
     out.inc
   }
 
@@ -259,13 +267,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
   def value2Const(s: String) = s.toUpperCase
 
-  def kaitaiType2JavaType(attrType: BaseType, isArray: Boolean): String = {
-    if (isArray) {
-      kaitaiType2JavaTypeBoxed(attrType, true)
-    } else {
-      kaitaiType2JavaTypePrim(attrType)
-    }
-  }
+  def kaitaiType2JavaType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
 
   /**
     * Determine Java data type corresponding to a KS data type. A "primitive" type (i.e. "int", "long", etc) will
@@ -291,6 +293,8 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
       case t: UserType => type2class(t.name)
       case EnumType(name, _) => type2class(name)
+
+      case ArrayType(inType) => kaitaiType2JavaTypeBoxed(attrType)
     }
   }
 
@@ -301,8 +305,8 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     * @param attrType KS data type
     * @return Java data type
     */
-  def kaitaiType2JavaTypeBoxed(attrType: BaseType, isArray: Boolean = false): String = {
-    val r = attrType match {
+  def kaitaiType2JavaTypeBoxed(attrType: BaseType): String = {
+    attrType match {
       case Int1Type(false) => "Integer"
       case IntMultiType(false, Width2, _) => "Integer"
       case IntMultiType(false, Width4, _) => "Long"
@@ -320,12 +324,8 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
 
       case t: UserType => type2class(t.name)
       case EnumType(name, _) => type2class(name)
-    }
 
-    if (isArray) {
-      s"ArrayList<$r>"
-    } else {
-      r
+      case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
     }
   }
 
