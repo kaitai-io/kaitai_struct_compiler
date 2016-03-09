@@ -9,6 +9,7 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s match {
       case "_root" => s
       case "_parent" => "_parent()"
+      case "_io" => "_io()"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 

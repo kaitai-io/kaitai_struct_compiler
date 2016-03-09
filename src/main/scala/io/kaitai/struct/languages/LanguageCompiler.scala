@@ -56,6 +56,7 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
 
   def normalIO: String
   def allocateIO(varName: String, rep: RepeatSpec): String
+  def useIO(ioEx: Ast.expr): String
   def seek(io: String, pos: Ast.expr): Unit
 
   def instanceDeclaration(attrName: String, attrType: BaseType) = attributeDeclaration(attrName, attrType)

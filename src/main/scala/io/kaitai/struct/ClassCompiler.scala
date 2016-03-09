@@ -139,9 +139,12 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     instSpec match {
       case ValueInstanceSpec(value, _) => lang.instanceCalculate(instName, value)
       case i: ParseInstanceSpec =>
-        // TODO: "inside" support
-        i.positionAbs.foreach((pos) => lang.seek(lang.normalIO, pos))
-        lang.attrParse(i, lang.instanceAttrName(instName), extraAttrs, lang.normalIO)
+        val io = i.io match {
+          case None => lang.normalIO
+          case Some(ex) => lang.useIO(ex)
+        }
+        i.positionAbs.foreach((pos) => lang.seek(io, pos))
+        lang.attrParse(i, lang.instanceAttrName(instName), extraAttrs, io)
     }
 
     lang.instanceReturn(instName)

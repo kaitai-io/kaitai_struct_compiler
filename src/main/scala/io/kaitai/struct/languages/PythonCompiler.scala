@@ -84,6 +84,11 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
     "io"
   }
 
+  override def useIO(ioEx: expr): String = {
+    out.puts(s"io = ${expression(ioEx)}")
+    "io"
+  }
+
   override def seek(io: String, pos: Ast.expr): Unit = {
     out.puts(s"${io}.seek(${expression(pos)})")
   }

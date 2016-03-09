@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 abstract class InstanceSpec
 case class ValueInstanceSpec(value: Ast.expr, var dataType: Option[BaseType]) extends InstanceSpec
-case class ParseInstanceSpec(dataType: BaseType, cond: ConditionalSpec, positionAbs: Option[Ast.expr]) extends InstanceSpec with AttrLikeSpec
+case class ParseInstanceSpec(dataType: BaseType, cond: ConditionalSpec, positionAbs: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec with AttrLikeSpec
 
 object InstanceSpec {
   @JsonCreator
@@ -27,9 +27,11 @@ object InstanceSpec {
               @JsonProperty("enum") _enum: String,
 
               @JsonProperty("position-abs") _positionAbs: String,
+              @JsonProperty("io") _io: String,
               @JsonProperty("value") _value: String
             ): InstanceSpec = {
     val positionAbs = Option(_positionAbs).map(Expressions.parse)
+    val io = Option(_io).map(Expressions.parse)
 
     val value = Option(_value).map(e =>
       if (dataType != null) {
@@ -70,7 +72,7 @@ object InstanceSpec {
           _eosError,
           _enum
         )
-        ParseInstanceSpec(a.dataType, a.cond, positionAbs)
+        ParseInstanceSpec(a.dataType, a.cond, positionAbs, io)
       case Some(v) =>
         ValueInstanceSpec(v, None)
     }

@@ -131,6 +131,11 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
     ioName
   }
 
+  override def useIO(ioEx: expr): String = {
+    out.puts(s"KaitaiStream io = ${expression(ioEx)};")
+    "io"
+  }
+
   override def seek(io: String, pos: Ast.expr): Unit = {
     out.puts(s"$io.seek(${expression(pos)});")
   }
@@ -334,7 +339,7 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   }
 
   def lowerCamelCase(s: String): String = {
-    if (s == "_root" || s == "_parent") {
+    if (s == "_root" || s == "_parent" || s == "_io") {
       s
     } else if (s.startsWith("_raw_")) {
       "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))

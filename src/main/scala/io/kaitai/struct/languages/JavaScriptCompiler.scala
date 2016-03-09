@@ -112,6 +112,11 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
     ioName
   }
 
+  override def useIO(ioEx: expr): String = {
+    out.puts(s"var io = ${expression(ioEx)};")
+    "io"
+  }
+
   override def seek(io: String, pos: Ast.expr): Unit = {
     out.puts(s"${io}.seek(${expression(pos)});")
   }
@@ -167,23 +172,23 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: IntType =>
-        s"this._io.read${Utils.capitalize(t.apiCall)}()"
+        s"$io.read${Utils.capitalize(t.apiCall)}()"
 
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
-        s"this._io.readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
+        s"$io.readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
       case StrEosType(encoding) =>
-        "this._io.readStrEos(\"" + encoding + "\")"
+        io + ".readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        "this._io.readStrz(\"" + encoding + '"' + s", ${terminator}, ${include}, ${consume}, ${eosError})"
+        io + ".readStrz(\"" + encoding + '"' + s", ${terminator}, ${include}, ${consume}, ${eosError})"
       case EnumType(enumName, t) =>
         // Just an integer, without any casts / resolutions - one would have to look up constants manually
-        s"this._io.read${Utils.capitalize(t.apiCall)}()"
+        s"$io.read${Utils.capitalize(t.apiCall)}()"
 
       case BytesLimitType(size, _) =>
-        s"this._io.readBytes(${expression(size)})"
+        s"$io.readBytes(${expression(size)})"
       case BytesEosType(_) =>
-        "this._io.readBytesFull()"
+        s"$io.readBytesFull()"
       case t: UserType =>
         s"new ${type2class(t.name)}($io, this, this._root)"
     }
