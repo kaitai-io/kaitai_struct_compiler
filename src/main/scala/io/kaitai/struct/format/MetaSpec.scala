@@ -1,6 +1,6 @@
 package io.kaitai.struct.format
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonCreator}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonCreator}
 import io.kaitai.struct.exprlang.DataType.{LittleEndian, BigEndian, Endianness}
 
 case class MetaSpec(id: String, endian: Option[Endianness])
@@ -9,7 +9,8 @@ object MetaSpec {
   @JsonCreator
   def create(
               @JsonProperty("id") _id: String,
-              @JsonProperty("endian") _endian: String
+              @JsonProperty("endian") _endian: String,
+              @JsonProperty("file_extension") fileExtension: String
             ): MetaSpec = {
     if (_id == null) {
       throw new RuntimeException("meta: id is required, but not found");
