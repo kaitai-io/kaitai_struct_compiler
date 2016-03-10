@@ -96,5 +96,9 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     it("parses _root.foo") {
       tryOne(UserTypeInstream("block"), "_root.foo", "_root.foo()", UserTypeInstream("block"))
     }
+
+    it("parses a != 2 and a != 5") {
+      tryOne(CalcIntType, "a != 2 and a != 5", "a() != 2 && a() != 5", BooleanType)
+    }
   }
 }

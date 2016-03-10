@@ -122,7 +122,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
 
   def booleanOp(op: Ast.boolop) = op match {
     case Ast.boolop.Or => "||"
-    case Ast.boolop.Or => "&&"
+    case Ast.boolop.And => "&&"
   }
 
   def unaryOp(op: Ast.unaryop) = op match {
