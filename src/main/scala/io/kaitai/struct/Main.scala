@@ -64,7 +64,6 @@ object Main {
   }
 
   def compile(srcFile: String, lang: String, outDir: String, config: Config): Unit = {
-    try {
       if (config.verbose)
         Console.println(s"compiling ${srcFile} for ${lang}...")
 
@@ -76,12 +75,6 @@ object Main {
       }
 
       new ClassCompiler(srcFile, lc).compile
-    } catch {
-      case e: Exception =>
-        e.printStackTrace()
-      case e: Error =>
-        e.printStackTrace()
-    }
   }
 
   def main(args : Array[String]): Unit = {
@@ -96,7 +89,14 @@ object Main {
             case _ =>
               // multiple targets, use additional directories
               config.targets.foreach { lang =>
-                compile(srcFile.toString, lang, s"${config.outDir}/$lang", config)
+                try {
+                  compile(srcFile.toString, lang, s"${config.outDir}/$lang", config)
+                } catch {
+                  case e: Exception =>
+                  e.printStackTrace()
+                  case e: Error =>
+                  e.printStackTrace()
+                }
               }
           }
         }
