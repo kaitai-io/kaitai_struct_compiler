@@ -72,7 +72,7 @@ object DataType {
 
   def yamlToDataType(
     dt: String,
-    defaultEndian: String,
+    defaultEndian: Option[Endianness],
     size: Option[Ast.expr],
     sizeEos: Boolean,
     encoding: Option[String],
@@ -88,13 +88,6 @@ object DataType {
       case "u1" => Int1Type(false)
       case "s1" => Int1Type(true)
       case ReIntType(signStr, widthStr, endianStr) =>
-        val e = endianStr match {
-          case null => defaultEndian match {
-            case null => throw new RuntimeException(s"unable to use integer type '${dt}' without default endianness")
-            case _ => defaultEndian
-          }
-          case _ => endianStr
-        }
         IntMultiType(
           signStr match {
             case "s" => true
@@ -105,9 +98,14 @@ object DataType {
             case "4" => Width4
             case "8" => Width8
           },
-          e match {
+          endianStr match {
             case "le" => LittleEndian
             case "be" => BigEndian
+            case null =>
+              defaultEndian match {
+                case Some(e) => e
+                case None => throw new RuntimeException(s"unable to use integer type '${dt}' without default endianness")
+              }
           }
         )
       case null =>

@@ -99,7 +99,7 @@ object AttrSpec {
     val eosError = boolFromStr(_eosError, true)
     val process = ProcessExpr.fromStr(_process)
 
-    val dataType = DataType.yamlToDataType(_dataType, "le", size, sizeEos, encoding, terminator, include, consume, eosError, contents, Option(_enum), process)
+    val dataType = DataType.yamlToDataType(_dataType, MetaSpec.globalMeta.get.endian, size, sizeEos, encoding, terminator, include, consume, eosError, contents, Option(_enum), process)
 
     val repeatSpec = repeat match {
       case Some("expr") => RepeatExpr(repeatExpr.get)

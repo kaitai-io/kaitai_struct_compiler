@@ -7,16 +7,14 @@ import io.kaitai.struct.Utils
 import collection.JavaConversions._
 import com.fasterxml.jackson.annotation.JsonProperty
 
-class ClassSpec(@JsonProperty("meta") _meta: JMap[String, String],
+class ClassSpec(@JsonProperty("meta") _meta: MetaSpec,
                 @JsonProperty("seq") _seq: JList[AttrSpec],
                 @JsonProperty("types") _types: JMap[String, ClassSpec],
                 @JsonProperty("instances") _instances: JMap[String, InstanceSpec],
                 @JsonProperty("enums") _enums: JMap[String, JMap[String, String]]) {
-  val meta: Map[String, String] = if (_meta == null) {
-    Map()
-  } else {
-    _meta.toMap
-  }
+
+  val meta = Option(_meta)
+
   val seq: List[AttrSpec] = if (_seq == null) {
     List()
   } else {

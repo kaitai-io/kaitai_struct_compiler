@@ -19,8 +19,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
   val reader = new FileReader(yamlFilename)
   val mapper = new ObjectMapper(new YAMLFactory())
   val topClass: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
-  val endian: Option[String] = topClass.meta.get("endian")
-  val topClassName = topClass.meta("id")
+  val topClassName = topClass.meta.get.id
 
   val userTypes = gatherUserTypes(topClass) ++ Map(topClassName -> topClass)
 
