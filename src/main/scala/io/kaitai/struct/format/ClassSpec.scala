@@ -5,37 +5,15 @@ import java.util.{List => JList, Map => JMap}
 import io.kaitai.struct.Utils
 
 import collection.JavaConversions._
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 
-class ClassSpec(@JsonProperty("meta") _meta: MetaSpec,
-                @JsonProperty("seq") _seq: JList[AttrSpec],
-                @JsonProperty("types") _types: JMap[String, ClassSpec],
-                @JsonProperty("instances") _instances: JMap[String, InstanceSpec],
-                @JsonProperty("enums") _enums: JMap[String, JMap[String, String]]) {
-
-  val meta = Option(_meta)
-
-  val seq: List[AttrSpec] = if (_seq == null) {
-    List()
-  } else {
-    _seq.toList
-  }
-  val types: Option[Map[String, ClassSpec]] = if (_types == null) {
-    None
-  } else {
-    Some(_types.toMap)
-  }
-  val instances: Option[Map[String, InstanceSpec]] = if (_instances == null) {
-    None
-  } else {
-    Some(_instances.toMap)
-  }
-  val enums: Map[String, Map[Long, String]] = if (_enums == null) {
-    Map()
-  } else {
-    _enums.toMap.map { case(k, v) => (k, v.toMap.map { case (enumId, enumLabel) => (Utils.strToLong(enumId), enumLabel) }) }
-  }
-
+case class ClassSpec(
+                      meta: Option[MetaSpec],
+                      seq: List[AttrSpec],
+                      types: Option[Map[String, ClassSpec]],
+                      instances: Option[Map[String, InstanceSpec]],
+                      enums: Map[String, Map[Long, String]]
+                    ) {
   var _parentType: Option[(String, ClassSpec)] = None
 
   def parentTypeName: String = _parentType match {
@@ -43,4 +21,39 @@ class ClassSpec(@JsonProperty("meta") _meta: MetaSpec,
     case None => "kaitai_struct"
   }
   def parentType: ClassSpec = _parentType.get._2
+}
+
+object ClassSpec {
+  @JsonCreator
+  def create(@JsonProperty("meta") _meta: MetaSpec,
+             @JsonProperty("seq") _seq: JList[AttrSpec],
+             @JsonProperty("types") _types: JMap[String, ClassSpec],
+             @JsonProperty("instances") _instances: JMap[String, InstanceSpec],
+             @JsonProperty("enums") _enums: JMap[String, JMap[String, String]]
+            ): ClassSpec = {
+    val meta = Option(_meta)
+
+    val seq: List[AttrSpec] = if (_seq == null) {
+      List()
+    } else {
+      _seq.toList
+    }
+    val types: Option[Map[String, ClassSpec]] = if (_types == null) {
+      None
+    } else {
+      Some(_types.toMap)
+    }
+    val instances: Option[Map[String, InstanceSpec]] = if (_instances == null) {
+      None
+    } else {
+      Some(_instances.toMap)
+    }
+    val enums: Map[String, Map[Long, String]] = if (_enums == null) {
+      Map()
+    } else {
+      _enums.toMap.map { case(k, v) => (k, v.toMap.map { case (enumId, enumLabel) => (Utils.strToLong(enumId), enumLabel) }) }
+    }
+
+    ClassSpec(meta, seq, types, instances, enums)
+  }
 }
