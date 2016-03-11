@@ -19,12 +19,12 @@ libraryDependencies ++= Seq(
 
 enablePlugins(JavaAppPackaging)
 
-packageSummary in Linux := "compiler to generate binary data parsers in Java / Python / Ruby"
-packageSummary in Windows := "Compiler for declarative YAML-based language to generate binary data parsers in Java / Python / Ruby"
+packageSummary in Linux := "compiler to generate binary data parsers in Java / JavaScript / Python / Ruby"
+packageSummary in Windows := "Compiler for declarative YAML-based language to generate binary data parsers in Java / JavaScript / Python / Ruby"
 packageDescription :=
 """This is the reference implementation of a compiler for Kaitai
 Struct (.ksy) files. It allows to compile them into source code in
-Java / Python / Ruby.
+Java / JavaScript / Python / Ruby.
 
 .ksy files describe binary data structures in declarative YAML-based
 language (in contrast to imperative parsing implementation written in a
