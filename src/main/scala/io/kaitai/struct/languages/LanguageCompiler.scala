@@ -27,7 +27,8 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def outFileName(topClassName: String): String
   def indent: String
 
-  def fileHeader(sourceFileName: String, topClassName: String): Unit
+  def headerComment = "This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild"
+  def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}
 
   def classHeader(name: String): Unit

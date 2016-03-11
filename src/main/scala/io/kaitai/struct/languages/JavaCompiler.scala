@@ -13,8 +13,8 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
   override def indent: String = "    "
 
-  override def fileHeader(sourceFileName: String, topClassName: String): Unit = {
-    out.puts(s"// This file was generated from '$sourceFileName' with kaitai-struct compiler")
+  override def fileHeader(topClassName: String): Unit = {
+    out.puts(s"// $headerComment")
     if (!destPackage.isEmpty) {
       out.puts
       out.puts(s"package $destPackage;")
