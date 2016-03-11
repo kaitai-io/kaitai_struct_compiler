@@ -1,16 +1,14 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvider}
 
-class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter) extends LanguageCompiler(verbose, out) with UpperCamelCaseClasses with EveryReadIsExpression {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
-
-  override def outFileName(topClassName: String): String = s"${topClassName}.py"
-  override def indent: String = "    "
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
@@ -191,4 +189,9 @@ class PythonCompiler(verbose: Boolean, outDir: String) extends LanguageCompiler(
   }
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
+}
+
+object PythonCompiler extends LanguageCompilerStatic {
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${topClassName}.py"
 }

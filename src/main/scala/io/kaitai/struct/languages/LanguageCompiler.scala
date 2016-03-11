@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.{Main, LanguageOutputWriter}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{UserType, BaseType}
@@ -9,23 +9,15 @@ import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvide
 
 import scala.collection.mutable.ListBuffer
 
-abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
+abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   protected var _translator: Option[BaseTranslator] = None
-  protected var out: LanguageOutputWriter = null
 
   def open(topClassName: String, tp: TypeProvider): Unit = {
-    val fn = s"$outDir/${outFileName(topClassName)}"
-    if (verbose)
-      Console.println(s"... => ${fn}")
-    out = new LanguageOutputWriter(fn, indent)
     _translator = Some(getTranslator(tp))
   }
   def close = out.close
   def getTranslator(tp: TypeProvider): BaseTranslator
   def translator: BaseTranslator = _translator.get
-
-  def outFileName(topClassName: String): String
-  def indent: String
 
   def headerComment = "This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild"
   def fileHeader(topClassName: String): Unit
@@ -71,4 +63,19 @@ abstract class LanguageCompiler(verbose: Boolean, outDir: String) {
   def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit
 
   def expression(e: Ast.expr): String = translator.translate(e)
+}
+
+trait LanguageCompilerStatic {
+  def indent: String
+  def outFileName(topClassName: String): String
+  def outFilePath(config: Main.Config, outDir: String, topClassName: String) = s"$outDir/${outFileName(topClassName)}"
+}
+
+object LanguageCompilerStatic {
+  def byString(langName: String): LanguageCompilerStatic = langName match {
+    case "java" => JavaCompiler
+    case "javascript" => JavaScriptCompiler
+    case "python" => PythonCompiler
+    case "ruby" => RubyCompiler
+  }
 }

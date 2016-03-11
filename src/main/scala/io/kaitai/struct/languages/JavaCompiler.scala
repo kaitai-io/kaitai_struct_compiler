@@ -1,17 +1,16 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{Main, LanguageOutputWriter, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
 
-class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
+class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: String = "") extends LanguageCompiler(verbose, out) with EveryReadIsExpression {
+  import JavaCompiler._
 
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
-  override def indent: String = "    "
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
@@ -347,4 +346,11 @@ class JavaCompiler(verbose: Boolean, outDir: String, destPackage: String = "") e
       Utils.lowerCamelCase(s)
     }
   }
+}
+
+object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
+  override def outFilePath(config: Main.Config, outDir: String, topClassName: String): String =
+    s"$outDir/src/${config.javaPackage.replace('.', '/')}/${outFileName(topClassName)}"
 }

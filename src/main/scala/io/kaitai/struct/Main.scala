@@ -2,6 +2,7 @@ package io.kaitai.struct
 
 import java.io.File
 
+import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
 
 object Main {
@@ -63,18 +64,35 @@ object Main {
     parser.parse(args, Config())
   }
 
-  def compile(srcFile: String, lang: String, outDir: String, config: Config): Unit = {
-      if (config.verbose)
-        Console.println(s"compiling ${srcFile} for ${lang}...")
+  def compileOne(srcFile: String, lang: String, outDir: String, config: Config): Unit = {
+    if (config.verbose)
+      Console.println(s"compiling ${srcFile} for ${lang}...")
 
-      val lc = lang match {
-        case "java" => new JavaCompiler(config.verbose, s"${outDir}/src/${config.javaPackage.replace('.', '/')}", config.javaPackage)
-        case "javascript" => new JavaScriptCompiler(config.verbose, outDir)
-        case "python" => new PythonCompiler(config.verbose, outDir)
-        case "ruby" => new RubyCompiler(config.verbose, outDir)
+    ClassCompiler.fromLocalFileToFile(srcFile, LanguageCompilerStatic.byString(lang), outDir, config).compile
+  }
+
+  def compileOne(topClass: ClassSpec, lang: String, outDir: String, config: Config): Unit = {
+    ClassCompiler.fromClassSpecToFile(topClass, LanguageCompilerStatic.byString(lang), outDir, config).compile
+  }
+
+  def compileAll(srcFile: String, config: Config): Unit = {
+    if (config.verbose)
+      Console.println(s"reading ${srcFile}...")
+
+    val topClass = ClassCompiler.localFileToSpec(srcFile.toString)
+
+    config.targets.foreach { lang =>
+      try {
+        if (config.verbose)
+          Console.print(s"... compiling it for ${lang}... ")
+        compileOne(topClass, lang, s"${config.outDir}/$lang", config)
+      } catch {
+        case e: Exception =>
+          e.printStackTrace()
+        case e: Error =>
+          e.printStackTrace()
       }
-
-      ClassCompiler.fromLocalFile(srcFile, lc).compile
+    }
   }
 
   def main(args : Array[String]): Unit = {
@@ -85,19 +103,10 @@ object Main {
           config.targets match {
             case Seq(lang) =>
               // single target, just use target directory as is
-              compile(srcFile.toString, lang, config.outDir.toString, config)
+              compileOne(srcFile.toString, lang, config.outDir.toString, config)
             case _ =>
               // multiple targets, use additional directories
-              config.targets.foreach { lang =>
-                try {
-                  compile(srcFile.toString, lang, s"${config.outDir}/$lang", config)
-                } catch {
-                  case e: Exception =>
-                  e.printStackTrace()
-                  case e: Error =>
-                  e.printStackTrace()
-                }
-              }
+              compileAll(srcFile.toString, config)
           }
         }
     }

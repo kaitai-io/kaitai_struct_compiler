@@ -1,25 +1,17 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.JavaScriptCompiler.{DataStreamAPI, KaitaiStreamAPI, RuntimeAPI}
-import io.kaitai.struct.translators.{BaseTranslator, TypeProvider, JavaScriptTranslator}
+import io.kaitai.struct.languages.JavaScriptCompiler.{KaitaiStreamAPI, RuntimeAPI}
+import io.kaitai.struct.translators.{BaseTranslator, JavaScriptTranslator, TypeProvider}
+import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
-object JavaScriptCompiler {
-  sealed abstract class RuntimeAPI
-  case object DataStreamAPI extends RuntimeAPI
-  case object KaitaiStreamAPI extends RuntimeAPI
-}
-
-class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = KaitaiStreamAPI) extends LanguageCompiler(verbose, outDir) with UpperCamelCaseClasses with EveryReadIsExpression {
+class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: RuntimeAPI = KaitaiStreamAPI) extends LanguageCompiler(verbose, out) with EveryReadIsExpression {
+  import JavaScriptCompiler._
 
   override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
-
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
-  override def indent: String = "  "
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
@@ -253,4 +245,13 @@ class JavaScriptCompiler(verbose: Boolean, outDir: String, api: RuntimeAPI = Kai
       Utils.lowerCamelCase(s)
     }
   }
+}
+
+object JavaScriptCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+  override def indent: String = "  "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
+
+  sealed abstract class RuntimeAPI
+  case object DataStreamAPI extends RuntimeAPI
+  case object KaitaiStreamAPI extends RuntimeAPI
 }

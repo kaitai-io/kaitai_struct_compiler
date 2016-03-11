@@ -1,18 +1,14 @@
 package io.kaitai.struct
 
 import java.io.FileReader
-import java.nio.charset.Charset
-import java.util
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.LanguageCompiler
+import io.kaitai.struct.languages._
 import io.kaitai.struct.translators.TypeProvider
 
-import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
 
 class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends TypeProvider {
@@ -214,16 +210,41 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 }
 
 object ClassCompiler {
-  def fromLocalFile(yamlFilename: String, lang: LanguageCompiler): ClassCompiler = {
+  def localFileToSpec(yamlFilename: String): ClassSpec = {
     val reader = new FileReader(yamlFilename)
     val mapper = new ObjectMapper(new YAMLFactory())
-    val topClass: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
-    new ClassCompiler(topClass, lang)
+    mapper.readValue(reader, classOf[ClassSpec])
   }
 
-  def fromString(src: String, lang: LanguageCompiler): ClassCompiler = {
+  def fromLocalFileToFile(yamlFilename: String, lang: LanguageCompilerStatic, outDir: String, config: Main.Config): ClassCompiler =
+    fromClassSpecToFile(localFileToSpec(yamlFilename), lang, outDir, config)
+
+  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, config: Main.Config): ClassCompiler = {
+    val outPath = lang.outFilePath(config, outDir, topClass.meta.get.id)
+    if (config.verbose)
+      Console.println(s"... => ${outPath}")
+    val out = new FileLanguageOutputWriter(outPath, lang.indent)
+
+    new ClassCompiler(topClass, getCompiler(lang, config, out))
+  }
+
+  def fromStringToString(src: String, lang: LanguageCompilerStatic, config: Main.Config): (StringLanguageOutputWriter, ClassCompiler) = {
     val mapper = new ObjectMapper(new YAMLFactory())
     val topClass: ClassSpec = mapper.readValue(src, classOf[ClassSpec])
-    new ClassCompiler(topClass, lang)
+
+    fromClassSpecToString(topClass, lang, config)
+  }
+
+  def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, config: Main.Config): (StringLanguageOutputWriter, ClassCompiler) = {
+    val out = new StringLanguageOutputWriter(lang.indent)
+    val cc = new ClassCompiler(topClass, getCompiler(lang, config, out))
+    (out, cc)
+  }
+
+  private def getCompiler(lang: LanguageCompilerStatic, config: Main.Config, out: LanguageOutputWriter) = lang match {
+    case JavaCompiler => new JavaCompiler(config.verbose, out, config.javaPackage)
+    case JavaScriptCompiler => new JavaScriptCompiler(config.verbose, out)
+    case PythonCompiler => new PythonCompiler(config.verbose, out)
+    case RubyCompiler => new RubyCompiler(config.verbose, out)
   }
 }
