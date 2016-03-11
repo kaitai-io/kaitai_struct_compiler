@@ -15,10 +15,7 @@ import io.kaitai.struct.translators.TypeProvider
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
 
-class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extends TypeProvider {
-  val reader = new FileReader(yamlFilename)
-  val mapper = new ObjectMapper(new YAMLFactory())
-  val topClass: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
+class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends TypeProvider {
   val topClassName = topClass.meta.get.id
 
   val userTypes = gatherUserTypes(topClass) ++ Map(topClassName -> topClass)
@@ -81,7 +78,7 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
     deriveValueTypes
     markupParentTypes(topClassName, topClass)
 
-    lang.fileHeader(yamlFilename, topClassName)
+    lang.fileHeader(topClassName)
     compileClass(topClassName, topClass)
     lang.fileFooter(topClassName)
     lang.close
@@ -213,5 +210,20 @@ class ClassCompiler(val yamlFilename: String, val lang: LanguageCompiler) extend
 
   def compileEnum(enumName: String, enumColl: Map[Long, String]): Unit = {
     lang.enumDeclaration(nowClassName, enumName, enumColl)
+  }
+}
+
+object ClassCompiler {
+  def fromLocalFile(yamlFilename: String, lang: LanguageCompiler): ClassCompiler = {
+    val reader = new FileReader(yamlFilename)
+    val mapper = new ObjectMapper(new YAMLFactory())
+    val topClass: ClassSpec = mapper.readValue(reader, classOf[ClassSpec])
+    new ClassCompiler(topClass, lang)
+  }
+
+  def fromString(src: String, lang: LanguageCompiler): ClassCompiler = {
+    val mapper = new ObjectMapper(new YAMLFactory())
+    val topClass: ClassSpec = mapper.readValue(src, classOf[ClassSpec])
+    new ClassCompiler(topClass, lang)
   }
 }

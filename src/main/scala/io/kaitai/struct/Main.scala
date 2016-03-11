@@ -74,7 +74,7 @@ object Main {
         case "ruby" => new RubyCompiler(config.verbose, outDir)
       }
 
-      new ClassCompiler(srcFile, lc).compile
+      ClassCompiler.fromLocalFile(srcFile, lc).compile
   }
 
   def main(args : Array[String]): Unit = {
