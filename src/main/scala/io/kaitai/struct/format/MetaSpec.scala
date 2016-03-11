@@ -10,7 +10,8 @@ object MetaSpec {
   def create(
               @JsonProperty("id") _id: String,
               @JsonProperty("endian") _endian: String,
-              @JsonProperty("file_extension") fileExtension: String
+              @JsonProperty("file-extension") fileExtension: String,
+              @JsonProperty("application") application: String
             ): MetaSpec = {
     if (_id == null) {
       throw new RuntimeException("meta: id is required, but not found");
