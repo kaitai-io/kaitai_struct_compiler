@@ -6,20 +6,25 @@ import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
 
 object Main {
-  case class Config(
+  class Config(
+     val verbose: Boolean = false,
+     val javaPackage: String = ""
+  )
+
+  case class CLIConfig(
     srcFiles: Seq[File] = Seq(),
     outDir: File = new File("."),
     targets: Seq[String] = Seq(),
-    verbose: Boolean = false,
 
-    javaPackage: String = ""
-  )
+    private val _verbose: Boolean = false,
+    private val _javaPackage: String = ""
+  ) extends Config(_verbose, _javaPackage)
 
   val ALL_LANGS = Set("java", "javascript", "python", "ruby")
   val VALID_LANGS = ALL_LANGS + "all"
 
-  def parseCommandLine(args: Array[String]): Option[Config] = {
-    val parser = new scopt.OptionParser[Config](BuildInfo.name) {
+  def parseCommandLine(args: Array[String]): Option[CLIConfig] = {
+    val parser = new scopt.OptionParser[CLIConfig](BuildInfo.name) {
       override def showUsageOnError = true
 
       head(BuildInfo.name, BuildInfo.version)
@@ -51,17 +56,17 @@ object Main {
       } text("output directory (filenames will be auto-generated)")
 
       opt[String]("java-package") valueName("<package>") action { (x, c) =>
-        c.copy(javaPackage = x)
+        c.copy(_javaPackage = x)
       } text(s"Java package (Java only, default: root package)")
 
       opt[Unit]("verbose") action { (x, c) =>
-        c.copy(verbose = true)
+        c.copy(_verbose = true)
       } text(s"verbose output")
       help("help") text("display this help and exit")
       version("version") text("output version information and exit")
     }
 
-    parser.parse(args, Config())
+    parser.parse(args, CLIConfig())
   }
 
   def compileOne(srcFile: String, lang: String, outDir: String, config: Config): Unit = {
@@ -75,7 +80,7 @@ object Main {
     ClassCompiler.fromClassSpecToFile(topClass, LanguageCompilerStatic.byString(lang), outDir, config).compile
   }
 
-  def compileAll(srcFile: String, config: Config): Unit = {
+  def compileAll(srcFile: String, config: CLIConfig): Unit = {
     if (config.verbose)
       Console.println(s"reading ${srcFile}...")
 
