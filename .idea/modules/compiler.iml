@@ -79,35 +79,79 @@
       </library>
     </orderEntry>
     <orderEntry type="module-library">
-      <library name="SBT: com.lihaoyi:fastparse-utils_2.11:0.3.5:jar">
+      <library name="SBT: com.lihaoyi:fastparse-utils_2.11:0.3.7:jar">
         <CLASSES>
-          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse-utils_2.11/jars/fastparse-utils_2.11-0.3.5.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse-utils_2.11/jars/fastparse-utils_2.11-0.3.7.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES>
-          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse-utils_2.11/srcs/fastparse-utils_2.11-0.3.5-sources.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse-utils_2.11/srcs/fastparse-utils_2.11-0.3.7-sources.jar!/" />
         </SOURCES>
       </library>
     </orderEntry>
     <orderEntry type="module-library">
-      <library name="SBT: com.lihaoyi:fastparse_2.11:0.3.5:jar">
+      <library name="SBT: com.lihaoyi:fastparse-utils_sjs0.6_2.11:0.3.7:jar">
         <CLASSES>
-          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse_2.11/jars/fastparse_2.11-0.3.5.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse-utils_sjs0.6_2.11/jars/fastparse-utils_sjs0.6_2.11-0.3.7.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES>
-          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse_2.11/srcs/fastparse_2.11-0.3.5-sources.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse-utils_sjs0.6_2.11/srcs/fastparse-utils_sjs0.6_2.11-0.3.7-sources.jar!/" />
         </SOURCES>
       </library>
     </orderEntry>
     <orderEntry type="module-library">
-      <library name="SBT: com.lihaoyi:sourcecode_2.11:0.1.0:jar">
+      <library name="SBT: com.lihaoyi:fastparse_2.11:0.3.7:jar">
         <CLASSES>
-          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/sourcecode_2.11/jars/sourcecode_2.11-0.1.0.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse_2.11/jars/fastparse_2.11-0.3.7.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES>
-          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/sourcecode_2.11/srcs/sourcecode_2.11-0.1.0-sources.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse_2.11/srcs/fastparse_2.11-0.3.7-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="SBT: com.lihaoyi:fastparse_sjs0.6_2.11:0.3.7:jar">
+        <CLASSES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse_sjs0.6_2.11/jars/fastparse_sjs0.6_2.11-0.3.7.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/fastparse_sjs0.6_2.11/srcs/fastparse_sjs0.6_2.11-0.3.7-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="SBT: com.lihaoyi:sourcecode_2.11:0.1.1:jar">
+        <CLASSES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/sourcecode_2.11/jars/sourcecode_2.11-0.1.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/sourcecode_2.11/srcs/sourcecode_2.11-0.1.1-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="SBT: com.lihaoyi:sourcecode_sjs0.6_2.11:0.1.1:jar">
+        <CLASSES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/sourcecode_sjs0.6_2.11/jars/sourcecode_sjs0.6_2.11-0.1.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/sourcecode_sjs0.6_2.11/srcs/sourcecode_sjs0.6_2.11-0.1.1-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="SBT: org.scala-js:scalajs-library_2.11:0.6.7:jar">
+        <CLASSES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/org.scala-js/scalajs-library_2.11/jars/scalajs-library_2.11-0.6.7.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/org.scala-js/scalajs-library_2.11/srcs/scalajs-library_2.11-0.6.7-sources.jar!/" />
         </SOURCES>
       </library>
     </orderEntry>
