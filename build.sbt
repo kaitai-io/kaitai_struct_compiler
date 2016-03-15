@@ -24,14 +24,13 @@ enablePlugins(JavaAppPackaging)
 packageSummary in Linux := "compiler to generate binary data parsers in Java / JavaScript / Python / Ruby"
 packageSummary in Windows := "Compiler for declarative YAML-based language to generate binary data parsers in Java / JavaScript / Python / Ruby"
 packageDescription :=
-"""This is the reference implementation of a compiler for Kaitai
-Struct (.ksy) files. It allows to compile them into source code in
-Java / JavaScript / Python / Ruby.
-
-.ksy files describe binary data structures in declarative YAML-based
-language (in contrast to imperative parsing implementation written in a
-single programming language) and allow cross-language, cross-platform
-data formats description."""
+"""This is the reference implementation of a compiler for Kaitai Struct (.ksy)
+  files. It allows to compile them into source code in Java / JavaScript /
+  Python / Ruby.
+  .ksy files describe binary data structures in declarative YAML-based
+  language (in contrast to imperative parsing implementation written in a
+  single programming language) and allow cross-language, cross-platform data
+  formats description."""
 
 maintainer in Windows := "Kaitai Project"
 maintainer in Debian := "Mikhail Yakshin <greycat@kaitai.io>"
