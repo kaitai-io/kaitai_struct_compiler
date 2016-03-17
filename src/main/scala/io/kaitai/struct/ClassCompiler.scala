@@ -223,9 +223,15 @@ object ClassCompiler {
     val outPath = lang.outFilePath(config, outDir, topClass.meta.get.id)
     if (config.verbose)
       Console.println(s"... => ${outPath}")
-    val out = new FileLanguageOutputWriter(outPath, lang.indent)
-
-    new ClassCompiler(topClass, getCompiler(lang, config, out))
+    lang match {
+      case CppCompiler =>
+        val outSrc = new FileLanguageOutputWriter(s"$outPath.cpp", lang.indent)
+        val outHdr = new FileLanguageOutputWriter(s"$outPath.h", lang.indent)
+        new ClassCompiler(topClass, new CppCompiler(config.verbose, outSrc, outHdr))
+      case _ =>
+        val out = new FileLanguageOutputWriter(outPath, lang.indent)
+        new ClassCompiler(topClass, getCompiler(lang, config, out))
+    }
   }
 
   def fromStringToString(src: String, lang: LanguageCompilerStatic, config: Main.Config): (StringLanguageOutputWriter, ClassCompiler) = {

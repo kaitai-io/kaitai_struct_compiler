@@ -20,7 +20,7 @@ object Main {
     private val _javaPackage: String = ""
   ) extends Config(_verbose, _javaPackage)
 
-  val ALL_LANGS = Set("java", "javascript", "python", "ruby")
+  val ALL_LANGS = Set("cpp_stl", "java", "javascript", "python", "ruby")
   val VALID_LANGS = ALL_LANGS + "all"
 
   def parseCommandLine(args: Array[String]): Option[CLIConfig] = {

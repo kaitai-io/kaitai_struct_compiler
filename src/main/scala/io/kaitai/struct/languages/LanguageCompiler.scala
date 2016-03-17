@@ -73,6 +73,7 @@ trait LanguageCompilerStatic {
 
 object LanguageCompilerStatic {
   def byString(langName: String): LanguageCompilerStatic = langName match {
+    case "cpp_stl" => CppCompiler
     case "java" => JavaCompiler
     case "javascript" => JavaScriptCompiler
     case "python" => PythonCompiler
