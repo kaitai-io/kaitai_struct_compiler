@@ -23,6 +23,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts
     outSrc.puts("#include \"" + outFileName(topClassName) + ".h\"")
     outSrc.puts
+    outSrc.puts("#include <iostream>")
+    outSrc.puts("#include <fstream>")
 
     outHdr.puts(s"#ifndef ${defineName(topClassName)}")
     outHdr.puts(s"#define ${defineName(topClassName)}")
@@ -33,20 +35,29 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts("#include <kaitai/kaitaistream.h>")
     outHdr.puts
     outHdr.puts("#include <stdint.h>")
+  }
+
+  override def fileFooter(topClassName: String): Unit = {
     outHdr.puts
+    outHdr.puts(s"#endif  // ${defineName(topClassName)}")
   }
 
   override def classHeader(name: String): Unit = {
-    outHdr.puts(s"class ${type2class(name)} : public KaitaiStruct {")
+    outHdr.puts
+    outHdr.puts(s"class ${type2class(name)} : public $kstructName {")
     outHdr.inc
-    outHdr.puts("public:")
-    accessMode = PublicAccess
-/*
-    outHdr.puts(s"static ${type2class(name)} fromFile(std::string fileName);")
+    accessMode = PrivateAccess
+    ensureMode(PublicAccess)
 
-    outSrc.puts(s"${type2class(name)}::fromFile(std::string fileName) {")
+    /*
+    outHdr.puts(s"static ${type2class(name)} from_file(std::string ${attrReaderName("file_name")});")
+
+    outSrc.puts
+    outSrc.puts(s"${type2class(name)} ${type2class(name)}::from_file(std::string ${attrReaderName("file_name")}) {")
     outSrc.inc
-    outSrc.puts(s"return new ${type2class(name)}(new KaitaiStream(fileName));")
+    outSrc.puts("std::ifstream* ifs = new std::ifstream(file_name, std::ifstream::binary);")
+    outSrc.puts("kaitai::kstream *ks = new kaitai::kstream(ifs);")
+    outSrc.puts(s"return new ${type2class(name)}(ks);")
     outSrc.dec
     outSrc.puts("}")
     */
@@ -55,18 +66,20 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def classFooter(name: String): Unit = {
     outHdr.dec
     outHdr.puts("};")
-    outHdr.puts
-    outHdr.puts(s"#endif  // ${defineName(name)}")
   }
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     outHdr.puts
-    outHdr.puts(s"${type2class(name)}(KaitaiStream* _io, ${type2class(parentClassName)}* _parent = 0, ${type2class(rootClassName)}* _root = 0);")
+    outHdr.puts(s"${type2class(name)}($kstreamName* _io, ${type2class(parentClassName)}* _parent = 0, ${type2class(rootClassName)}* _root = 0);")
 
-    outSrc.puts(s"${type2class(name)}::${type2class(name)}(KaitaiStream *_io, ${type2class(parentClassName)} *_parent, ${type2class(rootClassName)} *_root) : KaitaiStruct(_io) {")
+    outSrc.puts(s"${type2class(name)}::${type2class(name)}($kstreamName *_io, ${type2class(parentClassName)} *_parent, ${type2class(rootClassName)} *_root) : $kstructName(_io) {")
     outSrc.inc
-    outSrc.puts(s"${privateMemberName("_parent")} = _parent;")
-    outSrc.puts(s"${privateMemberName("_root")} = _root ? _root : this;")
+    handleAssignmentSimple("_parent", "_parent");
+    handleAssignmentSimple("_root", if (name == rootClassName) {
+      "this"
+    } else {
+      "_root"
+    })
   }
 
   override def classConstructorFooter: Unit = {
@@ -75,25 +88,31 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   }
 
   override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {
-    if (accessMode != PrivateAccess) {
-      outHdr.puts
-      outHdr.puts(s"private:")
-      accessMode = PrivateAccess
-    }
+    ensureMode(PrivateAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
-  override def attributeReader(attrName: String, attrType: BaseType): Unit = {
-    if (accessMode != PublicAccess) {
+  def ensureMode(newMode: AccessMode): Unit = {
+    if (accessMode != newMode) {
+      outHdr.dec
       outHdr.puts
-      outHdr.puts("public:")
-      accessMode = PublicAccess
+      outHdr.puts(newMode match {
+        case PrivateAccess => "private:"
+        case PublicAccess => "public:"
+      })
+      outHdr.inc
+      accessMode = newMode
     }
+  }
+
+  override def attributeReader(attrName: String, attrType: BaseType): Unit = {
+    ensureMode(PublicAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${attrReaderName(attrName)}() { return ${privateMemberName(attrName)}; }")
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    outSrc.puts(s"privateMemberName(attrName) = _io->ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+    val strLiteral = contents.map { x => "\\x%02x".format(x) }.mkString
+    outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, " + "\"" + strLiteral + "\");")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
@@ -108,7 +127,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     }
   }
 
-  override def normalIO: String = "_io"
+  override def normalIO: String = privateMemberName("_io")
 
   override def allocateIO(varName: String, rep: RepeatSpec): String = {
     val javaName = privateMemberName(varName)
@@ -193,42 +212,50 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + "->read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"${type2class(enumName)}.byId($io.read${Utils.capitalize(t.apiCall)}())"
+        s"${type2class(enumName)}.byId($io->read${Utils.capitalize(t.apiCall)}())"
       case BytesLimitType(size, _) =>
         s"$io->read_bytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io->read_bytes_full()"
       case t: UserType =>
-        s"new ${type2class(t.name)}($io, this, _root)"
+        s"new ${type2class(t.name)}($io, this, ${privateMemberName("_root")})"
     }
   }
 
   override def instanceDeclaration(attrName: String, attrType: BaseType): Unit = {
-    outHdr.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+    ensureMode(PrivateAccess)
+    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
   override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
-    outHdr.puts(s"public ${kaitaiType2NativeType(dataType)} ${privateMemberName(instName)}() throws IOException {")
-    outHdr.inc
+    ensureMode(PublicAccess)
+    outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${attrReaderName(instName)}();")
+
+    outSrc.puts
+    outSrc.puts(s"${kaitaiType2NativeType(dataType)} ${type2class(className)}::${attrReaderName(instName)}() {")
+    outSrc.inc
   }
 
   override def instanceAttrName(instName: String): String = instName
 
-  override def instanceFooter: Unit = classConstructorFooter
+  override def instanceFooter: Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    outHdr.puts(s"if (${privateMemberName(instName)} != null)")
-    outHdr.inc
+    outSrc.puts(s"if (${privateMemberName(instName)} != NULL)")
+    outSrc.inc
     instanceReturn(instName)
-    outHdr.dec
+    outSrc.dec
   }
 
   override def instanceReturn(instName: String): Unit = {
-    outHdr.puts(s"return ${privateMemberName(instName)};")
+    outSrc.puts(s"return ${privateMemberName(instName)};")
   }
 
   override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
-    outHdr.puts(s"${privateMemberName(instName)} = ${expression(value)};")
+    outSrc.puts(s"${privateMemberName(instName)} = ${expression(value)};")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
@@ -294,29 +321,45 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   def defineName(className: String) = className.toUpperCase + "_H_"
 
   def privateMemberName(ksName: String) = {
+    /*
     if (ksName == "_root" || ksName == "_parent" || ksName == "_io") {
       "_m" + ksName
     } else if (ksName.startsWith("_raw_")) {
       "_raw_" + Utils.lowerCamelCase(ksName.substring("_raw_".length))
     } else {
       Utils.lowerCamelCase(ksName) + "_"
-    }
+    }*/
+    "m_" + ksName
   }
 
   def attrReaderName(ksName: String) = {
+    /*
     if (ksName == "_root" || ksName == "_parent" || ksName == "_io") {
       "m" + ksName
     } else if (ksName.startsWith("_raw_")) {
       "m_raw_" + Utils.lowerCamelCase(ksName.substring("_raw_".length))
     } else {
       Utils.lowerCamelCase(ksName)
-    }
+    }*/
+    ksName
   }
 
+  def flagForInstName(ksName: String) = "f_" + ksName
+
   def rawMemberName(ksName: String) = "_raw_" + Utils.lowerCamelCase(ksName)
+
+  def kstructName = "kaitai::kstruct"
+
+  def kstreamName = "kaitai::kstream"
 }
 
-object CppCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+object CppCompiler extends LanguageCompilerStatic {
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}"
+  def type2class(s: String) = {
+    s match {
+      case "kaitai_struct" => "kaitai::kstruct"
+      case _ => s
+    }
+  }
 }
