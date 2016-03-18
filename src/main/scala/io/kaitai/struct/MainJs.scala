@@ -84,13 +84,13 @@ object JSClassSpec {
         },
         self.types.toOption match {
           case Some(x) =>
-            Some(x.map { case (key, value) =>
+            x.map { case (key, value) =>
               key -> value.toScala
-            }.toMap)
-          case None => None
+            }.toMap
+          case None => Map()
         },
-        None,
-        Map()
+        Map(), // TODO
+        Map() // TODO
       )
   }
 }

@@ -20,15 +20,10 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   var nowClass: ClassSpec = topClass
 
   def gatherUserTypes(curClass: ClassSpec): Map[String, ClassSpec] = {
-    curClass.types match {
-      case Some(typeMap) =>
-        val curValues: Map[String, ClassSpec] = typeMap
-        val recValues: Map[String, ClassSpec] = typeMap.map {
-          case (typeName, intClass) => gatherUserTypes(intClass)
-        }.flatten.toMap
-        curValues ++ recValues
-      case None => Map()
-    }
+    val recValues: Map[String, ClassSpec] = curClass.types.map {
+      case (typeName, intClass) => gatherUserTypes(intClass)
+    }.flatten.toMap
+    curClass.types ++ recValues
   }
 
   def markupParentTypes(curClassName: String, curClass: ClassSpec): Unit = {
@@ -57,7 +52,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
   def deriveValueType(curClass: ClassSpec): Unit = {
     nowClass = curClass
-    curClass.instances.foreach { realInstances => realInstances.foreach {
+    curClass.instances.foreach {
       case (instName, inst) =>
         inst match {
           case vi: ValueInstanceSpec =>
@@ -65,7 +60,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
           case _ =>
             // do nothing
         }
-    }}
+    }
   }
 
   def compile {
@@ -95,16 +90,12 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.classConstructorFooter
 
     // Recursive types
-    curClass.types.foreach((typeMap) => typeMap.foreach {
-      case (typeName, intClass) => compileClass(typeName, intClass)
-    })
+    curClass.types.foreach { case (typeName, intClass) => compileClass(typeName, intClass) }
 
     nowClass = curClass
     nowClassName = name
 
-    curClass.instances.foreach((instanceMap) => instanceMap.foreach {
-      case (instName, instSpec) => compileInstance(name, instName, instSpec, extraAttrs)
-    })
+    curClass.instances.foreach { case (instName, instSpec) => compileInstance(name, instName, instSpec, extraAttrs) }
 
     // Attributes declarations and readers
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite))
@@ -165,13 +156,11 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
           if (el.id == attrName)
             return el.dataTypeComposite
         }
-        classSpec.instances.foreach(instances =>
-          instances.get(attrName) match {
-            case Some(i: ValueInstanceSpec) => return i.dataType.get
-            case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
-            case None => // do nothing
-          }
-        )
+        classSpec.instances.get(attrName) match {
+          case Some(i: ValueInstanceSpec) => return i.dataType.get
+          case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
+          case None => // do nothing
+        }
         throw new RuntimeException(s"Unable to access ${attrName} in ${className} context")
     }
   }

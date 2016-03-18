@@ -10,8 +10,8 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 case class ClassSpec(
                       meta: Option[MetaSpec],
                       seq: List[AttrSpec],
-                      types: Option[Map[String, ClassSpec]],
-                      instances: Option[Map[String, InstanceSpec]],
+                      types: Map[String, ClassSpec],
+                      instances: Map[String, InstanceSpec],
                       enums: Map[String, Map[Long, String]]
                     ) {
   var _parentType: Option[(String, ClassSpec)] = None
@@ -38,15 +38,15 @@ object ClassSpec {
     } else {
       _seq.toList
     }
-    val types: Option[Map[String, ClassSpec]] = if (_types == null) {
-      None
+    val types: Map[String, ClassSpec] = if (_types == null) {
+      Map()
     } else {
-      Some(_types.toMap)
+      _types.toMap
     }
-    val instances: Option[Map[String, InstanceSpec]] = if (_instances == null) {
-      None
+    val instances: Map[String, InstanceSpec] = if (_instances == null) {
+      Map()
     } else {
-      Some(_instances.toMap)
+      _instances.toMap
     }
     val enums: Map[String, Map[Long, String]] = if (_enums == null) {
       Map()
