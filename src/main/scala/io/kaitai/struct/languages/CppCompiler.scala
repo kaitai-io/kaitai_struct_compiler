@@ -72,6 +72,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts
     outHdr.puts(s"${type2class(name)}($kstreamName* _io, ${type2class(parentClassName)}* _parent = 0, ${type2class(rootClassName)}* _root = 0);")
 
+    outSrc.puts
     outSrc.puts(s"${type2class(name)}::${type2class(name)}($kstreamName *_io, ${type2class(parentClassName)} *_parent, ${type2class(rootClassName)} *_root) : $kstructName(_io) {")
     outSrc.inc
     handleAssignmentSimple("_parent", "_parent");
@@ -152,6 +153,14 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts(s"$io->seek(${expression(pos)});")
   }
 
+  override def instanceClear(instName: String): Unit = {
+    outSrc.puts(s"${flagForInstName(instName)} = false;")
+  }
+
+  override def instanceSetCalculated(instName: String): Unit = {
+    outSrc.puts(s"${flagForInstName(instName)} = true;")
+  }
+
   override def condIfHeader(expr: expr): Unit = {
     outSrc.puts(s"if (${expression(expr)}) {")
     outSrc.inc
@@ -224,6 +233,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   override def instanceDeclaration(attrName: String, attrType: BaseType): Unit = {
     ensureMode(PrivateAccess)
+    outHdr.puts(s"bool ${flagForInstName(attrName)};")
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
@@ -244,7 +254,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   }
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    outSrc.puts(s"if (${privateMemberName(instName)} != NULL)")
+    outSrc.puts(s"if (${flagForInstName(instName)})")
     outSrc.inc
     instanceReturn(instName)
     outSrc.dec

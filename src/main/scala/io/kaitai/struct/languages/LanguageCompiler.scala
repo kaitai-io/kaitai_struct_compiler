@@ -52,6 +52,8 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def useIO(ioEx: Ast.expr): String
   def seek(io: String, pos: Ast.expr): Unit
 
+  def instanceClear(instName: String): Unit = {}
+  def instanceSetCalculated(instName: String): Unit = {}
   def instanceDeclaration(attrName: String, attrType: BaseType) = attributeDeclaration(attrName, attrType)
   def instanceHeader(className: String, instName: String, dataType: BaseType): Unit
   def instanceAttrName(instName: String): String

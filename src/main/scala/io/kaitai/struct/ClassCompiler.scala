@@ -87,6 +87,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     lang.classConstructorHeader(name, curClass.parentTypeName, topClassName)
     curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs, lang.normalIO))
+    curClass.instances.foreach { case (instName, instSpec) => lang.instanceClear(instName) }
     lang.classConstructorFooter
 
     // Recursive types
@@ -130,6 +131,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
         lang.attrParse(i, lang.instanceAttrName(instName), extraAttrs, io)
     }
 
+    lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName)
     lang.instanceFooter
   }
