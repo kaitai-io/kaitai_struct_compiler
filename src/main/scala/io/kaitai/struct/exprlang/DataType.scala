@@ -61,10 +61,10 @@ object DataType {
   case class ArrayType(elType: BaseType) extends BaseType
   case class MapType(keyType: BaseType, valueType: BaseType) extends BaseType
 
-  abstract class UserType(val name: String) extends BaseType
-  case class UserTypeInstream(_name: String) extends UserType(_name)
-  case class UserTypeByteLimit(_name: String, size: Ast.expr) extends UserType(_name)
-  case class UserTypeEos(_name: String) extends UserType(_name)
+  abstract class UserType(val name: List[String]) extends BaseType
+  case class UserTypeInstream(_name: List[String]) extends UserType(_name)
+  case class UserTypeByteLimit(_name: List[String], size: Ast.expr) extends UserType(_name)
+  case class UserTypeEos(_name: List[String]) extends UserType(_name)
 
   case class EnumType(name: String, basedOn: IntType) extends BaseType
 
@@ -137,10 +137,11 @@ object DataType {
           throw new RuntimeException("type str: encoding must be specified")
         StrZType(encoding.get, terminator, include, consume, eosError)
       case _ =>
+        val dtl = dt.split("::", -1).toList
         ((size, sizeEos)) match {
-          case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dt, bs)
-          case (None, true) => UserTypeEos(dt)
-          case (None, false) => UserTypeInstream(dt)
+          case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, bs)
+          case (None, true) => UserTypeEos(dtl)
+          case (None, false) => UserTypeInstream(dtl)
           case (Some(_), true) =>
             throw new RuntimeException("user type '" + dt + "': only one of \"size\" or \"size-eos\" must be specified")
         }

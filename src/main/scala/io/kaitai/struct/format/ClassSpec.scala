@@ -14,11 +14,11 @@ case class ClassSpec(
                       instances: Map[String, InstanceSpec],
                       enums: Map[String, Map[Long, String]]
                     ) {
-  var _parentType: Option[(String, ClassSpec)] = None
+  var _parentType: Option[(List[String], ClassSpec)] = None
 
-  def parentTypeName: String = _parentType match {
-    case Some((name: String, _)) => name
-    case None => "kaitai_struct"
+  def parentTypeName: List[String] = _parentType match {
+    case Some((name: List[String], _)) => name
+    case None => List("kaitai_struct")
   }
   def parentType: ClassSpec = _parentType.get._2
 }

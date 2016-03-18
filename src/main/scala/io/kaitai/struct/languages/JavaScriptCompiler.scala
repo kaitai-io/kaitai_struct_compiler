@@ -8,7 +8,10 @@ import io.kaitai.struct.languages.JavaScriptCompiler.{KaitaiStreamAPI, RuntimeAP
 import io.kaitai.struct.translators.{BaseTranslator, JavaScriptTranslator, TypeProvider}
 import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
-class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: RuntimeAPI = KaitaiStreamAPI) extends LanguageCompiler(verbose, out) with EveryReadIsExpression {
+class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: RuntimeAPI = KaitaiStreamAPI)
+  extends LanguageCompiler(verbose, out)
+    with EveryReadIsExpression
+    with NoNeedForFullClassPath {
   import JavaScriptCompiler._
 
   override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
@@ -182,7 +185,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-        s"new ${type2class(t.name)}($io, this, this._root)"
+        s"new ${type2class(t.name.last)}($io, this, this._root)"
     }
   }
 

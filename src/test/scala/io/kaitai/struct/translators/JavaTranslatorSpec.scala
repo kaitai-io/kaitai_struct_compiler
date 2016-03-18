@@ -66,23 +66,7 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     }
 
     it("parses foo of user type") {
-      tryOne(UserTypeInstream("block"), "foo", "foo()", UserTypeInstream("block"))
-    }
-
-    class FooBarProvider extends TypeProvider {
-      override def determineType(name: String): BaseType = {
-        name match {
-          case "foo" => UserTypeInstream("block")
-        }
-      }
-
-      override def determineType(parentType: String, name: String): BaseType = {
-        (parentType, name) match {
-          case ("block", "bar") => CalcStrType
-          case ("block", "inner") => UserTypeInstream("innerblock")
-          case ("innerblock", "baz") => CalcIntType
-        }
-      }
+      tryOne(userType("block"), "foo", "foo()", userType("block"))
     }
 
     it("parses foo.bar") {
@@ -94,7 +78,7 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     }
 
     it("parses _root.foo") {
-      tryOne(UserTypeInstream("block"), "_root.foo", "_root.foo()", UserTypeInstream("block"))
+      tryOne(userType("block"), "_root.foo", "_root.foo()", userType("block"))
     }
 
     it("parses a != 2 and a != 5") {

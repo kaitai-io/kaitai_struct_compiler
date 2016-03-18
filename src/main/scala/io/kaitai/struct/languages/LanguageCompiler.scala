@@ -23,10 +23,10 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}
 
-  def classHeader(name: String): Unit
-  def classFooter(name: String): Unit
+  def classHeader(name: List[String]): Unit
+  def classFooter(name: List[String]): Unit
 
-  def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit
+  def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit
   def classConstructorFooter: Unit
 
   def attributeDeclaration(attrName: String, attrType: BaseType): Unit
@@ -55,14 +55,14 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def instanceClear(instName: String): Unit = {}
   def instanceSetCalculated(instName: String): Unit = {}
   def instanceDeclaration(attrName: String, attrType: BaseType) = attributeDeclaration(attrName, attrType)
-  def instanceHeader(className: String, instName: String, dataType: BaseType): Unit
+  def instanceHeader(className: List[String], instName: String, dataType: BaseType): Unit
   def instanceAttrName(instName: String): String
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: String): Unit
   def instanceReturn(instName: String): Unit
   def instanceCalculate(instName: String, value: Ast.expr)
 
-  def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit
+  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit
 
   def expression(e: Ast.expr): String = translator.translate(e)
 }

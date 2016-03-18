@@ -7,7 +7,11 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvider}
 
-class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter) extends LanguageCompiler(verbose, out) with UpperCamelCaseClasses with EveryReadIsExpression {
+class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
+  extends LanguageCompiler(verbose, out)
+    with UpperCamelCaseClasses
+    with EveryReadIsExpression
+    with NoNeedForFullClassPath {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
 
   override def fileHeader(topClassName: String): Unit = {
@@ -150,7 +154,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter) extends Langua
       case BytesEosType(_) =>
         s"self._io.read()"
       case t: UserType =>
-        s"self._root.${type2class(t.name)}($io, self, self._root)"
+        s"self._root.${types2class(t.name)}($io, self, self._root)"
     }
   }
 
@@ -189,6 +193,8 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter) extends Langua
   }
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
+
+  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 }
 
 object PythonCompiler extends LanguageCompilerStatic {

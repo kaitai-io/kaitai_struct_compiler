@@ -12,11 +12,11 @@ import io.kaitai.struct.translators.TypeProvider
 import scala.collection.mutable.ListBuffer
 
 class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends TypeProvider {
-  val topClassName = topClass.meta.get.id
+  val topClassName = List(topClass.meta.get.id)
 
   val userTypes = gatherUserTypes(topClass) ++ Map(topClassName -> topClass)
 
-  var nowClassName: String = topClassName
+  var nowClassName: List[String] = topClassName
   var nowClass: ClassSpec = topClass
 
   def gatherUserTypes(curClass: ClassSpec): Map[String, ClassSpec] = {
@@ -26,7 +26,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     curClass.types ++ recValues
   }
 
-  def markupParentTypes(curClassName: String, curClass: ClassSpec): Unit = {
+  def markupParentTypes(curClassName: List[String], curClass: ClassSpec): Unit = {
     curClass.seq.foreach { attr =>
       attr.dataType match {
         case userType: UserType =>
@@ -35,7 +35,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
             usedClass._parentType match {
               case None =>
                 usedClass._parentType = Some((curClassName, curClass))
-                markupParentTypes(ut, usedClass)
+                markupParentTypes(curClassName ::: ut, usedClass)
               case Some((curClassName, curClass)) => // already done, don't do anything
               case Some((otherName, otherClass)) =>
                 throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
@@ -64,18 +64,18 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   }
 
   def compile {
-    lang.open(topClassName, this)
+    lang.open(topClassName.head, this)
 
     deriveValueTypes
     markupParentTypes(topClassName, topClass)
 
-    lang.fileHeader(topClassName)
+    lang.fileHeader(topClassName.head)
     compileClass(topClassName, topClass)
-    lang.fileFooter(topClassName)
+    lang.fileFooter(topClassName.head)
     lang.close
   }
 
-  def compileClass(name: String, curClass: ClassSpec): Unit = {
+  def compileClass(name: List[String], curClass: ClassSpec): Unit = {
     nowClass = curClass
     nowClassName = name
 
@@ -91,7 +91,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.classConstructorFooter
 
     // Recursive types
-    curClass.types.foreach { case (typeName, intClass) => compileClass(typeName, intClass) }
+    curClass.types.foreach { case (typeName, intClass) => compileClass(name :+ typeName, intClass) }
 
     nowClass = curClass
     nowClassName = name
@@ -107,7 +107,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.classFooter(name)
   }
 
-  def compileInstance(className: String, instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+  def compileInstance(className: List[String], instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
     val dataType = instSpec match {
       case t: ValueInstanceSpec => t.dataType.get
@@ -136,18 +136,16 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.instanceFooter
   }
 
-  override def determineType(attrName: String): BaseType = {
-    determineType(nowClass, nowClassName, attrName)
-  }
+  override def determineType(attrName: String): BaseType = determineType(nowClass, nowClassName, attrName)
 
-  override def determineType(typeName: String, attrName: String): BaseType = {
+  override def determineType(typeName: List[String], attrName: String): BaseType = {
     getTypeByName(nowClass, typeName) match {
       case Some(t) => determineType(t, typeName, attrName)
-      case None => throw new RuntimeException(s"Unable to determine type for ${attrName} in type ${typeName}")
+      case None => throw new RuntimeException(s"Unable to determine type for $attrName in type $typeName")
     }
   }
 
-  def determineType(classSpec: ClassSpec, className: String, attrName: String): BaseType = {
+  def determineType(classSpec: ClassSpec, className: List[String], attrName: String): BaseType = {
     attrName match {
       case "_root" =>
         UserTypeInstream(topClassName)
@@ -167,8 +165,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     }
   }
 
-  def getTypeByName(inClass: ClassSpec, name: String): Option[ClassSpec] = {
-    userTypes.get(name)
+  def getTypeByName(inClass: ClassSpec, name: List[String]): Option[ClassSpec] = {
+    userTypes.get(name.last)
 
     // Some special code to support non-unique type names lookup - might come useful in future
 //    if (name == topClassName)

@@ -42,9 +42,9 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts(s"#endif  // ${defineName(topClassName)}")
   }
 
-  override def classHeader(name: String): Unit = {
+  override def classHeader(name: List[String]): Unit = {
     outHdr.puts
-    outHdr.puts(s"class ${type2class(name)} : public $kstructName {")
+    outHdr.puts(s"class ${type2class(List(name.last))} : public $kstructName {")
     outHdr.inc
     accessMode = PrivateAccess
     ensureMode(PublicAccess)
@@ -63,19 +63,27 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     */
   }
 
-  override def classFooter(name: String): Unit = {
+  override def classFooter(name: List[String]): Unit = {
     outHdr.dec
     outHdr.puts("};")
   }
 
-  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
+  override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
     outHdr.puts
-    outHdr.puts(s"${type2class(name)}($kstreamName* _io, ${type2class(parentClassName)}* _parent = 0, ${type2class(rootClassName)}* _root = 0);")
+    outHdr.puts(s"${type2class(List(name.last))}(" +
+      s"$kstreamName* _io, " +
+      s"${type2class(parentClassName)}* _parent = 0, " +
+      s"${type2class(rootClassName)}* _root = 0);"
+    )
 
     outSrc.puts
-    outSrc.puts(s"${type2class(name)}::${type2class(name)}($kstreamName *_io, ${type2class(parentClassName)} *_parent, ${type2class(rootClassName)} *_root) : $kstructName(_io) {")
+    outSrc.puts(s"${type2class(name)}::${type2class(List(name.last))}(" +
+      s"$kstreamName *_io, " +
+      s"${type2class(parentClassName)} *_parent, " +
+      s"${type2class(rootClassName)} *_root) : $kstructName(_io) {"
+    )
     outSrc.inc
-    handleAssignmentSimple("_parent", "_parent");
+    handleAssignmentSimple("_parent", "_parent")
     handleAssignmentSimple("_root", if (name == rootClassName) {
       "this"
     } else {
@@ -220,8 +228,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
         io + "->read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + "->read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
-      case EnumType(enumName, t) =>
-        s"${type2class(enumName)}.byId($io->read${Utils.capitalize(t.apiCall)}())"
+//      case EnumType(enumName, t) =>
+//        s"${type2class(enumName)}.byId($io->read${Utils.capitalize(t.apiCall)}())"
       case BytesLimitType(size, _) =>
         s"$io->read_bytes(${expression(size)})"
       case BytesEosType(_) =>
@@ -237,7 +245,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: String, dataType: BaseType): Unit = {
     ensureMode(PublicAccess)
     outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${attrReaderName(instName)}();")
 
@@ -268,8 +276,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts(s"${privateMemberName(instName)} = ${expression(value)};")
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
-    val enumClass = type2class(enumName)
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit = {
+    val enumClass = type2class(List(enumName))
 
     outHdr.puts
     outHdr.puts(s"public enum $enumClass {")
@@ -322,7 +330,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case _: BytesType => "std::string"
 
       case t: UserType => s"${type2class(t.name)}*"
-      case EnumType(name, _) => type2class(name)
+      case EnumType(name, _) => type2class(List(name))
 
       case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType)}>"
     }
@@ -365,11 +373,13 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
 object CppCompiler extends LanguageCompilerStatic {
   override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}"
-  def type2class(s: String) = {
-    s match {
-      case "kaitai_struct" => "kaitai::kstruct"
-      case _ => s
-    }
+  override def outFileName(topClassName: String): String = s"${type2class(List(topClassName))}"
+  def type2class(components: List[String]) = {
+    components.map(s =>
+      s match {
+        case "kaitai_struct" => "kaitai::kstruct"
+        case _ => s
+      }
+    ).mkString("::")
   }
 }

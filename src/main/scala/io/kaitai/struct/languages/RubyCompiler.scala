@@ -7,7 +7,11 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
 
-class RubyCompiler(verbose: Boolean, out: LanguageOutputWriter) extends LanguageCompiler(verbose, out) with UpperCamelCaseClasses with EveryReadIsExpression {
+class RubyCompiler(verbose: Boolean, out: LanguageOutputWriter)
+  extends LanguageCompiler(verbose, out)
+    with UpperCamelCaseClasses
+    with EveryReadIsExpression
+    with NoNeedForFullClassPath {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
 
   override def fileHeader(topClassName: String): Unit = {
@@ -134,7 +138,7 @@ class RubyCompiler(verbose: Boolean, out: LanguageOutputWriter) extends Language
       case BytesEosType(_) =>
         s"$io.read_bytes_full"
       case t: UserType =>
-        s"${type2class(t.name)}.new($io, self, @_root)"
+        s"${type2class(t.name.last)}.new($io, self, @_root)"
     }
   }
 

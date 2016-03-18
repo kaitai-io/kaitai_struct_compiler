@@ -7,7 +7,10 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
 
-class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: String = "") extends LanguageCompiler(verbose, out) with EveryReadIsExpression {
+class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: String = "")
+  extends LanguageCompiler(verbose, out)
+    with EveryReadIsExpression
+    with NoNeedForFullClassPath {
   import JavaCompiler._
 
   override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
@@ -205,7 +208,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-        s"new ${type2class(t.name)}($io, this, _root)"
+        s"new ${types2class(t.name)}($io, this, _root)"
     }
   }
 
@@ -299,7 +302,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
       case _: StrType => "String"
       case _: BytesType => "byte[]"
 
-      case t: UserType => type2class(t.name)
+      case t: UserType => types2class(t.name)
       case EnumType(name, _) => type2class(name)
 
       case ArrayType(inType) => kaitaiType2JavaTypeBoxed(attrType)
@@ -330,7 +333,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
       case _: StrType => "String"
       case _: BytesType => "byte[]"
 
-      case t: UserType => type2class(t.name)
+      case t: UserType => type2class(t.name.last)
       case EnumType(name, _) => type2class(name)
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
@@ -346,6 +349,8 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
       Utils.lowerCamelCase(s)
     }
   }
+
+  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 }
 
 object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {

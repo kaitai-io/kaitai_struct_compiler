@@ -5,8 +5,8 @@ import io.kaitai.struct.exprlang.Ast.{cmpop, identifier, expr}
 import io.kaitai.struct.exprlang.DataType._
 
 trait TypeProvider {
-  def determineType(parentType: String, name: String): BaseType
-  def determineType(name: String): BaseType
+  def determineType(parentType: List[String], attrName: String): BaseType
+  def determineType(attrName: String): BaseType
 }
 
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
