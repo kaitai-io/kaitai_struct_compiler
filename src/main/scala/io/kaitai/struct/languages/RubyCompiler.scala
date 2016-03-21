@@ -47,7 +47,15 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     }
   }
 
-  override def classConstructorFooter: Unit = classFooter()
+  override def classConstructorFooter: Unit = {
+    if (debug) {
+      // Actually, it's not constructor in debug mode, but a "_read" method. Make sure it returns an instance of the
+      // class, just as normal Foo.new call does.
+      out.puts
+      out.puts("self")
+    }
+    classFooter()
+  }
 
   override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {}
 
@@ -156,7 +164,12 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
       case BytesEosType(_) =>
         s"$io.read_bytes_full"
       case t: UserType =>
-        s"${type2class(t.name.last)}.new($io, self, @_root)"
+        val r = s"${type2class(t.name.last)}.new($io, self, @_root)"
+        if (debug) {
+          s"$r._read"
+        } else {
+          r
+        }
     }
   }
 
