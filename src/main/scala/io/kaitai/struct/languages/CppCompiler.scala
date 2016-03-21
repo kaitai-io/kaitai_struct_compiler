@@ -1,11 +1,11 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{LanguageOutputWriter, Utils, Main}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
+import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter) extends LanguageCompiler(verbose, outSrc) with EveryReadIsExpression {
   import CppCompiler._
@@ -116,7 +116,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${attrReaderName(attrName)}() { return ${privateMemberName(attrName)}; }")
+    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${attrReaderName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
@@ -182,7 +182,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
       outSrc.puts(s"this._raw_${privateMemberName(id)} = new ArrayList<byte[]>();")
-    outSrc.puts(s"this.${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
+    outSrc.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
     outSrc.puts(s"while (!$io->isEof()) {")
     outSrc.inc
   }
@@ -199,7 +199,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       outSrc.puts(s"this._raw_${privateMemberName(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    outSrc.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
+    outSrc.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}(${expression(repeatExpr)});")
     outSrc.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     outSrc.inc
   }
@@ -283,13 +283,12 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts(s"public enum $enumClass {")
     outHdr.inc
 
-    val it = enumColl.toIterable
     if (enumColl.size > 1) {
-      it.dropRight(1).foreach { case (id, label) =>
+      enumColl.dropRight(1).foreach { case (id, label) =>
         outHdr.puts(s"${value2Const(label)}($id),")
       }
     }
-    it.last match {
+    enumColl.last match {
       case (id, label) =>
         outHdr.puts(s"${value2Const(label)}($id);")
     }
@@ -332,7 +331,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case t: UserType => s"${type2class(t.name)}*"
       case EnumType(name, _) => type2class(List(name))
 
-      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType)}>"
+      case ArrayType(inType) => s"const std::vector<${kaitaiType2NativeType(inType)}>&"
     }
   }
 
@@ -375,11 +374,9 @@ object CppCompiler extends LanguageCompilerStatic {
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(List(topClassName))}"
   def type2class(components: List[String]) = {
-    components.map(s =>
-      s match {
-        case "kaitai_struct" => "kaitai::kstruct"
-        case _ => s
-      }
-    ).mkString("::")
+    components.map {
+      case "kaitai_struct" => "kaitai::kstruct"
+      case s => s
+    }.mkString("::")
   }
 }
