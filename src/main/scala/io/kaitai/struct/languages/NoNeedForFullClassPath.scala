@@ -8,7 +8,7 @@ trait NoNeedForFullClassPath {
   def classHeader(name: String): Unit
 
   def classFooter(name: List[String]): Unit =
-    classHeader(name.last)
+    classFooter(name.last)
   def classFooter(name: String): Unit
 
   def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit =
