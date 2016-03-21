@@ -14,7 +14,7 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
 
   override def booleanOp(op: Ast.boolop) = op match {
     case Ast.boolop.Or => "or"
-    case Ast.boolop.Or => "and"
+    case Ast.boolop.And => "and"
   }
 
   override def doSubscript(container: expr, idx: expr): String =
