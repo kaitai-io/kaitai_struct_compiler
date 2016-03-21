@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
 
-class RubyCompiler(verbose: Boolean, out: LanguageOutputWriter)
+class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
     with UpperCamelCaseClasses
     with EveryReadIsExpression
@@ -24,6 +24,8 @@ class RubyCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def classHeader(name: String): Unit = {
     out.puts(s"class ${type2class(name)} < KaitaiStruct")
     out.inc
+    if (debug)
+      out.puts("attr_reader :_debug")
   }
 
   override def classFooter(name: String = null): Unit = {
@@ -35,6 +37,14 @@ class RubyCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("def initialize(_io, _parent = nil, _root = self)")
     out.inc
     out.puts("super(_io, _parent, _root)")
+    if (debug) {
+      out.puts("@_debug = {}")
+      out.dec
+      out.puts("end")
+      out.puts
+      out.puts("def _read")
+      out.inc
+    }
   }
 
   override def classConstructorFooter: Unit = classFooter()
@@ -76,6 +86,14 @@ class RubyCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def seek(io: String, pos: Ast.expr): Unit = {
     out.puts(s"$io.seek(${expression(pos)})")
+  }
+
+  override def attrDebugStart(attrId: String, io: String): Unit = {
+    out.puts(s"(@_debug['$attrId'] ||= {})[:start] = $io.pos")
+  }
+
+  override def attrDebugEnd(attrId: String, io: String): Unit = {
+    out.puts(s"(@_debug['$attrId'] ||= {})[:end] = $io.pos")
   }
 
   override def condIfHeader(expr: Ast.expr): Unit = {

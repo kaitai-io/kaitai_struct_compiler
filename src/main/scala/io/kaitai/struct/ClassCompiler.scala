@@ -240,6 +240,6 @@ object ClassCompiler {
     case JavaCompiler => new JavaCompiler(config.verbose, out, config.javaPackage)
     case JavaScriptCompiler => new JavaScriptCompiler(config.verbose, out)
     case PythonCompiler => new PythonCompiler(config.verbose, out)
-    case RubyCompiler => new RubyCompiler(config.verbose, out)
+    case RubyCompiler => new RubyCompiler(config.verbose, config.debug, out)
   }
 }

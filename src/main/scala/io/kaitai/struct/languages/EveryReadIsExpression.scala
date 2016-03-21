@@ -12,7 +12,12 @@ import scala.collection.mutable.ListBuffer
   * "handleAssignment".
   */
 trait EveryReadIsExpression extends LanguageCompiler {
+  def debug = false
+
   override def attrParse(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec], io: String): Unit = {
+    if (debug)
+      attrDebugStart(id, io)
+
     attr.cond.ifExpr match {
       case Some(e) => condIfHeader(e)
       case None => // ignore
@@ -35,6 +40,9 @@ trait EveryReadIsExpression extends LanguageCompiler {
       case Some(e) => condIfFooter(e)
       case None => // ignore
     }
+
+    if (debug)
+      attrDebugEnd(id, io)
   }
 
   def attrParse2(id: String, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
@@ -101,6 +109,9 @@ trait EveryReadIsExpression extends LanguageCompiler {
       case NoRepeat => handleAssignmentSimple(id, expr)
     }
   }
+
+  def attrDebugStart(attrName: String, io: String): Unit = {}
+  def attrDebugEnd(attrName: String, io: String): Unit = {}
 
   def handleAssignmentRepeatEos(id: String, expr: String): Unit
   def handleAssignmentRepeatExpr(id: String, expr: String): Unit

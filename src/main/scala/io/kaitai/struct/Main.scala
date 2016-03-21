@@ -8,6 +8,7 @@ import io.kaitai.struct.languages._
 object Main {
   class Config(
      val verbose: Boolean = false,
+     val debug: Boolean = false,
      val javaPackage: String = ""
   )
 
@@ -17,8 +18,9 @@ object Main {
     targets: Seq[String] = Seq(),
 
     private val _verbose: Boolean = false,
+    private val _debug: Boolean = false,
     private val _javaPackage: String = ""
-  ) extends Config(_verbose, _javaPackage)
+  ) extends Config(_verbose, _debug, _javaPackage)
 
   val ALL_LANGS = Set("cpp_stl", "java", "javascript", "python", "ruby")
   val VALID_LANGS = ALL_LANGS + "all"
@@ -57,11 +59,14 @@ object Main {
 
       opt[String]("java-package") valueName("<package>") action { (x, c) =>
         c.copy(_javaPackage = x)
-      } text(s"Java package (Java only, default: root package)")
+      } text("Java package (Java only, default: root package)")
 
       opt[Unit]("verbose") action { (x, c) =>
         c.copy(_verbose = true)
-      } text(s"verbose output")
+      } text("verbose output")
+      opt[Unit]("debug") action { (x, c) =>
+        c.copy(_debug = true)
+      } text("enable debugging helpers (mostly used by visualization tools)")
       help("help") text("display this help and exit")
       version("version") text("output version information and exit")
     }
