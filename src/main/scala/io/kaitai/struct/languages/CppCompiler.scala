@@ -7,7 +7,9 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
 import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
-class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter) extends LanguageCompiler(verbose, outSrc) with EveryReadIsExpression {
+class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
+  extends LanguageCompiler(verbose, outSrc)
+    with EveryReadIsExpression {
   import CppCompiler._
 
   sealed trait AccessMode
