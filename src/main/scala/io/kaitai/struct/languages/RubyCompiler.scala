@@ -96,12 +96,26 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.puts(s"$io.seek(${expression(pos)})")
   }
 
-  override def attrDebugStart(attrId: String, io: String): Unit = {
-    out.puts(s"(@_debug['$attrId'] ||= {})[:start] = $io.pos")
+  override def attrDebugStart(attrId: String, io: String, rep: RepeatSpec): Unit = {
+    rep match {
+      case NoRepeat =>
+        out.puts(s"(@_debug['$attrId'] ||= {})[:start] = $io.pos")
+      case _: RepeatExpr =>
+        out.puts(s"(@_debug['$attrId'][:arr] ||= [])[i] = {:start => $io.pos}")
+      case RepeatEos =>
+        out.puts(s"(@_debug['$attrId'][:arr] ||= [])[@$attrId.size] = {:start => $io.pos}")
+    }
   }
 
-  override def attrDebugEnd(attrId: String, io: String): Unit = {
-    out.puts(s"(@_debug['$attrId'] ||= {})[:end] = $io.pos")
+  override def attrDebugEnd(attrId: String, io: String, rep: RepeatSpec): Unit = {
+    rep match {
+      case NoRepeat =>
+        out.puts(s"(@_debug['$attrId'] ||= {})[:end] = $io.pos")
+      case _: RepeatExpr =>
+        out.puts(s"@_debug['$attrId'][:arr][i][:end] = $io.pos")
+      case RepeatEos =>
+        out.puts(s"@_debug['$attrId'][:arr][@$attrId.size - 1][:end] = $io.pos")
+    }
   }
 
   override def condIfHeader(expr: Ast.expr): Unit = {

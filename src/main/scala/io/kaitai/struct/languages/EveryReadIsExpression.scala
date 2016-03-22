@@ -16,7 +16,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
 
   override def attrParse(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec], io: String): Unit = {
     if (debug)
-      attrDebugStart(id, io)
+      attrDebugStart(id, io, NoRepeat)
 
     attr.cond.ifExpr match {
       case Some(e) => condIfHeader(e)
@@ -42,10 +42,13 @@ trait EveryReadIsExpression extends LanguageCompiler {
     }
 
     if (debug)
-      attrDebugEnd(id, io)
+      attrDebugEnd(id, io, NoRepeat)
   }
 
   def attrParse2(id: String, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+    if (debug && rep != NoRepeat)
+      attrDebugStart(id, io, rep)
+
     dataType match {
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)
@@ -93,6 +96,9 @@ trait EveryReadIsExpression extends LanguageCompiler {
         val expr = parseExpr(dataType, io)
         handleAssignment(id, expr, rep)
     }
+
+    if (debug && rep != NoRepeat)
+      attrDebugEnd(id, io, rep)
   }
 
   def needRaw(dataType: BaseType): Boolean = {
@@ -110,8 +116,8 @@ trait EveryReadIsExpression extends LanguageCompiler {
     }
   }
 
-  def attrDebugStart(attrName: String, io: String): Unit = {}
-  def attrDebugEnd(attrName: String, io: String): Unit = {}
+  def attrDebugStart(attrName: String, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugEnd(attrName: String, io: String, repeat: RepeatSpec): Unit = {}
 
   def handleAssignmentRepeatEos(id: String, expr: String): Unit
   def handleAssignmentRepeatExpr(id: String, expr: String): Unit
