@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
 class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends TypeProvider {
   val topClassName = List(topClass.meta.get.id)
 
-  val userTypes = gatherUserTypes(topClass) ++ Map(topClassName -> topClass)
+  val userTypes: Map[String, ClassSpec] = gatherUserTypes(topClass) ++ Map(topClassName.last -> topClass)
 
   var nowClassName: List[String] = topClassName
   var nowClass: ClassSpec = topClass
@@ -31,7 +31,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
       attr.dataType match {
         case userType: UserType =>
           val ut = userType.name
-          userTypes.get(ut).foreach { usedClass =>
+          userTypes.get(ut.last).foreach { usedClass =>
             usedClass._parentType match {
               case None =>
                 usedClass._parentType = Some((curClassName, curClass))
