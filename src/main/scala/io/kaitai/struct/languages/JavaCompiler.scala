@@ -114,6 +114,8 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
         out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression(xorValue)}));")
         out.dec
         out.puts("}")
+      case ProcessZlib =>
+        out.puts(s"this.$varDest = _io.processZlib(this.$varSrc);")
     }
   }
 
