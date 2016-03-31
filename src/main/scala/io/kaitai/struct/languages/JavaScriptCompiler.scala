@@ -87,6 +87,8 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
         out.puts(s"this.$varDest[i] = this.$varSrc[i] ^ (${expression(xorValue)});")
         out.dec
         out.puts("}")
+      case ProcessZlib =>
+        out.puts(s"this.$varDest = KaitaiStream.processZlib(this.$varSrc);")
     }
   }
 
