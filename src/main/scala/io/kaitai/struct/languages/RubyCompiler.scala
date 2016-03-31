@@ -18,6 +18,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.puts(s"# $headerComment")
     out.puts
     out.puts("require 'kaitai_struct'")
+    out.puts("require 'zlib'") // TODO: add only if actually used
     out.puts
   }
 
@@ -71,6 +72,8 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.puts(proc match {
       case ProcessXor(xorValue) =>
         s"@$varDest = @$varSrc.bytes.map { |x| (x ^ (${expression(xorValue)})) }.pack('C*')"
+      case ProcessZlib =>
+        s"@$varDest = Zlib::Inflate.inflate(@$varSrc)"
     })
   }
 
