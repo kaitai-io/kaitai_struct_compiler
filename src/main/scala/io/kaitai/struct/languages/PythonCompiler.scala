@@ -21,6 +21,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("import array")
     out.puts("import cStringIO")
     out.puts("from enum import Enum")
+    out.puts("import zlib")
     out.puts
   }
 
@@ -70,6 +71,8 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
         out.dec
         out.puts
         out.puts(s"self.$varDest = self.$varDest.tostring()")
+      case ProcessZlib =>
+        out.puts(s"self.$varDest = zlib.decompress(self.$varSrc)")
     }
   }
 
