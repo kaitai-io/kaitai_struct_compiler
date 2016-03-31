@@ -57,7 +57,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {}
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"self.${attrName} = self.ensure_fixed_contents(${contents.size}, array.array('B', [${contents.mkString(", ")}]))")
+    out.puts(s"self.$attrName = self.ensure_fixed_contents(${contents.length}, array.array('B', [${contents.mkString(", ")}]))")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
@@ -92,7 +92,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def seek(io: String, pos: Ast.expr): Unit = {
-    out.puts(s"${io}.seek(${expression(pos)})")
+    out.puts(s"$io.seek(${expression(pos)})")
   }
 
   override def condIfHeader(expr: Ast.expr): Unit = {
@@ -106,13 +106,13 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"self._raw_${id} = []")
-    out.puts(s"self.${id} = []")
-    out.puts(s"while not self.is_io_eof(${io}):")
+      out.puts(s"self._raw_$id = []")
+    out.puts(s"self.$id = []")
+    out.puts(s"while not self.is_io_eof($io):")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit =
-    out.puts(s"self.${id}.append(${expr})")
+    out.puts(s"self.$id.append($expr)")
   override def condRepeatEosFooter: Unit = {
     out.dec
     out.puts
@@ -120,20 +120,20 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"self._raw_${id} = [None] * ${expression(repeatExpr)}")
-    out.puts(s"self.${id} = [None] * ${expression(repeatExpr)}")
+      out.puts(s"self._raw_$id = [None] * ${expression(repeatExpr)}")
+    out.puts(s"self.$id = [None] * ${expression(repeatExpr)}")
     out.puts(s"for i in xrange(${expression(repeatExpr)}):")
     out.inc
   }
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit =
-    out.puts(s"self.${id}[i] = ${expr}")
+    out.puts(s"self.$id[i] = $expr")
   override def condRepeatExprFooter: Unit = {
     out.dec
     out.puts
   }
 
   override def handleAssignmentSimple(id: String, expr: String): Unit =
-    out.puts(s"self.${id} = ${expr}")
+    out.puts(s"self.$id = $expr")
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
@@ -145,7 +145,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case StrEosType(encoding) =>
         "self.read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        "self.read_strz(\"" + encoding + '"' + s", ${terminator}, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
+        "self.read_strz(\"" + encoding + '"' + s", $terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
       case EnumType(enumName, t) =>
         s"self._root.${type2class(enumName)}(self.read_${t.apiCall}())"
 
@@ -160,11 +160,11 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
     out.puts("@property")
-    out.puts(s"def ${instName}(self):")
+    out.puts(s"def $instName(self):")
     out.inc
   }
 
-  override def instanceAttrName(instName: String) = s"_m_${instName}"
+  override def instanceAttrName(instName: String) = s"_m_$instName"
 
   override def instanceFooter: Unit = classConstructorFooter
 
@@ -199,5 +199,5 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
 object PythonCompiler extends LanguageCompilerStatic {
   override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${topClassName}.py"
+  override def outFileName(topClassName: String): String = s"$topClassName.py"
 }
