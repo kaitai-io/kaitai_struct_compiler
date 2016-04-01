@@ -50,7 +50,9 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def normalIO: String
   def allocateIO(varName: String, rep: RepeatSpec): String
   def useIO(ioEx: Ast.expr): String
+  def pushPos(io: String): Unit
   def seek(io: String, pos: Ast.expr): Unit
+  def popPos(io: String): Unit
 
   def instanceClear(instName: String): Unit = {}
   def instanceSetCalculated(instName: String): Unit = {}

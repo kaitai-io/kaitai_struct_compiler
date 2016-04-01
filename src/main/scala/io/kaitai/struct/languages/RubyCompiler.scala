@@ -95,9 +95,14 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     "io"
   }
 
-  override def seek(io: String, pos: Ast.expr): Unit = {
+  override def pushPos(io: String): Unit =
+    out.puts(s"_pos = $io.pos")
+
+  override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io.seek(${expression(pos)})")
-  }
+
+  override def popPos(io: String): Unit =
+    out.puts(s"$io.seek(_pos)")
 
   override def attrDebugStart(attrId: String, io: String, rep: RepeatSpec): Unit = {
     rep match {

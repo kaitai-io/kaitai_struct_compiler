@@ -94,9 +94,14 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     "io"
   }
 
-  override def seek(io: String, pos: Ast.expr): Unit = {
+  override def pushPos(io: String): Unit =
+    out.puts(s"_pos = $io.tell()")
+
+  override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io.seek(${expression(pos)})")
-  }
+
+  override def popPos(io: String): Unit =
+    out.puts(s"$io.seek(_pos)")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)}:")

@@ -159,9 +159,14 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     "io"
   }
 
-  override def seek(io: String, pos: Ast.expr): Unit = {
+  override def pushPos(io: String): Unit =
+    outSrc.puts(s"uint64_t _pos = $io->pos;")
+
+  override def seek(io: String, pos: Ast.expr): Unit =
     outSrc.puts(s"$io->seek(${expression(pos)});")
-  }
+
+  override def popPos(io: String): Unit =
+    outSrc.puts(s"$io->seek(_pos);")
 
   override def instanceClear(instName: String): Unit = {
     outSrc.puts(s"${flagForInstName(instName)} = false;")

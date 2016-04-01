@@ -114,9 +114,14 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
     "io"
   }
 
-  override def seek(io: String, pos: Ast.expr): Unit = {
-    out.puts(s"${io}.seek(${expression(pos)});")
-  }
+  override def pushPos(io: String): Unit =
+    out.puts(s"var _pos = $io.pos;")
+
+  override def seek(io: String, pos: Ast.expr): Unit =
+    out.puts(s"$io.seek(${expression(pos)});")
+
+  override def popPos(io: String): Unit =
+    out.puts(s"$io.seek(_pos);")
 
   override def condIfHeader(expr: expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")

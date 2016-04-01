@@ -140,9 +140,14 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     "io"
   }
 
-  override def seek(io: String, pos: Ast.expr): Unit = {
+  override def pushPos(io: String): Unit =
+    out.puts(s"long _pos = $io.pos();")
+
+  override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io.seek(${expression(pos)});")
-  }
+
+  override def popPos(io: String): Unit =
+    out.puts(s"$io.seek(_pos);")
 
   override def condIfHeader(expr: expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
