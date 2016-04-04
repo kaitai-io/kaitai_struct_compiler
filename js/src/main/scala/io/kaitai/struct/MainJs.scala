@@ -99,7 +99,7 @@ object JSClassSpec {
 object MainJs {
   @JSExport
   def compile(lang: String, yaml: JSClassSpec): String = {
-    val config = new Main.Config(verbose = true)
+    val config = new RuntimeConfig(verbose = true)
 
     val (out, cc) = ClassCompiler.fromClassSpecToString(yaml.toScala, LanguageCompilerStatic.byString(lang), config)
     cc.compile

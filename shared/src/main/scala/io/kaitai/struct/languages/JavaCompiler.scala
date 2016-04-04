@@ -1,11 +1,11 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{Main, LanguageOutputWriter, Utils}
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
 
 class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: String = "")
   extends LanguageCompiler(verbose, out)
@@ -363,6 +363,6 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
 object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
-  override def outFilePath(config: Main.Config, outDir: String, topClassName: String): String =
+  override def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String): String =
     s"$outDir/src/${config.javaPackage.replace('.', '/')}/${outFileName(topClassName)}"
 }

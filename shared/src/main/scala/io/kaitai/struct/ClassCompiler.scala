@@ -209,10 +209,10 @@ object ClassCompiler {
     mapper.readValue(reader, classOf[ClassSpec])
   }
 
-  def fromLocalFileToFile(yamlFilename: String, lang: LanguageCompilerStatic, outDir: String, config: Main.Config): ClassCompiler =
+  def fromLocalFileToFile(yamlFilename: String, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): ClassCompiler =
     fromClassSpecToFile(localFileToSpec(yamlFilename), lang, outDir, config)
 
-  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, config: Main.Config): ClassCompiler = {
+  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): ClassCompiler = {
     val outPath = lang.outFilePath(config, outDir, topClass.meta.get.id)
     if (config.verbose)
       Console.println(s"... => ${outPath}")
@@ -227,20 +227,20 @@ object ClassCompiler {
     }
   }
 
-  def fromStringToString(src: String, lang: LanguageCompilerStatic, config: Main.Config): (StringLanguageOutputWriter, ClassCompiler) = {
+  def fromStringToString(src: String, lang: LanguageCompilerStatic, config: RuntimeConfig): (StringLanguageOutputWriter, ClassCompiler) = {
     val mapper = new ObjectMapper(new YAMLFactory())
     val topClass: ClassSpec = mapper.readValue(src, classOf[ClassSpec])
 
     fromClassSpecToString(topClass, lang, config)
   }
 
-  def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, config: Main.Config): (StringLanguageOutputWriter, ClassCompiler) = {
+  def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, config: RuntimeConfig): (StringLanguageOutputWriter, ClassCompiler) = {
     val out = new StringLanguageOutputWriter(lang.indent)
     val cc = new ClassCompiler(topClass, getCompiler(lang, config, out))
     (out, cc)
   }
 
-  private def getCompiler(lang: LanguageCompilerStatic, config: Main.Config, out: LanguageOutputWriter) = lang match {
+  private def getCompiler(lang: LanguageCompilerStatic, config: RuntimeConfig, out: LanguageOutputWriter) = lang match {
     case JavaCompiler => new JavaCompiler(config.verbose, out, config.javaPackage)
     case JavaScriptCompiler => new JavaScriptCompiler(config.verbose, out)
     case PythonCompiler => new PythonCompiler(config.verbose, out)

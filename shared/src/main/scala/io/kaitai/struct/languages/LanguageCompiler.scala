@@ -1,11 +1,11 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{Main, LanguageOutputWriter}
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{UserType, BaseType}
+import io.kaitai.struct.exprlang.DataType.{BaseType, UserType}
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{JavaTranslator, BaseTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
 
 import scala.collection.mutable.ListBuffer
 
@@ -72,7 +72,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
 trait LanguageCompilerStatic {
   def indent: String
   def outFileName(topClassName: String): String
-  def outFilePath(config: Main.Config, outDir: String, topClassName: String) = s"$outDir/${outFileName(topClassName)}"
+  def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String) = s"$outDir/${outFileName(topClassName)}"
 }
 
 object LanguageCompilerStatic {

@@ -2,12 +2,11 @@ package io.kaitai.struct.format
 
 import java.nio.charset.Charset
 import java.util
-import java.util.{List => JList, Map => JMap}
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonCreator}
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import io.kaitai.struct.Utils
-import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.exprlang.{Ast, DataType, Expressions}
+import io.kaitai.struct.exprlang.DataType._
 
 import scala.collection.JavaConversions._
 
@@ -34,10 +33,10 @@ trait AttrLikeSpec {
 }
 
 case class AttrSpec(
-                     id: String,
-                     dataType: BaseType,
-                     cond: ConditionalSpec = ConditionalSpec(None, NoRepeat)
-                   ) extends AttrLikeSpec
+  id: String,
+  dataType: BaseType,
+  cond: ConditionalSpec = ConditionalSpec(None, NoRepeat)
+) extends AttrLikeSpec
 
 object AttrSpec {
   def parseContentSpec(c: Object): Array[Byte] = {

@@ -6,12 +6,6 @@ import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
 
 object Main {
-  class Config(
-     val verbose: Boolean = false,
-     val debug: Boolean = false,
-     val javaPackage: String = ""
-  )
-
   case class CLIConfig(
     srcFiles: Seq[File] = Seq(),
     outDir: File = new File("."),
@@ -20,7 +14,7 @@ object Main {
     private val _verbose: Boolean = false,
     private val _debug: Boolean = false,
     private val _javaPackage: String = ""
-  ) extends Config(_verbose, _debug, _javaPackage)
+  ) extends RuntimeConfig(_verbose, _debug, _javaPackage)
 
   val ALL_LANGS = Set("cpp_stl", "java", "javascript", "python", "ruby")
   val VALID_LANGS = ALL_LANGS + "all"
@@ -74,14 +68,14 @@ object Main {
     parser.parse(args, CLIConfig())
   }
 
-  def compileOne(srcFile: String, lang: String, outDir: String, config: Config): Unit = {
+  def compileOne(srcFile: String, lang: String, outDir: String, config: RuntimeConfig): Unit = {
     if (config.verbose)
       Console.println(s"compiling ${srcFile} for ${lang}...")
 
     ClassCompiler.fromLocalFileToFile(srcFile, LanguageCompilerStatic.byString(lang), outDir, config).compile
   }
 
-  def compileOne(topClass: ClassSpec, lang: String, outDir: String, config: Config): Unit = {
+  def compileOne(topClass: ClassSpec, lang: String, outDir: String, config: RuntimeConfig): Unit = {
     ClassCompiler.fromClassSpecToFile(topClass, LanguageCompilerStatic.byString(lang), outDir, config).compile
   }
 
