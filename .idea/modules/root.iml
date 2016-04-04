@@ -18,6 +18,12 @@
       <sourceFolder url="file://$MODULE_DIR$/../../src/test/resources" type="java-test-resource" />
       <sourceFolder url="file://$MODULE_DIR$/../../target/scala-2.10/resource_managed/test" type="java-test-resource" />
       <excludeFolder url="file://$MODULE_DIR$/../../target" />
+      <excludeFolder url="file://$MODULE_DIR$/../../target/kaitai-struct-compiler-0.1" />
+      <excludeFolder url="file://$MODULE_DIR$/../../target/kaitai-struct-compiler-0.1-SNAPSHOT" />
+      <excludeFolder url="file://$MODULE_DIR$/../../target/resolution-cache" />
+      <excludeFolder url="file://$MODULE_DIR$/../../target/scala-2.11" />
+      <excludeFolder url="file://$MODULE_DIR$/../../target/streams" />
+      <excludeFolder url="file://$MODULE_DIR$/../../target/universal" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

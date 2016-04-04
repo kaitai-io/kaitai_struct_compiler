@@ -8,17 +8,16 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/js" />
+            <option value="$PROJECT_DIR$/js/project" />
+            <option value="$PROJECT_DIR$/jvm" />
+            <option value="$PROJECT_DIR$/jvm/project" />
             <option value="$PROJECT_DIR$/project" />
+            <option value="$PROJECT_DIR$/shared" />
           </set>
         </option>
         <option name="resolveSbtClassifiers" value="true" />
         <option name="sbtVersion" value="0.13.8" />
-        <option name="myModules">
-          <set>
-            <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/project" />
-          </set>
-        </option>
       </SbtProjectSettings>
     </option>
   </component>

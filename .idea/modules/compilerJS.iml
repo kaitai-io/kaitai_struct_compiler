@@ -23,6 +23,11 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="compiler-sources" exported="" />
+    <orderEntry type="library" name="SBT: org.yaml:snakeyaml:1.16:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.1.1:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.fasterxml.jackson.core:jackson-databind:2.1.1:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.fasterxml.jackson.core:jackson-core:2.1.1:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.fasterxml.jackson.core:jackson-annotations:2.1.1:jar" level="project" />
     <orderEntry type="library" name="SBT: org.scala-lang:scala-library:2.11.7:jar" level="project" />
     <orderEntry type="library" name="SBT: org.scala-js:scalajs-library_2.11:0.6.7:jar" level="project" />
     <orderEntry type="library" name="SBT: com.lihaoyi:sourcecode_sjs0.6_2.11:0.1.1:jar" level="project" />
