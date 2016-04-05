@@ -1,3 +1,5 @@
+import com.typesafe.sbt.packager.linux.LinuxSymlink
+
 name := "kaitai-struct-compiler"
 
 resolvers += Resolver.sonatypeRepo("public")
@@ -33,6 +35,8 @@ lazy val compiler = crossProject.in(file(".")).
       "org.scalatest" %% "scalatest" % "2.2.6" % "test",
       "com.github.scopt" %% "scopt" % "3.4.0"
     ),
+
+    linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", s"/usr/bin/${name.value}"),
 
     packageSummary in Linux := "compiler to generate binary data parsers in Java / JavaScript / Python / Ruby",
     packageSummary in Windows := "Compiler for declarative YAML-based language to generate binary data parsers in Java / JavaScript / Python / Ruby",
