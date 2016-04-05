@@ -1,6 +1,5 @@
 import com.typesafe.sbt.packager.linux.LinuxSymlink
-
-name := "kaitai-struct-compiler"
+import sbt.Keys._
 
 resolvers += Resolver.sonatypeRepo("public")
 
@@ -17,6 +16,7 @@ lazy val compiler = crossProject.in(file(".")).
   settings(
     name := "kaitai-struct-compiler",
     version := "0.1-SNAPSHOT",
+    licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
     scalaVersion := "2.11.7",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "io.kaitai.struct",
@@ -36,7 +36,12 @@ lazy val compiler = crossProject.in(file(".")).
       "com.github.scopt" %% "scopt" % "3.4.0"
     ),
 
+    // Create symlink to allow calling compiler quickly as "ksc"
     linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", s"/usr/bin/${name.value}"),
+
+    // Remove all "maintainer scripts", such as prerm/postrm/preinst/postinst: default
+    // implementations create per-package virtual user that we won't use anyway
+    maintainerScripts in Debian := Map(),
 
     packageSummary in Linux := "compiler to generate binary data parsers in Java / JavaScript / Python / Ruby",
     packageSummary in Windows := "Compiler for declarative YAML-based language to generate binary data parsers in Java / JavaScript / Python / Ruby",
