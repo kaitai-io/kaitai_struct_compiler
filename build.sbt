@@ -2,9 +2,6 @@ name := "kaitai-struct-compiler"
 
 resolvers += Resolver.sonatypeRepo("public")
 
-enablePlugins(ScalaJSPlugin)
-enablePlugins(JavaAppPackaging)
-
 lazy val root = project.in(file(".")).
   aggregate(compilerJS, compilerJVM).
   settings(
@@ -14,6 +11,7 @@ lazy val root = project.in(file(".")).
 
 lazy val compiler = crossProject.in(file(".")).
   enablePlugins(BuildInfoPlugin).
+  enablePlugins(JavaAppPackaging).
   settings(
     name := "kaitai-struct-compiler",
     version := "0.1-SNAPSHOT",
@@ -30,10 +28,25 @@ lazy val compiler = crossProject.in(file(".")).
     )
   ).
   jvmSettings(
+    mainClass in Compile := Some("io.kaitai.struct.Main"),
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "2.2.6" % "test",
       "com.github.scopt" %% "scopt" % "3.4.0"
-    )
+    ),
+
+    packageSummary in Linux := "compiler to generate binary data parsers in Java / JavaScript / Python / Ruby",
+    packageSummary in Windows := "Compiler for declarative YAML-based language to generate binary data parsers in Java / JavaScript / Python / Ruby",
+    packageDescription :=
+    """This is the reference implementation of a compiler for Kaitai Struct (.ksy)
+    files. It allows to compile them into source code in Java / JavaScript /
+    Python / Ruby.
+    .ksy files describe binary data structures in declarative YAML-based
+    language (in contrast to imperative parsing implementation written in a
+    single programming language) and allow cross-language, cross-platform data
+    formats description.""",
+
+    maintainer in Windows := "Kaitai Project",
+    maintainer in Debian := "Mikhail Yakshin <greycat@kaitai.io>"
   ).
   jsSettings(
     // Add JS-specific settings here
@@ -41,19 +54,3 @@ lazy val compiler = crossProject.in(file(".")).
 
 lazy val compilerJVM = compiler.jvm
 lazy val compilerJS = compiler.js
-
-packageSummary in Linux := "compiler to generate binary data parsers in Java / JavaScript / Python / Ruby"
-packageSummary in Windows := "Compiler for declarative YAML-based language to generate binary data parsers in Java / JavaScript / Python / Ruby"
-packageDescription :=
-"""This is the reference implementation of a compiler for Kaitai Struct (.ksy)
-  files. It allows to compile them into source code in Java / JavaScript /
-  Python / Ruby.
-  .ksy files describe binary data structures in declarative YAML-based
-  language (in contrast to imperative parsing implementation written in a
-  single programming language) and allow cross-language, cross-platform data
-  formats description."""
-
-maintainer in Windows := "Kaitai Project"
-maintainer in Debian := "Mikhail Yakshin <greycat@kaitai.io>"
-
-mainClass in Compile := Some("io.kaitai.struct.Main")
