@@ -21,7 +21,7 @@ We use [sbt-native-packager] to build deployable formats.
 http://www.scala-sbt.org/sbt-native-packager/formats/debian.html
 
 1. Install prerequisites: `sudo -i apt-get install dpkg-deb dpkg-sig dpkg-genchanges lintian fakeroot`
-2. `sbt debian:packageBin`
+2. `sbt compilerJVM/debian:packageBin` -> generates `jvm/target/kaitai-struct-compiler_*_all.deb`
 
 TODO: document deployment to bintray
 
@@ -40,7 +40,14 @@ Building to JavaScript platform is done using a Scala.js project. Note
 that it uses a somewhat different set of dependencies, as they must
 actually be JavaScript libraries, not Java jars.
 
-1. Run `sbt fastOptJS` -> generates `target/scala-2.11/kaitai-struct-compiler-fastopt.js`
+1. Run `sbt fastOptJS` -> generates `js/target/scala-2.11/kaitai-struct-compiler-fastopt.js`
 2. Use this JavaScript file on a website
 
 ### Dependencies for JavaScript target
+
+## Adding new language
+
+Don't forget to update lists of languages:
+
+* https://github.com/kaitai-io/kaitai_struct_compiler — project description
+* https://github.com/kaitai-io/kaitai_struct_compiler/blob/master/README.md — `-t` option documentation
