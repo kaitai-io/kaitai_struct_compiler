@@ -44,8 +44,8 @@ lazy val compiler = crossProject.in(file(".")).
     maintainerScripts in Debian := Map(),
 
     packageSummary in Linux := "compiler to generate binary data parsers in Java / JavaScript / Python / Ruby",
-    packageSummary in Windows := "Compiler for declarative YAML-based language to generate binary data parsers in Java / JavaScript / Python / Ruby",
-    packageDescription :=
+    packageSummary in Windows := "Kaitai Struct compiler",
+    packageDescription in Linux :=
     """This is the reference implementation of a compiler for Kaitai Struct (.ksy)
     files. It allows to compile them into source code in Java / JavaScript /
     Python / Ruby.
@@ -53,6 +53,9 @@ lazy val compiler = crossProject.in(file(".")).
     language (in contrast to imperative parsing implementation written in a
     single programming language) and allow cross-language, cross-platform data
     formats description.""",
+    packageDescription in Windows := "Compiler to translate Kaitai Struct (.ksy) files into Java / JavaScript / Python / Ruby source code",
+
+    wixProductLicense := Some(new File("shared/src/windows/License.rtf")),
 
     maintainer in Windows := "Kaitai Project",
     maintainer in Debian := "Mikhail Yakshin <greycat@kaitai.io>"
