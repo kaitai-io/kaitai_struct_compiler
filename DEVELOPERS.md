@@ -16,23 +16,29 @@ We use [sbt-native-packager] to build deployable formats.
 
 [sbt-native-packager]: http://www.scala-sbt.org/sbt-native-packager/
 
-### Building Debian package
+### Building an [universal] (.zip) package
 
-http://www.scala-sbt.org/sbt-native-packager/formats/debian.html
+[universal]: http://www.scala-sbt.org/sbt-native-packager/formats/universal.html
+
+`sbt compilerJVM/universal:packageBin` → generates `jvm/target/universal/kaitai-struct-compiler-*.zip`
+
+### Building [Debian package]
+
+[Debian package]: http://www.scala-sbt.org/sbt-native-packager/formats/debian.html
 
 1. Install prerequisites: `sudo -i apt-get install dpkg-deb dpkg-sig dpkg-genchanges lintian fakeroot`
 2. `sbt compilerJVM/debian:packageBin` -> generates `jvm/target/kaitai-struct-compiler_*_all.deb`
 
-TODO: document deployment to bintray
+### Building [Windows package]
 
-### Building Windows package
-
-http://www.scala-sbt.org/sbt-native-packager/formats/windows.html
+[Windows package]: http://www.scala-sbt.org/sbt-native-packager/formats/windows.html
 
 1. Install WIX
-2. `sbt windows:packageBin`
+2. `sbt compilerJVM/windows:packageBin` -> genereates `jvm/target/windows/kaitai-struct-compiler.msi`
 
 ### Dependencies for JVM target
+
+TODO
 
 ## Building for JavaScript platform
 
@@ -44,6 +50,31 @@ actually be JavaScript libraries, not Java jars.
 2. Use this JavaScript file on a website
 
 ### Dependencies for JavaScript target
+
+TODO
+
+## Publishing a new version
+
+1. Choose a new version number (WIX imposes harsh requirements for
+  version to look like `x.x.x.x`) and update it in `build.sbt`,
+  `version := ...`, commit
+2. Prepare an entry in RELEASE_NOTES.md, commit
+3. Create version tag:
+  * `git tag $VERSION`
+  * `git push --tags`
+4. Update [main repository](https://github.com/kaitai-io/kaitai_struct)
+5. Create new version at:
+  * https://bintray.com/kaitai-io/debian/kaitai-struct-compiler/new/version
+  * https://bintray.com/kaitai-io/universal/kaitai-struct-compiler/new/version
+6. Upload:
+  * https://bintray.com/kaitai-io/debian/kaitai-struct-compiler/$VERSION/upload
+    * Debian distribution: `jessie`
+    * Debian component: `main`
+    * Debian architecture: `all`
+    * Attached file: `jvm/target/kaitai-struct-compiler_*_all.deb`
+  * https://bintray.com/kaitai-io/universal/kaitai-struct-compiler/$VERSION/upload
+    * Attached file: `jvm/target/universal/kaitai-struct-compiler-*.zip`
+7. Publish them all
 
 ## Adding new language
 
