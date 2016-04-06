@@ -20,12 +20,17 @@ for details on `.ksy` files and general usage patterns.
 
 ### Linux .deb builds (Debian/Ubuntu)
 
-There is an official .deb repository available.
+There is an official .deb repository available. The repository is hosted
+at BinTray and signed with BinTray GPG key (`379CE192D401AB61`), so it's
+necessary to import that key first if your box haven't used any BinTray
+repositories beforehand:
 
-echo "deb https://dl.bintray.com/kaitai-io/debian /" | sudo tee -a /etc/apt/sources.list.d/kaitai.list
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 642AC823
+```shell
+echo "deb https://dl.bintray.com/kaitai-io/debian jessie main" | sudo tee /etc/apt/sources.list.d/kaitai.list
+sudo apt-key adv --keyserver hkp://pool.sks-keyservers.net --recv 379CE192D401AB61
 sudo apt-get update
 sudo apt-get install kaitai-struct-compiler
+```
 
 ### Windows builds
 
@@ -38,12 +43,15 @@ source code in repository:
 
     git clone https://github.com/kaitai-io/kaitai_struct_compiler
 
-See "Development" section below for general pointers on how to proceed
+See [DEVELOPERS.md](DEVELOPERS.md) for general pointers on how to proceed
 with the source code then.
 
 ## Usage
 
 `kaitai-struct-compiler [options] <file>...`
+
+Alternatively, a symlink `ksc` is provided and can be used everywhere
+just as full name.
 
 Common options:
 
@@ -84,10 +92,6 @@ and describes format with ID `foo`:
   * `/tmp/out/java/src/org/example/Foo.java`
   * `/tmp/out/python/foo.py`
   * `/tmp/out/ruby/foo.rb`
-
-## Development
-
-KS compiler itself is written in [Scala language](http://www.scala-lang.org/).
 
 ## Licensing
 
