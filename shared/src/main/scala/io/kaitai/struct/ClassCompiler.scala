@@ -127,12 +127,12 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
           case None => lang.normalIO
           case Some(ex) => lang.useIO(ex)
         }
-        i.positionAbs.foreach { pos =>
+        i.pos.foreach { pos =>
           lang.pushPos(io)
           lang.seek(io, pos)
         }
         lang.attrParse(i, lang.instanceAttrName(instName), extraAttrs, io)
-        i.positionAbs.foreach((pos) => lang.popPos(io))
+        i.pos.foreach((pos) => lang.popPos(io))
     }
 
     lang.instanceSetCalculated(instName)

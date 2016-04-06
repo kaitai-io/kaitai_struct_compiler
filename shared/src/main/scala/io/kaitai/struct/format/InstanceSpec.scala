@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 abstract class InstanceSpec
 case class ValueInstanceSpec(value: Ast.expr, var dataType: Option[BaseType]) extends InstanceSpec
-case class ParseInstanceSpec(dataType: BaseType, cond: ConditionalSpec, positionAbs: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec with AttrLikeSpec
+case class ParseInstanceSpec(dataType: BaseType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec with AttrLikeSpec
 
 object InstanceSpec {
   @JsonCreator
@@ -26,11 +26,11 @@ object InstanceSpec {
               @JsonProperty("eos-error") _eosError: String,
               @JsonProperty("enum") _enum: String,
 
-              @JsonProperty("position-abs") _positionAbs: String,
+              @JsonProperty("pos") _pos: String,
               @JsonProperty("io") _io: String,
               @JsonProperty("value") _value: String
             ): InstanceSpec = {
-    val positionAbs = Option(_positionAbs).map(Expressions.parse)
+    val positionAbs = Option(_pos).map(Expressions.parse)
     val io = Option(_io).map(Expressions.parse)
 
     val value = Option(_value).map(e =>
@@ -47,7 +47,7 @@ object InstanceSpec {
       } else if (_repeatExpr != null) {
         throw new RuntimeException("instance: can't specify both 'value' and 'repeat-expr'")
       } else if (positionAbs.isDefined) {
-        throw new RuntimeException("instance: can't specify both 'value' and 'position-abs'")
+        throw new RuntimeException("instance: can't specify both 'value' and 'pos'")
       } else {
         Expressions.parse(e)
       }
