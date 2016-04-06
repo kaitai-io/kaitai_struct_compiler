@@ -34,7 +34,18 @@ sudo apt-get install kaitai-struct-compiler
 
 ### Windows builds
 
-TODO
+An official `.msi` installer build is available to download at
+
+https://bintray.com/kaitai-io/universal/kaitai-struct-compiler/_latestVersion
+
+### Universal builds
+
+Basically, everything that can run Java can use so called "universal"
+builds: a .zip file that includes all the required .jar files bundled
+and launcher scripts for UNIX/Windows systems. No installation
+required, one can just unpack and run it. Available at download also at
+
+https://bintray.com/kaitai-io/universal/kaitai-struct-compiler/_latestVersion
 
 ### Source code
 
