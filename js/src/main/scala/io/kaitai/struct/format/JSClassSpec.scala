@@ -9,6 +9,7 @@ trait JSClassSpec extends js.Object {
   val seq: js.UndefOr[js.Array[JSAttrSpec]]
   val types: js.UndefOr[js.Dictionary[JSClassSpec]]
   val instances: js.UndefOr[js.Dictionary[JSInstanceSpec]]
+  val enums: js.UndefOr[js.Dictionary[js.Dictionary[String]]]
 }
 
 object JSClassSpec {
@@ -34,7 +35,16 @@ object JSClassSpec {
             }.toMap
           case None => Map()
         },
-        Map() // TODO
+        self.enums.toOption match {
+          case Some(x) =>
+            x.map { case (enumName, enumDict) =>
+              enumName -> enumDict.map {
+                case (enumKey, enumValue) =>
+                  enumKey.toLong -> enumValue
+              }.toMap
+            }.toMap
+          case None => Map()
+        }
       )
   }
 }
