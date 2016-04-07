@@ -70,7 +70,7 @@ object DataType {
 
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
 
-  def yamlToDataType(
+  def fromYaml(
     dt: String,
     defaultEndian: Option[Endianness],
     size: Option[Ast.expr],
