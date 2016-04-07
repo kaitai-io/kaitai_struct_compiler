@@ -8,6 +8,7 @@ trait JSClassSpec extends js.Object {
   val meta: js.UndefOr[JSMetaSpec]
   val seq: js.UndefOr[js.Array[JSAttrSpec]]
   val types: js.UndefOr[js.Dictionary[JSClassSpec]]
+  val instances: js.UndefOr[js.Dictionary[JSInstanceSpec]]
 }
 
 object JSClassSpec {
@@ -26,7 +27,13 @@ object JSClassSpec {
             }.toMap
           case None => Map()
         },
-        Map(), // TODO
+        self.instances.toOption match {
+          case Some(x) =>
+            x.map { case (key, value) =>
+              key -> value.toScala
+            }.toMap
+          case None => Map()
+        },
         Map() // TODO
       )
   }
