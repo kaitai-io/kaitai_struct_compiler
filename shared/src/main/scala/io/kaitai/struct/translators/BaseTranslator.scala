@@ -170,20 +170,22 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         val ltype = detectType(left)
         val rtype = detectType(right)
-        if (ltype == rtype) {
-          ltype match {
-            case _: StrType | _: IntType => // everything is ok
-            case EnumType(_, _) =>
-              op match {
-                case Ast.cmpop.Eq | Ast.cmpop.NotEq => // ok
-                case _ =>
-                  throw new TypeMismatchError(s"can't use comparison operator ${op} on enums")
-              }
-          }
-          BooleanType
-        } else {
-          throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
+        (ltype, rtype) match {
+          case (_: IntType, _: IntType) => // ok
+          case (_: StrType, _: StrType) => // ok
+          case (EnumType(name1, _), EnumType(name2, _)) =>
+            if (name1 != name2) {
+              throw new TypeMismatchError(s"can't compare different enums '$name1' and '$name2'")
+            }
+            op match {
+              case Ast.cmpop.Eq | Ast.cmpop.NotEq => // ok
+              case _ =>
+                throw new TypeMismatchError(s"can't use comparison operator ${op} on enums")
+            }
+          case _ =>
+            throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
         }
+        BooleanType
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
           case (_: IntType, _: IntType, _) => CalcIntType
@@ -204,11 +206,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case BooleanType =>
             val trueType = detectType(ifTrue)
             val falseType = detectType(ifFalse)
-            if (trueType == falseType) {
-              trueType
-            } else {
-              throw new TypeMismatchError(s"ternary operator with different output types: ${trueType} vs ${falseType}")
-            }
+            combineTypes(trueType, falseType)
           case other => throw new TypeMismatchError(s"unable to switch over ${other}")
         }
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
@@ -242,6 +240,27 @@ abstract class BaseTranslator(val provider: TypeProvider) {
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
+    }
+  }
+
+  /**
+    * Checks if the values of two types can be combined (i.e. there exists a single type that can
+    * be used to hold values of both values - usually it means that they're either equal or one
+    * is a subset of another).
+    *
+    * @param t1 first type
+    * @param t2 second type
+    * @return type that can accommodate values of both source types without any data loss
+    */
+  def combineTypes(t1: BaseType, t2: BaseType): BaseType = {
+    if (t1 == t2) {
+      // Obviously, if types are equal, they'll fit into one another
+      t1
+    } else {
+      (t1, t2) match {
+        case (_: IntType, _: IntType) => CalcIntType
+        case _ => throw new TypeMismatchError(s"ternary operator with different output types: ${t1} vs ${t2}")
+      }
     }
   }
 }
