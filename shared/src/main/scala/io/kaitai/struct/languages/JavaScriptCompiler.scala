@@ -249,12 +249,10 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
 
   def lowerCamelCase(s: String): String = {
     if (s.charAt(0) == '_') {
-      if (s.startsWith("_raw__m_")) {
-        "_raw__m_" + Utils.lowerCamelCase(s.substring("_raw__m_".length))
-      } else if (s.startsWith("_raw_")) {
-        "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))
+      if (s.startsWith("_raw_")) {
+        "_raw_" + lowerCamelCase(s.substring("_raw_".length))
       } else if (s.startsWith("_m_")) {
-        "_m_" + Utils.lowerCamelCase(s.substring("_m_".length))
+        "_m_" + lowerCamelCase(s.substring("_m_".length))
       } else {
         throw new RuntimeException(s"internal error: don't know how to make '$s' a field name")
       }

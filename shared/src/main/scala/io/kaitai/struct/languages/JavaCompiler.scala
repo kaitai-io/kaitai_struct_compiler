@@ -358,7 +358,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     if (s == "_root" || s == "_parent" || s == "_io") {
       s
     } else if (s.startsWith("_raw_")) {
-      "_raw_" + Utils.lowerCamelCase(s.substring("_raw_".length))
+      "_raw_" + lowerCamelCase(s.substring("_raw_".length))
     } else {
       Utils.lowerCamelCase(s)
     }
