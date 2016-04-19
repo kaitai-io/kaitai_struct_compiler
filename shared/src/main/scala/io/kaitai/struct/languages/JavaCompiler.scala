@@ -116,6 +116,13 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
         out.puts("}")
       case ProcessZlib =>
         out.puts(s"this.$varDest = _io.processZlib(this.$varSrc);")
+      case ProcessRotate(isLeft, rotValue) =>
+        val expr = if (isLeft) {
+          expression(rotValue)
+        } else {
+          s"8 - (${expression(rotValue)})"
+        }
+        out.puts(s"this.$varDest = _io.processRotateLeft(this.$varSrc, $expr, 1);")
     }
   }
 
