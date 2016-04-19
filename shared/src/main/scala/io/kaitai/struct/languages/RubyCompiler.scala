@@ -17,13 +17,13 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
     out.puts
-    out.puts("require 'kaitai/struct'")
+    out.puts("require 'kaitai/struct/struct'")
     out.puts("require 'zlib'") // TODO: add only if actually used
     out.puts
   }
 
   override def classHeader(name: String): Unit = {
-    out.puts(s"class ${type2class(name)} < Kaitai::Struct")
+    out.puts(s"class ${type2class(name)} < Kaitai::Struct::Struct")
     out.inc
     if (debug)
       out.puts("attr_reader :_debug")
@@ -93,7 +93,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
       case NoRepeat => s"@$varName"
     }
 
-    out.puts(s"io = Kaitai::Stream.new($args)")
+    out.puts(s"io = Kaitai::Struct::Stream.new($args)")
     "io"
   }
 
