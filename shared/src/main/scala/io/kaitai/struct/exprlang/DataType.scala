@@ -63,8 +63,16 @@ object DataType {
 
   abstract class UserType(val name: List[String]) extends BaseType
   case class UserTypeInstream(_name: List[String]) extends UserType(_name)
-  case class UserTypeByteLimit(_name: List[String], size: Ast.expr) extends UserType(_name)
-  case class UserTypeEos(_name: List[String]) extends UserType(_name)
+  abstract class UserTypeKnownSize(_name: List[String]) extends UserType(_name) with Processing
+  case class UserTypeByteLimit(
+    _name: List[String],
+    size: Ast.expr,
+    override val process: Option[ProcessExpr]
+  ) extends UserTypeKnownSize(_name)
+  case class UserTypeEos(
+    _name: List[String],
+    override val process: Option[ProcessExpr]
+  ) extends UserTypeKnownSize(_name)
 
   case class EnumType(name: String, basedOn: IntType) extends BaseType
 
@@ -116,9 +124,9 @@ object DataType {
               case (Some(bs: Ast.expr), false) => BytesLimitType(bs, process)
               case (None, true) => BytesEosType(process)
               case (None, false) =>
-                throw new RuntimeException("no type: either \"size\" or \"size-eos\" must be specified")
+                throw new RuntimeException("no type: either 'size' or 'size-eos' must be specified")
               case (Some(_), true) =>
-                throw new RuntimeException("no type: only one of \"size\" or \"size-eos\" must be specified")
+                throw new RuntimeException("no type: only one of 'size' or 'size-eos' must be specified")
             }
         }
       case "str" =>
@@ -128,22 +136,25 @@ object DataType {
           case (Some(bs: Ast.expr), false) => StrByteLimitType(bs, encoding.get)
           case (None, true) => StrEosType(encoding.get)
           case (None, false) =>
-            throw new RuntimeException("type str: either \"size\" or \"size-eos\" must be specified")
+            throw new RuntimeException(s"type $dt: either 'size' or 'size-eos' must be specified")
           case (Some(_), true) =>
-            throw new RuntimeException("type str: only one of \"size\" or \"size-eos\" must be specified")
+            throw new RuntimeException(s"type $dt: only one of 'size' or 'size-eos' must be specified")
         }
       case "strz" =>
         if (encoding.isEmpty)
-          throw new RuntimeException("type str: encoding must be specified")
+          throw new RuntimeException(s"type $dt: encoding must be specified")
         StrZType(encoding.get, terminator, include, consume, eosError)
       case _ =>
         val dtl = dt.split("::", -1).toList
         ((size, sizeEos)) match {
-          case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, bs)
-          case (None, true) => UserTypeEos(dtl)
-          case (None, false) => UserTypeInstream(dtl)
+          case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, bs, process)
+          case (None, true) => UserTypeEos(dtl, process)
+          case (None, false) =>
+            if (process.isDefined)
+              throw new RuntimeException(s"user type '$dt': need either 'size' or 'size-eos' if 'process' is used")
+            UserTypeInstream(dtl)
           case (Some(_), true) =>
-            throw new RuntimeException("user type '" + dt + "': only one of \"size\" or \"size-eos\" must be specified")
+            throw new RuntimeException(s"user type '$dt': only one of 'size' or 'size-eos' must be specified")
         }
     }
 
