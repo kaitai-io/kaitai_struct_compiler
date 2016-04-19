@@ -15,9 +15,13 @@ case object ProcessHexStrToInt extends ProcessExpr {
 case class ProcessXor(key: Ast.expr) extends ProcessExpr {
   override def outputType: String = null
 }
+case class ProcessRotate(left: Boolean, key: Ast.expr) extends ProcessExpr {
+  override def outputType: String = null
+}
 
 object ProcessExpr {
   private val ReXor = "^xor\\(\\s*(.*?)\\s*\\)$".r
+  private val ReRotate = "^ro(l|r)\\(\\s*(.*?)\\s*\\)$".r
 
   def fromStr(s: String): Option[ProcessExpr] = {
     if (s == null)
@@ -29,6 +33,8 @@ object ProcessExpr {
         ProcessHexStrToInt
       case ReXor(arg) =>
         ProcessXor(Expressions.parse(arg))
+      case ReRotate(dir, arg) =>
+        ProcessRotate(dir == "l", Expressions.parse(arg))
       case _ =>
         throw new RuntimeException(s"Invalid process: '$s'")
     })
