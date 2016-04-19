@@ -53,45 +53,9 @@ trait EveryReadIsExpression extends LanguageCompiler {
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
-        val newIO = if (needRaw(t)) {
-          // we have a fixed buffer, thus we shall create separate IO for it
-          val rawId = s"_raw_$id"
-          val byteType = t match {
-            case UserTypeByteLimit(_, size) => BytesLimitType(size, None)
-            case UserTypeEos(_) => BytesEosType(None)
-          }
-
-          attrParse2(rawId, byteType, io, extraAttrs, rep)
-
-          val extraType = rep match {
-            case NoRepeat => byteType
-            case _ => ArrayType(byteType)
-          }
-
-          extraAttrs += AttrSpec(rawId, extraType)
-
-          allocateIO(rawId, rep)
-        } else {
-          // no fixed buffer, just use regular IO
-          normalIO
-        }
-        val expr = parseExpr(dataType, newIO)
-        handleAssignment(id, expr, rep)
-
+        attrUserTypeParse(id, dataType, io, extraAttrs, rep, t)
       case t: BytesType =>
-        // use intermediate variable name, if we'll be doing post-processing
-        val rawId = t.process match {
-          case None => id
-          case Some(_) =>
-            extraAttrs += AttrSpec(s"_raw_$id", t)
-            s"_raw_$id"
-        }
-
-        val expr = parseExpr(dataType, io)
-        handleAssignment(rawId, expr, rep)
-
-        // apply post-processing
-        t.process.foreach((proc) => attrProcess(proc, rawId, id))
+        attrBytesTypeParse(id, dataType, io, extraAttrs, rep, t)
       case _ =>
         val expr = parseExpr(dataType, io)
         handleAssignment(id, expr, rep)
@@ -101,9 +65,53 @@ trait EveryReadIsExpression extends LanguageCompiler {
       attrDebugEnd(id, io, rep)
   }
 
+  def attrBytesTypeParse(id: String, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, t: BytesType): Unit = {
+    // use intermediate variable name, if we'll be doing post-processing
+    val rawId = t.process match {
+      case None => id
+      case Some(_) =>
+        extraAttrs += AttrSpec(s"_raw_$id", t)
+        s"_raw_$id"
+    }
+
+    val expr = parseExpr(dataType, io)
+    handleAssignment(rawId, expr, rep)
+
+    // apply post-processing
+    t.process.foreach((proc) => attrProcess(proc, rawId, id))
+  }
+
+  def attrUserTypeParse(id: String, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, t: UserType): Unit = {
+    val newIO = t match {
+      case knownSizeType: UserTypeKnownSize =>
+        // we have a fixed buffer, thus we shall create separate IO for it
+        val rawId = s"_raw_$id"
+        val byteType = knownSizeType match {
+          case UserTypeByteLimit(_, size, process) => BytesLimitType(size, process)
+          case UserTypeEos(_, process) => BytesEosType(process)
+        }
+
+        attrParse2(rawId, byteType, io, extraAttrs, rep)
+
+        val extraType = rep match {
+          case NoRepeat => byteType
+          case _ => ArrayType(byteType)
+        }
+
+        extraAttrs += AttrSpec(rawId, extraType)
+
+        allocateIO(rawId, rep)
+      case _: UserTypeInstream =>
+        // no fixed buffer, just use regular IO
+        normalIO
+    }
+    val expr = parseExpr(dataType, newIO)
+    handleAssignment(id, expr, rep)
+  }
+
   def needRaw(dataType: BaseType): Boolean = {
     dataType match {
-      case UserTypeByteLimit(_, _) | UserTypeEos(_) => true
+      case t: UserTypeKnownSize => true
       case _ => false
     }
   }
