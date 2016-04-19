@@ -89,6 +89,13 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
         out.puts("}")
       case ProcessZlib =>
         out.puts(s"this.$varDest = KaitaiStream.processZlib(this.$varSrc);")
+      case ProcessRotate(isLeft, rotValue) =>
+        val expr = if (isLeft) {
+          expression(rotValue)
+        } else {
+          s"8 - (${expression(rotValue)})"
+        }
+        out.puts(s"this.$varDest = KaitaiStream.processRotateLeft(this.$varSrc, $expr, 1);")
     }
   }
 
