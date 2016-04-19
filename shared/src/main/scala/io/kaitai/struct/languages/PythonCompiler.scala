@@ -73,6 +73,13 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
         out.puts(s"self.$varDest = self.$varDest.tostring()")
       case ProcessZlib =>
         out.puts(s"self.$varDest = zlib.decompress(self.$varSrc)")
+      case ProcessRotate(isLeft, rotValue) =>
+        val expr = if (isLeft) {
+          expression(rotValue)
+        } else {
+          s"8 - (${expression(rotValue)})"
+        }
+        out.puts(s"self.$varDest = KaitaiStruct.process_rotate_left(self.$varSrc, $expr, 1)")
     }
   }
 

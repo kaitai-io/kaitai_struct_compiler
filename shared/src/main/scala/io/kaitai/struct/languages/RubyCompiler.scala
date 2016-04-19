@@ -74,6 +74,13 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
         s"@$varDest = @$varSrc.bytes.map { |x| (x ^ (${expression(xorValue)})) }.pack('C*')"
       case ProcessZlib =>
         s"@$varDest = Zlib::Inflate.inflate(@$varSrc)"
+      case ProcessRotate(isLeft, rotValue) =>
+        val expr = if (isLeft) {
+          expression(rotValue)
+        } else {
+          s"8 - (${expression(rotValue)})"
+        }
+        s"@$varDest = _io.process_rotate_left($varSrc, $expr, 1)"
     })
   }
 
