@@ -82,5 +82,6 @@ object LanguageCompilerStatic {
     case "javascript" => JavaScriptCompiler
     case "python" => PythonCompiler
     case "ruby" => RubyCompiler
+    case "swift" => SwiftCompiler
   }
 }

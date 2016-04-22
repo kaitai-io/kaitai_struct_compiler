@@ -245,5 +245,6 @@ object ClassCompiler {
     case JavaScriptCompiler => new JavaScriptCompiler(config.verbose, out)
     case PythonCompiler => new PythonCompiler(config.verbose, out)
     case RubyCompiler => new RubyCompiler(config.verbose, config.debug, out)
+    case SwiftCompiler => new SwiftCompiler(config.verbose, out)
   }
 }

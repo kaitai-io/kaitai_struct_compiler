@@ -16,7 +16,7 @@ object Main {
     private val _javaPackage: String = ""
   ) extends RuntimeConfig(_verbose, _debug, _javaPackage)
 
-  val ALL_LANGS = Set("cpp_stl", "java", "javascript", "python", "ruby")
+  val ALL_LANGS = Set("cpp_stl", "java", "javascript", "python", "ruby", "swift")
   val VALID_LANGS = ALL_LANGS + "all"
 
   def parseCommandLine(args: Array[String]): Option[CLIConfig] = {
