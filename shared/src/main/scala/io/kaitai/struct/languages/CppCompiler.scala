@@ -37,6 +37,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts("#include <kaitai/kaitaistream.h>")
     outHdr.puts
     outHdr.puts("#include <stdint.h>")
+    outHdr.puts("#include <vector>") // TODO: add only if required
   }
 
   override def fileFooter(topClassName: String): Unit = {
@@ -189,13 +190,13 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
       outSrc.puts(s"this._raw_${privateMemberName(id)} = new ArrayList<byte[]>();")
-    outSrc.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
-    outSrc.puts(s"while (!$io->isEof()) {")
+    outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
+    outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
   }
 
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
-    outSrc.puts(s"${privateMemberName(id)}->push($expr);")
+    outSrc.puts(s"${privateMemberName(id)}->push_back($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -338,7 +339,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case t: UserType => s"${type2class(t.name)}*"
       case EnumType(name, _) => type2class(List(name))
 
-      case ArrayType(inType) => s"const std::vector<${kaitaiType2NativeType(inType)}>&"
+      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType)}>*"
     }
   }
 
