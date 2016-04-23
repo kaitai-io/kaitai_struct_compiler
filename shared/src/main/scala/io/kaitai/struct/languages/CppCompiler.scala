@@ -160,7 +160,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   }
 
   override def pushPos(io: String): Unit =
-    outSrc.puts(s"uint64_t _pos = $io->pos;")
+    outSrc.puts(s"uint64_t _pos = $io->pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
     outSrc.puts(s"$io->seek(${expression(pos)});")
