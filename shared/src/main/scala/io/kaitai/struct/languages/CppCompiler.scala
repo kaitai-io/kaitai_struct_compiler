@@ -4,7 +4,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeProvider}
 import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
@@ -18,7 +18,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   var accessMode: AccessMode = PrivateAccess
 
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new CppTranslator(tp)
 
   override def fileHeader(topClassName: String): Unit = {
     outSrc.puts(s"// $headerComment")
@@ -235,11 +235,11 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
         s"$io->read_${t.apiCall}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
-        s"$io->read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
+        s"$io->read_str_byte_limit(${expression(bs)} /*, $encoding */)"
       case StrEosType(encoding) =>
-        io + "->read_str_eos(\"" + encoding + "\")"
+        s"$io->read_str_eos(/* $encoding */)"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + "->read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
+        s"$io->read_strz(/* $encoding, */ $terminator, $include, $consume, $eosError)"
 //      case EnumType(enumName, t) =>
 //        s"${type2class(enumName)}.byId($io->read${Utils.capitalize(t.apiCall)}())"
       case BytesLimitType(size, _) =>
