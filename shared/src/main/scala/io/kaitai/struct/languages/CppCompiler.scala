@@ -211,13 +211,14 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       outSrc.puts(s"this._raw_${privateMemberName(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    outSrc.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}(${expression(repeatExpr)});")
+    outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
+    outSrc.puts(s"${privateMemberName(id)}->reserve(${expression(repeatExpr)});")
     outSrc.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     outSrc.inc
   }
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
-    outSrc.puts(s"${privateMemberName(id)}.add($expr);")
+    outSrc.puts(s"${privateMemberName(id)}->push_back($expr);")
   }
 
   override def condRepeatExprFooter: Unit = {
