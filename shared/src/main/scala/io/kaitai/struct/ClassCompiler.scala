@@ -85,6 +85,9 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     extraAttrs += AttrSpec("_root", UserTypeInstream(topClassName))
     extraAttrs += AttrSpec("_parent", UserTypeInstream(curClass.parentTypeName))
 
+    // Forward declarations for recursive types
+    curClass.types.foreach { case (typeName, intClass) => lang.classForwardDeclaration(List(typeName)) }
+
     lang.classConstructorHeader(name, curClass.parentTypeName, topClassName)
     curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs, lang.normalIO))
     curClass.instances.foreach { case (instName, instSpec) => lang.instanceClear(instName) }

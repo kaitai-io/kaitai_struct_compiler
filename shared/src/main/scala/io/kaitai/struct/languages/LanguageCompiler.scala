@@ -25,6 +25,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
 
   def classHeader(name: List[String]): Unit
   def classFooter(name: List[String]): Unit
+  def classForwardDeclaration(name: List[String]): Unit = {}
 
   def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit
   def classConstructorFooter: Unit

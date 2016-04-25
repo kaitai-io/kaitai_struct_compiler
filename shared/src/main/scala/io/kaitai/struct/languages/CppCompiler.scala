@@ -71,6 +71,10 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts("};")
   }
 
+  override def classForwardDeclaration(name: List[String]): Unit = {
+    outHdr.puts(s"class ${type2class(name)};")
+  }
+
   override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
     outHdr.puts
     outHdr.puts(s"${type2class(List(name.last))}(" +
@@ -258,7 +262,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${attrReaderName(instName)}();")
 
     outSrc.puts
-    outSrc.puts(s"${kaitaiType2NativeType(dataType)} ${type2class(className)}::${attrReaderName(instName)}() {")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType, true, className)} ${type2class(className)}::${attrReaderName(instName)}() {")
     outSrc.inc
   }
 
@@ -321,7 +325,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   def value2Const(s: String) = s.toUpperCase
 
-  def kaitaiType2NativeType(attrType: BaseType): String = {
+  def kaitaiType2NativeType(attrType: BaseType, absolute: Boolean = false, curClass: List[String] = List()): String = {
     attrType match {
       case Int1Type(false) => "uint8_t"
       case IntMultiType(false, Width2, _) => "uint16_t"
@@ -336,9 +340,15 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case _: StrType => "std::string"
       case _: BytesType => "std::string"
 
-      case t: UserType => s"${type2class(t.name)}*"
-      case EnumType(name, _) => type2class(List(name))
+      case t: UserType =>
+        val classList: List[String] = if (absolute) {
+          curClass ::: t.name
+        } else {
+          t.name
+        }
+        s"${type2class(classList)}*"
 
+      case EnumType(name, _) => type2class(List(name))
       case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType)}>*"
     }
   }
@@ -376,15 +386,16 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   def kstructName = "kaitai::kstruct"
 
   def kstreamName = "kaitai::kstream"
+
+  def type2class(components: List[String]) = {
+    components.map {
+      case "kaitai_struct" => "kaitai::kstruct"
+      case s => s + "_t"
+    }.mkString("::")
+  }
 }
 
 object CppCompiler extends LanguageCompilerStatic {
   override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(List(topClassName))}"
-  def type2class(components: List[String]) = {
-    components.map {
-      case "kaitai_struct" => "kaitai::kstruct"
-      case s => s
-    }.mkString("::")
-  }
+  override def outFileName(topClassName: String): String = topClassName
 }
