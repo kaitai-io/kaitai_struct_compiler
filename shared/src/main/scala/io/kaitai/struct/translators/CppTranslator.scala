@@ -5,6 +5,8 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 
 class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def doStringLiteral(s: String): String = "std::string(\"" + s + "\")"
+
   override def doName(s: String) =
     s match {
       case "_root" => s
