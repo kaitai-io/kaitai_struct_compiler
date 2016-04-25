@@ -338,6 +338,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case IntMultiType(true, Width4, _) => "int32_t"
       case IntMultiType(true, Width8, _) => "int64_t"
 
+      case CalcIntType => "int32_t"
+
       case _: StrType => "std::string"
       case _: BytesType => "std::string"
 
