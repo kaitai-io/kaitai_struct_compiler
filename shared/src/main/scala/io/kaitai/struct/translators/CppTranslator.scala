@@ -13,6 +13,9 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => s"$s()"
     }
 
+  override def userTypeField(value: expr, attrName: String): String =
+    s"${translate(value)}->${doName(attrName)}"
+
   override def doEnumByLabel(enumType: String, label: String): String =
     s"${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"
 
