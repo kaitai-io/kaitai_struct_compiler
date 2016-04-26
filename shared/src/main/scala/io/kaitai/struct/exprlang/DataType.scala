@@ -74,6 +74,8 @@ object DataType {
     override val process: Option[ProcessExpr]
   ) extends UserTypeKnownSize(_name)
 
+  case object KaitaiStreamType extends BaseType
+
   case class EnumType(name: String, basedOn: IntType) extends BaseType
 
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
