@@ -365,6 +365,8 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+
+  override def privateMemberName(ksName: String): String = s"this.${Utils.lowerCamelCase(ksName)}"
 }
 
 object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {

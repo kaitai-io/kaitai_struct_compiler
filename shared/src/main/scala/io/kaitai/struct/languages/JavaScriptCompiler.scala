@@ -260,6 +260,8 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
       Utils.lowerCamelCase(s)
     }
   }
+
+  override def privateMemberName(ksName: String): String = s"this.${Utils.lowerCamelCase(ksName)}"
 }
 
 object JavaScriptCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {

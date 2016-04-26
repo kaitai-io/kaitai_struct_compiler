@@ -210,6 +210,8 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+
+  override def privateMemberName(ksName: String): String = s"self.$ksName"
 }
 
 object PythonCompiler extends LanguageCompilerStatic {

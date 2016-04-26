@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.{LanguageOutputWriter, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
@@ -65,22 +65,22 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"@$attrName = @_io.ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
+    out.puts(s"${privateMemberName(attrName)} = @_io.ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     out.puts(proc match {
       case ProcessXor(xorValue) =>
-        s"@$varDest = @$varSrc.bytes.map { |x| (x ^ (${expression(xorValue)})) }.pack('C*')"
+        s"${privateMemberName(varDest)} = ${privateMemberName(varSrc)}.bytes.map { |x| (x ^ (${expression(xorValue)})) }.pack('C*')"
       case ProcessZlib =>
-        s"@$varDest = Zlib::Inflate.inflate(@$varSrc)"
+        s"${privateMemberName(varDest)} = Zlib::Inflate.inflate(${privateMemberName(varSrc)})"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"@$varDest = _io.process_rotate_left($varSrc, $expr, 1)"
+        s"${privateMemberName(varDest)} = _io.process_rotate_left($varSrc, $expr, 1)"
     })
   }
 
@@ -237,6 +237,8 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(enumName, enumLabel)
 
   def value2Const(s: String) = s.toUpperCase
+
+  override def privateMemberName(ksName: String): String = s"@$ksName"
 }
 
 object RubyCompiler extends LanguageCompilerStatic {
