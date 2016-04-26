@@ -30,10 +30,14 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit
   def classConstructorFooter: Unit
 
+  def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {}
+  def classDestructorFooter: Unit = {}
+
   def attributeDeclaration(attrName: String, attrType: BaseType): Unit
   def attributeReader(attrName: String, attrType: BaseType): Unit
 
   def attrParse(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec], io: String): Unit
+  def attrDestructor(attr: AttrLikeSpec, id: String): Unit = {}
 
   def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit
 
@@ -68,6 +72,8 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit
 
   def expression(e: Ast.expr): String = translator.translate(e)
+
+  def privateMemberName(ksName: String): String
 }
 
 trait LanguageCompilerStatic {
