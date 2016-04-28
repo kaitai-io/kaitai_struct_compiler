@@ -112,6 +112,8 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.puts(s"$io.seek(_pos)")
 
   override def attrDebugStart(attrId: String, io: String, rep: RepeatSpec): Unit = {
+    if (attrId.startsWith("_raw"))
+      return
     rep match {
       case NoRepeat =>
         out.puts(s"(@_debug['$attrId'] ||= {})[:start] = $io.pos")
@@ -123,6 +125,8 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   }
 
   override def attrDebugEnd(attrId: String, io: String, rep: RepeatSpec): Unit = {
+    if (attrId.startsWith("_raw"))
+      return
     rep match {
       case NoRepeat =>
         out.puts(s"(@_debug['$attrId'] ||= {})[:end] = $io.pos")
