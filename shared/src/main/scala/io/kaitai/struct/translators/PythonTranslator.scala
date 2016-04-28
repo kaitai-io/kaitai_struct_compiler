@@ -29,4 +29,9 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"len(${translate(value)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
+
+  override def arrayFirst(a: expr): String =
+    s"${translate(a)}[0]"
+  override def arrayLast(a: expr): String =
+    s"${translate(a)}[-1]"
 }

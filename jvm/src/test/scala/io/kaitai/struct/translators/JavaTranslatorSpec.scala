@@ -84,5 +84,13 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     it("parses a != 2 and a != 5") {
       tryOne(CalcIntType, "a != 2 and a != 5", "a() != 2 && a() != 5", BooleanType)
     }
+
+    it("parses a.first when a is array") {
+      tryOne(ArrayType(CalcIntType), "a.first", "a().get(0)", CalcIntType)
+    }
+
+    it("parses a.last when a is array") {
+      tryOne(ArrayType(CalcIntType), "a.last", "a().get(a().size() - 1)", CalcIntType)
+    }
   }
 }

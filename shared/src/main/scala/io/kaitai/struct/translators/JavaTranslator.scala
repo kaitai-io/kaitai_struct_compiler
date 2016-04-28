@@ -38,4 +38,11 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(s)}.length()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+
+  override def arrayFirst(a: expr): String =
+    s"${translate(a)}.get(0)"
+  override def arrayLast(a: expr): String = {
+    val v = translate(a)
+    s"$v.get($v.size() - 1)"
+  }
 }

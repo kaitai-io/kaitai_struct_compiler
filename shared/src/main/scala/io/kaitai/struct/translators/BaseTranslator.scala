@@ -66,6 +66,11 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             }
           case _: IntType =>
             throw new RuntimeException(s"don't know how to call anything on ${valType}")
+          case ArrayType(inType) =>
+            attr.name match {
+              case "first" => arrayFirst(value)
+              case "last" => arrayLast(value)
+            }
         }
       case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
         func match {
@@ -155,6 +160,9 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def strLength(s: Ast.expr): String
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
 
+  def arrayFirst(a: Ast.expr): String
+  def arrayLast(a: Ast.expr): String
+
   def detectType(v: Ast.expr): BaseType = {
     v match {
       case Ast.expr.Num(_) => CalcIntType
@@ -226,6 +234,11 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case _: StrType =>
             attr.name match {
               case "length" => CalcIntType
+              case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
+            }
+          case ArrayType(inType) =>
+            attr.name match {
+              case "first" | "last" => inType
               case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
             }
           case _ =>

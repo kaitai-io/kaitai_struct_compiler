@@ -20,4 +20,9 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(s)}.size"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}[${translate(from)}, (${translate(to)} - 1)]"
+
+  override def arrayFirst(a: expr): String =
+    s"${translate(a)}.first"
+  override def arrayLast(a: expr): String =
+    s"${translate(a)}.last"
 }

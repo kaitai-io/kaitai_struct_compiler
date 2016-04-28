@@ -43,4 +43,8 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(s)}.length()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substr(${translate(from)}, (${translate(to)}) - (${translate(from)}))"
+
+  override def arrayFirst(a: expr): String = ???
+
+  override def arrayLast(a: expr): String = ???
 }
