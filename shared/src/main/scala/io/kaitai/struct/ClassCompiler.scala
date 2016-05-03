@@ -33,12 +33,19 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
           val ut = userType.name
           userTypes.get(ut.last).foreach { usedClass =>
             usedClass._parentType match {
-              case None =>
-                usedClass._parentType = Some((curClassName, curClass))
+              case UnknownNamedClass =>
+                usedClass._parentType = NamedClass(curClassName, curClass)
                 markupParentTypes(curClassName ::: ut, usedClass)
-              case Some((curClassName, curClass)) => // already done, don't do anything
-              case Some((otherName, otherClass)) =>
-                throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
+              case NamedClass(otherName, otherClass) =>
+                if (otherName == curClassName && otherClass == curClass) {
+                  // already done, don't do anything
+                } else {
+                  // conflicting types, would be bad for statically typed languages
+                  // throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
+                  usedClass._parentType = GenericStructClass
+                }
+              case GenericStructClass =>
+                // already most generic case, do nothing
             }
           }
         case _ => // ignore, it's standard type

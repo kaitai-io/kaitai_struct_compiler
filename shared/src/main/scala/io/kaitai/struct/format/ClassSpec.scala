@@ -7,6 +7,12 @@ import io.kaitai.struct.Utils
 import collection.JavaConversions._
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 
+sealed trait NamedClassSpec
+
+case object UnknownNamedClass extends NamedClassSpec
+case class NamedClass(name: List[String], spec: ClassSpec) extends NamedClassSpec
+case object GenericStructClass extends NamedClassSpec
+
 case class ClassSpec(
                       meta: Option[MetaSpec],
                       seq: List[AttrSpec],
@@ -14,13 +20,15 @@ case class ClassSpec(
                       instances: Map[String, InstanceSpec],
                       enums: Map[String, Map[Long, String]]
                     ) {
-  var _parentType: Option[(List[String], ClassSpec)] = None
+  var _parentType: NamedClassSpec = UnknownNamedClass
 
   def parentTypeName: List[String] = _parentType match {
-    case Some((name: List[String], _)) => name
-    case None => List("kaitai_struct")
+    case UnknownNamedClass | GenericStructClass => List("kaitai_struct")
+    case NamedClass(name: List[String], _) => name
   }
-  def parentType: ClassSpec = _parentType.get._2
+  def parentType: ClassSpec = _parentType match {
+    case NamedClass(_, spec) => spec
+  }
 }
 
 object ClassSpec {
