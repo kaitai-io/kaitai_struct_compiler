@@ -38,6 +38,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts
     outHdr.puts("#include <stdint.h>")
     outHdr.puts("#include <vector>") // TODO: add only if required
+    outHdr.puts("#include <sstream>") // TODO: add only if required
   }
 
   override def fileFooter(topClassName: String): Unit = {
@@ -103,6 +104,16 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts("}")
   }
 
+  override def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {
+    outHdr.puts(s"~${type2class(List(name.last))}();")
+
+    outSrc.puts
+    outSrc.puts(s"${type2class(name)}::~${type2class(List(name.last))}() {")
+    outSrc.inc
+  }
+
+  override def classDestructorFooter = classConstructorFooter
+
   override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
@@ -126,6 +137,30 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${attrReaderName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
 
+  override def attrDestructor(attr: AttrLikeSpec, id: String): Unit = {
+    var t = attr.dataTypeComposite
+
+    if (attr.isArray) {
+      outSrc.puts(s"${privateMemberName(id)}->clear();")
+      outSrc.puts(s"delete ${privateMemberName(id)};")
+      return
+    }
+
+    t match {
+      case ut: UserType =>
+        if (attr.cond.ifExpr.isDefined) {
+          outSrc.puts(s"if (${flagForInstName(id)})")
+          outSrc.inc
+          outSrc.puts(s"delete ${privateMemberName(id)};")
+          outSrc.dec
+        } else {
+          outSrc.puts(s"delete ${privateMemberName(id)};")
+        }
+      case _ =>
+        // no cleanup needed
+    }
+  }
+
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
     val strLiteral = contents.map { x => "\\x%02x".format(x) }.mkString
     outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, " + "\"" + strLiteral + "\");")
@@ -146,16 +181,16 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def normalIO: String = privateMemberName("_io")
 
   override def allocateIO(varName: String, rep: RepeatSpec): String = {
-    val javaName = privateMemberName(varName)
+    val memberName = privateMemberName(varName)
 
-    val ioName = s"_io_$javaName"
+    val ioName = s"_io_$varName"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
-      case NoRepeat => javaName
+      case RepeatEos | RepeatExpr(_) => s"$memberName.get($memberName.size() - 1)"
+      case NoRepeat => memberName
     }
 
-    outSrc.puts(s"KaitaiStream *$ioName = new KaitaiStream($args);")
+    outSrc.puts(s"${privateMemberName(ioName)} = new $kstreamName($args);")
     ioName
   }
 
@@ -353,12 +388,14 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
       case EnumType(name, _) => type2class(List(name))
       case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType)}>*"
+
+      case KaitaiStreamType => s"$kstreamName*"
     }
   }
 
   def defineName(className: String) = className.toUpperCase + "_H_"
 
-  def privateMemberName(ksName: String) = {
+  override def privateMemberName(ksName: String): String = {
     /*
     if (ksName == "_root" || ksName == "_parent" || ksName == "_io") {
       "_m" + ksName
@@ -384,7 +421,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   def flagForInstName(ksName: String) = "f_" + ksName
 
-  def rawMemberName(ksName: String) = "_raw_" + Utils.lowerCamelCase(ksName)
+  def rawMemberName(ksName: String) = "raw_" + ksName
 
   def kstructName = "kaitai::kstruct"
 
@@ -396,6 +433,13 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case s => s + "_t"
     }.mkString("::")
   }
+
+  /**
+    * We don't have a luxury of garbage collection in C++ and want to keep things clean and simple, thus
+    * we need to store allocated IOs to clean them up in destructor.
+    * @return true
+    */
+  override def needToStoreIOs: Boolean = true
 }
 
 object CppCompiler extends LanguageCompilerStatic {

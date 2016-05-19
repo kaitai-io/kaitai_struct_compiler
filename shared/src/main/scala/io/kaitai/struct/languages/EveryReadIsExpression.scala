@@ -19,7 +19,10 @@ trait EveryReadIsExpression extends LanguageCompiler {
       attrDebugStart(id, io, NoRepeat)
 
     attr.cond.ifExpr match {
-      case Some(e) => condIfHeader(e)
+      case Some(e) =>
+        instanceClear(id)
+        condIfHeader(e)
+        instanceSetCalculated(id)
       case None => // ignore
     }
 
@@ -100,7 +103,13 @@ trait EveryReadIsExpression extends LanguageCompiler {
 
         extraAttrs += AttrSpec(rawId, extraType)
 
-        allocateIO(rawId, rep)
+        val ourIO = allocateIO(rawId, rep)
+        if (needToStoreIOs) {
+          extraAttrs += AttrSpec(ourIO, KaitaiStreamType)
+          privateMemberName(ourIO)
+        } else {
+          ourIO
+        }
       case _: UserTypeInstream =>
         // no fixed buffer, just use regular IO
         normalIO
@@ -132,4 +141,6 @@ trait EveryReadIsExpression extends LanguageCompiler {
   def handleAssignmentSimple(id: String, expr: String): Unit
 
   def parseExpr(dataType: BaseType, io: String): String
+
+  def needToStoreIOs: Boolean = false
 }
