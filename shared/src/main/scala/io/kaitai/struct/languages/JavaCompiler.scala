@@ -108,12 +108,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"this.$varDest = new byte[this.$varSrc.length];")
-        out.puts(s"for (int i = 0; i < this.$varSrc.length; i++) {")
-        out.inc
-        out.puts(s"this.$varDest[i] = (byte) (this.$varSrc[i] ^ (${expression(xorValue)}));")
-        out.dec
-        out.puts("}")
+        out.puts(s"this.$varDest = _io.processXorInt(this.$varSrc, ${expression(xorValue)});")
       case ProcessZlib =>
         out.puts(s"this.$varDest = _io.processZlib(this.$varSrc);")
       case ProcessRotate(isLeft, rotValue) =>
