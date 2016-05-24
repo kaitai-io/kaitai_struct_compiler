@@ -58,7 +58,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     classFooter()
   }
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {}
+  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {
     out.puts(s"attr_reader :$attrName")

@@ -33,7 +33,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {}
   def classDestructorFooter: Unit = {}
 
-  def attributeDeclaration(attrName: String, attrType: BaseType): Unit
+  def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit
   def attributeReader(attrName: String, attrType: BaseType): Unit
 
   def attrParse(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec], io: String): Unit
@@ -61,7 +61,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
 
   def instanceClear(instName: String): Unit = {}
   def instanceSetCalculated(instName: String): Unit = {}
-  def instanceDeclaration(attrName: String, attrType: BaseType) = attributeDeclaration(attrName, attrType)
+  def instanceDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
   def instanceHeader(className: List[String], instName: String, dataType: BaseType): Unit
   def instanceAttrName(instName: String): String
   def instanceFooter: Unit

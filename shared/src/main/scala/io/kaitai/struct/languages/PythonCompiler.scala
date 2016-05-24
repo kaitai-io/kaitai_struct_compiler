@@ -53,7 +53,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def classConstructorFooter: Unit = classFooter(null)
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {}
+  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {}
 

@@ -93,7 +93,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
 
   override def classConstructorFooter: Unit = classFooter(null)
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {
+  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)};")
   }
 
@@ -226,7 +226,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     }
   }
 
-  override def instanceDeclaration(attrName: String, attrType: BaseType): Unit = {
+  override def instanceDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${lowerCamelCase(attrName)};")
   }
 

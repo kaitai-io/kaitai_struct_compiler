@@ -114,9 +114,13 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   override def classDestructorFooter = classConstructorFooter
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {
+  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+
+    if (condSpec.ifExpr.nonEmpty) {
+      outHdr.puts(s"bool ${flagForInstName(attrName)};")
+    }
   }
 
   def ensureMode(newMode: AccessMode): Unit = {
@@ -287,7 +291,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     }
   }
 
-  override def instanceDeclaration(attrName: String, attrType: BaseType): Unit = {
+  override def instanceDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"bool ${flagForInstName(attrName)};")
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
@@ -437,6 +441,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   /**
     * We don't have a luxury of garbage collection in C++ and want to keep things clean and simple, thus
     * we need to store allocated IOs to clean them up in destructor.
+    *
     * @return true
     */
   override def needToStoreIOs: Boolean = true

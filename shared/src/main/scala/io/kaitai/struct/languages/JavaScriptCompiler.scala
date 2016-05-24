@@ -70,7 +70,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
     out.puts("}")
   }
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType): Unit = {}
+  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {}
 

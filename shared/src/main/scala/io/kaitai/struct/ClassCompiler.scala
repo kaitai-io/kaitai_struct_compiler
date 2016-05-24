@@ -113,7 +113,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     curClass.instances.foreach { case (instName, instSpec) => compileInstance(name, instName, instSpec, extraAttrs) }
 
     // Attributes declarations and readers
-    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite))
+    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataTypeComposite))
 
     curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
@@ -129,7 +129,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     }
 
     // Declare caching variable
-    lang.instanceDeclaration(instName, dataType)
+    lang.instanceDeclaration(instName, dataType, ConditionalSpec(None, NoRepeat))
 
     lang.instanceHeader(className, instName, dataType)
     lang.instanceCheckCacheAndReturn(instName)
