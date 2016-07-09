@@ -15,7 +15,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
-    s"${translate(s)}.to_i(${translate(base)}"
+    s"${translate(s)}.to_i(${translate(base)})"
   override def strLength(s: expr): String =
     s"${translate(s)}.size"
   override def strSubstring(s: expr, from: expr, to: expr): String =
