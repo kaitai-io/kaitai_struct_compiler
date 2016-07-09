@@ -12,7 +12,6 @@ trait TypeProvider {
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
 
 abstract class BaseTranslator(val provider: TypeProvider) {
-
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.Num(n) =>
@@ -63,6 +62,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case _: StrType =>
             attr.name match {
               case "length" => strLength(value)
+              case "to_i" => strToInt(value, Ast.expr.Num(10))
             }
           case _: IntType =>
             throw new RuntimeException(s"don't know how to call anything on ${valType}")
@@ -77,10 +77,14 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
             val objType = detectType(obj)
             (objType, methodName.name) match {
+              // TODO: check argument quantity
               case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
+              case (_: StrType, "to_i") => strToInt(obj, args(0))
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
+      case Ast.expr.List(value: Ast.expr) =>
+        doArrayLiteral(detectType(value), value)
     }
   }
 
@@ -147,6 +151,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   // Literals
   def doIntLiteral(n: Any): String = n.toString
   def doStringLiteral(s: String): String = "\"" + s + "\""
+  def doArrayLiteral(t: BaseType, value: Seq[expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String

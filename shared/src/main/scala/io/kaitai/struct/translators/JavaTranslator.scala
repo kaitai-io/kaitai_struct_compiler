@@ -3,8 +3,13 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
+import io.kaitai.struct.exprlang.DataType.BaseType
 
 class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
+    s"new Array[] { ${value.map((v) => translate(v)).mkString(", ")} }"
+  }
+
   override def doName(s: String) =
     s match {
       case "_root" => s
