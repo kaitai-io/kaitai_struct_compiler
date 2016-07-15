@@ -83,11 +83,14 @@ trait LanguageCompilerStatic {
 }
 
 object LanguageCompilerStatic {
-  def byString(langName: String): LanguageCompilerStatic = langName match {
-    case "cpp_stl" => CppCompiler
-    case "java" => JavaCompiler
-    case "javascript" => JavaScriptCompiler
-    case "python" => PythonCompiler
-    case "ruby" => RubyCompiler
-  }
+  val NAME_TO_CLASS = Map(
+    "cpp_stl" -> CppCompiler,
+    "csharp" -> CSharpCompiler,
+    "java" -> JavaCompiler,
+    "javascript" -> JavaScriptCompiler,
+    "python" -> PythonCompiler,
+    "ruby" -> RubyCompiler
+  )
+
+  def byString(langName: String): LanguageCompilerStatic = NAME_TO_CLASS(langName)
 }

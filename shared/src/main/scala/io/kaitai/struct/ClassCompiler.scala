@@ -255,6 +255,7 @@ object ClassCompiler {
   }
 
   private def getCompiler(lang: LanguageCompilerStatic, config: RuntimeConfig, out: LanguageOutputWriter) = lang match {
+    case CSharpCompiler => new CSharpCompiler(config.verbose, out)
     case JavaCompiler => new JavaCompiler(config.verbose, out, config.javaPackage)
     case JavaScriptCompiler => new JavaScriptCompiler(config.verbose, out)
     case PythonCompiler => new PythonCompiler(config.verbose, out)
