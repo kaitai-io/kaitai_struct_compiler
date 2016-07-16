@@ -37,14 +37,28 @@ object Utils {
     }
   }
 
-  def upperCamelCase(s: String) = s.split("_").map(x => x.charAt(0).toUpper + x.substring(1)).mkString
+  def upperCamelCase(s: String): String = {
+    if (s.startsWith("_")) {
+      "_" + upperCamelCase(s.substring(1))
+    } else {
+      s.split("_").map(capitalize).mkString
+    }
+  }
 
   def lowerCamelCase(s: String): String = {
-    val firstWord :: restWords = s.split("_").toList
-    (firstWord :: restWords.map(capitalize)).mkString
+    if (s.startsWith("_")) {
+      "_" + lowerCamelCase(s.substring(1))
+    } else {
+      val firstWord :: restWords = s.split("_").toList
+      (firstWord :: restWords.map(capitalize)).mkString
+    }
   }
 
   def capitalize(s: String): String = {
-    s.charAt(0).toUpper + s.substring(1)
+    if (s.isEmpty) {
+      s
+    } else {
+      s.charAt(0).toUpper + s.substring(1)
+    }
   }
 }
