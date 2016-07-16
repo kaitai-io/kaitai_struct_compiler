@@ -18,13 +18,8 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
     out.puts
-    out.puts("import io.kaitai.struct.KaitaiStruct;")
-    out.puts("import io.kaitai.struct.KaitaiStream;")
-    out.puts
-    out.puts("import java.io.IOException;")
-    out.puts("import java.util.ArrayList;")
-    out.puts("import java.util.HashMap;")
-    out.puts("import java.util.Map;")
+    out.puts("using System;")
+    out.puts("using Kaitai;")
 
     out.puts
   }
@@ -36,12 +31,12 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
       ""
     }
 
-    out.puts(s"public ${staticStr}class ${type2class(name)} extends KaitaiStruct {")
+    out.puts(s"public ${staticStr}class ${type2class(name)} : $kstructName {")
     out.inc
 
-    out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
+    out.puts(s"public static ${type2class(name)} fromFile(String fileName) {")
     out.inc
-    out.puts(s"return new ${type2class(name)}(new KaitaiStream(fileName));")
+    out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
     out.dec
     out.puts("}")
   }
@@ -53,52 +48,25 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts
-    out.puts(s"public ${type2class(name)}(KaitaiStream _io) throws IOException {")
+    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent = null, ${type2class(rootClassName)} _root = null) : base(_io) {")
     out.inc
-    out.puts("super(_io);")
-    if (name == rootClassName)
-      out.puts("this._root = this;")
-    out.puts("_parse();")
-    out.dec
-    out.puts("}")
-
+    out.puts(s"${privateMemberName("_root")} = (_root == null) ? this : _root;")
+    out.puts(s"${privateMemberName("_parent")} = _parent;")
     out.puts
-    out.puts(s"public ${type2class(name)}(KaitaiStream _io, ${type2class(parentClassName)} _parent) throws IOException {")
-    out.inc
-    out.puts("super(_io);")
-    out.puts("this._parent = _parent;")
-    if (name == rootClassName)
-      out.puts("this._root = this;")
-    out.puts("_parse();")
-    out.dec
-    out.puts("}")
-
-    out.puts
-    out.puts(s"public ${type2class(name)}(KaitaiStream _io, ${type2class(parentClassName)} _parent, ${type2class(rootClassName)} _root) throws IOException {")
-    out.inc
-    out.puts("super(_io);")
-    out.puts("this._parent = _parent;")
-    out.puts("this._root = _root;")
-    out.puts("_parse();")
-    out.dec
-    out.puts("}")
-
-    out.puts("private void _parse() throws IOException {")
-    out.inc
   }
 
   override def classConstructorFooter: Unit = classFooter(null)
 
   override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)};")
+    out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)}() { return ${lowerCamelCase(attrName)}; }")
+    out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() { return ${privateMemberName(attrName)}; }")
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+    out.puts(s"${privateMemberName(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
@@ -129,12 +97,12 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case NoRepeat => javaName
     }
 
-    out.puts(s"KaitaiStream $ioName = new KaitaiStream($args);")
+    out.puts(s"$kstreamName $ioName = new $kstreamName($args);")
     ioName
   }
 
   override def useIO(ioEx: expr): String = {
-    out.puts(s"KaitaiStream io = ${expression(ioEx)};")
+    out.puts(s"$kstreamName io = ${expression(ioEx)};")
     "io"
   }
 
@@ -160,13 +128,13 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>();")
-    out.puts(s"this.${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+    out.puts(s"this.${lowerCamelCase(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.add($expr);")
+    out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -177,13 +145,13 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
+    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.add($expr);")
+    out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -192,7 +160,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def handleAssignmentSimple(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)} = $expr;")
+    out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
   override def parseExpr(dataType: BaseType, io: String): String = {
@@ -283,7 +251,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   def value2Const(s: String) = s.toUpperCase
 
-  def kaitaiType2JavaType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
+  def kaitaiType2NativeType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
 
   /**
     * Determine Java data type corresponding to a KS data type. A "primitive" type (i.e. "int", "long", etc) will
@@ -357,7 +325,19 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 
-  override def privateMemberName(ksName: String): String = s"this.${Utils.lowerCamelCase(ksName)}"
+  def publicMemberName(ksName: String): String = Utils.upperCamelCase(ksName)
+
+  override def privateMemberName(ksName: String): String = s"m${Utils.upperCamelCase(ksName)}"
+
+  def kstructName = "Kaitai.KaitaiStruct"
+
+  def kstreamName = "KaitaiStream"
+
+  def type2class(name: String): String = name match {
+    case "kaitai_struct" => kstructName
+    case "kaitai_stream" => kstreamName
+    case _ => Utils.upperCamelCase(name)
+  }
 }
 
 object CSharpCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
