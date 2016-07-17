@@ -13,8 +13,9 @@ object Main {
 
     private val _verbose: Boolean = false,
     private val _debug: Boolean = false,
-    private val _javaPackage: String = ""
-  ) extends RuntimeConfig(_verbose, _debug, _javaPackage)
+    private val _javaPackage: String = "",
+    private val _dotNetNamespace: String = ""
+  ) extends RuntimeConfig(_verbose, _debug, _javaPackage, _dotNetNamespace)
 
   val ALL_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.keySet
   val VALID_LANGS = ALL_LANGS + "all"
@@ -54,6 +55,10 @@ object Main {
       opt[String]("java-package") valueName("<package>") action { (x, c) =>
         c.copy(_javaPackage = x)
       } text("Java package (Java only, default: root package)")
+
+      opt[String]("dotnet-namespace") valueName("<namespace>") action { (x, c) =>
+        c.copy(_dotNetNamespace = x)
+      } text(".NET Namespace (.NET only, default: Kaitai)")
 
       opt[Unit]("verbose") action { (x, c) =>
         c.copy(_verbose = true)
