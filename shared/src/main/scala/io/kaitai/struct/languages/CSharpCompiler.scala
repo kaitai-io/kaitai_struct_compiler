@@ -237,39 +237,17 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     val enumClass = type2class(enumName)
 
     out.puts
-    out.puts(s"public enum $enumClass {")
+    out.puts(s"public enum $enumClass")
+    out.puts(s"{")
     out.inc
 
-    val it = enumColl.toIterable
-    if (enumColl.size > 1) {
-      it.dropRight(1).foreach { case (id, label) =>
-        out.puts(s"${value2Const(label)}($id),")
-      }
-    }
-    it.last match {
-      case (id, label) =>
-        out.puts(s"${value2Const(label)}($id);")
+    enumColl.foreach { case (id, label) =>
+      out.puts(s"${publicMemberName(label)} = $id,")
     }
 
-    out.puts
-    out.puts("private final long id;")
-    out.puts(s"$enumClass(long id) { this.id = id; }")
-    out.puts("public long id() { return id; }")
-    out.puts(s"private static final Map<Long, $enumClass> byId = new HashMap<Long, $enumClass>(${enumColl.size});")
-    out.puts("static {")
-    out.inc
-    out.puts(s"for ($enumClass e : $enumClass.values())")
-    out.inc
-    out.puts(s"byId.put(e.id(), e);")
-    out.dec
-    out.dec
-    out.puts("}")
-    out.puts(s"public static $enumClass byId(long id) { return byId.get(id); }")
     out.dec
     out.puts("}")
   }
-
-  def value2Const(s: String) = s.toUpperCase
 
   def kaitaiType2NativeType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
 
