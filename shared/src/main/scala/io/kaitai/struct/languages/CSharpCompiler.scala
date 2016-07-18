@@ -218,10 +218,10 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   override def instanceAttrName(instName: String): String = instName
 
   override def instanceFooter: Unit = {
-    out.puts("}")
     out.dec
     out.puts("}")
     out.dec
+    out.puts("}")
   }
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
