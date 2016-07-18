@@ -82,7 +82,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() { return ${privateMemberName(attrName)}; }")
+    out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
