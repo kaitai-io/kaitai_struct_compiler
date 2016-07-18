@@ -5,7 +5,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{BytesType, CalcIntType, StrType, _}
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
-import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeProvider}
 
 class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
@@ -13,7 +13,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
     with NoNeedForFullClassPath {
   import CSharpCompiler._
 
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new CSharpTranslator(tp)
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
