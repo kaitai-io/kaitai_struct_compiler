@@ -206,11 +206,11 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def instanceDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${privateMemberName(attrName)};")
+    out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
   override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${publicMemberName(instName)}() throws IOException {")
+    out.puts(s"public ${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}() throws IOException {")
     out.inc
   }
 
@@ -249,65 +249,33 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts("}")
   }
 
-  def kaitaiType2NativeType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
-
   /**
-    * Determine Java data type corresponding to a KS data type. A "primitive" type (i.e. "int", "long", etc) will
-    * be returned if possible.
+    * Determine .NET data type corresponding to a KS data type.
     *
     * @param attrType KS data type
-    * @return Java data type
+    * @return .NET data type
     */
-  def kaitaiType2JavaTypePrim(attrType: BaseType): String = {
+  def kaitaiType2NativeType(attrType: BaseType): String = {
     attrType match {
-      case Int1Type(false) => "int"
-      case IntMultiType(false, Width2, _) => "int"
-      case IntMultiType(false, Width4, _) => "long"
-      case IntMultiType(false, Width8, _) => "long"
+      case Int1Type(false) => "byte"
+      case IntMultiType(false, Width2, _) => "ushort"
+      case IntMultiType(false, Width4, _) => "uint"
+      case IntMultiType(false, Width8, _) => "ulong"
 
-      case Int1Type(true) => "byte"
+      case Int1Type(true) => "sbyte"
       case IntMultiType(true, Width2, _) => "short"
       case IntMultiType(true, Width4, _) => "int"
       case IntMultiType(true, Width8, _) => "long"
 
-      case _: StrType => "String"
+      case CalcIntType => "int"
+
+      case _: StrType => "string"
       case _: BytesType => "byte[]"
 
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => type2class(name)
 
-      case ArrayType(inType) => kaitaiType2JavaTypeBoxed(attrType)
-    }
-  }
-
-  /**
-    * Determine Java data type corresponding to a KS data type. A non-primitive type (i.e. "Integer", "Long", etc) will
-    * be returned, to be used when proper objects should be used.
-    *
-    * @param attrType KS data type
-    * @return Java data type
-    */
-  def kaitaiType2JavaTypeBoxed(attrType: BaseType): String = {
-    attrType match {
-      case Int1Type(false) => "Integer"
-      case IntMultiType(false, Width2, _) => "Integer"
-      case IntMultiType(false, Width4, _) => "Long"
-      case IntMultiType(false, Width8, _) => "Long"
-
-      case Int1Type(true) => "Byte"
-      case IntMultiType(true, Width2, _) => "Short"
-      case IntMultiType(true, Width4, _) => "Integer"
-      case IntMultiType(true, Width8, _) => "Long"
-
-      case CalcIntType => "Integer"
-
-      case _: StrType => "String"
-      case _: BytesType => "byte[]"
-
-      case t: UserType => type2class(t.name.last)
-      case EnumType(name, _) => type2class(name)
-
-      case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
+      case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"
     }
   }
 
