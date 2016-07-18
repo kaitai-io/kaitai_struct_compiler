@@ -86,22 +86,22 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = ${normalIO}.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+    out.puts(s"${privateMemberName(attrName)} = ${normalIO}.EnsureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.processXorInt(${privateMemberName(varSrc)}, ${expression(xorValue)});")
+        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.ProcessXorInt(${privateMemberName(varSrc)}, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.processZlib(${privateMemberName(varSrc)});")
+        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.ProcessZlib(${privateMemberName(varSrc)});")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.processRotateLeft(${privateMemberName(varSrc)}, $expr, 1);")
+        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.ProcessRotateLeft(${privateMemberName(varSrc)}, $expr, 1);")
     }
   }
 
@@ -127,13 +127,13 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def pushPos(io: String): Unit =
-  out.puts(s"long _pos = $io.pos();")
+    out.puts(s"long _pos = $io.Pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-  out.puts(s"$io.seek(${expression(pos)});")
+    out.puts(s"$io.Seek(${expression(pos)});")
 
   override def popPos(io: String): Unit =
-  out.puts(s"$io.seek(_pos);")
+    out.puts(s"$io.Seek(_pos);")
 
   override def condIfHeader(expr: expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
@@ -147,14 +147,14 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(s"_raw_$id")} = new ArrayList<byte[]>();")
+      out.puts(s"${privateMemberName(s"_raw_$id")} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
-    out.puts(s"while (!$io.isEof()) {")
+    out.puts(s"while (!$io.IsEof()) {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.add($expr);")
+    out.puts(s"${privateMemberName(id)}.Add($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -164,14 +164,14 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(s"_raw_$id")} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
+      out.puts(s"${privateMemberName(s"_raw_$id")} = new List<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
-    out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
+    out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.add($expr);")
+    out.puts(s"${privateMemberName(id)}.Add($expr);")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -186,20 +186,20 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: IntType =>
-        s"$io.read${Utils.capitalize(t.apiCall)}()"
+        s"$io.Read${Utils.capitalize(t.apiCall)}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
-        s"$io.readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
+        s"$io.ReadStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
       case StrEosType(encoding) =>
-        io + ".readStrEos(\"" + encoding + "\")"
+        io + ".ReadStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + ".readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
+        io + ".ReadStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"${type2class(enumName)}.byId($io.read${Utils.capitalize(t.apiCall)}())"
+        s"((${type2class(enumName)}) $io.Read${Utils.capitalize(t.apiCall)}())"
       case BytesLimitType(size, _) =>
-        s"$io.readBytes(${expression(size)})"
+        s"$io.ReadBytes(${expression(size)})"
       case BytesEosType(_) =>
-        s"$io.readBytesFull()"
+        s"$io.ReadBytesFull()"
       case t: UserType =>
         s"new ${types2class(t.name)}($io, this, ${privateMemberName("_root")})"
     }
