@@ -210,28 +210,38 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}() throws IOException {")
+    out.puts(s"public ${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}")
+    out.puts("{")
     out.inc
+    out.puts("get")
+    out.puts("{")
+    out.inc
+
+    // Move this out of `instanceCheckCacheAndReturn` because we need to know the datatype
+    out.puts(s"if (${privateMemberName(instName)} != default(${kaitaiType2NativeType(dataType)}))")
+    out.inc
+    instanceReturn(instName)
+    out.dec
   }
 
   override def instanceAttrName(instName: String): String = instName
 
-  override def instanceFooter: Unit = classConstructorFooter
+  override def instanceFooter: Unit = {
+    out.puts("}")
+    out.dec
+    out.puts("}")
+    out.dec
+  }
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"if (${privateMemberName(instName)} != null)")
-    out.inc
-    instanceReturn(instName)
-    out.dec
+    // See instanceHeader - the data type is needed, so the check is added in the instance header instead
   }
 
   override def instanceReturn(instName: String): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
-    out.puts(s"${lowerCamelCase(instName)} = ${expression(value)};")
-  }
+  override def instanceCalculate(instName: String, value: Ast.expr): Unit = handleAssignmentSimple(instName, expression(value))
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     val enumClass = type2class(enumName)
