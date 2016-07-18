@@ -92,32 +92,32 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"this.$varDest = ${normalIO}.processXorInt(this.$varSrc, ${expression(xorValue)});")
+        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.processXorInt(${privateMemberName(varSrc)}, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"this.$varDest = ${normalIO}.processZlib(this.$varSrc);")
+        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.processZlib(${privateMemberName(varSrc)});")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"this.$varDest = ${normalIO}.processRotateLeft(this.$varSrc, $expr, 1);")
+        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.processRotateLeft(${privateMemberName(varSrc)}, $expr, 1);")
     }
   }
 
   override def normalIO: String = "_io"
 
   override def allocateIO(varName: String, rep: RepeatSpec): String = {
-    val javaName = lowerCamelCase(varName)
+    val privateVarName = privateMemberName(varName)
 
-    val ioName = s"_io_$javaName"
+    val ioName = privateMemberName(s"_io_$privateVarName")
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
-      case NoRepeat => javaName
+      case RepeatEos | RepeatExpr(_) => s"$privateVarName[$privateVarName.Count - 1]"
+      case NoRepeat => privateVarName
     }
 
-    out.puts(s"$kstreamName $ioName = new $kstreamName($args);")
+    out.puts(s"var $ioName = new $kstreamName($args);")
     ioName
   }
 
@@ -147,8 +147,8 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>();")
-    out.puts(s"this.${lowerCamelCase(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
+      out.puts(s"${privateMemberName(s"_raw_$id")} = new ArrayList<byte[]>();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
@@ -164,8 +164,8 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
+      out.puts(s"${privateMemberName(s"_raw_$id")} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
@@ -201,16 +201,16 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-        s"new ${types2class(t.name)}($io, this, _root)"
+        s"new ${types2class(t.name)}($io, this, ${privateMemberName("_root")})"
     }
   }
 
   override def instanceDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${lowerCamelCase(attrName)};")
+    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${privateMemberName(attrName)};")
   }
 
   override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${lowerCamelCase(instName)}() throws IOException {")
+    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${publicMemberName(instName)}() throws IOException {")
     out.inc
   }
 
@@ -219,14 +219,14 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   override def instanceFooter: Unit = classConstructorFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"if (${lowerCamelCase(instName)} != null)")
+    out.puts(s"if (${privateMemberName(instName)} != null)")
     out.inc
     instanceReturn(instName)
     out.dec
   }
 
   override def instanceReturn(instName: String): Unit = {
-    out.puts(s"return ${lowerCamelCase(instName)};")
+    out.puts(s"return ${privateMemberName(instName)};")
   }
 
   override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
