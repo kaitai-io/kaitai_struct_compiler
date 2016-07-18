@@ -38,37 +38,44 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def classHeader(name: String): Unit = {
-    val staticStr = if (out.indentLevel > 0) {
-      "static "
-    } else {
-      ""
-    }
 
-    out.puts(s"public ${staticStr}class ${type2class(name)} : $kstructName {")
+    out.puts(s"public partial class ${type2class(name)} : $kstructName")
+    out.puts(s"{")
     out.inc
 
-    out.puts(s"public static ${type2class(name)} fromFile(String fileName) {")
+    out.puts(s"public static ${type2class(name)} FromFile(string fileName)")
+    out.puts(s"{")
     out.inc
     out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
     out.dec
     out.puts("}")
   }
 
-  override def classFooter(name: String): Unit = {
-    out.dec
-    out.puts("}")
-  }
+  override def classFooter(name: String): Unit = fileFooter(name)
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent = null, ${type2class(rootClassName)} _root = null) : base(_io) {")
+    out.puts(s"public ${type2class(name)}($kstreamName io, ${type2class(parentClassName)} parent = null, ${type2class(rootClassName)} root = null) : base(io)")
+    out.puts(s"{")
     out.inc
-    out.puts(s"${privateMemberName("_root")} = (_root == null) ? this : _root;")
-    out.puts(s"${privateMemberName("_parent")} = _parent;")
+    out.puts(s"${privateMemberName("_parent")} = parent;")
+
+    if (name == rootClassName)
+      out.puts(s"${privateMemberName("_root")} = root ?? this;")
+    else
+      out.puts(s"${privateMemberName("_root")} = root;")
+
+    out.puts("_parse();")
+    out.dec
+    out.puts("}")
     out.puts
+
+    out.puts("private void _parse()")
+    out.puts("{")
+    out.inc
   }
 
-  override def classConstructorFooter: Unit = classFooter(null)
+  override def classConstructorFooter: Unit = fileFooter(null)
 
   override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
