@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.DataType.{BytesType, CalcIntType, StrType, _}
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeProvider}
 
-class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
+class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "Kaitai")
   extends LanguageCompiler(verbose, out)
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
@@ -17,11 +17,24 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
-    out.puts
-    out.puts("using System;")
-    out.puts("using Kaitai;")
+
+    var ns = "Kaitai";
+    if (!namespace.isEmpty) ns = namespace;
 
     out.puts
+    out.puts("using System;")
+    out.puts("using System.Collections.Generic;")
+    if (ns != "Kaitai") out.puts("using Kaitai;")
+    out.puts
+
+    out.puts(s"namespace $ns")
+    out.puts(s"{")
+    out.inc
+  }
+
+  override def fileFooter(topClassName: String): Unit = {
+    out.dec
+    out.puts("}")
   }
 
   override def classHeader(name: String): Unit = {
