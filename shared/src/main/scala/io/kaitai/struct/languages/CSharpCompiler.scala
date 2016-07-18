@@ -280,23 +280,13 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     }
   }
 
-  def lowerCamelCase(s: String): String = {
-    if (s == "_root" || s == "_parent" || s == "_io") {
-      s
-    } else if (s.startsWith("_raw_")) {
-      "_raw_" + lowerCamelCase(s.substring("_raw_".length))
-    } else {
-      Utils.lowerCamelCase(s)
-    }
-  }
-
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 
   def publicMemberName(ksName: String): String = Utils.upperCamelCase(ksName)
 
   override def privateMemberName(ksName: String): String = s"m${Utils.upperCamelCase(ksName)}"
 
-  def kstructName = "Kaitai.KaitaiStruct"
+  def kstructName = "KaitaiStruct"
 
   def kstreamName = "KaitaiStream"
 
