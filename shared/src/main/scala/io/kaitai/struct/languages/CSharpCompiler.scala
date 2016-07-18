@@ -105,7 +105,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     }
   }
 
-  override def normalIO: String = "_io"
+  override def normalIO: String = "m_io"
 
   override def allocateIO(varName: String, rep: RepeatSpec): String = {
     val privateVarName = privateMemberName(varName)
@@ -282,9 +282,19 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 
-  def publicMemberName(ksName: String): String = Utils.upperCamelCase(ksName)
+  def publicMemberName(ksName: String): String = {
+    if (ksName.startsWith("_"))
+      s"M${Utils.upperCamelCase(ksName)}"
+    else
+      Utils.upperCamelCase(ksName)
+  }
 
-  override def privateMemberName(ksName: String): String = s"m${Utils.upperCamelCase(ksName)}"
+  override def privateMemberName(ksName: String): String = {
+    if (ksName.startsWith("_"))
+      s"m${Utils.lowerCamelCase(ksName)}"
+    else
+      s"_${Utils.lowerCamelCase(ksName)}"
+  }
 
   def kstructName = "KaitaiStruct"
 

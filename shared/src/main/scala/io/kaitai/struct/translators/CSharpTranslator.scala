@@ -6,12 +6,10 @@ import io.kaitai.struct.exprlang.Ast._
 
 class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doName(s: String) =
-    s match {
-      case "_root" => s
-      case "_parent" => s
-      case "_io" => s
-      case _ => s"${Utils.lowerCamelCase(s)}"
-    }
+    if (s.startsWith("_"))
+      s"M${Utils.upperCamelCase(s)}"
+    else
+      s"${Utils.upperCamelCase(s)}"
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s"${Utils.upperCamelCase(enumType)}.${Utils.upperCamelCase(label)}"
