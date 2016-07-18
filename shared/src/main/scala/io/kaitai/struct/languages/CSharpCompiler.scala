@@ -140,10 +140,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.inc
   }
 
-  override def condIfFooter(expr: expr): Unit = {
-    out.dec
-    out.puts("}")
-  }
+  override def condIfFooter(expr: expr): Unit = fileFooter(null)
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
@@ -157,10 +154,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts(s"${privateMemberName(id)}.Add($expr);")
   }
 
-  override def condRepeatEosFooter: Unit = {
-    out.dec
-    out.puts("}")
-  }
+  override def condRepeatEosFooter: Unit = fileFooter(null)
 
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
@@ -174,10 +168,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts(s"${privateMemberName(id)}.Add($expr);")
   }
 
-  override def condRepeatExprFooter: Unit = {
-    out.dec
-    out.puts("}")
-  }
+  override def condRepeatExprFooter: Unit = fileFooter(null)
 
   override def handleAssignmentSimple(id: String, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
