@@ -13,50 +13,50 @@ import scala.collection.mutable.ArrayBuffer
 class ExpressionsSpec extends FunSpec {
   describe("Expressions.parse") {
     it("parses single positive integer") {
-      Expressions.parse("123") should be (Num(123))
+      Expressions.parse("123") should be (IntNum(123))
     }
 
     it("parses single negative integer") {
-      Expressions.parse("-456") should be (UnaryOp(Minus, Num(456)))
+      Expressions.parse("-456") should be (UnaryOp(Minus, IntNum(456)))
     }
 
     it("parses hex integer") {
-      Expressions.parse("0x1234") should be (Num(0x1234))
+      Expressions.parse("0x1234") should be (IntNum(0x1234))
     }
 
     it("parses 1 + 2") {
-      Expressions.parse("1 + 2") should be (BinOp(Num(1), Add, Num(2)))
+      Expressions.parse("1 + 2") should be (BinOp(IntNum(1), Add, IntNum(2)))
     }
 
     it("parses 1 + 2 + 5") {
       Expressions.parse("1 + 2 + 5") should be (
-        BinOp(BinOp(Num(1), Add, Num(2)), Add, Num(5))
+        BinOp(BinOp(IntNum(1), Add, IntNum(2)), Add, IntNum(5))
       )
     }
 
     it("parses (1 + 2) / (7 * 8)") {
       Expressions.parse("(1 + 2) / (7 * 8)") should be (
         BinOp(
-          BinOp(Num(1), Add, Num(2)),
+          BinOp(IntNum(1), Add, IntNum(2)),
           Div,
-          BinOp(Num(7), Mult, Num(8))
+          BinOp(IntNum(7), Mult, IntNum(8))
         )
       )
     }
 
     it("parses 1 < 2") {
-      Expressions.parse("1 < 2") should be (Compare(Num(1), Lt, Num(2)))
+      Expressions.parse("1 < 2") should be (Compare(IntNum(1), Lt, IntNum(2)))
     }
 
     it("parses a[42]") {
-      Expressions.parse("a[42]") should be (Subscript(Name(identifier("a")), Num(42)))
+      Expressions.parse("a[42]") should be (Subscript(Name(identifier("a")), IntNum(42)))
     }
 
     it("parses a[42 - 2]") {
       Expressions.parse("a[42 - 2]") should be (
         Subscript(
           Name(identifier("a")),
-          BinOp(Num(42), Sub, Num(2))
+          BinOp(IntNum(42), Sub, IntNum(2))
         )
       )
     }
@@ -64,7 +64,7 @@ class ExpressionsSpec extends FunSpec {
     it("parses 2 < 3 ? \"foo\" : \"bar\"") {
       Expressions.parse("2 < 3 ? \"foo\" : \"bar\"") should be (
         IfExp(
-          Compare(Num(2), Lt, Num(3)),
+          Compare(IntNum(2), Lt, IntNum(3)),
           Str("foo"),
           Str("bar")
         )
@@ -72,11 +72,11 @@ class ExpressionsSpec extends FunSpec {
     }
 
     it("parses bitwise invert operation") {
-      Expressions.parse("~777") should be (UnaryOp(Invert, Num(777)))
+      Expressions.parse("~777") should be (UnaryOp(Invert, IntNum(777)))
     }
 
     it("parses ~(7+3)") {
-      Expressions.parse("~(7+3)") should be (UnaryOp(Invert, BinOp(Num(7), Add, Num(3))))
+      Expressions.parse("~(7+3)") should be (UnaryOp(Invert, BinOp(IntNum(7), Add, IntNum(3))))
     }
 
     it("parses port::http") {
@@ -92,17 +92,17 @@ class ExpressionsSpec extends FunSpec {
               identifier("to_i")
             ),
             Add,
-            Num(8000)
+            IntNum(8000)
           ),
           Eq,
-          Num(8080)
+          IntNum(8080)
         )
       )
     }
 
     it("parses [1, 2, 0x1234]") {
       Expressions.parse("[1, 2, 0x1234]") should be (
-        List(ArrayBuffer(Num(1), Num(2), Num(4660)))
+        List(ArrayBuffer(IntNum(1), IntNum(2), IntNum(4660)))
       )
     }
   }

@@ -7,8 +7,16 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
 
   describe("JavaTranslator.translate") {
-    it("parses single positive integer") {
-      tryOne("123", "123", CalcIntType)
+    it("parses single positive integer <128") {
+      tryOne("123", "123", Int1Type(true))
+    }
+
+    it("parses single positive integer <256") {
+      tryOne("223", "223", Int1Type(false))
+    }
+
+    it("parses single 2-byte positive integer") {
+      tryOne("1234", "1234", CalcIntType)
     }
 
     it("parses single negative integer") {
@@ -93,6 +101,10 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
 
     it("parses [1, 2, 0x7ff * 0x10]") {
       tryOne("[1, 2, 0x7ff * 0x10]", "new ArrayList<Integer>(Arrays.asList(1, 2, (2047 * 16)))", ArrayType(CalcIntType))
+    }
+
+    it("parses [1, 2, 0x30]") {
+      tryOne("[1, 2, 0x30]", "new byte[] { 1, 2, 48 }", CalcBytesType)
     }
   }
 }

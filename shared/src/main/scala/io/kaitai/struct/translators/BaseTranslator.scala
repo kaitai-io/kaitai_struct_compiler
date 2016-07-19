@@ -15,7 +15,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
 
   def translate(v: Ast.expr): String = {
     v match {
-      case Ast.expr.Num(n) =>
+      case Ast.expr.IntNum(n) =>
         doIntLiteral(n)
       case Ast.expr.Str(s) =>
         doStringLiteral(s)
@@ -63,7 +63,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case _: StrType =>
             attr.name match {
               case "length" => strLength(value)
-              case "to_i" => strToInt(value, Ast.expr.Num(10))
+              case "to_i" => strToInt(value, Ast.expr.IntNum(10))
             }
           case _: IntType =>
             throw new RuntimeException(s"don't know how to call anything on ${valType}")
@@ -171,13 +171,23 @@ abstract class BaseTranslator(val provider: TypeProvider) {
 
   def detectType(v: Ast.expr): BaseType = {
     v match {
-      case Ast.expr.Num(_) => CalcIntType
+      case Ast.expr.IntNum(x) =>
+        if (x < 0 || x > 255) {
+          CalcIntType
+        } else if (x <= 127) {
+          // [0..127] => signed 1-byte integer
+          Int1Type(true)
+        } else {
+          // [128..255] => unsigned 1-byte integer
+          Int1Type(false)
+        }
       case Ast.expr.Str(_) => CalcStrType
       case Ast.expr.EnumByLabel(enumType, _) => EnumType(enumType.name, CalcIntType)
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
         t match {
+          case Int1Type(false) => CalcIntType
           case _: IntType => t
           case _ => throw new RuntimeException(s"unable to apply unary operator ${op} to ${t}")
         }
@@ -260,7 +270,10 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             }
         }
       case Ast.expr.List(values: Seq[Ast.expr]) =>
-        ArrayType(detectArrayType(values))
+        detectArrayType(values) match {
+          case Int1Type(_) => CalcBytesType
+          case t => ArrayType(t)
+        }
     }
   }
 
@@ -294,20 +307,17 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     * @return
     */
   def detectArrayType(values: Seq[expr]): BaseType = {
-    var allType: Option[BaseType] = None
+    var t1o: Option[BaseType] = None
 
     values.foreach { v =>
-      val t = detectType(v)
-      allType match {
-        case None =>
-          allType = Some(t)
-        case Some(allTypeSome) =>
-          if (allTypeSome != t)
-            throw new RuntimeException(s"mismatching data types in array literal $values: was $allTypeSome, but found $t")
+      val t2 = detectType(v)
+      t1o = t1o match {
+        case None => Some(t2)
+        case Some(t1) => Some(combineTypes(t1, t2))
       }
     }
 
-    allType match {
+    t1o match {
       case None => throw new RuntimeException("empty array literals are not allowed - can't detect array type")
       case Some(t) => t
     }
