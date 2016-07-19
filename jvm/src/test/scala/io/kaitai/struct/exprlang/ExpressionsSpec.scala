@@ -8,6 +8,8 @@ import io.kaitai.struct.exprlang.Ast.unaryop._
 import org.scalatest.FunSpec
 import org.scalatest.Matchers._
 
+import scala.collection.mutable.ArrayBuffer
+
 class ExpressionsSpec extends FunSpec {
   describe("Expressions.parse") {
     it("parses single positive integer") {
@@ -95,6 +97,12 @@ class ExpressionsSpec extends FunSpec {
           Eq,
           Num(8080)
         )
+      )
+    }
+
+    it("parses [1, 2, 0x1234]") {
+      Expressions.parse("[1, 2, 0x1234]") should be (
+        List(ArrayBuffer(Num(1), Num(2), Num(4660)))
       )
     }
   }
