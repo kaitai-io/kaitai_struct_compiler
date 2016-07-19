@@ -12,6 +12,7 @@ trait TypeProvider {
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
 
 abstract class BaseTranslator(val provider: TypeProvider) {
+
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.Num(n) =>
@@ -83,8 +84,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
-      case Ast.expr.List(value: Ast.expr) =>
-        doArrayLiteral(detectType(value), value)
+      case Ast.expr.List(values: Seq[Ast.expr]) =>
+        doArrayLiteral(detectArrayType(values), values)
     }
   }
 
@@ -258,6 +259,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
+      case Ast.expr.List(values: Seq[Ast.expr]) =>
+        ArrayType(detectArrayType(values))
     }
   }
 
@@ -279,6 +282,34 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         case (_: IntType, _: IntType) => CalcIntType
         case _ => throw new TypeMismatchError(s"ternary operator with different output types: ${t1} vs ${t2}")
       }
+    }
+  }
+
+  /**
+    * Checks that elements in the array literal are all the of same type and
+    * returns that type. Throws exception if multiple mismatching types are
+    * encountered.
+    *
+    * @param values
+    * @return
+    */
+  def detectArrayType(values: Seq[expr]): BaseType = {
+    var allType: Option[BaseType] = None
+
+    values.foreach { v =>
+      val t = detectType(v)
+      allType match {
+        case None =>
+          allType = Some(t)
+        case Some(allTypeSome) =>
+          if (allTypeSome != t)
+            throw new RuntimeException(s"mismatching data types in array literal $values: was $allTypeSome, but found $t")
+      }
+    }
+
+    allType match {
+      case None => throw new RuntimeException("empty array literals are not allowed - can't detect array type")
+      case Some(t) => t
     }
   }
 }

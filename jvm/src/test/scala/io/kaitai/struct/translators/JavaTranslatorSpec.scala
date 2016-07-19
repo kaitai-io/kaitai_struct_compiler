@@ -90,5 +90,9 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     it("parses a.last when a is array") {
       tryOne(ArrayType(CalcIntType), "a.last", "a().get(a().size() - 1)", CalcIntType)
     }
+
+    it("parses [1, 2, 0x7ff * 0x10]") {
+      tryOne("[1, 2, 0x7ff * 0x10]", "new ArrayList<Integer>(Arrays.asList(1, 2, (2047 * 16)))", ArrayType(CalcIntType))
+    }
   }
 }
