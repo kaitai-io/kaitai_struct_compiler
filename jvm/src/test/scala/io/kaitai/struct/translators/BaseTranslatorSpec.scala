@@ -26,10 +26,36 @@ abstract trait BaseTranslatorSpec {
     }
   }
 
-  def tryOne(t: BaseType, srcStr: String, expectedStr: String, expectedType: BaseType): Unit = {
-    tryOne(Always(t), srcStr, expectedStr, expectedType)
+  /**
+    * Tries one translation given setup described in parameters. This is a shortcut
+    * version of method to be used when no named variables are present in the
+    * expression.
+    * @param srcStr expression string to translate
+    * @param expectedStr expected result of translation
+    * @param expectedType expected type of expression
+    */
+  def tryOne(srcStr: String, expectedStr: String, expectedType: BaseType): Unit = {
+    tryOne(Always(CalcIntType), srcStr, expectedStr, expectedType)
   }
 
+  /**
+    * Tries one translation given setup described in parameters.
+    * @param alwaysType all named variables will always resolve to this type
+    * @param srcStr expression string to translate
+    * @param expectedStr expected result of translation
+    * @param expectedType expected type of expression
+    */
+  def tryOne(alwaysType: BaseType, srcStr: String, expectedStr: String, expectedType: BaseType): Unit = {
+    tryOne(Always(alwaysType), srcStr, expectedStr, expectedType)
+  }
+
+  /**
+    * Tries one translation given setup described in parameters.
+    * @param tp type provider to use
+    * @param srcStr expression string to translate
+    * @param expectedStr expected result of translation
+    * @param expectedType expected type of expression
+    */
   def tryOne(tp: TypeProvider, srcStr: String, expectedStr: String, expectedType: BaseType): Unit = {
     val e = Expressions.parse(srcStr)
     val tr = getTranslator(tp)
