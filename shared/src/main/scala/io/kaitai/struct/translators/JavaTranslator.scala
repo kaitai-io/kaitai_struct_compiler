@@ -8,12 +8,13 @@ import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
-    val commaStr = value.map((v) => translate(v)).mkString(", ")
     t match {
       case Int1Type(_) =>
+        val commaStr = value.map((v) => s"(byte) ${translate(v)}").mkString(", ")
         s"new byte[] { $commaStr }"
       case _ =>
         val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
+        val commaStr = value.map((v) => translate(v)).mkString(", ")
         s"new ArrayList<$javaType>(Arrays.asList($commaStr))"
     }
   }

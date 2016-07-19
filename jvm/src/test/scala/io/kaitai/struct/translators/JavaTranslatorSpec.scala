@@ -104,7 +104,7 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     }
 
     it("parses [1, 2, 0x30]") {
-      tryOne("[1, 2, 0x30]", "new byte[] { 1, 2, 48 }", CalcBytesType)
+      tryOne("[1, 2, 0x30]", "new byte[] { (byte) 1, (byte) 2, (byte) 48 }", CalcBytesType)
     }
   }
 }
