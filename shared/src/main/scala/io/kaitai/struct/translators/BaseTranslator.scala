@@ -292,6 +292,9 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       t1
     } else {
       (t1, t2) match {
+        // for 1-byte integers, "unsigned" wins (it is always wider)
+        case (Int1Type(false), Int1Type(true)) => Int1Type(false)
+        case (Int1Type(true), Int1Type(false)) => Int1Type(false)
         case (_: IntType, _: IntType) => CalcIntType
         case _ => throw new TypeMismatchError(s"ternary operator with different output types: ${t1} vs ${t2}")
       }
