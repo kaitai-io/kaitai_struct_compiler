@@ -10,35 +10,35 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
 
   describe("JavaTranslator.translate") {
     it("parses single positive integer") {
-      tryOne(CalcIntType, "123", "123", CalcIntType)
+      tryOne("123", "123", CalcIntType)
     }
 
     it("parses single negative integer") {
-      tryOne(CalcIntType, "-456", "-456", CalcIntType)
+      tryOne("-456", "-456", CalcIntType)
     }
 
     it("parses hex integer") {
-      tryOne(CalcIntType, "0x1234", "4660", CalcIntType)
+      tryOne("0x1234", "4660", CalcIntType)
     }
 
     it("parses 1 + 2") {
-      tryOne(CalcIntType, "1 + 2", "(1 + 2)", CalcIntType)
+      tryOne("1 + 2", "(1 + 2)", CalcIntType)
     }
 
     it("parses 3 / 2") {
-      tryOne(CalcIntType, "3 / 2", "(3 / 2)", CalcIntType)
+      tryOne("3 / 2", "(3 / 2)", CalcIntType)
     }
 
     it("parses 1 + 2 + 5") {
-      tryOne(CalcIntType, "1 + 2 + 5", "((1 + 2) + 5)", CalcIntType)
+      tryOne("1 + 2 + 5", "((1 + 2) + 5)", CalcIntType)
     }
 
     it("parses (1 + 2) / (7 * 8)") {
-      tryOne(CalcIntType, "(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", CalcIntType)
+      tryOne("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", CalcIntType)
     }
 
     it("parses 1 < 2") {
-      tryOne(CalcIntType, "1 < 2", "1 < 2", BooleanType)
+      tryOne("1 < 2", "1 < 2", BooleanType)
     }
 
     it("parses a[42]") {
@@ -50,15 +50,15 @@ class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
     }
 
     it("parses 2 < 3 ? \"foo\" : \"bar\"") {
-      tryOne(CalcIntType, "2 < 3 ? \"foo\" : \"bar\"", "2 < 3 ? \"foo\" : \"bar\"", CalcStrType)
+      tryOne("2 < 3 ? \"foo\" : \"bar\"", "2 < 3 ? \"foo\" : \"bar\"", CalcStrType)
     }
 
     it("parses bitwise invert operation") {
-      tryOne(CalcIntType, "~777", "~777", CalcIntType)
+      tryOne("~777", "~777", CalcIntType)
     }
 
     it("parses ~(7+3)") {
-      tryOne(CalcIntType, "~(7+3)", "~(7 + 3)", CalcIntType)
+      tryOne("~(7+3)", "~(7 + 3)", CalcIntType)
     }
 
     it("parses foo of string type") {
