@@ -32,7 +32,8 @@ object Ast {
     case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
-    case class Num(n: Any) extends expr
+    case class IntNum(n: BigInt) extends expr
+    case class FloatNum(n: BigDecimal) extends expr
     case class Str(s: String) extends expr
     case class EnumByLabel(enumName: identifier, label: identifier) extends expr
 

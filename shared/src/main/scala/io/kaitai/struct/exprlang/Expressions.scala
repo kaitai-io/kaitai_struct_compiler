@@ -26,7 +26,8 @@ import WsApi._
 object Expressions {
 
   val NAME: P[Ast.identifier] = Lexical.identifier
-  val NUMBER: P[Ast.expr.Num] = P( Lexical.floatnumber | Lexical.integer ).map(Ast.expr.Num)
+  val INT_NUMBER = Lexical.integer
+  val FLOAT_NUMBER = Lexical.floatnumber
   val STRING: P[String] = Lexical.stringliteral
 
   val test: P[Ast.expr] = P( or_test ~ ("?" ~ test ~ ":" ~ test).? ).map{
@@ -114,7 +115,8 @@ object Expressions {
       enumByName |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
       NAME.map(Ast.expr.Name(_)) |
-      NUMBER
+      INT_NUMBER.map(Ast.expr.IntNum) |
+      FLOAT_NUMBER.map(Ast.expr.FloatNum)
     )
   }
   val list_contents = P( test.rep(1, ",") ~ ",".? )
