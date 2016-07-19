@@ -26,6 +26,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.puts("import io.kaitai.struct.KaitaiStream;")
     out.puts
     out.puts("import java.io.IOException;")
+    out.puts("import java.util.Arrays;")
     out.puts("import java.util.ArrayList;")
     out.puts("import java.util.HashMap;")
     out.puts("import java.util.Map;")
@@ -108,7 +109,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"this.$varDest = _io.processXorInt(this.$varSrc, ${expression(xorValue)});")
+        out.puts(s"this.$varDest = _io.processXor(this.$varSrc, ${expression(xorValue)});")
       case ProcessZlib =>
         out.puts(s"this.$varDest = _io.processZlib(this.$varSrc);")
       case ProcessRotate(isLeft, rotValue) =>
