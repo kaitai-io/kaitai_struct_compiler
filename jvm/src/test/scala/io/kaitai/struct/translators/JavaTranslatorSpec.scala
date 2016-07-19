@@ -1,9 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.exprlang.Expressions
 import org.scalatest.FunSpec
-import org.scalatest.Matchers._
 
 class JavaTranslatorSpec extends FunSpec with BaseTranslatorSpec {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
