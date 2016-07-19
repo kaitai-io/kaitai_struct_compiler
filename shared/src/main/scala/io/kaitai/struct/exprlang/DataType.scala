@@ -2,6 +2,10 @@ package io.kaitai.struct.exprlang
 
 import io.kaitai.struct.format.ProcessExpr
 
+/**
+  * A collection of case objects and classes that are used to represent internal
+  * Kaitai Struct type system.
+  */
 object DataType {
   abstract class IntWidth(val width: Int)
   case object Width1 extends IntWidth(1)
