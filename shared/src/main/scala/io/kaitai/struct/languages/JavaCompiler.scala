@@ -287,6 +287,25 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
 
   def value2Const(s: String) = s.toUpperCase
 
+  def lowerCamelCase(s: String): String = {
+    if (s == "_root" || s == "_parent" || s == "_io") {
+      s
+    } else if (s.startsWith("_raw_")) {
+      "_raw_" + lowerCamelCase(s.substring("_raw_".length))
+    } else {
+      Utils.lowerCamelCase(s)
+    }
+  }
+
+  override def privateMemberName(ksName: String): String = s"this.${Utils.lowerCamelCase(ksName)}"
+}
+
+object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
+  override def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String): String =
+    s"$outDir/src/${config.javaPackage.replace('.', '/')}/${outFileName(topClassName)}"
+
   def kaitaiType2JavaType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
 
   /**
@@ -349,24 +368,5 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     }
   }
 
-  def lowerCamelCase(s: String): String = {
-    if (s == "_root" || s == "_parent" || s == "_io") {
-      s
-    } else if (s.startsWith("_raw_")) {
-      "_raw_" + lowerCamelCase(s.substring("_raw_".length))
-    } else {
-      Utils.lowerCamelCase(s)
-    }
-  }
-
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
-
-  override def privateMemberName(ksName: String): String = s"this.${Utils.lowerCamelCase(ksName)}"
-}
-
-object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
-  override def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String): String =
-    s"$outDir/src/${config.javaPackage.replace('.', '/')}/${outFileName(topClassName)}"
 }
