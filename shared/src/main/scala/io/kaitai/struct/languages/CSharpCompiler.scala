@@ -86,22 +86,22 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = ${normalIO}.EnsureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.ProcessXorInt(${privateMemberName(varSrc)}, ${expression(xorValue)});")
+        out.puts(s"${privateMemberName(varDest)} = $normalIO.ProcessXorInt(${privateMemberName(varSrc)}, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.ProcessZlib(${privateMemberName(varSrc)});")
+        out.puts(s"${privateMemberName(varDest)} = $normalIO.ProcessZlib(${privateMemberName(varSrc)});")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"${privateMemberName(varDest)} = ${normalIO}.ProcessRotateLeft(${privateMemberName(varSrc)}, $expr, 1);")
+        out.puts(s"${privateMemberName(varDest)} = $normalIO.ProcessRotateLeft(${privateMemberName(varSrc)}, $expr, 1);")
     }
   }
 
