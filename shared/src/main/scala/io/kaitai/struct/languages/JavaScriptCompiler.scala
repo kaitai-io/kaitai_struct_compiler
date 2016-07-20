@@ -81,12 +81,11 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"this.$varDest = new Uint8Array(this.$varSrc.length);")
-        out.puts(s"for (var i = 0; i < this.$varSrc.length; i++) {")
-        out.inc
-        out.puts(s"this.$varDest[i] = this.$varSrc[i] ^ (${expression(xorValue)});")
-        out.dec
-        out.puts("}")
+        val procName = translator.detectType(xorValue) match {
+          case _: IntType => "processXorOne"
+          case _: BytesType => "processXorMany"
+        }
+        out.puts(s"${privateMemberName(varDest)} = KaitaiStream.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)});")
       case ProcessZlib =>
         out.puts(s"this.$varDest = KaitaiStream.processZlib(this.$varSrc);")
       case ProcessRotate(isLeft, rotValue) =>
@@ -261,7 +260,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
     }
   }
 
-  override def privateMemberName(ksName: String): String = s"this.${Utils.lowerCamelCase(ksName)}"
+  override def privateMemberName(ksName: String): String = s"this.$ksName"
 }
 
 object JavaScriptCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
