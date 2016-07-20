@@ -44,7 +44,9 @@ object DataType {
   }
 
   abstract class BytesType extends BaseType with Processing
-  case object CalcBytesType extends StrType
+  case object CalcBytesType extends BytesType {
+    override def process = None
+  }
   case class FixedBytesType(contents: Array[Byte], override val process: Option[ProcessExpr]) extends BytesType
   case class BytesEosType(override val process: Option[ProcessExpr]) extends BytesType
   case class BytesLimitType(s: Ast.expr, override val process: Option[ProcessExpr]) extends BytesType
