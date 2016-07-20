@@ -70,14 +70,14 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
         }
         out.puts(s"${privateMemberName(varDest)} = KaitaiStruct.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)})")
       case ProcessZlib =>
-        out.puts(s"self.$varDest = zlib.decompress(self.$varSrc)")
+        out.puts(s"${privateMemberName(varDest)} = zlib.decompress(${privateMemberName(varSrc)})")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"self.$varDest = KaitaiStruct.process_rotate_left(self.$varSrc, $expr, 1)")
+        out.puts(s"${privateMemberName(varDest)} = KaitaiStruct.process_rotate_left(${privateMemberName(varSrc)}, $expr, 1)")
     }
   }
 
