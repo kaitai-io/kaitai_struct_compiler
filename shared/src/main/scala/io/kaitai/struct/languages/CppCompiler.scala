@@ -173,12 +173,11 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        outHdr.puts(s"this->$varDest = new byte[this.$varSrc.length];")
-        outHdr.puts(s"for (int i = 0; i < this.$varSrc.length; i++) {")
-        outHdr.inc
-        outHdr.puts(s"this->$varDest[i] = (byte) (this->$varSrc[i] ^ (${expression(xorValue)}));")
-        outHdr.dec
-        outHdr.puts("}")
+        val procName = translator.detectType(xorValue) match {
+          case _: IntType => "process_xor_one"
+          case _: BytesType => "process_xor_many"
+        }
+        outSrc.puts(s"${privateMemberName(varDest)} = $kstreamName::$procName(${privateMemberName(varSrc)}, ${expression(xorValue)});")
     }
   }
 
