@@ -1,8 +1,19 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
+    t match {
+      case Int1Type(_) =>
+        val arrStr = super.doArrayLiteral(t, value)
+        s"$arrStr.pack('C*')"
+      case _ =>
+        super.doArrayLiteral(t, value)
+    }
+  }
+
   override def doName(s: String) = s
 
   override def doEnumByLabel(enumType: String, label: String): String =
