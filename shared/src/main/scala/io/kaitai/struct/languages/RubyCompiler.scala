@@ -71,7 +71,11 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     out.puts(proc match {
       case ProcessXor(xorValue) =>
-        s"${privateMemberName(varDest)} = ${privateMemberName(varSrc)}.bytes.map { |x| (x ^ (${expression(xorValue)})) }.pack('C*')"
+        val procName = translator.detectType(xorValue) match {
+          case _: IntType => "process_xor_one"
+          case _: BytesType => "process_xor_many"
+        }
+        s"${privateMemberName(varDest)} = _io.$procName($varSrc, ${expression(xorValue)})"
       case ProcessZlib =>
         s"${privateMemberName(varDest)} = Zlib::Inflate.inflate(${privateMemberName(varSrc)})"
       case ProcessRotate(isLeft, rotValue) =>
