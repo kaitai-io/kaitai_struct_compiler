@@ -64,13 +64,11 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"self.$varDest = array.array('B', self.$varSrc);")
-        out.puts(s"for i in xrange(len(self.$varDest)):")
-        out.inc
-        out.puts(s"self.$varDest[i] ^= ${expression(xorValue)}")
-        out.dec
-        out.puts
-        out.puts(s"self.$varDest = self.$varDest.tostring()")
+        val procName = translator.detectType(xorValue) match {
+          case _: IntType => "process_xor_one"
+          case _: BytesType => "process_xor_many"
+        }
+        out.puts(s"${privateMemberName(varDest)} = KaitaiStruct.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)})")
       case ProcessZlib =>
         out.puts(s"self.$varDest = zlib.decompress(self.$varSrc)")
       case ProcessRotate(isLeft, rotValue) =>

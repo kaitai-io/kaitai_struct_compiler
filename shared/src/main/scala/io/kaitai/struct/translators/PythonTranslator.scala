@@ -3,9 +3,21 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
 
 class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doStringLiteral(s: String): String = "u\"" + s + "\""
+
+  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
+    t match {
+      case Int1Type(_) =>
+        val arrStr = super.doArrayLiteral(t, value)
+        s"str(bytearray($arrStr))"
+      case _ =>
+        super.doArrayLiteral(t, value)
+    }
+  }
+
   override def doLocalName(s: String) = s"self.${doName(s)}"
   override def doName(s: String) = s
 
