@@ -212,7 +212,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + ".readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"${type2class(enumName)}.byId($io.read${Utils.capitalize(t.apiCall)}())"
+        s"${type2class(enumName)}.byId(${parseExpr(t, io)})"
       case BytesLimitType(size, _) =>
         s"$io.readBytes(${expression(size)})"
       case BytesEosType(_) =>
