@@ -148,7 +148,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
   }
 
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.push(${expr});")
+    out.puts(s"this.${lowerCamelCase(id)}.push($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -165,7 +165,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
   }
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}[i] = ${expr};")
+    out.puts(s"this.${lowerCamelCase(id)}[i] = $expr;")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -174,7 +174,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
   }
 
   override def handleAssignmentSimple(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)} = ${expr};")
+    out.puts(s"this.${lowerCamelCase(id)} = $expr;")
   }
 
   override def parseExpr(dataType: BaseType, io: String): String = {
@@ -188,7 +188,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
       case StrEosType(encoding) =>
         io + ".readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + ".readStrz(\"" + encoding + '"' + s", ${terminator}, ${include}, ${consume}, ${eosError})"
+        io + ".readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
         // Just an integer, without any casts / resolutions - one would have to look up constants manually
         s"$io.read${Utils.capitalize(t.apiCall)}()"
