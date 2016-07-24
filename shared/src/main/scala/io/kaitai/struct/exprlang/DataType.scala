@@ -20,6 +20,17 @@ object DataType {
   case object BigEndian extends Endianness {
     override def toString = "be"
   }
+  object Endianness {
+    def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String) = s match {
+      case Some("le") => LittleEndian
+      case Some("be") => BigEndian
+      case None =>
+        defaultEndian match {
+          case Some(e) => e
+          case None => throw new RuntimeException(s"unable to use type '$dt' without default endianness")
+        }
+    }
+  }
 
   sealed trait BaseType
 
@@ -127,15 +138,7 @@ object DataType {
             case "4" => Width4
             case "8" => Width8
           },
-          endianStr match {
-            case "le" => LittleEndian
-            case "be" => BigEndian
-            case null =>
-              defaultEndian match {
-                case Some(e) => e
-                case None => throw new RuntimeException(s"unable to use integer type '$dt' without default endianness")
-              }
-          }
+          Endianness.fromString(Option(endianStr), defaultEndian, dt)
         )
       case ReFloatType(widthStr, endianStr) =>
         FloatMultiType(
@@ -143,15 +146,7 @@ object DataType {
             case "4" => Width4
             case "8" => Width8
           },
-          endianStr match {
-            case "le" => LittleEndian
-            case "be" => BigEndian
-            case null =>
-              defaultEndian match {
-                case Some(e) => e
-                case None => throw new RuntimeException(s"unable to use floating point type '$dt' without default endianness")
-              }
-          }
+          Endianness.fromString(Option(endianStr), defaultEndian, dt)
         )
       case null =>
         contents match {
