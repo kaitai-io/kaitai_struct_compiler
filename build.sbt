@@ -36,6 +36,8 @@ lazy val compiler = crossProject.in(file(".")).
       "com.github.scopt" %% "scopt" % "3.4.0"
     ),
 
+    testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
+
     // Create symlink to allow calling compiler quickly as "ksc"
     linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", s"/usr/bin/${name.value}"),
 
