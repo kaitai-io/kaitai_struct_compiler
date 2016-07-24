@@ -39,7 +39,7 @@ object DataType {
   case class IntMultiType(signed: Boolean, width: IntWidth, endian: Endianness) extends IntType with ReadableType {
     override def apiCall: String = {
       val ch1 = if (signed) 's' else 'u'
-      s"${ch1}${width.width}${endian.toString}"
+      s"$ch1${width.width}${endian.toString}"
     }
   }
 
@@ -133,7 +133,7 @@ object DataType {
             case null =>
               defaultEndian match {
                 case Some(e) => e
-                case None => throw new RuntimeException(s"unable to use integer type '${dt}' without default endianness")
+                case None => throw new RuntimeException(s"unable to use integer type '$dt' without default endianness")
               }
           }
         )
@@ -149,7 +149,7 @@ object DataType {
             case null =>
               defaultEndian match {
                 case Some(e) => e
-                case None => throw new RuntimeException(s"unable to use floating point type '${dt}' without default endianness")
+                case None => throw new RuntimeException(s"unable to use floating point type '$dt' without default endianness")
               }
           }
         )
@@ -157,7 +157,7 @@ object DataType {
         contents match {
           case Some(c) => FixedBytesType(c, process)
           case _ =>
-            ((size, sizeEos)) match {
+            (size, sizeEos) match {
               case (Some(bs: Ast.expr), false) => BytesLimitType(bs, process)
               case (None, true) => BytesEosType(process)
               case (None, false) =>
@@ -169,7 +169,7 @@ object DataType {
       case "str" =>
         if (encoding.isEmpty)
           throw new RuntimeException("type str: encoding must be specified")
-        ((size, sizeEos)) match {
+        (size, sizeEos) match {
           case (Some(bs: Ast.expr), false) => StrByteLimitType(bs, encoding.get)
           case (None, true) => StrEosType(encoding.get)
           case (None, false) =>
@@ -183,7 +183,7 @@ object DataType {
         StrZType(encoding.get, terminator, include, consume, eosError)
       case _ =>
         val dtl = dt.split("::", -1).toList
-        ((size, sizeEos)) match {
+        (size, sizeEos) match {
           case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, bs, process)
           case (None, true) => UserTypeEos(dtl, process)
           case (None, false) =>
