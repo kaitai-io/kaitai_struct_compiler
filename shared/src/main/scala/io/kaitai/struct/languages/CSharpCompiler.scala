@@ -92,7 +92,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"${privateMemberName(varDest)} = $normalIO.ProcessXorInt(${privateMemberName(varSrc)}, ${expression(xorValue)});")
+        out.puts(s"${privateMemberName(varDest)} = $normalIO.ProcessXor(${privateMemberName(varSrc)}, ${expression(xorValue)});")
       case ProcessZlib =>
         out.puts(s"${privateMemberName(varDest)} = $normalIO.ProcessZlib(${privateMemberName(varSrc)});")
       case ProcessRotate(isLeft, rotValue) =>
@@ -250,6 +250,35 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts("}")
   }
 
+  def publicMemberName(ksName: String): String = {
+    if (ksName.startsWith("_"))
+      s"M${Utils.upperCamelCase(ksName)}"
+    else
+      Utils.upperCamelCase(ksName)
+  }
+
+  override def privateMemberName(ksName: String): String = {
+    if (ksName.startsWith("_"))
+      s"m${Utils.lowerCamelCase(ksName)}"
+    else
+      s"_${Utils.lowerCamelCase(ksName)}"
+  }
+
+  def kstructName = "KaitaiStruct"
+
+  def kstreamName = "KaitaiStream"
+
+  def type2class(name: String): String = name match {
+    case "kaitai_struct" => kstructName
+    case "kaitai_stream" => kstreamName
+    case _ => Utils.upperCamelCase(name)
+  }
+}
+
+object CSharpCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
+
   /**
     * Determine .NET data type corresponding to a KS data type.
     *
@@ -281,33 +310,4 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
-
-  def publicMemberName(ksName: String): String = {
-    if (ksName.startsWith("_"))
-      s"M${Utils.upperCamelCase(ksName)}"
-    else
-      Utils.upperCamelCase(ksName)
-  }
-
-  override def privateMemberName(ksName: String): String = {
-    if (ksName.startsWith("_"))
-      s"m${Utils.lowerCamelCase(ksName)}"
-    else
-      s"_${Utils.lowerCamelCase(ksName)}"
-  }
-
-  def kstructName = "KaitaiStruct"
-
-  def kstreamName = "KaitaiStream"
-
-  def type2class(name: String): String = name match {
-    case "kaitai_struct" => kstructName
-    case "kaitai_stream" => kstreamName
-    case _ => Utils.upperCamelCase(name)
-  }
-}
-
-object CSharpCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
 }

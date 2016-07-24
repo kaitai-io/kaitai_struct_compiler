@@ -3,8 +3,22 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
+import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
+import io.kaitai.struct.languages.CSharpCompiler
 
 class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
+    t match {
+      case Int1Type(_) =>
+        val commaStr = value.map((v) => s"${translate(v)}").mkString(", ")
+        s"new byte[] { $commaStr }"
+      case _ =>
+        val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
+        val commaStr = value.map((v) => translate(v)).mkString(", ")
+        s"new List<$nativeType> { $commaStr }"
+    }
+  }
+
   override def doName(s: String) =
     if (s.startsWith("_"))
       s"M${Utils.upperCamelCase(s)}"
