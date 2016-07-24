@@ -23,26 +23,29 @@ object DataType {
 
   sealed trait BaseType
 
-  abstract class IntType extends BaseType {
+  /**
+    * A common trait for all types that can be read with a simple,
+    * parameterless KaitaiStream API call.
+    */
+  trait ReadableType extends BaseType {
     def apiCall: String
   }
-  case object CalcIntType extends IntType {
-    override def apiCall: String = ???
-  }
-  case class Int1Type(signed: Boolean) extends IntType {
+
+  abstract class IntType extends BaseType
+  case object CalcIntType extends IntType
+  case class Int1Type(signed: Boolean) extends IntType with ReadableType {
     override def apiCall: String = if (signed) "s1" else "u1"
   }
-  case class IntMultiType(signed: Boolean, width: IntWidth, endian: Endianness) extends IntType {
+  case class IntMultiType(signed: Boolean, width: IntWidth, endian: Endianness) extends IntType with ReadableType {
     override def apiCall: String = {
       val ch1 = if (signed) 's' else 'u'
       s"${ch1}${width.width}${endian.toString}"
     }
   }
 
-  abstract class FloatType extends BaseType {
-    def apiCall: String
-  }
-  case class FloatMultiType(width: IntWidth, endian: Endianness) extends FloatType {
+  abstract class FloatType extends BaseType
+  case object CalcFloatType extends FloatType
+  case class FloatMultiType(width: IntWidth, endian: Endianness) extends FloatType with ReadableType {
     override def apiCall: String = {
       s"f${width.width}${endian.toString}"
     }
@@ -195,7 +198,7 @@ object DataType {
     enumRef match {
       case Some(enumName) =>
         r match {
-          case numType: IntType => EnumType(enumName, numType)
+          case numType: IntType with ReadableType => EnumType(enumName, numType)
           case _ =>
             throw new RuntimeException(s"tried to resolve non-integer $r to enum")
         }

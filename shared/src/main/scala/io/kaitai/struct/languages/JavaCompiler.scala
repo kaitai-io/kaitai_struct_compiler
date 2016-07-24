@@ -202,7 +202,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
-      case t: IntType =>
+      case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall)}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>

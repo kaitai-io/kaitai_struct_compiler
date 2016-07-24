@@ -176,7 +176,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
-      case t: IntType =>
+      case t: ReadableType =>
         s"$io.Read${Utils.capitalize(t.apiCall)}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
@@ -186,7 +186,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + ".ReadStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"((${type2class(enumName)}) $io.Read${Utils.capitalize(t.apiCall)}())"
+        s"((${type2class(enumName)}) ${parseExpr(t, io)})"
       case BytesLimitType(size, _) =>
         s"$io.ReadBytes(${expression(size)})"
       case BytesEosType(_) =>

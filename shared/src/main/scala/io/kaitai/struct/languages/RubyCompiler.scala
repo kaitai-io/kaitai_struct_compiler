@@ -184,7 +184,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
-      case t: IntType =>
+      case t: ReadableType =>
         s"$io.read_${t.apiCall}"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
@@ -194,7 +194,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + ".read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"${value2Const(enumName)}[$io.read_${t.apiCall}]"
+        s"${value2Const(enumName)}[${parseExpr(t, io)}]"
 
       case BytesLimitType(size, _) =>
         s"$io.read_bytes(${expression(size)})"

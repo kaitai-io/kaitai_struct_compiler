@@ -179,7 +179,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
-      case t: IntType =>
+      case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall)}()"
 
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
@@ -191,7 +191,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
         io + ".readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
         // Just an integer, without any casts / resolutions - one would have to look up constants manually
-        s"$io.read${Utils.capitalize(t.apiCall)}()"
+        parseExpr(t, io)
 
       case BytesLimitType(size, _) =>
         s"$io.readBytes(${expression(size)})"

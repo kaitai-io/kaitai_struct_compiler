@@ -150,7 +150,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
-      case t: IntType =>
+      case t: ReadableType =>
         s"self.read_${t.apiCall}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
@@ -160,7 +160,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case StrZType(encoding, terminator, include, consume, eosError) =>
         "self.read_strz(\"" + encoding + '"' + s", $terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
       case EnumType(enumName, t) =>
-        s"self._root.${type2class(enumName)}(self.read_${t.apiCall}())"
+        s"self._root.${type2class(enumName)}(${parseExpr(t, io)})"
 
       case BytesLimitType(size, _) =>
         s"self._io.read(${expression(size)})"
