@@ -12,7 +12,8 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     with UpperCamelCaseClasses
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
+
+  override def getStatic = PythonCompiler
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
@@ -213,6 +214,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 }
 
 object PythonCompiler extends LanguageCompilerStatic {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"$topClassName.py"
 }

@@ -13,7 +13,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     with NoNeedForFullClassPath {
   import CSharpCompiler._
 
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new CSharpTranslator(tp)
+  override def getStatic = CSharpCompiler
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
@@ -276,6 +276,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 }
 
 object CSharpCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new CSharpTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
 

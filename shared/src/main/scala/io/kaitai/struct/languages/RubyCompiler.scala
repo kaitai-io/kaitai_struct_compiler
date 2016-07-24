@@ -12,7 +12,8 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     with UpperCamelCaseClasses
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
+
+  override def getStatic = RubyCompiler
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
@@ -250,6 +251,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
 }
 
 object RubyCompiler extends LanguageCompilerStatic {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
   override def outFileName(topClassName: String): String = s"$topClassName.rb"
   override def indent: String = "  "
 }

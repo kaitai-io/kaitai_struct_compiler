@@ -12,11 +12,11 @@ import scala.collection.mutable.ListBuffer
 abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   protected var _translator: Option[BaseTranslator] = None
 
+  def getStatic: LanguageCompilerStatic
   def open(topClassName: String, tp: TypeProvider): Unit = {
-    _translator = Some(getTranslator(tp))
+    _translator = Some(getStatic.getTranslator(tp))
   }
   def close = out.close
-  def getTranslator(tp: TypeProvider): BaseTranslator
   def translator: BaseTranslator = _translator.get
 
   def headerComment = "This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild"
@@ -80,6 +80,7 @@ trait LanguageCompilerStatic {
   def indent: String
   def outFileName(topClassName: String): String
   def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String) = s"$outDir/${outFileName(topClassName)}"
+  def getTranslator(tp: TypeProvider): BaseTranslator
 }
 
 object LanguageCompilerStatic {

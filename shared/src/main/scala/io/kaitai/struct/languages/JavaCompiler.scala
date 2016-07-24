@@ -13,7 +13,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     with NoNeedForFullClassPath {
   import JavaCompiler._
 
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
+  override def getStatic = JavaCompiler
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
@@ -302,6 +302,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
 }
 
 object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
   override def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String): String =

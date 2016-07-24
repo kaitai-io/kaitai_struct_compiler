@@ -14,7 +14,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
     with NoNeedForFullClassPath {
   import JavaScriptCompiler._
 
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
+  override def getStatic = JavaCompiler
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
@@ -264,6 +264,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
 }
 
 object JavaScriptCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
 

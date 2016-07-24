@@ -12,13 +12,13 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     with EveryReadIsExpression {
   import CppCompiler._
 
+  override def getStatic = CppCompiler
+
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
   case object PublicAccess extends AccessMode
 
   var accessMode: AccessMode = PrivateAccess
-
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new CppTranslator(tp)
 
   override def fileHeader(topClassName: String): Unit = {
     outSrc.puts(s"// $headerComment")
@@ -454,6 +454,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 }
 
 object CppCompiler extends LanguageCompilerStatic {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new CppTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = topClassName
 }
