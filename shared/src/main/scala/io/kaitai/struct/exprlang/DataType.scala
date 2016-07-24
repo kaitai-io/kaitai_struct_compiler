@@ -39,6 +39,15 @@ object DataType {
     }
   }
 
+  abstract class FloatType extends BaseType {
+    def apiCall: String
+  }
+  case class FloatMultiType(width: IntWidth, endian: Endianness) extends FloatType {
+    override def apiCall: String = {
+      s"f${width.width}${endian.toString}"
+    }
+  }
+
   trait Processing {
     def process: Option[ProcessExpr]
   }
@@ -85,6 +94,7 @@ object DataType {
   case class EnumType(name: String, basedOn: IntType) extends BaseType
 
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
+  private val ReFloatType = """f(4|8)(le|be)?""".r
 
   def fromYaml(
     dt: String,
@@ -121,6 +131,22 @@ object DataType {
               defaultEndian match {
                 case Some(e) => e
                 case None => throw new RuntimeException(s"unable to use integer type '${dt}' without default endianness")
+              }
+          }
+        )
+      case ReFloatType(widthStr, endianStr) =>
+        FloatMultiType(
+          widthStr match {
+            case "4" => Width4
+            case "8" => Width8
+          },
+          endianStr match {
+            case "le" => LittleEndian
+            case "be" => BigEndian
+            case null =>
+              defaultEndian match {
+                case Some(e) => e
+                case None => throw new RuntimeException(s"unable to use floating point type '${dt}' without default endianness")
               }
           }
         )
