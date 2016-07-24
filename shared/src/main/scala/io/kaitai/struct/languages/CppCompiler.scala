@@ -178,6 +178,13 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
           case _: BytesType => "process_xor_many"
         }
         outSrc.puts(s"${privateMemberName(varDest)} = $kstreamName::$procName(${privateMemberName(varSrc)}, ${expression(xorValue)});")
+      case ProcessRotate(isLeft, rotValue) =>
+        val expr = if (isLeft) {
+          expression(rotValue)
+        } else {
+          s"8 - (${expression(rotValue)})"
+        }
+        outSrc.puts(s"${privateMemberName(varDest)} = $kstreamName::process_rotate_left(${privateMemberName(varSrc)}, $expr);")
     }
   }
 
