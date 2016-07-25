@@ -10,11 +10,15 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   val tests = Table(
     ("src", "srcType", "expType", "expOut"),
+
+    // Integer literals + unary minus
     everybody("123", "123", Int1Type(true)),
     everybody("223", "223", Int1Type(false)),
     everybody("1234", "1234"),
     everybody("-456", "-456"),
     everybody("0x1234", "4660"),
+
+    // Simple integer operations
     everybody("1 + 2", "(1 + 2)"),
 
     everybodyExcept("3 / 2", "(3 / 2)", Map(
@@ -29,16 +33,6 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     everybody("1 < 2", "1 < 2", BooleanType),
 
-    full("a[42]", ArrayType(CalcStrType), CalcStrType, Map(
-      JavaCompiler -> "a().get(42)",
-      RubyCompiler -> "a[42]"
-    )),
-
-    full("a[42 - 2]", ArrayType(CalcStrType), CalcStrType, Map(
-      JavaCompiler -> "a().get((42 - 2))",
-      RubyCompiler -> "a[(42 - 2)]"
-    )),
-
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map(
       JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
@@ -49,6 +43,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("~(7+3)", "~(7 + 3)"),
 
     full("foo_str", CalcStrType, CalcStrType, Map(
+      CppCompiler -> "foo_str()",
+      CSharpCompiler -> "FooStr",
       JavaCompiler -> "fooStr()",
       JavaScriptCompiler -> "this.fooStr",
       PythonCompiler -> "self.foo_str",
@@ -56,6 +52,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("foo_block", userType("block"), userType("block"), Map(
+      CppCompiler -> "foo_block()",
+      CSharpCompiler -> "FooBlock",
       JavaCompiler -> "fooBlock()",
       JavaScriptCompiler -> "this.fooBlock",
       PythonCompiler -> "self.foo_block",
@@ -63,6 +61,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("foo.bar", FooBarProvider, CalcStrType, Map(
+      CSharpCompiler -> "Foo.Bar",
       JavaCompiler -> "foo().bar()",
       JavaScriptCompiler -> "this.foo.bar",
       PythonCompiler -> "self.foo.bar",
@@ -70,6 +69,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("foo.inner.baz", FooBarProvider, CalcIntType, Map(
+      CSharpCompiler -> "Foo.Inner.Baz",
       JavaCompiler -> "foo().inner().baz()",
       JavaScriptCompiler -> "this.foo.inner.baz",
       PythonCompiler -> "self.foo.inner.baz",
@@ -90,7 +90,38 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "a != 2 && a != 5"
     )),
 
+    // Arrays
+    full("[0, 1, 100500]", CalcIntType, ArrayType(CalcIntType), Map(
+      JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
+      JavaScriptCompiler -> "[0, 1, 100500]",
+      PythonCompiler -> "[0, 1, 100500]",
+      RubyCompiler -> "[0, 1, 100500]"
+    )),
+
+    full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map(
+      CppCompiler -> "std::string(\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\", 7)",
+      JavaCompiler -> "new byte[] { (byte) 34, (byte) 0, (byte) 10, (byte) 64, (byte) 65, (byte) 66, (byte) 92 }",
+      JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
+      PythonCompiler -> "str(bytearray([34, 0, 10, 64, 65, 66, 92]))",
+      RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')"
+    )),
+
+    full("a[42]", ArrayType(CalcStrType), CalcStrType, Map(
+      JavaCompiler -> "a().get(42)",
+      JavaScriptCompiler -> "this.a[42]",
+      PythonCompiler -> "self.a[42]",
+      RubyCompiler -> "a[42]"
+    )),
+
+    full("a[42 - 2]", ArrayType(CalcStrType), CalcStrType, Map(
+      JavaCompiler -> "a().get((42 - 2))",
+      JavaScriptCompiler -> "this.a[(42 - 2)]",
+      PythonCompiler -> "self.a[(42 - 2)]",
+      RubyCompiler -> "a[(42 - 2)]"
+    )),
+
     full("a.first", ArrayType(CalcIntType), CalcIntType, Map(
+      CppCompiler -> "m_a[0]",
       JavaCompiler -> "a().get(0)",
       JavaScriptCompiler -> "this.a[0]",
       PythonCompiler -> "self.a[0]",
