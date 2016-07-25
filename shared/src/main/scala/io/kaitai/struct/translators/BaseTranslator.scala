@@ -1,7 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.{cmpop, identifier, expr}
+import io.kaitai.struct.exprlang.Ast.{cmpop, expr, identifier}
 import io.kaitai.struct.exprlang.DataType._
 
 trait TypeProvider {
@@ -17,6 +17,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     v match {
       case Ast.expr.IntNum(n) =>
         doIntLiteral(n)
+      case Ast.expr.FloatNum(n) =>
+        doFloatLiteral(n)
       case Ast.expr.Str(s) =>
         doStringLiteral(s)
       case Ast.expr.EnumByLabel(enumType, label) =>
@@ -27,8 +29,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         s"${unaryOp(op)}${translate(v)}"
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
-          case (_: IntType, _: IntType) =>
-            doIntCompareOp(left, op, right)
+          case (_: NumericType, _: NumericType) =>
+            doNumericCompareOp(left, op, right)
           case (_: StrType, _: StrType) =>
             doStrCompareOp(left, op, right)
           case (EnumType(ltype, _), EnumType(rtype, _)) =>
@@ -42,8 +44,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         }
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
-          case (_: IntType, _: IntType, _) =>
-            intBinOp(left, op, right)
+          case (_: NumericType, _: NumericType, _) =>
+            numericBinOp(left, op, right)
           case (_: StrType, _: StrType, Ast.operator.Add) =>
             strConcat(left, right)
           case (ltype, rtype, _) =>
@@ -89,7 +91,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     }
   }
 
-  def intBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     s"(${translate(left)} ${binOp(op)} ${translate(right)})"
   }
 
@@ -107,7 +109,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     }
   }
 
-  def doIntCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
+  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
   }
 
@@ -151,6 +153,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
 
   // Literals
   def doIntLiteral(n: Any): String = n.toString
+  def doFloatLiteral(n: Any): String = n.toString
   def doStringLiteral(s: String): String = "\"" + s + "\""
   def doArrayLiteral(t: BaseType, value: Seq[expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
 
@@ -181,22 +184,24 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           // [128..255] => unsigned 1-byte integer
           Int1Type(false)
         }
+      case Ast.expr.FloatNum(_) => CalcFloatType
       case Ast.expr.Str(_) => CalcStrType
       case Ast.expr.EnumByLabel(enumType, _) => EnumType(enumType.name, CalcIntType)
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
-        t match {
-          case Int1Type(false) => CalcIntType
-          case _: IntType => t
+        (t, op) match {
+          case (Int1Type(false), _) => CalcIntType
+          case (_: IntType, _) => t
+          case (_: FloatType, Ast.unaryop.Minus) => t
           case _ => throw new RuntimeException(s"unable to apply unary operator ${op} to ${t}")
         }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         val ltype = detectType(left)
         val rtype = detectType(right)
         (ltype, rtype) match {
-          case (_: IntType, _: IntType) => // ok
           case (_: StrType, _: StrType) => // ok
+          case (_: NumericType, _: NumericType) => // ok
           case (EnumType(name1, _), EnumType(name2, _)) =>
             if (name1 != name2) {
               throw new TypeMismatchError(s"can't compare different enums '$name1' and '$name2'")
@@ -213,6 +218,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
           case (_: IntType, _: IntType, _) => CalcIntType
+          case (_: NumericType, _: NumericType, _) => CalcFloatType
           case (_: StrType, _: StrType, Ast.operator.Add) => CalcStrType
           case (ltype, rtype, _) =>
             throw new RuntimeException(s"can't apply operator ${op} to ${ltype} and ${rtype}")
@@ -296,6 +302,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         case (Int1Type(false), Int1Type(true)) => Int1Type(false)
         case (Int1Type(true), Int1Type(false)) => Int1Type(false)
         case (_: IntType, _: IntType) => CalcIntType
+        case (_: NumericType, _: NumericType) => CalcFloatType
         case _ => throw new TypeMismatchError(s"ternary operator with different output types: ${t1} vs ${t2}")
       }
     }

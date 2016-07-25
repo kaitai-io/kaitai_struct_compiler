@@ -115,8 +115,8 @@ object Expressions {
       enumByName |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
       NAME.map(Ast.expr.Name(_)) |
-      INT_NUMBER.map(Ast.expr.IntNum) |
-      FLOAT_NUMBER.map(Ast.expr.FloatNum)
+      FLOAT_NUMBER.map(Ast.expr.FloatNum) |
+      INT_NUMBER.map(Ast.expr.IntNum)
     )
   }
   val list_contents = P( test.rep(1, ",") ~ ",".? )
