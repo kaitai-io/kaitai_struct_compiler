@@ -1,7 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.exprlang.Expressions
+import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.languages._
 import org.scalatest.FunSuite
 import org.scalatest.Matchers._
@@ -18,7 +18,12 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("-456", "-456"),
     everybody("0x1234", "4660"),
 
-    // Simple integer operations
+    // Float literals
+    everybody("1.0", "1.0", CalcFloatType),
+    everybody("123.456", "123.456", CalcFloatType),
+    everybody("-123.456", "-123.456", CalcFloatType),
+
+      // Simple integer operations
     everybody("1 + 2", "(1 + 2)"),
 
     everybodyExcept("3 / 2", "(3 / 2)", Map(
@@ -140,18 +145,26 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   )
 
   for ((src, tp, expType, expOut) <- tests) {
-    val e = Expressions.parse(src)
-    LanguageCompilerStatic.NAME_TO_CLASS.foreach { case (langName, langObj) =>
-      test(s"$langName:$src") {
-        val tr: BaseTranslator = langObj.getTranslator(tp)
-        expOut.get(langObj) match {
-          case Some(expResult) =>
-            tr.detectType(e) should be(expType)
-            tr.translate(e) should be(expResult)
-          case None =>
-            fail("no expected result")
+    var eo: Option[Ast.expr] = None
+    test(s"_expr:$src") {
+      eo = Some(Expressions.parse(src))
+    }
+
+    eo match {
+      case Some(e) =>
+        LanguageCompilerStatic.NAME_TO_CLASS.foreach { case (langName, langObj) =>
+          test(s"$langName:$src") {
+            val tr: BaseTranslator = langObj.getTranslator(tp)
+            expOut.get(langObj) match {
+              case Some(expResult) =>
+                tr.detectType(e) should be(expType)
+                tr.translate(e) should be(expResult)
+              case None =>
+                fail("no expected result")
+            }
+          }
         }
-      }
+      case None => // no translations to perform, as expression parsing has failed
     }
   }
 
