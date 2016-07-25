@@ -7,6 +7,8 @@ import org.scalatest.FunSuite
 import org.scalatest.Matchers._
 import org.scalatest.prop.TableDrivenPropertyChecks
 
+import scala.util._
+
 class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   val tests = Table(
     ("src", "srcType", "expType", "expOut"),
@@ -17,6 +19,11 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("1234", "1234"),
     everybody("-456", "-456"),
     everybody("0x1234", "4660"),
+
+    // Float literals
+    everybody("1.0", "1.0", CalcFloatType),
+    everybody("123.456", "123.456", CalcFloatType),
+    everybody("-123.456", "-123.456", CalcFloatType),
 
     // Simple integer operations
     everybody("1 + 2", "(1 + 2)"),
@@ -43,6 +50,16 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("~777", "~777"),
     everybody("~(7+3)", "~(7 + 3)"),
 
+    // Simple float operations
+    everybody("1.2 + 3.4", "(1.2 + 3.4)", CalcFloatType),
+    everybody("1.2 + 3", "(1.2 + 3)", CalcFloatType),
+    everybody("1 + 3.4", "(1 + 3.4)", CalcFloatType),
+
+    everybody("3 / 2.0", "(3 / 2.0)", CalcFloatType),
+
+    everybody("(1 + 2) / (7 * 8.1)", "((1 + 2) / (7 * 8.1))", CalcFloatType),
+
+    // Member access
     full("foo_str", CalcStrType, CalcStrType, Map(
       CppCompiler -> "foo_str()",
       CSharpCompiler -> "FooStr",
@@ -149,16 +166,21 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   )
 
   for ((src, tp, expType, expOut) <- tests) {
-    val e = Expressions.parse(src)
+    val tryParse = Try(Expressions.parse(src))
     LanguageCompilerStatic.NAME_TO_CLASS.foreach { case (langName, langObj) =>
       test(s"$langName:$src") {
-        val tr: BaseTranslator = langObj.getTranslator(tp)
-        expOut.get(langObj) match {
-          case Some(expResult) =>
-            tr.detectType(e) should be(expType)
-            tr.translate(e) should be(expResult)
-          case None =>
-            fail("no expected result")
+        tryParse match {
+          case Failure(ex) =>
+            fail("failed to parse")
+          case Success(e) =>
+            val tr: BaseTranslator = langObj.getTranslator(tp)
+            expOut.get(langObj) match {
+              case Some(expResult) =>
+                tr.detectType(e) should be(expType)
+                tr.translate(e) should be(expResult)
+              case None =>
+                fail("no expected result")
+            }
         }
       }
     }
