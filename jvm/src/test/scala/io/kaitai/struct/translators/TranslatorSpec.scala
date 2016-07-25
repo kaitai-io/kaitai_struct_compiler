@@ -23,7 +23,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("123.456", "123.456", CalcFloatType),
     everybody("-123.456", "-123.456", CalcFloatType),
 
-      // Simple integer operations
+    // Simple integer operations
     everybody("1 + 2", "(1 + 2)"),
 
     everybodyExcept("3 / 2", "(3 / 2)", Map(
