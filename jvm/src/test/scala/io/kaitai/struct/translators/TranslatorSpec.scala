@@ -42,12 +42,24 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
-      PythonCompiler -> "\"foo\" if 2 < 3 else \"bar\""
+      PythonCompiler -> "u\"foo\" if 2 < 3 else u\"bar\""
     )),
 
     everybody("~777", "~777"),
     everybody("~(7+3)", "~(7 + 3)"),
 
+    // Simple float operations
+    everybody("1.2 + 3.4", "(1.2 + 3.4)", CalcFloatType),
+    everybody("1.2 + 3", "(1.2 + 3)", CalcFloatType),
+    everybody("1 + 3.4", "(1 + 3.4)", CalcFloatType),
+
+    everybody("1.0 < 2", "1.0 < 2", BooleanType),
+
+    everybody("3 / 2.0", "(3 / 2.0)", CalcFloatType),
+
+    everybody("(1 + 2) / (7 * 8.1)", "((1 + 2) / (7 * 8.1))", CalcFloatType),
+
+    // Member access
     full("foo_str", CalcStrType, CalcStrType, Map(
       CppCompiler -> "foo_str()",
       CSharpCompiler -> "FooStr",
@@ -159,10 +171,10 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       eo = Some(Expressions.parse(src))
     }
 
-    eo match {
-      case Some(e) =>
-        LanguageCompilerStatic.NAME_TO_CLASS.foreach { case (langName, langObj) =>
-          test(s"$langName:$src") {
+    LanguageCompilerStatic.NAME_TO_CLASS.foreach { case (langName, langObj) =>
+      test(s"$langName:$src") {
+        eo match {
+          case Some(e) =>
             val tr: BaseTranslator = langObj.getTranslator(tp)
             expOut.get(langObj) match {
               case Some(expResult) =>
@@ -171,9 +183,10 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
               case None =>
                 fail("no expected result")
             }
-          }
+          case None =>
+            fail("expression didn't parse")
         }
-      case None => // no translations to perform, as expression parsing has failed
+      }
     }
   }
 
