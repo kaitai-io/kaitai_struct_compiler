@@ -14,7 +14,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
     with NoNeedForFullClassPath {
   import JavaScriptCompiler._
 
-  override def getStatic = JavaCompiler
+  override def getStatic = JavaScriptCompiler
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
