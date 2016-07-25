@@ -42,7 +42,8 @@ object DataType {
     def apiCall: String
   }
 
-  abstract class IntType extends BaseType
+  abstract class NumericType extends BaseType
+  abstract class IntType extends NumericType
   case object CalcIntType extends IntType
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
     override def apiCall: String = if (signed) "s1" else "u1"
@@ -54,7 +55,7 @@ object DataType {
     }
   }
 
-  abstract class FloatType extends BaseType
+  abstract class FloatType extends NumericType
   case object CalcFloatType extends FloatType
   case class FloatMultiType(width: IntWidth, endian: Endianness) extends FloatType with ReadableType {
     override def apiCall: String = {

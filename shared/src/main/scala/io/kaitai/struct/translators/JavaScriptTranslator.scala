@@ -3,14 +3,15 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.exprlang.DataType.IntType
 
 class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
-  override def intBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
-    op match {
-      case Ast.operator.Div =>
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"Math.floor(${translate(left)} / ${translate(right)})"
       case _ =>
-        super.intBinOp(left, op, right)
+        super.numericBinOp(left, op, right)
     }
   }
 
@@ -44,6 +45,6 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String = {
     val v = translate(a)
-    s"$v.get($v.length - 1)"
+    s"$v[$v.length - 1]"
   }
 }
