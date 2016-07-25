@@ -166,21 +166,16 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   )
 
   for ((src, tp, expType, expOut) <- tests) {
-    val tryParse = Try(Expressions.parse(src))
     LanguageCompilerStatic.NAME_TO_CLASS.foreach { case (langName, langObj) =>
       test(s"$langName:$src") {
-        tryParse match {
-          case Failure(ex) =>
-            fail("failed to parse")
-          case Success(e) =>
-            val tr: BaseTranslator = langObj.getTranslator(tp)
-            expOut.get(langObj) match {
-              case Some(expResult) =>
-                tr.detectType(e) should be(expType)
-                tr.translate(e) should be(expResult)
-              case None =>
-                fail("no expected result")
-            }
+        val e = Expressions.parse(src)
+        val tr: BaseTranslator = langObj.getTranslator(tp)
+        expOut.get(langObj) match {
+          case Some(expResult) =>
+            tr.detectType(e) should be(expType)
+            tr.translate(e) should be(expResult)
+          case None =>
+            fail("no expected result")
         }
       }
     }
