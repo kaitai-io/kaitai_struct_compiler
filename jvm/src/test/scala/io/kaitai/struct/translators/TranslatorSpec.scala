@@ -34,6 +34,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("1 < 2", "1 < 2", BooleanType),
 
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map(
+      CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       PythonCompiler -> "\"foo\" if 2 < 3 else \"bar\""
@@ -77,6 +78,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("_root.foo", userType("block"), userType("block"), Map(
+      CSharpCompiler -> "M_Root.Foo",
       JavaCompiler -> "_root.foo()",
       JavaScriptCompiler -> "this._root.foo",
       PythonCompiler -> "self._root.foo",
@@ -84,6 +86,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("a != 2 and a != 5", CalcIntType, BooleanType, Map(
+      CSharpCompiler -> "A != 2 && A != 5",
       JavaCompiler -> "a() != 2 && a() != 5",
       JavaScriptCompiler -> "this.a != 2 && this.a != 5",
       PythonCompiler -> "self.a != 2 and self.a != 5",
@@ -92,6 +95,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     // Arrays
     full("[0, 1, 100500]", CalcIntType, ArrayType(CalcIntType), Map(
+      CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
       JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
       JavaScriptCompiler -> "[0, 1, 100500]",
       PythonCompiler -> "[0, 1, 100500]",
@@ -100,6 +104,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map(
       CppCompiler -> "std::string(\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\", 7)",
+      CSharpCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
       JavaCompiler -> "new byte[] { (byte) 34, (byte) 0, (byte) 10, (byte) 64, (byte) 65, (byte) 66, (byte) 92 }",
       JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
       PythonCompiler -> "str(bytearray([34, 0, 10, 64, 65, 66, 92]))",
@@ -107,6 +112,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("a[42]", ArrayType(CalcStrType), CalcStrType, Map(
+      CSharpCompiler -> "A[42]",
       JavaCompiler -> "a().get(42)",
       JavaScriptCompiler -> "this.a[42]",
       PythonCompiler -> "self.a[42]",
@@ -114,6 +120,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("a[42 - 2]", ArrayType(CalcStrType), CalcStrType, Map(
+      CSharpCompiler -> "A[(42 - 2)]",
       JavaCompiler -> "a().get((42 - 2))",
       JavaScriptCompiler -> "this.a[(42 - 2)]",
       PythonCompiler -> "self.a[(42 - 2)]",
@@ -122,6 +129,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     full("a.first", ArrayType(CalcIntType), CalcIntType, Map(
       CppCompiler -> "m_a[0]",
+      CSharpCompiler -> "A[0]",
       JavaCompiler -> "a().get(0)",
       JavaScriptCompiler -> "this.a[0]",
       PythonCompiler -> "self.a[0]",
@@ -129,6 +137,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("a.last", ArrayType(CalcIntType), CalcIntType, Map(
+      CSharpCompiler -> "A[A.Length - 1]",
       JavaCompiler -> "a().get(a().size() - 1)",
       JavaScriptCompiler -> "this.a[this.a.length - 1]",
       PythonCompiler -> "self.a[-1]",
