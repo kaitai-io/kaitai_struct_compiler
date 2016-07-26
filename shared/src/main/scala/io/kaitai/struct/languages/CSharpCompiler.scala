@@ -298,7 +298,11 @@ object CSharpCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses 
       case IntMultiType(true, Width4, _) => "int"
       case IntMultiType(true, Width8, _) => "long"
 
+      case FloatMultiType(Width4, _) => "float"
+      case FloatMultiType(Width8, _) => "double"
+
       case CalcIntType => "int"
+      case CalcFloatType => "double"
 
       case _: StrType => "string"
       case _: BytesType => "byte[]"
