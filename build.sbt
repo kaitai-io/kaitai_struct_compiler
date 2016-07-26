@@ -20,6 +20,7 @@ lazy val compiler = crossProject.in(file(".")).
     scalaVersion := "2.11.7",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "io.kaitai.struct",
+    buildInfoOptions += BuildInfoOption.BuildTime,
     libraryDependencies ++= Seq(
       "com.lihaoyi" %%% "fastparse" % "0.3.7",
       "org.yaml" % "snakeyaml" % "1.16",
