@@ -241,17 +241,27 @@ object ClassCompiler {
     }
   }
 
-  def fromStringToString(src: String, lang: LanguageCompilerStatic, config: RuntimeConfig): (StringLanguageOutputWriter, ClassCompiler) = {
+  def fromStringToString(src: String, lang: LanguageCompilerStatic, config: RuntimeConfig):
+    (StringLanguageOutputWriter, Option[StringLanguageOutputWriter], ClassCompiler) = {
     val mapper = new ObjectMapper(new YAMLFactory())
     val topClass: ClassSpec = mapper.readValue(src, classOf[ClassSpec])
 
     fromClassSpecToString(topClass, lang, config)
   }
 
-  def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, config: RuntimeConfig): (StringLanguageOutputWriter, ClassCompiler) = {
-    val out = new StringLanguageOutputWriter(lang.indent)
-    val cc = new ClassCompiler(topClass, getCompiler(lang, config, out))
-    (out, cc)
+  def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, config: RuntimeConfig):
+    (StringLanguageOutputWriter, Option[StringLanguageOutputWriter], ClassCompiler) = {
+    lang match {
+      case CppCompiler =>
+        val outSrc = new StringLanguageOutputWriter(lang.indent)
+        val outHdr = new StringLanguageOutputWriter(lang.indent)
+        val cc = new ClassCompiler(topClass, new CppCompiler(config.verbose, outSrc, outHdr))
+        (outSrc, Some(outHdr), cc)
+      case _ =>
+        val out = new StringLanguageOutputWriter(lang.indent)
+        val cc = new ClassCompiler(topClass, getCompiler(lang, config, out))
+        (out, None, cc)
+    }
   }
 
   private def getCompiler(lang: LanguageCompilerStatic, config: RuntimeConfig, out: LanguageOutputWriter) = lang match {
