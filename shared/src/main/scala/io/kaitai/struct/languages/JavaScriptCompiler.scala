@@ -229,7 +229,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
     out.puts(s"return this.${lowerCamelCase(instanceAttrName(instName))};")
   }
 
-  override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
+  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
     out.puts(s"this.${lowerCamelCase(instanceAttrName(instName))} = ${expression(value)};")
   }
 

@@ -330,7 +330,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
+  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
     outSrc.puts(s"${privateMemberName(instName)} = ${expression(value)};")
   }
 

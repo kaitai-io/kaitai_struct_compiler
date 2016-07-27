@@ -228,7 +228,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.puts(s"@$instName")
   }
 
-  override def instanceCalculate(instName: String, value: expr): Unit = {
+  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
     out.puts(s"@${instanceAttrName(instName)} = ${expression(value)}")
   }
 

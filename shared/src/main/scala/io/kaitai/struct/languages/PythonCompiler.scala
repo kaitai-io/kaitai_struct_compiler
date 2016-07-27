@@ -194,7 +194,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts(s"return self.${instanceAttrName(instName)}")
   }
 
-  override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
+  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
     out.puts(s"self.${instanceAttrName(instName)} = ${expression(value)};")
   }
 

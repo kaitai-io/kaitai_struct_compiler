@@ -246,8 +246,21 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.puts(s"return ${lowerCamelCase(instName)};")
   }
 
-  override def instanceCalculate(instName: String, value: Ast.expr): Unit = {
-    out.puts(s"${lowerCamelCase(instName)} = ${expression(value)};")
+  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
+    val primType = kaitaiType2JavaTypePrim(dataType)
+    val boxedType = kaitaiType2JavaTypeBoxed(dataType)
+
+    if (primType != boxedType) {
+      // Special trick to achieve both implicit type conversion + boxing.
+      // Unfortunately, Java can't do both in one assignment, i.e. this would fail:
+      //
+      // Double c = 1.0f + 1;
+
+      out.puts(s"$primType _tmp = ${expression(value)};")
+      out.puts(s"${lowerCamelCase(instName)} = _tmp;")
+    } else {
+      out.puts(s"${lowerCamelCase(instName)} = ${expression(value)};")
+    }
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
@@ -328,9 +341,11 @@ object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
       case IntMultiType(true, Width2, _) => "short"
       case IntMultiType(true, Width4, _) => "int"
       case IntMultiType(true, Width8, _) => "long"
+      case CalcIntType => "long"
 
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
+      case CalcFloatType => "double"
 
       case _: StrType => "String"
       case _: BytesType => "byte[]"

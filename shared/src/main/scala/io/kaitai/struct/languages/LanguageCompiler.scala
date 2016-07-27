@@ -67,7 +67,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: String): Unit
   def instanceReturn(instName: String): Unit
-  def instanceCalculate(instName: String, value: Ast.expr)
+  def instanceCalculate(instName: String, dataType: BaseType, value: expr)
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit
 
