@@ -341,10 +341,11 @@ object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
       case IntMultiType(true, Width2, _) => "short"
       case IntMultiType(true, Width4, _) => "int"
       case IntMultiType(true, Width8, _) => "long"
-      case CalcIntType => "long"
 
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
+
+      case CalcIntType => "int"
       case CalcFloatType => "double"
 
       case _: StrType => "String"
