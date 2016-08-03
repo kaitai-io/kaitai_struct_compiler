@@ -16,6 +16,17 @@ access to it in a nice, easy-to-comprehend API.
 Please refer to [documentation in Kaitai Struct project](https://github.com/kaitai-io/kaitai_struct)
 for details on `.ksy` files and general usage patterns.
 
+## Trying without install
+
+Kaitai Struct compiler can be tried instantly, without any downloads
+and installation, at
+
+http://kaitai.io/repl
+
+Note that this implementation uses the same reference code as in this
+repository and executes totally on a client side, without any queries
+to server backend.
+
 ## Downloading and installing
 
 ### Linux .deb builds (Debian/Ubuntu)
@@ -67,8 +78,8 @@ just as full name.
 Common options:
 
 * `<file>...` — source files (.ksy)
-* `-t <language> | --target <language>` — target languages (`java`,
-  `javascript`, `python`, `ruby`, `all`)
+* `-t <language> | --target <language>` — target languages (`csharp`,
+  `java`, `javascript`, `python`, `ruby`, `all`)
   * `all` is a special case: it compiles all possible target
     languages, creating language-specific directories (as per language
     identifiers) inside output directory, and then creating output
@@ -78,6 +89,7 @@ Common options:
 
 Language-specific options:
 
+* `--dot-net-namespace <namespace>` — .NET namespace (C# only, default: Kaitai)
 * `--java-package <package>` — Java package (Java only, default: root package)
 
 Misc options:
