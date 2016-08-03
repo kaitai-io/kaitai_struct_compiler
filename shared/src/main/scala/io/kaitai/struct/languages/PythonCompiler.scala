@@ -18,7 +18,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
     out.puts
-    out.puts("from kaitaistruct import KaitaiStruct")
+    out.puts("from kaitaistruct import KaitaiStruct, KaitaiStream")
     out.puts("import array")
     out.puts("import cStringIO")
     out.puts("from enum import Enum")
@@ -34,7 +34,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("@staticmethod")
     out.puts("def from_file(filename):")
     out.inc
-    out.puts(s"return ${type2class(name)}(open(filename, 'rb'))")
+    out.puts(s"return ${type2class(name)}(KaitaiStream(open(filename, 'rb')))")
     out.dec
     out.puts
   }
@@ -59,7 +59,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {}
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"self.$attrName = self.ensure_fixed_contents(${contents.length}, array.array('B', [${contents.mkString(", ")}]))")
+    out.puts(s"self.$attrName = self._io.ensure_fixed_contents(${contents.length}, array.array('B', [${contents.mkString(", ")}]))")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
@@ -69,7 +69,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        out.puts(s"${privateMemberName(varDest)} = KaitaiStruct.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)})")
+        out.puts(s"${privateMemberName(varDest)} = KaitaiStream.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)})")
       case ProcessZlib =>
         out.puts(s"${privateMemberName(varDest)} = zlib.decompress(${privateMemberName(varSrc)})")
       case ProcessRotate(isLeft, rotValue) =>
@@ -78,7 +78,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"${privateMemberName(varDest)} = KaitaiStruct.process_rotate_left(${privateMemberName(varSrc)}, $expr, 1)")
+        out.puts(s"${privateMemberName(varDest)} = KaitaiStream.process_rotate_left(${privateMemberName(varSrc)}, $expr, 1)")
     }
   }
 
@@ -91,7 +91,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case NoRepeat => varName
     }
 
-    out.puts(s"io = cStringIO.StringIO(self.$args)")
+    out.puts(s"io = KaitaiStream(cStringIO.StringIO(self.$args))")
     "io"
   }
 
@@ -101,7 +101,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def pushPos(io: String): Unit =
-    out.puts(s"_pos = $io.tell()")
+    out.puts(s"_pos = $io.pos()")
 
   override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io.seek(${expression(pos)})")
@@ -122,7 +122,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     if (needRaw)
       out.puts(s"self._raw_$id = []")
     out.puts(s"self.$id = []")
-    out.puts(s"while not self.is_io_eof($io):")
+    out.puts(s"while not $io.is_eof():")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit =
@@ -152,21 +152,21 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: ReadableType =>
-        s"self.read_${t.apiCall}()"
+        s"$io.read_${t.apiCall}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
-        s"self.read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
+        s"$io.read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
       case StrEosType(encoding) =>
-        "self.read_str_eos(\"" + encoding + "\")"
+        io + ".read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        "self.read_strz(\"" + encoding + '"' + s", $terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
+        io + ".read_strz(\"" + encoding + '"' + s", $terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
       case EnumType(enumName, t) =>
         s"self._root.${type2class(enumName)}(${parseExpr(t, io)})"
 
       case BytesLimitType(size, _) =>
-        s"self._io.read(${expression(size)})"
+        s"$io.read_bytes(${expression(size)})"
       case BytesEosType(_) =>
-        s"self._io.read()"
+        s"$io.read_bytes_full()"
       case t: UserType =>
         s"self._root.${types2class(t.name)}($io, self, self._root)"
     }
