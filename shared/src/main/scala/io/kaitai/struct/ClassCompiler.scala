@@ -169,6 +169,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
         UserTypeInstream(topClassName)
       case "_parent" =>
         UserTypeInstream(classSpec.parentTypeName)
+      case "_io" =>
+        KaitaiStreamType
       case _ =>
         classSpec.seq.foreach { el =>
           if (el.id == attrName)

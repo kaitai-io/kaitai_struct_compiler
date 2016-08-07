@@ -12,7 +12,6 @@ trait TypeProvider {
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
 
 abstract class BaseTranslator(val provider: TypeProvider) {
-
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.IntNum(n) =>
@@ -73,6 +72,10 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             attr.name match {
               case "first" => arrayFirst(value)
               case "last" => arrayLast(value)
+            }
+          case KaitaiStreamType =>
+            attr.name match {
+              case "size" => kaitaiStreamSize(value)
             }
         }
       case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
@@ -172,6 +175,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def arrayFirst(a: Ast.expr): String
   def arrayLast(a: Ast.expr): String
 
+  def kaitaiStreamSize(value: Ast.expr): String = userTypeField(value, "size")
+
   def detectType(v: Ast.expr): BaseType = {
     v match {
       case Ast.expr.IntNum(x) =>
@@ -261,6 +266,11 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case ArrayType(inType) =>
             attr.name match {
               case "first" | "last" => inType
+              case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
+            }
+          case KaitaiStreamType =>
+            attr.name match {
+              case "size" => CalcIntType
               case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
             }
           case _ =>
