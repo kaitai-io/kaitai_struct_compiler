@@ -75,7 +75,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {}
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+    out.puts(s"${privateMemberName(attrName)} = _io.ensureFixedContents(${contents.length}, [${contents.mkString(", ")}]);")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
