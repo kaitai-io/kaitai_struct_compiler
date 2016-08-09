@@ -80,6 +80,7 @@ TODO
 
 Don't forget to update lists of languages:
 
+* /build.sbt - supportedLanguages
 * https://github.com/kaitai-io/kaitai_struct — project description
 * https://github.com/kaitai-io/kaitai_struct_compiler — project description
 * https://github.com/kaitai-io/kaitai_struct_compiler/blob/master/README.md — `-t` option documentation
