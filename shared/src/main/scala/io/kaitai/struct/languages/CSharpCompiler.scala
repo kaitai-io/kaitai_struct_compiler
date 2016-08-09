@@ -1,11 +1,11 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{BytesType, CalcIntType, StrType, _}
-import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
+import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeProvider}
+import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "Kaitai")
   extends LanguageCompiler(verbose, out)
@@ -18,8 +18,8 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
 
-    var ns = "Kaitai";
-    if (!namespace.isEmpty) ns = namespace;
+    var ns = "Kaitai"
+    if (!namespace.isEmpty) ns = namespace
 
     out.puts
     out.puts("using System;")
@@ -127,7 +127,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def pushPos(io: String): Unit =
-    out.puts(s"long _pos = $io.Pos();")
+    out.puts(s"long _pos = $io.Pos;")
 
   override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io.Seek(${expression(pos)});")
