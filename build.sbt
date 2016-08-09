@@ -3,6 +3,8 @@ import sbt.Keys._
 
 resolvers += Resolver.sonatypeRepo("public")
 
+val targetLangs = "C++/STL, C#, Java, JavaScript, Python, Ruby"
+
 lazy val root = project.in(file(".")).
   aggregate(compilerJS, compilerJVM).
   settings(
@@ -46,17 +48,18 @@ lazy val compiler = crossProject.in(file(".")).
     // implementations create per-package virtual user that we won't use anyway
     maintainerScripts in Debian := Map(),
 
-    packageSummary in Linux := "compiler to generate binary data parsers in Java / JavaScript / Python / Ruby",
+    packageSummary in Linux := s"compiler to generate binary data parsers in ${targetLangs}",
     packageSummary in Windows := "Kaitai Struct compiler",
     packageDescription in Linux :=
-    """This is the reference implementation of a compiler for Kaitai Struct (.ksy)
-    files. It allows to compile them into source code in Java / JavaScript /
-    Python / Ruby.
-    .ksy files describe binary data structures in declarative YAML-based
-    language (in contrast to imperative parsing implementation written in a
-    single programming language) and allow cross-language, cross-platform data
-    formats description.""",
-    packageDescription in Windows := "Compiler to translate Kaitai Struct (.ksy) files into Java / JavaScript / Python / Ruby source code",
+      s"""This is the reference implementation of a compiler for Kaitai Struct (.ksy)
+       | files. It allows to compile them into source code in:
+       | ${targetLangs}.
+       | .
+       | .ksy files describe binary data structures in declarative YAML-based
+       | language (in contrast to imperative parsing implementation written in a
+       | single programming language) and allow cross-language, cross-platform data
+       | formats description.""".stripMargin,
+    packageDescription in Windows := s"Compiler to translate Kaitai Struct (.ksy) files into ${targetLangs} source code",
 
     wixProductLicense := Some(new File("shared/src/windows/License.rtf")),
 
