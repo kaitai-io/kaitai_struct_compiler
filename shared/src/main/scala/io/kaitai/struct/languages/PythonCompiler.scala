@@ -18,11 +18,13 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
     out.puts
-    out.puts("from kaitaistruct import KaitaiStruct, KaitaiStream")
     out.puts("import array")
     out.puts("import cStringIO")
-    out.puts("from enum import Enum")
     out.puts("import zlib")
+    out.puts("from enum import Enum")
+    out.puts
+    out.puts("from kaitaistruct import KaitaiStruct, KaitaiStream")
+    out.puts
     out.puts
   }
 
