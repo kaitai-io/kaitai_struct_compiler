@@ -45,7 +45,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
-    out.puts("def __init__(self, _io, _parent = None, _root = None):")
+    out.puts("def __init__(self, _io, _parent=None, _root=None):")
     out.inc
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
