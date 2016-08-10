@@ -18,11 +18,13 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
     out.puts
-    out.puts("from kaitaistruct import KaitaiStruct, KaitaiStream")
     out.puts("import array")
     out.puts("import cStringIO")
-    out.puts("from enum import Enum")
     out.puts("import zlib")
+    out.puts("from enum import Enum")
+    out.puts
+    out.puts("from kaitaistruct import KaitaiStruct, KaitaiStream")
+    out.puts
     out.puts
   }
 
@@ -45,7 +47,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
-    out.puts("def __init__(self, _io, _parent = None, _root = None):")
+    out.puts("def __init__(self, _io, _parent=None, _root=None):")
     out.inc
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
