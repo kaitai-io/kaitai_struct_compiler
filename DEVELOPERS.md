@@ -35,6 +35,7 @@ We use [sbt-native-packager] to build deployable formats.
 
 1. Install WIX
 2. `sbt compilerJVM/windows:packageBin` -> genereates `jvm/target/windows/kaitai-struct-compiler.msi`
+3. Rename to add version to `kaitai-struct-compiler-$VERSION.msi`
 
 ### Dependencies for JVM target
 
@@ -73,7 +74,11 @@ TODO
     * Debian architecture: `all`
     * Attached file: `jvm/target/kaitai-struct-compiler_*_all.deb`
   * https://bintray.com/kaitai-io/universal/kaitai-struct-compiler/$VERSION/upload
+    * Target path: `$VERSION`
     * Attached file: `jvm/target/universal/kaitai-struct-compiler-*.zip`
+  * https://bintray.com/kaitai-io/universal/kaitai-struct-compiler/$VERSION/upload
+    * Target path: `$VERSION`
+    * Attached file: `jvm/target/windows/kaitai-struct-compiler-*.msi`
 7. Publish them all
 
 ## Adding new language
