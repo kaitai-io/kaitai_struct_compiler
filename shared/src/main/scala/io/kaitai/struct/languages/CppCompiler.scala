@@ -9,6 +9,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
   extends LanguageCompiler(verbose, outSrc)
+    with StreamStructNames
     with EveryReadIsExpression {
   import CppCompiler._
 
@@ -437,9 +438,9 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   def rawMemberName(ksName: String) = "raw_" + ksName
 
-  def kstructName = "kaitai::kstruct"
+  override def kstructName = "kaitai::kstruct"
 
-  def kstreamName = "kaitai::kstream"
+  override def kstreamName = "kaitai::kstream"
 
   def type2class(components: List[String]) = {
     components.map {
