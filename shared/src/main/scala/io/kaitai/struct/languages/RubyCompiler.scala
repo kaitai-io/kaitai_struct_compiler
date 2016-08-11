@@ -9,6 +9,7 @@ import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvide
 
 class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
+    with StreamStructNames
     with UpperCamelCaseClasses
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
@@ -24,7 +25,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   }
 
   override def classHeader(name: String): Unit = {
-    out.puts(s"class ${type2class(name)} < Kaitai::Struct::Struct")
+    out.puts(s"class ${type2class(name)} < $kstructName")
     out.inc
     if (debug)
       out.puts("attr_reader :_debug")
@@ -98,7 +99,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
       case NoRepeat => s"@$varName"
     }
 
-    out.puts(s"io = Kaitai::Struct::Stream.new($args)")
+    out.puts(s"io = $kstreamName.new($args)")
     "io"
   }
 
@@ -248,6 +249,10 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   def value2Const(s: String) = s.toUpperCase
 
   override def privateMemberName(ksName: String): String = s"@$ksName"
+
+  override def kstreamName: String = "Kaitai::Struct::Stream"
+
+  override def kstructName: String = "Kaitai::Struct::Struct"
 }
 
 object RubyCompiler extends LanguageCompilerStatic {
