@@ -10,6 +10,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: RuntimeAPI = KaitaiStreamAPI)
   extends LanguageCompiler(verbose, out)
+    with StreamStructNames
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
   import JavaScriptCompiler._
@@ -85,16 +86,16 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        out.puts(s"${privateMemberName(varDest)} = KaitaiStream.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)});")
+        out.puts(s"${privateMemberName(varDest)} = $kstreamName.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"this.$varDest = KaitaiStream.processZlib(this.$varSrc);")
+        out.puts(s"this.$varDest = $kstreamName.processZlib(this.$varSrc);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"this.$varDest = KaitaiStream.processRotateLeft(this.$varSrc, $expr, 1);")
+        out.puts(s"this.$varDest = $kstreamName.processRotateLeft(this.$varSrc, $expr, 1);")
     }
   }
 
@@ -111,7 +112,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
       case NoRepeat => s"this.$langName"
     }
 
-    out.puts(s"$ioName = new KaitaiStream($args);")
+    out.puts(s"$ioName = new $kstreamName($args);")
     ioName
   }
 
@@ -261,6 +262,11 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: Runti
   }
 
   override def privateMemberName(ksName: String): String = s"this.$ksName"
+
+  override def kstreamName: String = "KaitaiStream"
+
+  // FIXME: probably KaitaiStruct will emerge some day in JavaScript runtime, but for now it is unused
+  override def kstructName: String = ???
 }
 
 object JavaScriptCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
