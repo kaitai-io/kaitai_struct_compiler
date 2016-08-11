@@ -56,7 +56,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def classConstructorFooter: Unit = classFooter(null)
 
   override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)};")
+    out.puts(s"private $$${lowerCamelCase(attrName)};")
   }
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {
@@ -70,20 +70,20 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"this.$varDest = _io.processXor(this.$varSrc, ${expression(xorValue)});")
+        out.puts(s"this.$varDest = $kstreamName.processXor(this.$varSrc, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"this.$varDest = _io.processZlib(this.$varSrc);")
+        out.puts(s"this.$varDest = $kstreamName.processZlib(this.$varSrc);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"this.$varDest = _io.processRotateLeft(this.$varSrc, $expr, 1);")
+        out.puts(s"this.$varDest = $kstreamName.processRotateLeft(this.$varSrc, $expr, 1);")
     }
   }
 
-  override def normalIO: String = "_io"
+  override def normalIO: String = "$this->_io"
 
   override def allocateIO(varName: String, rep: RepeatSpec): String = {
     val javaName = lowerCamelCase(varName)
@@ -105,13 +105,13 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def pushPos(io: String): Unit =
-    out.puts(s"long _pos = $io.pos();")
+    out.puts(s"long _pos = $io->pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"$io.seek(${expression(pos)});")
+    out.puts(s"$io->seek(${expression(pos)});")
 
   override def popPos(io: String): Unit =
-    out.puts(s"$io.seek(_pos);")
+    out.puts(s"$io->seek(_pos);")
 
   override def condIfHeader(expr: expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
@@ -132,7 +132,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.add($expr);")
+    out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -149,7 +149,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.add($expr);")
+    out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -158,26 +158,26 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def handleAssignmentSimple(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)} = $expr;")
+    out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read${Utils.capitalize(t.apiCall)}()"
+        s"$io->read${Utils.capitalize(t.apiCall)}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
-        s"$io.readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
+        s"$io->readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
       case StrEosType(encoding) =>
-        io + ".readStrEos(\"" + encoding + "\")"
+        io + "->readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + ".readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
+        io + "->readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
         s"${type2class(enumName)}.byId(${parseExpr(t, io)})"
       case BytesLimitType(size, _) =>
-        s"$io.readBytes(${expression(size)})"
+        s"$io->readBytes(${expression(size)})"
       case BytesEosType(_) =>
-        s"$io.readBytesFull()"
+        s"$io->readBytesFull()"
       case t: UserType =>
         s"new ${types2class(t.name)}($io, this, _root)"
     }
@@ -272,7 +272,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     }
   }
 
-  override def privateMemberName(ksName: String): String = s"$this->${Utils.lowerCamelCase(ksName)}"
+  override def privateMemberName(ksName: String): String = "$this->" + Utils.lowerCamelCase(ksName)
 
   override def kstreamName: String = "Kaitai\\Stream"
 
