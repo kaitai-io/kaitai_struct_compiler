@@ -196,8 +196,10 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
         (t, op) match {
-          case (Int1Type(false), _) => CalcIntType
-          case (_: IntType, _) => t
+          case (intMultiType: IntMultiType, _) =>
+            if (intMultiType.width.width > 4) t
+            else CalcIntType
+          case (_: IntType, _) => CalcIntType
           case (_: FloatType, Ast.unaryop.Minus) => t
           case _ => throw new RuntimeException(s"unable to apply unary operator ${op} to ${t}")
         }
