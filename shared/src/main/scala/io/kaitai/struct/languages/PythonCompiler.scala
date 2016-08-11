@@ -9,6 +9,7 @@ import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvi
 
 class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
+    with StreamStructNames
     with UpperCamelCaseClasses
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
@@ -23,20 +24,20 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("import zlib")
     out.puts("from enum import Enum")
     out.puts
-    out.puts("from kaitaistruct import KaitaiStruct, KaitaiStream")
+    out.puts(s"from kaitaistruct import $kstructName, $kstreamName")
     out.puts
     out.puts
   }
 
   override def classHeader(name: String): Unit = {
-    out.puts(s"class ${type2class(name)}(KaitaiStruct):")
+    out.puts(s"class ${type2class(name)}($kstructName):")
     out.inc
 
     // Helper method to read from local file
     out.puts("@classmethod")
     out.puts("def from_file(cls, filename):")
     out.inc
-    out.puts("return cls(KaitaiStream(open(filename, 'rb')))")
+    out.puts(s"return cls($kstreamName(open(filename, 'rb')))")
     out.dec
     out.puts
   }
@@ -71,7 +72,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        out.puts(s"${privateMemberName(varDest)} = KaitaiStream.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)})")
+        out.puts(s"${privateMemberName(varDest)} = $kstreamName.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)})")
       case ProcessZlib =>
         out.puts(s"${privateMemberName(varDest)} = zlib.decompress(${privateMemberName(varSrc)})")
       case ProcessRotate(isLeft, rotValue) =>
@@ -80,7 +81,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"${privateMemberName(varDest)} = KaitaiStream.process_rotate_left(${privateMemberName(varSrc)}, $expr, 1)")
+        out.puts(s"${privateMemberName(varDest)} = $kstreamName.process_rotate_left(${privateMemberName(varSrc)}, $expr, 1)")
     }
   }
 
@@ -93,7 +94,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case NoRepeat => varName
     }
 
-    out.puts(s"io = KaitaiStream(cStringIO.StringIO(self.$args))")
+    out.puts(s"io = $kstreamName(cStringIO.StringIO(self.$args))")
     "io"
   }
 
@@ -213,6 +214,10 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 
   override def privateMemberName(ksName: String): String = s"self.$ksName"
+
+  override def kstreamName: String = "KaitaiStream"
+
+  override def kstructName: String = "KaitaiStruct"
 }
 
 object PythonCompiler extends LanguageCompilerStatic {
