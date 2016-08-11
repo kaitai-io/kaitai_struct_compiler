@@ -9,6 +9,7 @@ import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvide
 
 class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: String = "")
   extends LanguageCompiler(verbose, out)
+    with StreamStructNames
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
   import JavaCompiler._
@@ -22,8 +23,8 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
       out.puts(s"package $destPackage;")
     }
     out.puts
-    out.puts("import io.kaitai.struct.KaitaiStruct;")
-    out.puts("import io.kaitai.struct.KaitaiStream;")
+    out.puts(s"import io.kaitai.struct.$kstructName;")
+    out.puts(s"import io.kaitai.struct.$kstreamName;")
     out.puts
     out.puts("import java.io.IOException;")
     out.puts("import java.util.Arrays;")
@@ -41,12 +42,12 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
       ""
     }
 
-    out.puts(s"public ${staticStr}class ${type2class(name)} extends KaitaiStruct {")
+    out.puts(s"public ${staticStr}class ${type2class(name)} extends $kstructName {")
     out.inc
 
     out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
     out.inc
-    out.puts(s"return new ${type2class(name)}(new KaitaiStream(fileName));")
+    out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
     out.dec
     out.puts("}")
   }
@@ -58,7 +59,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts
-    out.puts(s"public ${type2class(name)}(KaitaiStream _io) throws IOException {")
+    out.puts(s"public ${type2class(name)}($kstreamName _io) throws IOException {")
     out.inc
     out.puts("super(_io);")
     if (name == rootClassName)
@@ -68,7 +69,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.puts("}")
 
     out.puts
-    out.puts(s"public ${type2class(name)}(KaitaiStream _io, ${type2class(parentClassName)} _parent) throws IOException {")
+    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent) throws IOException {")
     out.inc
     out.puts("super(_io);")
     out.puts("this._parent = _parent;")
@@ -79,7 +80,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.puts("}")
 
     out.puts
-    out.puts(s"public ${type2class(name)}(KaitaiStream _io, ${type2class(parentClassName)} _parent, ${type2class(rootClassName)} _root) throws IOException {")
+    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent, ${type2class(rootClassName)} _root) throws IOException {")
     out.inc
     out.puts("super(_io);")
     out.puts("this._parent = _parent;")
@@ -134,12 +135,12 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
       case NoRepeat => javaName
     }
 
-    out.puts(s"KaitaiStream $ioName = new KaitaiStream($args);")
+    out.puts(s"$kstreamName $ioName = new $kstreamName($args);")
     ioName
   }
 
   override def useIO(ioEx: expr): String = {
-    out.puts(s"KaitaiStream io = ${expression(ioEx)};")
+    out.puts(s"$kstreamName io = ${expression(ioEx)};")
     "io"
   }
 
@@ -312,6 +313,10 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   }
 
   override def privateMemberName(ksName: String): String = s"this.${Utils.lowerCamelCase(ksName)}"
+
+  override def kstreamName: String = "KaitaiStream"
+
+  override def kstructName: String = "KaitaiStruct"
 }
 
 object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
