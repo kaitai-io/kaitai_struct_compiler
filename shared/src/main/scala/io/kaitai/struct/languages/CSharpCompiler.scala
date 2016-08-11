@@ -9,6 +9,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "Kaitai")
   extends LanguageCompiler(verbose, out)
+    with StreamStructNames
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
   import CSharpCompiler._
@@ -264,9 +265,9 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
       s"_${Utils.lowerCamelCase(ksName)}"
   }
 
-  def kstructName = "KaitaiStruct"
+  override def kstructName = "KaitaiStruct"
 
-  def kstreamName = "KaitaiStream"
+  override def kstreamName = "KaitaiStream"
 
   def type2class(name: String): String = name match {
     case "kaitai_struct" => kstructName
