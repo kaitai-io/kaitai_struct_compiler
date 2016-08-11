@@ -33,10 +33,10 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.inc
 
     // Helper method to read from local file
-    out.puts("@staticmethod")
-    out.puts("def from_file(filename):")
+    out.puts("@classmethod")
+    out.puts("def from_file(cls, filename):")
     out.inc
-    out.puts(s"return ${type2class(name)}(KaitaiStream(open(filename, 'rb')))")
+    out.puts("return cls(KaitaiStream(open(filename, 'rb')))")
     out.dec
     out.puts
   }
