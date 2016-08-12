@@ -294,7 +294,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     }
   }
 
-  override def privateMemberName(ksName: String): String = s"this.${Utils.lowerCamelCase(ksName)}"
+  override def privateMemberName(ksName: String): String = s"this.${lowerCamelCase(ksName)}"
 
   override def kstreamName: String = "KaitaiStream"
 
