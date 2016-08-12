@@ -270,7 +270,7 @@ object ClassCompiler {
     case CSharpCompiler => new CSharpCompiler(config.verbose, out, config.dotNetNamespace)
     case JavaCompiler => new JavaCompiler(config.verbose, out, config.javaPackage)
     case JavaScriptCompiler => new JavaScriptCompiler(config.verbose, out)
-    case PHPCompiler => new PHPCompiler(config.verbose, out)
+    case PHPCompiler => new PHPCompiler(config.verbose, out, config.phpNamespace)
     case PythonCompiler => new PythonCompiler(config.verbose, out)
     case RubyCompiler => new RubyCompiler(config.verbose, config.debug, out)
   }

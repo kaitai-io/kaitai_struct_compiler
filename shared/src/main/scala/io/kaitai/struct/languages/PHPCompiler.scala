@@ -16,6 +16,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def getStatic = PHPCompiler
 
   override def fileHeader(topClassName: String): Unit = {
+    out.puts("<?php")
     out.puts(s"// $headerComment")
     if (!namespace.isEmpty) {
       out.puts
@@ -26,7 +27,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def classHeader(name: List[String]): Unit = {
-    out.puts(s"public class ${types2class(name)} extends $kstructName {")
+    out.puts(s"class ${types2class(name)} extends $kstructName {")
     out.inc
   }
 
@@ -56,11 +57,11 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def classConstructorFooter: Unit = classFooter(null)
 
   override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private $$${lowerCamelCase(attrName)};")
+    out.puts(s"protected $$${lowerCamelCase(attrName)};")
   }
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)}() { return ${lowerCamelCase(attrName)}; }")
+    out.puts(s"public function ${lowerCamelCase(attrName)}() { return ${privateMemberName(attrName)}; }")
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
@@ -274,9 +275,9 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def privateMemberName(ksName: String): String = "$this->" + Utils.lowerCamelCase(ksName)
 
-  override def kstreamName: String = "Kaitai\\Stream"
+  override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 
-  override def kstructName: String = "Kaitai\\Struct"
+  override def kstructName: String = "\\Kaitai\\Struct\\Struct"
 }
 
 object PHPCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
