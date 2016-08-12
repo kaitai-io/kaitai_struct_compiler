@@ -4,11 +4,10 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.JavaScriptCompiler.{KaitaiStreamAPI, RuntimeAPI}
 import io.kaitai.struct.translators.{BaseTranslator, JavaScriptTranslator, TypeProvider}
 import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
-class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter, api: RuntimeAPI = KaitaiStreamAPI)
+class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
     with StreamStructNames
     with EveryReadIsExpression
@@ -273,8 +272,4 @@ object JavaScriptCompiler extends LanguageCompilerStatic with UpperCamelCaseClas
   override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
-
-  sealed abstract class RuntimeAPI
-  case object DataStreamAPI extends RuntimeAPI
-  case object KaitaiStreamAPI extends RuntimeAPI
 }
