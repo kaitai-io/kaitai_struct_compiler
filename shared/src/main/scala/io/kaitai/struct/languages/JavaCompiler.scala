@@ -11,10 +11,16 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   extends LanguageCompiler(verbose, out)
     with StreamStructNames
     with EveryReadIsExpression
+    with UniversalFooter
     with NoNeedForFullClassPath {
   import JavaCompiler._
 
   override def getStatic = JavaCompiler
+
+  override def universalFooter: Unit = {
+    out.dec
+    out.puts("}")
+  }
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
@@ -48,11 +54,6 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
     out.inc
     out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
-    out.dec
-    out.puts("}")
-  }
-
-  override def classFooter(name: String): Unit = {
     out.dec
     out.puts("}")
   }
@@ -92,8 +93,6 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.puts("private void _parse() throws IOException {")
     out.inc
   }
-
-  override def classConstructorFooter: Unit = classFooter(null)
 
   override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2JavaType(attrType)} ${lowerCamelCase(attrName)};")
@@ -158,11 +157,6 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.inc
   }
 
-  override def condIfFooter(expr: expr): Unit = {
-    out.dec
-    out.puts("}")
-  }
-
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>();")
@@ -175,11 +169,6 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
-  override def condRepeatEosFooter: Unit = {
-    out.dec
-    out.puts("}")
-  }
-
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
@@ -190,11 +179,6 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.add($expr);")
-  }
-
-  override def condRepeatExprFooter: Unit = {
-    out.dec
-    out.puts("}")
   }
 
   override def handleAssignmentSimple(id: String, expr: String): Unit = {
@@ -233,8 +217,6 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   }
 
   override def instanceAttrName(instName: String): String = instName
-
-  override def instanceFooter: Unit = classConstructorFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
     out.puts(s"if (${lowerCamelCase(instName)} != null)")
