@@ -10,11 +10,17 @@ import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvi
 class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
     with StreamStructNames
+    with UniversalFooter
     with UpperCamelCaseClasses
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
 
   override def getStatic = PythonCompiler
+
+  override def universalFooter: Unit = {
+    out.dec
+    out.puts
+  }
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
@@ -42,11 +48,6 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts
   }
 
-  override def classFooter(name: String): Unit = {
-    out.dec
-    out.puts
-  }
-
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts("def __init__(self, _io, _parent=None, _root=None):")
     out.inc
@@ -54,8 +55,6 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("self._parent = _parent")
     out.puts("self._root = _root if _root else self")
   }
-
-  override def classConstructorFooter: Unit = classFooter(null)
 
   override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
@@ -116,10 +115,6 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts(s"if ${expression(expr)}:")
     out.inc
   }
-  override def condIfFooter(expr: Ast.expr): Unit = {
-    out.dec
-    out.puts
-  }
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
@@ -130,10 +125,6 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit =
     out.puts(s"self.$id.append($expr)")
-  override def condRepeatEosFooter: Unit = {
-    out.dec
-    out.puts
-  }
 
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
@@ -144,10 +135,6 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit =
     out.puts(s"self.$id[i] = $expr")
-  override def condRepeatExprFooter: Unit = {
-    out.dec
-    out.puts
-  }
 
   override def handleAssignmentSimple(id: String, expr: String): Unit =
     out.puts(s"self.$id = $expr")
@@ -182,8 +169,6 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def instanceAttrName(instName: String) = s"_m_$instName"
-
-  override def instanceFooter: Unit = classConstructorFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
     out.puts(s"if hasattr(self, '${instanceAttrName(instName)}'):")
