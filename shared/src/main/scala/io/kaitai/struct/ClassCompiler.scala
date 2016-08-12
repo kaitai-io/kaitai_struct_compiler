@@ -28,29 +28,37 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
   def markupParentTypes(curClassName: List[String], curClass: ClassSpec): Unit = {
     curClass.seq.foreach { attr =>
-      attr.dataType match {
-        case userType: UserType =>
-          val ut = userType.name
-          userTypes.get(ut.last).foreach { usedClass =>
-            usedClass._parentType match {
-              case UnknownNamedClass =>
-                usedClass._parentType = NamedClass(curClassName, curClass)
-                markupParentTypes(curClassName ::: ut, usedClass)
-              case NamedClass(otherName, otherClass) =>
-                if (otherName == curClassName && otherClass == curClass) {
-                  // already done, don't do anything
-                } else {
-                  // conflicting types, would be bad for statically typed languages
-                  // throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
-                  usedClass._parentType = GenericStructClass
-                }
-              case GenericStructClass =>
-                // already most generic case, do nothing
-            }
-          }
-        case _ => // ignore, it's standard type
-      }
+      markupParentTypesAdd(curClassName, curClass, attr.dataType)
     }
+    curClass.instances.foreach { case (instName, instSpec) =>
+      markupParentTypesAdd(curClassName, curClass, getInstanceDataType(instSpec))
+    }
+  }
+
+  def markupParentTypesAdd(curClassName: List[String], curClass: ClassSpec, dt: BaseType): Unit = {
+    dt match {
+      case userType: UserType =>
+        val ut = userType.name
+        userTypes.get(ut.last).foreach { usedClass =>
+          usedClass._parentType match {
+            case UnknownNamedClass =>
+              usedClass._parentType = NamedClass(curClassName, curClass)
+              markupParentTypes(curClassName ::: ut, usedClass)
+            case NamedClass(otherName, otherClass) =>
+              if (otherName == curClassName && otherClass == curClass) {
+                // already done, don't do anything
+              } else {
+                // conflicting types, would be bad for statically typed languages
+                // throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
+                usedClass._parentType = GenericStructClass
+              }
+            case GenericStructClass =>
+            // already most generic case, do nothing
+          }
+        }
+      case _ => // ignore, it's standard type
+    }
+
   }
 
   def deriveValueTypes {
@@ -121,12 +129,16 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.classFooter(name)
   }
 
-  def compileInstance(className: List[String], instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
-    // Determine datatype
-    val dataType = instSpec match {
+  def getInstanceDataType(instSpec: InstanceSpec): BaseType = {
+    instSpec match {
       case t: ValueInstanceSpec => t.dataType.get
       case t: ParseInstanceSpec => t.dataTypeComposite
     }
+  }
+
+  def compileInstance(className: List[String], instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+    // Determine datatype
+    val dataType = getInstanceDataType(instSpec)
 
     // Declare caching variable
     lang.instanceDeclaration(instName, dataType, ConditionalSpec(None, NoRepeat))
