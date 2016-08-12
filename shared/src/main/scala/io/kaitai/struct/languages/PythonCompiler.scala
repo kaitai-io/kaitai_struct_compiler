@@ -38,14 +38,6 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def classHeader(name: String): Unit = {
     out.puts(s"class ${type2class(name)}($kstructName):")
     out.inc
-
-    // Helper method to read from local file
-    out.puts("@classmethod")
-    out.puts("def from_file(cls, filename):")
-    out.inc
-    out.puts(s"return cls($kstreamName(open(filename, 'rb')))")
-    out.dec
-    out.puts
   }
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
