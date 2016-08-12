@@ -166,13 +166,13 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>();")
-    out.puts(s"this.${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.add($expr);")
+    out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -189,7 +189,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   }
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.add($expr);")
+    out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -198,7 +198,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   }
 
   override def handleAssignmentSimple(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)} = $expr;")
+    out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
   override def parseExpr(dataType: BaseType, io: String): String = {
