@@ -9,12 +9,18 @@ import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvide
 
 class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
+    with UniversalFooter
     with StreamStructNames
     with UpperCamelCaseClasses
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
 
   override def getStatic = RubyCompiler
+
+  override def universalFooter: Unit = {
+    out.dec
+    out.puts("end")
+  }
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
@@ -29,11 +35,6 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.inc
     if (debug)
       out.puts("attr_reader :_debug")
-  }
-
-  override def classFooter(name: String = null): Unit = {
-    out.dec
-    out.puts("end")
   }
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
@@ -57,7 +58,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
       out.puts
       out.puts("self")
     }
-    classFooter()
+    universalFooter
   }
 
   override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
@@ -147,10 +148,6 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.puts(s"if ${expression(expr)}")
     out.inc
   }
-  override def condIfFooter(expr: Ast.expr): Unit = {
-    out.dec
-    out.puts("end")
-  }
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
@@ -162,10 +159,6 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   }
   override def handleAssignmentRepeatEos(id: String, expr: String): Unit =
     out.puts(s"@$id << $expr")
-  override def condRepeatEosFooter: Unit = {
-    out.dec
-    out.puts("end")
-  }
 
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
@@ -218,8 +211,6 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   }
 
   override def instanceAttrName(instName: String): String = instName
-
-  override def instanceFooter: Unit = classFooter()
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
     out.puts(s"return @$instName if @$instName")
