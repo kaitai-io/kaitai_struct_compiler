@@ -14,8 +14,9 @@ object Main {
     private val _verbose: Boolean = false,
     private val _debug: Boolean = false,
     private val _javaPackage: String = "",
-    private val _dotNetNamespace: String = ""
-  ) extends RuntimeConfig(_verbose, _debug, _javaPackage, _dotNetNamespace)
+    private val _dotNetNamespace: String = "",
+    private val _phpNamespace: String = ""
+  ) extends RuntimeConfig(_verbose, _debug, _javaPackage, _dotNetNamespace, _phpNamespace)
 
   val ALL_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.keySet
   val VALID_LANGS = ALL_LANGS + "all"
@@ -59,6 +60,10 @@ object Main {
       opt[String]("dotnet-namespace") valueName("<namespace>") action { (x, c) =>
         c.copy(_dotNetNamespace = x)
       } text(".NET Namespace (.NET only, default: Kaitai)")
+
+      opt[String]("php-namespace") valueName("<namespace>") action { (x, c) =>
+        c.copy(_phpNamespace = x)
+      } text("PHP Namespace (PHP only, default: root package)")
 
       opt[Unit]("verbose") action { (x, c) =>
         c.copy(_verbose = true)

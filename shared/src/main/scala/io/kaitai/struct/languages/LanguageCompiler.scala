@@ -89,6 +89,7 @@ object LanguageCompilerStatic {
     "csharp" -> CSharpCompiler,
     "java" -> JavaCompiler,
     "javascript" -> JavaScriptCompiler,
+    "php" -> PHPCompiler,
     "python" -> PythonCompiler,
     "ruby" -> RubyCompiler
   )
