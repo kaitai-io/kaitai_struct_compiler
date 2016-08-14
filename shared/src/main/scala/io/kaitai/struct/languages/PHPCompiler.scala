@@ -9,11 +9,17 @@ import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvide
 
 class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "")
   extends LanguageCompiler(verbose, out)
-  with StreamStructNames
+  with UniversalFooter
   with EveryReadIsExpression {
+
   import PHPCompiler._
 
   override def getStatic = PHPCompiler
+
+  override def universalFooter: Unit = {
+    out.dec
+    out.puts("}")
+  }
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts("<?php")
@@ -31,10 +37,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     out.inc
   }
 
-  override def classFooter(name: List[String]): Unit = {
-    out.dec
-    out.puts("}")
-  }
+  override def classFooter(name: List[String]): Unit = universalFooter
 
   override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
     out.puts
@@ -54,14 +57,17 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     out.inc
   }
 
-  override def classConstructorFooter: Unit = classFooter(null)
-
   override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"protected $$${lowerCamelCase(attrName)};")
   }
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {
-    out.puts(s"public function ${lowerCamelCase(attrName)}() { return ${privateMemberName(attrName)}; }")
+    attrName match {
+      case "_parent" | "_root" =>
+        // just ignore it for now
+      case _ =>
+        out.puts(s"public function ${lowerCamelCase(attrName)}() { return ${privateMemberName(attrName)}; }")
+    }
   }
 
   override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
@@ -119,11 +125,6 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     out.inc
   }
 
-  override def condIfFooter(expr: expr): Unit = {
-    out.dec
-    out.puts("}")
-  }
-
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>();")
@@ -136,11 +137,6 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
-  override def condRepeatEosFooter: Unit = {
-    out.dec
-    out.puts("}")
-  }
-
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
@@ -151,11 +147,6 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.add($expr);")
-  }
-
-  override def condRepeatExprFooter: Unit = {
-    out.dec
-    out.puts("}")
   }
 
   override def handleAssignmentSimple(id: String, expr: String): Unit = {
@@ -194,8 +185,6 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def instanceAttrName(instName: String): String = instName
-
-  override def instanceFooter: Unit = classConstructorFooter
 
   override def instanceCheckCacheAndReturn(instName: String): Unit = {
     out.puts(s"if (${lowerCamelCase(instName)} != null)")
@@ -274,16 +263,18 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def privateMemberName(ksName: String): String = "$this->" + Utils.lowerCamelCase(ksName)
+}
+
+object PHPCompiler extends LanguageCompilerStatic
+  with StreamStructNames
+  with UpperCamelCaseClasses {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
 
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 
   override def kstructName: String = "\\Kaitai\\Struct\\Struct"
-}
-
-object PHPCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
 
   def kaitaiType2JavaType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
 
@@ -354,5 +345,8 @@ object PHPCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
     }
   }
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+  def types2class(names: List[String]) = names.map {
+    case "kaitai_struct" => kstructName
+    case x => type2class(x)
+  }.mkString(".")
 }
