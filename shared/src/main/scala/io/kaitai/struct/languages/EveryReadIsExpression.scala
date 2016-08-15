@@ -14,9 +14,13 @@ import scala.collection.mutable.ListBuffer
 trait EveryReadIsExpression extends LanguageCompiler {
   def debug = false
 
-  override def attrParse(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec], io: String): Unit = {
-    if (debug)
-      attrDebugStart(id, io, NoRepeat)
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], io: String): Unit = {
+    if (debug) {
+      id match {
+        case ni: NamedIdentifier => attrDebugStart(ni, io, NoRepeat)
+        case RawIdentifier(_) | _: SpecialIdentifier => // ignore
+      }
+    }
 
     attr.cond.ifExpr match {
       case Some(e) =>
@@ -44,13 +48,21 @@ trait EveryReadIsExpression extends LanguageCompiler {
       case None => // ignore
     }
 
-    if (debug)
-      attrDebugEnd(id, io, NoRepeat)
+    if (debug) {
+      id match {
+        case ni: NamedIdentifier => attrDebugEnd(ni, io, NoRepeat)
+        case RawIdentifier(_) | _: SpecialIdentifier => // ignore
+      }
+    }
   }
 
-  def attrParse2(id: String, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
-    if (debug && rep != NoRepeat)
-      attrDebugStart(id, io, rep)
+  def attrParse2(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+    if (debug && rep != NoRepeat) {
+      id match {
+        case ni: NamedIdentifier => attrDebugStart(ni, io, rep)
+        case RawIdentifier(_) | _: SpecialIdentifier => // ignore
+      }
+    }
 
     dataType match {
       case FixedBytesType(c, _) =>
@@ -64,17 +76,21 @@ trait EveryReadIsExpression extends LanguageCompiler {
         handleAssignment(id, expr, rep)
     }
 
-    if (debug && rep != NoRepeat)
-      attrDebugEnd(id, io, rep)
+    if (debug && rep != NoRepeat) {
+      id match {
+        case ni: NamedIdentifier => attrDebugEnd(ni, io, rep)
+        case RawIdentifier(_) | _: SpecialIdentifier => // ignore
+      }
+    }
   }
 
-  def attrBytesTypeParse(id: String, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, t: BytesType): Unit = {
+  def attrBytesTypeParse(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, t: BytesType): Unit = {
     // use intermediate variable name, if we'll be doing post-processing
     val rawId = t.process match {
       case None => id
       case Some(_) =>
-        extraAttrs += AttrSpec(s"_raw_$id", t)
-        s"_raw_$id"
+        extraAttrs += AttrSpec(RawIdentifier(id), t)
+        RawIdentifier(id)
     }
 
     val expr = parseExpr(dataType, io)
@@ -84,11 +100,11 @@ trait EveryReadIsExpression extends LanguageCompiler {
     t.process.foreach((proc) => attrProcess(proc, rawId, id))
   }
 
-  def attrUserTypeParse(id: String, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, t: UserType): Unit = {
+  def attrUserTypeParse(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, t: UserType): Unit = {
     val newIO = t match {
       case knownSizeType: UserTypeKnownSize =>
         // we have a fixed buffer, thus we shall create separate IO for it
-        val rawId = s"_raw_$id"
+        val rawId = RawIdentifier(id)
         val byteType = knownSizeType match {
           case UserTypeByteLimit(_, size, process) => BytesLimitType(size, process)
           case UserTypeEos(_, process) => BytesEosType(process)
@@ -103,12 +119,13 @@ trait EveryReadIsExpression extends LanguageCompiler {
 
         extraAttrs += AttrSpec(rawId, extraType)
 
-        val ourIO = allocateIO(rawId, rep)
-        if (needToStoreIOs) {
-          extraAttrs += AttrSpec(ourIO, KaitaiStreamType)
-          privateMemberName(ourIO)
-        } else {
-          ourIO
+        this match {
+          case thisStore: AllocateAndStoreIO =>
+            val ourIO = thisStore.allocateIO(rawId, rep)
+            extraAttrs += AttrSpec(ourIO, KaitaiStreamType)
+            privateMemberName(ourIO)
+          case thisLocal: AllocateIOLocalVar =>
+            thisLocal.allocateIO(rawId, rep)
         }
       case _: UserTypeInstream =>
         // no fixed buffer, just use regular IO
@@ -125,7 +142,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
     }
   }
 
-  def handleAssignment(id: String, expr: String, rep: RepeatSpec): Unit = {
+  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec): Unit = {
     rep match {
       case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
       case RepeatEos => handleAssignmentRepeatEos(id, expr)
@@ -133,14 +150,12 @@ trait EveryReadIsExpression extends LanguageCompiler {
     }
   }
 
-  def attrDebugStart(attrName: String, io: String, repeat: RepeatSpec): Unit = {}
-  def attrDebugEnd(attrName: String, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrName: NamedIdentifier, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugEnd(attrName: NamedIdentifier, io: String, repeat: RepeatSpec): Unit = {}
 
-  def handleAssignmentRepeatEos(id: String, expr: String): Unit
-  def handleAssignmentRepeatExpr(id: String, expr: String): Unit
-  def handleAssignmentSimple(id: String, expr: String): Unit
+  def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
+  def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
+  def handleAssignmentSimple(id: Identifier, expr: String): Unit
 
   def parseExpr(dataType: BaseType, io: String): String
-
-  def needToStoreIOs: Boolean = false
 }

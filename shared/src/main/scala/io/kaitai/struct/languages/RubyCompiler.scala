@@ -10,10 +10,12 @@ import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvide
 class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
     with UniversalFooter
-    with StreamStructNames
     with UpperCamelCaseClasses
+    with AllocateIOLocalVar
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
+
+  import RubyCompiler._
 
   override def getStatic = RubyCompiler
 
@@ -61,39 +63,42 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     universalFooter
   }
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: BaseType): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
     out.puts(s"attr_reader :$attrName")
   }
 
-  override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     out.puts(s"${privateMemberName(attrName)} = @_io.ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
     out.puts(proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        s"${privateMemberName(varDest)} = _io.$procName($varSrc, ${expression(xorValue)})"
+        s"$destName = _io.$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
-        s"${privateMemberName(varDest)} = Zlib::Inflate.inflate(${privateMemberName(varSrc)})"
+        s"$destName = Zlib::Inflate.inflate($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"${privateMemberName(varDest)} = _io.process_rotate_left($varSrc, $expr, 1)"
+        s"$destName = _io.process_rotate_left($srcName, $expr, 1)"
     })
   }
 
   override def normalIO: String = "@_io"
 
-  override def allocateIO(varName: String, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val args = rep match {
       case RepeatEos => s"@$varName.last"
       case RepeatExpr(_) => s"@$varName[i]"
@@ -118,29 +123,27 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)")
 
-  override def attrDebugStart(attrId: String, io: String, rep: RepeatSpec): Unit = {
-    if (attrId.startsWith("_raw"))
-      return
+  override def attrDebugStart(attrId: NamedIdentifier, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId.name
     rep match {
       case NoRepeat =>
-        out.puts(s"(@_debug['$attrId'] ||= {})[:start] = $io.pos")
+        out.puts(s"(@_debug['$name'] ||= {})[:start] = $io.pos")
       case _: RepeatExpr =>
-        out.puts(s"(@_debug['$attrId'][:arr] ||= [])[i] = {:start => $io.pos}")
+        out.puts(s"(@_debug['$name'][:arr] ||= [])[i] = {:start => $io.pos}")
       case RepeatEos =>
-        out.puts(s"(@_debug['$attrId'][:arr] ||= [])[@$attrId.size] = {:start => $io.pos}")
+        out.puts(s"(@_debug['$name'][:arr] ||= [])[${privateMemberName(attrId)}.size] = {:start => $io.pos}")
     }
   }
 
-  override def attrDebugEnd(attrId: String, io: String, rep: RepeatSpec): Unit = {
-    if (attrId.startsWith("_raw"))
-      return
+  override def attrDebugEnd(attrId: NamedIdentifier, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId.name
     rep match {
       case NoRepeat =>
-        out.puts(s"(@_debug['$attrId'] ||= {})[:end] = $io.pos")
+        out.puts(s"(@_debug['$name'] ||= {})[:end] = $io.pos")
       case _: RepeatExpr =>
-        out.puts(s"@_debug['$attrId'][:arr][i][:end] = $io.pos")
+        out.puts(s"@_debug['$name'][:arr][i][:end] = $io.pos")
       case RepeatEos =>
-        out.puts(s"@_debug['$attrId'][:arr][@$attrId.size - 1][:end] = $io.pos")
+        out.puts(s"@_debug['$name'][:arr][${privateMemberName(attrId)}.size - 1][:end] = $io.pos")
     }
   }
 
@@ -149,7 +152,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.inc
   }
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"@_raw_$id = []")
 
@@ -157,25 +160,25 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.puts(s"while not $io.eof?")
     out.inc
   }
-  override def handleAssignmentRepeatEos(id: String, expr: String): Unit =
-    out.puts(s"@$id << $expr")
+  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
+    out.puts(s"${privateMemberName(id)} << $expr")
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"@_raw_$id = Array.new(${expression(repeatExpr)})")
-    out.puts(s"@$id = Array.new(${expression(repeatExpr)})")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = Array.new(${expression(repeatExpr)})")
+    out.puts(s"${privateMemberName(id)} = Array.new(${expression(repeatExpr)})")
     out.puts(s"(${expression(repeatExpr)}).times { |i|")
     out.inc
   }
-  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit =
-    out.puts(s"@$id[i] = $expr")
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
+    out.puts(s"${privateMemberName(id)}[i] = $expr")
   override def condRepeatExprFooter: Unit = {
     out.dec
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: String, expr: String): Unit =
-    out.puts(s"@$id = $expr")
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
+    out.puts(s"${privateMemberName(id)} = $expr")
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
@@ -205,26 +208,24 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     }
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
-    out.puts(s"def $instName")
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
+    out.puts(s"def ${instName.name}")
     out.inc
   }
 
-  override def instanceAttrName(instName: String): String = instName
-
-  override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"return @$instName if @$instName")
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+    out.puts(s"return ${privateMemberName(instName)} if ${privateMemberName(instName)}")
   }
 
-  override def instanceReturn(instName: String): Unit = {
-    out.puts(s"@$instName")
+  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+    out.puts(privateMemberName(instName))
   }
 
-  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
-    out.puts(s"@${instanceAttrName(instName)} = ${expression(value)}")
+  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit = {
+    out.puts(s"${privateMemberName(instName)} = ${expression(value)}")
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: NamedIdentifier, enumColl: Map[NamedIdentifier, String]): Unit = {
     out.puts
     out.puts(s"${value2Const(enumName)} = {")
     out.inc
@@ -239,15 +240,24 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
 
   def value2Const(s: String) = s.toUpperCase
 
-  override def privateMemberName(ksName: String): String = s"@$ksName"
+  override def idToStr(ksName: Identifier): String = {
+    ksName match {
+      case NamedIdentifier(name) => name
+      case SpecialIdentifier(name) => name
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+      case InstanceIdentifier(name) => s"_inst_$name"
+    }
+  }
 
-  override def kstreamName: String = "Kaitai::Struct::Stream"
-
-  override def kstructName: String = "Kaitai::Struct::Struct"
+  override def privateMemberName(ksName: Identifier): String = s"@${idToStr(ksName)}"
 }
 
-object RubyCompiler extends LanguageCompilerStatic {
+object RubyCompiler extends LanguageCompilerStatic
+  with StreamStructNames {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
   override def outFileName(topClassName: String): String = s"$topClassName.rb"
   override def indent: String = "  "
+
+  override def kstreamName: String = "Kaitai::Struct::Stream"
+  override def kstructName: String = "Kaitai::Struct::Struct"
 }

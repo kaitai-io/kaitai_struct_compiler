@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.{LanguageOutputWriter, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
@@ -9,11 +9,13 @@ import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvi
 
 class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
-    with StreamStructNames
     with UniversalFooter
     with UpperCamelCaseClasses
     with EveryReadIsExpression
+    with AllocateIOLocalVar
     with NoNeedForFullClassPath {
+
+  import PythonCompiler._
 
   override def getStatic = PythonCompiler
 
@@ -48,15 +50,15 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("self._root = _root if _root else self")
   }
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: BaseType): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {}
 
-  override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"self.$attrName = self._io.ensure_fixed_contents(${contents.length}, array.array('B', [${contents.mkString(", ")}]))")
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
+    out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents(${contents.length}, array.array('B', [${contents.mkString(", ")}]))")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
@@ -78,14 +80,16 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def normalIO: String = "self._io"
 
-  override def allocateIO(varName: String, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+    val varStr = privateMemberName(varName)
+
     val args = rep match {
-      case RepeatEos => s"$varName[-1]"
-      case RepeatExpr(_) => s"$varName[i]"
-      case NoRepeat => varName
+      case RepeatEos => s"$varStr[-1]"
+      case RepeatExpr(_) => s"$varStr[i]"
+      case NoRepeat => varStr
     }
 
-    out.puts(s"io = $kstreamName(cStringIO.StringIO(self.$args))")
+    out.puts(s"io = $kstreamName(cStringIO.StringIO($args))")
     "io"
   }
 
@@ -108,28 +112,28 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"self._raw_$id = []")
-    out.puts(s"self.$id = []")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
+    out.puts(s"${privateMemberName(id)} = []")
     out.puts(s"while not $io.is_eof():")
     out.inc
   }
-  override def handleAssignmentRepeatEos(id: String, expr: String): Unit =
-    out.puts(s"self.$id.append($expr)")
+  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
+    out.puts(s"${privateMemberName(id)}.append($expr)")
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"self._raw_$id = [None] * ${expression(repeatExpr)}")
-    out.puts(s"self.$id = [None] * ${expression(repeatExpr)}")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = [None] * ${expression(repeatExpr)}")
+    out.puts(s"${privateMemberName(id)} = [None] * ${expression(repeatExpr)}")
     out.puts(s"for i in xrange(${expression(repeatExpr)}):")
     out.inc
   }
-  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit =
-    out.puts(s"self.$id[i] = $expr")
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
+    out.puts(s"${privateMemberName(id)}[i] = $expr")
 
-  override def handleAssignmentSimple(id: String, expr: String): Unit =
-    out.puts(s"self.$id = $expr")
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
+    out.puts(s"${privateMemberName(id)} = $expr")
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
@@ -154,28 +158,26 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     }
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts("@property")
     out.puts(s"def $instName(self):")
     out.inc
   }
 
-  override def instanceAttrName(instName: String) = s"_m_$instName"
-
-  override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"if hasattr(self, '${instanceAttrName(instName)}'):")
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if hasattr(self, '${idToStr(instName)}'):")
     out.inc
     instanceReturn(instName)
     out.dec
     out.puts
   }
 
-  override def instanceReturn(instName: String): Unit = {
-    out.puts(s"return self.${instanceAttrName(instName)}")
+  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+    out.puts(s"return ${privateMemberName(instName)}")
   }
 
-  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
-    out.puts(s"self.${instanceAttrName(instName)} = ${expression(value)};")
+  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit = {
+    out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
@@ -190,15 +192,24 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 
-  override def privateMemberName(ksName: String): String = s"self.$ksName"
+  def idToStr(id: Identifier): String = {
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => name
+      case InstanceIdentifier(name) => s"_m_${name}"
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+    }
+  }
 
-  override def kstreamName: String = "KaitaiStream"
-
-  override def kstructName: String = "KaitaiStruct"
+  override def privateMemberName(id: Identifier): String = s"self.${idToStr(id)}"
 }
 
-object PythonCompiler extends LanguageCompilerStatic {
+object PythonCompiler extends LanguageCompilerStatic
+  with StreamStructNames {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"$topClassName.py"
+
+  override def kstreamName: String = "KaitaiStream"
+  override def kstructName: String = "KaitaiStruct"
 }

@@ -10,6 +10,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
   extends LanguageCompiler(verbose, outSrc)
     with StreamStructNames
+    with AllocateAndStoreIO
     with EveryReadIsExpression {
   import CppCompiler._
 
@@ -115,7 +116,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   override def classDestructorFooter = classConstructorFooter
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
 
@@ -137,7 +138,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     }
   }
 
-  override def attributeReader(attrName: String, attrType: BaseType): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
     ensureMode(PublicAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${attrReaderName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
@@ -191,7 +192,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   override def normalIO: String = privateMemberName("_io")
 
-  override def allocateIO(varName: String, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): NamedIdentifier = {
     val memberName = privateMemberName(varName)
 
     val ioName = s"_io_$varName"
@@ -304,7 +305,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
-  override def instanceHeader(className: List[String], instName: String, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: NamedIdentifier, dataType: BaseType): Unit = {
     ensureMode(PublicAccess)
     outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${attrReaderName(instName)}();")
 
@@ -410,16 +411,12 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   def defineName(className: String) = className.toUpperCase + "_H_"
 
-  override def privateMemberName(ksName: String): String = {
-    /*
-    if (ksName == "_root" || ksName == "_parent" || ksName == "_io") {
-      "_m" + ksName
-    } else if (ksName.startsWith("_raw_")) {
-      "_raw_" + Utils.lowerCamelCase(ksName.substring("_raw_".length))
-    } else {
-      Utils.lowerCamelCase(ksName) + "_"
-    }*/
-    "m_" + ksName
+  override def privateMemberName(ksName: Identifier): String = {
+    ksName match {
+      case RawIdentifier(inner) => s"m_raw_${privateMemberName(inner)}"
+      case si: SpecialIdentifier => s"m_${si.name}"
+      case ni: NamedIdentifier => s"m_${ni.name}"
+    }
   }
 
   def attrReaderName(ksName: String) = {
@@ -434,7 +431,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     ksName
   }
 
-  def flagForInstName(ksName: String) = "f_" + ksName
+  def flagForInstName(ksName: NamedIdentifier) = s"f_${ksName.name}"
 
   def rawMemberName(ksName: String) = "raw_" + ksName
 
@@ -448,14 +445,6 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case s => s + "_t"
     }.mkString("::")
   }
-
-  /**
-    * We don't have a luxury of garbage collection in C++ and want to keep things clean and simple, thus
-    * we need to store allocated IOs to clean them up in destructor.
-    *
-    * @return true
-    */
-  override def needToStoreIOs: Boolean = true
 }
 
 object CppCompiler extends LanguageCompilerStatic {

@@ -97,8 +97,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.classHeader(name)
 
     val extraAttrs = ListBuffer[AttrSpec]()
-    extraAttrs += AttrSpec("_root", UserTypeInstream(topClassName))
-    extraAttrs += AttrSpec("_parent", UserTypeInstream(curClass.parentTypeName))
+    extraAttrs += AttrSpec(RootIdentifier, UserTypeInstream(topClassName))
+    extraAttrs += AttrSpec(ParentIdentifier, UserTypeInstream(curClass.parentTypeName))
 
     // Forward declarations for recursive types
     curClass.types.foreach { case (typeName, intClass) => lang.classForwardDeclaration(List(typeName)) }
@@ -136,7 +136,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     }
   }
 
-  def compileInstance(className: List[String], instName: String, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+  def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
     val dataType = getInstanceDataType(instSpec)
 
@@ -147,7 +147,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.instanceCheckCacheAndReturn(instName)
 
     instSpec match {
-      case ValueInstanceSpec(value, _) => lang.instanceCalculate(instName, dataType, value)
+      case ValueInstanceSpec(value, _) =>
+        lang.instanceCalculate(instName, dataType, value)
       case i: ParseInstanceSpec =>
         val io = i.io match {
           case None => lang.normalIO
@@ -157,7 +158,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
           lang.pushPos(io)
           lang.seek(io, pos)
         }
-        lang.attrParse(i, lang.instanceAttrName(instName), extraAttrs, io)
+        lang.attrParse(i, instName, extraAttrs, io)
         i.pos.foreach((pos) => lang.popPos(io))
     }
 
@@ -166,34 +167,36 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.instanceFooter
   }
 
-  override def determineType(attrName: String): BaseType = determineType(nowClass, nowClassName, attrName)
+  override def determineType(attrName: Identifier): BaseType = determineType(nowClass, nowClassName, attrName)
 
-  override def determineType(typeName: List[String], attrName: String): BaseType = {
+  override def determineType(typeName: List[String], attrName: Identifier): BaseType = {
     getTypeByName(nowClass, typeName) match {
       case Some(t) => determineType(t, typeName, attrName)
       case None => throw new RuntimeException(s"Unable to determine type for $attrName in type $typeName")
     }
   }
 
-  def determineType(classSpec: ClassSpec, className: List[String], attrName: String): BaseType = {
+  def determineType(classSpec: ClassSpec, className: List[String], attrName: Identifier): BaseType = {
     attrName match {
-      case "_root" =>
+      case RootIdentifier =>
         UserTypeInstream(topClassName)
-      case "_parent" =>
+      case ParentIdentifier =>
         UserTypeInstream(classSpec.parentTypeName)
-      case "_io" =>
+      case IoIdentifier =>
         KaitaiStreamType
-      case _ =>
+      case namedId: NamedIdentifier =>
         classSpec.seq.foreach { el =>
           if (el.id == attrName)
             return el.dataTypeComposite
         }
-        classSpec.instances.get(attrName) match {
+        throw new RuntimeException(s"Unable to access ${namedId.name} in $className context")
+      case instId: InstanceIdentifier =>
+        classSpec.instances.get(instId) match {
           case Some(i: ValueInstanceSpec) => return i.dataType.get
           case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
           case None => // do nothing
         }
-        throw new RuntimeException(s"Unable to access ${attrName} in ${className} context")
+        throw new RuntimeException(s"Unable to access ${instId.name} in $className context")
     }
   }
 
@@ -225,7 +228,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 //    }
   }
 
-  def compileEnum(enumName: String, enumColl: Map[Long, String]): Unit = {
+  def compileEnum(enumName: NamedIdentifier, enumColl: Map[Long, String]): Unit = {
     lang.enumDeclaration(nowClassName, enumName, enumColl)
   }
 }
