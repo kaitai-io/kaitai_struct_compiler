@@ -71,8 +71,36 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
 
   def expression(e: Ast.expr): String = translator.translate(e)
 
+  /**
+    * Renders identifier to a string, specifically for a given
+    * language and settings. This usually includes things like
+    * case and separator conversion and does *not* include things
+    * like prepending "@" or "this." or "self." that might be
+    * used to access private member.
+    *
+    * @param id identifier to render
+    * @return identifier as string
+    */
   def idToStr(id: Identifier): String
+
+  /**
+    * Renders identifier as a proper reference to a private member
+    * that represents this field. This might include some prefixes
+    * like "@" or "this." or "self.".
+    *
+    * @param id identifier to render
+    * @return identifier as string
+    */
   def privateMemberName(id: Identifier): String
+
+  /**
+    * Renders identifier as a proper reference to a public member
+    * that represents this field.
+    *
+    * @param id identifier to render
+    * @return identifier as string
+    */
+  def publicMemberName(id: Identifier): String
 }
 
 trait LanguageCompilerStatic {
