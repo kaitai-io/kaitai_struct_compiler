@@ -58,7 +58,12 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"protected $$${lowerCamelCase(attrName)};")
+    attrName match {
+      case "_parent" | "_root" =>
+        // just ignore it for now
+      case _ =>
+        out.puts(s"protected $$${lowerCamelCase(attrName)};")
+    }
   }
 
   override def attributeReader(attrName: String, attrType: BaseType): Unit = {
