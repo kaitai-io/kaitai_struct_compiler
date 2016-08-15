@@ -26,8 +26,8 @@ case class InstanceIdentifier(name: String) extends Identifier {
   }
 }
 
-class SpecialIdentifier(name: String) extends Identifier
+case class SpecialIdentifier(name: String) extends Identifier
 
-case object RootIdentifier extends SpecialIdentifier("_root")
-case object ParentIdentifier extends SpecialIdentifier("_parent")
-case object IoIdentifier extends SpecialIdentifier("_io")
+object RootIdentifier extends SpecialIdentifier("_root")
+object ParentIdentifier extends SpecialIdentifier("_parent")
+object IoIdentifier extends SpecialIdentifier("_io")
