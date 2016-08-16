@@ -9,7 +9,6 @@ import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 
 class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: String = "")
   extends LanguageCompiler(verbose, out)
-    with StreamStructNames
     with EveryReadIsExpression
     with UniversalFooter
     with AllocateIOLocalVar
@@ -125,8 +124,6 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
         out.puts(s"$destName = _io.processRotateLeft($srcName, $expr, 1);")
     }
   }
-
-  override def normalIO: String = "_io"
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val javaName = idToStr(varName)
@@ -248,8 +245,8 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     }
   }
 
-  override def enumDeclaration(curClass: String, enumName: NamedIdentifier, enumColl: Map[Long, String]): Unit = {
-    val enumClass = type2class(enumName.name)
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
+    val enumClass = type2class(enumName)
 
     out.puts
     out.puts(s"public enum $enumClass {")
@@ -297,12 +294,12 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
 
   override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
 
-  override def kstreamName: String = "KaitaiStream"
-
-  override def kstructName: String = "KaitaiStruct"
+  override def publicMemberName(id: Identifier) = idToStr(id)
 }
 
-object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+object JavaCompiler extends LanguageCompilerStatic
+  with UpperCamelCaseClasses
+  with StreamStructNames {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
@@ -379,4 +376,7 @@ object JavaCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+
+  override def kstreamName: String = "KaitaiStream"
+  override def kstructName: String = "KaitaiStruct"
 }
