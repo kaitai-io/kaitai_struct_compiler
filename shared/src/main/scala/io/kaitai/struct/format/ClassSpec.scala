@@ -18,7 +18,7 @@ case class ClassSpec(
                       seq: List[AttrSpec],
                       types: Map[String, ClassSpec],
                       instances: Map[InstanceIdentifier, InstanceSpec],
-                      enums: Map[NamedIdentifier, Map[Long, String]]
+                      enums: Map[String, Map[Long, String]]
                     ) {
   var _parentType: NamedClassSpec = UnknownNamedClass
 
@@ -56,11 +56,11 @@ object ClassSpec {
     } else {
       _instances.toMap.map { case (k, v) => InstanceIdentifier(k) -> v }
     }
-    val enums: Map[NamedIdentifier, Map[Long, String]] = if (_enums == null) {
+    val enums: Map[String, Map[Long, String]] = if (_enums == null) {
       Map()
     } else {
       _enums.toMap.map { case(k, v) =>
-        NamedIdentifier(k) -> v.toMap.map { case (enumId, enumLabel) => (Utils.strToLong(enumId), enumLabel) }
+        k -> v.toMap.map { case (enumId, enumLabel) => (Utils.strToLong(enumId), enumLabel) }
       }
     }
 
