@@ -58,8 +58,8 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def seek(io: String, pos: Ast.expr): Unit
   def popPos(io: String): Unit
 
-  def instanceClear(instName: InstanceIdentifier): Unit = {}
-  def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
+  def instanceClear(instName: Identifier): Unit = {}
+  def instanceSetCalculated(instName: Identifier): Unit = {}
   def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
   def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit
   def instanceFooter: Unit

@@ -220,11 +220,11 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def popPos(io: String): Unit =
     outSrc.puts(s"$io->seek(_pos);")
 
-  override def instanceClear(instName: InstanceIdentifier): Unit = {
+  override def instanceClear(instName: Identifier): Unit = {
     outSrc.puts(s"${flagForInstName(instName)} = false;")
   }
 
-  override def instanceSetCalculated(instName: InstanceIdentifier): Unit = {
+  override def instanceSetCalculated(instName: Identifier): Unit = {
     outSrc.puts(s"${flagForInstName(instName)} = true;")
   }
 
