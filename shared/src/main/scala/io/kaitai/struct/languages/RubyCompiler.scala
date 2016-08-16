@@ -223,10 +223,6 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.puts(privateMemberName(instName))
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit = {
-    out.puts(s"${privateMemberName(instName)} = ${expression(value)}")
-  }
-
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     out.puts
     out.puts(s"${value2Const(enumName)} = {")

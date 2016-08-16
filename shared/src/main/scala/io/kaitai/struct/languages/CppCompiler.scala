@@ -330,10 +330,6 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit = {
-    outSrc.puts(s"${privateMemberName(instName)} = ${expression(value)};")
-  }
-
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit = {
     val enumClass = type2class(List(enumName))
 

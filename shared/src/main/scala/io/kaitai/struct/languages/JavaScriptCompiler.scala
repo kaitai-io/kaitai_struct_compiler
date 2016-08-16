@@ -230,9 +230,6 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit =
-    handleAssignmentSimple(instName, expression(value))
-
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     out.puts
     out.puts(s"${type2class(curClass)}.${type2class(enumName)} = Object.freeze({")

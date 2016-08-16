@@ -232,9 +232,6 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit =
-    handleAssignmentSimple(instName, expression(value))
-
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     val enumClass = type2class(enumName)
 

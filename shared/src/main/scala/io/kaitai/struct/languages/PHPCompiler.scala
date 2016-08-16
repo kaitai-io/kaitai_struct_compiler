@@ -202,23 +202,6 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit = {
-    val primType = kaitaiType2JavaTypePrim(dataType)
-    val boxedType = kaitaiType2JavaTypeBoxed(dataType)
-
-    if (primType != boxedType) {
-      // Special trick to achieve both implicit type conversion + boxing.
-      // Unfortunately, Java can't do both in one assignment, i.e. this would fail:
-      //
-      // Double c = 1.0f + 1;
-
-      out.puts(s"$primType _tmp = ${expression(value)};")
-      out.puts(s"${privateMemberName(instName)} = _tmp;")
-    } else {
-      out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
-    }
-  }
-
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit = {
     val enumClass = type2class(enumName)
 

@@ -158,4 +158,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
   def handleAssignmentSimple(id: Identifier, expr: String): Unit
 
   def parseExpr(dataType: BaseType, io: String): String
+
+  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr) =
+    handleAssignmentSimple(instName, expression(value))
 }
