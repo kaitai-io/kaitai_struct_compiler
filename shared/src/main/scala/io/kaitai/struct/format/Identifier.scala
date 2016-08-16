@@ -1,6 +1,8 @@
 package io.kaitai.struct.format
 
-abstract class Identifier
+abstract class Identifier {
+  override def toString: String = throw new UnsupportedOperationException
+}
 
 case class NamedIdentifier(name: String) extends Identifier {
   Identifier.checkIdentifier(name)
