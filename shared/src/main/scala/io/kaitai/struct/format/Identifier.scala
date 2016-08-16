@@ -17,6 +17,8 @@ object Identifier {
 
 case class RawIdentifier(innerId: Identifier) extends Identifier
 
+case class IoStorageIdentifier(innerId: Identifier) extends Identifier
+
 case class InstanceIdentifier(name: String) extends Identifier {
   name match {
     case Identifier.ReIdentifier(_) =>
