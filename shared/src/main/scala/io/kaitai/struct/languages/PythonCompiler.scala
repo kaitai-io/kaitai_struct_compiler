@@ -203,7 +203,14 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def privateMemberName(id: Identifier): String = s"self.${idToStr(id)}"
 
-  override def publicMemberName(id: Identifier): String = idToStr(id)
+  override def publicMemberName(id: Identifier): String = {
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => name
+      case InstanceIdentifier(name) => name
+      case RawIdentifier(innerId) => s"_raw_${publicMemberName(innerId)}"
+    }
+  }
 }
 
 object PythonCompiler extends LanguageCompilerStatic
