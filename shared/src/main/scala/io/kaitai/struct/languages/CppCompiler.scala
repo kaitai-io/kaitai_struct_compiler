@@ -429,6 +429,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case IoStorageIdentifier(inner) => s"io_${privateMemberName(inner)}"
       case si: SpecialIdentifier => si.name
       case ni: NamedIdentifier => ni.name
+      case ni: InstanceIdentifier => ni.name
     }
   }
 

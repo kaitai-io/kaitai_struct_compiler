@@ -66,7 +66,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
   override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
-    out.puts(s"attr_reader :$attrName")
+    out.puts(s"attr_reader :${publicMemberName(attrName)}")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
@@ -98,11 +98,13 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
 
   override def normalIO: String = "@_io"
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(id)
+
     val args = rep match {
-      case RepeatEos => s"@$varName.last"
-      case RepeatExpr(_) => s"@$varName[i]"
-      case NoRepeat => s"@$varName"
+      case RepeatEos => s"$memberName.last"
+      case RepeatExpr(_) => s"$memberName[i]"
+      case NoRepeat => s"$memberName"
     }
 
     out.puts(s"io = $kstreamName.new($args)")
@@ -156,7 +158,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     if (needRaw)
       out.puts(s"@_raw_$id = []")
 
-    out.puts(s"@$id = []")
+    out.puts(s"${privateMemberName(id)} = []")
     out.puts(s"while not $io.eof?")
     out.inc
   }

@@ -160,7 +160,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts("@property")
-    out.puts(s"def $instName(self):")
+    out.puts(s"def ${publicMemberName(instName)}(self):")
     out.inc
   }
 
