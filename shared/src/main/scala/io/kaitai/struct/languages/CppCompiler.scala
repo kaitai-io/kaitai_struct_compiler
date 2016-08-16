@@ -117,7 +117,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${idToStr(attrName)};")
+    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
 
     if (condSpec.ifExpr.nonEmpty) {
       outHdr.puts(s"bool ${flagForInstName(attrName)};")
@@ -425,8 +425,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   override def idToStr(id: Identifier): String = {
     id match {
-      case RawIdentifier(inner) => s"raw_${privateMemberName(inner)}"
-      case IoStorageIdentifier(inner) => s"io_${privateMemberName(inner)}"
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+      case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
       case si: SpecialIdentifier => si.name
       case ni: NamedIdentifier => ni.name
       case ni: InstanceIdentifier => ni.name
