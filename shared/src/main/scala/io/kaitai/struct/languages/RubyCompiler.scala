@@ -225,7 +225,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     out.puts(s"${privateMemberName(instName)} = ${expression(value)}")
   }
 
-  override def enumDeclaration(curClass: String, enumName: NamedIdentifier, enumColl: Map[NamedIdentifier, String]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     out.puts
     out.puts(s"${value2Const(enumName)} = {")
     out.inc
@@ -240,16 +240,18 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
 
   def value2Const(s: String) = s.toUpperCase
 
-  override def idToStr(ksName: Identifier): String = {
-    ksName match {
+  override def idToStr(id: Identifier): String = {
+    id match {
       case NamedIdentifier(name) => name
-      case SpecialIdentifier(name) => name
+      case si: SpecialIdentifier => si.name
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
       case InstanceIdentifier(name) => s"_inst_$name"
     }
   }
 
-  override def privateMemberName(ksName: Identifier): String = s"@${idToStr(ksName)}"
+  override def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
+
+  override def publicMemberName(id: Identifier): String = idToStr(id)
 }
 
 object RubyCompiler extends LanguageCompilerStatic
