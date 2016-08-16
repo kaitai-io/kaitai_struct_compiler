@@ -80,18 +80,21 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"this.$varDest = $kstreamName.processXor(this.$varSrc, ${expression(xorValue)});")
+        out.puts(s"$destName = $kstreamName.processXor($srcName, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"this.$varDest = $kstreamName.processZlib(this.$varSrc);")
+        out.puts(s"$destName = $kstreamName.processZlib($srcName);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"this.$varDest = $kstreamName.processRotateLeft(this.$varSrc, $expr, 1);")
+        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
     }
   }
 
@@ -132,8 +135,8 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>();")
-    out.puts(s"this.${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+      out.puts(s"${privateMemberName("_raw_" + id)} = new ArrayList<byte[]>();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
@@ -145,8 +148,8 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
-    out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
+    out.puts(s"for ($$i = 0; $$i < ${expression(repeatExpr)}; $$i++) {")
     out.inc
   }
 
