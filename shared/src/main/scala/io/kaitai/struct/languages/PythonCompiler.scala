@@ -202,6 +202,8 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def privateMemberName(id: Identifier): String = s"self.${idToStr(id)}"
+
+  override def publicMemberName(id: Identifier): String = idToStr(id)
 }
 
 object PythonCompiler extends LanguageCompilerStatic
