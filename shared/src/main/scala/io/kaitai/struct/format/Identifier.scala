@@ -3,16 +3,20 @@ package io.kaitai.struct.format
 abstract class Identifier
 
 case class NamedIdentifier(name: String) extends Identifier {
-  name match {
-    case Identifier.ReIdentifier(_) =>
-      // name is valid, everything's fine
-    case _ =>
-      throw new RuntimeException("invalid identifier: \"" + name + "\"")
-  }
+  Identifier.checkIdentifier(name)
 }
 
 object Identifier {
   val ReIdentifier = "^[a-z][a-z0-9_]*$".r
+
+  def checkIdentifier(id: String): Unit = {
+    id match {
+      case ReIdentifier() =>
+      // name is valid, everything's fine
+      case _ =>
+        throw new RuntimeException("invalid identifier: \"" + id + "\"")
+    }
+  }
 }
 
 case class RawIdentifier(innerId: Identifier) extends Identifier
@@ -20,12 +24,7 @@ case class RawIdentifier(innerId: Identifier) extends Identifier
 case class IoStorageIdentifier(innerId: Identifier) extends Identifier
 
 case class InstanceIdentifier(name: String) extends Identifier {
-  name match {
-    case Identifier.ReIdentifier(_) =>
-      // name is valid, everything's fine
-    case _ =>
-      throw new RuntimeException("invalid identifier: \"" + name + "\"")
-  }
+  Identifier.checkIdentifier(name)
 }
 
 case class SpecialIdentifier(name: String) extends Identifier
