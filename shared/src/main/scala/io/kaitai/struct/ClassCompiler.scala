@@ -167,36 +167,34 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.instanceFooter
   }
 
-  override def determineType(attrName: Identifier): BaseType = determineType(nowClass, nowClassName, attrName)
+  override def determineType(attrName: String): BaseType = determineType(nowClass, nowClassName, attrName)
 
-  override def determineType(typeName: List[String], attrName: Identifier): BaseType = {
+  override def determineType(typeName: List[String], attrName: String): BaseType = {
     getTypeByName(nowClass, typeName) match {
       case Some(t) => determineType(t, typeName, attrName)
       case None => throw new RuntimeException(s"Unable to determine type for $attrName in type $typeName")
     }
   }
 
-  def determineType(classSpec: ClassSpec, className: List[String], attrName: Identifier): BaseType = {
+  def determineType(classSpec: ClassSpec, className: List[String], attrName: String): BaseType = {
     attrName match {
-      case RootIdentifier =>
+      case "_root" =>
         UserTypeInstream(topClassName)
-      case ParentIdentifier =>
+      case "_parent" =>
         UserTypeInstream(classSpec.parentTypeName)
-      case IoIdentifier =>
+      case "_io" =>
         KaitaiStreamType
-      case namedId: NamedIdentifier =>
+      case _ =>
         classSpec.seq.foreach { el =>
-          if (el.id == attrName)
+          if (el.id == NamedIdentifier(attrName))
             return el.dataTypeComposite
         }
-        throw new RuntimeException(s"Unable to access ${namedId.name} in $className context")
-      case instId: InstanceIdentifier =>
-        classSpec.instances.get(instId) match {
+        classSpec.instances.get(InstanceIdentifier(attrName)) match {
           case Some(i: ValueInstanceSpec) => return i.dataType.get
           case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
           case None => // do nothing
         }
-        throw new RuntimeException(s"Unable to access ${instId.name} in $className context")
+        throw new RuntimeException(s"Unable to access $attrName in $className context")
     }
   }
 

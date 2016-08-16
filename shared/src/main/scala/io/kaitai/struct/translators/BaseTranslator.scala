@@ -6,8 +6,8 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.Identifier
 
 trait TypeProvider {
-  def determineType(parentType: List[String], attrName: Identifier): BaseType
-  def determineType(attrName: Identifier): BaseType
+  def determineType(parentType: List[String], attrName: String): BaseType
+  def determineType(attrName: String): BaseType
 }
 
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
