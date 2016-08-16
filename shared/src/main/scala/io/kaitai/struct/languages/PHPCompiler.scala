@@ -9,8 +9,9 @@ import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvide
 
 class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "")
   extends LanguageCompiler(verbose, out)
-  with UniversalFooter
-  with EveryReadIsExpression {
+    with AllocateIOLocalVar
+    with UniversalFooter
+    with EveryReadIsExpression {
 
   import PHPCompiler._
 
@@ -57,49 +58,50 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     out.inc
   }
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"protected $$${lowerCamelCase(attrName)};")
+  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+    out.puts(s"protected $$${idToStr(attrName)};")
   }
 
-  override def attributeReader(attrName: String, attrType: BaseType): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
     attrName match {
-      case "_parent" | "_root" =>
+      case ParentIdentifier | RootIdentifier =>
         // just ignore it for now
       case _ =>
-        out.puts(s"public function ${lowerCamelCase(attrName)}() { return ${privateMemberName(attrName)}; }")
+        out.puts(s"public function ${publicMemberName(attrName)}() { return ${privateMemberName(attrName)}; }")
     }
   }
 
-  override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"this.${lowerCamelCase(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
+    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"this.$varDest = $kstreamName.processXor(this.$varSrc, ${expression(xorValue)});")
+        out.puts(s"$destName = $kstreamName->processXor($srcName, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"this.$varDest = $kstreamName.processZlib(this.$varSrc);")
+        out.puts(s"$destName = $kstreamName->processZlib($srcName);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"this.$varDest = $kstreamName.processRotateLeft(this.$varSrc, $expr, 1);")
+        out.puts(s"$destName = $kstreamName->processRotateLeft($srcName, $expr, 1);")
     }
   }
 
-  override def normalIO: String = "$this->_io"
+  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(id)
 
-  override def allocateIO(varName: String, rep: RepeatSpec): String = {
-    val javaName = lowerCamelCase(varName)
-
-    val ioName = s"_io_$javaName"
+    val ioName = s"_io_${idToStr(id)}"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
-      case NoRepeat => javaName
+      case RepeatEos | RepeatExpr(_) => s"$memberName.get($memberName.size() - 1)"
+      case NoRepeat => memberName
     }
 
     out.puts(s"$kstreamName $ioName = new $kstreamName($args);")
@@ -125,31 +127,31 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     out.inc
   }
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>();")
-    out.puts(s"this.${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
 
-  override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"this._raw_${lowerCamelCase(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${lowerCamelCase(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
+    out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
-  override def handleAssignmentSimple(id: String, expr: String): Unit = {
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
@@ -175,29 +177,27 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     }
   }
 
-  override def instanceDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${lowerCamelCase(attrName)};")
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
   }
 
-  override def instanceHeader(className: List[String], instName: String, dataType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${lowerCamelCase(instName)}() throws IOException {")
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
+    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${idToStr(instName)}() throws IOException {")
     out.inc
   }
 
-  override def instanceAttrName(instName: String): String = instName
-
-  override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"if (${lowerCamelCase(instName)} != null)")
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if (${privateMemberName(instName)} != null)")
     out.inc
     instanceReturn(instName)
     out.dec
   }
 
-  override def instanceReturn(instName: String): Unit = {
-    out.puts(s"return ${lowerCamelCase(instName)};")
+  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+    out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
+  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit = {
     val primType = kaitaiType2JavaTypePrim(dataType)
     val boxedType = kaitaiType2JavaTypeBoxed(dataType)
 
@@ -208,9 +208,9 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
       // Double c = 1.0f + 1;
 
       out.puts(s"$primType _tmp = ${expression(value)};")
-      out.puts(s"${lowerCamelCase(instName)} = _tmp;")
+      out.puts(s"${privateMemberName(instName)} = _tmp;")
     } else {
-      out.puts(s"${lowerCamelCase(instName)} = ${expression(value)};")
+      out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
     }
   }
 
@@ -252,17 +252,18 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   def value2Const(s: String) = s.toUpperCase
 
-  def lowerCamelCase(s: String): String = {
-    if (s == "_root" || s == "_parent" || s == "_io") {
-      s
-    } else if (s.startsWith("_raw_")) {
-      "_raw_" + lowerCamelCase(s.substring("_raw_".length))
-    } else {
-      Utils.lowerCamelCase(s)
+  def idToStr(id: Identifier): String = {
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
     }
   }
 
-  override def privateMemberName(ksName: String): String = "$this->" + Utils.lowerCamelCase(ksName)
+  override def privateMemberName(id: Identifier): String = s"$$this->${idToStr(id)}"
+
+  override def publicMemberName(id: Identifier) = idToStr(id)
 }
 
 object PHPCompiler extends LanguageCompilerStatic
