@@ -59,7 +59,12 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"protected $$${idToStr(attrName)};")
+    attrName match {
+      case ParentIdentifier | RootIdentifier =>
+        // just ignore it for now
+      case _ =>
+        out.puts(s"protected $$${idToStr(attrName)};")
+    }
   }
 
   override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
@@ -142,8 +147,8 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
-    out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
+    out.puts(s"for ($$i = 0; $$i < ${expression(repeatExpr)}; $$i++) {")
     out.inc
   }
 
