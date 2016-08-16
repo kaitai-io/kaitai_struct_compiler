@@ -52,7 +52,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
 
   def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
 
-  def normalIO: String
+  def normalIO: String = privateMemberName(IoIdentifier)
   def useIO(ioEx: Ast.expr): String
   def pushPos(io: String): Unit
   def seek(io: String, pos: Ast.expr): Unit
@@ -67,7 +67,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def instanceReturn(instName: InstanceIdentifier): Unit
   def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr)
 
-  def enumDeclaration(curClass: List[String], enumName: NamedIdentifier, enumColl: Map[Long, String]): Unit
+  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit
 
   def expression(e: Ast.expr): String = translator.translate(e)
 

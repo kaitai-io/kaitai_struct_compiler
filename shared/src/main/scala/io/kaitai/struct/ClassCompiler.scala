@@ -228,7 +228,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 //    }
   }
 
-  def compileEnum(enumName: NamedIdentifier, enumColl: Map[Long, String]): Unit = {
+  def compileEnum(enumName: String, enumColl: Map[Long, String]): Unit = {
     lang.enumDeclaration(nowClassName, enumName, enumColl)
   }
 }
