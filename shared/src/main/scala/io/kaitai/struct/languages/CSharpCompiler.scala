@@ -9,7 +9,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "Kaitai")
   extends LanguageCompiler(verbose, out)
-    with StreamStructNames
+    with AllocateIOLocalVar
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
   import CSharpCompiler._
@@ -59,12 +59,12 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts(s"public ${type2class(name)}($kstreamName io, ${type2class(parentClassName)} parent = null, ${type2class(rootClassName)} root = null) : base(io)")
     out.puts(s"{")
     out.inc
-    out.puts(s"${privateMemberName("_parent")} = parent;")
+    out.puts(s"${privateMemberName(ParentIdentifier)} = parent;")
 
     if (name == rootClassName)
-      out.puts(s"${privateMemberName("_root")} = root ?? this;")
+      out.puts(s"${privateMemberName(RootIdentifier)} = root ?? this;")
     else
-      out.puts(s"${privateMemberName("_root")} = root;")
+      out.puts(s"${privateMemberName(RootIdentifier)} = root;")
 
     out.puts("_parse();")
     out.dec
@@ -78,40 +78,41 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   override def classConstructorFooter: Unit = fileFooter(null)
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
-  override def attributeReader(attrName: String, attrType: BaseType): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
     out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
   }
 
-  override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"${privateMemberName(varDest)} = $normalIO.ProcessXor(${privateMemberName(varSrc)}, ${expression(xorValue)});")
+        out.puts(s"$destName = $normalIO.ProcessXor($srcName, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"${privateMemberName(varDest)} = $normalIO.ProcessZlib(${privateMemberName(varSrc)});")
+        out.puts(s"$destName = $normalIO.ProcessZlib($srcName);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"${privateMemberName(varDest)} = $normalIO.ProcessRotateLeft(${privateMemberName(varSrc)}, $expr, 1);")
+        out.puts(s"$destName = $normalIO.ProcessRotateLeft($srcName, $expr, 1);")
     }
   }
 
-  override def normalIO: String = "m_io"
-
-  override def allocateIO(varName: String, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val privateVarName = privateMemberName(varName)
 
-    val ioName = privateMemberName(s"_io_$privateVarName")
+    val ioName = s"io_$privateVarName"
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$privateVarName[$privateVarName.Count - 1]"
@@ -143,35 +144,35 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   override def condIfFooter(expr: expr): Unit = fileFooter(null)
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(s"_raw_$id")} = new List<byte[]>();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.IsEof()) {")
     out.inc
   }
 
-  override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.Add($expr);")
   }
 
   override def condRepeatEosFooter: Unit = fileFooter(null)
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(s"_raw_$id")} = new List<byte[]>((int) (${expression(repeatExpr)}));")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.Add($expr);")
   }
 
   override def condRepeatExprFooter: Unit = fileFooter(null)
 
-  override def handleAssignmentSimple(id: String, expr: String): Unit = {
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
@@ -193,15 +194,15 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
       case BytesEosType(_) =>
         s"$io.ReadBytesFull()"
       case t: UserType =>
-        s"new ${types2class(t.name)}($io, this, ${privateMemberName("_root")})"
+        s"new ${types2class(t.name)}($io, this, ${privateMemberName(RootIdentifier)})"
     }
   }
 
-  override def instanceDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts(s"public ${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}")
     out.puts("{")
     out.inc
@@ -216,8 +217,6 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.dec
   }
 
-  override def instanceAttrName(instName: String): String = instName
-
   override def instanceFooter: Unit = {
     out.dec
     out.puts("}")
@@ -225,15 +224,16 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts("}")
   }
 
-  override def instanceCheckCacheAndReturn(instName: String): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
     // See instanceHeader - the data type is needed, so the check is added in the instance header instead
   }
 
-  override def instanceReturn(instName: String): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = handleAssignmentSimple(instName, expression(value))
+  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit =
+    handleAssignmentSimple(instName, expression(value))
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     val enumClass = type2class(enumName)
@@ -244,39 +244,42 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.inc
 
     enumColl.foreach { case (id, label) =>
-      out.puts(s"${publicMemberName(label)} = $id,")
+      out.puts(s"${Utils.upperCamelCase(label)} = $id,")
     }
 
     out.dec
     out.puts("}")
   }
 
-  def publicMemberName(ksName: String): String = {
-    if (ksName.startsWith("_"))
-      s"M${Utils.upperCamelCase(ksName)}"
-    else
-      Utils.upperCamelCase(ksName)
+  def idToStr(id: Identifier): String = {
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
+    }
   }
 
-  override def privateMemberName(ksName: String): String = {
-    if (ksName.startsWith("_"))
-      s"m${Utils.lowerCamelCase(ksName)}"
-    else
-      s"_${Utils.lowerCamelCase(ksName)}"
+  override def publicMemberName(id: Identifier): String = {
+    id match {
+      case SpecialIdentifier(name) => s"M${Utils.upperCamelCase(name)}"
+      case NamedIdentifier(name) => Utils.upperCamelCase(name)
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case RawIdentifier(innerId) => s"M_Raw_${publicMemberName(innerId)}"
+    }
   }
 
-  override def kstructName = "KaitaiStruct"
-
-  override def kstreamName = "KaitaiStream"
-
-  def type2class(name: String): String = name match {
-    case "kaitai_struct" => kstructName
-    case "kaitai_stream" => kstreamName
-    case _ => Utils.upperCamelCase(name)
+  override def privateMemberName(id: Identifier): String = {
+    id match {
+      case SpecialIdentifier(name) => s"m${Utils.lowerCamelCase(name)}"
+      case _ => s"_${idToStr(id)}"
+    }
   }
 }
 
-object CSharpCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
+object CSharpCompiler extends LanguageCompilerStatic
+  with StreamStructNames
+  with UpperCamelCaseClasses {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new CSharpTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
@@ -316,4 +319,13 @@ object CSharpCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses 
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+
+  override def kstructName = "KaitaiStruct"
+  override def kstreamName = "KaitaiStream"
+
+  override def type2class(name: String): String = name match {
+    case "kaitai_struct" => kstructName
+    case "kaitai_stream" => kstreamName
+    case _ => Utils.upperCamelCase(name)
+  }
 }
