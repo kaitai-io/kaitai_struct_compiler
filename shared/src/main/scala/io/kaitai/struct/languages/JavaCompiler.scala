@@ -103,7 +103,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = _io.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
