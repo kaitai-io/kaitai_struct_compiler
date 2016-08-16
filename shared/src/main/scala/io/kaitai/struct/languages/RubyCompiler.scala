@@ -247,7 +247,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
       case NamedIdentifier(name) => name
       case si: SpecialIdentifier => si.name
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
-      case InstanceIdentifier(name) => s"_inst_$name"
+      case InstanceIdentifier(name) => name
     }
   }
 
