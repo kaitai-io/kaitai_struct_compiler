@@ -7,6 +7,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages._
+import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 import io.kaitai.struct.translators.TypeProvider
 
 import scala.collection.mutable.ListBuffer

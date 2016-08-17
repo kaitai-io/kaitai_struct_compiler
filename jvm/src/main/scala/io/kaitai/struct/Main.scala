@@ -4,6 +4,7 @@ import java.io.File
 
 import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
+import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
 object Main {
   case class CLIConfig(

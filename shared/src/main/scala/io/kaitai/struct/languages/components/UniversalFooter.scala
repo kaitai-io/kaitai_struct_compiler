@@ -1,4 +1,4 @@
-package io.kaitai.struct.languages
+package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.exprlang.Ast.expr
 

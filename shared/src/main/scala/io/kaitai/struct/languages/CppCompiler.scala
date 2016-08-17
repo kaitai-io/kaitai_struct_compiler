@@ -1,11 +1,11 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
+import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
   extends LanguageCompiler(verbose, outSrc)
@@ -206,7 +206,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     ioName
   }
 
-  override def useIO(ioEx: expr): String = {
+  override def useIO(ioEx: Ast.expr): String = {
     outSrc.puts(s"KaitaiStream *io = ${expression(ioEx)};")
     "io"
   }
@@ -228,12 +228,12 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts(s"${flagForInstName(instName)} = true;")
   }
 
-  override def condIfHeader(expr: expr): Unit = {
+  override def condIfHeader(expr: Ast.expr): Unit = {
     outSrc.puts(s"if (${expression(expr)}) {")
     outSrc.inc
   }
 
-  override def condIfFooter(expr: expr): Unit = {
+  override def condIfFooter(expr: Ast.expr): Unit = {
     outSrc.dec
     outSrc.puts("}")
   }
@@ -255,7 +255,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
       outSrc.puts(s"this._raw_${privateMemberName(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")

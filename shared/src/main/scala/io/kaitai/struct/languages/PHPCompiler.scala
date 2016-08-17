@@ -5,6 +5,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
+import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
 
 class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "")

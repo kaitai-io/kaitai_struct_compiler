@@ -5,6 +5,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
+import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
 
 class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageOutputWriter)

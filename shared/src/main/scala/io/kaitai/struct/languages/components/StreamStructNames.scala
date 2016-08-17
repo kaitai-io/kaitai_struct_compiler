@@ -1,4 +1,4 @@
-package io.kaitai.struct.languages
+package io.kaitai.struct.languages.components
 
 /**
   * Ensure that there are single source of names of classes that act as

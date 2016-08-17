@@ -3,6 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.languages._
+import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import org.scalatest.FunSuite
 import org.scalatest.Matchers._
 import org.scalatest.prop.TableDrivenPropertyChecks

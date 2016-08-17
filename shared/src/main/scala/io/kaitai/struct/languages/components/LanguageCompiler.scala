@@ -1,11 +1,10 @@
-package io.kaitai.struct.languages
+package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{BaseType, UserType}
+import io.kaitai.struct.exprlang.DataType.BaseType
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, TypeProvider}
 
 import scala.collection.mutable.ListBuffer
 
@@ -47,7 +46,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit
   def condRepeatEosFooter: Unit
 
-  def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit
+  def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
   def condRepeatExprFooter: Unit
 
   def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
@@ -65,7 +64,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit
   def instanceReturn(instName: InstanceIdentifier): Unit
-  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr)
+  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr)
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit
 
@@ -101,25 +100,4 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
     * @return identifier as string
     */
   def publicMemberName(id: Identifier): String
-}
-
-trait LanguageCompilerStatic {
-  def indent: String
-  def outFileName(topClassName: String): String
-  def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String) = s"$outDir/${outFileName(topClassName)}"
-  def getTranslator(tp: TypeProvider): BaseTranslator
-}
-
-object LanguageCompilerStatic {
-  val NAME_TO_CLASS = Map(
-    "cpp_stl" -> CppCompiler,
-    "csharp" -> CSharpCompiler,
-    "java" -> JavaCompiler,
-    "javascript" -> JavaScriptCompiler,
-    "php" -> PHPCompiler,
-    "python" -> PythonCompiler,
-    "ruby" -> RubyCompiler
-  )
-
-  def byString(langName: String): LanguageCompilerStatic = NAME_TO_CLASS(langName)
 }
