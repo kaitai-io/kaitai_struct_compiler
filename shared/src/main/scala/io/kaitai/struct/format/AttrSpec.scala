@@ -33,7 +33,7 @@ trait AttrLikeSpec {
 }
 
 case class AttrSpec(
-  id: String,
+  id: Identifier,
   dataType: BaseType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat)
 ) extends AttrLikeSpec
@@ -106,7 +106,7 @@ object AttrSpec {
       case None => NoRepeat
     }
 
-    AttrSpec(id, dataType, ConditionalSpec(ifExpr, repeatSpec))
+    AttrSpec(NamedIdentifier(id), dataType, ConditionalSpec(ifExpr, repeatSpec))
   }
 
   private def boolFromStr(s: String, byDef: Boolean): Boolean = {

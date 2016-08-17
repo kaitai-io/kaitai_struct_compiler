@@ -33,47 +33,74 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {}
   def classDestructorFooter: Unit = {}
 
-  def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit
-  def attributeReader(attrName: String, attrType: BaseType): Unit
+  def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit
+  def attributeReader(attrName: Identifier, attrType: BaseType): Unit
 
-  def attrParse(attr: AttrLikeSpec, id: String, extraAttrs: ListBuffer[AttrSpec], io: String): Unit
-  def attrDestructor(attr: AttrLikeSpec, id: String): Unit = {}
+  def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], io: String): Unit
+  def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
-  def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit
+  def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
 
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter(expr: Ast.expr): Unit
 
-  def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit
+  def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit
   def condRepeatEosFooter: Unit
 
-  def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit
+  def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit
   def condRepeatExprFooter: Unit
 
-  def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit
+  def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
 
-  def normalIO: String
-  def allocateIO(varName: String, rep: RepeatSpec): String
+  def normalIO: String = privateMemberName(IoIdentifier)
   def useIO(ioEx: Ast.expr): String
   def pushPos(io: String): Unit
   def seek(io: String, pos: Ast.expr): Unit
   def popPos(io: String): Unit
 
-  def instanceClear(instName: String): Unit = {}
-  def instanceSetCalculated(instName: String): Unit = {}
-  def instanceDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
-  def instanceHeader(className: List[String], instName: String, dataType: BaseType): Unit
-  def instanceAttrName(instName: String): String
+  def instanceClear(instName: Identifier): Unit = {}
+  def instanceSetCalculated(instName: Identifier): Unit = {}
+  def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
+  def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit
   def instanceFooter: Unit
-  def instanceCheckCacheAndReturn(instName: String): Unit
-  def instanceReturn(instName: String): Unit
-  def instanceCalculate(instName: String, dataType: BaseType, value: expr)
+  def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit
+  def instanceReturn(instName: InstanceIdentifier): Unit
+  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr)
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit
 
   def expression(e: Ast.expr): String = translator.translate(e)
 
-  def privateMemberName(ksName: String): String
+  /**
+    * Renders identifier to a string, specifically for a given
+    * language and settings. This usually includes things like
+    * case and separator conversion and does *not* include things
+    * like prepending "@" or "this." or "self." that might be
+    * used to access private member.
+    *
+    * @param id identifier to render
+    * @return identifier as string
+    */
+  def idToStr(id: Identifier): String
+
+  /**
+    * Renders identifier as a proper reference to a private member
+    * that represents this field. This might include some prefixes
+    * like "@" or "this." or "self.".
+    *
+    * @param id identifier to render
+    * @return identifier as string
+    */
+  def privateMemberName(id: Identifier): String
+
+  /**
+    * Renders identifier as a proper reference to a public member
+    * that represents this field.
+    *
+    * @param id identifier to render
+    * @return identifier as string
+    */
+  def publicMemberName(id: Identifier): String
 }
 
 trait LanguageCompilerStatic {

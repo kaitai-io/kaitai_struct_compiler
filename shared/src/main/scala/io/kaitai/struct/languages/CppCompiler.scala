@@ -9,7 +9,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
   extends LanguageCompiler(verbose, outSrc)
-    with StreamStructNames
+    with AllocateAndStoreIO
     with EveryReadIsExpression {
   import CppCompiler._
 
@@ -92,8 +92,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       s"${type2class(rootClassName)} *_root) : $kstructName(_io) {"
     )
     outSrc.inc
-    handleAssignmentSimple("_parent", "_parent")
-    handleAssignmentSimple("_root", if (name == rootClassName) {
+    handleAssignmentSimple(ParentIdentifier, "_parent")
+    handleAssignmentSimple(RootIdentifier, if (name == rootClassName) {
       "this"
     } else {
       "_root"
@@ -115,7 +115,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   override def classDestructorFooter = classConstructorFooter
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
 
@@ -137,12 +137,12 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     }
   }
 
-  override def attributeReader(attrName: String, attrType: BaseType): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${attrReaderName(attrName)}() const { return ${privateMemberName(attrName)}; }")
+    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
 
-  override def attrDestructor(attr: AttrLikeSpec, id: String): Unit = {
+  override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
     var t = attr.dataTypeComposite
 
     if (attr.isArray) {
@@ -166,35 +166,36 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     }
   }
 
-  override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     val strLiteral = contents.map { x => "\\x%02x".format(x) }.mkString
     outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, " + "\"" + strLiteral + "\");")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
     proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        outSrc.puts(s"${privateMemberName(varDest)} = $kstreamName::$procName(${privateMemberName(varSrc)}, ${expression(xorValue)});")
+        outSrc.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        outSrc.puts(s"${privateMemberName(varDest)} = $kstreamName::process_rotate_left(${privateMemberName(varSrc)}, $expr);")
+        outSrc.puts(s"$destName = $kstreamName::process_rotate_left($srcName, $expr);")
     }
   }
 
-  override def normalIO: String = privateMemberName("_io")
-
-  override def allocateIO(varName: String, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): IoStorageIdentifier = {
     val memberName = privateMemberName(varName)
 
-    val ioName = s"_io_$varName"
+    val ioName = IoStorageIdentifier(varName)
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$memberName.get($memberName.size() - 1)"
@@ -219,11 +220,11 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def popPos(io: String): Unit =
     outSrc.puts(s"$io->seek(_pos);")
 
-  override def instanceClear(instName: String): Unit = {
+  override def instanceClear(instName: Identifier): Unit = {
     outSrc.puts(s"${flagForInstName(instName)} = false;")
   }
 
-  override def instanceSetCalculated(instName: String): Unit = {
+  override def instanceSetCalculated(instName: Identifier): Unit = {
     outSrc.puts(s"${flagForInstName(instName)} = true;")
   }
 
@@ -237,7 +238,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts("}")
   }
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
       outSrc.puts(s"this._raw_${privateMemberName(id)} = new ArrayList<byte[]>();")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
@@ -245,7 +246,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.inc
   }
 
-  override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
     outSrc.puts(s"${privateMemberName(id)}->push_back($expr);")
   }
 
@@ -254,7 +255,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts("}")
   }
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       outSrc.puts(s"this._raw_${privateMemberName(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
@@ -263,7 +264,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
     outSrc.puts(s"${privateMemberName(id)}->push_back($expr);")
   }
 
@@ -272,7 +273,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts("}")
   }
 
-  override def handleAssignmentSimple(id: String, expr: String): Unit = {
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     outSrc.puts(s"${privateMemberName(id)} = $expr;")
   }
 
@@ -294,45 +295,39 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case BytesEosType(_) =>
         s"$io->read_bytes_full()"
       case t: UserType =>
-        s"new ${type2class(t.name)}($io, this, ${privateMemberName("_root")})"
+        s"new ${type2class(t.name)}($io, this, ${privateMemberName(RootIdentifier)})"
     }
   }
 
-  override def instanceDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"bool ${flagForInstName(attrName)};")
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
-  override def instanceHeader(className: List[String], instName: String, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${attrReaderName(instName)}();")
+    outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
 
     outSrc.puts
-    outSrc.puts(s"${kaitaiType2NativeType(dataType, true, className)} ${type2class(className)}::${attrReaderName(instName)}() {")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType, true, className)} ${type2class(className)}::${publicMemberName(instName)}() {")
     outSrc.inc
   }
-
-  override def instanceAttrName(instName: String): String = instName
 
   override def instanceFooter: Unit = {
     outSrc.dec
     outSrc.puts("}")
   }
 
-  override def instanceCheckCacheAndReturn(instName: String): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
     outSrc.puts(s"if (${flagForInstName(instName)})")
     outSrc.inc
     instanceReturn(instName)
     outSrc.dec
   }
 
-  override def instanceReturn(instName: String): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier): Unit = {
     outSrc.puts(s"return ${privateMemberName(instName)};")
-  }
-
-  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
-    outSrc.puts(s"${privateMemberName(instName)} = ${expression(value)};")
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit = {
@@ -410,37 +405,12 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   def defineName(className: String) = className.toUpperCase + "_H_"
 
-  override def privateMemberName(ksName: String): String = {
-    /*
-    if (ksName == "_root" || ksName == "_parent" || ksName == "_io") {
-      "_m" + ksName
-    } else if (ksName.startsWith("_raw_")) {
-      "_raw_" + Utils.lowerCamelCase(ksName.substring("_raw_".length))
-    } else {
-      Utils.lowerCamelCase(ksName) + "_"
-    }*/
-    "m_" + ksName
+  def flagForInstName(ksName: Identifier) = {
+    ksName match {
+      case NamedIdentifier(name) => s"f_$name"
+      case InstanceIdentifier(name) => s"f_$name"
+    }
   }
-
-  def attrReaderName(ksName: String) = {
-    /*
-    if (ksName == "_root" || ksName == "_parent" || ksName == "_io") {
-      "m" + ksName
-    } else if (ksName.startsWith("_raw_")) {
-      "m_raw_" + Utils.lowerCamelCase(ksName.substring("_raw_".length))
-    } else {
-      Utils.lowerCamelCase(ksName)
-    }*/
-    ksName
-  }
-
-  def flagForInstName(ksName: String) = "f_" + ksName
-
-  def rawMemberName(ksName: String) = "raw_" + ksName
-
-  override def kstructName = "kaitai::kstruct"
-
-  override def kstreamName = "kaitai::kstream"
 
   def type2class(components: List[String]) = {
     components.map {
@@ -449,17 +419,26 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     }.mkString("::")
   }
 
-  /**
-    * We don't have a luxury of garbage collection in C++ and want to keep things clean and simple, thus
-    * we need to store allocated IOs to clean them up in destructor.
-    *
-    * @return true
-    */
-  override def needToStoreIOs: Boolean = true
+  override def idToStr(id: Identifier): String = {
+    id match {
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+      case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
+      case si: SpecialIdentifier => si.name
+      case ni: NamedIdentifier => ni.name
+      case ni: InstanceIdentifier => ni.name
+    }
+  }
+
+  override def privateMemberName(id: Identifier): String = s"m_${idToStr(id)}"
+
+  override def publicMemberName(id: Identifier): String = idToStr(id)
 }
 
-object CppCompiler extends LanguageCompilerStatic {
+object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new CppTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = topClassName
+
+  override def kstructName = "kaitai::kstruct"
+  override def kstreamName = "kaitai::kstream"
 }

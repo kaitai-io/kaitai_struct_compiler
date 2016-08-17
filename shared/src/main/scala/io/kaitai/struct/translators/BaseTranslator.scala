@@ -1,8 +1,9 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.{cmpop, expr, identifier}
+import io.kaitai.struct.exprlang.Ast.{cmpop, expr}
 import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.format.Identifier
 
 trait TypeProvider {
   def determineType(parentType: List[String], attrName: String): BaseType

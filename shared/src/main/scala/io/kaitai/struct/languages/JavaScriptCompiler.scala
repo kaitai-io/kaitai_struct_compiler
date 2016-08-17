@@ -9,6 +9,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
+    with AllocateIOLocalVar
     with StreamStructNames
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
@@ -70,45 +71,47 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("}")
   }
 
-  override def attributeDeclaration(attrName: String, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: String, attrType: BaseType): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {}
 
-  override def attrFixedContentsParse(attrName: String, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = _io.ensureFixedContents(${contents.length}, [${contents.mkString(", ")}]);")
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents(${contents.length}, [${contents.mkString(", ")}]);")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: String, varDest: String): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
     proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        out.puts(s"${privateMemberName(varDest)} = $kstreamName.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)});")
+        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"this.$varDest = $kstreamName.processZlib(this.$varSrc);")
+        out.puts(s"$destName = $kstreamName.processZlib($srcName);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"this.$varDest = $kstreamName.processRotateLeft(this.$varSrc, $expr, 1);")
+        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
     }
   }
 
-  override def normalIO: String = "this._io"
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+    val langName = idToStr(varName)
+    val memberCall = privateMemberName(varName)
 
-  override def allocateIO(varName: String, rep: RepeatSpec): String = {
-    val langName = lowerCamelCase(varName)
-
-    val ioName = s"this._io_$langName"
+    val ioName = s"_io_$langName"
 
     val args = rep match {
-      case RepeatEos => s"this.$langName[this.$langName.length - 1]"
-      case RepeatExpr(_) => s"this.$langName[i]"
-      case NoRepeat => s"this.$langName"
+      case RepeatEos => s"$memberCall[$memberCall.length - 1]"
+      case RepeatExpr(_) => s"$memberCall[i]"
+      case NoRepeat => memberCall
     }
 
     out.puts(s"$ioName = new $kstreamName($args);")
@@ -139,16 +142,16 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("}")
   }
 
-  override def condRepeatEosHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"this._raw_${lowerCamelCase(id)} = [];")
-    out.puts(s"this.${lowerCamelCase(id)} = [];")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    out.puts(s"${privateMemberName(id)} = [];")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
 
-  override def handleAssignmentRepeatEos(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}.push($expr);")
+  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
+    out.puts(s"this.${idToStr(id)}.push($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -156,16 +159,16 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: String, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"this._raw_${lowerCamelCase(id)} = new Array(${expression(repeatExpr)});")
-    out.puts(s"this.${lowerCamelCase(id)} = new Array(${expression(repeatExpr)});")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
+    out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)}[i] = $expr;")
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
+    out.puts(s"${privateMemberName(id)}[i] = $expr;")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -173,8 +176,8 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: String, expr: String): Unit = {
-    out.puts(s"this.${lowerCamelCase(id)} = $expr;")
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+    out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
   override def parseExpr(dataType: BaseType, io: String): String = {
@@ -202,14 +205,12 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
     }
   }
 
-  override def instanceHeader(className: String, instName: String, dataType: BaseType): Unit = {
-    out.puts(s"Object.defineProperty(${type2class(className)}.prototype, '${lowerCamelCase(instName)}', {")
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
+    out.puts(s"Object.defineProperty(${type2class(className)}.prototype, '${publicMemberName(instName)}', {")
     out.inc
     out.puts("get: function() {")
     out.inc
   }
-
-  override def instanceAttrName(instName: String) = s"_m_$instName"
 
   override def instanceFooter: Unit = {
     out.dec
@@ -218,19 +219,15 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("});")
   }
 
-  override def instanceCheckCacheAndReturn(instName: String): Unit = {
-    out.puts(s"if (this.${lowerCamelCase(instanceAttrName(instName))} !== undefined)")
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if (${privateMemberName(instName)} !== undefined)")
     out.inc
     instanceReturn(instName)
     out.dec
   }
 
-  override def instanceReturn(instName: String): Unit = {
-    out.puts(s"return this.${lowerCamelCase(instanceAttrName(instName))};")
-  }
-
-  override def instanceCalculate(instName: String, dataType: BaseType, value: expr): Unit = {
-    out.puts(s"this.${lowerCamelCase(instanceAttrName(instName))} = ${expression(value)};")
+  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+    out.puts(s"return ${privateMemberName(instName)};")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
@@ -246,21 +243,23 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   def enumValue(enumName: String, label: String) = label.toUpperCase
 
-  def lowerCamelCase(s: String): String = {
-    if (s.charAt(0) == '_') {
-      if (s.startsWith("_raw_")) {
-        "_raw_" + lowerCamelCase(s.substring("_raw_".length))
-      } else if (s.startsWith("_m_")) {
-        "_m_" + lowerCamelCase(s.substring("_m_".length))
-      } else {
-        throw new RuntimeException(s"internal error: don't know how to make '$s' a field name")
-      }
-    } else {
-      Utils.lowerCamelCase(s)
+  def idToStr(id: Identifier): String = {
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case InstanceIdentifier(name) => s"_m_${Utils.lowerCamelCase(name)}"
+      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
     }
   }
 
-  override def privateMemberName(ksName: String): String = s"this.$ksName"
+  override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
+
+  override def publicMemberName(id: Identifier): String = {
+    id match {
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+    }
+  }
 
   override def kstreamName: String = "KaitaiStream"
 
