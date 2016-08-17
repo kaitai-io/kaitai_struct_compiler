@@ -263,7 +263,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
       case SpecialIdentifier(name) => s"M${Utils.upperCamelCase(name)}"
       case NamedIdentifier(name) => Utils.upperCamelCase(name)
       case InstanceIdentifier(name) => Utils.upperCamelCase(name)
-      case RawIdentifier(innerId) => s"M_Raw_${publicMemberName(innerId)}"
+      case RawIdentifier(innerId) => s"M_Raw${publicMemberName(innerId)}"
     }
   }
 
