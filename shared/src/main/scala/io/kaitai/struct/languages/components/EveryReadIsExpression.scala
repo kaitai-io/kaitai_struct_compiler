@@ -35,6 +35,10 @@ trait EveryReadIsExpression extends LanguageCompiler {
         condRepeatExprHeader(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
         attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
         condRepeatExprFooter
+      case RepeatUntil(untilExpr: Ast.expr) =>
+        condRepeatUntilHeader(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
+        condRepeatUntilFooter(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
       case NoRepeat =>
         attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
     }
@@ -128,8 +132,9 @@ trait EveryReadIsExpression extends LanguageCompiler {
 
   def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec): Unit = {
     rep match {
-      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
       case RepeatEos => handleAssignmentRepeatEos(id, expr)
+      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
+      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr)
       case NoRepeat => handleAssignmentSimple(id, expr)
     }
   }
@@ -139,6 +144,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
 
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
+  def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit
   def handleAssignmentSimple(id: Identifier, expr: String): Unit
 
   def parseExpr(dataType: BaseType, io: String): String
