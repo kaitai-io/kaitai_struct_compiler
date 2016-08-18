@@ -183,6 +183,26 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    if (needRaw)
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+    out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_")};")
+    out.puts("do {")
+    out.inc
+  }
+
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
+    out.puts(s"${translator.doName("_")} = ${expr};")
+    out.puts(s"${privateMemberName(id)}.add(${translator.doName("_")});")
+  }
+
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    _currentIteratorType = Some(dataType)
+    out.dec
+    out.puts(s"} while (!(${expression(untilExpr)}));")
+  }
+
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
   }

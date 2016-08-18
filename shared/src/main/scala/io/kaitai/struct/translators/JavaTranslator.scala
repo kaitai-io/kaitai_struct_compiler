@@ -24,6 +24,7 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case "_root" => s
       case "_parent" => "_parent()"
       case "_io" => "_io()"
+      case "_" => "_it"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 
