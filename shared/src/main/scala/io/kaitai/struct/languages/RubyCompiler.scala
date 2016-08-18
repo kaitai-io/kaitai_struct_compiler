@@ -163,7 +163,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"@_raw_$id = []")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
 
     out.puts(s"${privateMemberName(id)} = []")
     out.puts(s"while not $io.eof?")
