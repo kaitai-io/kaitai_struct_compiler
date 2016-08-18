@@ -97,8 +97,6 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     })
   }
 
-  override def normalIO: String = "@_io"
-
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
 
