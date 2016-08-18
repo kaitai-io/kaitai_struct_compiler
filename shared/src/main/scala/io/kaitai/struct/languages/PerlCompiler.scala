@@ -61,6 +61,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def classFooter(name: String): Unit = {}
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
+    out.puts
     out.puts("# Constructor")
     out.puts("sub new {")
     out.inc
