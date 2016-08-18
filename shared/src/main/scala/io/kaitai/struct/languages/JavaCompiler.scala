@@ -193,7 +193,7 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
-    out.puts(s"${translator.doName("_")} = ${expr};")
+    out.puts(s"${translator.doName("_")} = $expr;")
     out.puts(s"${privateMemberName(id)}.add(${translator.doName("_")});")
   }
 
