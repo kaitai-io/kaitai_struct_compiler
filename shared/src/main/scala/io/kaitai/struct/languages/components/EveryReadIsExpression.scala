@@ -15,12 +15,8 @@ trait EveryReadIsExpression extends LanguageCompiler {
   def debug = false
 
   override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], io: String): Unit = {
-    if (debug) {
-      id match {
-        case ni: NamedIdentifier => attrDebugStart(ni, io, NoRepeat)
-        case RawIdentifier(_) | _: SpecialIdentifier => // ignore
-      }
-    }
+    if (debug)
+      attrDebugStart(id, io, NoRepeat)
 
     attr.cond.ifExpr match {
       case Some(e) =>
@@ -48,21 +44,13 @@ trait EveryReadIsExpression extends LanguageCompiler {
       case None => // ignore
     }
 
-    if (debug) {
-      id match {
-        case ni: NamedIdentifier => attrDebugEnd(ni, io, NoRepeat)
-        case RawIdentifier(_) | _: SpecialIdentifier => // ignore
-      }
-    }
+    if (debug)
+      attrDebugEnd(id, io, NoRepeat)
   }
 
   def attrParse2(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
-    if (debug && rep != NoRepeat) {
-      id match {
-        case ni: NamedIdentifier => attrDebugStart(ni, io, rep)
-        case RawIdentifier(_) | _: SpecialIdentifier => // ignore
-      }
-    }
+    if (debug && rep != NoRepeat)
+      attrDebugStart(id, io, rep)
 
     dataType match {
       case FixedBytesType(c, _) =>
@@ -76,12 +64,8 @@ trait EveryReadIsExpression extends LanguageCompiler {
         handleAssignment(id, expr, rep)
     }
 
-    if (debug && rep != NoRepeat) {
-      id match {
-        case ni: NamedIdentifier => attrDebugEnd(ni, io, rep)
-        case RawIdentifier(_) | _: SpecialIdentifier => // ignore
-      }
-    }
+    if (debug && rep != NoRepeat)
+      attrDebugEnd(id, io, rep)
   }
 
   def attrBytesTypeParse(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, t: BytesType): Unit = {
@@ -150,8 +134,8 @@ trait EveryReadIsExpression extends LanguageCompiler {
     }
   }
 
-  def attrDebugStart(attrName: NamedIdentifier, io: String, repeat: RepeatSpec): Unit = {}
-  def attrDebugEnd(attrName: NamedIdentifier, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrName: Identifier, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugEnd(attrName: Identifier, io: String, repeat: RepeatSpec): Unit = {}
 
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit

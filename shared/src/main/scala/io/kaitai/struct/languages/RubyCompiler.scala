@@ -126,8 +126,12 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)")
 
-  override def attrDebugStart(attrId: NamedIdentifier, io: String, rep: RepeatSpec): Unit = {
-    val name = attrId.name
+  override def attrDebugStart(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId match {
+      case NamedIdentifier(name) => name
+      case InstanceIdentifier(name) => name
+      case _: RawIdentifier | _: SpecialIdentifier => return
+    }
     rep match {
       case NoRepeat =>
         out.puts(s"(@_debug['$name'] ||= {})[:start] = $io.pos")
@@ -138,8 +142,12 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     }
   }
 
-  override def attrDebugEnd(attrId: NamedIdentifier, io: String, rep: RepeatSpec): Unit = {
-    val name = attrId.name
+  override def attrDebugEnd(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId match {
+      case NamedIdentifier(name) => name
+      case InstanceIdentifier(name) => name
+      case _: RawIdentifier | _: SpecialIdentifier => return
+    }
     rep match {
       case NoRepeat =>
         out.puts(s"(@_debug['$name'] ||= {})[:end] = $io.pos")
