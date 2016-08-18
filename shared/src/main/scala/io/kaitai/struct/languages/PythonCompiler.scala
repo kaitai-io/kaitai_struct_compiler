@@ -133,6 +133,28 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[i] = $expr")
 
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    if (needRaw)
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
+    out.puts(s"${privateMemberName(id)} = []")
+    out.puts("while True:")
+    out.inc
+  }
+
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
+    out.puts(s"${translator.doName("_")} = $expr")
+    out.puts(s"${privateMemberName(id)}.append(${translator.doName("_")})")
+  }
+
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    _currentIteratorType = Some(dataType)
+    out.puts(s"if ${expression(untilExpr)}:")
+    out.inc
+    out.puts("break")
+    out.dec
+    out.dec
+  }
+
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
