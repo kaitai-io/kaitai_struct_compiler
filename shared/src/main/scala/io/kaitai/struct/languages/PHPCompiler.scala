@@ -1,12 +1,11 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, PHPTranslator, TypeProvider}
+import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "")
   extends LanguageCompiler(verbose, out)
@@ -114,7 +113,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     ioName
   }
 
-  override def useIO(ioEx: expr): String = {
+  override def useIO(ioEx: Ast.expr): String = {
     out.puts(s"$kstreamName io = ${expression(ioEx)};")
     "io"
   }
@@ -128,7 +127,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def popPos(io: String): Unit =
     out.puts(s"$io->seek(_pos);")
 
-  override def condIfHeader(expr: expr): Unit = {
+  override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
     out.inc
   }
@@ -142,10 +141,10 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.add($expr);")
+    out.puts(s"array_push(${privateMemberName(id)}, $expr);")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
@@ -155,6 +154,25 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.add($expr);")
+  }
+
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+    if (needRaw)
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    out.puts(s"${privateMemberName(id)} = [];")
+    out.puts("do {")
+    out.inc
+  }
+
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
+    out.puts(s"${translator.doLocalName("_")} = $expr;")
+    out.puts(s"array_push(${privateMemberName(id)}, ${translator.doLocalName("_")});")
+  }
+
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+    _currentIteratorType = Some(dataType)
+    out.dec
+    out.puts(s"} while (!(${expression(untilExpr)}));")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
@@ -258,7 +276,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 object PHPCompiler extends LanguageCompilerStatic
   with StreamStructNames
   with UpperCamelCaseClasses {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new PHPTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
 
