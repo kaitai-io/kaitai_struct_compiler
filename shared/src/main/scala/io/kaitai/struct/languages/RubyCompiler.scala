@@ -10,6 +10,7 @@ import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvide
 
 class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
+    with ObjectOrientedLanguage
     with UniversalFooter
     with UpperCamelCaseClasses
     with AllocateIOLocalVar

@@ -11,7 +11,7 @@ import scala.collection.mutable.ListBuffer
   * rvalue. In these languages, "attrStdTypeParse" is replaced with higher-level API: "stdTypeParseExpr" and
   * "handleAssignment".
   */
-trait EveryReadIsExpression extends LanguageCompiler {
+trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage {
   def debug = false
 
   override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], io: String): Unit = {

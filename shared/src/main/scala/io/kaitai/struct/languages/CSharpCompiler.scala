@@ -10,6 +10,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "Kaitai")
   extends LanguageCompiler(verbose, out)
+    with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with EveryReadIsExpression
     with NoNeedForFullClassPath {

@@ -9,6 +9,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "")
   extends LanguageCompiler(verbose, out)
+    with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with UniversalFooter
     with EveryReadIsExpression {

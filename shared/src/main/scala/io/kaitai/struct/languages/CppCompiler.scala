@@ -10,6 +10,7 @@ import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeProvider
 
 class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
   extends LanguageCompiler(verbose, outSrc)
+    with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with EveryReadIsExpression {
   import CppCompiler._
