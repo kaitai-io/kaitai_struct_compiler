@@ -18,7 +18,12 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     }
   }
 
-  override def doLocalName(s: String) = s"self.${doName(s)}"
+  override def doLocalName(s: String) = {
+    s match {
+      case "_" => s
+      case _ => s"self.${doName(s)}"
+    }
+  }
   override def doName(s: String) = s
 
   override def doEnumByLabel(enumType: String, label: String): String =

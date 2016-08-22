@@ -2,6 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
@@ -271,6 +272,26 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def condRepeatExprFooter: Unit = {
     outSrc.dec
     outSrc.puts("}")
+  }
+
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    if (needRaw)
+      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+    outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
+    outSrc.puts("do {")
+    outSrc.inc
+  }
+
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
+    outSrc.puts(s"${translator.doName("_")} = $expr;")
+    outSrc.puts(s"${privateMemberName(id)}->push_back(${translator.doName("_")});")
+  }
+
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    _currentIteratorType = Some(dataType)
+    outSrc.dec
+    outSrc.puts(s"} while (!(${expression(untilExpr)}));")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {

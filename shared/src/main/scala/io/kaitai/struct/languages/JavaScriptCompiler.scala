@@ -152,7 +152,7 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    out.puts(s"this.${idToStr(id)}.push($expr);")
+    out.puts(s"${privateMemberName(id)}.push($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -175,6 +175,25 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def condRepeatExprFooter: Unit = {
     out.dec
     out.puts("}")
+  }
+
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    if (needRaw)
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
+    out.puts(s"${privateMemberName(id)} = []")
+    out.puts("do {")
+    out.inc
+  }
+
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
+    out.puts(s"var ${translator.doName("_")} = $expr;")
+    out.puts(s"${privateMemberName(id)}.push(${translator.doName("_")});")
+  }
+
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    _currentIteratorType = Some(dataType)
+    out.dec
+    out.puts(s"} while (!(${expression(untilExpr)}));")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {

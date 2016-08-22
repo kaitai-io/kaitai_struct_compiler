@@ -34,6 +34,7 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doName(s: String) =
     s match {
+      case "_" => s
       case "_root" => s
       case "_parent" => "_parent()"
       case "_io" => "_io()"
