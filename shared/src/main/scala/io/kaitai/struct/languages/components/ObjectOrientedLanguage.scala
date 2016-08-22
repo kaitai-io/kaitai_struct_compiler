@@ -1,9 +1,12 @@
 package io.kaitai.struct.languages.components
 
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{Identifier, IoIdentifier}
 
-trait ObjectOrientedLanguage {
+trait ObjectOrientedLanguage extends LanguageCompiler {
   def headerComment = "This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild"
+
+  def expression(e: Ast.expr): String = translator.translate(e)
 
   /**
     * Renders identifier to a string, specifically for a given
@@ -36,5 +39,5 @@ trait ObjectOrientedLanguage {
     */
   def publicMemberName(id: Identifier): String
 
-  def normalIO: String = privateMemberName(IoIdentifier)
+  override def normalIO: String = privateMemberName(IoIdentifier)
 }
