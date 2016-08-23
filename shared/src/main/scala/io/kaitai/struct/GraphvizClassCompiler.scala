@@ -168,6 +168,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     dataType match {
       case _: Int1Type => "1"
       case IntMultiType(_, width, _) => width.width.toString
+      case FloatMultiType(width, _) => width.width.toString
       case FixedBytesType(contents, _) => contents.length.toString
       case BytesEosType(_) => END_OF_STREAM
       case BytesLimitType(ex, _) => expressionSize(ex, attrName)
@@ -348,6 +349,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case _: Int1Type => Some(1)
       case IntMultiType(_, width, _) => Some(width.width)
       case FixedBytesType(contents, _) => Some(contents.length)
+      case FloatMultiType(width, _) => Some(width.width)
       case BytesEosType(_) => None
       case BytesLimitType(ex, _) => evaluateIntLiteral(ex)
       case StrByteLimitType(ex, _) => evaluateIntLiteral(ex)
@@ -365,6 +367,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case rt: ReadableType => rt.apiCall
       case ut: UserType => type2display(ut.name)
       case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
+      case _: BytesType => ""
       case _ => dataType.toString
     }
   }
