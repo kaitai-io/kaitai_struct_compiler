@@ -217,7 +217,16 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
         val targetClass = translator.detectType(value)
         targetClass match {
           case t: UserType =>
-            affectedVars(value) ++ List(resolveTypedNode(t, attr.name))
+            // Although, technically, in a clause like "foo.bar" both "foo" and
+            // "bar" seem to be affecting the result, graphs seems to be more
+            // readable if we'll only use "bar" for referencing, without doing
+            // distinct link to all intermediate path walking nodes.
+
+            // Uncomment this one to get "affected" references to all
+            // intermediate nodes
+            //affectedVars(value) ++ List(resolveTypedNode(t, attr.name))
+
+            List(resolveTypedNode(t, attr.name))
           case _ =>
             affectedVars(value)
         }
