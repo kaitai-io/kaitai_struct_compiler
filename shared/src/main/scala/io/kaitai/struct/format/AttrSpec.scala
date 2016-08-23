@@ -12,6 +12,7 @@ import scala.collection.JavaConversions._
 
 sealed trait RepeatSpec
 case class RepeatExpr(expr: Ast.expr) extends RepeatSpec
+case class RepeatUntil(expr: Ast.expr) extends RepeatSpec
 case object RepeatEos extends RepeatSpec
 case object NoRepeat extends RepeatSpec
 
@@ -72,6 +73,7 @@ object AttrSpec {
               @JsonProperty("encoding") _encoding: String,
               @JsonProperty("repeat") _repeat: String,
               @JsonProperty("repeat-expr") _repeatExpr: String,
+              @JsonProperty("repeat-until") _repeatUntil: String,
               @JsonProperty("terminator") _terminator: String,
               @JsonProperty("consume") _consume: String,
               @JsonProperty("include") _include: String,
@@ -84,6 +86,7 @@ object AttrSpec {
     val ifExpr = Option(_ifExpr).map(Expressions.parse)
     val repeat = Option(_repeat)
     val repeatExpr = Option(_repeatExpr).map(Expressions.parse)
+    val repeatUntil = Option(_repeatUntil).map(Expressions.parse)
 
     val contents = if (_contents != null) {
       Some(AttrSpec.parseContentSpec(_contents))
@@ -101,6 +104,7 @@ object AttrSpec {
     val dataType = DataType.fromYaml(_dataType, MetaSpec.globalMeta.get.endian, size, sizeEos, encoding, terminator, include, consume, eosError, contents, Option(_enum), process)
 
     val repeatSpec = repeat match {
+      case Some("until") => RepeatUntil(repeatUntil.get)
       case Some("expr") => RepeatExpr(repeatExpr.get)
       case Some("eos") => RepeatEos
       case None => NoRepeat

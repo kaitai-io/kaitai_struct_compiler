@@ -5,7 +5,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.IntType
 
-class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
@@ -17,17 +17,12 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
 
   override def doLocalName(s: String) = {
     s match {
-      case "_" => s
-      case _ => s"this.${doName(s)}"
+      case "_" => "$_"
+      case _ => s"$$this->${Utils.lowerCamelCase(s)}"
     }
   }
 
-  override def doName(s: String) = {
-    s match {
-      case "_root" | "_parent" | "_io" => s
-      case _ => Utils.lowerCamelCase(s)
-    }
-  }
+  override def doName(s: String) = Utils.lowerCamelCase(s)
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s"this._root.constructor.${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"

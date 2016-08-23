@@ -173,6 +173,26 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   override def condRepeatExprFooter: Unit = fileFooter(null)
 
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    if (needRaw)
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
+    out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
+    out.puts("do {")
+    out.inc
+  }
+
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
+    out.puts(s"${translator.doName("_")} = $expr;")
+    out.puts(s"${privateMemberName(id)}.Add(${translator.doName("_")});")
+  }
+
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    _currentIteratorType = Some(dataType)
+    out.dec
+    out.puts(s"} while (!(${expression(untilExpr)}));")
+  }
+
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
