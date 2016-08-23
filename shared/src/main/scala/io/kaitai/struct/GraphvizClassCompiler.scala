@@ -12,9 +12,13 @@ import scala.collection.mutable.ListBuffer
 class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) extends AbstractCompiler {
   import GraphvizClassCompiler._
 
+  val topClassName = List(topClass.meta.get.id)
+
   val translator = getTranslator(this)
   val links = ListBuffer[(String, String)]()
 
+  var nowClass: ClassSpec = topClass
+  var nowClassName = topClassName
   var currentTable: String = ""
 
   override def compile: Unit = {
@@ -34,6 +38,9 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   }
 
   def compileClass(className: List[String], curClass: ClassSpec): Unit = {
+    nowClass = curClass
+    nowClassName = className
+
     out.puts(s"subgraph cluster__${type2class(className)} {")
     out.inc
     out.puts("label=\"" + type2display(className) + "\";")
@@ -104,7 +111,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     val lastInstPos = inst.pos
     lastInstPos match {
       case Some(pos) =>
-        val posStr = expression(pos, s"${name}_pos")
+        val posStr = expressionPos(pos, name)
         tableRow(className, Some(posStr), inst.dataType, name)
 
       case None =>
@@ -142,7 +149,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case ut: UserType =>
         links += ((s"$currentTable:${name}_type", type2class(ut.name) + "__seq"))
       case _ =>
-      // ignore, no links
+        // ignore, no links
     }
   }
 
@@ -163,22 +170,30 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case IntMultiType(_, width, _) => width.width.toString
       case FixedBytesType(contents, _) => contents.length.toString
       case BytesEosType(_) => END_OF_STREAM
-      case BytesLimitType(ex, _) => expression(ex, s"${attrName}_size")
-      case StrByteLimitType(ex, _) => expression(ex, s"${attrName}_size")
+      case BytesLimitType(ex, _) => expressionSize(ex, attrName)
+      case StrByteLimitType(ex, _) => expressionSize(ex, attrName)
       case StrEosType(_) => END_OF_STREAM
       case _: StrZType => UNKNOWN
-      case UserTypeByteLimit(_, ex, _) => expression(ex, s"${attrName}_size")
+      case UserTypeByteLimit(_, ex, _) => expressionSize(ex, attrName)
       case _: UserTypeEos => END_OF_STREAM
       case UserTypeInstream(_) => UNKNOWN
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
     }
   }
 
+  def expressionSize(ex: expr, attrName: String): String = {
+    expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_size")
+  }
+
+  def expressionPos(ex: expr, attrName: String): String = {
+    expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_pos")
+  }
+
   def expression(e: expr, portName: String): String = {
     affectedVars(e).foreach((v) =>
-      links += ((resolveNode(v), portName))
+      links += ((v, portName))
     )
-    translator.translate(e)
+    htmlEscape(translator.translate(e))
   }
 
   def affectedVars(e: expr): List[String] = {
@@ -198,23 +213,111 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case expr.IntNum(_) | expr.FloatNum(_) | expr.Str(_) =>
         List()
       //      case expr.EnumByLabel(enumName, label) =>
-      //      case expr.Attribute(value, attr) =>
+      case expr.Attribute(value, attr) =>
+        val targetClass = translator.detectType(value)
+        targetClass match {
+          case t: UserType =>
+            affectedVars(value) ++ List(resolveTypedNode(t, attr.name))
+          case _ =>
+            affectedVars(value)
+        }
       case expr.Subscript(value, idx) =>
         affectedVars(value) ++ affectedVars(idx)
       case expr.Name(id) =>
-        List(id.name)
+        List(resolveLocalNode(id.name))
       case expr.List(elts) =>
         elts.flatMap(affectedVars).toList
     }
   }
 
-  def resolveNode(s: String): String = {
-    s"$currentTable:${s}_type"
+//  def resolveNode(s: String): String = {
+//    s"$currentTable:${s}_type"
+//  }
+
+  /**
+    * Given a local name that should be pertinent to current class, resolve it into
+    * full-blown Graphviz port reference (i.e. given something `foo` should yield
+    * `stuff__seq:foo_type` is `foo` is a sequence element)
+    *
+    * @param s name to resolve
+    * @return
+    */
+  def resolveLocalNode(s: String): String =
+    resolveNodeForClass(nowClassName, nowClass, s)
+
+  def resolveTypedNode(t: UserType, s: String): String = {
+    val className = t.name
+    val classSpec = getTypeByName(nowClass, className).get
+    resolveNodeForClass(className, classSpec, s)
   }
 
-  override def determineType(parentType: List[String], attrName: String): BaseType = ???
+  def resolveNodeForClass(className: List[String], cs: ClassSpec, s: String): String =
+    s"${getGraphvizNode(className, cs, s)}:${s}_type"
 
-  override def determineType(attrName: String): BaseType = ???
+  def getGraphvizNode(className: List[String], cs: ClassSpec, s: String): String = {
+    cs.seq.foreach((attr) =>
+      attr.id match {
+        case NamedIdentifier(attrName) =>
+          if (attrName == s) {
+            return s"${type2class(className)}__seq"
+          }
+      }
+    )
+
+    cs.instances.get(InstanceIdentifier(s)).foreach((inst) =>
+      return s"${type2class(className)}__inst__$s"
+    )
+
+    throw new RuntimeException(s"unable to resolve node '$s' in type '${type2display(className)}'")
+  }
+
+  // Copy-paste from ClassCompiler, probably should be extracted in AbstractCompiler or something
+
+  val userTypes: Map[String, ClassSpec] = gatherUserTypes(topClass) ++ Map(topClassName.last -> topClass)
+
+  def gatherUserTypes(curClass: ClassSpec): Map[String, ClassSpec] = {
+    val recValues: Map[String, ClassSpec] = curClass.types.map {
+      case (typeName, intClass) => gatherUserTypes(intClass)
+    }.flatten.toMap
+    curClass.types ++ recValues
+  }
+
+  def getTypeByName(inClass: ClassSpec, name: List[String]): Option[ClassSpec] = {
+    userTypes.get(name.last)
+  }
+
+  override def determineType(attrName: String): BaseType = determineType(nowClass, nowClassName, attrName)
+
+  override def determineType(typeName: List[String], attrName: String): BaseType = {
+    getTypeByName(nowClass, typeName) match {
+      case Some(t) => determineType(t, typeName, attrName)
+      case None => throw new RuntimeException(s"Unable to determine type for $attrName in type $typeName")
+    }
+  }
+
+  def determineType(classSpec: ClassSpec, className: List[String], attrName: String): BaseType = {
+    attrName match {
+      case "_root" =>
+        UserTypeInstream(topClassName)
+      case "_parent" =>
+        UserTypeInstream(classSpec.parentTypeName)
+      case "_io" =>
+        KaitaiStreamType
+//      case "_" =>
+        //lang.currentIteratorType
+      case _ =>
+        classSpec.seq.foreach { el =>
+          if (el.id == NamedIdentifier(attrName))
+            return el.dataTypeComposite
+        }
+        classSpec.instances.get(InstanceIdentifier(attrName)) match {
+          case Some(i: ValueInstanceSpec) => return i.dataType.get
+          case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
+          case None => // do nothing
+        }
+        throw new RuntimeException(s"Unable to access $attrName in $className context")
+    }
+  }
 }
 
 object GraphvizClassCompiler extends LanguageCompilerStatic {
@@ -269,5 +372,9 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case Ast.expr.IntNum(x) => Some(x.toInt)
       case _ => None
     }
+  }
+
+  def htmlEscape(s: String): String = {
+    s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;")
   }
 }
