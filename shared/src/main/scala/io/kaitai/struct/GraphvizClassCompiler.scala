@@ -76,25 +76,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     curClass.seq.foreach { (attr) =>
       attr.id match {
         case NamedIdentifier(name) =>
-          tableRow(className, seqPos.map(_.toString), attr.dataType, name)
-
-          val tableNode = s"${type2class(className)}__seq"
-
-          val portName = name + "__repeat"
-          attr.cond.repeat match {
-            case RepeatExpr(ex) =>
-              out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat " +
-                expression(ex, s"$tableNode:$portName") +
-                " times</TD></TR>")
-            case RepeatUntil(ex) =>
-              out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat until " +
-                expression(ex, s"$tableNode:$portName") +
-                "</TD></TR>")
-            case RepeatEos =>
-              out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat to end of stream</TD></TR>")
-            case NoRepeat =>
-              // no additional line
-          }
+          tableRow(className, seqPos.map(_.toString), attr, name)
 
           val size = dataTypeSize(attr.dataType)
           seqPos = (seqPos, size) match {
@@ -112,10 +94,10 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     lastInstPos match {
       case Some(pos) =>
         val posStr = expressionPos(pos, name)
-        tableRow(className, Some(posStr), inst.dataType, name)
+        tableRow(className, Some(posStr), inst, name)
 
       case None =>
-        tableRow(className, None, inst.dataType, name)
+        tableRow(className, None, inst, name)
     }
   }
 
@@ -134,7 +116,8 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     out.puts("</TABLE>>];")
   }
 
-  def tableRow(curClass: List[String], pos: Option[String], dataType: BaseType, name: String): Unit = {
+  def tableRow(curClass: List[String], pos: Option[String], attr: AttrLikeSpec, name: String): Unit = {
+    val dataType = attr.dataType
     val sizeStr = dataTypeSizeAsString(dataType, name)
 
     out.puts("<TR>" +
@@ -150,6 +133,22 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
         links += ((s"$currentTable:${name}_type", type2class(ut.name) + "__seq"))
       case _ =>
         // ignore, no links
+    }
+
+    val portName = name + "__repeat"
+    attr.cond.repeat match {
+      case RepeatExpr(ex) =>
+        out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat " +
+          expression(ex, s"$currentTable:$portName") +
+          " times</TD></TR>")
+      case RepeatUntil(ex) =>
+        out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat until " +
+          expression(ex, s"$currentTable:$portName") +
+          "</TD></TR>")
+      case RepeatEos =>
+        out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat to end of stream</TD></TR>")
+      case NoRepeat =>
+      // no additional line
     }
   }
 
