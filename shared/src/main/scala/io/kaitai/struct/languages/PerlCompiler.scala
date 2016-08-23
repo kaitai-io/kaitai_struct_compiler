@@ -28,13 +28,10 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
     out.puts
-    out.puts(s"package ${type2class(topClassName)};")
-    out.puts
     out.puts("use strict;")
     out.puts("use warnings;")
     out.puts(s"use $kstructName;")
     out.puts(s"use $kstreamName;")
-    out.puts
   }
 
   override def fileFooter(topClassName: String): Unit = {
@@ -43,9 +40,12 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def classHeader(name: String): Unit = {
-    out.puts(s"our @ISA = '$kstructName'; # Base class")
     out.puts
-    out.puts("# Class method, may be considered as 'static'")
+    out.puts("########################################################################")
+    out.puts(s"package ${type2class(name)};")
+    out.puts
+    out.puts(s"our @ISA = '$kstructName';")
+    out.puts
     out.puts("sub from_file {")
     out.inc
     out.puts("my $class = shift;")
@@ -62,14 +62,13 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts
-    out.puts("# Constructor")
     out.puts("sub new {")
     out.inc
     out.puts("my $class = shift;")
     out.puts("my $_io = shift;")
     out.puts("my $_parent = shift;")
     out.puts("my $_root = shift;")
-    out.puts("my $self = Kaitai::Struct->new($_io); # Call constructor of a base class")
+    out.puts("my $self = Kaitai::Struct->new($_io);")
     out.puts
     out.puts("bless $self, $class;")
     out.puts(s"${privateMemberName(ParentIdentifier)} = $$_parent;")
@@ -128,34 +127,34 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def useIO(ioEx: expr): String = {
-    out.puts(s"io = ${expression(ioEx)}")
-    "io"
+    out.puts(s"my $$io = ${expression(ioEx)};")
+    "$io"
   }
 
   override def pushPos(io: String): Unit =
     out.puts(s"_pos = $io.pos")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"$io.seek(${expression(pos)})")
+    out.puts(s"$io.seek(${expression(pos)});")
 
   override def popPos(io: String): Unit =
-    out.puts(s"$io.seek(_pos)")
+    out.puts(s"$io.seek(_pos);")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
-    out.puts(s"if ${expression(expr)}")
+    out.puts(s"if (${expression(expr)}) {")
     out.inc
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-
-    out.puts(s"${privateMemberName(id)} = []")
-    out.puts(s"while not $io.eof?")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
+    out.puts(s"${privateMemberName(id)} = ();")
+    out.puts(s"while (not $io->is_eof()) {")
     out.inc
   }
+
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)} << $expr")
+    out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
@@ -164,8 +163,28 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts(s"(${expression(repeatExpr)}).times { |i|")
     out.inc
   }
+
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[i] = $expr;")
+
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    if (needRaw)
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
+    out.puts(s"${privateMemberName(id)} = ();")
+    out.puts("do {")
+    out.inc
+  }
+
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
+    out.puts(s"${translator.doName("_")} = $expr;")
+    out.puts(s"push @{${privateMemberName(id)}}, ${translator.doName("_")};")
+  }
+
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+    _currentIteratorType = Some(dataType)
+    out.dec
+    out.puts(s"} until (${expression(untilExpr)})")
+  }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
@@ -173,37 +192,37 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read_${t.apiCall}()"
+        s"$io->read_${t.apiCall}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
-        s"$io.read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
+        s"$io->read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
       case StrEosType(encoding) =>
-        io + ".read_str_eos(\"" + encoding + "\")"
+        io + "->read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + ".read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
+        io + "->read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
         s"${value2Const(enumName)}[${parseExpr(t, io)}]"
 
       case BytesLimitType(size, _) =>
-        s"$io.read_bytes(${expression(size)})"
+        s"$io->read_bytes(${expression(size)})"
       case BytesEosType(_) =>
-        s"$io.read_bytes_full()"
+        s"$io->read_bytes_full()"
       case t: UserType =>
         s"${type2class(t.name.last)}->new($io, $$self, ${privateMemberName(RootIdentifier)})"
     }
   }
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
-    out.puts(s"def ${instName.name}")
+    out.puts(s"sub ${instName.name} {")
     out.inc
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
-    out.puts(s"return ${privateMemberName(instName)} if ${privateMemberName(instName)}")
+    out.puts(s"return ${privateMemberName(instName)} if (${privateMemberName(instName)});")
   }
 
   override def instanceReturn(instName: InstanceIdentifier): Unit = {
-    out.puts(privateMemberName(instName))
+    out.puts(s"return ${privateMemberName(instName)};")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
