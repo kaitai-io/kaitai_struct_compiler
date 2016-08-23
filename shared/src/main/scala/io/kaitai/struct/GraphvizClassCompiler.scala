@@ -15,7 +15,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   val topClassName = List(topClass.meta.get.id)
 
   val translator = getTranslator(this)
-  val links = ListBuffer[(String, String)]()
+  val links = ListBuffer[(String, String, String)]()
 
   var nowClass: ClassSpec = topClass
   var nowClassName = topClassName
@@ -29,8 +29,8 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
 
     compileClass(List(topClass.meta.get.id), topClass)
 
-    links.foreach { case (t1, t2) =>
-        out.puts(s"$t1 -> $t2;")
+    links.foreach { case (t1, t2, style) =>
+        out.puts(s"$t1 -> $t2 [$style];")
     }
 
     out.dec
@@ -116,6 +116,13 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     out.puts("</TABLE>>];")
   }
 
+  val STYLE_EDGE_TYPE = "style=bold"
+  val STYLE_EDGE_MISC = "color=\"#404040\""
+  val STYLE_EDGE_POS = STYLE_EDGE_MISC
+  val STYLE_EDGE_SIZE = STYLE_EDGE_MISC
+  val STYLE_EDGE_REPEAT = STYLE_EDGE_MISC
+  val STYLE_EDGE_VALUE = STYLE_EDGE_MISC
+
   def tableRow(curClass: List[String], pos: Option[String], attr: AttrLikeSpec, name: String): Unit = {
     val dataType = attr.dataType
     val sizeStr = dataTypeSizeAsString(dataType, name)
@@ -130,7 +137,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     // Add user type links
     dataType match {
       case ut: UserType =>
-        links += ((s"$currentTable:${name}_type", type2class(ut.name) + "__seq"))
+        links += ((s"$currentTable:${name}_type", type2class(ut.name) + "__seq", STYLE_EDGE_TYPE))
       case _ =>
         // ignore, no links
     }
@@ -139,11 +146,11 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     attr.cond.repeat match {
       case RepeatExpr(ex) =>
         out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat " +
-          expression(ex, s"$currentTable:$portName") +
+          expression(ex, s"$currentTable:$portName", STYLE_EDGE_REPEAT) +
           " times</TD></TR>")
       case RepeatUntil(ex) =>
         out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat until " +
-          expression(ex, s"$currentTable:$portName") +
+          expression(ex, s"$currentTable:$portName", STYLE_EDGE_REPEAT) +
           "</TD></TR>")
       case RepeatEos =>
         out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat to end of stream</TD></TR>")
@@ -162,7 +169,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     out.puts(
       s"<TR><TD>$name</TD>" +
       "<TD>" +
-      expression(inst.value, currentTable) +
+      expression(inst.value, currentTable, STYLE_EDGE_VALUE) +
       "</TD></TR>"
     )
 
@@ -199,16 +206,16 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   }
 
   def expressionSize(ex: expr, attrName: String): String = {
-    expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_size")
+    expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_size", STYLE_EDGE_SIZE)
   }
 
   def expressionPos(ex: expr, attrName: String): String = {
-    expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_pos")
+    expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_pos", STYLE_EDGE_POS)
   }
 
-  def expression(e: expr, portName: String): String = {
+  def expression(e: expr, portName: String, style: String): String = {
     affectedVars(e).foreach((v) =>
-      links += ((v, portName))
+      links += ((v, portName, style))
     )
     htmlEscape(translator.translate(e))
   }
