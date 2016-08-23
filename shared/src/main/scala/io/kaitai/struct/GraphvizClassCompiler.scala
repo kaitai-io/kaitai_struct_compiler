@@ -54,10 +54,10 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       instSpec match {
         case pis: ParseInstanceSpec =>
           tableStart(className, s"inst__${instName.name}")
-          compileInstance(className, instName, pis)
+          compileParseInstance(className, instName, pis)
           tableEnd
-        case _: ValueInstanceSpec =>
-          // ignore for now
+        case vis: ValueInstanceSpec =>
+          tableValueInstance(className, instName.name, vis)
       }
     }
 
@@ -106,7 +106,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     tableEnd
   }
 
-  def compileInstance(className: List[String], id: InstanceIdentifier, inst: ParseInstanceSpec): Unit = {
+  def compileParseInstance(className: List[String], id: InstanceIdentifier, inst: ParseInstanceSpec): Unit = {
     val name = id.name
     val lastInstPos = inst.pos
     lastInstPos match {
@@ -151,6 +151,23 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case _ =>
         // ignore, no links
     }
+  }
+
+  def tableValueInstance(curClass: List[String], name: String, inst: ValueInstanceSpec): Unit = {
+    currentTable = s"${type2class(curClass)}__inst__$name"
+
+    out.puts(s"$currentTable" + " [label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">")
+    out.inc
+    out.puts(s"<TR>${TH_START}id</TD>${TH_START}value</TD></TR>")
+
+    out.puts(
+      s"<TR><TD>$name</TD>" +
+      "<TD>" +
+      expression(inst.value, currentTable) +
+      "</TD></TR>"
+    )
+
+    tableEnd
   }
 
   val END_OF_STREAM = "⇲"
