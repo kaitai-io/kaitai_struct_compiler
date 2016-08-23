@@ -8,11 +8,10 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
-import io.kaitai.struct.translators.TypeProvider
 
 import scala.collection.mutable.ListBuffer
 
-class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends TypeProvider {
+class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends AbstractCompiler {
   val topClassName = List(topClass.meta.get.id)
 
   val userTypes: Map[String, ClassSpec] = gatherUserTypes(topClass) ++ Map(topClassName.last -> topClass)
@@ -79,7 +78,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     }
   }
 
-  def compile {
+  override def compile {
     lang.open(topClassName.head, this)
 
     deriveValueTypes
@@ -241,14 +240,17 @@ object ClassCompiler {
     mapper.readValue(reader, classOf[ClassSpec])
   }
 
-  def fromLocalFileToFile(yamlFilename: String, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): ClassCompiler =
+  def fromLocalFileToFile(yamlFilename: String, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): AbstractCompiler =
     fromClassSpecToFile(localFileToSpec(yamlFilename), lang, outDir, config)
 
-  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): ClassCompiler = {
+  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): AbstractCompiler = {
     val outPath = lang.outFilePath(config, outDir, topClass.meta.get.id)
     if (config.verbose)
       Console.println(s"... => ${outPath}")
     lang match {
+      case GraphvizClassCompiler =>
+        val out = new FileLanguageOutputWriter(outPath, lang.indent)
+        new GraphvizClassCompiler(topClass, out)
       case CppCompiler =>
         val outSrc = new FileLanguageOutputWriter(s"$outPath.cpp", lang.indent)
         val outHdr = new FileLanguageOutputWriter(s"$outPath.h", lang.indent)
@@ -284,7 +286,6 @@ object ClassCompiler {
 
   private def getCompiler(lang: LanguageCompilerStatic, config: RuntimeConfig, out: LanguageOutputWriter) = lang match {
     case CSharpCompiler => new CSharpCompiler(config.verbose, out, config.dotNetNamespace)
-    case GraphvizCompiler => new GraphvizCompiler(config.verbose, out)
     case JavaCompiler => new JavaCompiler(config.verbose, out, config.javaPackage)
     case JavaScriptCompiler => new JavaScriptCompiler(config.verbose, out)
     case PHPCompiler => new PHPCompiler(config.verbose, out, config.phpNamespace)
