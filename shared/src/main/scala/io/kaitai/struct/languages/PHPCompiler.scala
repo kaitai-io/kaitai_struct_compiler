@@ -134,8 +134,8 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    out.puts(s"${privateMemberName(id)} = [];")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
@@ -153,7 +153,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.add($expr);")
+    out.puts(s"array_push(${privateMemberName(id)}, $expr);")
   }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
