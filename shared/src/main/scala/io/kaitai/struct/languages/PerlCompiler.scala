@@ -199,7 +199,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case StrEosType(encoding) =>
         io + "->read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + "->read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
+        io + "->read_strz(\"" + encoding + '"' + s", $terminator, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
       case EnumType(enumName, t) =>
         s"${value2Const(enumName)}[${parseExpr(t, io)}]"
 
@@ -263,4 +263,6 @@ object PerlCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "Kaitai::Stream"
   override def kstructName: String = "Kaitai::Struct"
+
+  def boolLiteral(b: Boolean): String = if (b) { "1" } else { "0" }
 }
