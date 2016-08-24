@@ -60,6 +60,29 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     everybody("(1 + 2) / (7 * 8.1)", "((1 + 2) / (7 * 8.1))", CalcFloatType),
 
+    // Boolean literals
+    full("true", BooleanType, BooleanType, Map(
+      CppCompiler -> "true",
+      CSharpCompiler -> "true",
+      JavaCompiler -> "true",
+      JavaScriptCompiler -> "true",
+      PerlCompiler -> "1",
+      PHPCompiler -> "TRUE",
+      PythonCompiler -> "True",
+      RubyCompiler -> "true"
+    )),
+
+    full("false", BooleanType, BooleanType, Map(
+      CppCompiler -> "false",
+      CSharpCompiler -> "false",
+      JavaCompiler -> "false",
+      JavaScriptCompiler -> "false",
+      PerlCompiler -> "0",
+      PHPCompiler -> "FALSE",
+      PythonCompiler -> "False",
+      RubyCompiler -> "false"
+    )),
+
     // Member access
     full("foo_str", CalcStrType, CalcStrType, Map(
       CppCompiler -> "foo_str()",
