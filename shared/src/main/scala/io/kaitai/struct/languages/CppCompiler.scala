@@ -309,8 +309,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
         s"$io->read_str_eos(/* $encoding */)"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         s"$io->read_strz(/* $encoding, */ $terminator, $include, $consume, $eosError)"
-//      case EnumType(enumName, t) =>
-//        s"${type2class(enumName)}.byId($io->read${Utils.capitalize(t.apiCall)}())"
+      case EnumType(enumName, t) =>
+        s"static_cast<${type2class(List(enumName))}>(${parseExpr(t, io)})"
       case BytesLimitType(size, _) =>
         s"$io->read_bytes(${expression(size)})"
       case BytesEosType(_) =>
@@ -355,33 +355,19 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     val enumClass = type2class(List(enumName))
 
     outHdr.puts
-    outHdr.puts(s"public enum $enumClass {")
+    outHdr.puts(s"enum $enumClass {")
     outHdr.inc
 
     if (enumColl.size > 1) {
       enumColl.dropRight(1).foreach { case (id, label) =>
-        outHdr.puts(s"${value2Const(label)}($id),")
+        outHdr.puts(s"${value2Const(label)} = $id,")
       }
     }
     enumColl.last match {
       case (id, label) =>
-        outHdr.puts(s"${value2Const(label)}($id);")
+        outHdr.puts(s"${value2Const(label)} = $id")
     }
 
-    outHdr.puts
-    outHdr.puts("private final long id;")
-    outHdr.puts(s"$enumClass(long id) { this.id = id; }")
-    outHdr.puts("public long id() { return id; }")
-    outHdr.puts(s"private static final Map<Long, $enumClass> byId = new HashMap<Long, $enumClass>(${enumColl.size});")
-    outHdr.puts("static {")
-    outHdr.inc
-    outHdr.puts(s"for ($enumClass e : $enumClass.values())")
-    outHdr.inc
-    outHdr.puts(s"byId.put(e.id(), e);")
-    outHdr.dec
-    outHdr.dec
-    outHdr.puts("}")
-    outHdr.puts(s"public static $enumClass byId(long id) { return byId.get(id); }")
     outHdr.dec
     outHdr.puts("}")
   }
