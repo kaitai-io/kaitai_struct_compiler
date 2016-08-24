@@ -84,7 +84,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        s"$destName = _io.$procName($srcName, ${expression(xorValue)})"
+        s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
         s"$destName = Zlib::Inflate.inflate($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
@@ -93,7 +93,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$destName = _io.process_rotate_left($srcName, $expr, 1)"
+        s"$destName = $kstreamName::process_rotate_left($srcName, $expr, 1)"
     })
   }
 
