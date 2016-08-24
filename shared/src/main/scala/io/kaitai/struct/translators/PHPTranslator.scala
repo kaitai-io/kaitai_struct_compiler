@@ -6,6 +6,8 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.IntType
 
 class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def doBoolLiteral(n: Boolean): String = if (n) "TRUE" else "FALSE"
+
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>

@@ -7,6 +7,7 @@ import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
 
 class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doStringLiteral(s: String): String = "u\"" + s + "\""
+  override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
 
   override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
     t match {
