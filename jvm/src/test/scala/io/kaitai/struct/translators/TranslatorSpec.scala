@@ -139,6 +139,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
       JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
       JavaScriptCompiler -> "[0, 1, 100500]",
+      PerlCompiler -> "(0, 1, 100500)",
+      PHPCompiler -> "[0, 1, 100500]",
       PythonCompiler -> "[0, 1, 100500]",
       RubyCompiler -> "[0, 1, 100500]"
     )),
