@@ -21,6 +21,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         doFloatLiteral(n)
       case Ast.expr.Str(s) =>
         doStringLiteral(s)
+      case Ast.expr.Bool(n) =>
+        doBoolLiteral(n)
       case Ast.expr.EnumByLabel(enumType, label) =>
         doEnumByLabel(enumType.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
@@ -159,6 +161,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def doIntLiteral(n: Any): String = n.toString
   def doFloatLiteral(n: Any): String = n.toString
   def doStringLiteral(s: String): String = "\"" + s + "\""
+  def doBoolLiteral(n: Boolean): String = n.toString
   def doArrayLiteral(t: BaseType, value: Seq[expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
 
   def doLocalName(s: String): String = doName(s)
@@ -192,6 +195,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         }
       case Ast.expr.FloatNum(_) => CalcFloatType
       case Ast.expr.Str(_) => CalcStrType
+      case Ast.expr.Bool(_) => BooleanType
       case Ast.expr.EnumByLabel(enumType, _) => EnumType(enumType.name, CalcIntType)
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
