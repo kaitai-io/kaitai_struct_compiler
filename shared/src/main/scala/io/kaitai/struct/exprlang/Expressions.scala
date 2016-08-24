@@ -114,7 +114,11 @@ object Expressions {
       "{" ~ dictorsetmaker ~ "}" |
       enumByName |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
-      NAME.map(Ast.expr.Name(_)) |
+      NAME.map((x) => x.name match {
+        case "true" => Ast.expr.Bool(true)
+        case "false" => Ast.expr.Bool(false)
+        case _ => Ast.expr.Name(x)
+      }) |
       FLOAT_NUMBER.map(Ast.expr.FloatNum) |
       INT_NUMBER.map(Ast.expr.IntNum)
     )

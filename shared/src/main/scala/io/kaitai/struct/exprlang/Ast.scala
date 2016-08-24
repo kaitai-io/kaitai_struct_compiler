@@ -35,6 +35,7 @@ object Ast {
     case class IntNum(n: BigInt) extends expr
     case class FloatNum(n: BigDecimal) extends expr
     case class Str(s: String) extends expr
+    case class Bool(n: Boolean) extends expr
     case class EnumByLabel(enumName: identifier, label: identifier) extends expr
 
     case class Attribute(value: expr, attr: identifier) extends expr

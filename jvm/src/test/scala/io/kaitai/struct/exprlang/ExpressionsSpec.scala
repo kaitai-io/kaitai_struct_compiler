@@ -105,5 +105,17 @@ class ExpressionsSpec extends FunSpec {
         List(ArrayBuffer(IntNum(1), IntNum(2), IntNum(4660)))
       )
     }
+
+    it("parses true") {
+      Expressions.parse("true") should be (Bool(true))
+    }
+
+    it("parses false") {
+      Expressions.parse("false") should be (Bool(false))
+    }
+
+    it("parses truer") {
+      Expressions.parse("truer") should be (Name(identifier("truer")))
+    }
   }
 }
