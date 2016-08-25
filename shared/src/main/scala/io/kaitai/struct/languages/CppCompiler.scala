@@ -278,6 +278,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     if (needRaw)
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
+    outSrc.puts("{")
+    outSrc.inc
     outSrc.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
     outSrc.puts("do {")
     outSrc.inc
@@ -292,6 +294,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     _currentIteratorType = Some(dataType)
     outSrc.dec
     outSrc.puts(s"} while (!(${expression(untilExpr)}));")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
