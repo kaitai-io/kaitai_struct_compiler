@@ -177,6 +177,8 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
+    out.puts("{")
+    out.inc
     out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
     out.puts("do {")
     out.inc
@@ -191,6 +193,8 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     _currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.dec
+    out.puts("}")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
