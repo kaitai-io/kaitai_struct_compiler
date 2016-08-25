@@ -111,6 +111,12 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     lang.classDestructorHeader(name, curClass.parentTypeName, topClassName)
     curClass.seq.foreach((attr) => lang.attrDestructor(attr, attr.id))
+    curClass.instances.foreach { case (id, instSpec) =>
+      instSpec match {
+        case pis: ParseInstanceSpec => lang.attrDestructor(pis, id)
+        case _: ValueInstanceSpec => // ignore for now
+      }
+    }
     lang.classDestructorFooter
 
     // Recursive types
