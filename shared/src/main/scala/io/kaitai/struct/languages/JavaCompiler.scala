@@ -187,6 +187,8 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+    out.puts("{")
+    out.inc
     out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_")};")
     out.puts("do {")
     out.inc
@@ -201,6 +203,8 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     _currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.dec
+    out.puts("}")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
