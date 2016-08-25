@@ -144,26 +144,51 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   }
 
   override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
-    var t = attr.dataTypeComposite
+    val t = attr.dataTypeComposite
 
-    if (attr.isArray) {
-      outSrc.puts(s"${privateMemberName(id)}->clear();")
-      outSrc.puts(s"delete ${privateMemberName(id)};")
-      return
+    val checkFlag = id match {
+      case _: NamedIdentifier =>
+        t match {
+          case ut: UserType =>
+            attr.cond.ifExpr.isDefined
+          case _ =>
+            false
+        }
+      case _: InstanceIdentifier =>
+        true
+    }
+
+    if (checkFlag) {
+      outSrc.puts(s"if (${flagForInstName(id)}) {")
+      outSrc.inc
     }
 
     t match {
-      case ut: UserType =>
-        if (attr.cond.ifExpr.isDefined) {
-          outSrc.puts(s"if (${flagForInstName(id)})")
-          outSrc.inc
-          outSrc.puts(s"delete ${privateMemberName(id)};")
-          outSrc.dec
-        } else {
-          outSrc.puts(s"delete ${privateMemberName(id)};")
-        }
+      case ArrayType(_: UserTypeKnownSize) =>
+        val rawVar = privateMemberName(RawIdentifier(id))
+        outSrc.puts(s"delete $rawVar;")
+        outSrc.puts(s"${privateMemberName(id)}->clear();")
+        outSrc.puts(s"delete ${privateMemberName(id)};")
+      case ArrayType(el: UserType) =>
+        val arrVar = privateMemberName(id)
+        outSrc.puts(s"for (std::vector<${kaitaiType2NativeType(el)}>::iterator it = $arrVar->begin(); it != $arrVar->end(); ++it) {")
+        outSrc.inc
+        outSrc.puts("delete *it;")
+        outSrc.dec
+        outSrc.puts("}")
+        outSrc.puts(s"delete ${privateMemberName(id)};")
+      case _: UserTypeKnownSize =>
+        outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
+        outSrc.puts(s"delete ${privateMemberName(id)};")
+      case _: UserType | _: ArrayType =>
+        outSrc.puts(s"delete ${privateMemberName(id)};")
       case _ =>
         // no cleanup needed
+    }
+
+    if (checkFlag) {
+      outSrc.dec
+      outSrc.puts("}")
     }
   }
 
