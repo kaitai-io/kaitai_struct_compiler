@@ -22,6 +22,8 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   var currentTable: String = ""
 
   override def compile: Unit = {
+    deriveValueTypes
+
     out.puts("digraph {")
     out.inc
     out.puts("rankdir=LR;")
@@ -349,6 +351,23 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
           case None => // do nothing
         }
         throw new RuntimeException(s"Unable to access $attrName in $className context")
+    }
+  }
+
+  def deriveValueTypes {
+    userTypes.foreach { case (name, spec) => deriveValueType(spec) }
+  }
+
+  def deriveValueType(curClass: ClassSpec): Unit = {
+    nowClass = curClass
+    curClass.instances.foreach {
+      case (instName, inst) =>
+        inst match {
+          case vi: ValueInstanceSpec =>
+            vi.dataType = Some(translator.detectType(vi.value))
+          case _ =>
+            // do nothing
+        }
     }
   }
 }
