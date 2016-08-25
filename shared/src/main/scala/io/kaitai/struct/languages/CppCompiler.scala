@@ -199,7 +199,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     val ioName = IoStorageIdentifier(varName)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$memberName.get($memberName.size() - 1)"
+      case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
       case NoRepeat => memberName
     }
 
@@ -241,7 +241,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
     if (needRaw)
-      outSrc.puts(s"this._raw_${privateMemberName(id)} = new ArrayList<byte[]>();")
+      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
@@ -257,11 +257,15 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    if (needRaw)
-      outSrc.puts(s"this._raw_${privateMemberName(id)} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
+    val lenVar = s"l_${idToStr(id)}"
+    outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
+    if (needRaw) {
+      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
+      outSrc.puts(s"${privateMemberName(RawIdentifier(id))}->reserve($lenVar);")
+    }
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
-    outSrc.puts(s"${privateMemberName(id)}->reserve(${expression(repeatExpr)});")
-    outSrc.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
+    outSrc.puts(s"${privateMemberName(id)}->reserve($lenVar);")
+    outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
   }
 
@@ -408,7 +412,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
         s"${type2class(classList)}*"
 
       case EnumType(name, _) => type2class(List(name))
-      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType)}>*"
+      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType, absolute, curClass)}>*"
 
       case KaitaiStreamType => s"$kstreamName*"
     }
