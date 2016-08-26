@@ -32,14 +32,10 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
 
-  override def doName(s: String) =
-    s match {
-      case "_" => s
-      case "_root" => s
-      case "_parent" => "_parent()"
-      case "_io" => "_io()"
-      case _ => s"$s()"
-    }
+  override def doName(s: String) = s match {
+    case "_" => s
+    case _ => s"$s()"
+  }
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s"${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"
