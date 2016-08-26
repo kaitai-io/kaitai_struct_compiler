@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{UserType, _}
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{NoNeedForFullClassPath, _}
-import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, PerlTranslator, TypeProvider}
 
 class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
@@ -117,13 +117,15 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatEos => s"$memberName.last"
+      case RepeatEos => s"$memberName[-1]"
       case RepeatExpr(_) => s"$memberName[i]"
       case NoRepeat => s"$memberName"
     }
 
-    out.puts(s"io = $kstreamName.new($args)")
-    "io"
+    val ioName = s"$$io_${idToStr(id)}"
+
+    out.puts(s"my $ioName = $kstreamName->new($args);")
+    ioName
   }
 
   override def useIO(ioEx: expr): String = {
@@ -132,13 +134,13 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def pushPos(io: String): Unit =
-    out.puts(s"_pos = $io.pos")
+    out.puts(s"my $$_pos = $io->pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"$io.seek(${expression(pos)});")
+    out.puts(s"$io->seek(${expression(pos)});")
 
   override def popPos(io: String): Unit =
-    out.puts(s"$io.seek(_pos);")
+    out.puts(s"$io->seek($$_pos);")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
@@ -215,6 +217,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts(s"sub ${instName.name} {")
     out.inc
+    out.puts("my $self = shift;")
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
@@ -252,17 +255,17 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def privateMemberName(id: Identifier): String = s"$$self->{${idToStr(id)}}"
 
   override def publicMemberName(id: Identifier): String = idToStr(id)
+
+  def boolLiteral(b: Boolean): String = translator.doBoolLiteral(b)
 }
 
 object PerlCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new PerlTranslator(tp)
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
   override def indent: String = "    "
 
   override def kstreamName: String = "Kaitai::Stream"
   override def kstructName: String = "Kaitai::Struct"
-
-  def boolLiteral(b: Boolean): String = if (b) { "1" } else { "0" }
 }
