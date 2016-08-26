@@ -165,10 +165,12 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
     t match {
       case ArrayType(_: UserTypeKnownSize) =>
-        val rawVar = privateMemberName(RawIdentifier(id))
-        outSrc.puts(s"delete $rawVar;")
-        outSrc.puts(s"${privateMemberName(id)}->clear();")
-        outSrc.puts(s"delete ${privateMemberName(id)};")
+        outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
+      case _ =>
+        // no cleanup needed
+    }
+
+    t match {
       case ArrayType(el: UserType) =>
         val arrVar = privateMemberName(id)
         outSrc.puts(s"for (std::vector<${kaitaiType2NativeType(el)}>::iterator it = $arrVar->begin(); it != $arrVar->end(); ++it) {")
@@ -176,10 +178,18 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
         outSrc.puts("delete *it;")
         outSrc.dec
         outSrc.puts("}")
-        outSrc.puts(s"delete ${privateMemberName(id)};")
+      case _ =>
+        // no cleanup needed
+    }
+
+    t match {
       case _: UserTypeKnownSize =>
         outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
-        outSrc.puts(s"delete ${privateMemberName(id)};")
+      case _ =>
+        // no cleanup needed
+    }
+
+    t match {
       case _: UserType | _: ArrayType =>
         outSrc.puts(s"delete ${privateMemberName(id)};")
       case _ =>
@@ -233,7 +243,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   }
 
   override def useIO(ioEx: Ast.expr): String = {
-    outSrc.puts(s"KaitaiStream *io = ${expression(ioEx)};")
+    outSrc.puts(s"$kstreamName *io = ${expression(ioEx)};")
     "io"
   }
 
