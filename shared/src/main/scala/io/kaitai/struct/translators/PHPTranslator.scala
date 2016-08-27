@@ -17,6 +17,9 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     }
   }
 
+  override def userTypeField(value: expr, attrName: String): String =
+    s"${translate(value)}->${doName(attrName)}"
+
   override def doLocalName(s: String) = {
     s match {
       case "_" => "$_"
@@ -35,11 +38,14 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
   // Predefined methods of various types
+  override def strConcat(left: Ast.expr, right: Ast.expr): String =
+    s"${translate(left)} . ${translate(right)}"
+
   override def strToInt(s: expr, base: expr): String =
     s"Number.parseInt(${translate(s)}, ${translate(base)})"
 
   override def strLength(s: expr): String =
-    s"${translate(s)}.length"
+    s"strlen(${translate(s)})"
 
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"

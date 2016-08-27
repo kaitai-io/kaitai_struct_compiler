@@ -102,20 +102,18 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
 
-    val ioName = s"_io_${idToStr(id)}"
-
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$memberName.get($memberName.size() - 1)"
       case NoRepeat => memberName
     }
 
-    out.puts(s"$kstreamName $ioName = new $kstreamName($args);")
-    ioName
+    out.puts(s"$$io = new $kstreamName($args);")
+    "$io"
   }
 
   override def useIO(ioEx: Ast.expr): String = {
-    out.puts(s"$kstreamName io = ${expression(ioEx)};")
-    "io"
+    out.puts(s"$$io = ${expression(ioEx)};")
+    "$io"
   }
 
   override def pushPos(io: String): Unit =
@@ -136,7 +134,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
-    out.puts(s"while (!$io.isEof()) {")
+    out.puts(s"while (!$io->isEof()) {")
     out.inc
   }
 
@@ -147,7 +145,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for ($$i = 0; $$i < ${expression(repeatExpr)}; $$i++) {")
     out.inc
   }
@@ -202,16 +200,16 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
+    out.puts(s"protected $$${idToStr(attrName)};")
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${idToStr(instName)}() throws IOException {")
+    out.puts(s"public function ${idToStr(instName)}(): ${kaitaiType2NativeType(dataType)} {")
     out.inc
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if (${privateMemberName(instName)} != null)")
+    out.puts(s"if (${privateMemberName(instName)} !== null)")
     out.inc
     instanceReturn(instName)
     out.dec
@@ -284,43 +282,6 @@ object PHPCompiler extends LanguageCompilerStatic
 
   override def kstructName: String = "\\Kaitai\\Struct\\Struct"
 
-  def kaitaiType2JavaType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
-
-  /**
-    * Determine Java data type corresponding to a KS data type. A "primitive" type (i.e. "int", "long", etc) will
-    * be returned if possible.
-    *
-    * @param attrType KS data type
-    * @return Java data type
-    */
-  def kaitaiType2JavaTypePrim(attrType: BaseType): String = {
-    attrType match {
-      case Int1Type(false) => "int"
-      case IntMultiType(false, Width2, _) => "int"
-      case IntMultiType(false, Width4, _) => "long"
-      case IntMultiType(false, Width8, _) => "long"
-
-      case Int1Type(true) => "byte"
-      case IntMultiType(true, Width2, _) => "short"
-      case IntMultiType(true, Width4, _) => "int"
-      case IntMultiType(true, Width8, _) => "long"
-
-      case FloatMultiType(Width4, _) => "float"
-      case FloatMultiType(Width8, _) => "double"
-
-      case CalcIntType => "int"
-      case CalcFloatType => "double"
-
-      case _: StrType => "String"
-      case _: BytesType => "byte[]"
-
-      case t: UserType => types2class(t.name)
-      case EnumType(name, _) => type2class(name)
-
-      case ArrayType(inType) => kaitaiType2JavaTypeBoxed(attrType)
-    }
-  }
-
   /**
     * Determine Java data type corresponding to a KS data type. A non-primitive type (i.e. "Integer", "Long", etc) will
     * be returned, to be used when proper objects should be used.
@@ -328,28 +289,22 @@ object PHPCompiler extends LanguageCompilerStatic
     * @param attrType KS data type
     * @return Java data type
     */
-  def kaitaiType2JavaTypeBoxed(attrType: BaseType): String = {
+  def kaitaiType2NativeType(attrType: BaseType): String = {
     attrType match {
-      case Int1Type(false) => "Integer"
-      case IntMultiType(false, Width2, _) => "Integer"
-      case IntMultiType(false, Width4, _) => "Long"
-      case IntMultiType(false, Width8, _) => "Long"
+      case _: IntType => "int"
 
-      case Int1Type(true) => "Byte"
-      case IntMultiType(true, Width2, _) => "Short"
-      case IntMultiType(true, Width4, _) => "Integer"
-      case IntMultiType(true, Width8, _) => "Long"
+      case FloatMultiType(Width4, _) => "float"
+      case FloatMultiType(Width8, _) => "double"
 
       case CalcIntType => "Integer"
       case CalcFloatType => "Double"
 
-      case _: StrType => "String"
-      case _: BytesType => "byte[]"
+      case _: StrType | _: BytesType => "string"
 
       case t: UserType => type2class(t.name.last)
       case EnumType(name, _) => type2class(name)
 
-      case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
+      case ArrayType(inType) => s"ArrayList<${kaitaiType2NativeType(inType)}>"
     }
   }
 
