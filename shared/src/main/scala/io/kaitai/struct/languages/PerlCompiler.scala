@@ -203,7 +203,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + "->read_strz(\"" + encoding + '"' + s", $terminator, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
       case EnumType(enumName, t) =>
-        s"${value2Const(enumName)}[${parseExpr(t, io)}]"
+        parseExpr(t, io)
 
       case BytesLimitType(size, _) =>
         s"$io->read_bytes(${expression(size)})"
@@ -230,18 +230,13 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     out.puts
-    out.puts(s"${value2Const(enumName)} = {")
-    out.inc
+
     enumColl.foreach { case (id, label) =>
-      out.puts(s"$id => ${enumValue(enumName, label)},")
+      out.puts(s"our ${enumValue(enumName, label)} = $id;")
     }
-    out.dec
-    out.puts("}")
   }
 
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(enumName, enumLabel)
-
-  def value2Const(s: String) = s.toUpperCase
 
   override def idToStr(id: Identifier): String = {
     id match {

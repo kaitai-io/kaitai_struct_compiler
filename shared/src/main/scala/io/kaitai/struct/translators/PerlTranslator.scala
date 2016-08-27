@@ -26,7 +26,7 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
 
   override def doEnumByLabel(enumType: String, label: String): String =
-    s"$$self->{_root}->{${Utils.upperCamelCase(enumType)}}->{$label}"
+    s"$$${enumType.toUpperCase}_${label.toUpperCase}"
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
