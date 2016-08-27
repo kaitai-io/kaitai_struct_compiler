@@ -185,7 +185,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
     _currentIteratorType = Some(dataType)
     out.dec
-    out.puts(s"} until (${expression(untilExpr)})")
+    out.puts(s"} until (${expression(untilExpr)});")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =

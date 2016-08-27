@@ -8,6 +8,9 @@ import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
 class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doBoolLiteral(n: Boolean): String = if (n) "1" else "0"
 
+  override def userTypeField(value: expr, attrName: String): String =
+    s"${translate(value)}->${doName(attrName)}"
+
   override def doLocalName(s: String) = {
     s match {
       case "_" => "$_"
@@ -16,7 +19,10 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
 
   override def doName(s: String) = {
-    s"{$s}"
+    s match {
+      case "_" => "$_"
+      case _ => s"{$s}"
+    }
   }
 
   override def doEnumByLabel(enumType: String, label: String): String =
