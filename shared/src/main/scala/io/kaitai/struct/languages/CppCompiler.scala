@@ -218,6 +218,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
           case _: BytesType => "process_xor_many"
         }
         outSrc.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
+      case ProcessZlib =>
+        outSrc.puts(s"$destName = $kstreamName::process_zlib($srcName);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
