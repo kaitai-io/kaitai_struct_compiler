@@ -135,7 +135,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
         out.puts(s"(@_debug['$name'] ||= {})[:start] = $io.pos")
       case _: RepeatExpr =>
         out.puts(s"(@_debug['$name'][:arr] ||= [])[i] = {:start => $io.pos}")
-      case RepeatEos =>
+      case RepeatEos | _: RepeatUntil =>
         out.puts(s"(@_debug['$name'][:arr] ||= [])[${privateMemberName(attrId)}.size] = {:start => $io.pos}")
     }
   }
@@ -151,7 +151,7 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
         out.puts(s"(@_debug['$name'] ||= {})[:end] = $io.pos")
       case _: RepeatExpr =>
         out.puts(s"@_debug['$name'][:arr][i][:end] = $io.pos")
-      case RepeatEos =>
+      case RepeatEos | _: RepeatUntil =>
         out.puts(s"@_debug['$name'][:arr][${privateMemberName(attrId)}.size - 1][:end] = $io.pos")
     }
   }
