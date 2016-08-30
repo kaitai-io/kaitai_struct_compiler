@@ -211,6 +211,40 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "a.last"
     )),
 
+    // Strings
+    full("\"str\"", CalcIntType, CalcStrType, Map(
+      CppCompiler -> "std::string(\"str\")",
+      CSharpCompiler -> "\"str\"",
+      JavaCompiler -> "\"str\"",
+      JavaScriptCompiler -> "\"str\"",
+      PerlCompiler -> "\"str\"",
+      PHPCompiler -> "\"str\"",
+      PythonCompiler -> "u\"str\"",
+      RubyCompiler -> "\"str\""
+    )),
+
+    full("\"str\".length", CalcIntType, CalcIntType, Map(
+      CppCompiler -> "std::string(\"str\").length()",
+      CSharpCompiler -> "\"str\".Length",
+      JavaCompiler -> "\"str\".length()",
+      JavaScriptCompiler -> "\"str\".length",
+      PerlCompiler -> "length(\"str\")",
+      PHPCompiler -> "strlen(\"str\")",
+      PythonCompiler -> "len(u\"str\")",
+      RubyCompiler -> "\"str\".size"
+    )),
+
+    full("\"12345\".to_i", CalcIntType, CalcIntType, Map(
+      CppCompiler -> "std::stoi(std::string(\"12345\"))",
+      CSharpCompiler -> "long.Parse(\"12345\")",
+      JavaCompiler -> "Long.parseLong(\"12345\", 10)",
+      JavaScriptCompiler -> "Number.parseInt(\"12345\", 10)",
+      PerlCompiler -> "\"12345\"",
+      PHPCompiler -> "intval(\"12345\", 10)",
+      PythonCompiler -> "int(u\"12345\")",
+      RubyCompiler -> "\"12345\".to_i"
+    )),
+
     // very simple workaround for Scala not having optional trailing commas
     everybody("999", "999")
   )
