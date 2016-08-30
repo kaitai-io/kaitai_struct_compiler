@@ -8,16 +8,13 @@ import io.kaitai.struct.languages.CSharpCompiler
 
 class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
-    t match {
-      case Int1Type(_) =>
-        val commaStr = value.map((v) => s"${translate(v)}").mkString(", ")
-        s"new byte[] { $commaStr }"
-      case _ =>
-        val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
-        val commaStr = value.map((v) => translate(v)).mkString(", ")
-        s"new List<$nativeType> { $commaStr }"
-    }
+    val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
+    val commaStr = value.map((v) => translate(v)).mkString(", ")
+    s"new List<$nativeType> { $commaStr }"
   }
+
+  override def doByteArrayLiteral(arr: Seq[Byte]): String =
+    s"new byte[] { ${arr.map(_ & 0xff).mkString(", ")} }"
 
   override def doName(s: String) =
     if (s.startsWith("_"))

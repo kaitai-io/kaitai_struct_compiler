@@ -3,21 +3,18 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
-import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
+import io.kaitai.struct.exprlang.DataType.BaseType
 import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
-    t match {
-      case Int1Type(_) =>
-        val commaStr = value.map((v) => s"(byte) ${translate(v)}").mkString(", ")
-        s"new byte[] { $commaStr }"
-      case _ =>
-        val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
-        val commaStr = value.map((v) => translate(v)).mkString(", ")
-        s"new ArrayList<$javaType>(Arrays.asList($commaStr))"
-    }
+    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
+    val commaStr = value.map((v) => translate(v)).mkString(", ")
+    s"new ArrayList<$javaType>(Arrays.asList($commaStr))"
   }
+
+  override def doByteArrayLiteral(arr: Seq[Byte]): String =
+    s"new byte[] { ${arr.mkString(", ")} }"
 
   override def doName(s: String) =
     s match {

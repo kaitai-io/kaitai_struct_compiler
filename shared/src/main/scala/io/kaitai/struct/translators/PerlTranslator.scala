@@ -1,9 +1,7 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
 
 class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doBoolLiteral(n: Boolean): String = if (n) "1" else "0"

@@ -9,15 +9,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   override def doStringLiteral(s: String): String = "u\"" + s + "\""
   override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
 
-  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
-    t match {
-      case Int1Type(_) =>
-        val arrStr = super.doArrayLiteral(t, value)
-        s"str(bytearray($arrStr))"
-      case _ =>
-        super.doArrayLiteral(t, value)
-    }
-  }
+  override def doByteArrayLiteral(arr: Seq[Byte]): String =
+    s"str(bytearray(${super.doByteArrayLiteral(arr)}))"
 
   override def doLocalName(s: String) = {
     s match {

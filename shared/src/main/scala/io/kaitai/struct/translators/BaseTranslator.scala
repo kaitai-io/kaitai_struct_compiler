@@ -93,7 +93,23 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             }
         }
       case Ast.expr.List(values: Seq[Ast.expr]) =>
-        doArrayLiteral(detectArrayType(values), values)
+        val t = detectArrayType(values)
+        t match {
+          case Int1Type(_) =>
+            val literalBytes: Seq[Byte] = values.map((n) => n match {
+              case Ast.expr.IntNum(x) =>
+                if (x < 0 || x > 0xff) {
+                  throw new TypeMismatchError(s"got a weird byte value in byte array: $x")
+                } else {
+                  x.toByte
+                }
+              case _ =>
+                throw new RuntimeException(s"got $n in byte array, unable to put it literally")
+            })
+            doByteArrayLiteral(literalBytes)
+          case _ =>
+            doArrayLiteral(t, values)
+        }
     }
   }
 
@@ -163,6 +179,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def doStringLiteral(s: String): String = "\"" + s + "\""
   def doBoolLiteral(n: Boolean): String = n.toString
   def doArrayLiteral(t: BaseType, value: Seq[expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
+  def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String

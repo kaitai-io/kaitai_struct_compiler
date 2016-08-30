@@ -6,28 +6,14 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
 
 class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  // TODO: add string escaping
   override def doStringLiteral(s: String): String = "std::string(\"" + s + "\")"
 
-  override def doArrayLiteral(t: BaseType, values: Seq[expr]): String = {
-    t match {
-      case Int1Type(_) =>
-        val encodedStr = values.map((expr) =>
-          expr match {
-            case Ast.expr.IntNum(x) =>
-              if (x < 0 || x > 0xff) {
-                throw new RuntimeException(s"got a weird byte value in byte array: $x")
-              } else {
-                "\\x%02X".format(x)
-              }
-            case _ =>
-              throw new RuntimeException(s"got $expr in byte array, unable to put it literally in C++")
-          }
-        ).mkString
-        "std::string(\"" + encodedStr + "\", " + values.length + ")"
-      case _ =>
-        throw new RuntimeException("C++ literal arrays are not implemented yet")
-    }
-  }
+  override def doArrayLiteral(t: BaseType, values: Seq[expr]): String =
+    throw new RuntimeException("C++ literal arrays are not implemented yet")
+
+  override def doByteArrayLiteral(arr: Seq[Byte]): String =
+    "std::string(\"" + Utils.hexEscapeByteArray(arr) + "\", " + arr.length + ")"
 
   override def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
