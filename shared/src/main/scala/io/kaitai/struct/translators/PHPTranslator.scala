@@ -12,7 +12,7 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"Math.floor(${translate(left)} / ${translate(right)})"
+        s"intval(${translate(left)} / ${translate(right)})"
       case _ =>
         super.numericBinOp(left, op, right)
     }
@@ -43,7 +43,7 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(left)} . ${translate(right)}"
 
   override def strToInt(s: expr, base: expr): String =
-    s"Number.parseInt(${translate(s)}, ${translate(base)})"
+    s"intval(${translate(s)}, ${translate(base)})"
 
   override def strLength(s: expr): String =
     s"strlen(${translate(s)})"
