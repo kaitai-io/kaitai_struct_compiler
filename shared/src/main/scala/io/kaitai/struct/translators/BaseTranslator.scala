@@ -221,7 +221,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case (IntMultiType(_, w, _), _) if w.width > 4 => t
           case (_: IntType, _) => CalcIntType
           case (_: FloatType, Ast.unaryop.Minus) => t
-          case _ => throw new RuntimeException(s"unable to apply unary operator ${op} to ${t}")
+          case _ => throw new RuntimeException(s"unable to apply unary operator $op to $t")
         }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         val ltype = detectType(left)
@@ -236,10 +236,10 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             op match {
               case Ast.cmpop.Eq | Ast.cmpop.NotEq => // ok
               case _ =>
-                throw new TypeMismatchError(s"can't use comparison operator ${op} on enums")
+                throw new TypeMismatchError(s"can't use comparison operator $op on enums")
             }
           case _ =>
-            throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
+            throw new TypeMismatchError(s"can't compare $ltype and $rtype")
         }
         BooleanType
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
@@ -248,13 +248,13 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case (_: NumericType, _: NumericType, _) => CalcFloatType
           case (_: StrType, _: StrType, Ast.operator.Add) => CalcStrType
           case (ltype, rtype, _) =>
-            throw new RuntimeException(s"can't apply operator ${op} to ${ltype} and ${rtype}")
+            throw new TypeMismatchError(s"can't apply operator $op to $ltype and $rtype")
         }
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         values.foreach(v => {
           val t = detectType(v)
           if (t != BooleanType) {
-            throw new RuntimeException(s"unable to use ${t} argument in ${op} boolean expression")
+            throw new TypeMismatchError(s"unable to use $t argument in $op boolean expression")
           }
         })
         BooleanType
@@ -264,16 +264,16 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             val trueType = detectType(ifTrue)
             val falseType = detectType(ifFalse)
             combineTypes(trueType, falseType)
-          case other => throw new TypeMismatchError(s"unable to switch over ${other}")
+          case other => throw new TypeMismatchError(s"unable to switch over $other")
         }
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         detectType(container) match {
           case ArrayType(elType: BaseType) =>
             detectType(idx) match {
               case _: IntType => elType
-              case idxType => throw new TypeMismatchError(s"unable to index an array using ${idxType}")
+              case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
             }
-          case cntType => throw new TypeMismatchError(s"unable to apply operation [] to ${cntType}")
+          case cntType => throw new TypeMismatchError(s"unable to apply operation [] to $cntType")
         }
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
@@ -283,20 +283,20 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case _: StrType =>
             attr.name match {
               case "length" => CalcIntType
-              case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
           case ArrayType(inType) =>
             attr.name match {
               case "first" | "last" => inType
-              case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
           case KaitaiStreamType =>
             attr.name match {
               case "size" => CalcIntType
-              case _ => throw new RuntimeException(s"called invalid attribute '${attr.name}' on expression of type ${valType}")
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
           case _ =>
-            throw new RuntimeException(s"don't know how to call anything on ${valType}")
+            throw new TypeMismatchError(s"don't know how to call anything on $valType")
         }
       case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
         func match {
@@ -335,7 +335,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         case (Int1Type(true), Int1Type(false)) => Int1Type(false)
         case (_: IntType, _: IntType) => CalcIntType
         case (_: NumericType, _: NumericType) => CalcFloatType
-        case _ => throw new TypeMismatchError(s"ternary operator with different output types: ${t1} vs ${t2}")
+        case _ => throw new TypeMismatchError(s"ternary operator with different output types: $t1 vs $t2")
       }
     }
   }
