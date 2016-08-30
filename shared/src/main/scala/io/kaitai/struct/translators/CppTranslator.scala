@@ -37,7 +37,7 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
 
   override def doSubscript(container: expr, idx: expr): String =
-    s"${translate(container)}.get(${translate(idx)})"
+    s"${translate(container)}->at(${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)})"
 
@@ -49,7 +49,8 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substr(${translate(from)}, (${translate(to)}) - (${translate(from)}))"
 
-  override def arrayFirst(a: expr): String = ???
-
-  override def arrayLast(a: expr): String = ???
+  override def arrayFirst(a: expr): String =
+    s"${translate(a)}->front()"
+  override def arrayLast(a: expr): String =
+    s"${translate(a)}->back()"
 }
