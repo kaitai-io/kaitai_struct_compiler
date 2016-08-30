@@ -28,22 +28,28 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("1 + 2", "(1 + 2)"),
 
     everybodyExcept("3 / 2", "(3 / 2)", Map(
-      JavaScriptCompiler -> "Math.floor(3 / 2)"
+      JavaScriptCompiler -> "Math.floor(3 / 2)",
+      PHPCompiler -> "intval(3 / 2)"
     )),
 
     everybody("1 + 2 + 5", "((1 + 2) + 5)"),
 
     everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", Map(
-      JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))"
+      JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
+      PHPCompiler -> "intval((1 + 2) / (7 * 8))"
     )),
 
     everybody("1 < 2", "1 < 2", BooleanType),
 
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map(
+      CppCompiler -> "2 < 3 ? (std::string(\"foo\")) : (std::string(\"bar\"))",
       CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
-      PythonCompiler -> "u\"foo\" if 2 < 3 else u\"bar\""
+      PerlCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
+      PHPCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
+      PythonCompiler -> "u\"foo\" if 2 < 3 else u\"bar\"",
+      RubyCompiler -> "2 < 3 ? \"foo\" : \"bar\""
     )),
 
     everybody("~777", "~777"),
