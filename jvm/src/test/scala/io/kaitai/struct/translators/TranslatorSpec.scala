@@ -189,7 +189,6 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     full("a.first", ArrayType(CalcIntType), CalcIntType, Map(
       CppCompiler -> "a()->front()",
-      CppCompiler -> "m_a[0]",
       CSharpCompiler -> "A[0]",
       JavaCompiler -> "a().get(0)",
       JavaScriptCompiler -> "this.a[0]",
