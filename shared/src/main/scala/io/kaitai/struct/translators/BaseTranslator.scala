@@ -96,16 +96,16 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         val t = detectArrayType(values)
         t match {
           case Int1Type(_) =>
-            val literalBytes: Seq[Byte] = values.map((n) => n match {
+            val literalBytes: Seq[Byte] = values.map {
               case Ast.expr.IntNum(x) =>
                 if (x < 0 || x > 0xff) {
                   throw new TypeMismatchError(s"got a weird byte value in byte array: $x")
                 } else {
                   x.toByte
                 }
-              case _ =>
+              case n =>
                 throw new RuntimeException(s"got $n in byte array, unable to put it literally")
-            })
+            }
             doByteArrayLiteral(literalBytes)
           case _ =>
             doArrayLiteral(t, values)
