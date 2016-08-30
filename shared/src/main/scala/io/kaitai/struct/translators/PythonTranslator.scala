@@ -34,8 +34,14 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"${translate(ifTrue)} if ${translate(condition)} else ${translate(ifFalse)}"
 
   // Predefined methods of various types
-  override def strToInt(s: Ast.expr, base: Ast.expr): String =
-    ???
+  override def strToInt(s: Ast.expr, base: Ast.expr): String = {
+    val baseStr = translate(base)
+    val add = baseStr match {
+      case "10" => ""
+      case _ => s", $baseStr"
+    }
+    s"int(${translate(s)}$add)"
+  }
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
