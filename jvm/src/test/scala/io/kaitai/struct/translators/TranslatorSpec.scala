@@ -42,7 +42,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("1 < 2", "1 < 2", BooleanType),
 
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map(
-      CppCompiler -> "2 < 3 ? (std::string(\"foo\")) : (std::string(\"bar\"))",
+      CppCompiler -> "(2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\"))",
       CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
