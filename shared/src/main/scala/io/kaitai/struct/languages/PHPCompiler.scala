@@ -77,7 +77,8 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+    val strLiteral = contents.map { x => "\\x%02x".format(x) }.mkString
+    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents(${contents.length}, " + "\"" + strLiteral + "\");")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
