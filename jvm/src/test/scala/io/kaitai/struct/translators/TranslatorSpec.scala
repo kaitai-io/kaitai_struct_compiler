@@ -67,7 +67,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaCompiler -> "true",
       JavaScriptCompiler -> "true",
       PerlCompiler -> "1",
-      PHPCompiler -> "TRUE",
+      PHPCompiler -> "true",
       PythonCompiler -> "True",
       RubyCompiler -> "true"
     )),
@@ -78,7 +78,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaCompiler -> "false",
       JavaScriptCompiler -> "false",
       PerlCompiler -> "0",
-      PHPCompiler -> "FALSE",
+      PHPCompiler -> "false",
       PythonCompiler -> "False",
       RubyCompiler -> "false"
     )),
@@ -103,6 +103,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("foo.bar", FooBarProvider, CalcStrType, Map(
+      CppCompiler -> "foo()->bar()",
       CSharpCompiler -> "Foo.Bar",
       JavaCompiler -> "foo().bar()",
       JavaScriptCompiler -> "this.foo.bar",
@@ -111,6 +112,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("foo.inner.baz", FooBarProvider, CalcIntType, Map(
+      CppCompiler -> "foo()->inner()->baz()",
       CSharpCompiler -> "Foo.Inner.Baz",
       JavaCompiler -> "foo().inner().baz()",
       JavaScriptCompiler -> "this.foo.inner.baz",
@@ -119,6 +121,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("_root.foo", userType("block"), userType("block"), Map(
+      CppCompiler -> "_root()->foo()",
       CSharpCompiler -> "M_Root.Foo",
       JavaCompiler -> "_root.foo()",
       JavaScriptCompiler -> "this._root.foo",
@@ -127,6 +130,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("a != 2 and a != 5", CalcIntType, BooleanType, Map(
+      CppCompiler -> "a() != 2 && a() != 5",
       CSharpCompiler -> "A != 2 && A != 5",
       JavaCompiler -> "a() != 2 && a() != 5",
       JavaScriptCompiler -> "this.a != 2 && this.a != 5",
@@ -148,13 +152,25 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map(
       CppCompiler -> "std::string(\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\", 7)",
       CSharpCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
-      JavaCompiler -> "new byte[] { (byte) 34, (byte) 0, (byte) 10, (byte) 64, (byte) 65, (byte) 66, (byte) 92 }",
+      JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
       JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
+      PHPCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
       PythonCompiler -> "str(bytearray([34, 0, 10, 64, 65, 66, 92]))",
       RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')"
     )),
 
+    full("[255, 0, 255]", CalcIntType, CalcBytesType, Map(
+      CppCompiler -> "std::string(\"\\xFF\\x00\\xFF\", 3)",
+      CSharpCompiler -> "new byte[] { 255, 0, 255 }",
+      JavaCompiler -> "new byte[] { -1, 0, -1 }",
+      JavaScriptCompiler -> "[255, 0, 255]",
+      PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
+      PythonCompiler -> "str(bytearray([255, 0, 255]))",
+      RubyCompiler -> "[255, 0, 255].pack('C*')"
+    )),
+
     full("a[42]", ArrayType(CalcStrType), CalcStrType, Map(
+      CppCompiler -> "a()->at(42)",
       CSharpCompiler -> "A[42]",
       JavaCompiler -> "a().get(42)",
       JavaScriptCompiler -> "this.a[42]",
@@ -163,6 +179,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("a[42 - 2]", ArrayType(CalcStrType), CalcStrType, Map(
+      CppCompiler -> "a()->at((42 - 2))",
       CSharpCompiler -> "A[(42 - 2)]",
       JavaCompiler -> "a().get((42 - 2))",
       JavaScriptCompiler -> "this.a[(42 - 2)]",
@@ -171,6 +188,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("a.first", ArrayType(CalcIntType), CalcIntType, Map(
+      CppCompiler -> "a()->front()",
       CppCompiler -> "m_a[0]",
       CSharpCompiler -> "A[0]",
       JavaCompiler -> "a().get(0)",
@@ -180,6 +198,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("a.last", ArrayType(CalcIntType), CalcIntType, Map(
+      CppCompiler -> "a()->back()",
       CSharpCompiler -> "A[A.Length - 1]",
       JavaCompiler -> "a().get(a().size() - 1)",
       JavaScriptCompiler -> "this.a[this.a.length - 1]",
