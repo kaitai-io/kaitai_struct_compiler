@@ -36,10 +36,21 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
   // Predefined methods of various types
-  override def strToInt(s: Ast.expr, base: Ast.expr): String =
-    ???
+  override def strToInt(s: Ast.expr, base: Ast.expr): String = {
+    base match {
+      case Ast.expr.IntNum(baseNum) =>
+        baseNum.toInt match {
+          case 10 =>
+            translate(s)
+          case 8 =>
+            s"oct(${translate(s)})"
+          case 16 =>
+            s"hex(${translate(s)})"
+        }
+    }
+  }
   override def strLength(value: Ast.expr): String =
-    s"len(${translate(value)})"
+    s"length(${translate(value)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
 
