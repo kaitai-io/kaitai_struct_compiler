@@ -61,4 +61,14 @@ object Utils {
       s.charAt(0).toUpper + s.substring(1)
     }
   }
+
+  /**
+    * Converts byte array (Seq[Byte]) into hex-escaped C-style literal characters
+    * (i.e. like \xFF).
+    * @param arr byte array to escape
+    * @return array contents hex-escaped as string
+    */
+  def hexEscapeByteArray(arr: Seq[Byte]): String = {
+    arr.map((x) => "\\x%02X".format(x)).mkString
+  }
 }
