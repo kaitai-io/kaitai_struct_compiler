@@ -9,6 +9,14 @@ import io.kaitai.struct.translators.{BaseTranslator, TypeProvider}
 import scala.collection.mutable.ListBuffer
 
 abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
+  /**
+    * Declares whether language is capable of doing inner classes (i.e. classes
+    * nested inside each other) or not. Affects calling sequence of rendering
+    * methods.
+    * @return whether language is capable of doing inner classes
+    */
+  def innerClasses: Boolean = true
+
   protected var _translator: Option[BaseTranslator] = None
   protected var _currentIteratorType: Option[BaseType] = None
 

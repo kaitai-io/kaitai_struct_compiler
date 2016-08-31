@@ -59,10 +59,9 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
         }
       case _ => // ignore, it's standard type
     }
-
   }
 
-  def deriveValueTypes {
+  def deriveValueTypes() {
     userTypes.foreach { case (name, spec) => deriveValueType(spec) }
   }
 
@@ -120,10 +119,12 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.classDestructorFooter
 
     // Recursive types
-    curClass.types.foreach { case (typeName, intClass) => compileClass(name :+ typeName, intClass) }
+    if (lang.innerClasses) {
+      curClass.types.foreach { case (typeName, intClass) => compileClass(name :+ typeName, intClass) }
 
-    nowClass = curClass
-    nowClassName = name
+      nowClass = curClass
+      nowClassName = name
+    }
 
     curClass.instances.foreach { case (instName, instSpec) => compileInstance(name, instName, instSpec, extraAttrs) }
 
@@ -134,6 +135,10 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
 
     lang.classFooter(name)
+
+    if (!lang.innerClasses) {
+      curClass.types.foreach { case (typeName, intClass) => compileClass(name :+ typeName, intClass) }
+    }
   }
 
   def getInstanceDataType(instSpec: InstanceSpec): BaseType = {
