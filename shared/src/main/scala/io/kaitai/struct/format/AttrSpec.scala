@@ -41,23 +41,22 @@ case class AttrSpec(
 
 object AttrSpec {
   def parseContentSpec(c: Object): Array[Byte] = {
-    if (c.isInstanceOf[String]) {
-      c.asInstanceOf[String].getBytes(Charset.forName("UTF-8"))
-    } else if (c.isInstanceOf[util.ArrayList[Object]]) {
-      val arr = c.asInstanceOf[util.ArrayList[Object]].toList
-      val bb = new scala.collection.mutable.ArrayBuffer[Byte]
-      arr.foreach((el) =>
-        if (el.isInstanceOf[String]) {
-          bb.appendAll(Utils.strToBytes(el.asInstanceOf[String]))
-        } else if (el.isInstanceOf[Integer]) {
-          bb.append(Utils.clampIntToByte(el.asInstanceOf[Integer]))
-        } else {
-          throw new RuntimeException(s"Unable to parse fixed content in array: ${el}")
+    c match {
+      case s: String =>
+        s.getBytes(Charset.forName("UTF-8"))
+      case objects: util.ArrayList[_] =>
+        val bb = new scala.collection.mutable.ArrayBuffer[Byte]
+        objects.foreach {
+          case s: String =>
+            bb.appendAll(Utils.strToBytes(s))
+          case integer: Integer =>
+            bb.append(Utils.clampIntToByte(integer))
+          case el =>
+            throw new RuntimeException(s"Unable to parse fixed content in array: $el")
         }
-      )
-      bb.toArray
-    } else {
-      throw new RuntimeException(s"Unable to parse fixed content: ${c.getClass}")
+        bb.toArray
+      case _ =>
+        throw new RuntimeException(s"Unable to parse fixed content: ${c.getClass}")
     }
   }
 
