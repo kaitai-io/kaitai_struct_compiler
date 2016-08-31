@@ -108,6 +108,8 @@ object DataType {
 
   case class EnumType(name: String, basedOn: IntType) extends BaseType
 
+  case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, BaseType]) extends BaseType
+
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
   private val ReFloatType = """f(4|8)(le|be)?""".r
 
