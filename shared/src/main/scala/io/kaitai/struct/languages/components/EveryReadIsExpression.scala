@@ -60,9 +60,9 @@ trait EveryReadIsExpression extends LanguageCompiler {
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
-        attrUserTypeParse(id, dataType, io, extraAttrs, rep, t)
+        attrUserTypeParse(id, t, io, extraAttrs, rep)
       case t: BytesType =>
-        attrBytesTypeParse(id, dataType, io, extraAttrs, rep, t)
+        attrBytesTypeParse(id, t, io, extraAttrs, rep)
       case _ =>
         val expr = parseExpr(dataType, io)
         handleAssignment(id, expr, rep)
@@ -72,12 +72,12 @@ trait EveryReadIsExpression extends LanguageCompiler {
       attrDebugEnd(id, io, rep)
   }
 
-  def attrBytesTypeParse(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, t: BytesType): Unit = {
+  def attrBytesTypeParse(id: Identifier, dataType: BytesType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
     // use intermediate variable name, if we'll be doing post-processing
-    val rawId = t.process match {
+    val rawId = dataType.process match {
       case None => id
       case Some(_) =>
-        extraAttrs += AttrSpec(RawIdentifier(id), t)
+        extraAttrs += AttrSpec(RawIdentifier(id), dataType)
         RawIdentifier(id)
     }
 
@@ -85,11 +85,11 @@ trait EveryReadIsExpression extends LanguageCompiler {
     handleAssignment(rawId, expr, rep)
 
     // apply post-processing
-    t.process.foreach((proc) => attrProcess(proc, rawId, id))
+    dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
   }
 
-  def attrUserTypeParse(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, t: UserType): Unit = {
-    val newIO = t match {
+  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+    val newIO = dataType match {
       case knownSizeType: UserTypeKnownSize =>
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
@@ -117,7 +117,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
         }
       case _: UserTypeInstream =>
         // no fixed buffer, just use regular IO
-        normalIO
+        io
     }
     val expr = parseExpr(dataType, newIO)
     handleAssignment(id, expr, rep)
