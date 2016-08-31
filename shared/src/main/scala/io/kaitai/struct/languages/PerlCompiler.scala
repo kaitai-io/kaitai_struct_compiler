@@ -18,6 +18,8 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   import PerlCompiler._
 
+  override def innerClasses = false
+
   override def getStatic: LanguageCompilerStatic = PerlCompiler
 
   override def universalFooter: Unit = {
