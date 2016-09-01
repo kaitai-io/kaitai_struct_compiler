@@ -101,10 +101,19 @@ object AttrSpec {
     val eosError = boolFromStr(_eosError, true)
     val process = ProcessExpr.fromStr(_process)
 
-    val dataType: BaseType = _dataType match {
-      case simpleType: String =>
+    val dto = Option(_dataType)
+
+    val dataType: BaseType = dto match {
+      case None =>
         DataType.fromYaml(
-          simpleType, MetaSpec.globalMeta.get.endian,
+          None, MetaSpec.globalMeta.get.endian,
+          size, sizeEos,
+          encoding, terminator, include, consume, eosError,
+          contents, Option(_enum), process
+        )
+      case Some(simpleType: String) =>
+        DataType.fromYaml(
+          Some(simpleType), MetaSpec.globalMeta.get.endian,
           size, sizeEos,
           encoding, terminator, include, consume, eosError,
           contents, Option(_enum), process
@@ -150,7 +159,7 @@ object AttrSpec {
     val on = Expressions.parse(_on)
     val cases = _cases.map { case (condition, typeName) =>
       Expressions.parse(condition) -> DataType.fromYaml(
-        typeName, MetaSpec.globalMeta.get.endian,
+        Some(typeName), MetaSpec.globalMeta.get.endian,
         size, sizeEos,
         encoding, terminator, include, consume, eosError,
         contents, enumRef, process

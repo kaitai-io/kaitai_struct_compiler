@@ -114,7 +114,7 @@ object DataType {
   private val ReFloatType = """f(4|8)(le|be)?""".r
 
   def fromYaml(
-    dt: String,
+    dto: Option[String],
     defaultEndian: Option[Endianness],
     size: Option[Ast.expr],
     sizeEos: Boolean,
@@ -127,31 +127,8 @@ object DataType {
     enumRef: Option[String],
     process: Option[ProcessExpr]
   ): BaseType = {
-    val r = dt match {
-      case "u1" => Int1Type(false)
-      case "s1" => Int1Type(true)
-      case ReIntType(signStr, widthStr, endianStr) =>
-        IntMultiType(
-          signStr match {
-            case "s" => true
-            case "u" => false
-          },
-          widthStr match {
-            case "2" => Width2
-            case "4" => Width4
-            case "8" => Width8
-          },
-          Endianness.fromString(Option(endianStr), defaultEndian, dt)
-        )
-      case ReFloatType(widthStr, endianStr) =>
-        FloatMultiType(
-          widthStr match {
-            case "4" => Width4
-            case "8" => Width8
-          },
-          Endianness.fromString(Option(endianStr), defaultEndian, dt)
-        )
-      case null =>
+    val r = dto match {
+      case None =>
         contents match {
           case Some(c) => FixedBytesType(c, process)
           case _ =>
@@ -164,33 +141,58 @@ object DataType {
                 throw new RuntimeException("no type: only one of 'size' or 'size-eos' must be specified")
             }
         }
-      case "str" =>
-        if (encoding.isEmpty)
-          throw new RuntimeException("type str: encoding must be specified")
-        (size, sizeEos) match {
-          case (Some(bs: Ast.expr), false) => StrByteLimitType(bs, encoding.get)
-          case (None, true) => StrEosType(encoding.get)
-          case (None, false) =>
-            throw new RuntimeException(s"type $dt: either 'size' or 'size-eos' must be specified")
-          case (Some(_), true) =>
-            throw new RuntimeException(s"type $dt: only one of 'size' or 'size-eos' must be specified")
-        }
-      case "strz" =>
-        if (encoding.isEmpty)
-          throw new RuntimeException(s"type $dt: encoding must be specified")
-        StrZType(encoding.get, terminator, include, consume, eosError)
-      case _ =>
-        val dtl = dt.split("::", -1).toList
-        (size, sizeEos) match {
-          case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, bs, process)
-          case (None, true) => UserTypeEos(dtl, process)
-          case (None, false) =>
-            if (process.isDefined)
-              throw new RuntimeException(s"user type '$dt': need either 'size' or 'size-eos' if 'process' is used")
-            UserTypeInstream(dtl)
-          case (Some(_), true) =>
-            throw new RuntimeException(s"user type '$dt': only one of 'size' or 'size-eos' must be specified")
-        }
+      case Some(dt) => dt match {
+        case "u1" => Int1Type(false)
+        case "s1" => Int1Type(true)
+        case ReIntType(signStr, widthStr, endianStr) =>
+          IntMultiType(
+            signStr match {
+              case "s" => true
+              case "u" => false
+            },
+            widthStr match {
+              case "2" => Width2
+              case "4" => Width4
+              case "8" => Width8
+            },
+            Endianness.fromString(Option(endianStr), defaultEndian, dt)
+          )
+        case ReFloatType(widthStr, endianStr) =>
+          FloatMultiType(
+            widthStr match {
+              case "4" => Width4
+              case "8" => Width8
+            },
+            Endianness.fromString(Option(endianStr), defaultEndian, dt)
+          )
+        case "str" =>
+          if (encoding.isEmpty)
+            throw new RuntimeException("type str: encoding must be specified")
+          (size, sizeEos) match {
+            case (Some(bs: Ast.expr), false) => StrByteLimitType(bs, encoding.get)
+            case (None, true) => StrEosType(encoding.get)
+            case (None, false) =>
+              throw new RuntimeException(s"type $dt: either 'size' or 'size-eos' must be specified")
+            case (Some(_), true) =>
+              throw new RuntimeException(s"type $dt: only one of 'size' or 'size-eos' must be specified")
+          }
+        case "strz" =>
+          if (encoding.isEmpty)
+            throw new RuntimeException(s"type $dt: encoding must be specified")
+          StrZType(encoding.get, terminator, include, consume, eosError)
+        case _ =>
+          val dtl = dt.split("::", -1).toList
+          (size, sizeEos) match {
+            case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, bs, process)
+            case (None, true) => UserTypeEos(dtl, process)
+            case (None, false) =>
+              if (process.isDefined)
+                throw new RuntimeException(s"user type '$dt': need either 'size' or 'size-eos' if 'process' is used")
+              UserTypeInstream(dtl)
+            case (Some(_), true) =>
+              throw new RuntimeException(s"user type '$dt': only one of 'size' or 'size-eos' must be specified")
+          }
+      }
     }
 
     enumRef match {
