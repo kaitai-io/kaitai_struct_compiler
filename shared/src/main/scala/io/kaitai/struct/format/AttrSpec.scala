@@ -2,6 +2,7 @@ package io.kaitai.struct.format
 
 import java.nio.charset.Charset
 import java.util
+import java.util.{List => JList, Map => JMap}
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import io.kaitai.struct.Utils
@@ -63,7 +64,7 @@ object AttrSpec {
   @JsonCreator
   def create(
               @JsonProperty("id") id: String,
-              @JsonProperty("type") _dataType: String,
+              @JsonProperty("type") _dataType: Object,
               @JsonProperty("process") _process: String,
               @JsonProperty("contents") _contents: Object,
               @JsonProperty("size") _size: String,
@@ -100,7 +101,21 @@ object AttrSpec {
     val eosError = boolFromStr(_eosError, true)
     val process = ProcessExpr.fromStr(_process)
 
-    val dataType = DataType.fromYaml(_dataType, MetaSpec.globalMeta.get.endian, size, sizeEos, encoding, terminator, include, consume, eosError, contents, Option(_enum), process)
+    val dataType: BaseType = _dataType match {
+      case simpleType: String =>
+        DataType.fromYaml(
+          simpleType, MetaSpec.globalMeta.get.endian,
+          size, sizeEos,
+          encoding, terminator, include, consume, eosError,
+          contents, Option(_enum), process
+        )
+      case _ =>
+        parseSwitch(_dataType,
+          size, sizeEos,
+          encoding, terminator, include, consume, eosError,
+          contents, Option(_enum), process
+        )
+    }
 
     val repeatSpec = repeat match {
       case Some("until") => RepeatUntil(repeatUntil.get)
@@ -110,6 +125,39 @@ object AttrSpec {
     }
 
     AttrSpec(NamedIdentifier(id), dataType, ConditionalSpec(ifExpr, repeatSpec))
+  }
+
+  private def parseSwitch(
+    _dataType: Object,
+    size: Option[Ast.expr],
+    sizeEos: Boolean,
+    encoding: Option[String],
+    terminator: Int,
+    include: Boolean,
+    consume: Boolean,
+    eosError: Boolean,
+    contents: Option[Array[Byte]],
+    enumRef: Option[String],
+    process: Option[ProcessExpr]
+  ): BaseType = {
+    val switchSpec = _dataType.asInstanceOf[JMap[String, Object]].toMap
+    val _on = switchSpec("switch-on").asInstanceOf[String]
+    val _cases: Map[String, String] = switchSpec.get("cases") match {
+      case None => Map()
+      case Some(x) => x.asInstanceOf[JMap[String, String]].toMap
+    }
+
+    val on = Expressions.parse(_on)
+    val cases = _cases.map { case (condition, typeName) =>
+      Expressions.parse(condition) -> DataType.fromYaml(
+        typeName, MetaSpec.globalMeta.get.endian,
+        size, sizeEos,
+        encoding, terminator, include, consume, eosError,
+        contents, enumRef, process
+      )
+    }
+
+    SwitchType(on, cases)
   }
 
   private def boolFromStr(s: String, byDef: Boolean): Boolean = {

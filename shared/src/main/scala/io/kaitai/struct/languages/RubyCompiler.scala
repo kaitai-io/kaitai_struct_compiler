@@ -236,6 +236,20 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     }
   }
 
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    out.puts(s"case ${expression(on)}")
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"when ${expression(condition)}")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit =
+    out.dec
+
+  override def switchEnd(): Unit =
+    out.puts("end")
+
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts(s"def ${instName.name}")
     out.inc

@@ -63,6 +63,8 @@ trait EveryReadIsExpression extends LanguageCompiler {
         attrUserTypeParse(id, t, io, extraAttrs, rep)
       case t: BytesType =>
         attrBytesTypeParse(id, t, io, extraAttrs, rep)
+      case SwitchType(on, cases) =>
+        attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep)
       case _ =>
         val expr = parseExpr(dataType, io)
         handleAssignment(id, expr, rep)
@@ -130,6 +132,16 @@ trait EveryReadIsExpression extends LanguageCompiler {
     }
   }
 
+  def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, BaseType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+    switchStart(id, on)
+    cases.foreach { case (condition, dataType) =>
+      switchCaseStart(condition)
+      attrParse2(id, dataType, io, extraAttrs, rep)
+      switchCaseEnd()
+    }
+    switchEnd()
+  }
+
   def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec): Unit = {
     rep match {
       case RepeatEos => handleAssignmentRepeatEos(id, expr)
@@ -151,4 +163,9 @@ trait EveryReadIsExpression extends LanguageCompiler {
 
   def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr) =
     handleAssignmentSimple(instName, expression(value))
+
+  def switchStart(id: Identifier, on: Ast.expr): Unit = ???
+  def switchCaseStart(condition: Ast.expr): Unit = ???
+  def switchCaseEnd(): Unit = ???
+  def switchEnd(): Unit = ???
 }

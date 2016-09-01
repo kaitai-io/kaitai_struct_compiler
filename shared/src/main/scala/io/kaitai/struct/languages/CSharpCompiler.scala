@@ -223,6 +223,22 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     }
   }
 
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    out.puts(s"switch (${expression(on)}) {")
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"case ${expression(condition)}:")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+    out.puts("break;")
+    out.dec
+  }
+
+  override def switchEnd(): Unit =
+    out.puts("}")
+
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
@@ -337,6 +353,9 @@ object CSharpCompiler extends LanguageCompilerStatic
       case EnumType(name, _) => type2class(name)
 
       case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"
+
+      // TODO: implement proper type derivation
+      case SwitchType(_, _) => kstructName
     }
   }
 

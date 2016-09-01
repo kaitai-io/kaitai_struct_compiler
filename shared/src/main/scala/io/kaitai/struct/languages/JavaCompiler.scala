@@ -233,6 +233,33 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     }
   }
 
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    out.puts(s"switch (${expression(on)}) {")
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    // Java is very specific about what can be used as "condition" in "case
+    // condition:".
+    val condStr = condition match {
+      case Ast.expr.EnumByLabel(enumName, enumVal) =>
+        // If switch is over a enum, only literal enum values are supported,
+        // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
+        value2Const(enumVal.name)
+      case _ =>
+        expression(condition)
+    }
+
+    out.puts(s"case $condStr:")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+    out.puts("break;")
+    out.dec
+  }
+
+  override def switchEnd(): Unit =
+    out.puts("}")
+
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
   }
@@ -365,6 +392,9 @@ object JavaCompiler extends LanguageCompilerStatic
       case EnumType(name, _) => type2class(name)
 
       case ArrayType(inType) => kaitaiType2JavaTypeBoxed(attrType)
+
+      // TODO: derive type properly, we might actually use some primitive type there or something
+      case SwitchType(on, cases) => kstructName
     }
   }
 
