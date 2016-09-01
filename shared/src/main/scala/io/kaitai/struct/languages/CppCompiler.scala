@@ -365,6 +365,22 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     }
   }
 
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    outSrc.puts(s"switch (${expression(on)}) {")
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    outSrc.puts(s"case ${expression(condition)}:")
+    outSrc.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+    outSrc.puts("break;")
+    outSrc.dec
+  }
+
+  override def switchEnd(): Unit =
+    outSrc.puts("}")
+
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"bool ${flagForInstName(attrName)};")
@@ -452,6 +468,9 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType, absolute, curClass)}>*"
 
       case KaitaiStreamType => s"$kstreamName*"
+
+      // TODO: derive type properly, we might actually use some primitive type there or something
+      case SwitchType(on, cases) => s"$kstructName*"
     }
   }
 
