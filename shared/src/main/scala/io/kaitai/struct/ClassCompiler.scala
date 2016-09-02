@@ -15,9 +15,18 @@ import scala.collection.mutable.ListBuffer
 class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends TypeProvider {
   val topClassName = List(topClass.meta.get.id)
 
+  topClass.name = topClassName
+
+  def markupClassNames(curClass: ClassSpec): Unit = {
+    curClass.types.foreach { case (nestedName: String, nestedClass) =>
+      nestedClass.name = curClass.name ::: List(nestedName)
+      nestedClass.upClass = Some(curClass)
+      markupClassNames(nestedClass)
+    }
+  }
+
   val userTypes: Map[String, ClassSpec] = gatherUserTypes(topClass) ++ Map(topClassName.last -> topClass)
 
-  var nowClassName: List[String] = topClassName
   var nowClass: ClassSpec = topClass
 
   def gatherUserTypes(curClass: ClassSpec): Map[String, ClassSpec] = {
@@ -81,20 +90,20 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   def compile {
     lang.open(topClassName.head, this)
 
+    markupClassNames(topClass)
     deriveValueTypes
     markupParentTypes(topClassName, topClass)
 
     lang.fileHeader(topClassName.head)
-    compileClass(topClassName, topClass)
+    compileClass(topClass)
     lang.fileFooter(topClassName.head)
     lang.close
   }
 
-  def compileClass(name: List[String], curClass: ClassSpec): Unit = {
+  def compileClass(curClass: ClassSpec): Unit = {
     nowClass = curClass
-    nowClassName = name
 
-    lang.classHeader(name)
+    lang.classHeader(nowClass.name)
 
     val extraAttrs = ListBuffer[AttrSpec]()
     extraAttrs += AttrSpec(RootIdentifier, UserTypeInstream(topClassName))
@@ -103,12 +112,12 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     // Forward declarations for recursive types
     curClass.types.foreach { case (typeName, intClass) => lang.classForwardDeclaration(List(typeName)) }
 
-    lang.classConstructorHeader(name, curClass.parentTypeName, topClassName)
+    lang.classConstructorHeader(nowClass.name, curClass.parentTypeName, topClassName)
     curClass.instances.foreach { case (instName, instSpec) => lang.instanceClear(instName) }
     curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs, lang.normalIO))
     lang.classConstructorFooter
 
-    lang.classDestructorHeader(name, curClass.parentTypeName, topClassName)
+    lang.classDestructorHeader(nowClass.name, curClass.parentTypeName, topClassName)
     curClass.seq.foreach((attr) => lang.attrDestructor(attr, attr.id))
     curClass.instances.foreach { case (id, instSpec) =>
       instSpec match {
@@ -120,13 +129,12 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     // Recursive types
     if (lang.innerClasses) {
-      curClass.types.foreach { case (typeName, intClass) => compileClass(name :+ typeName, intClass) }
+      curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
 
       nowClass = curClass
-      nowClassName = name
     }
 
-    curClass.instances.foreach { case (instName, instSpec) => compileInstance(name, instName, instSpec, extraAttrs) }
+    curClass.instances.foreach { case (instName, instSpec) => compileInstance(nowClass.name, instName, instSpec, extraAttrs) }
 
     // Attributes declarations and readers
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
@@ -134,10 +142,10 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
 
-    lang.classFooter(name)
+    lang.classFooter(nowClass.name)
 
     if (!lang.innerClasses) {
-      curClass.types.foreach { case (typeName, intClass) => compileClass(name :+ typeName, intClass) }
+      curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
     }
   }
 
@@ -179,16 +187,16 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.instanceFooter
   }
 
-  override def determineType(attrName: String): BaseType = determineType(nowClass, nowClassName, attrName)
+  override def determineType(attrName: String): BaseType = determineType(nowClass, attrName)
 
   override def determineType(typeName: List[String], attrName: String): BaseType = {
     getTypeByName(nowClass, typeName) match {
-      case Some(t) => determineType(t, typeName, attrName)
+      case Some(t) => determineType(t, attrName)
       case None => throw new RuntimeException(s"Unable to determine type for $attrName in type $typeName")
     }
   }
 
-  def determineType(classSpec: ClassSpec, className: List[String], attrName: String): BaseType = {
+  def determineType(classSpec: ClassSpec, attrName: String): BaseType = {
     attrName match {
       case "_root" =>
         UserTypeInstream(topClassName)
@@ -208,7 +216,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
           case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
           case None => // do nothing
         }
-        throw new RuntimeException(s"Unable to access $attrName in $className context")
+        throw new RuntimeException(s"Unable to access $attrName in ${classSpec.name} context")
     }
   }
 
@@ -241,7 +249,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   }
 
   def compileEnum(enumName: String, enumColl: Map[Long, String]): Unit = {
-    lang.enumDeclaration(nowClassName, enumName, enumColl)
+    lang.enumDeclaration(nowClass.name, enumName, enumColl)
   }
 }
 

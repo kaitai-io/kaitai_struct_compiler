@@ -21,6 +21,8 @@ case class ClassSpec(
                       enums: Map[String, Map[Long, String]]
                     ) {
   var _parentType: NamedClassSpec = UnknownNamedClass
+  var name = List[String]()
+  var upClass: Option[ClassSpec] = None
 
   def parentTypeName: List[String] = _parentType match {
     case UnknownNamedClass | GenericStructClass => List("kaitai_struct")
