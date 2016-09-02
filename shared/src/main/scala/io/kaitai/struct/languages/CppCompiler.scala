@@ -392,7 +392,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
 
     outSrc.puts
-    outSrc.puts(s"${kaitaiType2NativeType(dataType, true, className)} ${type2class(className)}::${publicMemberName(instName)}() {")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType, true)} ${type2class(className)}::${publicMemberName(instName)}() {")
     outSrc.inc
   }
 
@@ -435,7 +435,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   def value2Const(s: String) = s.toUpperCase
 
-  def kaitaiType2NativeType(attrType: BaseType, absolute: Boolean = false, curClass: List[String] = List()): String = {
+  def kaitaiType2NativeType(attrType: BaseType, absolute: Boolean = false): String = {
     attrType match {
       case Int1Type(false) => "uint8_t"
       case IntMultiType(false, Width2, _) => "uint16_t"
@@ -457,15 +457,15 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case _: BytesType => "std::string"
 
       case t: UserType =>
-        val classList: List[String] = if (absolute) {
-          curClass ::: t.name
+        val typeStr = type2class(if (absolute) {
+          t.classSpec.get.name
         } else {
           t.name
-        }
-        s"${type2class(classList)}*"
+        })
+        s"$typeStr*"
 
       case EnumType(name, _) => type2class(List(name))
-      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType, absolute, curClass)}>*"
+      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType, absolute)}>*"
 
       case KaitaiStreamType => s"$kstreamName*"
 
