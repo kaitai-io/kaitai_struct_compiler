@@ -36,6 +36,8 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
   // Predefined methods of various types
+  override def strConcat(left: Ast.expr, right: Ast.expr): String =
+    s"${translate(left)} . ${translate(right)}"
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     base match {
       case Ast.expr.IntNum(baseNum) =>
