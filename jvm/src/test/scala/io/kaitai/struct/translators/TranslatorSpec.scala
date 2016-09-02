@@ -235,6 +235,13 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "\"str\""
     )),
 
+    everybodyExcept("\"str1\" + \"str2\"", "\"str1\" + \"str2\"", Map(
+      CppCompiler -> "std::string(\"str1\") + std::string(\"str2\")",
+      PerlCompiler -> "\"str1\" . \"str2\"",
+      PHPCompiler -> "\"str1\" . \"str2\"",
+      PythonCompiler -> "u\"str1\" + u\"str2\""
+    ), CalcStrType),
+
     full("\"str\".length", CalcIntType, CalcIntType, Map(
       CppCompiler -> "std::string(\"str\").length()",
       CSharpCompiler -> "\"str\".Length",
