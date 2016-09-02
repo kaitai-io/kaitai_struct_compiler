@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{LanguageOutputWriter, Utils}
+import io.kaitai.struct.LanguageOutputWriter
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
@@ -177,7 +177,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.read_bytes_full()"
       case t: UserType =>
-        s"self._root.${types2class(t.name)}($io, self, self._root)"
+        s"${types2class(t.classSpec.get)}($io, self, self._root)"
     }
   }
 
@@ -223,7 +223,11 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+  def types2class(cl: ClassSpec): String = {
+    val path = cl.name.drop(1).map(x => type2class(x)).mkString(".")
+    s"self._root.$path"
+  }
+
 
   def idToStr(id: Identifier): String = {
     id match {
