@@ -81,23 +81,23 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
   override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
     outHdr.puts
     outHdr.puts(s"${type2class(List(name.last))}(" +
-      s"$kstreamName* _io, " +
-      s"${type2class(parentClassName)}* _parent = 0, " +
-      s"${type2class(rootClassName)}* _root = 0);"
+      s"$kstreamName* p_io, " +
+      s"${type2class(parentClassName)}* p_parent = 0, " +
+      s"${type2class(rootClassName)}* p_root = 0);"
     )
 
     outSrc.puts
     outSrc.puts(s"${type2class(name)}::${type2class(List(name.last))}(" +
-      s"$kstreamName *_io, " +
-      s"${type2class(parentClassName)} *_parent, " +
-      s"${type2class(rootClassName)} *_root) : $kstructName(_io) {"
+      s"$kstreamName *p_io, " +
+      s"${type2class(parentClassName)} *p_parent, " +
+      s"${type2class(rootClassName)} *p_root) : $kstructName(p_io) {"
     )
     outSrc.inc
-    handleAssignmentSimple(ParentIdentifier, "_parent")
+    handleAssignmentSimple(ParentIdentifier, "p_parent")
     handleAssignmentSimple(RootIdentifier, if (name == rootClassName) {
       "this"
     } else {
-      "_root"
+      "p_root"
     })
   }
 
