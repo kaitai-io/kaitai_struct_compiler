@@ -25,6 +25,72 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     }
   }
 
+  def resolveUserTypes(curClass: ClassSpec): Unit = {
+    curClass.seq.foreach((attr) => resolveUserTypeForAttr(curClass, attr))
+    curClass.instances.foreach { case (instName, instSpec) =>
+      instSpec match {
+        case pis: ParseInstanceSpec =>
+          resolveUserTypeForAttr(curClass, pis)
+        case _: ValueInstanceSpec =>
+          // ignore all other types of instances
+      }
+    }
+
+    curClass.types.foreach { case (_, nestedClass) =>
+      resolveUserTypes(nestedClass)
+    }
+  }
+
+  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec): Unit = {
+    attr.dataType match {
+      case ut: UserType =>
+        ut.classSpec = resolveUserType(curClass, ut.name)
+      case _ =>
+        // not a user type, nothing to resolve
+    }
+  }
+
+  def resolveUserType(curClass: ClassSpec, typeName: List[String]): Option[ClassSpec] = {
+//    Console.println(s"resolveUserType: at ${curClass.name} doing ${typeName.mkString("|")}")
+    val res = realResolveUserType(curClass, typeName)
+//    Console.println("   => " + (res match {
+//      case None => "???"
+//      case Some(x) => x.name.mkString("|")
+//    }))
+    res
+  }
+
+  private def realResolveUserType(curClass: ClassSpec, typeName: List[String]): Option[ClassSpec] = {
+    // First, try to do it in current class
+
+    // If we're seeking composite name, we only have to resolve the very first
+    // part of it at this stage
+    val firstName :: restNames = typeName
+
+    val resolvedHere = curClass.types.get(firstName).flatMap((nestedClass) =>
+      if (restNames.isEmpty) {
+        // No further names to resolve, here's our answer
+        Some(nestedClass)
+      } else {
+        // Try to resolve recursively
+        resolveUserType(nestedClass, restNames)
+      }
+    )
+
+    resolvedHere match {
+      case Some(_) => resolvedHere
+      case None =>
+        // No luck resolving here, let's try upper levels, if they exist
+        curClass.upClass match {
+          case Some(upClass) =>
+            resolveUserType(upClass, typeName)
+          case None =>
+            // No luck at all
+            None
+        }
+    }
+  }
+
   val userTypes: Map[String, ClassSpec] = gatherUserTypes(topClass) ++ Map(topClassName.last -> topClass)
 
   var nowClass: ClassSpec = topClass
@@ -92,6 +158,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     markupClassNames(topClass)
     deriveValueTypes
+    resolveUserTypes(topClass)
     markupParentTypes(topClassName, topClass)
 
     lang.fileHeader(topClassName.head)

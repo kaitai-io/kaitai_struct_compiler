@@ -1,6 +1,6 @@
 package io.kaitai.struct.exprlang
 
-import io.kaitai.struct.format.ProcessExpr
+import io.kaitai.struct.format.{ClassSpec, ProcessExpr}
 
 /**
   * A collection of case objects and classes that are used to represent internal
@@ -91,7 +91,9 @@ object DataType {
   case class ArrayType(elType: BaseType) extends BaseType
   case class MapType(keyType: BaseType, valueType: BaseType) extends BaseType
 
-  abstract class UserType(val name: List[String]) extends BaseType
+  abstract class UserType(val name: List[String]) extends BaseType {
+    var classSpec: Option[ClassSpec] = None
+  }
   case class UserTypeInstream(_name: List[String]) extends UserType(_name)
   abstract class UserTypeKnownSize(_name: List[String]) extends UserType(_name) with Processing
   case class UserTypeByteLimit(
