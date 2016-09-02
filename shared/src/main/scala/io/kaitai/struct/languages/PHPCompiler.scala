@@ -15,6 +15,8 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   import PHPCompiler._
 
+  override def innerClasses = false
+
   override def getStatic = PHPCompiler
 
   override def universalFooter: Unit = {
@@ -25,16 +27,21 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def fileHeader(topClassName: String): Unit = {
     out.puts("<?php")
     out.puts(s"// $headerComment")
-    if (!namespace.isEmpty) {
-      out.puts
-      out.puts(s"namespace $namespace;")
-    }
-
-    out.puts
   }
 
   override def classHeader(name: List[String]): Unit = {
-    out.puts(s"class ${types2class(name)} extends $kstructName {")
+    val nsPart = name.dropRight(1)
+    val ns = if (nsPart.nonEmpty) {
+      namespace + "\\" + types2classRel(nsPart)
+    } else {
+      namespace
+    }
+    if (ns.nonEmpty) {
+      out.puts
+      out.puts(s"namespace $ns;")
+    }
+    out.puts
+    out.puts(s"class ${type2class(name.last)} extends $kstructName {")
     out.inc
   }
 
@@ -45,8 +52,8 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     out.puts(
       "public function __construct(" +
       kstreamName + " $io, " +
-      types2class(parentClassName) + " $parent = null, " +
-      types2class(rootClassName) + " $root = null) {"
+      types2classAbs(parentClassName) + " $parent = null, " +
+      types2classAbs(rootClassName) + " $root = null) {"
     )
     out.inc
     out.puts("parent::__construct($io, $parent, $root);")
@@ -118,13 +125,13 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def pushPos(io: String): Unit =
-    out.puts(s"long _pos = $io->pos();")
+    out.puts(s"$$_pos = $io->pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io->seek(${expression(pos)});")
 
   override def popPos(io: String): Unit =
-    out.puts(s"$io->seek(_pos);")
+    out.puts(s"$io->seek($$_pos);")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
@@ -196,7 +203,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
       case BytesEosType(_) =>
         s"$io->readBytesFull()"
       case t: UserType =>
-        s"new ${types2class(t.name)}($io, this, _root)"
+        s"new ${types2classAbs(t.classSpec.get.name)}($io, $$this, ${privateMemberName(RootIdentifier)})"
     }
   }
 
@@ -270,18 +277,21 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   override def privateMemberName(id: Identifier): String = s"$$this->${idToStr(id)}"
 
   override def publicMemberName(id: Identifier) = idToStr(id)
-}
 
-object PHPCompiler extends LanguageCompilerStatic
-  with StreamStructNames
-  with UpperCamelCaseClasses {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new PHPTranslator(tp)
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
+  def namespaceRef = if (namespace.isEmpty) {
+    ""
+  } else {
+    "\\" + namespace
+  }
 
-  override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
+  def types2classRel(names: List[String]) = names.map(type2class(_)).mkString("\\")
 
-  override def kstructName: String = "\\Kaitai\\Struct\\Struct"
+  def types2classAbs(names: List[String]) =
+    names match {
+      case List("kaitai_struct") => kstructName
+      case _ =>
+        namespaceRef + "\\" + types2classRel(names)
+    }
 
   /**
     * Determine Java data type corresponding to a KS data type. A non-primitive type (i.e. "Integer", "Long", etc) will
@@ -302,15 +312,22 @@ object PHPCompiler extends LanguageCompilerStatic
 
       case _: StrType | _: BytesType => "string"
 
-      case t: UserType => type2class(t.name.last)
+      case t: UserType => types2classAbs(t.classSpec.get.name)
       case EnumType(name, _) => type2class(name)
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2NativeType(inType)}>"
     }
   }
+}
 
-  def types2class(names: List[String]) = names.map {
-    case "kaitai_struct" => kstructName
-    case x => type2class(x)
-  }.mkString(".")
+object PHPCompiler extends LanguageCompilerStatic
+  with StreamStructNames
+  with UpperCamelCaseClasses {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new PHPTranslator(tp)
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
+
+  override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
+
+  override def kstructName: String = "\\Kaitai\\Struct\\Struct"
 }
