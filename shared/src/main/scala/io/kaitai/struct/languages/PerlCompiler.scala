@@ -50,8 +50,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts
     out.puts("sub from_file {")
     out.inc
-    out.puts("my $class = shift;")
-    out.puts("my $filename = shift;")
+    out.puts("my ($class, $filename) = @_;")
     out.puts("my $fd;")
     out.puts
     out.puts("open($fd, '<', $filename) or return undef;")
@@ -66,10 +65,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts
     out.puts("sub new {")
     out.inc
-    out.puts("my $class = shift;")
-    out.puts("my $_io = shift;")
-    out.puts("my $_parent = shift;")
-    out.puts("my $_root = shift;")
+    out.puts("my ($class, $_io, $_parent, $_root) = @_;")
     out.puts("my $self = Kaitai::Struct->new($_io);")
     out.puts
     out.puts("bless $self, $class;")
@@ -86,7 +82,16 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
+    out.puts
+    out.puts(s"sub ${publicMemberName(attrName)} {")
+    out.inc
+
+    out.puts("my ($self) = @_;")
+    out.puts(s"return ${privateMemberName(attrName)};")
+
+    universalFooter
+  }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     out.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
@@ -217,9 +222,10 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
+    out.puts
     out.puts(s"sub ${instName.name} {")
     out.inc
-    out.puts("my $self = shift;")
+    out.puts("my ($self) = @_;")
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
