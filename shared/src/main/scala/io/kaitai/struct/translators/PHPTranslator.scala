@@ -24,11 +24,11 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doLocalName(s: String) = {
     s match {
       case "_" => "$_"
-      case _ => s"$$this->${Utils.lowerCamelCase(s)}"
+      case _ => s"$$this->${doName(s)}"
     }
   }
 
-  override def doName(s: String) = Utils.lowerCamelCase(s)
+  override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s"this._root.constructor.${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"
