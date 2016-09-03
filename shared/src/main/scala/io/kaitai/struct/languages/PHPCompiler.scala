@@ -173,7 +173,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
     out.puts(s"${translator.doLocalName("_")} = $expr;")
-    out.puts(s"${privateMemberName(id)}[] = ${translator.doLocalName("_")});")
+    out.puts(s"${privateMemberName(id)}[] = ${translator.doLocalName("_")};")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
