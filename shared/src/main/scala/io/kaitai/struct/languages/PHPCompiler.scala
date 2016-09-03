@@ -147,19 +147,20 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    out.puts(s"array_push(${privateMemberName(id)}, $expr);")
+    out.puts(s"${privateMemberName(id)}[] = $expr;")
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
-    out.puts(s"for ($$i = 0; $$i < ${expression(repeatExpr)}; $$i++) {")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    out.puts(s"${privateMemberName(id)} = [];")
+    out.puts(s"$$n = ${expression(repeatExpr)};")
+    out.puts("for ($i = 0; $i < $n; $i++) {")
     out.inc
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    out.puts(s"array_push(${privateMemberName(id)}, $expr);")
+    out.puts(s"${privateMemberName(id)}[] = $expr;")
   }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
@@ -172,7 +173,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
     out.puts(s"${translator.doLocalName("_")} = $expr;")
-    out.puts(s"array_push(${privateMemberName(id)}, ${translator.doLocalName("_")});")
+    out.puts(s"${privateMemberName(id)}[] = ${translator.doLocalName("_")});")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
@@ -307,15 +308,15 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case CalcIntType => "Integer"
-      case CalcFloatType => "Double"
+      case CalcIntType => "int"
+      case CalcFloatType => "double"
 
       case _: StrType | _: BytesType => "string"
 
       case t: UserType => types2classAbs(t.classSpec.get.name)
       case EnumType(name, _) => type2class(name)
 
-      case ArrayType(inType) => s"ArrayList<${kaitaiType2NativeType(inType)}>"
+      case ArrayType(_) => "array"
     }
   }
 }
