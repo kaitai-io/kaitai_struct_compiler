@@ -2,9 +2,18 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.BaseType
+import io.kaitai.struct.exprlang.DataType.{BaseType, IntType}
 
 class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Div) =>
+        s"int(${translate(left)} / ${translate(right)})"
+      case _ =>
+        super.numericBinOp(left, op, right)
+    }
+  }
+
   override def doBoolLiteral(n: Boolean): String = if (n) "1" else "0"
 
   override def doArrayLiteral(t: BaseType, value: Seq[expr]): String =
@@ -23,7 +32,7 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doName(s: String) = {
     s match {
       case "_" => "$_"
-      case _ => s"{$s}"
+      case _ => s"$s()"
     }
   }
 
