@@ -83,14 +83,19 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
   override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
-    out.puts
-    out.puts(s"sub ${publicMemberName(attrName)} {")
-    out.inc
+    attrName match {
+      case RootIdentifier | ParentIdentifier =>
+        // ignore, they are already defined in Kaitai::Struct class
+      case _ =>
+        out.puts
+        out.puts(s"sub ${publicMemberName(attrName)} {")
+        out.inc
 
-    out.puts("my ($self) = @_;")
-    out.puts(s"return ${privateMemberName(attrName)};")
+        out.puts("my ($self) = @_;")
+        out.puts(s"return ${privateMemberName(attrName)};")
 
-    universalFooter
+        universalFooter
+    }
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
