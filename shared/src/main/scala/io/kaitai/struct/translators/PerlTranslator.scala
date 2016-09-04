@@ -19,6 +19,9 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: BaseType, value: Seq[expr]): String =
     "(" + value.map((v) => translate(v)).mkString(", ") + ")"
 
+  override def doByteArrayLiteral(arr: Seq[Byte]): String =
+    s"pack('C*', (${arr.map(_ & 0xff).mkString(", ")}))"
+
   override def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
 

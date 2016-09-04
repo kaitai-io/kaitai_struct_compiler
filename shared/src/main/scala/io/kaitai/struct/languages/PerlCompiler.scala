@@ -94,7 +94,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, ${translator.doByteArrayLiteral(contents)}]);")
+    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, ${translator.doByteArrayLiteral(contents)});")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
@@ -125,7 +125,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
     val args = rep match {
       case RepeatEos => s"$memberName[-1]"
-      case RepeatExpr(_) => s"$memberName[i]"
+      case RepeatExpr(_) => s"$memberName[$$i]"
       case NoRepeat => s"$memberName"
     }
 
