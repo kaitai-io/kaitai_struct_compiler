@@ -349,11 +349,11 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
         s"$io->read_${t.apiCall}()"
       // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
       case StrByteLimitType(bs, encoding) =>
-        s"$io->read_str_byte_limit(${expression(bs)} /*, $encoding */)"
+        s"$io->read_str_byte_limit(${expression(bs)}, ${encodingToStr(encoding)})"
       case StrEosType(encoding) =>
-        s"$io->read_str_eos(/* $encoding */)"
+        s"$io->read_str_eos(${encodingToStr(encoding)})"
       case StrZType(encoding, terminator, include, consume, eosError) =>
-        s"$io->read_strz(/* $encoding, */ $terminator, $include, $consume, $eosError)"
+        s"$io->read_strz(${encodingToStr(encoding)}, $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
         s"static_cast<${type2class(List(enumName))}>(${parseExpr(t, io)})"
       case BytesLimitType(size, _) =>
@@ -364,6 +364,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
         s"new ${type2class(t.name)}($io, this, ${privateMemberName(RootIdentifier)})"
     }
   }
+
+  def encodingToStr(encoding: String): String = "\"" + encoding + "\""
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
     outSrc.puts(s"switch (${expression(on)}) {")
