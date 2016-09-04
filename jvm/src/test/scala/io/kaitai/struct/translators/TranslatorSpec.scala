@@ -29,6 +29,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     everybodyExcept("3 / 2", "(3 / 2)", Map(
       JavaScriptCompiler -> "Math.floor(3 / 2)",
+      PerlCompiler -> "int(3 / 2)",
       PHPCompiler -> "intval(3 / 2)"
     )),
 
@@ -36,6 +37,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", Map(
       JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
+      PerlCompiler -> "int((1 + 2) / (7 * 8))",
       PHPCompiler -> "intval((1 + 2) / (7 * 8))"
     )),
 
@@ -95,7 +97,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       CSharpCompiler -> "FooStr",
       JavaCompiler -> "fooStr()",
       JavaScriptCompiler -> "this.fooStr",
-      PerlCompiler -> "$self->{foo_str}",
+      PerlCompiler -> "$self->foo_str()",
       PHPCompiler -> "$this->fooStr",
       PythonCompiler -> "self.foo_str",
       RubyCompiler -> "foo_str"
@@ -106,7 +108,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       CSharpCompiler -> "FooBlock",
       JavaCompiler -> "fooBlock()",
       JavaScriptCompiler -> "this.fooBlock",
-      PerlCompiler -> "$self->{foo_block}",
+      PerlCompiler -> "$self->foo_block()",
       PHPCompiler -> "$this->fooBlock",
       PythonCompiler -> "self.foo_block",
       RubyCompiler -> "foo_block"
@@ -117,7 +119,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       CSharpCompiler -> "Foo.Bar",
       JavaCompiler -> "foo().bar()",
       JavaScriptCompiler -> "this.foo.bar",
-      PerlCompiler -> "$self->{foo}->{bar}",
+      PerlCompiler -> "$self->foo()->bar()",
       PHPCompiler -> "$this->foo->bar",
       PythonCompiler -> "self.foo.bar",
       RubyCompiler -> "foo.bar"
@@ -128,7 +130,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       CSharpCompiler -> "Foo.Inner.Baz",
       JavaCompiler -> "foo().inner().baz()",
       JavaScriptCompiler -> "this.foo.inner.baz",
-      PerlCompiler -> "$self->{foo}->{inner}->{baz}",
+      PerlCompiler -> "$self->foo()->inner()->baz()",
       PHPCompiler -> "$this->foo->inner->baz",
       PythonCompiler -> "self.foo.inner.baz",
       RubyCompiler -> "foo.inner.baz"
@@ -139,7 +141,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       CSharpCompiler -> "M_Root.Foo",
       JavaCompiler -> "_root.foo()",
       JavaScriptCompiler -> "this._root.foo",
-      PerlCompiler -> "$self->{_root}->{foo}",
+      PerlCompiler -> "$self->_root()->foo()",
       PHPCompiler -> "$this->_root->foo",
       PythonCompiler -> "self._root.foo",
       RubyCompiler -> "_root.foo"
@@ -150,7 +152,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       CSharpCompiler -> "A != 2 && A != 5",
       JavaCompiler -> "a() != 2 && a() != 5",
       JavaScriptCompiler -> "this.a != 2 && this.a != 5",
-      PerlCompiler -> "$self->{a} != 2 && $self->{a} != 5",
+      PerlCompiler -> "$self->a() != 2 && $self->a() != 5",
       PHPCompiler -> "$this->a != 2 && $this->a != 5",
       PythonCompiler -> "self.a != 2 and self.a != 5",
       RubyCompiler -> "a != 2 && a != 5"
