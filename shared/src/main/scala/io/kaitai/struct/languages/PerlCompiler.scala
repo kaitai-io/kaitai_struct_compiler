@@ -94,7 +94,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
+    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, ${translator.doByteArrayLiteral(contents)}]);")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
@@ -158,7 +158,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
-    out.puts(s"while (not $io->is_eof()) {")
+    out.puts(s"while (!$io->is_eof()) {")
     out.inc
   }
 
@@ -167,14 +167,15 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = Array.new(${expression(repeatExpr)})")
-    out.puts(s"${privateMemberName(id)} = Array.new(${expression(repeatExpr)})")
-    out.puts(s"(${expression(repeatExpr)}).times { |i|")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
+    out.puts(s"${privateMemberName(id)} = ();")
+    out.puts(s"my $$n = ${expression(repeatExpr)};")
+    out.puts("for (my $i = 0; $i < $n; $i++) {")
     out.inc
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}[i] = $expr;")
+    out.puts(s"${privateMemberName(id)}[$$i] = $expr;")
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
