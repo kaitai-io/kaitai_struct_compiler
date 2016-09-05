@@ -247,6 +247,11 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   override def switchCaseEnd(): Unit =
     out.dec
 
+  override def switchElseStart(): Unit = {
+    out.puts("else")
+    out.inc
+  }
+
   override def switchEnd(): Unit =
     out.puts("end")
 
