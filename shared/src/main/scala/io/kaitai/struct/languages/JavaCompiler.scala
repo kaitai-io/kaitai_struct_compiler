@@ -257,6 +257,11 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.dec
   }
 
+  override def switchElseStart(): Unit = {
+    out.puts("default:")
+    out.inc
+  }
+
   override def switchEnd(): Unit =
     out.puts("}")
 
