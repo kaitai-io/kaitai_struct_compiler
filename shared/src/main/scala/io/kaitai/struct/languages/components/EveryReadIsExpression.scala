@@ -138,12 +138,19 @@ trait EveryReadIsExpression extends LanguageCompiler {
     switchStart(id, on)
 
     // Pass 1: only normal case clauses
+    var first = true
+
     cases.foreach { case (condition, dataType) =>
       condition match {
         case ELSE_CONST =>
           // skip for now
         case _ =>
-          switchCaseStart(condition)
+          if (first) {
+            switchCaseFirstStart(condition)
+            first = false
+          } else {
+            switchCaseStart(condition)
+          }
           attrParse2(id, dataType, io, extraAttrs, rep)
           switchCaseEnd()
       }
@@ -187,6 +194,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
     handleAssignmentSimple(instName, expression(value))
 
   def switchStart(id: Identifier, on: Ast.expr): Unit = ???
+  def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)
   def switchCaseStart(condition: Ast.expr): Unit = ???
   def switchCaseEnd(): Unit = ???
   def switchElseStart(): Unit = ???
