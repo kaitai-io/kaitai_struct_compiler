@@ -185,13 +185,23 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts(s"_on = ${expression(on)}")
   }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
     out.puts(s"if _on == ${expression(condition)}:")
+    out.inc
+  }
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"elif _on == ${expression(condition)}:")
     out.inc
   }
 
   override def switchCaseEnd(): Unit =
     out.dec
+
+  override def switchElseStart(): Unit = {
+    out.puts(s"else:")
+    out.inc
+  }
 
   override def switchEnd(): Unit = {}
 
