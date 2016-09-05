@@ -367,21 +367,57 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
   def encodingToStr(encoding: String): String = "\"" + encoding + "\""
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
-    outSrc.puts(s"switch (${expression(on)}) {")
+  /**
+    * Designates switch mode. If false, we're doing real switch-case for this
+    * attribute. If true, we're doing if-based emulation.
+    */
+  var switchIfs = false
+
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    val onType = translator.detectType(on)
+
+    // Determine switching mode for this construct based on type
+    switchIfs = onType match {
+      case _: IntType | _: EnumType => false
+      case _ => true
+    }
+
+    if (switchIfs) {
+      outSrc.puts("{")
+      outSrc.inc
+      outSrc.puts(s"${kaitaiType2NativeType(onType)} on = ${expression(on)};")
+    } else {
+      outSrc.puts(s"switch (${expression(on)}) {")
+    }
+  }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    outSrc.puts(s"case ${expression(condition)}:")
-    outSrc.inc
+    if (switchIfs) {
+      outSrc.puts(s"if (on == ${expression(condition)}) {")
+      outSrc.inc
+    } else {
+      outSrc.puts(s"case ${expression(condition)}:")
+      outSrc.inc
+    }
   }
 
   override def switchCaseEnd(): Unit = {
-    outSrc.puts("break;")
-    outSrc.dec
+    if (switchIfs) {
+      outSrc.dec
+      outSrc.puts("}")
+    } else {
+      outSrc.puts("break;")
+      outSrc.dec
+    }
   }
 
   override def switchEnd(): Unit =
-    outSrc.puts("}")
+    if (switchIfs) {
+      outSrc.dec
+      outSrc.puts("}")
+    } else {
+      outSrc.puts("}")
+    }
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
