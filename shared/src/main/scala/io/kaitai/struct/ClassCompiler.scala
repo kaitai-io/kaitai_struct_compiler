@@ -41,10 +41,17 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     }
   }
 
-  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec): Unit = {
-    attr.dataType match {
+  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec): Unit =
+    resolveUserType(curClass, attr.dataType)
+
+  def resolveUserType(curClass: ClassSpec, dataType: BaseType): Unit = {
+    dataType match {
       case ut: UserType =>
         ut.classSpec = resolveUserType(curClass, ut.name)
+      case SwitchType(_, cases) =>
+        cases.foreach { case (_, ut) =>
+          resolveUserType(curClass, ut)
+        }
       case _ =>
         // not a user type, nothing to resolve
     }
