@@ -238,6 +238,11 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.dec
   }
 
+  override def switchElseStart(): Unit = {
+    out.puts("default:")
+    out.inc
+  }
+
   override def switchEnd(): Unit =
     out.puts("}")
 
