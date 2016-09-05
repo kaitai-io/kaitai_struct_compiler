@@ -225,6 +225,22 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
     }
   }
 
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    out.puts(s"switch (${expression(on)}) {")
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"case ${expression(condition)}:")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+    out.puts("break;")
+    out.dec
+  }
+
+  override def switchEnd(): Unit =
+    out.puts("}")
+
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts(s"Object.defineProperty(${type2class(className)}.prototype, '${publicMemberName(instName)}', {")
     out.inc
