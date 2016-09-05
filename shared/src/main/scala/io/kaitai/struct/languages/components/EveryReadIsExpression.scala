@@ -132,13 +132,35 @@ trait EveryReadIsExpression extends LanguageCompiler {
     }
   }
 
+  val ELSE_CONST = Ast.expr.Name(Ast.identifier("_"))
+
   def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, BaseType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
     switchStart(id, on)
+
+    // Pass 1: only normal case clauses
     cases.foreach { case (condition, dataType) =>
-      switchCaseStart(condition)
-      attrParse2(id, dataType, io, extraAttrs, rep)
-      switchCaseEnd()
+      condition match {
+        case ELSE_CONST =>
+          // skip for now
+        case _ =>
+          switchCaseStart(condition)
+          attrParse2(id, dataType, io, extraAttrs, rep)
+          switchCaseEnd()
+      }
     }
+
+    // Pass 2: else clause, if it is there
+    cases.foreach { case (condition, dataType) =>
+      condition match {
+        case ELSE_CONST =>
+          switchElseStart()
+          attrParse2(id, dataType, io, extraAttrs, rep)
+          switchElseEnd()
+        case _ =>
+          // ignore normal case clauses
+      }
+    }
+
     switchEnd()
   }
 
@@ -167,5 +189,7 @@ trait EveryReadIsExpression extends LanguageCompiler {
   def switchStart(id: Identifier, on: Ast.expr): Unit = ???
   def switchCaseStart(condition: Ast.expr): Unit = ???
   def switchCaseEnd(): Unit = ???
+  def switchElseStart(): Unit = ???
+  def switchElseEnd(): Unit = switchCaseEnd()
   def switchEnd(): Unit = ???
 }
