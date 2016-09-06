@@ -227,16 +227,17 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    _currentSwitchType = Some(translator.detectType(on))
     out.puts(s"my $$_on = ${expression(on)};")
   }
 
   override def switchCaseFirstStart(condition: Ast.expr): Unit = {
-    out.puts(s"if ($$_on == ${expression(condition)}) {")
+    out.puts(s"if (${expression(onComparisonExpr(condition))}) {")
     out.inc
   }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"elsif ($$_on == ${expression(condition)}) {")
+    out.puts(s"elsif (${expression(onComparisonExpr(condition))}) {")
     out.inc
   }
 
@@ -248,6 +249,15 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def switchEnd(): Unit = {}
+
+  /**
+    * Generates comparison expression by a given condition expression, comparing
+    * it to special local variable "_on".
+    * @param condition condition to check for equality with "_on"
+    * @return comparison expression of boolean type
+    */
+  def onComparisonExpr(condition: Ast.expr) =
+    Ast.expr.Compare(Ast.expr.Name(Ast.identifier("_on")), Ast.cmpop.Eq, condition)
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts
