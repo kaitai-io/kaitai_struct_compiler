@@ -411,6 +411,16 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     }
   }
 
+  override def switchElseStart(): Unit = {
+    if (switchIfs) {
+      outSrc.puts("else {")
+      outSrc.inc
+    } else {
+      outSrc.puts("default:")
+      outSrc.inc
+    }
+  }
+
   override def switchEnd(): Unit =
     if (switchIfs) {
       outSrc.dec
