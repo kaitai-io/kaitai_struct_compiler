@@ -27,7 +27,7 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doLocalName(s: String) = {
     s match {
-      case "_" => "$_"
+      case "_" | "_on" => "$" + s
       case _ => s"$$self->${doName(s)}"
     }
   }
