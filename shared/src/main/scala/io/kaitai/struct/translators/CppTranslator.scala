@@ -28,11 +28,11 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     if (op == Ast.cmpop.Eq) {
-      s"${translate(left)}.equals(${translate(right)})"
+      s"${translate(left)} == (${translate(right)})"
     } else if (op == Ast.cmpop.NotEq) {
-      s"!(${translate(left)}).equals(${translate(right)})"
+      s"${translate(left)} != ${translate(right)}"
     } else {
-      s"(${translate(left)}.compareTo(${translate(right)}) ${cmpOp(op)} 0)"
+      s"(${translate(left)}.compare(${translate(right)}) ${cmpOp(op)} 0)"
     }
   }
 
