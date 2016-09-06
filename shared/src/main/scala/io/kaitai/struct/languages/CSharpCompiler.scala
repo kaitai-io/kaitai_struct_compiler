@@ -236,6 +236,11 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.dec
   }
 
+  override def switchElseStart(): Unit = {
+    out.puts("default:")
+    out.inc
+  }
+
   override def switchEnd(): Unit =
     out.puts("}")
 
