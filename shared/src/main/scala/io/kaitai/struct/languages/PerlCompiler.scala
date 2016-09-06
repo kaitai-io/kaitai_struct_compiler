@@ -227,6 +227,29 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     }
   }
 
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    out.puts(s"my $$_on = ${expression(on)};")
+  }
+
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
+    out.puts(s"if ($$_on == ${expression(condition)}) {")
+    out.inc
+  }
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"elsif ($$_on == ${expression(condition)}) {")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit = universalFooter
+
+  override def switchElseStart(): Unit = {
+    out.puts(s"else {")
+    out.inc
+  }
+
+  override def switchEnd(): Unit = {}
+
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts
     out.puts(s"sub ${instName.name} {")
