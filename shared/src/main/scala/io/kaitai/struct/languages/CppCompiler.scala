@@ -498,6 +498,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
+      case BooleanType => "bool"
       case CalcIntType => "int32_t"
       case CalcFloatType => "double"
 
