@@ -13,8 +13,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     with UniversalFooter
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
-    with EveryReadIsExpression
-    with NoNeedForFullClassPath {
+    with EveryReadIsExpression {
 
   import PerlCompiler._
 
@@ -41,10 +40,10 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("1;")
   }
 
-  override def classHeader(name: String): Unit = {
+  override def classHeader(name: List[String]): Unit = {
     out.puts
     out.puts("########################################################################")
-    out.puts(s"package ${type2class(name)};")
+    out.puts(s"package ${types2class(name)};")
     out.puts
     out.puts(s"our @ISA = '$kstructName';")
     out.puts
@@ -59,9 +58,9 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     universalFooter
   }
 
-  override def classFooter(name: String): Unit = {}
+  override def classFooter(name: List[String]): Unit = {}
 
-  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
+  override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
     out.puts
     out.puts("sub new {")
     out.inc
@@ -223,7 +222,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io->read_bytes_full()"
       case t: UserType =>
-        s"${type2class(t.name.last)}->new($io, $$self, ${privateMemberName(RootIdentifier)})"
+        s"${types2class(t.classSpec.get.name)}->new($io, $$self, ${privateMemberName(RootIdentifier)})"
     }
   }
 
@@ -250,7 +249,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def switchEnd(): Unit = {}
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts
     out.puts(s"sub ${instName.name} {")
     out.inc
@@ -265,7 +264,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit = {
     out.puts
 
     enumColl.foreach { case (id, label) =>
@@ -289,6 +288,8 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
   def boolLiteral(b: Boolean): String = translator.doBoolLiteral(b)
+
+  def types2class(t: List[String]) = t.map(type2class).mkString("::")
 }
 
 object PerlCompiler extends LanguageCompilerStatic
