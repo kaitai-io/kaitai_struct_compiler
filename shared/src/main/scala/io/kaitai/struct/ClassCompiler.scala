@@ -280,6 +280,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
         KaitaiStreamType
       case "_" =>
         lang.currentIteratorType
+      case "_on" =>
+        lang.currentSwitchType
       case _ =>
         classSpec.seq.foreach { el =>
           if (el.id == NamedIdentifier(attrName))

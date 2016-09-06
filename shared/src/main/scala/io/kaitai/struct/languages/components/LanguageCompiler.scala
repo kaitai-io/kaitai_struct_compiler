@@ -19,6 +19,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
 
   protected var _translator: Option[BaseTranslator] = None
   protected var _currentIteratorType: Option[BaseType] = None
+  protected var _currentSwitchType: Option[BaseType] = None
 
   def getStatic: LanguageCompilerStatic
   def open(topClassName: String, tp: TypeProvider): Unit = {
@@ -27,6 +28,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def close = out.close
   def translator: BaseTranslator = _translator.get
   def currentIteratorType: BaseType = _currentIteratorType.get
+  def currentSwitchType: BaseType = _currentSwitchType.get
 
   def headerComment = "This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild"
   def fileHeader(topClassName: String): Unit
