@@ -345,6 +345,7 @@ object CSharpCompiler extends LanguageCompilerStatic
 
       case CalcIntType => "int"
       case CalcFloatType => "double"
+      case BooleanType => "bool"
 
       case _: StrType => "string"
       case _: BytesType => "byte[]"
