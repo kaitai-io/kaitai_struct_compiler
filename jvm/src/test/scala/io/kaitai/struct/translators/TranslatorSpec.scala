@@ -43,6 +43,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     everybody("1 < 2", "1 < 2", BooleanType),
 
+    everybody("1 == 2", "1 == 2", BooleanType),
+
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map(
       CppCompiler -> "(2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\"))",
       CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
@@ -244,6 +246,28 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       PythonCompiler -> "u\"str1\" + u\"str2\""
     ), CalcStrType),
 
+    everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", Map(
+      CppCompiler -> "std::string(\"str1\") == (std::string(\"str2\"))",
+      JavaCompiler -> "\"str1\".equals(\"str2\")",
+      PerlCompiler -> "\"str1\" eq \"str2\"",
+      PythonCompiler -> "u\"str1\" == u\"str2\""
+    ), BooleanType),
+
+    everybodyExcept("\"str1\" != \"str2\"", "\"str1\" != \"str2\"", Map(
+      CppCompiler -> "std::string(\"str1\") != std::string(\"str2\")",
+      JavaCompiler -> "!(\"str1\").equals(\"str2\")",
+      PerlCompiler -> "\"str1\" ne \"str2\"",
+      PythonCompiler -> "u\"str1\" != u\"str2\""
+    ), BooleanType),
+
+    everybodyExcept("\"str1\" < \"str2\"", "\"str1\" < \"str2\"", Map(
+      CppCompiler -> "(std::string(\"str1\").compare(std::string(\"str2\")) < 0)",
+      CSharpCompiler -> "(\"str1\".CompareTo(\"str2\") < 0)",
+      JavaCompiler -> "(\"str1\".compareTo(\"str2\") < 0)",
+      PerlCompiler -> "\"str1\" lt \"str2\"",
+      PythonCompiler -> "u\"str1\" < u\"str2\""
+    ), BooleanType),
+
     full("\"str\".length", CalcIntType, CalcIntType, Map(
       CppCompiler -> "std::string(\"str\").length()",
       CSharpCompiler -> "\"str\".Length",
@@ -264,6 +288,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       PHPCompiler -> "intval(\"12345\", 10)",
       PythonCompiler -> "int(u\"12345\")",
       RubyCompiler -> "\"12345\".to_i"
+    )),
+
+    full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, Map(
+      CppCompiler -> "std::stoi(std::string(\"1234fe\"), 0, 16)",
+      CSharpCompiler -> "Convert.ToInt64(\"1234fe\", 16)",
+      JavaCompiler -> "Long.parseLong(\"1234fe\", 16)",
+      JavaScriptCompiler -> "Number.parseInt(\"1234fe\", 16)",
+      PerlCompiler -> "hex(\"1234fe\")",
+      PHPCompiler -> "intval(\"1234fe\", 16)",
+      PythonCompiler -> "int(u\"1234fe\", 16)",
+      RubyCompiler -> "\"1234fe\".to_i(16)"
     )),
 
     // very simple workaround for Scala not having optional trailing commas
