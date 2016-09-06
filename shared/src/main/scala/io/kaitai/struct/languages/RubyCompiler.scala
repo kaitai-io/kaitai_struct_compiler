@@ -67,7 +67,12 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
   override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
-    out.puts(s"attr_reader :${publicMemberName(attrName)}")
+    attrName match {
+      case RootIdentifier | ParentIdentifier =>
+        // ignore, they are already added in Kaitai::Struct::Struct
+      case _ =>
+        out.puts(s"attr_reader :${publicMemberName(attrName)}")
+    }
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
