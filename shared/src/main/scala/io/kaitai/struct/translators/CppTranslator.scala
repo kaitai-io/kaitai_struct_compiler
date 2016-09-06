@@ -42,8 +42,13 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"(${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)})"
 
   // Predefined methods of various types
-  override def strToInt(s: expr, base: expr): String =
-    s"Long.parseLong(${translate(s)}, ${translate(base)})"
+  override def strToInt(s: expr, base: expr): String = {
+    val baseStr = translate(base)
+    s"std::stoi(${translate(s)}" + (baseStr match {
+      case "10" => ""
+      case _ => s", 0, $baseStr"
+    }) + ")"
+  }
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
