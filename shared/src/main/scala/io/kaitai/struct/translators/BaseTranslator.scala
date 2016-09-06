@@ -305,6 +305,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             val objType = detectType(obj)
             (objType, methodName.name) match {
               case (_: StrType, "substring") => CalcStrType
+              case (_: StrType, "to_i") => CalcIntType
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
