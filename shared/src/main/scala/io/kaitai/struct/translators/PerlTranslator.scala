@@ -42,6 +42,18 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doEnumByLabel(enumType: String, label: String): String =
     s"$$${enumType.toUpperCase}_${label.toUpperCase}"
 
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
+    val opStr = op match {
+      case Ast.cmpop.Eq => "eq"
+      case Ast.cmpop.NotEq => "ne"
+      case Ast.cmpop.Lt => "lt"
+      case Ast.cmpop.LtE => "le"
+      case Ast.cmpop.Gt => "gt"
+      case Ast.cmpop.GtE => "ge"
+    }
+    s"${translate(left)} $opStr ${translate(right)}"
+  }
+
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
