@@ -236,7 +236,7 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     val ioName = IoStorageIdentifier(varName)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
+      case RepeatEos | RepeatExpr(_) | RepeatUntil(_) => s"$memberName->at($memberName->size() - 1)"
       case NoRepeat => memberName
     }
 
