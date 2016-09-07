@@ -33,6 +33,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("use warnings;")
     out.puts(s"use $kstructName;")
     out.puts(s"use $kstreamName;")
+    out.puts("use Compress::Zlib;")
   }
 
   override def fileFooter(topClassName: String): Unit = {
@@ -113,7 +114,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
         }
         s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});"
       case ProcessZlib =>
-        s"$destName = $kstreamName::process_zlib($srcName);"
+        s"$destName = Compress::Zlib::uncompress($srcName);"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
