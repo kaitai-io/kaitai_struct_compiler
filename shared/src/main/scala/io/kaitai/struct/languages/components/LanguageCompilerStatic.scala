@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.RuntimeConfig
+import io.kaitai.struct.{GraphvizClassCompiler, RuntimeConfig}
 import io.kaitai.struct.languages._
 import io.kaitai.struct.translators.{BaseTranslator, TypeProvider}
 
@@ -12,9 +12,10 @@ trait LanguageCompilerStatic {
 }
 
 object LanguageCompilerStatic {
-  val NAME_TO_CLASS = Map(
+  val NAME_TO_CLASS: Map[String, LanguageCompilerStatic] = Map(
     "cpp_stl" -> CppCompiler,
     "csharp" -> CSharpCompiler,
+    "graphviz" -> GraphvizClassCompiler,
     "java" -> JavaCompiler,
     "javascript" -> JavaScriptCompiler,
     "perl" -> PerlCompiler,

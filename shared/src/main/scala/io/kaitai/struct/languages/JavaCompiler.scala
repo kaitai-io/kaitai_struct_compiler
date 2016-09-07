@@ -10,6 +10,7 @@ import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 
 class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: String = "")
   extends LanguageCompiler(verbose, out)
+    with ObjectOrientedLanguage
     with EveryReadIsExpression
     with UniversalFooter
     with AllocateIOLocalVar

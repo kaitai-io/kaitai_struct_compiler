@@ -10,6 +10,7 @@ import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvi
 
 class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
+    with ObjectOrientedLanguage
     with UniversalFooter
     with UpperCamelCaseClasses
     with EveryReadIsExpression

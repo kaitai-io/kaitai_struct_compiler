@@ -10,6 +10,7 @@ import io.kaitai.struct.{LanguageOutputWriter, Utils}
 
 class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
+    with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with StreamStructNames
     with EveryReadIsExpression
