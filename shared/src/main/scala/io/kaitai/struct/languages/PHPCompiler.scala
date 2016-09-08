@@ -68,10 +68,10 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     attrName match {
-      case ParentIdentifier | RootIdentifier =>
+      case ParentIdentifier | RootIdentifier | IoIdentifier =>
         // just ignore it for now
       case _ =>
-        out.puts(s"protected $$${idToStr(attrName)};")
+        out.puts(s"protected $$_m_${idToStr(attrName)};")
     }
   }
 
@@ -209,10 +209,6 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     }
   }
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"protected $$${idToStr(attrName)};")
-  }
-
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts(s"public function ${idToStr(instName)}(): ${kaitaiType2NativeType(dataType)} {")
     out.inc
@@ -276,7 +272,14 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     }
   }
 
-  override def privateMemberName(id: Identifier): String = s"$$this->${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = {
+    id match {
+      case IoIdentifier => s"$$this->_io"
+      case RootIdentifier => s"$$this->_root"
+      case ParentIdentifier => s"$$this->_parent"
+      case _ => s"$$this->_m_${idToStr(id)}"
+    }
+  }
 
   override def publicMemberName(id: Identifier) = idToStr(id)
 
