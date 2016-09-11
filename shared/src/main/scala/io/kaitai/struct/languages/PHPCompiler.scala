@@ -112,7 +112,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$memberName.get($memberName.size() - 1)"
+      case RepeatEos | RepeatExpr(_) => s"end($memberName)"
       case NoRepeat => memberName
     }
 
@@ -314,6 +314,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
       case CalcIntType => "int"
       case CalcFloatType => "double"
+      case BooleanType => "bool"
 
       case _: StrType | _: BytesType => "string"
 
