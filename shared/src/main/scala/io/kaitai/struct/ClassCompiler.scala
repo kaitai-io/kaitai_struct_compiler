@@ -16,87 +16,6 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
   topClass.name = topClassName
 
-  def markupClassNames(curClass: ClassSpec): Unit = {
-    curClass.types.foreach { case (nestedName: String, nestedClass) =>
-      nestedClass.name = curClass.name ::: List(nestedName)
-      nestedClass.upClass = Some(curClass)
-      markupClassNames(nestedClass)
-    }
-  }
-
-  def resolveUserTypes(curClass: ClassSpec): Unit = {
-    curClass.seq.foreach((attr) => resolveUserTypeForAttr(curClass, attr))
-    curClass.instances.foreach { case (instName, instSpec) =>
-      instSpec match {
-        case pis: ParseInstanceSpec =>
-          resolveUserTypeForAttr(curClass, pis)
-        case _: ValueInstanceSpec =>
-          // ignore all other types of instances
-      }
-    }
-
-    curClass.types.foreach { case (_, nestedClass) =>
-      resolveUserTypes(nestedClass)
-    }
-  }
-
-  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec): Unit =
-    resolveUserType(curClass, attr.dataType)
-
-  def resolveUserType(curClass: ClassSpec, dataType: BaseType): Unit = {
-    dataType match {
-      case ut: UserType =>
-        ut.classSpec = resolveUserType(curClass, ut.name)
-      case SwitchType(_, cases) =>
-        cases.foreach { case (_, ut) =>
-          resolveUserType(curClass, ut)
-        }
-      case _ =>
-        // not a user type, nothing to resolve
-    }
-  }
-
-  def resolveUserType(curClass: ClassSpec, typeName: List[String]): Option[ClassSpec] = {
-//    Console.println(s"resolveUserType: at ${curClass.name} doing ${typeName.mkString("|")}")
-    val res = realResolveUserType(curClass, typeName)
-//    Console.println("   => " + (res match {
-//      case None => "???"
-//      case Some(x) => x.name.mkString("|")
-//    }))
-    res
-  }
-
-  private def realResolveUserType(curClass: ClassSpec, typeName: List[String]): Option[ClassSpec] = {
-    // First, try to do it in current class
-
-    // If we're seeking composite name, we only have to resolve the very first
-    // part of it at this stage
-    val firstName :: restNames = typeName
-
-    val resolvedHere = curClass.types.get(firstName).flatMap((nestedClass) =>
-      if (restNames.isEmpty) {
-        // No further names to resolve, here's our answer
-        Some(nestedClass)
-      } else {
-        // Try to resolve recursively
-        resolveUserType(nestedClass, restNames)
-      }
-    )
-
-    resolvedHere match {
-      case Some(_) => resolvedHere
-      case None =>
-        // No luck resolving here, let's try upper levels, if they exist
-        curClass.upClass match {
-          case Some(upClass) =>
-            resolveUserType(upClass, typeName)
-          case None =>
-            // No luck at all
-            None
-        }
-    }
-  }
-
   val userTypes: Map[String, ClassSpec] = gatherUserTypes(topClass) ++ Map(topClassName.last -> topClass)
 
   var nowClass: ClassSpec = topClass
@@ -106,40 +25,6 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
       case (typeName, intClass) => gatherUserTypes(intClass)
     }.flatten.toMap
     curClass.types ++ recValues
-  }
-
-  def markupParentTypes(curClassName: List[String], curClass: ClassSpec): Unit = {
-    curClass.seq.foreach { attr =>
-      markupParentTypesAdd(curClassName, curClass, attr.dataType)
-    }
-    curClass.instances.foreach { case (instName, instSpec) =>
-      markupParentTypesAdd(curClassName, curClass, getInstanceDataType(instSpec))
-    }
-  }
-
-  def markupParentTypesAdd(curClassName: List[String], curClass: ClassSpec, dt: BaseType): Unit = {
-    dt match {
-      case userType: UserType =>
-        val ut = userType.name
-        userTypes.get(ut.last).foreach { usedClass =>
-          usedClass._parentType match {
-            case UnknownNamedClass =>
-              usedClass._parentType = NamedClass(curClassName, curClass)
-              markupParentTypes(curClassName ::: ut, usedClass)
-            case NamedClass(otherName, otherClass) =>
-              if (otherName == curClassName && otherClass == curClass) {
-                // already done, don't do anything
-              } else {
-                // conflicting types, would be bad for statically typed languages
-                // throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
-                usedClass._parentType = GenericStructClass
-              }
-            case GenericStructClass =>
-            // already most generic case, do nothing
-          }
-        }
-      case _ => // ignore, it's standard type
-    }
   }
 
   def deriveValueTypes() {
@@ -162,10 +47,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   override def compile {
     lang.open(topClassName.head, this)
 
-    markupClassNames(topClass)
     deriveValueTypes
-    resolveUserTypes(topClass)
-    markupParentTypes(topClassName, topClass)
 
     lang.fileHeader(topClassName.head)
     compileClass(topClass)
@@ -222,16 +104,9 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     }
   }
 
-  def getInstanceDataType(instSpec: InstanceSpec): BaseType = {
-    instSpec match {
-      case t: ValueInstanceSpec => t.dataType.get
-      case t: ParseInstanceSpec => t.dataTypeComposite
-    }
-  }
-
   def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
-    val dataType = getInstanceDataType(instSpec)
+    val dataType = TypeProcessor.getInstanceDataType(instSpec)
 
     // Declare caching variable
     lang.instanceDeclaration(instName, dataType, ConditionalSpec(None, NoRepeat))
@@ -332,7 +207,9 @@ object ClassCompiler {
   def localFileToSpec(yamlFilename: String): ClassSpec = {
     val reader = new FileReader(yamlFilename)
     val mapper = new ObjectMapper(new YAMLFactory())
-    mapper.readValue(reader, classOf[ClassSpec])
+    val spec = mapper.readValue(reader, classOf[ClassSpec])
+    TypeProcessor.processTypes(spec)
+    spec
   }
 
   def fromLocalFileToFile(yamlFilename: String, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): AbstractCompiler =
