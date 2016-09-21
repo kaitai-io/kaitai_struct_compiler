@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import io.kaitai.struct.exprlang.DataType.BaseType
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 
-abstract class InstanceSpec
+sealed trait InstanceSpec
 case class ValueInstanceSpec(value: Ast.expr, var dataType: Option[BaseType]) extends InstanceSpec
 case class ParseInstanceSpec(dataType: BaseType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec with AttrLikeSpec
 
