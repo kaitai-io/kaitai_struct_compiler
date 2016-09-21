@@ -13,7 +13,6 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
   def currentSwitchType: BaseType = _currentSwitchType.get
 
   override def determineType(attrName: String): BaseType = {
-    Console.println(s"determineType($attrName), nowClass=${nowClass.name}, nowClass.parent=${nowClass.parentTypeName}")
     determineType(nowClass, attrName)
   }
 
