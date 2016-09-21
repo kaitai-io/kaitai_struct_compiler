@@ -2,7 +2,7 @@ package io.kaitai.struct
 
 import io.kaitai.struct.exprlang.DataType.{BaseType, KaitaiStreamType, UserTypeInstream}
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.TypeProvider
+import io.kaitai.struct.translators.{TypeProvider, TypeUndecidedError}
 
 class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
   var nowClass = topClass
@@ -34,7 +34,12 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
             return el.dataTypeComposite
         }
         inClass.instances.get(InstanceIdentifier(attrName)) match {
-          case Some(i: ValueInstanceSpec) => return i.dataType.get
+          case Some(i: ValueInstanceSpec) =>
+            i.dataType match {
+              case Some(t) => t
+              case None => throw new TypeUndecidedError(attrName)
+            }
+            return i.dataType.get
           case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
           case None => // do nothing
         }

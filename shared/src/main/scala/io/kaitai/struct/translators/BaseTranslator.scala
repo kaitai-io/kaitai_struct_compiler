@@ -11,6 +11,7 @@ trait TypeProvider {
 }
 
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
+class TypeUndecidedError(msg: String) extends RuntimeException(msg)
 
 abstract class BaseTranslator(val provider: TypeProvider) {
   def translate(v: Ast.expr): String = {
@@ -280,9 +281,12 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         valType match {
           case t: UserType =>
             if (t.name == List("kaitai_struct")) {
-              throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '${value}'")
+              throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '$value'")
             } else {
-              provider.determineType(t.classSpec.get, attr.name)
+              t.classSpec match {
+                case Some(tt) => provider.determineType(tt, attr.name)
+                case None => throw new TypeUndecidedError(s"expression '$value' has undecided type '${t.name}' (while asking for attribute '${attr.name}')")
+              }
             }
           case _: StrType =>
             attr.name match {
