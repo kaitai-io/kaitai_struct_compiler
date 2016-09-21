@@ -18,16 +18,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
   topClass.name = topClassName
 
-  val userTypes: Map[String, ClassSpec] = gatherUserTypes(topClass) ++ Map(topClassName.last -> topClass)
-
   var nowClass: ClassSpec = topClass
-
-  def gatherUserTypes(curClass: ClassSpec): Map[String, ClassSpec] = {
-    val recValues: Map[String, ClassSpec] = curClass.types.map {
-      case (typeName, intClass) => gatherUserTypes(intClass)
-    }.flatten.toMap
-    curClass.types ++ recValues
-  }
 
   override def compile {
     lang.open(topClassName.head, provider)
