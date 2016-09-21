@@ -17,6 +17,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   val provider = new ClassTypeProvider(topClass)
   val translator = getTranslator(provider)
   val links = ListBuffer[(String, String, String)]()
+  val extraClusterLines = new StringLanguageOutputWriter(GraphvizClassCompiler.indent)
 
   var nowClass: ClassSpec = topClass
   var nowClassName = topClassName
@@ -63,6 +64,9 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     }
 
 //    curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
+
+    out.add(extraClusterLines)
+    extraClusterLines.clear()
 
     // Recursive types
     curClass.types.foreach { case (typeName, intClass) => compileClass(className :+ typeName, intClass) }
@@ -128,10 +132,18 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     val dataType = attr.dataType
     val sizeStr = dataTypeSizeAsString(dataType, name)
 
+    val dataTypeStr = dataType match {
+      case st: SwitchType =>
+        compileSwitch(name, st)
+        s"switch (${expressionType(st.on, name)})"
+      case _ =>
+        dataTypeName(dataType)
+    }
+
     out.puts("<TR>" +
       "<TD PORT=\"" + name + "_pos\">" + pos.getOrElse("...") + "</TD>" +
       "<TD PORT=\"" + name + "_size\">" + sizeStr + "</TD>" +
-      s"<TD>${dataTypeName(dataType)}</TD>" +
+      s"<TD>$dataTypeStr</TD>" +
       "<TD PORT=\"" + name + "_type\">" + name + "</TD>" +
       "</TR>")
 
@@ -177,6 +189,21 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     tableEnd
   }
 
+  def compileSwitch(attrName: String, st: SwitchType): Unit = {
+
+    links += ((s"$currentTable:${attrName}_type", s"${currentTable}_${attrName}_switch", STYLE_EDGE_TYPE))
+    extraClusterLines.puts(s"${currentTable}_${attrName}_switch;")
+
+    st.cases.foreach { case (caseExpr, caseType) =>
+      caseType match {
+        case ut: UserType =>
+          links += ((s"${currentTable}_${attrName}_switch", type2class(ut.name) + "__seq", STYLE_EDGE_TYPE))
+        case _ =>
+          // ignore, no links
+      }
+    }
+  }
+
   val END_OF_STREAM = "⇲"
   val UNKNOWN = "..."
 
@@ -203,6 +230,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case _: UserTypeEos => END_OF_STREAM
       case UserTypeInstream(_) => UNKNOWN
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
+      case _: SwitchType => UNKNOWN
     }
   }
 
@@ -212,6 +240,10 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
 
   def expressionPos(ex: expr, attrName: String): String = {
     expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_pos", STYLE_EDGE_POS)
+  }
+
+  def expressionType(ex: expr, attrName: String): String = {
+    expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_type", STYLE_EDGE_VALUE)
   }
 
   def expression(e: expr, portName: String, style: String): String = {
@@ -335,6 +367,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case _: UserTypeEos => None
       case UserTypeInstream(_) => None
       case EnumType(_, basedOn) => dataTypeSize(basedOn)
+      case _: SwitchType => None
     }
   }
 
