@@ -148,7 +148,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
-    _currentIteratorType = Some(dataType)
+    typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(untilExpr)}:")
     out.inc
     out.puts("break")

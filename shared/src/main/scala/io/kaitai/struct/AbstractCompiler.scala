@@ -1,7 +1,5 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.translators.TypeProvider
-
-trait AbstractCompiler extends TypeProvider {
+trait AbstractCompiler {
   def compile: Unit
 }

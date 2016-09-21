@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.DataType.BaseType
 import io.kaitai.struct.format._
@@ -18,17 +18,16 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def innerClasses: Boolean = true
 
   protected var _translator: Option[BaseTranslator] = None
-  protected var _currentIteratorType: Option[BaseType] = None
-  protected var _currentSwitchType: Option[BaseType] = None
+  protected var _typeProvider: Option[ClassTypeProvider] = None
 
   def getStatic: LanguageCompilerStatic
-  def open(topClassName: String, tp: TypeProvider): Unit = {
+  def open(topClassName: String, tp: ClassTypeProvider): Unit = {
+    _typeProvider = Some(tp)
     _translator = Some(getStatic.getTranslator(tp))
   }
   def close = out.close
+  def typeProvider: ClassTypeProvider = _typeProvider.get
   def translator: BaseTranslator = _translator.get
-  def currentIteratorType: BaseType = _currentIteratorType.get
-  def currentSwitchType: BaseType = _currentSwitchType.get
 
   def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}

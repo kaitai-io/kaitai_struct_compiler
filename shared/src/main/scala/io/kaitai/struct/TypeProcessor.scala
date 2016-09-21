@@ -2,14 +2,18 @@ package io.kaitai.struct
 
 import io.kaitai.struct.exprlang.DataType.{BaseType, SwitchType, UserType}
 import io.kaitai.struct.format._
+import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator}
 
 object TypeProcessor {
   def processTypes(topClass: ClassSpec): Unit = {
     markupClassNames(topClass)
-    //deriveValueTypes
+    deriveValueTypes(topClass)
     resolveUserTypes(topClass)
     markupParentTypes(topClass)
+    topClass.parentClass = GenericStructClassSpec
   }
+
+  // ==================================================================
 
   def markupClassNames(curClass: ClassSpec): Unit = {
     curClass.types.foreach { case (nestedName: String, nestedClass) =>
@@ -18,6 +22,35 @@ object TypeProcessor {
       markupClassNames(nestedClass)
     }
   }
+
+  // ==================================================================
+
+  def deriveValueTypes(topClass: ClassSpec) {
+    val provider = new ClassTypeProvider(topClass)
+    // TODO: make more abstract translator subtype for type detection only
+    val translator = new RubyTranslator(provider)
+    deriveValueType(provider, translator, topClass)
+  }
+
+  def deriveValueType(provider: ClassTypeProvider, translator: BaseTranslator, curClass: ClassSpec): Unit = {
+    provider.nowClass = curClass
+    curClass.instances.foreach {
+      case (instName, inst) =>
+        inst match {
+          case vi: ValueInstanceSpec =>
+            vi.dataType = Some(translator.detectType(vi.value))
+          case _ =>
+            // do nothing
+        }
+    }
+
+    // Continue with all nested types
+    curClass.types.foreach {
+      case (_, classSpec) => deriveValueType(provider, translator, classSpec)
+    }
+  }
+
+  // ==================================================================
 
   def resolveUserTypes(curClass: ClassSpec): Unit = {
     curClass.seq.foreach((attr) => resolveUserTypeForAttr(curClass, attr))
@@ -92,6 +125,8 @@ object TypeProcessor {
     }
   }
 
+  // ==================================================================
+
   def markupParentTypes(curClass: ClassSpec): Unit = {
     curClass.seq.foreach { attr =>
       markupParentTypesAdd(curClass, attr.dataType)
@@ -118,7 +153,7 @@ object TypeProcessor {
               usedClass.parentClass = GenericStructClassSpec
             }
           case GenericStructClassSpec =>
-          // already most generic case, do nothing
+            // already most generic case, do nothing
         }
       case _ => // ignore, it's standard type
     }

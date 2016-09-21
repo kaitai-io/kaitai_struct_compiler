@@ -2,6 +2,7 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
+import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import org.scalatest.FunSuite
@@ -335,7 +336,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
   case class Always(t: BaseType) extends TypeProvider {
     override def determineType(name: String): BaseType = t
-    override def determineType(parentType: List[String], name: String): BaseType = t
+    override def determineType(inClass: ClassSpec, name: String): BaseType = t
   }
 
   case object FooBarProvider extends TypeProvider {
@@ -345,8 +346,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       }
     }
 
-    override def determineType(parentType: List[String], name: String): BaseType = {
-      (parentType, name) match {
+    override def determineType(inClass: ClassSpec, name: String): BaseType = {
+      (inClass.name, name) match {
         case (List("block"), "bar") => CalcStrType
         case (List("block"), "inner") => userType("innerblock")
         case (List("innerblock"), "baz") => CalcIntType

@@ -3,11 +3,11 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.{cmpop, expr}
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.ClassSpec
 
 trait TypeProvider {
-  def determineType(parentType: List[String], attrName: String): BaseType
   def determineType(attrName: String): BaseType
+  def determineType(inClass: ClassSpec, attrName: String): BaseType
 }
 
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
@@ -279,7 +279,11 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         val valType = detectType(value)
         valType match {
           case t: UserType =>
-            provider.determineType(t.name, attr.name)
+            if (t.name == List("kaitai_struct")) {
+              throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '${value}'")
+            } else {
+              provider.determineType(t.classSpec.get, attr.name)
+            }
           case _: StrType =>
             attr.name match {
               case "length" => CalcIntType

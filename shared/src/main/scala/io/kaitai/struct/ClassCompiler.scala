@@ -12,6 +12,8 @@ import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompiler
 import scala.collection.mutable.ListBuffer
 
 class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends AbstractCompiler {
+  val provider = new ClassTypeProvider(topClass)
+
   val topClassName = List(topClass.meta.get.id)
 
   topClass.name = topClassName
@@ -27,27 +29,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     curClass.types ++ recValues
   }
 
-  def deriveValueTypes() {
-    userTypes.foreach { case (name, spec) => deriveValueType(spec) }
-  }
-
-  def deriveValueType(curClass: ClassSpec): Unit = {
-    nowClass = curClass
-    curClass.instances.foreach {
-      case (instName, inst) =>
-        inst match {
-          case vi: ValueInstanceSpec =>
-            vi.dataType = Some(lang.translator.detectType(vi.value))
-          case _ =>
-            // do nothing
-        }
-    }
-  }
-
   override def compile {
-    lang.open(topClassName.head, this)
-
-    deriveValueTypes
+    lang.open(topClassName.head, provider)
 
     lang.fileHeader(topClassName.head)
     compileClass(topClass)
@@ -57,6 +40,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
   def compileClass(curClass: ClassSpec): Unit = {
     nowClass = curClass
+    provider.nowClass = curClass
 
     lang.classHeader(nowClass.name)
 
@@ -87,6 +71,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
       curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
 
       nowClass = curClass
+      provider.nowClass = curClass
     }
 
     curClass.instances.foreach { case (instName, instSpec) => compileInstance(nowClass.name, instName, instSpec, extraAttrs) }
@@ -133,69 +118,6 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName)
     lang.instanceFooter
-  }
-
-  override def determineType(attrName: String): BaseType = determineType(nowClass, attrName)
-
-  override def determineType(typeName: List[String], attrName: String): BaseType = {
-    getTypeByName(nowClass, typeName) match {
-      case Some(t) => determineType(t, attrName)
-      case None => throw new RuntimeException(s"Unable to determine type for $attrName in type $typeName")
-    }
-  }
-
-  def determineType(classSpec: ClassSpec, attrName: String): BaseType = {
-    attrName match {
-      case "_root" =>
-        UserTypeInstream(topClassName)
-      case "_parent" =>
-        UserTypeInstream(classSpec.parentTypeName)
-      case "_io" =>
-        KaitaiStreamType
-      case "_" =>
-        lang.currentIteratorType
-      case "_on" =>
-        lang.currentSwitchType
-      case _ =>
-        classSpec.seq.foreach { el =>
-          if (el.id == NamedIdentifier(attrName))
-            return el.dataTypeComposite
-        }
-        classSpec.instances.get(InstanceIdentifier(attrName)) match {
-          case Some(i: ValueInstanceSpec) => return i.dataType.get
-          case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
-          case None => // do nothing
-        }
-        throw new RuntimeException(s"Unable to access $attrName in ${classSpec.name} context")
-    }
-  }
-
-  def getTypeByName(inClass: ClassSpec, name: List[String]): Option[ClassSpec] = {
-    userTypes.get(name.last)
-
-    // Some special code to support non-unique type names lookup - might come useful in future
-//    if (name == topClassName)
-//      return Some(desc)
-//
-//    if (inClass.types.isEmpty)
-//      return None
-//
-//    val types = inClass.types.get
-//    val r = types.get(name) match {
-//      case Some(x) => Some(x)
-//      case None => {
-//        types.foreach { case (inTypesKey, inTypesValue) =>
-//          if (inTypesValue != inClass) {
-//            val r = getTypeByName(inTypesValue, name)
-//            if (r.isDefined)
-//              return r
-//          }
-//        }
-//
-//        // Look up global names list
-//        userTypes.get(name)
-//      }
-//    }
   }
 
   def compileEnum(enumName: String, enumColl: Map[Long, String]): Unit = {

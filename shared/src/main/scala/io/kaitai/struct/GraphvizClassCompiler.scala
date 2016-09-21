@@ -14,7 +14,8 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
 
   val topClassName = List(topClass.meta.get.id)
 
-  val translator = getTranslator(this)
+  val provider = new ClassTypeProvider(topClass)
+  val translator = getTranslator(provider)
   val links = ListBuffer[(String, String, String)]()
 
   var nowClass: ClassSpec = topClass
@@ -22,8 +23,6 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   var currentTable: String = ""
 
   override def compile: Unit = {
-    deriveValueTypes
-
     out.puts("digraph {")
     out.inc
     out.puts("rankdir=LR;")
@@ -282,7 +281,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
 
   def resolveTypedNode(t: UserType, s: String): String = {
     val className = t.name
-    val classSpec = getTypeByName(nowClass, className).get
+    val classSpec = t.classSpec.get
     resolveNodeForClass(className, classSpec, s)
   }
 
@@ -304,71 +303,6 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     )
 
     throw new RuntimeException(s"unable to resolve node '$s' in type '${type2display(className)}'")
-  }
-
-  // Copy-paste from ClassCompiler, probably should be extracted in AbstractCompiler or something
-
-  val userTypes: Map[String, ClassSpec] = gatherUserTypes(topClass) ++ Map(topClassName.last -> topClass)
-
-  def gatherUserTypes(curClass: ClassSpec): Map[String, ClassSpec] = {
-    val recValues: Map[String, ClassSpec] = curClass.types.map {
-      case (typeName, intClass) => gatherUserTypes(intClass)
-    }.flatten.toMap
-    curClass.types ++ recValues
-  }
-
-  def getTypeByName(inClass: ClassSpec, name: List[String]): Option[ClassSpec] = {
-    userTypes.get(name.last)
-  }
-
-  override def determineType(attrName: String): BaseType = determineType(nowClass, nowClassName, attrName)
-
-  override def determineType(typeName: List[String], attrName: String): BaseType = {
-    getTypeByName(nowClass, typeName) match {
-      case Some(t) => determineType(t, typeName, attrName)
-      case None => throw new RuntimeException(s"Unable to determine type for $attrName in type $typeName")
-    }
-  }
-
-  def determineType(classSpec: ClassSpec, className: List[String], attrName: String): BaseType = {
-    attrName match {
-      case "_root" =>
-        UserTypeInstream(topClassName)
-      case "_parent" =>
-        UserTypeInstream(classSpec.parentTypeName)
-      case "_io" =>
-        KaitaiStreamType
-//      case "_" =>
-        //lang.currentIteratorType
-      case _ =>
-        classSpec.seq.foreach { el =>
-          if (el.id == NamedIdentifier(attrName))
-            return el.dataTypeComposite
-        }
-        classSpec.instances.get(InstanceIdentifier(attrName)) match {
-          case Some(i: ValueInstanceSpec) => return i.dataType.get
-          case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
-          case None => // do nothing
-        }
-        throw new RuntimeException(s"Unable to access $attrName in $className context")
-    }
-  }
-
-  def deriveValueTypes {
-    userTypes.foreach { case (name, spec) => deriveValueType(spec) }
-  }
-
-  def deriveValueType(curClass: ClassSpec): Unit = {
-    nowClass = curClass
-    curClass.instances.foreach {
-      case (instName, inst) =>
-        inst match {
-          case vi: ValueInstanceSpec =>
-            vi.dataType = Some(translator.detectType(vi.value))
-          case _ =>
-            // do nothing
-        }
-    }
   }
 }
 

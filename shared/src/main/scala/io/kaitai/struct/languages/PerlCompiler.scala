@@ -196,7 +196,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
-    _currentIteratorType = Some(dataType)
+    typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} until (${expression(untilExpr)});")
   }
@@ -228,7 +228,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
   }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    _currentSwitchType = Some(translator.detectType(on))
+    typeProvider._currentSwitchType = Some(translator.detectType(on))
     out.puts(s"my $$_on = ${expression(on)};")
   }
 
