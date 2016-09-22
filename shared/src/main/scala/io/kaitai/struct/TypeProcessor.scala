@@ -6,6 +6,9 @@ import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeUndecid
 
 object TypeProcessor {
   def processTypes(topClass: ClassSpec): Unit = {
+    // Set top class name from meta
+    topClass.name = List(topClass.meta.get.id)
+
     markupClassNames(topClass)
     resolveUserTypes(topClass)
     deriveValueTypes(topClass)

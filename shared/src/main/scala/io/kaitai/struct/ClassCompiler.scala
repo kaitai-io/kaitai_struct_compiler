@@ -16,8 +16,6 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
   val topClassName = List(topClass.meta.get.id)
 
-  topClass.name = topClassName
-
   var nowClass: ClassSpec = topClass
 
   override def compile {
