@@ -174,8 +174,9 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
-    out.puts(s"my $$n = ${expression(repeatExpr)};")
-    out.puts("for (my $i = 0; $i < $n; $i++) {")
+    val nVar = s"$$n_${idToStr(id)}"
+    out.puts(s"my $nVar = ${expression(repeatExpr)};")
+    out.puts(s"for (my $$i = 0; $$i < $nVar; $$i++) {")
     out.inc
   }
 
