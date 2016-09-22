@@ -213,6 +213,30 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     }
   }
 
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    val onType = translator.detectType(on)
+
+    out.puts(s"switch (${expression(on)}) {")
+    out.inc
+  }
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"case ${expression(condition)}:")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+    out.puts("break;")
+    out.dec
+  }
+
+  override def switchElseStart(): Unit = {
+    out.puts("default:")
+    out.inc
+  }
+
+  override def switchEnd(): Unit = universalFooter
+
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
     out.puts(s"public function ${idToStr(instName)}(): ${kaitaiType2NativeType(dataType)} {")
     out.inc
