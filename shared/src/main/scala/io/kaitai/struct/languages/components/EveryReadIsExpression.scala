@@ -193,11 +193,11 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
   def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr) =
     handleAssignmentSimple(instName, expression(value))
 
-  def switchStart(id: Identifier, on: Ast.expr): Unit = ???
+  def switchStart(id: Identifier, on: Ast.expr): Unit
   def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)
-  def switchCaseStart(condition: Ast.expr): Unit = ???
-  def switchCaseEnd(): Unit = ???
-  def switchElseStart(): Unit = ???
+  def switchCaseStart(condition: Ast.expr): Unit
+  def switchCaseEnd(): Unit
+  def switchElseStart(): Unit
   def switchElseEnd(): Unit = switchCaseEnd()
-  def switchEnd(): Unit = ???
+  def switchEnd(): Unit
 }
