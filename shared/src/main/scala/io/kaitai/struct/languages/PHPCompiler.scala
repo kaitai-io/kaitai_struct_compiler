@@ -95,16 +95,20 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"$destName = $kstreamName->processXor($srcName, ${expression(xorValue)});")
+        val procName = translator.detectType(xorValue) match {
+          case _: IntType => "processXorOne"
+          case _: BytesType => "processXorMany"
+        }
+        out.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName->processZlib($srcName);")
+        out.puts(s"$destName = $kstreamName::processZlib($srcName);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName->processRotateLeft($srcName, $expr, 1);")
+        out.puts(s"$destName = $kstreamName::processRotateLeft($srcName, $expr, 1);")
     }
   }
 
