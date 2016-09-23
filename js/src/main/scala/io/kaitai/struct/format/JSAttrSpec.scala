@@ -15,6 +15,7 @@ trait JSAttrSpec extends js.Object {
   val encoding: js.UndefOr[String]
   val repeat: js.UndefOr[String]
   val `repeat-expr`: js.UndefOr[js.Object]
+  val `repeat-until`: js.UndefOr[js.Object]
   val terminator: js.UndefOr[js.Object]
   val consume: js.UndefOr[String]
   val include: js.UndefOr[String]
@@ -36,6 +37,7 @@ object JSAttrSpec {
         self.encoding.orNull,
         self.repeat.orNull,
         self.`repeat-expr`.map(x => x.toString).orNull,
+        self.`repeat-until`.map(x => x.toString).orNull,
         self.terminator.map(x => x.toString).orNull,
         self.consume.orNull,
         self.include.orNull,

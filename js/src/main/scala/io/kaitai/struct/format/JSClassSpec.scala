@@ -31,7 +31,7 @@ object JSClassSpec {
         self.instances.toOption match {
           case Some(x) =>
             x.map { case (key, value) =>
-              key -> value.toScala
+              InstanceIdentifier(key) -> value.toScala
             }.toMap
           case None => Map()
         },

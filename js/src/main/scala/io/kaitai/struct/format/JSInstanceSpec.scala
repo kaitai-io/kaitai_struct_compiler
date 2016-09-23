@@ -23,6 +23,7 @@ object JSInstanceSpec {
         self.encoding.orNull,
         self.repeat.orNull,
         self.`repeat-expr`.map(x => x.toString).orNull,
+        self.`repeat-until`.map(x => x.toString).orNull,
         self.terminator.map(x => x.toString).orNull,
         self.consume.orNull,
         self.include.orNull,

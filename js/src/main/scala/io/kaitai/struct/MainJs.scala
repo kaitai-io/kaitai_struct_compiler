@@ -1,11 +1,11 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.format.JSClassSpec
-import io.kaitai.struct.languages._
+import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
 import scala.scalajs.js
+import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExport
-import js.JSConverters._
 
 @JSExport
 object MainJs {
