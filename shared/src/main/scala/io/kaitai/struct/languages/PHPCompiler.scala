@@ -336,12 +336,8 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   def kaitaiType2NativeType(attrType: BaseType): String = {
     attrType match {
       case _: IntType => "int"
+      case _: FloatType => "float"
 
-      case FloatMultiType(Width4, _) => "float"
-      case FloatMultiType(Width8, _) => "double"
-
-      case CalcIntType => "int"
-      case CalcFloatType => "double"
       case BooleanType => "bool"
 
       case _: StrType | _: BytesType => "string"
