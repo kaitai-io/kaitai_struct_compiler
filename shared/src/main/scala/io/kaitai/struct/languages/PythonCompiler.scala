@@ -86,7 +86,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     val varStr = privateMemberName(varName)
 
     val args = rep match {
-      case RepeatEos => s"$varStr[-1]"
+      case RepeatEos | RepeatUntil(_) => s"$varStr[-1]"
       case RepeatExpr(_) => s"$varStr[i]"
       case NoRepeat => varStr
     }
