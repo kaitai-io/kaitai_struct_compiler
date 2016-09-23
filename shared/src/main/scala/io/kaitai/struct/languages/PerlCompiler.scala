@@ -129,7 +129,7 @@ class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatEos => s"$memberName[-1]"
+      case RepeatEos | RepeatUntil(_) => s"$memberName[-1]"
       case RepeatExpr(_) => s"$memberName[$$i]"
       case NoRepeat => s"$memberName"
     }
