@@ -14,7 +14,10 @@ object MainJs {
     val config = new RuntimeConfig(verbose = true)
     val lang = LanguageCompilerStatic.byString(langStr)
 
-    val (out1, out2, cc) = ClassCompiler.fromClassSpecToString(yaml.toScala, lang, config)
+    val spec = yaml.toScala
+    TypeProcessor.processTypes(spec)
+
+    val (out1, out2, cc) = ClassCompiler.fromClassSpecToString(spec, lang, config)
     cc.compile
 
     out2 match {
