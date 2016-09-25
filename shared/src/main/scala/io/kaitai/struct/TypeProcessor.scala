@@ -121,7 +121,19 @@ object TypeProcessor {
     //      case None => "???"
     //      case Some(x) => x.name.mkString("|")
     //    }))
-    res
+
+    // TODO: add some option to control whether using an unresolved type should be a error or a placeholder should be
+    // generated
+
+    res match {
+      case None =>
+        // Type definition not found - generate empty placeholder ClassSpec
+        val placeholder = ClassSpec(None, List(), Map(), Map(), Map())
+        placeholder.name = typeName
+        Some(placeholder)
+      case Some(x) =>
+        res
+    }
   }
 
   private def realResolveUserType(curClass: ClassSpec, typeName: List[String]): Option[ClassSpec] = {
