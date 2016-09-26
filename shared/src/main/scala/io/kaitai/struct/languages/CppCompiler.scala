@@ -470,19 +470,19 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
 
     if (enumColl.size > 1) {
       enumColl.dropRight(1).foreach { case (id, label) =>
-        outHdr.puts(s"${value2Const(label)} = $id,")
+        outHdr.puts(s"${value2Const(enumName, label)} = $id,")
       }
     }
     enumColl.last match {
       case (id, label) =>
-        outHdr.puts(s"${value2Const(label)} = $id")
+        outHdr.puts(s"${value2Const(enumName, label)} = $id")
     }
 
     outHdr.dec
-    outHdr.puts("}")
+    outHdr.puts("};")
   }
 
-  def value2Const(s: String) = s.toUpperCase
+  def value2Const(enumName: String, label: String) = translator.doEnumByLabel(enumName, label)
 
   def kaitaiType2NativeType(attrType: BaseType, absolute: Boolean = false): String = {
     attrType match {

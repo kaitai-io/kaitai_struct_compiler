@@ -24,7 +24,7 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
 
   override def doEnumByLabel(enumType: String, label: String): String =
-    s"${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"
+    (enumType + "_" + label).toUpperCase
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     if (op == Ast.cmpop.Eq) {
