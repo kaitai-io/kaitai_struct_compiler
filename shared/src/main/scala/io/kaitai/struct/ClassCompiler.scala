@@ -40,6 +40,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     // Forward declarations for recursive types
     curClass.types.foreach { case (typeName, intClass) => lang.classForwardDeclaration(List(typeName)) }
 
+    curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
+
     lang.classConstructorHeader(nowClass.name, curClass.parentTypeName, topClassName)
     curClass.instances.foreach { case (instName, instSpec) => lang.instanceClear(instName) }
     curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs, lang.normalIO))
@@ -68,8 +70,6 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     // Attributes declarations and readers
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataTypeComposite))
-
-    curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
 
     lang.classFooter(nowClass.name)
 
