@@ -124,6 +124,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.operator.Sub => "-"
       case Ast.operator.Mult => "*"
       case Ast.operator.Div => "/"
+      case Ast.operator.Mod => "%"
       case Ast.operator.BitAnd => "&"
       case Ast.operator.BitOr => "|"
       case Ast.operator.BitXor => "^"
