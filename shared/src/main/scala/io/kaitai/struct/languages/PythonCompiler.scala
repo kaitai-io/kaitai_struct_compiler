@@ -56,9 +56,8 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {}
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents(${contents.length}, array.array('B', [${contents.mkString(", ")}]))")
-  }
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit =
+    out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents(${contents.length}, ${translator.doByteArrayLiteral(contents)})")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     proc match {
