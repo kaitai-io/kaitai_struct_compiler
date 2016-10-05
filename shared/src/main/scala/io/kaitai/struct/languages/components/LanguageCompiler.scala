@@ -17,6 +17,15 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
     */
   def innerClasses: Boolean = true
 
+  /**
+    * Declares whether language needs enums to be declared inside classes
+    * (true) or outside them (false). Affects calling sequence of rendering
+    * methods.
+    * @return whether language needs enums inside classes (true) or outside
+    *         (false)
+    */
+  def innerEnums: Boolean = true
+
   protected var _translator: Option[BaseTranslator] = None
   protected var _typeProvider: Option[ClassTypeProvider] = None
 
