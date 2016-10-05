@@ -18,6 +18,8 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def innerClasses = false
 
+  override def innerEnums = false
+
   override def getStatic = PHPCompiler
 
   override def universalFooter: Unit = {
@@ -30,7 +32,10 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
     out.puts(s"// $headerComment")
   }
 
-  override def classHeader(name: List[String]): Unit = {
+  override def classHeader(name: List[String]): Unit =
+    classHeader(name, Some(kstructName))
+
+  def classHeader(name: List[String], parentClass: Option[String]): Unit = {
     val nsPart = name.dropRight(1)
     val ns = if (nsPart.nonEmpty) {
       namespace + "\\" + types2classRel(nsPart)
@@ -42,7 +47,13 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
       out.puts(s"namespace $ns;")
     }
     out.puts
-    out.puts(s"class ${type2class(name.last)} extends $kstructName {")
+
+    val ext = parentClass match {
+      case Some(x) => s" extends $x"
+      case None => ""
+    }
+
+    out.puts(s"class ${type2class(name.last)}$ext {")
     out.inc
   }
 
@@ -203,7 +214,7 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + "->readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"${type2class(enumName)}.byId(${parseExpr(t, io)})"
+        parseExpr(t, io)
       case BytesLimitType(size, _) =>
         s"$io->readBytes(${expression(size)})"
       case BytesEosType(_) =>
@@ -254,42 +265,14 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit = {
-    val enumClass = type2class(enumName)
-
-    out.puts
-    out.puts(s"public enum $enumClass {")
-    out.inc
-
-    val it = enumColl.toIterable
-    if (enumColl.size > 1) {
-      it.dropRight(1).foreach { case (id, label) =>
-        out.puts(s"${value2Const(label)}($id),")
-      }
+    classHeader(curClass ::: List(enumName), None)
+    enumColl.foreach { case (id, label) =>
+      out.puts(s"const ${value2Const(label)} = $id;")
     }
-    it.last match {
-      case (id, label) =>
-        out.puts(s"${value2Const(label)}($id);")
-    }
-
-    out.puts
-    out.puts("private final long id;")
-    out.puts(s"$enumClass(long id) { this.id = id; }")
-    out.puts("public long id() { return id; }")
-    out.puts(s"private static final Map<Long, $enumClass> byId = new HashMap<Long, $enumClass>(${enumColl.size});")
-    out.puts("static {")
-    out.inc
-    out.puts(s"for ($enumClass e : $enumClass.values())")
-    out.inc
-    out.puts(s"byId.put(e.id(), e);")
-    out.dec
-    out.dec
-    out.puts("}")
-    out.puts(s"public static $enumClass byId(long id) { return byId.get(id); }")
-    out.dec
-    out.puts("}")
+    universalFooter
   }
 
-  def value2Const(s: String) = s.toUpperCase
+  def value2Const(label: String) = label.toUpperCase
 
   def idToStr(id: Identifier): String = {
     id match {

@@ -31,7 +31,7 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
   override def doEnumByLabel(enumType: String, label: String): String =
-    s"this._root.constructor.${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"
+    s"${Utils.upperCamelCase(enumType)}::${label.toUpperCase}"
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
