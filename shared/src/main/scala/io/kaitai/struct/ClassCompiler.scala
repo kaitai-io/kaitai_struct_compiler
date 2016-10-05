@@ -16,8 +16,6 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
   val topClassName = List(topClass.meta.get.id)
 
-  var nowClass: ClassSpec = topClass
-
   override def compile {
     lang.open(topClassName.head, provider)
 
@@ -28,10 +26,9 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   }
 
   def compileClass(curClass: ClassSpec): Unit = {
-    nowClass = curClass
     provider.nowClass = curClass
 
-    lang.classHeader(nowClass.name)
+    lang.classHeader(curClass.name)
 
     val extraAttrs = ListBuffer[AttrSpec]()
     extraAttrs += AttrSpec(RootIdentifier, UserTypeInstream(topClassName))
@@ -43,12 +40,12 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     if (lang.innerEnums)
       compileEnums(curClass)
 
-    lang.classConstructorHeader(nowClass.name, curClass.parentTypeName, topClassName)
+    lang.classConstructorHeader(curClass.name, curClass.parentTypeName, topClassName)
     curClass.instances.foreach { case (instName, instSpec) => lang.instanceClear(instName) }
     curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs, lang.normalIO))
     lang.classConstructorFooter
 
-    lang.classDestructorHeader(nowClass.name, curClass.parentTypeName, topClassName)
+    lang.classDestructorHeader(curClass.name, curClass.parentTypeName, topClassName)
     curClass.seq.foreach((attr) => lang.attrDestructor(attr, attr.id))
     curClass.instances.foreach { case (id, instSpec) =>
       instSpec match {
@@ -62,17 +59,16 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     if (lang.innerClasses) {
       compileSubclasses(curClass)
 
-      nowClass = curClass
       provider.nowClass = curClass
     }
 
-    curClass.instances.foreach { case (instName, instSpec) => compileInstance(nowClass.name, instName, instSpec, extraAttrs) }
+    curClass.instances.foreach { case (instName, instSpec) => compileInstance(curClass.name, instName, instSpec, extraAttrs) }
 
     // Attributes declarations and readers
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataTypeComposite))
 
-    lang.classFooter(nowClass.name)
+    lang.classFooter(curClass.name)
 
     if (!lang.innerClasses)
       compileSubclasses(curClass)
@@ -82,7 +78,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   }
 
   def compileEnums(curClass: ClassSpec): Unit =
-    curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
+    curClass.enums.foreach { case(enumName, enumColl) => compileEnum(curClass, enumName, enumColl) }
 
   def compileSubclasses(curClass: ClassSpec): Unit =
     curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
@@ -118,8 +114,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.instanceFooter
   }
 
-  def compileEnum(enumName: String, enumColl: Map[Long, String]): Unit = {
-    lang.enumDeclaration(nowClass.name, enumName, enumColl)
+  def compileEnum(curClass: ClassSpec, enumName: String, enumColl: Map[Long, String]): Unit = {
+    lang.enumDeclaration(curClass.name, enumName, enumColl)
   }
 }
 
