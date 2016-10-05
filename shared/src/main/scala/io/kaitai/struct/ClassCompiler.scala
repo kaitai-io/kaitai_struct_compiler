@@ -40,7 +40,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     // Forward declarations for recursive types
     curClass.types.foreach { case (typeName, intClass) => lang.classForwardDeclaration(List(typeName)) }
 
-    curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
+    if (lang.innerEnums)
+      compileEnums(curClass)
 
     lang.classConstructorHeader(nowClass.name, curClass.parentTypeName, topClassName)
     curClass.instances.foreach { case (instName, instSpec) => lang.instanceClear(instName) }
@@ -59,7 +60,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     // Recursive types
     if (lang.innerClasses) {
-      curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
+      compileSubclasses(curClass)
 
       nowClass = curClass
       provider.nowClass = curClass
@@ -73,10 +74,18 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     lang.classFooter(nowClass.name)
 
-    if (!lang.innerClasses) {
-      curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
-    }
+    if (!lang.innerClasses)
+      compileSubclasses(curClass)
+
+    if (!lang.innerEnums)
+      compileEnums(curClass)
   }
+
+  def compileEnums(curClass: ClassSpec): Unit =
+    curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
+
+  def compileSubclasses(curClass: ClassSpec): Unit =
+    curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
 
   def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
