@@ -2,6 +2,8 @@ package io.kaitai.struct
 
 import java.nio.charset.Charset
 
+import scala.collection.mutable.ListBuffer
+
 object Utils {
   private val RDecimal = "^(-?[0-9]+)$".r
   private val RHex = "^0x([0-9a-fA-F]+)$".r
@@ -70,5 +72,10 @@ object Utils {
     */
   def hexEscapeByteArray(arr: Seq[Byte]): String = {
     arr.map((x) => "\\x%02X".format(x)).mkString
+  }
+
+  def addUniqueAttr[T](list: ListBuffer[T], element: T): Unit = {
+    if (!list.contains(element))
+      list += element
   }
 }
