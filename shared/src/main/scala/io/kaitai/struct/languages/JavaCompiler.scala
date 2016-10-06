@@ -401,8 +401,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => kaitaiType2JavaTypeBoxed(attrType)
 
-      // TODO: derive type properly, we might actually use some primitive type there or something
-      case SwitchType(on, cases) => kstructName
+      case SwitchType(on, cases) => kaitaiType2JavaTypeBoxed(attrType)
     }
   }
 
@@ -436,7 +435,30 @@ object JavaCompiler extends LanguageCompilerStatic
       case EnumType(name, _) => type2class(name)
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
+
+      case SwitchType(on, cases) =>
+        commonSwitchType(cases)
     }
+  }
+
+  /**
+    * Determine common superclass that will accomodate all possible results
+    * from a switch type. We just check if everything fits is a user type
+    * (and thus will fit in `KaitaiStruct`), or just return `Object`.
+    *
+    * @param cases
+    * @return Java type name of common superclass
+    */
+  def commonSwitchType(cases: Map[Ast.expr, BaseType]): String = {
+    cases.values.foreach {
+      case _: UserType =>
+        // all good, continue, may be all we have is user types
+      case _ =>
+        // nope, something else, so just bail out early and stick
+        // with a generic Object
+        return "Object"
+    }
+    kstructName
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
