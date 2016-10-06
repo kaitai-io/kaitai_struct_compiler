@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
+import io.kaitai.struct.exprlang.DataType._
 
 class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   // TODO: add string escaping
@@ -14,6 +14,15 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "std::string(\"" + Utils.hexEscapeByteArray(arr) + "\", " + arr.length + ")"
+
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Mod) =>
+        s"kaitai::kstream::mod(${translate(left)}, ${translate(right)})"
+      case _ =>
+        super.numericBinOp(left, op, right)
+    }
+  }
 
   override def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
