@@ -112,6 +112,13 @@ object DataType {
 
   case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, BaseType]) extends BaseType
 
+  object SwitchType {
+    /**
+      * Constant that would be used for "else" case in SwitchType case class "cases" map.
+      */
+    val ELSE_CONST = Ast.expr.Name(Ast.identifier("_"))
+  }
+
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
   private val ReFloatType = """f(4|8)(le|be)?""".r
 

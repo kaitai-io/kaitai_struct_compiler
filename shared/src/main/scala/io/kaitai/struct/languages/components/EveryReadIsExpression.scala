@@ -132,8 +132,6 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  val ELSE_CONST = Ast.expr.Name(Ast.identifier("_"))
-
   def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, BaseType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
     switchStart(id, on)
 
@@ -142,7 +140,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
     cases.foreach { case (condition, dataType) =>
       condition match {
-        case ELSE_CONST =>
+        case SwitchType.ELSE_CONST =>
           // skip for now
         case _ =>
           if (first) {
@@ -159,7 +157,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     // Pass 2: else clause, if it is there
     cases.foreach { case (condition, dataType) =>
       condition match {
-        case ELSE_CONST =>
+        case SwitchType.ELSE_CONST =>
           switchElseStart()
           attrParse2(id, dataType, io, extraAttrs, rep)
           switchElseEnd()
