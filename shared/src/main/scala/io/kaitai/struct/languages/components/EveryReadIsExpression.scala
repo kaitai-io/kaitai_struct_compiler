@@ -1,5 +1,6 @@
 package io.kaitai.struct.languages.components
 
+import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
@@ -79,8 +80,9 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     val rawId = dataType.process match {
       case None => id
       case Some(_) =>
-        extraAttrs += AttrSpec(RawIdentifier(id), dataType)
-        RawIdentifier(id)
+        val rawId = RawIdentifier(id)
+        Utils.addUniqueAttr(extraAttrs, AttrSpec(rawId, dataType))
+        rawId
     }
 
     val expr = parseExpr(dataType, io)
@@ -107,12 +109,12 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
           case _ => ArrayType(byteType)
         }
 
-        extraAttrs += AttrSpec(rawId, extraType)
+        Utils.addUniqueAttr(extraAttrs, AttrSpec(rawId, extraType))
 
         this match {
           case thisStore: AllocateAndStoreIO =>
             val ourIO = thisStore.allocateIO(rawId, rep)
-            extraAttrs += AttrSpec(ourIO, KaitaiStreamType)
+            Utils.addUniqueAttr(extraAttrs, AttrSpec(ourIO, KaitaiStreamType))
             privateMemberName(ourIO)
           case thisLocal: AllocateIOLocalVar =>
             thisLocal.allocateIO(rawId, rep)
