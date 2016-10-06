@@ -166,7 +166,25 @@ object AttrSpec {
       )
     }
 
-    SwitchType(on, cases)
+    // If we have size defined, and we don't have any "else" case already, add
+    // an implicit "else" case that will at least catch everything else as
+    // "untyped" byte array of given size
+    val addCases: Map[Ast.expr, BaseType] = if (cases.containsKey(SwitchType.ELSE_CONST)) {
+      Map()
+    } else {
+      (size, sizeEos) match {
+        case (Some(sizeValue), false) =>
+          Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, process))
+        case (None, true) =>
+          Map(SwitchType.ELSE_CONST -> BytesEosType(process))
+        case (None, false) =>
+          Map()
+        case (Some(_), true) =>
+          throw new RuntimeException("can't have both `size` and `size-eos` defined")
+      }
+    }
+
+    SwitchType(on, cases ++ addCases)
   }
 
   private def boolFromStr(s: String, byDef: Boolean): Boolean = {
