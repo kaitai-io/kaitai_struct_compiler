@@ -249,17 +249,18 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
         expression(condition)
     }
 
-    out.puts(s"case $condStr:")
+    out.puts(s"case $condStr: {")
     out.inc
   }
 
   override def switchCaseEnd(): Unit = {
     out.puts("break;")
     out.dec
+    out.puts("}")
   }
 
   override def switchElseStart(): Unit = {
-    out.puts("default:")
+    out.puts("default: {")
     out.inc
   }
 
