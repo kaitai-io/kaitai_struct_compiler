@@ -279,6 +279,10 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   override def instanceReturn(instName: InstanceIdentifier): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
+  
+  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit =
+  // Perform explicit cast as unsigned integers can't be directly assigned to the default int type
+    handleAssignmentSimple(instName, s"(${kaitaiType2NativeType(dataType)}) (${expression(value)})")
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     val enumClass = type2class(enumName)
