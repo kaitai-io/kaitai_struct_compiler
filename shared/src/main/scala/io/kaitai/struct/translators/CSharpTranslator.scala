@@ -42,7 +42,7 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
-  s"long.Parse(${translate(s)})"
+    s"Convert.ToInt64(${translate(s)}, ${translate(base)})"
   override def strLength(s: expr): String =
     s"${translate(s)}.Length"
   override def strSubstring(s: expr, from: expr, to: expr): String =
