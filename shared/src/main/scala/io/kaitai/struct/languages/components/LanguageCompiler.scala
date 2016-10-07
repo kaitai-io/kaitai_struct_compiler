@@ -59,6 +59,8 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
 
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
 
+  def condIfClear(instName: Identifier): Unit = {}
+  def condIfSetCalculated(instName: Identifier): Unit = {}
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter(expr: Ast.expr): Unit
 

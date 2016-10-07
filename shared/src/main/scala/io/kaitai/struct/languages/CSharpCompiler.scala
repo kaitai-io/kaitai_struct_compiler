@@ -139,6 +139,14 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   override def popPos(io: String): Unit =
     out.puts(s"$io.Seek(_pos);")
 
+  override def instanceClear(instName: Identifier): Unit = {
+    out.puts(s"${flagForInstName(instName)} = false;")
+  }
+
+  override def instanceSetCalculated(instName: Identifier): Unit = {
+    out.puts(s"${flagForInstName(instName)} = true;")
+  }
+
   override def condIfHeader(expr: expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
     out.inc
@@ -247,6 +255,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts("}")
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+    out.puts(s"private bool ${flagForInstName(attrName)};")
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
@@ -257,12 +266,6 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts("get")
     out.puts("{")
     out.inc
-
-    // Move this out of `instanceCheckCacheAndReturn` because we need to know the datatype
-    out.puts(s"if (${privateMemberName(instName)} != default(${kaitaiType2NativeType(dataType)}))")
-    out.inc
-    instanceReturn(instName)
-    out.dec
   }
 
   override def instanceFooter: Unit = {
@@ -273,12 +276,17 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
-    // See instanceHeader - the data type is needed, so the check is added in the instance header instead
+    out.puts(s"if (${flagForInstName(instName)})")
+    out.inc
+    instanceReturn(instName)
+    out.dec
   }
 
   override def instanceReturn(instName: InstanceIdentifier): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
+
+  def flagForInstName(ksName: Identifier) = s"f_${idToStr(ksName)}"
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
     val enumClass = type2class(enumName)

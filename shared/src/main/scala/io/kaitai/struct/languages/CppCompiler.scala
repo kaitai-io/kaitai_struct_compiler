@@ -267,6 +267,10 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
     outSrc.puts(s"${flagForInstName(instName)} = true;")
   }
 
+  override def condIfClear(instName: Identifier): Unit = instanceClear(instName)
+
+  override def condIfSetCalculated(instName: Identifier): Unit = instanceSetCalculated(instName)
+
   override def condIfHeader(expr: Ast.expr): Unit = {
     outSrc.puts(s"if (${expression(expr)}) {")
     outSrc.inc

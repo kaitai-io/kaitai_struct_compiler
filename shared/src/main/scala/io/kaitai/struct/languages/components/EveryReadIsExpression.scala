@@ -21,9 +21,9 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
     attr.cond.ifExpr match {
       case Some(e) =>
-        instanceClear(id)
+        condIfClear(id)
         condIfHeader(e)
-        instanceSetCalculated(id)
+        condIfSetCalculated(id)
       case None => // ignore
     }
 
