@@ -282,7 +282,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     full("\"12345\".to_i", CalcIntType, CalcIntType, Map(
       CppCompiler -> "std::stoi(std::string(\"12345\"))",
-      CSharpCompiler -> "long.Parse(\"12345\")",
+      CSharpCompiler -> "Convert.ToInt64(\"12345\", 10)",
       JavaCompiler -> "Long.parseLong(\"12345\", 10)",
       JavaScriptCompiler -> "Number.parseInt(\"12345\", 10)",
       PerlCompiler -> "\"12345\"",
