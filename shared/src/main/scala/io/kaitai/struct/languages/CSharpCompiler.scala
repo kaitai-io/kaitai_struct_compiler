@@ -228,17 +228,18 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts(s"switch (${expression(on)}) {")
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"case ${expression(condition)}:")
+    out.puts(s"case ${expression(condition)}: {")
     out.inc
   }
 
   override def switchCaseEnd(): Unit = {
     out.puts("break;")
     out.dec
+    out.puts("}")
   }
 
   override def switchElseStart(): Unit = {
-    out.puts("default:")
+    out.puts("default: {")
     out.inc
   }
 
@@ -362,9 +363,30 @@ object CSharpCompiler extends LanguageCompilerStatic
       case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"
 
       // TODO: implement proper type derivation
-      case SwitchType(_, _) => kstructName
+      case SwitchType(_, cases) => commonSwitchType(cases)
     }
   }
+
+  /**
+    * Determine common superclass that will accomodate all possible results
+    * from a switch type. We just check if everything fits is a user type
+    * (and thus will fit in `KaitaiStruct`), or just return `object`.
+    *
+    * @param cases
+    * @return C# type name of common superclass
+    */
+  def commonSwitchType(cases: Map[Ast.expr, BaseType]): String = {
+    cases.values.foreach {
+      case _: UserType =>
+      // all good, continue, may be all we have is user types
+      case _ =>
+        // nope, something else, so just bail out early and stick
+        // with a generic object
+        return "object"
+    }
+    kstructName
+  }
+
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 
