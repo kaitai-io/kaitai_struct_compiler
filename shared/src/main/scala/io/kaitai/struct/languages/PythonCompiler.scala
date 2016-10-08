@@ -30,7 +30,6 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts(s"# $headerComment")
     out.puts
     out.puts("import array")
-    out.puts("import cStringIO")
     out.puts("import zlib")
     out.puts("from enum import Enum")
     out.puts
@@ -90,7 +89,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case NoRepeat => varStr
     }
 
-    out.puts(s"io = $kstreamName(cStringIO.StringIO($args))")
+    out.puts(s"io = $kstreamName($kstreamName.bytes_io($args))")
     "io"
   }
 
