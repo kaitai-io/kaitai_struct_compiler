@@ -31,7 +31,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybodyExcept("3 / 2", "(3 / 2)", Map(
       JavaScriptCompiler -> "Math.floor(3 / 2)",
       PerlCompiler -> "int(3 / 2)",
-      PHPCompiler -> "intval(3 / 2)"
+      PHPCompiler -> "intval(3 / 2)",
+      PythonCompiler -> "3 // 2"
     )),
 
     everybody("1 + 2 + 5", "((1 + 2) + 5)"),
@@ -39,7 +40,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", Map(
       JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
       PerlCompiler -> "int((1 + 2) / (7 * 8))",
-      PHPCompiler -> "intval((1 + 2) / (7 * 8))"
+      PHPCompiler -> "intval((1 + 2) / (7 * 8))",
+      PythonCompiler -> "(1 + 2) // (7 * 8)"
     )),
 
     everybody("1 < 2", "1 < 2", BooleanType),
