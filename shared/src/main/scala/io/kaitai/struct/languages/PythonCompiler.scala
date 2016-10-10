@@ -124,9 +124,9 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = [None] * ${expression(repeatExpr)}")
-    out.puts(s"${privateMemberName(id)} = [None] * ${expression(repeatExpr)}")
-    out.puts(s"for i in xrange(${expression(repeatExpr)}):")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = [None] * (${expression(repeatExpr)})")
+    out.puts(s"${privateMemberName(id)} = [None] * (${expression(repeatExpr)})")
+    out.puts(s"for i in range(${expression(repeatExpr)}):")
     out.inc
   }
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
