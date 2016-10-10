@@ -19,8 +19,8 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   val links = ListBuffer[(String, String, String)]()
   val extraClusterLines = new StringLanguageOutputWriter(GraphvizClassCompiler.indent)
 
-  var nowClass: ClassSpec = topClass
-  var nowClassName = topClassName
+  def nowClass: ClassSpec = provider.nowClass
+  def nowClassName = provider.nowClass.name
   var currentTable: String = ""
 
   override def compile: Unit = {
@@ -29,7 +29,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     out.puts("rankdir=LR;")
     out.puts("node [shape=plaintext];")
 
-    compileClass(List(topClass.meta.get.id), topClass)
+    compileClass(topClass)
 
     links.foreach { case (t1, t2, style) =>
         out.puts(s"$t1 -> $t2 [$style];")
@@ -39,9 +39,9 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     out.puts("}")
   }
 
-  def compileClass(className: List[String], curClass: ClassSpec): Unit = {
-    nowClass = curClass
-    nowClassName = className
+  def compileClass(curClass: ClassSpec): Unit = {
+    provider.nowClass = curClass
+    val className = curClass.name
 
     out.puts(s"subgraph cluster__${type2class(className)} {")
     out.inc
@@ -69,7 +69,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     extraClusterLines.clear()
 
     // Recursive types
-    curClass.types.foreach { case (typeName, intClass) => compileClass(className :+ typeName, intClass) }
+    curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
 
     out.dec
     out.puts("}")
