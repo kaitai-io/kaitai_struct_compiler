@@ -357,7 +357,14 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  def userType(name: String) = UserTypeInstream(List(name))
+  def userType(name: String) = {
+    val lname = List(name)
+    val cs = ClassSpec(None, List(), Map(), Map(), Map())
+    cs.name = lname
+    val ut = UserTypeInstream(lname)
+    ut.classSpec = Some(cs)
+    ut
+  }
 
   lazy val ALL_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.values
 
