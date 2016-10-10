@@ -19,7 +19,7 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"str(bytearray(${super.doByteArrayLiteral(arr)}))"
+    s"struct.pack('${arr.length}b', ${arr.mkString(", ")})"
 
   override def doLocalName(s: String) = {
     s match {

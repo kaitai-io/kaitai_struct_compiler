@@ -30,6 +30,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts(s"# $headerComment")
     out.puts
     out.puts("import array")
+    out.puts("import struct")
     out.puts("import zlib")
     out.puts("from enum import Enum")
     out.puts
