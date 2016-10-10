@@ -33,7 +33,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
     out.puts("import zlib")
     out.puts("from enum import Enum")
     out.puts
-    out.puts(s"from kaitaistruct import $kstructName, $kstreamName")
+    out.puts(s"from kaitaistruct import $kstructName, $kstreamName, BytesIO")
     out.puts
     out.puts
   }
@@ -89,7 +89,7 @@ class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case NoRepeat => varStr
     }
 
-    out.puts(s"io = $kstreamName($kstreamName.bytes_io($args))")
+    out.puts(s"io = $kstreamName(BytesIO($args))")
     "io"
   }
 
