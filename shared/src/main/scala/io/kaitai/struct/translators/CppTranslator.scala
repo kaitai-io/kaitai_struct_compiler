@@ -4,6 +4,7 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.languages.CppCompiler
 
 class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   // TODO: add string escaping
@@ -18,7 +19,7 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"kaitai::kstream::mod(${translate(left)}, ${translate(right)})"
+        s"${CppCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
       case _ =>
         super.numericBinOp(left, op, right)
     }
