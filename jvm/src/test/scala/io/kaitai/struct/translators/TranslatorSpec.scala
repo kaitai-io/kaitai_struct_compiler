@@ -180,7 +180,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
       JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
       PHPCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
-      PythonCompiler -> "str(bytearray([34, 0, 10, 64, 65, 66, 92]))",
+      PythonCompiler -> "struct.pack('7b', 34, 0, 10, 64, 65, 66, 92)",
       RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')"
     )),
 
@@ -190,7 +190,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaCompiler -> "new byte[] { -1, 0, -1 }",
       JavaScriptCompiler -> "[255, 0, 255]",
       PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
-      PythonCompiler -> "str(bytearray([255, 0, 255]))",
+      PythonCompiler -> "struct.pack('3b', -1, 0, -1)",
       RubyCompiler -> "[255, 0, 255].pack('C*')"
     )),
 
