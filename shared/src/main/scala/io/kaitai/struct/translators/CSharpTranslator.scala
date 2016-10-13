@@ -3,8 +3,8 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
-import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
-import io.kaitai.struct.languages.CSharpCompiler
+import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type, IntType}
+import io.kaitai.struct.languages.{CSharpCompiler, CppCompiler}
 
 class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
@@ -15,6 +15,15 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new byte[] { ${arr.map(_ & 0xff).mkString(", ")} }"
+
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Mod) =>
+        s"${CSharpCompiler.kstreamName}.Mod(${translate(left)}, ${translate(right)})"
+      case _ =>
+        super.numericBinOp(left, op, right)
+    }
+  }
 
   override def doName(s: String) =
     if (s.startsWith("_"))
