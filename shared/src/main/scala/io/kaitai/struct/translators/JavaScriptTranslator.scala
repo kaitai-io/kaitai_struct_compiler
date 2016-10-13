@@ -4,12 +4,15 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.IntType
+import io.kaitai.struct.languages.JavaScriptCompiler
 
 class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"Math.floor(${translate(left)} / ${translate(right)})"
+      case (_: IntType, _: IntType, Ast.operator.Mod) =>
+        s"${JavaScriptCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
       case _ =>
         super.numericBinOp(left, op, right)
     }
