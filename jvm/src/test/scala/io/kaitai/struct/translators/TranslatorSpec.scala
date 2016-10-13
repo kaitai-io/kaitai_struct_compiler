@@ -48,7 +48,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     everybody("1 == 2", "1 == 2", BooleanType),
 
-    full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map(
+    full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "(2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\"))",
       CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
@@ -74,7 +74,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("(1 + 2) / (7 * 8.1)", "((1 + 2) / (7 * 8.1))", CalcFloatType),
 
     // Boolean literals
-    full("true", BooleanType, BooleanType, Map(
+    full("true", BooleanType, BooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "true",
       CSharpCompiler -> "true",
       JavaCompiler -> "true",
@@ -85,7 +85,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "true"
     )),
 
-    full("false", BooleanType, BooleanType, Map(
+    full("false", BooleanType, BooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "false",
       CSharpCompiler -> "false",
       JavaCompiler -> "false",
@@ -97,7 +97,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     // Member access
-    full("foo_str", CalcStrType, CalcStrType, Map(
+    full("foo_str", CalcStrType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "foo_str()",
       CSharpCompiler -> "FooStr",
       JavaCompiler -> "fooStr()",
@@ -108,7 +108,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "foo_str"
     )),
 
-    full("foo_block", userType("block"), userType("block"), Map(
+    full("foo_block", userType("block"), userType("block"), Map[LanguageCompilerStatic, String](
       CppCompiler -> "foo_block()",
       CSharpCompiler -> "FooBlock",
       JavaCompiler -> "fooBlock()",
@@ -119,7 +119,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "foo_block"
     )),
 
-    full("foo.bar", FooBarProvider, CalcStrType, Map(
+    full("foo.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "foo()->bar()",
       CSharpCompiler -> "Foo.Bar",
       JavaCompiler -> "foo().bar()",
@@ -130,7 +130,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "foo.bar"
     )),
 
-    full("foo.inner.baz", FooBarProvider, CalcIntType, Map(
+    full("foo.inner.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "foo()->inner()->baz()",
       CSharpCompiler -> "Foo.Inner.Baz",
       JavaCompiler -> "foo().inner().baz()",
@@ -141,7 +141,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "foo.inner.baz"
     )),
 
-    full("_root.foo", userType("block"), userType("block"), Map(
+    full("_root.foo", userType("block"), userType("block"), Map[LanguageCompilerStatic, String](
       CppCompiler -> "_root()->foo()",
       CSharpCompiler -> "M_Root.Foo",
       JavaCompiler -> "_root.foo()",
@@ -152,7 +152,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "_root.foo"
     )),
 
-    full("a != 2 and a != 5", CalcIntType, BooleanType, Map(
+    full("a != 2 and a != 5", CalcIntType, BooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "a() != 2 && a() != 5",
       CSharpCompiler -> "A != 2 && A != 5",
       JavaCompiler -> "a() != 2 && a() != 5",
@@ -164,7 +164,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     // Arrays
-    full("[0, 1, 100500]", CalcIntType, ArrayType(CalcIntType), Map(
+    full("[0, 1, 100500]", CalcIntType, ArrayType(CalcIntType), Map[LanguageCompilerStatic, String](
       CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
       JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
       JavaScriptCompiler -> "[0, 1, 100500]",
@@ -174,7 +174,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "[0, 1, 100500]"
     )),
 
-    full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map(
+    full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\", 7)",
       CSharpCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
       JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
@@ -184,7 +184,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')"
     )),
 
-    full("[255, 0, 255]", CalcIntType, CalcBytesType, Map(
+    full("[255, 0, 255]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"\\xFF\\x00\\xFF\", 3)",
       CSharpCompiler -> "new byte[] { 255, 0, 255 }",
       JavaCompiler -> "new byte[] { -1, 0, -1 }",
@@ -194,7 +194,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "[255, 0, 255].pack('C*')"
     )),
 
-    full("a[42]", ArrayType(CalcStrType), CalcStrType, Map(
+    full("a[42]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "a()->at(42)",
       CSharpCompiler -> "A[42]",
       JavaCompiler -> "a().get(42)",
@@ -203,7 +203,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "a[42]"
     )),
 
-    full("a[42 - 2]", ArrayType(CalcStrType), CalcStrType, Map(
+    full("a[42 - 2]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "a()->at((42 - 2))",
       CSharpCompiler -> "A[(42 - 2)]",
       JavaCompiler -> "a().get((42 - 2))",
@@ -212,7 +212,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "a[(42 - 2)]"
     )),
 
-    full("a.first", ArrayType(CalcIntType), CalcIntType, Map(
+    full("a.first", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "a()->front()",
       CSharpCompiler -> "A[0]",
       JavaCompiler -> "a().get(0)",
@@ -221,7 +221,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "a.first"
     )),
 
-    full("a.last", ArrayType(CalcIntType), CalcIntType, Map(
+    full("a.last", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "a()->back()",
       CSharpCompiler -> "A[A.Length - 1]",
       JavaCompiler -> "a().get(a().size() - 1)",
@@ -231,7 +231,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     // Strings
-    full("\"str\"", CalcIntType, CalcStrType, Map(
+    full("\"str\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str\")",
       CSharpCompiler -> "\"str\"",
       JavaCompiler -> "\"str\"",
@@ -242,28 +242,28 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "\"str\""
     )),
 
-    everybodyExcept("\"str1\" + \"str2\"", "\"str1\" + \"str2\"", Map(
+    everybodyExcept("\"str1\" + \"str2\"", "\"str1\" + \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str1\") + std::string(\"str2\")",
       PerlCompiler -> "\"str1\" . \"str2\"",
       PHPCompiler -> "\"str1\" . \"str2\"",
       PythonCompiler -> "u\"str1\" + u\"str2\""
     ), CalcStrType),
 
-    everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", Map(
+    everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str1\") == (std::string(\"str2\"))",
       JavaCompiler -> "\"str1\".equals(\"str2\")",
       PerlCompiler -> "\"str1\" eq \"str2\"",
       PythonCompiler -> "u\"str1\" == u\"str2\""
     ), BooleanType),
 
-    everybodyExcept("\"str1\" != \"str2\"", "\"str1\" != \"str2\"", Map(
+    everybodyExcept("\"str1\" != \"str2\"", "\"str1\" != \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str1\") != std::string(\"str2\")",
       JavaCompiler -> "!(\"str1\").equals(\"str2\")",
       PerlCompiler -> "\"str1\" ne \"str2\"",
       PythonCompiler -> "u\"str1\" != u\"str2\""
     ), BooleanType),
 
-    everybodyExcept("\"str1\" < \"str2\"", "\"str1\" < \"str2\"", Map(
+    everybodyExcept("\"str1\" < \"str2\"", "\"str1\" < \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "(std::string(\"str1\").compare(std::string(\"str2\")) < 0)",
       CSharpCompiler -> "(\"str1\".CompareTo(\"str2\") < 0)",
       JavaCompiler -> "(\"str1\".compareTo(\"str2\") < 0)",
@@ -271,7 +271,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       PythonCompiler -> "u\"str1\" < u\"str2\""
     ), BooleanType),
 
-    full("\"str\".length", CalcIntType, CalcIntType, Map(
+    full("\"str\".length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str\").length()",
       CSharpCompiler -> "\"str\".Length",
       JavaCompiler -> "\"str\".length()",
@@ -282,7 +282,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "\"str\".size"
     )),
 
-    full("\"12345\".to_i", CalcIntType, CalcIntType, Map(
+    full("\"12345\".to_i", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::stoi(std::string(\"12345\"))",
       CSharpCompiler -> "Convert.ToInt64(\"12345\", 10)",
       JavaCompiler -> "Long.parseLong(\"12345\", 10)",
@@ -293,7 +293,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "\"12345\".to_i"
     )),
 
-    full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, Map(
+    full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::stoi(std::string(\"1234fe\"), 0, 16)",
       CSharpCompiler -> "Convert.ToInt64(\"1234fe\", 16)",
       JavaCompiler -> "Long.parseLong(\"1234fe\", 16)",
