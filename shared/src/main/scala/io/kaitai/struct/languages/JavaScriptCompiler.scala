@@ -12,7 +12,6 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
   extends LanguageCompiler(verbose, out)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
-    with StreamStructNames
     with EveryReadIsExpression
     with NoNeedForFullClassPath {
   import JavaScriptCompiler._
@@ -302,15 +301,17 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
     }
   }
+}
+
+object JavaScriptCompiler extends LanguageCompilerStatic
+  with UpperCamelCaseClasses
+  with StreamStructNames {
+  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
+  override def indent: String = "  "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
 
   override def kstreamName: String = "KaitaiStream"
 
   // FIXME: probably KaitaiStruct will emerge some day in JavaScript runtime, but for now it is unused
   override def kstructName: String = ???
-}
-
-object JavaScriptCompiler extends LanguageCompilerStatic with UpperCamelCaseClasses {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
-  override def indent: String = "  "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
 }
