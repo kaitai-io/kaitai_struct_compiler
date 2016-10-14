@@ -76,6 +76,12 @@ class RubyCompiler(verbose: Boolean, override val debug: Boolean, out: LanguageO
     }
   }
 
+  override def attributeDoc(id: Identifier, doc: String): Unit = {
+    out.puts
+    out.puts( "##")
+    out.puts(s"# $doc")
+  }
+
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     out.puts(s"${privateMemberName(attrName)} = $normalIO.ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
   }
