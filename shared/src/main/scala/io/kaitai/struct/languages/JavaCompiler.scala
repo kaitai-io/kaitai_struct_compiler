@@ -104,6 +104,13 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
     out.puts(s"public ${kaitaiType2JavaType(attrType)} ${idToStr(attrName)}() { return ${idToStr(attrName)}; }")
   }
 
+  override def attributeDoc(id: Identifier, doc: String): Unit = {
+    out.puts
+    out.puts( "/**")
+    out.puts(s" * $doc")
+    out.puts( " */")
+  }
+
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
