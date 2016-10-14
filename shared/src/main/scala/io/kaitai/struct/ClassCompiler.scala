@@ -66,7 +66,10 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     // Attributes declarations and readers
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
-    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeReader(attr.id, attr.dataTypeComposite))
+    (curClass.seq ++ extraAttrs).foreach { (attr) =>
+      attr.doc.foreach((doc) => lang.attributeDoc(attr.id, doc))
+      lang.attributeReader(attr.id, attr.dataTypeComposite)
+    }
 
     lang.classFooter(curClass.name)
 
@@ -84,6 +87,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
 
   def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+    instSpec.doc.foreach((doc) => lang.attributeDoc(instName, doc))
+
     // Determine datatype
     val dataType = TypeProcessor.getInstanceDataType(instSpec)
 

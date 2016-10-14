@@ -13,6 +13,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
     * Declares whether language is capable of doing inner classes (i.e. classes
     * nested inside each other) or not. Affects calling sequence of rendering
     * methods.
+    *
     * @return whether language is capable of doing inner classes
     */
   def innerClasses: Boolean = true
@@ -21,6 +22,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
     * Declares whether language needs enums to be declared inside classes
     * (true) or outside them (false). Affects calling sequence of rendering
     * methods.
+    *
     * @return whether language needs enums inside classes (true) or outside
     *         (false)
     */
@@ -53,6 +55,7 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
 
   def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit
   def attributeReader(attrName: Identifier, attrType: BaseType): Unit
+  def attributeDoc(id: Identifier, doc: String): Unit = {}
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], io: String): Unit
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
