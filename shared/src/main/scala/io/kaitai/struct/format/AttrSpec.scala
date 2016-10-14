@@ -22,6 +22,7 @@ case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 trait AttrLikeSpec {
   def dataType: BaseType
   def cond: ConditionalSpec
+  def doc: Option[String]
 
   def isArray: Boolean = cond.repeat != NoRepeat
 
@@ -37,7 +38,8 @@ trait AttrLikeSpec {
 case class AttrSpec(
   id: Identifier,
   dataType: BaseType,
-  cond: ConditionalSpec = ConditionalSpec(None, NoRepeat)
+  cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
+  doc: Option[String] = None
 ) extends AttrLikeSpec
 
 object AttrSpec {
@@ -64,6 +66,7 @@ object AttrSpec {
   @JsonCreator
   def create(
               @JsonProperty("id") id: String,
+              @JsonProperty("doc") doc: String,
               @JsonProperty("type") _dataType: Object,
               @JsonProperty("process") _process: String,
               @JsonProperty("contents") _contents: Object,
@@ -133,7 +136,7 @@ object AttrSpec {
       case None => NoRepeat
     }
 
-    AttrSpec(NamedIdentifier(id), dataType, ConditionalSpec(ifExpr, repeatSpec))
+    AttrSpec(NamedIdentifier(id), dataType, ConditionalSpec(ifExpr, repeatSpec), Option(doc))
   }
 
   private def parseSwitch(

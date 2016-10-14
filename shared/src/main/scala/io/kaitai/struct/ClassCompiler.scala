@@ -94,8 +94,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.instanceCheckCacheAndReturn(instName)
 
     instSpec match {
-      case ValueInstanceSpec(value, _) =>
-        lang.instanceCalculate(instName, dataType, value)
+      case vi: ValueInstanceSpec =>
+        lang.instanceCalculate(instName, dataType, vi.value)
       case i: ParseInstanceSpec =>
         val io = i.io match {
           case None => lang.normalIO

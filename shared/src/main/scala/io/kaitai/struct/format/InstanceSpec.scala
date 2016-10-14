@@ -6,12 +6,13 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 // Note: can't be "sealed trait" due to Java JSON parser library compatibility!
 abstract class InstanceSpec
-case class ValueInstanceSpec(value: Ast.expr, var dataType: Option[BaseType]) extends InstanceSpec
-case class ParseInstanceSpec(dataType: BaseType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec with AttrLikeSpec
+case class ValueInstanceSpec(doc: Option[String], value: Ast.expr, var dataType: Option[BaseType]) extends InstanceSpec
+case class ParseInstanceSpec(doc: Option[String], dataType: BaseType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec with AttrLikeSpec
 
 object InstanceSpec {
   @JsonCreator
   def create(
+              @JsonProperty("doc") doc: String,
               @JsonProperty("type") dataType: String,
               @JsonProperty("process") process: String,
               @JsonProperty("contents") contents: Object,
@@ -59,6 +60,7 @@ object InstanceSpec {
       case None =>
         val a = AttrSpec.create(
           "fake_id",
+          doc,
           dataType,
           process,
           contents,
@@ -75,9 +77,9 @@ object InstanceSpec {
           _eosError,
           _enum
         )
-        ParseInstanceSpec(a.dataType, a.cond, positionAbs, io)
+        ParseInstanceSpec(a.doc, a.dataType, a.cond, positionAbs, io)
       case Some(v) =>
-        ValueInstanceSpec(v, None)
+        ValueInstanceSpec(Option(doc), v, None)
     }
   }
 }
