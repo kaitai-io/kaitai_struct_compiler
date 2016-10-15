@@ -87,14 +87,13 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
 
   def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
-    instSpec.doc.foreach((doc) => lang.attributeDoc(instName, doc))
-
     // Determine datatype
     val dataType = TypeProcessor.getInstanceDataType(instSpec)
 
     // Declare caching variable
     lang.instanceDeclaration(instName, dataType, ConditionalSpec(None, NoRepeat))
 
+    instSpec.doc.foreach((doc) => lang.attributeDoc(instName, doc))
     lang.instanceHeader(className, instName, dataType)
     lang.instanceCheckCacheAndReturn(instName)
 
