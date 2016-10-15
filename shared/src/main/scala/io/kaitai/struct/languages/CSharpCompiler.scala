@@ -88,6 +88,13 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
   }
 
+  override def attributeDoc(id: Identifier, doc: String): Unit = {
+    out.puts
+    out.puts( "/// <summary>")
+    out.puts(s"/// $doc")
+    out.puts( "/// </summary>")
+  }
+
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
   }
