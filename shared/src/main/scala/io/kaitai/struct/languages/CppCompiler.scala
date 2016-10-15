@@ -434,6 +434,8 @@ class CppCompiler(verbose: Boolean, outSrc: LanguageOutputWriter, outHdr: Langua
       outSrc.puts("}")
     }
 
+  override def switchBytesOnlyAsRaw = true
+
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"bool ${flagForInstName(attrName)};")

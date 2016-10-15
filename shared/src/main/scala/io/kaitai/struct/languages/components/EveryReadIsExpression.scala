@@ -161,7 +161,16 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
       condition match {
         case SwitchType.ELSE_CONST =>
           switchElseStart()
-          attrParse2(id, dataType, io, extraAttrs, rep)
+          if (switchBytesOnlyAsRaw) {
+            dataType match {
+              case t: BytesType =>
+                attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep)
+              case _ =>
+                attrParse2(id, dataType, io, extraAttrs, rep)
+            }
+          } else {
+            attrParse2(id, dataType, io, extraAttrs, rep)
+          }
           switchElseEnd()
         case _ =>
           // ignore normal case clauses
@@ -200,4 +209,14 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
   def switchElseStart(): Unit
   def switchElseEnd(): Unit = switchCaseEnd()
   def switchEnd(): Unit
+
+  /**
+    * Controls parsing of typeless (BytesType) alternative in switch case. If true,
+    * then target language does not support storing both bytes array and true object
+    * in the same variable, so we'll use workaround: bytes array will be read as
+    * _raw_ variable (which would be used anyway for all other cases as well). If
+    * false (which is default), we'll store *both* true objects and bytes array in
+    * the same variable.
+    */
+  def switchBytesOnlyAsRaw = false
 }
