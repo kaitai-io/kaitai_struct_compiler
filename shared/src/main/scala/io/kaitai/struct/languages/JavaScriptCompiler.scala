@@ -76,6 +76,14 @@ class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
 
   override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {}
 
+  override def attributeDoc(id: Identifier, doc: String): Unit = {
+    // JSDoc docstring style: http://usejsdoc.org/about-getting-started.html
+    out.puts
+    out.puts( "/**")
+    out.puts(s" * $doc")
+    out.puts( " */")
+  }
+
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents(${contents.length}, [${contents.mkString(", ")}]);")
   }
