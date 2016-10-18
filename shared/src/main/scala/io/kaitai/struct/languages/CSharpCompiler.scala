@@ -90,9 +90,9 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
 
   override def attributeDoc(id: Identifier, doc: String): Unit = {
     out.puts
-    out.puts( "/// <summary>")
+    out.puts( "/// <summary><![CDATA[")
     out.puts(s"/// $doc")
-    out.puts( "/// </summary>")
+    out.puts( "/// ]]></summary>")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
