@@ -377,6 +377,19 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case ut: UserType => type2display(ut.name)
       case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
       case _: BytesType => ""
+      case StrByteLimitType(_, encoding) => s"str($encoding)"
+      case StrEosType(encoding) => s"str($encoding)"
+      case StrZType(encoding, terminator, include, consume, eosError) =>
+        val args = ListBuffer(encoding)
+        if (terminator != 0)
+          args += s"term=$terminator"
+        if (include)
+          args += "include"
+        if (!consume)
+          args += "don't consume"
+        if (!eosError)
+          args += "ignore EOS"
+        s"strz(${args.mkString(", ")})"
       case _ => dataType.toString
     }
   }
