@@ -96,7 +96,7 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents(${contents.length}, ${translator.doByteArrayLiteral(contents)});")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
