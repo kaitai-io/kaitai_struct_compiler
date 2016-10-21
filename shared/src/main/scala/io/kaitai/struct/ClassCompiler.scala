@@ -146,7 +146,7 @@ object ClassCompiler {
       case CppCompiler =>
         val outSrc = new FileLanguageOutputWriter(s"$outPath.cpp", lang.indent)
         val outHdr = new FileLanguageOutputWriter(s"$outPath.h", lang.indent)
-        new ClassCompiler(topClass, new CppCompiler(config.verbose, outSrc, outHdr))
+        new ClassCompiler(topClass, new CppCompiler(config, outSrc, outHdr))
       case _ =>
         val out = new FileLanguageOutputWriter(outPath, lang.indent)
         new ClassCompiler(topClass, getCompiler(lang, config, out))
@@ -167,7 +167,7 @@ object ClassCompiler {
       case CppCompiler =>
         val outSrc = new StringLanguageOutputWriter(lang.indent)
         val outHdr = new StringLanguageOutputWriter(lang.indent)
-        val cc = new ClassCompiler(topClass, new CppCompiler(config.verbose, outSrc, outHdr))
+        val cc = new ClassCompiler(topClass, new CppCompiler(config, outSrc, outHdr))
         (outSrc, Some(outHdr), cc)
       case _ =>
         val out = new StringLanguageOutputWriter(lang.indent)
@@ -177,12 +177,12 @@ object ClassCompiler {
   }
 
   private def getCompiler(lang: LanguageCompilerStatic, config: RuntimeConfig, out: LanguageOutputWriter) = lang match {
-    case CSharpCompiler => new CSharpCompiler(config.verbose, out, config.dotNetNamespace)
-    case JavaCompiler => new JavaCompiler(config.verbose, out, config.javaPackage)
-    case JavaScriptCompiler => new JavaScriptCompiler(config.verbose, out)
-    case PerlCompiler => new PerlCompiler(config.verbose, out)
-    case PHPCompiler => new PHPCompiler(config.verbose, out, config.phpNamespace)
-    case PythonCompiler => new PythonCompiler(config.verbose, out)
-    case RubyCompiler => new RubyCompiler(config.verbose, config.debug, out)
+    case CSharpCompiler => new CSharpCompiler(config, out)
+    case JavaCompiler => new JavaCompiler(config, out)
+    case JavaScriptCompiler => new JavaScriptCompiler(config, out)
+    case PerlCompiler => new PerlCompiler(config, out)
+    case PHPCompiler => new PHPCompiler(config, out)
+    case PythonCompiler => new PythonCompiler(config, out)
+    case RubyCompiler => new RubyCompiler(config, out)
   }
 }

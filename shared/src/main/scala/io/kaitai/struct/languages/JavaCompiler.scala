@@ -8,8 +8,8 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
 import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 
-class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: String = "")
-  extends LanguageCompiler(verbose, out)
+class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
     with EveryReadIsExpression
     with UniversalFooter
@@ -26,9 +26,9 @@ class JavaCompiler(verbose: Boolean, out: LanguageOutputWriter, destPackage: Str
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
-    if (!destPackage.isEmpty) {
+    if (!config.javaPackage.isEmpty) {
       out.puts
-      out.puts(s"package $destPackage;")
+      out.puts(s"package ${config.javaPackage};")
     }
     out.puts
     out.puts(s"import io.kaitai.struct.$kstructName;")

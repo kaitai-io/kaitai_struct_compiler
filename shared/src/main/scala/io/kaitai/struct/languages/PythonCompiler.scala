@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
@@ -8,8 +8,8 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvider}
 
-class PythonCompiler(verbose: Boolean, out: LanguageOutputWriter)
-  extends LanguageCompiler(verbose, out)
+class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
     with UniversalFooter
     with UpperCamelCaseClasses

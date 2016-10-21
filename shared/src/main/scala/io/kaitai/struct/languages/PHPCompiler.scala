@@ -5,10 +5,10 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, PHPTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, Utils}
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 
-class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "")
-  extends LanguageCompiler(verbose, out)
+class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with UniversalFooter
@@ -38,9 +38,9 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
   def classHeader(name: List[String], parentClass: Option[String]): Unit = {
     val nsPart = name.dropRight(1)
     val ns = if (nsPart.nonEmpty) {
-      namespace + "\\" + types2classRel(nsPart)
+      config.phpNamespace + "\\" + types2classRel(nsPart)
     } else {
-      namespace
+      config.phpNamespace
     }
     if (ns.nonEmpty) {
       out.puts
@@ -294,10 +294,10 @@ class PHPCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String
 
   override def publicMemberName(id: Identifier) = idToStr(id)
 
-  def namespaceRef = if (namespace.isEmpty) {
+  def namespaceRef = if (config.phpNamespace.isEmpty) {
     ""
   } else {
-    "\\" + namespace
+    "\\" + config.phpNamespace
   }
 
   def types2classRel(names: List[String]) = names.map(type2class(_)).mkString("\\")

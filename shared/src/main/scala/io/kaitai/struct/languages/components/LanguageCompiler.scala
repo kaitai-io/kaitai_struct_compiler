@@ -1,14 +1,14 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.DataType.BaseType
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{BaseTranslator, TypeProvider}
+import io.kaitai.struct.translators.BaseTranslator
+import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
 
 import scala.collection.mutable.ListBuffer
 
-abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
+abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter) {
   /**
     * Declares whether language is capable of doing inner classes (i.e. classes
     * nested inside each other) or not. Affects calling sequence of rendering
@@ -39,6 +39,8 @@ abstract class LanguageCompiler(verbose: Boolean, out: LanguageOutputWriter) {
   def close = out.close
   def typeProvider: ClassTypeProvider = _typeProvider.get
   def translator: BaseTranslator = _translator.get
+
+  def debug = config.debug
 
   def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}

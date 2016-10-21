@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.LanguageOutputWriter
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{UserType, _}
@@ -8,8 +8,8 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{NoNeedForFullClassPath, _}
 import io.kaitai.struct.translators.{BaseTranslator, PerlTranslator, TypeProvider}
 
-class PerlCompiler(verbose: Boolean, out: LanguageOutputWriter)
-  extends LanguageCompiler(verbose, out)
+class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(config, out)
     with UniversalFooter
     with UpperCamelCaseClasses
     with AllocateIOLocalVar

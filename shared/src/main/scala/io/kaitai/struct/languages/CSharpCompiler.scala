@@ -6,10 +6,10 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, Utils}
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 
-class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: String = "Kaitai")
-  extends LanguageCompiler(verbose, out)
+class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with EveryReadIsExpression
@@ -22,7 +22,8 @@ class CSharpCompiler(verbose: Boolean, out: LanguageOutputWriter, namespace: Str
     out.puts(s"// $headerComment")
 
     var ns = "Kaitai"
-    if (!namespace.isEmpty) ns = namespace
+    if (!config.dotNetNamespace.isEmpty)
+      ns = config.dotNetNamespace
 
     out.puts
     out.puts("using System;")

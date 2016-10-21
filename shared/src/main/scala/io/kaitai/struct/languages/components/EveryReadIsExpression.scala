@@ -13,8 +13,6 @@ import scala.collection.mutable.ListBuffer
   * "handleAssignment".
   */
 trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage {
-  def debug = false
-
   override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], io: String): Unit = {
     if (debug)
       attrDebugStart(id, io, NoRepeat)

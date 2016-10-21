@@ -6,10 +6,10 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, JavaScriptTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, Utils}
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 
-class JavaScriptCompiler(verbose: Boolean, out: LanguageOutputWriter)
-  extends LanguageCompiler(verbose, out)
+class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with EveryReadIsExpression
