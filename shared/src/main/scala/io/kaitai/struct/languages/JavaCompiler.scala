@@ -67,7 +67,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("super(_io);")
     if (name == rootClassName)
       out.puts("this._root = this;")
-    out.puts("_parse();")
+    out.puts("_read();")
     out.dec
     out.puts("}")
 
@@ -78,7 +78,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("this._parent = _parent;")
     if (name == rootClassName)
       out.puts("this._root = this;")
-    out.puts("_parse();")
+    out.puts("_read();")
     out.dec
     out.puts("}")
 
@@ -88,11 +88,11 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("super(_io);")
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root;")
-    out.puts("_parse();")
+    out.puts("_read();")
     out.dec
     out.puts("}")
 
-    out.puts("private void _parse() throws IOException {")
+    out.puts("private void _read() throws IOException {")
     out.inc
   }
 
