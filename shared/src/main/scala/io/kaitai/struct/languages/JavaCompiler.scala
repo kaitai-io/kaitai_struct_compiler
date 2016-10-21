@@ -53,6 +53,14 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"public ${staticStr}class ${type2class(name)} extends $kstructName {")
     out.inc
 
+    if (debug) {
+      out.puts("public Map<String, Integer> _attrStart = new HashMap<String, Integer>();")
+      out.puts("public Map<String, Integer> _attrEnd = new HashMap<String, Integer>();")
+      out.puts("public Map<String, ArrayList<Integer>> _arrStart = new HashMap<String, ArrayList<Integer>>();")
+      out.puts("public Map<String, ArrayList<Integer>> _arrEnd = new HashMap<String, ArrayList<Integer>>();")
+      out.puts
+    }
+
     out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
     out.inc
     out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
@@ -96,8 +104,18 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
 
     val readAccess = if (debug) "public" else "private"
-    out.puts(s"$readAccess void _read() throws IOException {")
+    out.puts(s"$readAccess ${type2class(name)} _read() throws IOException {")
     out.inc
+  }
+
+  override def classConstructorFooter: Unit = {
+    if (debug) {
+      // Actually, it's not constructor in debug mode, but a "_read" method. Make sure it returns an instance of the
+      // class, just as normal "new Foo(...)" call does.
+      out.puts
+      out.puts("return this;")
+    }
+    universalFooter
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
@@ -165,6 +183,52 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
+
+  override def attrDebugStart(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId match {
+      case NamedIdentifier(name) => name
+      case InstanceIdentifier(name) => name
+      case _: RawIdentifier | _: SpecialIdentifier => return
+    }
+    rep match {
+      case NoRepeat =>
+        out.puts("_attrStart.put(\"" + name + "\", " + io + ".pos());")
+      case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
+        getOrCreatePosList("_arrStart", name)
+        out.puts(s"_posList.add($io.pos());")
+        out.dec
+        out.puts("}")
+    }
+  }
+
+  override def attrDebugEnd(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId match {
+      case NamedIdentifier(name) => name
+      case InstanceIdentifier(name) => name
+      case _: RawIdentifier | _: SpecialIdentifier => return
+    }
+    rep match {
+      case NoRepeat =>
+        out.puts("_attrEnd.put(\"" + name + "\", " + io + ".pos());")
+      case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
+        getOrCreatePosList("_arrEnd", name)
+        out.puts(s"_posList.add($io.pos());")
+        out.dec
+        out.puts("}")
+    }
+  }
+
+  def getOrCreatePosList(listName: String, varName: String): Unit = {
+    out.puts("{")
+    out.inc
+    out.puts("ArrayList<Integer> _posList = _arrStart.get(\"" + varName + "\");")
+    out.puts("if (_posList == null) {")
+    out.inc
+    out.puts("_posList = new ArrayList<Integer>();")
+    out.puts("_arrStart.put(\"" + varName + "\", _posList);")
+    out.dec
+    out.puts("}")
+  }
 
   override def condIfHeader(expr: expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
@@ -241,7 +305,12 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-        s"new ${types2class(t.name)}($io, this, _root)"
+        val r = s"new ${types2class(t.name)}($io, this, _root)"
+        if (debug) {
+          s"$r._read()"
+        } else {
+          r
+        }
     }
   }
 
