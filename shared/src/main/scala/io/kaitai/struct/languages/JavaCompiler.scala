@@ -431,6 +431,9 @@ object JavaCompiler extends LanguageCompilerStatic
       case IntMultiType(true, Width4, _) => "Integer"
       case IntMultiType(true, Width8, _) => "Long"
 
+      case FloatMultiType(Width4, _) => "Float"
+      case FloatMultiType(Width8, _) => "Double"
+
       case BooleanType => "Boolean"
       case CalcIntType => "Integer"
       case CalcFloatType => "Double"
