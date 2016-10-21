@@ -45,5 +45,13 @@ class AttrSpec$Test extends FunSpec {
     it ("parses JSON array of decimal integers + hex integers + UTF-8 string") {
       tryOne("[1, 0x55, '彼', 3]") should be(Array(1, 0x55, 0xe5, 0xbd, 0xbc, 3).map(x => x.asInstanceOf[Byte]))
     }
+
+    it ("parses complex spec 1") {
+      tryOne("[1, 0x55, '▒,3', 3]") should be(Array(1, 0x55, 0xe2, 0x96, 0x92, 0x2c, 0x33, 3).map(x => x.asInstanceOf[Byte]))
+    }
+
+    it ("parses complex spec 2") {
+      tryOne("[foo, 0, A, 0xa, 42]") should be(Array(0x66, 0x6f, 0x6f, 0x00, 0x41, 0x0a, 0x2a).map(x => x.asInstanceOf[Byte]))
+    }
   }
 }
