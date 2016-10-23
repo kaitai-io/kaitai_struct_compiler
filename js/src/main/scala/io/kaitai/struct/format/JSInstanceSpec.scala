@@ -15,6 +15,7 @@ object JSInstanceSpec {
     def toScala: InstanceSpec =
       InstanceSpec.create(
         self.`type`.orNull,
+        self.doc.orNull,
         self.process.orNull,
         self.contents.orNull,
         self.size.map(x => x.toString).orNull,

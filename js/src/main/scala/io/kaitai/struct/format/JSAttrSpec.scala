@@ -6,6 +6,7 @@ import scala.scalajs.js.annotation.ScalaJSDefined
 @ScalaJSDefined
 trait JSAttrSpec extends js.Object {
   val id: js.UndefOr[String]
+  val doc: js.UndefOr[String]
   val `type`: js.UndefOr[String]
   val process: js.UndefOr[String]
   val contents: js.UndefOr[String]
@@ -28,6 +29,7 @@ object JSAttrSpec {
     def toScala: AttrSpec =
       AttrSpec.create(
         self.id.orNull,
+        self.doc.orNull,
         self.`type`.orNull,
         self.process.orNull,
         self.contents.orNull,
