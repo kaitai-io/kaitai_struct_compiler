@@ -3,6 +3,7 @@ package io.kaitai.struct.exprlang
 import fastparse.noApi._
 import Lexical.kw
 import WsApi._
+import fastparse.StringReprOps
 
 /**
   * Loosely based on /pythonparse/shared/src/main/scala/pythonparse/
@@ -165,7 +166,7 @@ object Expressions {
     r match {
       case Parsed.Success(value, index) => value
       case f: Parsed.Failure =>
-        Console.err.println(s"parsing expression '${src}' failed on ${f.extra.line}:${f.extra.col}")
+        Console.err.println(s"parsing expression '$src' failed on ${StringReprOps.prettyIndex(f.extra.input, f.index)}")
         Console.err.println(s"expected: ${f.extra.traced.expected}")
         throw new ParseException(f.msg)
     }

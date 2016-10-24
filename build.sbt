@@ -24,7 +24,7 @@ lazy val compiler = crossProject.in(file(".")).
     buildInfoPackage := "io.kaitai.struct",
     buildInfoOptions += BuildInfoOption.BuildTime,
     libraryDependencies ++= Seq(
-      "com.lihaoyi" %%% "fastparse" % "0.3.7",
+      "com.lihaoyi" %%% "fastparse" % "0.4.1",
       "org.yaml" % "snakeyaml" % "1.16",
       "com.fasterxml.jackson.core" % "jackson-core" % "2.1.1",
       "com.fasterxml.jackson.core" % "jackson-annotations" % "2.1.1",
