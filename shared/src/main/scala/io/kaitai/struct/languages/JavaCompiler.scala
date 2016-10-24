@@ -103,8 +103,12 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.dec
     out.puts("}")
 
-    val readAccess = if (debug) "public" else "private"
-    out.puts(s"$readAccess ${type2class(name)} _read() throws IOException {")
+    val readAccessAndType = if (debug) {
+      s"public ${type2class(name)}"
+    } else {
+      "private void"
+    }
+    out.puts(s"$readAccessAndType _read() throws IOException {")
     out.inc
   }
 
