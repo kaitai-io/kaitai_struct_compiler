@@ -184,9 +184,8 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def attrDebugStart(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
     val name = attrId match {
-      case NamedIdentifier(name) => name
-      case InstanceIdentifier(name) => name
       case _: RawIdentifier | _: SpecialIdentifier => return
+      case _ => idToStr(attrId)
     }
     rep match {
       case NoRepeat =>
@@ -201,9 +200,8 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def attrDebugEnd(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
     val name = attrId match {
-      case NamedIdentifier(name) => name
-      case InstanceIdentifier(name) => name
       case _: RawIdentifier | _: SpecialIdentifier => return
+      case _ => idToStr(attrId)
     }
     rep match {
       case NoRepeat =>
