@@ -104,21 +104,15 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
 
     val readAccessAndType = if (debug) {
-      s"public ${type2class(name)}"
+      "public"
     } else {
-      "private void"
+      "private"
     }
-    out.puts(s"$readAccessAndType _read() throws IOException {")
+    out.puts(s"$readAccessAndType void _read() throws IOException {")
     out.inc
   }
 
   override def classConstructorFooter: Unit = {
-    if (debug) {
-      // Actually, it's not constructor in debug mode, but a "_read" method. Make sure it returns an instance of the
-      // class, just as normal "new Foo(...)" call does.
-      out.puts
-      out.puts("return this;")
-    }
     universalFooter
   }
 
@@ -291,7 +285,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"${privateMemberName(id)} = $expr;")
 
   override def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit =
-    out.puts(s"${kaitaiType2JavaType(dataType)} $id = $expr")
+    out.puts(s"${kaitaiType2JavaType(dataType)} $id = $expr;")
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
