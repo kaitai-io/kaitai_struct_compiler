@@ -16,6 +16,7 @@ lazy val compiler = crossProject.in(file(".")).
   enablePlugins(BuildInfoPlugin).
   enablePlugins(JavaAppPackaging).
   settings(
+    organization := "io.kaitai",
     name := "kaitai-struct-compiler",
     version := "0.5-SNAPSHOT",
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
@@ -23,6 +24,32 @@ lazy val compiler = crossProject.in(file(".")).
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "io.kaitai.struct",
     buildInfoOptions += BuildInfoOption.BuildTime,
+
+    // Repo publish options
+    publishTo <<= version { (v: String) =>
+      val nexus = "https://oss.sonatype.org/"
+      if (v.trim.endsWith("SNAPSHOT"))
+        Some("snapshots" at nexus + "content/repositories/snapshots")
+      else
+        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+    },
+    pomExtra :=
+      <url>http://kaitai.io</url>
+      <scm>
+        <connection>scm:git:git://github.com/kaitai-io/kaitai_struct_compiler.git</connection>
+        <developerConnection>scm:git:ssh://github.com:kaitai-io/kaitai_struct_compiler.git</developerConnection>
+        <url>http://github.com/kaitai-io/kaitai_struct_compiler/tree/master</url>
+      </scm>
+      <developers>
+        <developer>
+          <name>Mikhail Yakshin</name>
+          <email>greycat.na.kor@gmail.com</email>
+          <organization>Kaitai Project</organization>
+          <organizationUrl>http://kaitai.io</organizationUrl>
+        </developer>
+      </developers>
+    ,
+
     libraryDependencies ++= Seq(
       "com.lihaoyi" %%% "fastparse" % "0.4.1",
       "org.yaml" % "snakeyaml" % "1.16",
