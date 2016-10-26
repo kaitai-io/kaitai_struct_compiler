@@ -287,9 +287,11 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
-  }
+
+  override def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit =
+    out.puts(s"${kaitaiType2JavaType(dataType)} $id = $expr")
 
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
@@ -309,14 +311,12 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-        val r = s"new ${types2class(t.name)}($io, this, _root)"
-        if (debug) {
-          s"$r._read()"
-        } else {
-          r
-        }
+        s"new ${types2class(t.name)}($io, this, _root)"
     }
   }
+
+  override def userTypeDebugRead(id: String): Unit =
+    out.puts(s"$id._read();")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
     out.puts(s"switch (${expression(on)}) {")

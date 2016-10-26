@@ -220,6 +220,9 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
+  override def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit =
+    out.puts(s"$id = $expr")
+
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: ReadableType =>
@@ -239,14 +242,12 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.read_bytes_full"
       case t: UserType =>
-        val r = s"${type2class(t.name.last)}.new($io, self, @_root)"
-        if (debug) {
-          s"$r._read"
-        } else {
-          r
-        }
+        s"${type2class(t.name.last)}.new($io, self, @_root)"
     }
   }
+
+  override def userTypeDebugRead(id: String): Unit =
+    out.puts(s"$id._read")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
     out.puts(s"case ${expression(on)}")

@@ -122,7 +122,24 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         io
     }
     val expr = parseExpr(dataType, newIO)
-    handleAssignment(id, expr, rep)
+    if (!debug) {
+      handleAssignment(id, expr, rep)
+    } else {
+      // Debug mode requires one to actually call "_read" method on constructed user type,
+      // and this must be done as a separate statement - or else exception handler would
+      // blast the whole structure, not only this element. This, in turn, makes us assign
+      // constructed element to a temporary variable in case on repetitions
+      rep match {
+        case NoRepeat =>
+          handleAssignmentSimple(id, expr)
+          userTypeDebugRead(privateMemberName(id))
+        case _ =>
+          val tempVarName = s"_t_${idToStr(id)}"
+          handleAssignmentTempVar(dataType, tempVarName, expr)
+          handleAssignment(id, tempVarName, rep)
+          userTypeDebugRead(tempVarName)
+      }
+    }
   }
 
   def needRaw(dataType: BaseType): Boolean = {
@@ -194,8 +211,10 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit
   def handleAssignmentSimple(id: Identifier, expr: String): Unit
+  def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit = ???
 
   def parseExpr(dataType: BaseType, io: String): String
+  def userTypeDebugRead(id: String): Unit = ???
 
   def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr) =
     handleAssignmentSimple(instName, expression(value))
