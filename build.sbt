@@ -17,7 +17,7 @@ lazy val compiler = crossProject.in(file(".")).
   enablePlugins(JavaAppPackaging).
   settings(
     name := "kaitai-struct-compiler",
-    version := "0.4",
+    version := "0.5-SNAPSHOT",
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
     scalaVersion := "2.11.7",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
