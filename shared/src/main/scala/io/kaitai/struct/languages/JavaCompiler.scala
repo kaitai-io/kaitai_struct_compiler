@@ -191,10 +191,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case NoRepeat =>
         out.puts("_attrStart.put(\"" + name + "\", " + io + ".pos());")
       case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-        getOrCreatePosList("_arrStart", name)
-        out.puts(s"_posList.add($io.pos());")
-        out.dec
-        out.puts("}")
+        getOrCreatePosList("_arrStart", name, io)
     }
   }
 
@@ -207,21 +204,21 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case NoRepeat =>
         out.puts("_attrEnd.put(\"" + name + "\", " + io + ".pos());")
       case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-        getOrCreatePosList("_arrEnd", name)
-        out.puts(s"_posList.add($io.pos());")
-        out.dec
-        out.puts("}")
+        getOrCreatePosList("_arrEnd", name, io)
     }
   }
 
-  def getOrCreatePosList(listName: String, varName: String): Unit = {
+  def getOrCreatePosList(listName: String, varName: String, io: String): Unit = {
     out.puts("{")
     out.inc
-    out.puts("ArrayList<Integer> _posList = _arrStart.get(\"" + varName + "\");")
+    out.puts("ArrayList<Integer> _posList = " + listName + ".get(\"" + varName + "\");")
     out.puts("if (_posList == null) {")
     out.inc
     out.puts("_posList = new ArrayList<Integer>();")
-    out.puts("_arrStart.put(\"" + varName + "\", _posList);")
+    out.puts(listName + ".put(\"" + varName + "\", _posList);")
+    out.dec
+    out.puts("}")
+    out.puts(s"_posList.add($io.pos());")
     out.dec
     out.puts("}")
   }
