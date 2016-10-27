@@ -4,6 +4,7 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.IntType
+import io.kaitai.struct.languages.PHPCompiler
 
 class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
@@ -13,6 +14,8 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"intval(${translate(left)} / ${translate(right)})"
+      case (_: IntType, _: IntType, Ast.operator.Mod) =>
+        s"${PHPCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
       case _ =>
         super.numericBinOp(left, op, right)
     }
