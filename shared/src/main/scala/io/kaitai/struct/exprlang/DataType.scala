@@ -89,7 +89,6 @@ object DataType {
 
   case object BooleanType extends BaseType
   case class ArrayType(elType: BaseType) extends BaseType
-  case class MapType(keyType: BaseType, valueType: BaseType) extends BaseType
 
   abstract class UserType(val name: List[String]) extends BaseType {
     var classSpec: Option[ClassSpec] = None
