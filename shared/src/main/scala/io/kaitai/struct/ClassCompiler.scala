@@ -40,6 +40,9 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     if (lang.innerEnums)
       compileEnums(curClass)
 
+    if (lang.debug)
+      lang.debugClassSequence(curClass.seq)
+
     lang.classConstructorHeader(curClass.name, curClass.parentTypeName, topClassName)
     curClass.instances.foreach { case (instName, instSpec) => lang.instanceClear(instName) }
     curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs, lang.normalIO))

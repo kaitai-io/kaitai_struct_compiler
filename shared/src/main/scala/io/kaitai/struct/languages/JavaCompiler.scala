@@ -413,6 +413,11 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
   }
 
+  override def debugClassSequence(seq: List[AttrSpec]) = {
+    val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
+    out.puts(s"public static String[] _seqFields = new String[] { $seqStr };")
+  }
+
   def value2Const(s: String) = s.toUpperCase
 
   def idToStr(id: Identifier): String = {

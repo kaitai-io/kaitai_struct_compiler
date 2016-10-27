@@ -96,4 +96,12 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr)
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit
+
+  /**
+    * Outputs class' attributes sequence identifiers as some sort of an ordered sequence,
+    * for debugging purposes. Useful for languages which do not retain fields order of
+    * declaration in reflection.
+    * @param seq sequence of attributes in a class
+    */
+  def debugClassSequence(seq: List[AttrSpec]) = {}
 }
