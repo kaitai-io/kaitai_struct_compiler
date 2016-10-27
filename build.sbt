@@ -3,7 +3,8 @@ import sbt.Keys._
 
 resolvers += Resolver.sonatypeRepo("public")
 
-val targetLangs = "C++/STL, C#, Java, JavaScript, Python, Ruby"
+val VERSION = "0.5-SNAPSHOT"
+val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Python, Ruby"
 
 lazy val root = project.in(file(".")).
   aggregate(compilerJS, compilerJVM).
@@ -18,7 +19,7 @@ lazy val compiler = crossProject.in(file(".")).
   settings(
     organization := "io.kaitai",
     name := "kaitai-struct-compiler",
-    version := "0.5-SNAPSHOT",
+    version := VERSION,
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
     scalaVersion := "2.11.7",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
@@ -75,18 +76,21 @@ lazy val compiler = crossProject.in(file(".")).
     // implementations create per-package virtual user that we won't use anyway
     maintainerScripts in Debian := Map(),
 
-    packageSummary in Linux := s"compiler to generate binary data parsers in ${targetLangs}",
+    packageSummary in Linux := s"compiler to generate binary data parsers in $TARGET_LANGS",
     packageSummary in Windows := "Kaitai Struct compiler",
     packageDescription in Linux :=
       s"""This is the reference implementation of a compiler for Kaitai Struct (.ksy)
        | files. It allows to compile them into source code in:
-       | ${targetLangs}.
+       | $TARGET_LANGS.
        | .
        | .ksy files describe binary data structures in declarative YAML-based
        | language (in contrast to imperative parsing implementation written in a
        | single programming language) and allow cross-language, cross-platform data
        | formats description.""".stripMargin,
-    packageDescription in Windows := s"Compiler to translate Kaitai Struct (.ksy) files into ${targetLangs} source code",
+    packageDescription in Windows := s"Compiler to translate Kaitai Struct (.ksy) files into $TARGET_LANGS source code",
+
+    // Fix version for Windows: Wix doesn't allow stuff like "-SNAPSHOT" to appear in the version
+    version in Windows := VERSION.replace("-SNAPSHOT", ""),
 
     wixProductLicense := Some(new File("shared/src/windows/License.rtf")),
 
