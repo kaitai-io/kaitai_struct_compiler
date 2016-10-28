@@ -39,7 +39,7 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
 
   override def doSubscript(container: expr, idx: expr): String =
-    s"${translate(container)}.get(${translate(idx)})"
+    s"${translate(container)}.get((int) ${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
