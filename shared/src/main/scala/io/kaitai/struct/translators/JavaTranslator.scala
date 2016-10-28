@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
-import io.kaitai.struct.exprlang.DataType.BaseType
+import io.kaitai.struct.exprlang.DataType.{BaseType, IntType}
 import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -15,6 +15,15 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new byte[] { ${arr.mkString(", ")} }"
+
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Mod) =>
+        s"${JavaCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
+      case _ =>
+        super.numericBinOp(left, op, right)
+    }
+  }
 
   override def doName(s: String) =
     s match {
