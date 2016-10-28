@@ -370,7 +370,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       //
       // Double c = 1.0f + 1;
 
-      out.puts(s"$primType _tmp = ${expression(value)};")
+      out.puts(s"$primType _tmp = ($primType) (${expression(value)});")
       out.puts(s"${privateMemberName(instName)} = _tmp;")
     } else {
       out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
