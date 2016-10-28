@@ -86,7 +86,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     attrName match {
       case ParentIdentifier | RootIdentifier =>
         // just ignore it for now

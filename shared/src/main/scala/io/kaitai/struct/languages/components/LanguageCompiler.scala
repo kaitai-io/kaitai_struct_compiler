@@ -56,7 +56,7 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def classDestructorFooter: Unit = {}
 
   def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit
-  def attributeReader(attrName: Identifier, attrType: BaseType): Unit
+  def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit
   def attributeDoc(id: Identifier, doc: String): Unit = {}
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], io: String): Unit

@@ -117,11 +117,11 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private ${kaitaiType2JavaType(attrType)} ${idToStr(attrName)};")
+    out.puts(s"private ${kaitaiType2JavaType(attrType, condSpec)} ${idToStr(attrName)};")
   }
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(attrType)} ${idToStr(attrName)}() { return ${idToStr(attrName)}; }")
+  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+    out.puts(s"public ${kaitaiType2JavaType(attrType, condSpec)} ${idToStr(attrName)}() { return ${idToStr(attrName)}; }")
   }
 
   override def attributeDoc(id: Identifier, doc: String): Unit = {
@@ -444,6 +444,13 @@ object JavaCompiler extends LanguageCompilerStatic
     s"$outDir/src/${config.javaPackage.replace('.', '/')}/${outFileName(topClassName)}"
 
   def kaitaiType2JavaType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
+
+  def kaitaiType2JavaType(attrType: BaseType, condSpec: ConditionalSpec): String =
+    if (condSpec.ifExpr.nonEmpty) {
+      kaitaiType2JavaTypeBoxed(attrType)
+    } else {
+      kaitaiType2JavaTypePrim(attrType)
+    }
 
   /**
     * Determine Java data type corresponding to a KS data type. A "primitive" type (i.e. "int", "long", etc) will

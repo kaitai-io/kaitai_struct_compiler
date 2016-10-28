@@ -71,7 +71,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
     (curClass.seq ++ extraAttrs).foreach { (attr) =>
       attr.doc.foreach((doc) => lang.attributeDoc(attr.id, doc))
-      lang.attributeReader(attr.id, attr.dataTypeComposite)
+      lang.attributeReader(attr.id, attr.dataTypeComposite, attr.cond)
     }
 
     lang.classFooter(curClass.name)

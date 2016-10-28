@@ -74,7 +74,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
   override def attributeDoc(id: Identifier, doc: String): Unit = {
     // JSDoc docstring style: http://usejsdoc.org/about-getting-started.html

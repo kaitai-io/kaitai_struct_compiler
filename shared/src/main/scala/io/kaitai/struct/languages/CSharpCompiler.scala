@@ -85,7 +85,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
   }
 
