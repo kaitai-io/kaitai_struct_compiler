@@ -384,7 +384,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"public enum $enumClass {")
     out.inc
 
-    val it = enumColl.toIterable
+    val it = enumColl.toSeq.sortBy(_._1)
     if (enumColl.size > 1) {
       it.dropRight(1).foreach { case (id, label) =>
         out.puts(s"${value2Const(label)}($id),")
