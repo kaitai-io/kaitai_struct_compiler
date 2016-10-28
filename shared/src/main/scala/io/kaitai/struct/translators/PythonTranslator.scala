@@ -37,6 +37,11 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     case Ast.boolop.And => "and"
   }
 
+  override def unaryOp(op: Ast.unaryop) = op match {
+    case Ast.unaryop.Not => "not "
+    case _ => super.unaryOp(op)
+  }
+
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
@@ -63,4 +68,6 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"${translate(value)}.size()"
+  override def kaitaiStreamEof(value: Ast.expr): String =
+    s"${translate(value)}.is_eof()"
 }

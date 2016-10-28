@@ -85,6 +85,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case KaitaiStreamType =>
             attr.name match {
               case "size" => kaitaiStreamSize(value)
+              case "eof" => kaitaiStreamEof(value)
             }
         }
       case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
@@ -204,6 +205,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def arrayLast(a: Ast.expr): String
 
   def kaitaiStreamSize(value: Ast.expr): String = userTypeField(value, "size")
+  def kaitaiStreamEof(value: Ast.expr): String = userTypeField(value, "is_eof")
 
   def detectType(v: Ast.expr): BaseType = {
     v match {
