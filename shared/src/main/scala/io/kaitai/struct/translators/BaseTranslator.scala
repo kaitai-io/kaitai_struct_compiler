@@ -59,7 +59,12 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.IfExp(condition: expr, ifTrue: expr, ifFalse: expr) =>
         doIfExp(condition, ifTrue, ifFalse)
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
-        doSubscript(container, idx)
+        detectType(idx) match {
+          case _: IntType =>
+            doSubscript(container, idx)
+          case idxType =>
+            throw new RuntimeException(s"can't use $idx as array index (need int, got $idxType)")
+        }
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
         valType match {
