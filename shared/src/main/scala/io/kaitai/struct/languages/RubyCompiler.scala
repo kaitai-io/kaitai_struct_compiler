@@ -113,7 +113,7 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatEos => s"$memberName.last"
+      case RepeatEos | RepeatUntil(_) => s"$memberName.last"
       case RepeatExpr(_) => s"$memberName[i]"
       case NoRepeat => s"$memberName"
     }
