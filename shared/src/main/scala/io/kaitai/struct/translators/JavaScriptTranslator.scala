@@ -56,4 +56,7 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     val v = translate(a)
     s"$v[$v.length - 1]"
   }
+
+  override def kaitaiStreamEof(value: Ast.expr): String =
+    s"${translate(value)}.isEof()"
 }
