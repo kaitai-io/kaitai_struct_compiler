@@ -166,7 +166,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
-    out.puts(s"while (!$io.IsEof()) {")
+    out.puts(s"while (!$io.IsEof) {")
     out.inc
   }
 
