@@ -296,6 +296,11 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   def value2Const(s: String) = s.toUpperCase
 
+  override def debugClassSequence(seq: List[AttrSpec]) = {
+    val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
+    out.puts(s"SEQ_FIELDS = [$seqStr]")
+  }
+
   override def idToStr(id: Identifier): String = {
     id match {
       case NamedIdentifier(name) => name
