@@ -10,8 +10,8 @@ import scala.scalajs.js.annotation.JSExport
 @JSExport
 object MainJs {
   @JSExport
-  def compile(langStr: String, yaml: JSClassSpec): js.Array[String] = {
-    val config = new RuntimeConfig(verbose = true)
+  def compile(langStr: String, yaml: JSClassSpec, debug: Boolean = false): js.Array[String] = {
+    val config = new RuntimeConfig(verbose = true, debug = debug)
     val lang = LanguageCompilerStatic.byString(langStr)
 
     val spec = yaml.toScala
