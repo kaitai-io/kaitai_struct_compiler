@@ -270,7 +270,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-        s"new ${type2class(t.name.last)}($io, this, this._root)"
+        s"tmp = {}; ${type2class(t.name.last)}.call(tmp, $io, this, this._root)"
     }
   }
 
