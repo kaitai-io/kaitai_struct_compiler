@@ -530,7 +530,7 @@ object JavaCompiler extends LanguageCompilerStatic
   }
 
   /**
-    * Determine common superclass that will accomodate all possible results
+    * Determine common superclass that will accommodate all possible results
     * from a switch type. We just check if everything fits is a user type
     * (and thus will fit in `KaitaiStruct`), or just return `Object`.
     *
