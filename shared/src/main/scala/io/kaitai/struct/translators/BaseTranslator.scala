@@ -86,6 +86,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             attr.name match {
               case "size" => kaitaiStreamSize(value)
               case "eof" => kaitaiStreamEof(value)
+              case "pos" => kaitaiStreamPos(value)
             }
         }
       case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
@@ -206,6 +207,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
 
   def kaitaiStreamSize(value: Ast.expr): String = userTypeField(value, "size")
   def kaitaiStreamEof(value: Ast.expr): String = userTypeField(value, "is_eof")
+  def kaitaiStreamPos(value: Ast.expr): String = userTypeField(value, "pos")
 
   def detectType(v: Ast.expr): BaseType = {
     v match {
@@ -310,6 +312,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case KaitaiStreamType =>
             attr.name match {
               case "size" => CalcIntType
+              case "pos" => CalcIntType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
           case _ =>

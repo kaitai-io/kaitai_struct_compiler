@@ -70,4 +70,6 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"${translate(value)}.size()"
   override def kaitaiStreamEof(value: Ast.expr): String =
     s"${translate(value)}.is_eof()"
+  override def kaitaiStreamPos(value: Ast.expr): String =
+    s"${translate(value)}.pos()"
 }
