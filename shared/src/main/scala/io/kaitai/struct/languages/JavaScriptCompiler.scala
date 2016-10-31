@@ -20,7 +20,6 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
-    out.puts
   }
 
   override def fileFooter(name: String): Unit = {
@@ -47,6 +46,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   }
 
   override def classHeader(name: String): Unit = {
+    out.puts
     out.puts(s"var ${type2class(name)} = (function() {")
     out.inc
   }
@@ -64,9 +64,16 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root || this;")
-    if(debug)
+    if (debug){
       out.puts("this._debug = {};")
-    out.puts
+      out.dec
+      out.puts("}")
+      out.puts
+      out.puts(s"${type2class(name)}.prototype._read = function() {");
+      out.inc
+    }
+    else
+      out.puts
   }
 
   override def classConstructorFooter: Unit = {
@@ -270,12 +277,12 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-        s"tmp = {}; ${type2class(t.name.last)}.call(tmp, $io, this, this._root)"
+        s"new ${type2class(t.name.last)}($io, this, this._root)"
     }
   }
 
   override def userTypeDebugRead(id: String): Unit = {
-    //out.puts(s"$id._read")
+    out.puts(s"$id._read();")
   }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
@@ -325,7 +332,6 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
-    out.puts
     out.puts(s"${type2class(curClass)}.${type2class(enumName)} = Object.freeze({")
     out.inc
     enumColl.foreach { case (id, label) =>
@@ -333,6 +339,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
     out.dec
     out.puts("});")
+    out.puts
   }
 
   def enumValue(enumName: String, label: String) = label.toUpperCase
