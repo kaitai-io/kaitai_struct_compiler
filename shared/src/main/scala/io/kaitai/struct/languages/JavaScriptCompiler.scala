@@ -64,6 +64,8 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root || this;")
+    if(debug)
+      out.puts("this._debug = {};")
     out.puts
   }
 
@@ -141,6 +143,40 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
+  override def attrDebugStart(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId match {
+      case NamedIdentifier(name) => name
+      case InstanceIdentifier(name) => name
+      case _: RawIdentifier | _: SpecialIdentifier => return
+    }
+    val debugName = idToStr(attrId)
+    rep match {
+      case NoRepeat =>
+        out.puts(s"this._debug.$debugName = { start: $io.position };")
+      case _: RepeatExpr =>
+        out.puts(s"this._debug.$debugName.arr[i] = { start: $io.position };")
+      case RepeatEos | _: RepeatUntil =>
+        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length] = { start: $io.position };")
+    }
+  }
+
+  override def attrDebugEnd(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId match {
+      case NamedIdentifier(name) => name
+      case InstanceIdentifier(name) => name
+      case _: RawIdentifier | _: SpecialIdentifier => return
+    }
+    val debugName = idToStr(attrId)
+    rep match {
+      case NoRepeat =>
+        out.puts(s"this._debug.$debugName.end = $io.position - 1;")
+      case _: RepeatExpr =>
+        out.puts(s"this._debug.$debugName.arr[i].end = $io.position - 1;")
+      case RepeatEos | _: RepeatUntil =>
+        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length - 1].end = $io.position - 1;")
+    }
+  }
+
   override def condIfHeader(expr: expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
     out.inc
@@ -155,6 +191,8 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
+    if (debug)
+      out.puts(s"this._debug.${idToStr(id)}.arr = [];")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
@@ -208,6 +246,9 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
+  override def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit =
+    out.puts(s"var $id = $expr;")
+
   override def parseExpr(dataType: BaseType, io: String): String = {
     dataType match {
       case t: ReadableType =>
@@ -229,8 +270,12 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-        s"new ${type2class(t.name.last)}($io, this, this._root)"
+        s"tmp = {}; ${type2class(t.name.last)}.call(tmp, $io, this, this._root)"
     }
+  }
+
+  override def userTypeDebugRead(id: String): Unit = {
+    //out.puts(s"$id._read")
   }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
@@ -291,6 +336,11 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   }
 
   def enumValue(enumName: String, label: String) = label.toUpperCase
+
+  override def debugClassSequence(seq: List[AttrSpec]) = {
+    //val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
+    //out.puts(s"SEQ_FIELDS = [$seqStr]")
+  }
 
   def idToStr(id: Identifier): String = {
     id match {
