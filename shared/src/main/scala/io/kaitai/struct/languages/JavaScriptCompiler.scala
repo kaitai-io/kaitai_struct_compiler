@@ -69,11 +69,11 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       out.dec
       out.puts("}")
       out.puts
-      out.puts(s"${type2class(name)}.prototype._read = function() {");
+      out.puts(s"${type2class(name)}.prototype._read = function() {")
       out.inc
-    }
-    else
+    } else {
       out.puts
+    }
   }
 
   override def classConstructorFooter: Unit = {
@@ -159,11 +159,11 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     val debugName = idToStr(attrId)
     rep match {
       case NoRepeat =>
-        out.puts(s"this._debug.$debugName = { start: $io.position };")
+        out.puts(s"this._debug.$debugName = { start: $io.pos };")
       case _: RepeatExpr =>
-        out.puts(s"this._debug.$debugName.arr[i] = { start: $io.position };")
+        out.puts(s"this._debug.$debugName.arr[i] = { start: $io.pos };")
       case RepeatEos | _: RepeatUntil =>
-        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length] = { start: $io.position };")
+        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length] = { start: $io.pos };")
     }
   }
 
@@ -176,11 +176,11 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     val debugName = idToStr(attrId)
     rep match {
       case NoRepeat =>
-        out.puts(s"this._debug.$debugName.end = $io.position - 1;")
+        out.puts(s"this._debug.$debugName.end = $io.pos - 1;")
       case _: RepeatExpr =>
-        out.puts(s"this._debug.$debugName.arr[i].end = $io.position - 1;")
+        out.puts(s"this._debug.$debugName.arr[i].end = $io.pos - 1;")
       case RepeatEos | _: RepeatUntil =>
-        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length - 1].end = $io.position - 1;")
+        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length - 1].end = $io.pos - 1;")
     }
   }
 
