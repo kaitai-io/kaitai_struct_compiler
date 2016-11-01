@@ -55,4 +55,13 @@ object ParseUtils {
         throw new YAMLParseException(s"expected int, got $unknown", path ++ List(field))
     }
   }
+
+  def getMap(src: AnyRef, path: List[String]): Map[String, AnyRef] = {
+    src match {
+      case srcMap: Map[String, AnyRef] =>
+        srcMap
+      case unknown =>
+        throw new YAMLParseException(s"expected map, got $unknown", path)
+    }
+  }
 }
