@@ -42,26 +42,17 @@ object ClassSpec {
       case srcMap: Map[String, AnyRef] =>
         ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
-        var meta: Option[MetaSpec] = None
-        var seq = List[AttrSpec]()
-        var types = Map[String, ClassSpec]()
-        var instances = Map[InstanceIdentifier, InstanceSpec]()
-        var enums = Map[String, Map[Long, String]]()
-
-        srcMap.foreach { case (key, value) =>
-          key match {
-            case "meta" =>
-              meta = Some(MetaSpec.fromYaml(value, path ++ List("meta")))
-            case "seq" =>
-              seq = seqFromYaml(value, path ++ List("seq"))
-            case "types" =>
-              types = typesFromYaml(value, path ++ List("types"))
-            case "instances" => // TODO
-            case "enums" => // TODO
-            case unknown =>
-              throw new YAMLParseException(s"unknown key encountered: $unknown", path)
-          }
+        val meta = srcMap.get("meta").map(MetaSpec.fromYaml(_, path ++ List("meta")))
+        val seq: List[AttrSpec] = srcMap.get("seq") match {
+          case Some(value) => seqFromYaml(value, path ++ List("seq"))
+          case None => List()
         }
+        val types: Map[String, ClassSpec] = srcMap.get("types") match {
+          case Some(value) => typesFromYaml(value, path ++ List("types"))
+          case None => Map()
+        }
+        val instances = Map[InstanceIdentifier, InstanceSpec]()
+        val enums = Map[String, Map[Long, String]]()
 
         if (path.isEmpty && meta.isEmpty)
           throw new YAMLParseException("no `meta` encountered in top-level class spec", path)
