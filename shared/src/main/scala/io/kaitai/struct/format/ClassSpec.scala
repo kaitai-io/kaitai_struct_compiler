@@ -29,9 +29,19 @@ case class ClassSpec(
 }
 
 object ClassSpec {
+  val LEGAL_KEYS = Set(
+    "meta",
+    "seq",
+    "types",
+    "instances",
+    "enums"
+  )
+
   def fromYaml(src: Any, path: List[String]) = {
     src match {
       case srcMap: Map[String, AnyRef] =>
+        ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
+
         var meta: Option[MetaSpec] = None
         var seq = List[AttrSpec]()
         var types = Map[String, ClassSpec]()
@@ -44,7 +54,8 @@ object ClassSpec {
               meta = Some(MetaSpec.fromYaml(value, path ++ List("meta")))
             case "seq" =>
               seq = seqFromYaml(value, path ++ List("seq"))
-            case "types" => // TODO
+            case "types" =>
+              types = typesFromYaml(value, path ++ List("types"))
             case "instances" => // TODO
             case "enums" => // TODO
             case unknown =>
@@ -69,6 +80,17 @@ object ClassSpec {
         }
       case unknown =>
         throw new YAMLParseException(s"expected array, found $unknown", path)
+    }
+  }
+
+  def typesFromYaml(src: AnyRef, path: List[String]): Map[String, ClassSpec] = {
+    src match {
+      case srcMap: Map[String, AnyRef] =>
+        srcMap.map { case (typeName, body) =>
+          typeName -> ClassSpec.fromYaml(body, path ++ List(typeName))
+        }
+      case unknown =>
+        throw new YAMLParseException(s"expected map, found $unknown", path)
     }
   }
 
