@@ -10,6 +10,29 @@ case class ValueInstanceSpec(_doc: Option[String], value: Ast.expr, var dataType
 case class ParseInstanceSpec(_doc: Option[String], dataType: BaseType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec(_doc) with AttrLikeSpec
 
 object InstanceSpec {
+  def fromYaml(src: AnyRef, path: List[String]): InstanceSpec = {
+    val srcMap = ParseUtils.getMap(src, path)
+
+    val pos = ParseUtils.getOptValueStr(srcMap, "pos", path).map(Expressions.parse)
+    val io = ParseUtils.getOptValueStr(srcMap, "io", path).map(Expressions.parse)
+
+    ParseUtils.getOptValueStr(srcMap, "value", path).map(Expressions.parse) match {
+      case Some(value) =>
+        // value instance
+        // TODO: check conflicts with all other keys
+        ValueInstanceSpec(
+          ParseUtils.getOptValueStr(srcMap, "doc", path),
+          value,
+          None
+        )
+      case None =>
+        // normal positional instance
+        val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io") + ("id" -> "fake")
+        val a = AttrSpec.fromYaml(fakeAttrMap, path)
+        ParseInstanceSpec(a.doc, a.dataType, a.cond, pos, io)
+    }
+  }
+
   @JsonCreator
   def create(
               @JsonProperty("doc") doc: String,

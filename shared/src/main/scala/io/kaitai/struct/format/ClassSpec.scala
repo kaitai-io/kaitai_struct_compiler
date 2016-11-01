@@ -51,7 +51,10 @@ object ClassSpec {
           case Some(value) => typesFromYaml(value, path ++ List("types"))
           case None => Map()
         }
-        val instances = Map[InstanceIdentifier, InstanceSpec]()
+        val instances: Map[InstanceIdentifier, InstanceSpec] = srcMap.get("instances") match {
+          case Some(value) => instancesFromYaml(value, path ++ List("instances"))
+          case None => Map()
+        }
         val enums = Map[String, Map[Long, String]]()
 
         if (path.isEmpty && meta.isEmpty)
@@ -79,6 +82,17 @@ object ClassSpec {
       case srcMap: Map[String, AnyRef] =>
         srcMap.map { case (typeName, body) =>
           typeName -> ClassSpec.fromYaml(body, path ++ List(typeName))
+        }
+      case unknown =>
+        throw new YAMLParseException(s"expected map, found $unknown", path)
+    }
+  }
+
+  def instancesFromYaml(src: AnyRef, path: List[String]): Map[InstanceIdentifier, InstanceSpec] = {
+    src match {
+      case srcMap: Map[String, AnyRef] =>
+        srcMap.map { case (instName, body) =>
+          InstanceIdentifier(instName) -> InstanceSpec.fromYaml(body, path ++ List(instName))
         }
       case unknown =>
         throw new YAMLParseException(s"expected map, found $unknown", path)
