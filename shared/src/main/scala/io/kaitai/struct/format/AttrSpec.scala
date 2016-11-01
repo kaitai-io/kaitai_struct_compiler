@@ -43,6 +43,112 @@ case class AttrSpec(
 ) extends AttrLikeSpec
 
 object AttrSpec {
+  val LEGAL_KEYS = Set(
+    "id",
+    "doc",
+    "type",
+    "process",
+    "contents",
+    "size",
+    "size-eos",
+    "if",
+    "encoding",
+    "repeat",
+    "repeat-expr",
+    "repeat-until"
+  )
+
+  val LEGAL_KEYS_BYTES = Set(
+    "size",
+    "size-eos",
+    "process"
+  )
+
+  val LEGAL_KEYS_STR = Set(
+    "size",
+    "size-eos",
+    "encoding"
+  )
+
+  val LEGAL_KEYS_STRZ = Set(
+    "encoding",
+    "terminator",
+    "consume",
+    "include",
+    "eos-error"
+  )
+
+  val LEGAL_KEYS_ENUM = Set(
+    "enum"
+  )
+
+  def fromYaml(src: AnyRef, path: List[String]): AttrSpec = {
+    src match {
+      case srcMap: Map[String, Any] =>
+        val idStr = ParseUtils.getValueStr(srcMap, "id", path)
+        val id = Some(NamedIdentifier(idStr))
+
+        val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
+        val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path)) // TODO: add proper path propagation
+        val contents: Option[Array[Byte]] = None // FIXME: proper contents parsing
+        val size = ParseUtils.getOptValueStr(srcMap, "size", path).map(Expressions.parse)
+        val sizeEos = ParseUtils.getOptValueBool(srcMap, "size-eos", path).getOrElse(false)
+        val ifExpr = ParseUtils.getOptValueStr(srcMap, "if", path).map(Expressions.parse)
+        val encoding = ParseUtils.getOptValueStr(srcMap, "encoding", path)
+        val repeat = ParseUtils.getOptValueStr(srcMap, "repeat", path)
+        val repeatExpr = ParseUtils.getOptValueStr(srcMap, "repeat-expr", path).map(Expressions.parse)
+        val repeatUntil = ParseUtils.getOptValueStr(srcMap, "repeat-until", path).map(Expressions.parse)
+        val terminator = ParseUtils.getOptValueInt(srcMap, "terminator", path).getOrElse(0)
+        val consume = ParseUtils.getOptValueBool(srcMap, "consume", path).getOrElse(true)
+        val include = ParseUtils.getOptValueBool(srcMap, "include", path).getOrElse(false)
+        val eosError = ParseUtils.getOptValueBool(srcMap, "eos-error", path).getOrElse(true)
+        val enum = ParseUtils.getOptValueStr(srcMap, "enum", path)
+
+        val typObj = srcMap.get("type")
+        val dataType: BaseType = typObj match {
+          case simpleType: Option[String] =>
+            DataType.fromYaml(
+              simpleType, MetaSpec.globalMeta.get.endian,
+              size, sizeEos,
+              encoding, terminator, include, consume, eosError,
+              contents, enum, process
+            )
+          case Some(switchMap: Map[String, Any]) =>
+            parseSwitch(
+              switchMap,
+              size, sizeEos,
+              encoding, terminator, include, consume, eosError,
+              contents, enum, process
+            )
+          case unknown =>
+            throw new YAMLParseException(s"expected map or string, found $unknown", path ++ List("type"))
+        }
+
+        val legalKeys = LEGAL_KEYS ++ (dataType match {
+          case _: BytesType => LEGAL_KEYS_BYTES
+          case _: StrEosType | _: StrByteLimitType => LEGAL_KEYS_STR
+          case _: StrZType => LEGAL_KEYS_STRZ
+          case _: UserType => LEGAL_KEYS_BYTES
+          case EnumType(_, _) => LEGAL_KEYS_ENUM
+          case SwitchType(on, cases) => LEGAL_KEYS_BYTES
+          case _ => Set()
+        })
+
+        ParseUtils.ensureLegalKeys(srcMap, legalKeys, path)
+
+        val repeatSpec = repeat match {
+          case Some("until") => RepeatUntil(repeatUntil.get)
+          case Some("expr") => RepeatExpr(repeatExpr.get)
+          case Some("eos") => RepeatEos
+          case None => NoRepeat
+        }
+
+        AttrSpec(id.get, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
+      case unknown =>
+        throw new YAMLParseException(s"expected map, found $unknown", path)
+    }
+  }
+
   def parseContentSpec(c: Object): Array[Byte] = {
     c match {
       case s: String =>
@@ -63,84 +169,8 @@ object AttrSpec {
     }
   }
 
-  @JsonCreator
-  def create(
-              @JsonProperty("id") id: String,
-              @JsonProperty("doc") doc: String,
-              @JsonProperty("type") _dataType: Object,
-              @JsonProperty("process") _process: String,
-              @JsonProperty("contents") _contents: Object,
-              @JsonProperty("size") _size: String,
-              @JsonProperty("size-eos") sizeEos: Boolean,
-              @JsonProperty("if") _ifExpr: String,
-              @JsonProperty("encoding") _encoding: String,
-              @JsonProperty("repeat") _repeat: String,
-              @JsonProperty("repeat-expr") _repeatExpr: String,
-              @JsonProperty("repeat-until") _repeatUntil: String,
-              @JsonProperty("terminator") _terminator: String,
-              @JsonProperty("consume") _consume: String,
-              @JsonProperty("include") _include: String,
-              @JsonProperty("eos-error") _eosError: String,
-              @JsonProperty("enum") _enum: String
-            ): AttrSpec = {
-    if (id == null)
-      throw new RuntimeException("id is mandatory for an attribute")
-
-    val ifExpr = Option(_ifExpr).map(Expressions.parse)
-    val repeat = Option(_repeat)
-    val repeatExpr = Option(_repeatExpr).map(Expressions.parse)
-    val repeatUntil = Option(_repeatUntil).map(Expressions.parse)
-
-    val contents = if (_contents != null) {
-      Some(AttrSpec.parseContentSpec(_contents))
-    } else {
-      None
-    }
-    val size = Option(_size).map(Expressions.parse)
-    val encoding = Option(_encoding)
-    val terminator = Utils.strToOptInt(_terminator).getOrElse(0)
-    val consume = boolFromStr(_consume, true)
-    val include = boolFromStr(_include, false)
-    val eosError = boolFromStr(_eosError, true)
-    val process = ProcessExpr.fromStr(_process)
-
-    val dto = Option(_dataType)
-
-    val dataType: BaseType = dto match {
-      case None =>
-        DataType.fromYaml(
-          None, MetaSpec.globalMeta.get.endian,
-          size, sizeEos,
-          encoding, terminator, include, consume, eosError,
-          contents, Option(_enum), process
-        )
-      case Some(simpleType: String) =>
-        DataType.fromYaml(
-          Some(simpleType), MetaSpec.globalMeta.get.endian,
-          size, sizeEos,
-          encoding, terminator, include, consume, eosError,
-          contents, Option(_enum), process
-        )
-      case _ =>
-        parseSwitch(_dataType,
-          size, sizeEos,
-          encoding, terminator, include, consume, eosError,
-          contents, Option(_enum), process
-        )
-    }
-
-    val repeatSpec = repeat match {
-      case Some("until") => RepeatUntil(repeatUntil.get)
-      case Some("expr") => RepeatExpr(repeatExpr.get)
-      case Some("eos") => RepeatEos
-      case None => NoRepeat
-    }
-
-    AttrSpec(NamedIdentifier(id), dataType, ConditionalSpec(ifExpr, repeatSpec), Option(doc))
-  }
-
   private def parseSwitch(
-    _dataType: Object,
+    switchSpec: Map[String, Any],
     size: Option[Ast.expr],
     sizeEos: Boolean,
     encoding: Option[String],
@@ -152,7 +182,6 @@ object AttrSpec {
     enumRef: Option[String],
     process: Option[ProcessExpr]
   ): BaseType = {
-    val switchSpec = _dataType.asInstanceOf[JMap[String, Object]].toMap
     val _on = switchSpec("switch-on").asInstanceOf[String]
     val _cases: Map[String, String] = switchSpec.get("cases") match {
       case None => Map()

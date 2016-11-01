@@ -42,7 +42,8 @@ object ClassSpec {
           key match {
             case "meta" =>
               meta = Some(MetaSpec.fromYaml(value, path ++ List("meta")))
-            case "seq" => // TODO
+            case "seq" =>
+              seq = seqFromYaml(value, path ++ List("seq"))
             case "types" => // TODO
             case "instances" => // TODO
             case "enums" => // TODO
@@ -57,6 +58,17 @@ object ClassSpec {
         ClassSpec(meta, seq, types, instances, enums)
       case unknown =>
         throw new YAMLParseException(s"expected map, found $unknown", path)
+    }
+  }
+
+  def seqFromYaml(src: AnyRef, path: List[String]): List[AttrSpec] = {
+    src match {
+      case srcList: List[AnyRef] =>
+        srcList.zipWithIndex.map { case (attrSrc, idx) =>
+          AttrSpec.fromYaml(attrSrc, path ++ List(idx.toString))
+        }
+      case unknown =>
+        throw new YAMLParseException(s"expected array, found $unknown", path)
     }
   }
 

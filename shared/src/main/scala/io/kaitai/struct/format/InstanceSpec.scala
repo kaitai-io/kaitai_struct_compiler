@@ -57,7 +57,7 @@ object InstanceSpec {
     )
 
     value match {
-      case None =>
+/*      case None =>
         val a = AttrSpec.create(
           "fake_id",
           doc,
@@ -77,7 +77,7 @@ object InstanceSpec {
           _eosError,
           _enum
         )
-        ParseInstanceSpec(a.doc, a.dataType, a.cond, positionAbs, io)
+        ParseInstanceSpec(a.doc, a.dataType, a.cond, positionAbs, io)*/
       case Some(v) =>
         ValueInstanceSpec(Option(doc), v, None)
     }
