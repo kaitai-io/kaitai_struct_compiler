@@ -127,17 +127,6 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 }
 
 object ClassCompiler {
-  def localFileToSpec(yamlFilename: String): ClassSpec = {
-    val reader = new FileReader(yamlFilename)
-    val mapper = new ObjectMapper(new YAMLFactory())
-    val spec = mapper.readValue(reader, classOf[ClassSpec])
-    TypeProcessor.processTypes(spec)
-    spec
-  }
-
-  def fromLocalFileToFile(yamlFilename: String, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): AbstractCompiler =
-    fromClassSpecToFile(localFileToSpec(yamlFilename), lang, outDir, config)
-
   def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): AbstractCompiler = {
     val outPath = lang.outFilePath(config, outDir, topClass.meta.get.id)
     if (config.verbose)

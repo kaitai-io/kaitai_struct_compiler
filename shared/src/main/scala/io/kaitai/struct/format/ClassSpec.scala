@@ -2,10 +2,10 @@ package io.kaitai.struct.format
 
 import java.util.{List => JList, Map => JMap}
 
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import io.kaitai.struct.Utils
 
-import collection.JavaConversions._
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
+import scala.collection.JavaConversions._
 
 sealed trait ClassSpecLike
 case object UnknownClassSpec extends ClassSpecLike
@@ -29,6 +29,37 @@ case class ClassSpec(
 }
 
 object ClassSpec {
+  def fromYaml(src: Any, path: List[String]) = {
+    src match {
+      case srcMap: Map[String, AnyRef] =>
+        var meta: Option[MetaSpec] = None
+        var seq = List[AttrSpec]()
+        var types = Map[String, ClassSpec]()
+        var instances = Map[InstanceIdentifier, InstanceSpec]()
+        var enums = Map[String, Map[Long, String]]()
+
+        srcMap.foreach { case (key, value) =>
+          key match {
+            case "meta" =>
+              meta = Some(MetaSpec.fromYaml(value, path ++ List("meta")))
+            case "seq" => // TODO
+            case "types" => // TODO
+            case "instances" => // TODO
+            case "enums" => // TODO
+            case unknown =>
+              throw new YAMLParseException(s"unknown key encountered: $unknown", path)
+          }
+        }
+
+        if (path.isEmpty && meta.isEmpty)
+          throw new YAMLParseException("no `meta` encountered in top-level class spec", path)
+
+        ClassSpec(meta, seq, types, instances, enums)
+      case unknown =>
+        throw new YAMLParseException(s"expected map, found $unknown", path)
+    }
+  }
+
   @JsonCreator
   def create(@JsonProperty("meta") _meta: MetaSpec,
              @JsonProperty("seq") _seq: JList[AttrSpec],
