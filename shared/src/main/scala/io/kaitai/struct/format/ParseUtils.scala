@@ -1,5 +1,7 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.Utils
+
 object ParseUtils {
   def ensureLegalKeys(src: Map[String, Any], legalKeys: Set[String], path: List[String]) = {
     src.keys.foreach((key) =>
@@ -17,7 +19,7 @@ object ParseUtils {
       case Some(value: String) =>
         value
       case unknown =>
-        throw new YAMLParseException(s"expected string, got $unknown", path ++ List(field))
+        throw YAMLParseException.badType("string", unknown, path ++ List(field))
     }
   }
 
@@ -30,7 +32,7 @@ object ParseUtils {
       case Some(value: Int) =>
         Some(value.toString)
       case unknown =>
-        throw new YAMLParseException(s"expected string, got $unknown", path ++ List(field))
+        throw YAMLParseException.badType("string", unknown, path ++ List(field))
     }
   }
 
@@ -41,7 +43,7 @@ object ParseUtils {
       case Some(value: Boolean) =>
         Some(value)
       case unknown =>
-        throw new YAMLParseException(s"expected int, got $unknown", path ++ List(field))
+        throw YAMLParseException.badType("boolean", unknown, path ++ List(field))
     }
   }
 
@@ -52,7 +54,7 @@ object ParseUtils {
       case Some(value: Int) =>
         Some(value)
       case unknown =>
-        throw new YAMLParseException(s"expected int, got $unknown", path ++ List(field))
+        throw YAMLParseException.badType("int", unknown, path ++ List(field))
     }
   }
 
@@ -63,7 +65,7 @@ object ParseUtils {
       case n: Int =>
         n.toString
       case unknown =>
-        throw new YAMLParseException(s"expected string, got $unknown", path)
+        throw YAMLParseException.badType("string", unknown, path)
     }
   }
 
@@ -73,8 +75,17 @@ object ParseUtils {
         n
       case n: Int =>
         n
+      case str: String =>
+        // Generally should not happen, but when the data comes from JavaScript,
+        // all object keys are forced to be strings.
+        try {
+          Utils.strToLong(str)
+        } catch {
+          case ex: MatchError =>
+            throw new YAMLParseException(s"unable to parse `$str` as int", path)
+        }
       case unknown =>
-        throw new YAMLParseException(s"expected int, got $unknown", path)
+        throw YAMLParseException.badType("int", unknown, path)
     }
   }
 
@@ -83,27 +94,15 @@ object ParseUtils {
       case srcMap: Map[Any, Any] =>
         srcMap
       case unknown =>
-        throw new YAMLParseException(s"expected map, got $unknown", path)
+        throw YAMLParseException.badType("map", unknown, path)
     }
   }
 
-  def asMapStr(src: Any, path: List[String]): Map[String, Any] = {
-    src match {
-      case anyMap: Map[Any, Any] =>
-        anyMapToStrMap(anyMap, path)
-      case unknown =>
-        throw new YAMLParseException(s"expected map, got $unknown", path)
-    }
-  }
+  def asMapStr(src: Any, path: List[String]): Map[String, Any] =
+    anyMapToStrMap(asMap(src, path), path)
 
-  def asMapStrStr(src: Any, path: List[String]): Map[String, String] = {
-    src match {
-      case anyMap: Map[Any, Any] =>
-        anyMapToStrStrMap(anyMap, path)
-      case unknown =>
-        throw new YAMLParseException(s"expected map, got $unknown", path)
-    }
-  }
+  def asMapStrStr(src: Any, path: List[String]): Map[String, String] =
+    anyMapToStrStrMap(asMap(src, path), path)
 
   def anyMapToStrMap(anyMap: Map[Any, Any], path: List[String]): Map[String, Any] = {
     anyMap.map { case (key, value) =>
