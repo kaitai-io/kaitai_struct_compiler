@@ -82,8 +82,8 @@ object AttrSpec {
     "enum"
   )
 
-  def fromYaml(src: AnyRef, path: List[String]): AttrSpec = {
-    val srcMap = ParseUtils.getMap(src, path)
+  def fromYaml(src: Any, path: List[String]): AttrSpec = {
+    val srcMap = ParseUtils.asMapStr(src, path)
 
     val idStr = ParseUtils.getValueStr(srcMap, "id", path)
     val id = Some(NamedIdentifier(idStr))

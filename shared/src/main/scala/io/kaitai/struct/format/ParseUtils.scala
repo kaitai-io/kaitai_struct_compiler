@@ -56,10 +56,42 @@ object ParseUtils {
     }
   }
 
-  def getMap(src: AnyRef, path: List[String]): Map[String, AnyRef] = {
+  def asStr(src: Any, path: List[String]): String = {
     src match {
-      case srcMap: Map[String, AnyRef] =>
+      case str: String =>
+        str
+      case unknown =>
+        throw new YAMLParseException(s"expected string, got $unknown", path)
+    }
+  }
+
+  def asLong(src: Any, path: List[String]): Long = {
+    src match {
+      case n: Long =>
+        n
+      case n: Int =>
+        n
+      case unknown =>
+        throw new YAMLParseException(s"expected string, got $unknown", path)
+    }
+  }
+
+  def asMap(src: Any, path: List[String]): Map[Any, Any] = {
+    src match {
+      case srcMap: Map[Any, Any] =>
         srcMap
+      case unknown =>
+        throw new YAMLParseException(s"expected map, got $unknown", path)
+    }
+  }
+
+  def asMapStr(src: Any, path: List[String]): Map[String, Any] = {
+    src match {
+      case anyMap: Map[Any, Any] =>
+        anyMap.map { case (key, value) =>
+          val keyStr = asStr(key, path)
+          keyStr -> value
+        }
       case unknown =>
         throw new YAMLParseException(s"expected map, got $unknown", path)
     }
