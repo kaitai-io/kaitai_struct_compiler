@@ -95,7 +95,7 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def instanceReturn(instName: InstanceIdentifier): Unit
   def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr)
 
-  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit
+  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit
 
   /**
     * Outputs class' attributes sequence identifiers as some sort of an ordered sequence,

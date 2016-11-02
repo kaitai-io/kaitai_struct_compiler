@@ -223,7 +223,7 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"return ${privateMemberName(instName)}")
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
     out.puts
     out.puts(s"class ${type2class(enumName)}(Enum):")
     out.inc

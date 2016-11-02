@@ -281,7 +281,7 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(privateMemberName(instName))
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
     out.puts
     out.puts(s"${value2Const(enumName)} = {")
     out.inc

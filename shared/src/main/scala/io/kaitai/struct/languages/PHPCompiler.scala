@@ -264,7 +264,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Map[Long, String]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
     classHeader(curClass ::: List(enumName), None)
     enumColl.foreach { case (id, label) =>
       out.puts(s"const ${value2Const(label)} = $id;")

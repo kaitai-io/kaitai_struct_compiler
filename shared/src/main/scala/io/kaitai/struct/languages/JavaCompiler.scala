@@ -377,20 +377,19 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
     val enumClass = type2class(enumName)
 
     out.puts
     out.puts(s"public enum $enumClass {")
     out.inc
 
-    val it = enumColl.toSeq.sortBy(_._1)
     if (enumColl.size > 1) {
-      it.dropRight(1).foreach { case (id, label) =>
+      enumColl.dropRight(1).foreach { case (id, label) =>
         out.puts(s"${value2Const(label)}($id),")
       }
     }
-    it.last match {
+    enumColl.last match {
       case (id, label) =>
         out.puts(s"${value2Const(label)}($id);")
     }

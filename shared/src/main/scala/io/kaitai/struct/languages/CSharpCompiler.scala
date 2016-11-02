@@ -300,7 +300,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   def flagForInstName(ksName: Identifier) = s"f_${idToStr(ksName)}"
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Map[Long, String]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
     val enumClass = type2class(enumName)
 
     out.puts
