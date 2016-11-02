@@ -235,8 +235,8 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + ".read_strz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"${value2Const(enumName)}[${parseExpr(t, io)}]"
-
+        val intExpr = parseExpr(t, io)
+        s"${value2Const(enumName)}[$intExpr]" + (if (debug) s" || ($intExpr)" else "")
       case BytesLimitType(size, _) =>
         s"$io.read_bytes(${expression(size)})"
       case BytesEosType(_) =>
