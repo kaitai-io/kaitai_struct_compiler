@@ -53,11 +53,7 @@ lazy val compiler = crossProject.in(file(".")).
 
     libraryDependencies ++= Seq(
       "com.lihaoyi" %%% "fastparse" % "0.4.1",
-      "org.yaml" % "snakeyaml" % "1.16",
-      "com.fasterxml.jackson.core" % "jackson-core" % "2.1.1",
-      "com.fasterxml.jackson.core" % "jackson-annotations" % "2.1.1",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.1.1",
-      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.1.1"
+      "org.yaml" % "snakeyaml" % "1.16"
     )
   ).
   jvmSettings(
