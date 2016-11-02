@@ -60,6 +60,8 @@ object ParseUtils {
     src match {
       case str: String =>
         str
+      case n: Int =>
+        n.toString
       case unknown =>
         throw new YAMLParseException(s"expected string, got $unknown", path)
     }
@@ -94,10 +96,27 @@ object ParseUtils {
     }
   }
 
+  def asMapStrStr(src: Any, path: List[String]): Map[String, String] = {
+    src match {
+      case anyMap: Map[Any, Any] =>
+        anyMapToStrStrMap(anyMap, path)
+      case unknown =>
+        throw new YAMLParseException(s"expected map, got $unknown", path)
+    }
+  }
+
   def anyMapToStrMap(anyMap: Map[Any, Any], path: List[String]): Map[String, Any] = {
     anyMap.map { case (key, value) =>
       val keyStr = asStr(key, path)
       keyStr -> value
+    }
+  }
+
+  def anyMapToStrStrMap(anyMap: Map[Any, Any], path: List[String]): Map[String, String] = {
+    anyMap.map { case (key, value) =>
+      val keyStr = asStr(key, path)
+      val valueStr = asStr(value, path ++ List(keyStr))
+      keyStr -> valueStr
     }
   }
 }
