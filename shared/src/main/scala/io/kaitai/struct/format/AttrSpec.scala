@@ -90,7 +90,7 @@ object AttrSpec {
 
     val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
     val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path)) // TODO: add proper path propagation
-    val contents: Option[Array[Byte]] = None // FIXME: proper contents parsing
+    val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))
     val size = ParseUtils.getOptValueStr(srcMap, "size", path).map(Expressions.parse)
     val sizeEos = ParseUtils.getOptValueBool(srcMap, "size-eos", path).getOrElse(false)
     val ifExpr = ParseUtils.getOptValueStr(srcMap, "if", path).map(Expressions.parse)
@@ -105,23 +105,36 @@ object AttrSpec {
     val enum = ParseUtils.getOptValueStr(srcMap, "enum", path)
 
     val typObj = srcMap.get("type")
+
+    // Unfortunately, this monstrous match can't rewritten in simpler way due to Java type erasure
     val dataType: BaseType = typObj match {
-      case simpleType: Option[String] =>
+      case None =>
         DataType.fromYaml(
-          simpleType, MetaSpec.globalMeta.get.endian,
+          None, MetaSpec.globalMeta.get.endian,
           size, sizeEos,
           encoding, terminator, include, consume, eosError,
           contents, enum, process
         )
-      case Some(switchMap: Map[String, Any]) =>
-        parseSwitch(
-          switchMap,
-          size, sizeEos,
-          encoding, terminator, include, consume, eosError,
-          contents, enum, process
-        )
-      case unknown =>
-        throw new YAMLParseException(s"expected map or string, found $unknown", path ++ List("type"))
+      case Some(x) =>
+        x match {
+          case simpleType: String =>
+            DataType.fromYaml(
+              Some(simpleType), MetaSpec.globalMeta.get.endian,
+              size, sizeEos,
+              encoding, terminator, include, consume, eosError,
+              contents, enum, process
+            )
+          case switchMap: Map[Any, Any] =>
+            val switchMapStr = ParseUtils.anyMapToStrMap(switchMap, path)
+            parseSwitch(
+              switchMapStr, path,
+              size, sizeEos,
+              encoding, terminator, include, consume, eosError,
+              contents, enum, process
+            )
+          case unknown =>
+            throw new YAMLParseException(s"expected map or string, found $unknown", path ++ List("type"))
+        }
     }
 
     val legalKeys = LEGAL_KEYS ++ (dataType match {
@@ -146,28 +159,31 @@ object AttrSpec {
     AttrSpec(id.get, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
   }
 
-  def parseContentSpec(c: Object): Array[Byte] = {
+  def parseContentSpec(c: Any, path: List[String]): Array[Byte] = {
     c match {
       case s: String =>
         s.getBytes(Charset.forName("UTF-8"))
-      case objects: util.ArrayList[_] =>
+      case objects: List[_] =>
         val bb = new scala.collection.mutable.ArrayBuffer[Byte]
-        objects.foreach {
-          case s: String =>
-            bb.appendAll(Utils.strToBytes(s))
-          case integer: Integer =>
-            bb.append(Utils.clampIntToByte(integer))
-          case el =>
-            throw new RuntimeException(s"Unable to parse fixed content in array: $el")
+        objects.zipWithIndex.foreach { case (value, idx) =>
+          value match {
+            case s: String =>
+              bb.appendAll(Utils.strToBytes(s))
+            case integer: Integer =>
+              bb.append(Utils.clampIntToByte(integer))
+            case el =>
+              throw new YAMLParseException(s"unable to parse fixed content in array: $el", path ++ List(idx.toString))
+          }
         }
         bb.toArray
       case _ =>
-        throw new RuntimeException(s"Unable to parse fixed content: ${c.getClass}")
+        throw new YAMLParseException(s"unable to parse fixed content: $c", path)
     }
   }
 
   private def parseSwitch(
     switchSpec: Map[String, Any],
+    path: List[String],
     size: Option[Ast.expr],
     sizeEos: Boolean,
     encoding: Option[String],
@@ -179,10 +195,10 @@ object AttrSpec {
     enumRef: Option[String],
     process: Option[ProcessExpr]
   ): BaseType = {
-    val _on = switchSpec("switch-on").asInstanceOf[String]
+    val _on = ParseUtils.getValueStr(switchSpec, "switch-on", path)
     val _cases: Map[String, String] = switchSpec.get("cases") match {
       case None => Map()
-      case Some(x) => x.asInstanceOf[JMap[String, String]].toMap
+      case Some(x) => ParseUtils.asMapStrStr(x, path ++ List("cases"))
     }
 
     val on = Expressions.parse(_on)
@@ -209,7 +225,7 @@ object AttrSpec {
         case (None, false) =>
           Map()
         case (Some(_), true) =>
-          throw new RuntimeException("can't have both `size` and `size-eos` defined")
+          throw new YAMLParseException("can't have both `size` and `size-eos` defined", path)
       }
     }
 
