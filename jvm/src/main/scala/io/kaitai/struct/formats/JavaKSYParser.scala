@@ -12,22 +12,35 @@ import scala.collection.JavaConversions._
 
 object JavaKSYParser {
   def localFileToSpec(yamlFilename: String): ClassSpec = {
-    val reader = new FileReader(yamlFilename)
-    val yamlLoader = new Yaml(new SafeConstructor)
-    val javaSrc = yamlLoader.load(reader)
-    val scalaSrc = yamlJavaToScala(javaSrc)
+    val scalaSrc = readerToYaml(new FileReader(yamlFilename))
     val spec = ClassSpec.fromYaml(scalaSrc, List())
     TypeProcessor.processTypes(spec)
     spec
   }
 
-  def yamlJavaToScala(src: AnyRef): Any = {
+  def readerToYaml(reader: FileReader): Any = {
+    val yamlLoader = new Yaml(new SafeConstructor)
+    val javaSrc = yamlLoader.load(reader)
+    yamlJavaToScala(javaSrc)
+  }
+
+  def stringToYaml(data: String): Any = {
+    val yamlLoader = new Yaml(new SafeConstructor)
+    val javaSrc = yamlLoader.load(data)
+    yamlJavaToScala(javaSrc)
+  }
+
+  def yamlJavaToScala(src: Any): Any = {
     src match {
       case jlist: JList[AnyRef] =>
         jlist.toList.map(yamlJavaToScala)
       case jmap: JMap[String, AnyRef] =>
         jmap.toMap.mapValues(yamlJavaToScala)
       case _: String =>
+        src
+      case _: Double =>
+        src
+      case _: Boolean =>
         src
       case javaInt: java.lang.Integer =>
         javaInt.intValue
