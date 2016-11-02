@@ -141,16 +141,16 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"$destName = _io.processXor($srcName, ${expression(xorValue)});")
+        out.puts(s"$destName = $kstreamName.processXor($srcName, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"$destName = _io.processZlib($srcName);")
+        out.puts(s"$destName = $kstreamName.processZlib($srcName);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = _io.processRotateLeft($srcName, $expr, 1);")
+        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
     }
   }
 
