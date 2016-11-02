@@ -74,7 +74,7 @@ object ParseUtils {
       case n: Int =>
         n
       case unknown =>
-        throw new YAMLParseException(s"expected string, got $unknown", path)
+        throw new YAMLParseException(s"expected int, got $unknown", path)
     }
   }
 
