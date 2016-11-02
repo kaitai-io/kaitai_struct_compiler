@@ -1,17 +1,11 @@
 package io.kaitai.struct.format
 
-import java.io.FileReader
-
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import io.kaitai.struct.formats.JavaKSYParser
 import org.scalatest.FunSpec
 import org.scalatest.Matchers._
 
 class AttrSpec$Test extends FunSpec {
-  def parseYaml(yamlStr: String): Object =
-    new ObjectMapper(new YAMLFactory()).readValue(yamlStr, classOf[Object])
-
-  def tryOne(yamlStr: String) = AttrSpec.parseContentSpec(parseYaml(yamlStr))
+  def tryOne(yamlStr: String) = AttrSpec.parseContentSpec(JavaKSYParser.stringToYaml(yamlStr), List("test"))
 
   describe("AttrSpec.parseContentSpec") {
     it ("parses single ASCII string") {
@@ -47,11 +41,28 @@ class AttrSpec$Test extends FunSpec {
     }
 
     it ("parses complex spec 1") {
-      tryOne("[1, 0x55, '▒,3', 3]") should be(Array(1, 0x55, 0xe2, 0x96, 0x92, 0x2c, 0x33, 3).map(x => x.asInstanceOf[Byte]))
+      tryOne("[1, 0x55, '▒,3', 3]") should
+        be(Array(1, 0x55, 0xe2, 0x96, 0x92, 0x2c, 0x33, 3).map(x => x.asInstanceOf[Byte]))
     }
 
     it ("parses complex spec 2") {
-      tryOne("[foo, 0, A, 0xa, 42]") should be(Array(0x66, 0x6f, 0x6f, 0x00, 0x41, 0x0a, 0x2a).map(x => x.asInstanceOf[Byte]))
+      tryOne("[foo, 0, A, 0xa, 42]") should
+        be(Array(0x66, 0x6f, 0x6f, 0x00, 0x41, 0x0a, 0x2a).map(x => x.asInstanceOf[Byte]))
+    }
+
+    it ("fails to parse double") {
+      the [YAMLParseException] thrownBy tryOne("1.234") should
+        have message("/test: unable to parse fixed content: 1.234")
+    }
+
+    it ("fails to parse map") {
+      the [YAMLParseException] thrownBy tryOne("foo: 123") should
+        have message("/test: unable to parse fixed content: Map(foo -> 123)")
+    }
+
+    it ("fails to parse bogus array element") {
+      the [YAMLParseException] thrownBy tryOne("[1, 2, [3]]") should
+        have message("/test/2: unable to parse fixed content in array: List(3)")
     }
   }
 }
