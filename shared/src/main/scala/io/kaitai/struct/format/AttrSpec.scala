@@ -1,13 +1,10 @@
 package io.kaitai.struct.format
 
 import java.nio.charset.Charset
-import java.util
-import java.util.{List => JList, Map => JMap}
 
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import io.kaitai.struct.Utils
-import io.kaitai.struct.exprlang.{Ast, DataType, Expressions}
 import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.exprlang.{Ast, DataType, Expressions}
 
 import scala.collection.JavaConversions._
 
@@ -230,13 +227,5 @@ object AttrSpec {
     }
 
     SwitchType(on, cases ++ addCases)
-  }
-
-  private def boolFromStr(s: String, byDef: Boolean): Boolean = {
-    s match {
-      case "true" | "yes" | "1" => true
-      case "false" | "no" | "0" | "" => false
-      case null => byDef
-    }
   }
 }

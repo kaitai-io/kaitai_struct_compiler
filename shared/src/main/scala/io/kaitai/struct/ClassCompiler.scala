@@ -1,9 +1,5 @@
 package io.kaitai.struct
 
-import java.io.FileReader
-
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages._
@@ -143,14 +139,6 @@ object ClassCompiler {
         val out = new FileLanguageOutputWriter(outPath, lang.indent)
         new ClassCompiler(topClass, getCompiler(lang, config, out))
     }
-  }
-
-  def fromStringToString(src: String, lang: LanguageCompilerStatic, config: RuntimeConfig):
-    (StringLanguageOutputWriter, Option[StringLanguageOutputWriter], ClassCompiler) = {
-    val mapper = new ObjectMapper(new YAMLFactory())
-    val topClass: ClassSpec = mapper.readValue(src, classOf[ClassSpec])
-
-    fromClassSpecToString(topClass, lang, config)
   }
 
   def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, config: RuntimeConfig):

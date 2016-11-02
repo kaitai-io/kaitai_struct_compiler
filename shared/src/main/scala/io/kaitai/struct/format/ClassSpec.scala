@@ -1,12 +1,5 @@
 package io.kaitai.struct.format
 
-import java.util.{List => JList, Map => JMap}
-
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
-import io.kaitai.struct.Utils
-
-import scala.collection.JavaConversions._
-
 sealed trait ClassSpecLike
 case object UnknownClassSpec extends ClassSpecLike
 case object GenericStructClassSpec extends ClassSpecLike
