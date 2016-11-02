@@ -107,7 +107,7 @@ object AttrSpec {
     val dataType: BaseType = typObj match {
       case None =>
         DataType.fromYaml(
-          None, MetaSpec.globalMeta.get.endian,
+          None, path, MetaSpec.globalMeta.get.endian,
           size, sizeEos,
           encoding, terminator, include, consume, eosError,
           contents, enum, process
@@ -116,7 +116,7 @@ object AttrSpec {
         x match {
           case simpleType: String =>
             DataType.fromYaml(
-              Some(simpleType), MetaSpec.globalMeta.get.endian,
+              Some(simpleType), path, MetaSpec.globalMeta.get.endian,
               size, sizeEos,
               encoding, terminator, include, consume, eosError,
               contents, enum, process
@@ -201,7 +201,7 @@ object AttrSpec {
     val on = Expressions.parse(_on)
     val cases = _cases.map { case (condition, typeName) =>
       Expressions.parse(condition) -> DataType.fromYaml(
-        Some(typeName), MetaSpec.globalMeta.get.endian,
+        Some(typeName), path ++ List("cases"), MetaSpec.globalMeta.get.endian,
         size, sizeEos,
         encoding, terminator, include, consume, eosError,
         contents, enumRef, process

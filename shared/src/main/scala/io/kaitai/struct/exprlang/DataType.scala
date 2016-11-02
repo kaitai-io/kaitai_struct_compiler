@@ -1,6 +1,6 @@
 package io.kaitai.struct.exprlang
 
-import io.kaitai.struct.format.{ClassSpec, ProcessExpr}
+import io.kaitai.struct.format.{ClassSpec, ProcessExpr, YAMLParseException}
 
 /**
   * A collection of case objects and classes that are used to represent internal
@@ -21,13 +21,13 @@ object DataType {
     override def toString = "be"
   }
   object Endianness {
-    def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String) = s match {
+    def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String, path: List[String]) = s match {
       case Some("le") => LittleEndian
       case Some("be") => BigEndian
       case None =>
         defaultEndian match {
           case Some(e) => e
-          case None => throw new RuntimeException(s"unable to use type '$dt' without default endianness")
+          case None => throw new YAMLParseException(s"unable to use type '$dt' without default endianness", path ++ List("type"))
         }
     }
   }
@@ -123,6 +123,7 @@ object DataType {
 
   def fromYaml(
     dto: Option[String],
+    path: List[String],
     defaultEndian: Option[Endianness],
     size: Option[Ast.expr],
     sizeEos: Boolean,
@@ -163,7 +164,7 @@ object DataType {
               case "4" => Width4
               case "8" => Width8
             },
-            Endianness.fromString(Option(endianStr), defaultEndian, dt)
+            Endianness.fromString(Option(endianStr), defaultEndian, dt, path)
           )
         case ReFloatType(widthStr, endianStr) =>
           FloatMultiType(
@@ -171,7 +172,7 @@ object DataType {
               case "4" => Width4
               case "8" => Width8
             },
-            Endianness.fromString(Option(endianStr), defaultEndian, dt)
+            Endianness.fromString(Option(endianStr), defaultEndian, dt, path)
           )
         case "str" =>
           if (encoding.isEmpty)
