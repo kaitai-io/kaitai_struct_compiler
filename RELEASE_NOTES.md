@@ -1,7 +1,7 @@
 # 0.4 (2016-08-09)
 
 * Languages support:
-  * New target language, fully supported: C# (modules should be usable all across the .NET platform, i.e. from C++/CLI, VB.NET, F#, etc.
+  * New target language, fully supported: C# (modules should be usable all across the .NET platform, i.e. from C++/CLI, VB.NET, F#, etc.)
   * Preliminary support for C++ (with STL containers / IO implementation) - note that not all features are implemented.
 * Data types:
   * Floating point data types support (available as `f4` and `f8` for single and double precision IEEE754 floats)
