@@ -5,35 +5,29 @@ import io.kaitai.struct.exprlang.DataType.{BigEndian, Endianness, LittleEndian}
 case class MetaSpec(id: String, endian: Option[Endianness])
 
 object MetaSpec {
+  val LEGAL_KEYS = Set(
+    "id",
+    "endian",
+    "file-extension",
+    "application"
+  )
+
   def fromYaml(src: Any, path: List[String]): MetaSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
-    var id: Option[String] = None
-    var endian: Option[Endianness] = None
+    ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
-    srcMap.foreach { case (key, value) =>
-      key match {
-        case "id" =>
-          id = Some(value.asInstanceOf[String])
-        case "endian" =>
-          endian = srcMap.get("endian") match {
-            case None => None
-            case Some("be") => Some(BigEndian)
-            case Some("le") => Some(LittleEndian)
-            case unknown => throw new YAMLParseException(
-              s"must be `be` or `le`, but `$unknown` found",
-              path ++ List("endian")
-            )
-          }
-        case "file-extension" | "application" => // ignore
-        case unknown =>
-          throw new YAMLParseException(s"unknown key: `$unknown`", path)
-      }
+    val id = ParseUtils.getValueStr(srcMap, "id", path)
+    val endian: Option[Endianness] = srcMap.get("endian") match {
+      case None => None
+      case Some("be") => Some(BigEndian)
+      case Some("le") => Some(LittleEndian)
+      case unknown => throw new YAMLParseException(
+        s"must be `be` or `le`, but `$unknown` found",
+        path ++ List("endian")
+      )
     }
 
-    if (id.isEmpty)
-      throw new YAMLParseException(s"`id` is required, but none found", path)
-
-    val meta = MetaSpec(id.get, endian)
+    val meta = MetaSpec(id, endian)
     // TODO: remove hack
     globalMeta = Some(meta)
     meta
