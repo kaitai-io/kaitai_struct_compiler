@@ -2,7 +2,8 @@ package io.kaitai.struct
 
 import java.io.File
 
-import io.kaitai.struct.format.ClassSpec
+import io.kaitai.struct.format.{ClassSpec, YAMLParseException}
+import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
@@ -83,7 +84,8 @@ object Main {
     if (config.verbose)
       Console.println(s"compiling ${srcFile} for ${lang}...")
 
-    ClassCompiler.fromLocalFileToFile(srcFile, LanguageCompilerStatic.byString(lang), outDir, config).compile
+    val spec = JavaKSYParser.localFileToSpec(srcFile)
+    compileOne(spec, lang, outDir, config)
   }
 
   def compileOne(topClass: ClassSpec, lang: String, outDir: String, config: RuntimeConfig): Unit = {
@@ -92,14 +94,14 @@ object Main {
 
   def compileAll(srcFile: String, config: CLIConfig): Unit = {
     if (config.verbose)
-      Console.println(s"reading ${srcFile}...")
+      Console.println(s"reading $srcFile...")
 
-    val topClass = ClassCompiler.localFileToSpec(srcFile.toString)
+    val topClass = JavaKSYParser.localFileToSpec(srcFile)
 
     config.targets.foreach { lang =>
       try {
         if (config.verbose)
-          Console.print(s"... compiling it for ${lang}... ")
+          Console.print(s"... compiling it for $lang... ")
         compileOne(topClass, lang, s"${config.outDir}/$lang", config)
       } catch {
         case e: Exception =>
@@ -115,13 +117,18 @@ object Main {
       case None => System.exit(1)
       case Some(config) =>
         config.srcFiles.foreach { srcFile =>
-          config.targets match {
-            case Seq(lang) =>
-              // single target, just use target directory as is
-              compileOne(srcFile.toString, lang, config.outDir.toString, config)
-            case _ =>
-              // multiple targets, use additional directories
-              compileAll(srcFile.toString, config)
+          try {
+            config.targets match {
+              case Seq(lang) =>
+                // single target, just use target directory as is
+                compileOne(srcFile.toString, lang, config.outDir.toString, config)
+              case _ =>
+                // multiple targets, use additional directories
+                compileAll(srcFile.toString, config)
+            }
+          } catch {
+            case e: YAMLParseException =>
+              Console.println(e.getMessage)
           }
         }
     }

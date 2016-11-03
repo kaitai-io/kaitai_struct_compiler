@@ -1,32 +1,36 @@
 package io.kaitai.struct.format
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonCreator}
-import io.kaitai.struct.exprlang.DataType.{LittleEndian, BigEndian, Endianness}
+import io.kaitai.struct.exprlang.DataType.{BigEndian, Endianness, LittleEndian}
 
 case class MetaSpec(id: String, endian: Option[Endianness])
 
 object MetaSpec {
-  @JsonCreator
-  def create(
-              @JsonProperty("id") _id: String,
-              @JsonProperty("endian") _endian: String,
-              @JsonProperty("file-extension") fileExtension: String,
-              @JsonProperty("application") application: String
-            ): MetaSpec = {
-    if (_id == null) {
-      throw new RuntimeException("meta: id is required, but not found");
+  val LEGAL_KEYS = Set(
+    "id",
+    "endian",
+    "file-extension",
+    "application"
+  )
+
+  def fromYaml(src: Any, path: List[String]): MetaSpec = {
+    val srcMap = ParseUtils.asMapStr(src, path)
+    ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
+
+    val id = ParseUtils.getValueStr(srcMap, "id", path)
+    val endian: Option[Endianness] = srcMap.get("endian") match {
+      case None => None
+      case Some("be") => Some(BigEndian)
+      case Some("le") => Some(LittleEndian)
+      case unknown => throw new YAMLParseException(
+        s"must be `be` or `le`, but `$unknown` found",
+        path ++ List("endian")
+      )
     }
 
-    val endian = _endian match {
-      case null => None
-      case "be" => Some(BigEndian)
-      case "le" => Some(LittleEndian)
-      case _ => throw new RuntimeException(s"meta: endian - must be 'be' or 'le', but '${_endian}' found")
-    }
-
-    val m = MetaSpec(_id, endian)
-    globalMeta = Some(m)
-    m
+    val meta = MetaSpec(id, endian)
+    // TODO: remove hack
+    globalMeta = Some(meta)
+    meta
   }
 
   var globalMeta: Option[MetaSpec] = None

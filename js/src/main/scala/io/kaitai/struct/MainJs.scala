@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.format.JSClassSpec
+import io.kaitai.struct.format.{ClassSpec, JavaScriptKSYParser}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
 import scala.scalajs.js
@@ -10,11 +10,12 @@ import scala.scalajs.js.annotation.JSExport
 @JSExport
 object MainJs {
   @JSExport
-  def compile(langStr: String, yaml: JSClassSpec, debug: Boolean = false): js.Array[String] = {
+  def compile(langStr: String, yaml: js.Object, debug: Boolean = false): js.Array[String] = {
     val config = new RuntimeConfig(verbose = true, debug = debug)
     val lang = LanguageCompilerStatic.byString(langStr)
 
-    val spec = yaml.toScala
+    val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
+    val spec = ClassSpec.fromYaml(yamlScala, List())
     TypeProcessor.processTypes(spec)
 
     val (out1, out2, cc) = ClassCompiler.fromClassSpecToString(spec, lang, config)
