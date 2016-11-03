@@ -1,3 +1,48 @@
+# 0.5
+
+* Target languages support:
+  * C++/STL - fully supported, all tests pass
+  * Python - made compiled code and runtime compatible with both Python 2 and 3, enforced by CI
+  * PHP7 - new target language, 98% supported
+  * Perl - new target language, 85% supported
+  * Graphviz - allows generation of visual diagrams of data formats, to be laid out with GraphViz (`.dot` format)
+* New KSY language features:
+  * Switch-like conditional structure to determine `type` based on value of expression (instead of tons of `if`s)
+  * Attribute field `doc` to annotate fields - will generate docstrings relevant to language (i.e. JavaDoc, JSDoc, YARD/RDoc, etc)
+  * `repeat-until` allows repetition of a field until a condition is met
+  * Boolean type support
+* Expression language:
+  * `_io.eof` returns boolean value - whether the end of stream was reached or not
+  * `_io.pos` returns current position in the stream
+  * `_io.size` returns size of the stream
+* .ksy parsing improvements:
+  * New unified type derivation engine allows compile-time type error checks and full support of target languages which require absolute type designations (like C++, Python, Perl or PHP)
+  * Same YAML parsing code is now used for both JVM and JS platforms
+  * Stricter checks on all parsing stages: lots of invalid combinations are now prohibited (instead of choosing one of variants)
+  * Better error messages: now in most cases compiler clearly indicates source of the problem
+* Build and release process:
+  * Compiler: added building as pom module
+  * Java runtime: added building as pom module
+  * Python runtime: added building as pip module
+  * Windows CI: now all commits are built also on Windows, with [.msi package available for download](https://ci.appveyor.com/project/GreyCat/kaitai-struct/build/artifacts)
+* Debug mode:
+  * Support implemented for Java and JavaScript (to allow creation of visualizer tools in these languages - see [Java GUI for Kaitai Struct](https://github.com/kaitai-io/kaitai_struct_gui) and [Web IDE for Kaitai Struct](https://github.com/koczkatamas/kaitai_struct_webide)
+  * Added generation of `SEQ_FIELDS` helper const array that allows clear separation of sequence attributes vs instance without guesswork
+  * Exception in debug mode now tries to save as much parsed data as possible (to aid diagnosing the error)
+* Incompatible changes:
+  * Identifiers are now strictly checked to conform to `lower_underscore_case` pattern (that would be converted to language-specific style on ouput)
+  * Java:
+    * `_parse` method renamed to `_read`
+    * `process*` methods are now static
+  * JavaScript: `position` in runtime is renamed to `pos` (to conform to general KS API spec)
+  * Compiler API: now all compilers accept unified `RuntimeConfig` for configuration instead of individual options
+* Bugfixes:
+  * Java:
+    * having `if` on a sequence attribute now makes it automatically boxed (to allow it to be `null`)
+    * work around some `int` vs `long` incompatibilities
+    * proper boxing of floating types
+  * Integer modulo (`%`) operation now behaves exactly the same in all languages, always returning positive result (as opposed to remainder operation `%` in languages like C++ or Java)
+
 # 0.4 (2016-08-09)
 
 * Languages support:
