@@ -217,6 +217,8 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
     out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
+    if (debug)
+      out.puts(s"this._debug.${idToStr(id)}.arr = new Array(${expression(repeatExpr)});")
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
