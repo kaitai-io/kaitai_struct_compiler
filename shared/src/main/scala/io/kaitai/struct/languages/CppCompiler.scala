@@ -144,6 +144,16 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
 
+  override def attributeDoc(id: Identifier, doc: String): Unit = {
+    // All docstrings would be for public stuff, so it's safe to start it here
+    ensureMode(PublicAccess)
+
+    outHdr.puts
+    outHdr.puts( "/**")
+    outHdr.puts(s" * $doc")
+    outHdr.puts( " */")
+  }
+
   override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
     val t = attr.dataTypeComposite
 
