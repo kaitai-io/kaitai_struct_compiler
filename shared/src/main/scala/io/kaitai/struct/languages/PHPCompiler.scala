@@ -95,6 +95,13 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
+  override def attributeDoc(id: Identifier, doc: String): Unit = {
+    out.puts
+    out.puts( "/**")
+    out.puts(s" * $doc")
+    out.puts( " */")
+  }
+
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     val strLiteral = contents.map { x => "\\x%02x".format(x) }.mkString
     out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents(${contents.length}, " + "\"" + strLiteral + "\");")
