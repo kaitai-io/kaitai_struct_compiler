@@ -89,5 +89,6 @@ Don't forget to update lists of languages:
 * https://github.com/kaitai-io/kaitai_struct — project description
 * https://github.com/kaitai-io/kaitai_struct_compiler — project description
 * https://github.com/kaitai-io/kaitai_struct_compiler/blob/master/README.md — `-t` option documentation
+* http://kaitai.io — everywhere
 * https://bintray.com/kaitai-io/debian/kaitai-struct-compiler/view — package description
 * https://twitter.com/kaitai_io — profile
