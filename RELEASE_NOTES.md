@@ -1,4 +1,4 @@
-# 0.5
+# 0.5 (2016-11-09)
 
 * Target languages support:
   * C++/STL - fully supported, all tests pass
