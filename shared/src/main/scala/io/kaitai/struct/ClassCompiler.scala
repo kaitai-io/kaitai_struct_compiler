@@ -145,8 +145,11 @@ object ClassCompiler {
   }
 
   def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, config: RuntimeConfig):
-    (StringLanguageOutputWriter, Option[StringLanguageOutputWriter], ClassCompiler) = {
+    (StringLanguageOutputWriter, Option[StringLanguageOutputWriter], AbstractCompiler) = {
     lang match {
+      case GraphvizClassCompiler =>
+        val out = new StringLanguageOutputWriter(lang.indent)
+        (out, None, new GraphvizClassCompiler(topClass, out))
       case CppCompiler =>
         val outSrc = new StringLanguageOutputWriter(lang.indent)
         val outHdr = new StringLanguageOutputWriter(lang.indent)
