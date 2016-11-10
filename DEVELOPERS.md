@@ -81,6 +81,40 @@ TODO
     * Attached file: `jvm/target/windows/kaitai-struct-compiler-*.msi`
 7. Publish them all
 
+### Runtimes
+
+#### Java
+
+* Pump version, set version to `$VERSION`, without `-SNAPSHOT`
+* `mvn publish`
+* Go to https://oss.sonatype.org/#stagingRepositories
+* Scroll to the very end of list, seek `iokaitai-...` repositories
+* Select our staging repository
+* Press "Close" toolbar button
+  * Confirm
+  * Wait for checks to complete
+* Press "Release" toolbar button
+  * Enter release message
+  * Confirm
+* After some time, check https://search.maven.org/#search%7Cga%7C1%7Ca%3A%22kaitai-struct-runtime%22 to have new version
+
+#### Python
+
+* Pump version in `setup.py`, seek `version=`
+* `python setup.py sdist upload`
+* Check that new version appears at https://pypi.python.org/pypi/kaitaistruct/$VERSION
+* `git tag $VERSION`
+* `git push --tags`
+
+#### Ruby
+
+* Pump version in `lib/kaitai/struct/struct.rb`, seek `VERSION = `
+* `gem build kaitai-struct.gemspec`
+* Test gem (i.e. by installing it to a live system)
+* `gem push kaitai-struct-$VERSION.gem`
+* `git tag $VERSION`
+* `git push --tags`
+
 ## Adding new language
 
 Don't forget to update lists of languages:
