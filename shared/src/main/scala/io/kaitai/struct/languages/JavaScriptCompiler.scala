@@ -65,7 +65,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root || this;")
     if (debug) {
-      out.puts("this._debug = { };")
+      out.puts("this._debug = {};")
       out.dec
       out.puts("}")
       out.puts
