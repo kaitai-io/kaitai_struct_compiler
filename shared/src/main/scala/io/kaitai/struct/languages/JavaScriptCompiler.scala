@@ -65,7 +65,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root || this;")
     if (debug) {
-      out.puts("this._debug = {};")
+      out.puts("this._debug = { };")
       out.dec
       out.puts("}")
       out.puts
@@ -132,7 +132,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case NoRepeat => memberCall
     }
 
-    out.puts(s"$ioName = new $kstreamName($args);")
+    out.puts(s"var $ioName = new $kstreamName($args);")
     ioName
   }
 
@@ -176,11 +176,11 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     val debugName = idToStr(attrId)
     rep match {
       case NoRepeat =>
-        out.puts(s"this._debug.$debugName.end = $io.pos - 1;")
+        out.puts(s"this._debug.$debugName.end = $io.pos;")
       case _: RepeatExpr =>
-        out.puts(s"this._debug.$debugName.arr[i].end = $io.pos - 1;")
+        out.puts(s"this._debug.$debugName.arr[i].end = $io.pos;")
       case RepeatEos | _: RepeatUntil =>
-        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length - 1].end = $io.pos - 1;")
+        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length - 1].end = $io.pos;")
     }
   }
 
