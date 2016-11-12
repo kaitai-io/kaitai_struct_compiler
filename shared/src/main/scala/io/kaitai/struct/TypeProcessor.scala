@@ -181,23 +181,43 @@ object TypeProcessor {
   def markupParentTypesAdd(curClass: ClassSpec, dt: BaseType): Unit = {
     dt match {
       case userType: UserType =>
-        val usedClass = userType.classSpec.get
-        usedClass.parentClass match {
-          case UnknownClassSpec =>
-            usedClass.parentClass = curClass
-            markupParentTypes(usedClass)
-          case otherClass: ClassSpec =>
-            if (otherClass == curClass) {
-              // already done, don't do anything
-            } else {
-              // conflicting types, would be bad for statically typed languages
-              // throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
-              usedClass.parentClass = GenericStructClassSpec
-            }
-          case GenericStructClassSpec =>
-            // already most generic case, do nothing
+        markupParentAs(curClass, userType)
+      case switchType: SwitchType =>
+        switchType.cases.foreach {
+          case (_, ut: UserType) =>
+            markupParentAs(curClass, ut)
+          case (_, _) =>
+            // ignore everything else
         }
       case _ => // ignore, it's standard type
+    }
+  }
+
+  def markupParentAs(curClass: ClassSpec, ut: UserType): Unit = {
+    ut.classSpec match {
+      case Some(usedClass) =>
+        markupParentAs(curClass, usedClass)
+      case None =>
+        // TODO: replace with proper warning API
+        Console.println(s"warning: tried to mark up parent=${curClass.name} for user type ${ut.name.mkString("::")}, but that type wasn't found, so doing nothing");
+    }
+  }
+
+  def markupParentAs(parent: ClassSpec, child: ClassSpec): Unit = {
+    child.parentClass match {
+      case UnknownClassSpec =>
+        child.parentClass = parent
+        markupParentTypes(child)
+      case otherClass: ClassSpec =>
+        if (otherClass == parent) {
+          // already done, don't do anything
+        } else {
+          // conflicting types, would be bad for statically typed languages
+          // throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
+          child.parentClass = GenericStructClassSpec
+        }
+      case GenericStructClassSpec =>
+      // already most generic case, do nothing
     }
   }
 
