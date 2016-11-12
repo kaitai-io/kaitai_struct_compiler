@@ -21,6 +21,8 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
       case "_root" =>
         makeUserType(topClass)
       case "_parent" =>
+        if (inClass.parentClass == UnknownClassSpec)
+          throw new RuntimeException(s"Unable to derive _parent type in ${inClass.name.mkString("::")}")
         makeUserType(inClass.parentClass)
       case "_io" =>
         KaitaiStreamType
