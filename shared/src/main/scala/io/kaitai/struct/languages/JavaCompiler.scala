@@ -301,7 +301,8 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-        s"new ${types2class(t.name)}($io, this, _root)"
+        val addArgs = if (t.isOpaque) "" else ", this, _root"
+        s"new ${types2class(t.name)}($io$addArgs)"
     }
   }
 

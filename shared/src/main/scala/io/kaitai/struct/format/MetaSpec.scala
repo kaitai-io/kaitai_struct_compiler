@@ -2,7 +2,7 @@ package io.kaitai.struct.format
 
 import io.kaitai.struct.exprlang.DataType.{BigEndian, Endianness, LittleEndian}
 
-case class MetaSpec(id: String, endian: Option[Endianness])
+case class MetaSpec(isOpaque: Boolean, id: String, endian: Option[Endianness])
 
 object MetaSpec {
   val LEGAL_KEYS = Set(
@@ -27,7 +27,7 @@ object MetaSpec {
       )
     }
 
-    val meta = MetaSpec(id, endian)
+    val meta = MetaSpec(false, id, endian)
     // TODO: remove hack
     globalMeta = Some(meta)
     meta

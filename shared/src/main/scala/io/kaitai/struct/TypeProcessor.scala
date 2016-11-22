@@ -127,8 +127,8 @@ object TypeProcessor {
 
     res match {
       case None =>
-        // Type definition not found - generate empty placeholder ClassSpec
-        val placeholder = ClassSpec(None, List(), Map(), Map(), Map())
+        // Type definition not found - generate special "opaque placeholder" ClassSpec
+        val placeholder = ClassSpec(Some(MetaSpec(true, "", None)), List(), Map(), Map(), Map())
         placeholder.name = typeName
         Some(placeholder)
       case Some(x) =>

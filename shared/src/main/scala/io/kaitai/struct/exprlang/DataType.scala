@@ -92,6 +92,10 @@ object DataType {
 
   abstract class UserType(val name: List[String]) extends BaseType {
     var classSpec: Option[ClassSpec] = None
+    def isOpaque = classSpec.get.meta match {
+      case None => false
+      case Some(meta) => meta.isOpaque
+    }
   }
   case class UserTypeInstream(_name: List[String]) extends UserType(_name)
   abstract class UserTypeKnownSize(_name: List[String]) extends UserType(_name) with Processing
