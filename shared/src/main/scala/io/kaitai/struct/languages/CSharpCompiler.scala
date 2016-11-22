@@ -408,7 +408,6 @@ object CSharpCompiler extends LanguageCompilerStatic
     kstructName
   }
 
-
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 
   override def kstructName = "KaitaiStruct"
