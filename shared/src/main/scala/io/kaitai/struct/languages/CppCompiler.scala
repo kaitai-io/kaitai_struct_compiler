@@ -1,17 +1,18 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeProvider}
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
 
 class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
   extends LanguageCompiler(config, outSrc)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
+    with FixedContentsUsingArrayByteLiteral
     with EveryReadIsExpression {
   import CppCompiler._
 
@@ -213,10 +214,8 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     }
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    val strLiteral = contents.map { x => "\\x%02x".format(x) }.mkString
-    outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, " + "\"" + strLiteral + "\");")
-  }
+  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
+    outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
