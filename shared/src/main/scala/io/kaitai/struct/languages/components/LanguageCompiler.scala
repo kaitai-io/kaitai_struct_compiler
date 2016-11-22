@@ -45,6 +45,14 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}
 
+  /**
+    * Outputs declaration of "opaque class", i.e. class that will be referred to in this file, but
+    * not declared here. Some languages require either a "forward declaration" in this case, or a
+    * statement to import that class, or something similar. Called once per each opaque class.
+    * @param classSpec
+    */
+  def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {}
+
   def classHeader(name: List[String]): Unit
   def classFooter(name: List[String]): Unit
   def classForwardDeclaration(name: List[String]): Unit = {}
