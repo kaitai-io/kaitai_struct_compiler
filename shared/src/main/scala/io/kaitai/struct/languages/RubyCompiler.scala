@@ -15,6 +15,7 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
     with EveryReadIsExpression
+    with FixedContentsUsingArrayByteLiteral
     with NoNeedForFullClassPath {
 
   import RubyCompiler._
@@ -82,9 +83,8 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"# $doc")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensure_fixed_contents(${contents.length}, [${contents.map(x => x.toInt & 0xff).mkString(", ")}])")
-  }
+  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensure_fixed_contents($contents)")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
