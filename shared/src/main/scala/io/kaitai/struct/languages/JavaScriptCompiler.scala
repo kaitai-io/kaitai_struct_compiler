@@ -13,6 +13,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with EveryReadIsExpression
+    with FixedContentsUsingArrayByteLiteral
     with NoNeedForFullClassPath {
   import JavaScriptCompiler._
 
