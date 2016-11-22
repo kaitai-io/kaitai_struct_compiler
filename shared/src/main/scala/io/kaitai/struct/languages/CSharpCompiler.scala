@@ -236,7 +236,8 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.ReadBytesFull()"
       case t: UserType =>
-        s"new ${types2class(t.name)}($io, this, ${privateMemberName(RootIdentifier)})"
+        val addArgs = if (t.isOpaque) "" else s", this, ${privateMemberName(RootIdentifier)}"
+        s"new ${types2class(t.name)}($io$addArgs)"
     }
   }
 
