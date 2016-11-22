@@ -14,6 +14,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with EveryReadIsExpression
     with UniversalFooter
     with AllocateIOLocalVar
+    with FixedContentsUsingArrayByteLiteral
     with NoNeedForFullClassPath {
   import JavaCompiler._
 
@@ -131,8 +132,8 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts( " */")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents(${contents.length}, new byte[] { ${contents.mkString(", ")} });")
+  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents($contents);")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
