@@ -178,7 +178,8 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.read_bytes_full()"
       case t: UserType =>
-        s"${types2class(t.classSpec.get)}($io, self, self._root)"
+        val addArgs = if (t.isOpaque) "" else ", self, self._root"
+        s"${types2class(t.classSpec.get)}($io$addArgs)"
     }
   }
 
@@ -235,10 +236,13 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 
   def types2class(cl: ClassSpec): String = {
-    val path = cl.name.drop(1).map(x => type2class(x)).mkString(".")
-    s"self._root.$path"
+    if (cl.name.size > 1) {
+      val path = cl.name.drop(1).map(x => type2class(x)).mkString(".")
+      s"self._root.$path"
+    } else {
+      type2class(cl.name.head)
+    }
   }
-
 
   def idToStr(id: Identifier): String = {
     id match {
