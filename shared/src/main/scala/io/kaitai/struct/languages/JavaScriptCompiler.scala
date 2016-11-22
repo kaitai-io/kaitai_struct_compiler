@@ -93,9 +93,9 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts( " */")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
+  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
     out.puts(s"${privateMemberName(attrName)} = " +
-      s"$normalIO.ensureFixedContents(${contents.length}, ${translator.doByteArrayLiteral(contents)});")
+      s"$normalIO.ensureFixedContents($contents);")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
