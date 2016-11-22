@@ -16,9 +16,16 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.open(topClassName.head, provider)
 
     lang.fileHeader(topClassName.head)
+    compileOpaqueClasses(topClass)
     compileClass(topClass)
     lang.fileFooter(topClassName.head)
     lang.close
+  }
+
+  def compileOpaqueClasses(topClass: ClassSpec) = {
+    TypeProcessor.getOpaqueClasses(topClass).foreach((classSpec) =>
+      lang.opaqueClassDeclaration(classSpec)
+    )
   }
 
   def compileClass(curClass: ClassSpec): Unit = {
