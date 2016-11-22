@@ -71,7 +71,12 @@ object Utils {
     * @return array contents hex-escaped as string
     */
   def hexEscapeByteArray(arr: Seq[Byte]): String = {
-    arr.map((x) => "\\x%02X".format(x)).mkString
+    arr.map((x) =>
+      // Note that we'll have to use "x & 0xff" trick to get byte as unsigned integer.
+      // This code works differently in Scala JVM and JS, and this is by design.
+      // For the details, see https://github.com/scala-js/scala-js/issues/2206
+      "\\x%02X".format(x & 0xff)
+    ).mkString
   }
 
   def addUniqueAttr[T](list: ListBuffer[T], element: T): Unit = {
