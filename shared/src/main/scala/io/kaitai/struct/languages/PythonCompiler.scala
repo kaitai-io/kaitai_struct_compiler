@@ -40,6 +40,11 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts
   }
 
+  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+    val name = classSpec.name.head
+    out.puts(s"from $name import ${type2class(name)}")
+  }
+
   override def classHeader(name: String): Unit = {
     out.puts(s"class ${type2class(name)}($kstructName):")
     out.inc
