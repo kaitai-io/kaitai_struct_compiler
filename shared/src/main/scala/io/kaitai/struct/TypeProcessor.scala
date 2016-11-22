@@ -4,6 +4,8 @@ import io.kaitai.struct.exprlang.DataType.{BaseType, SwitchType, UserType}
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeUndecidedError}
 
+import scala.collection.mutable.ListBuffer
+
 object TypeProcessor {
   def processTypes(topClass: ClassSpec): Unit = {
     // Set top class name from meta
@@ -110,7 +112,7 @@ object TypeProcessor {
           resolveUserType(curClass, ut)
         }
       case _ =>
-      // not a user type, nothing to resolve
+        // not a user type, nothing to resolve
     }
   }
 
@@ -225,6 +227,47 @@ object TypeProcessor {
     instSpec match {
       case t: ValueInstanceSpec => t.dataType.get
       case t: ParseInstanceSpec => t.dataTypeComposite
+    }
+  }
+
+  // ==================================================================
+
+  def getOpaqueClasses(curClass: ClassSpec): Iterable[ClassSpec] = {
+    val res = ListBuffer[ClassSpec]()
+    curClass.seq.map((attr) =>
+      res ++= getOpaqueDataTypes(attr.dataType)
+    )
+    curClass.instances.foreach { case (_, inst) =>
+      inst match {
+        case pis: ParseInstanceSpec =>
+          res ++= getOpaqueDataTypes(pis.dataType)
+        case _ => None
+      }
+    }
+
+    // Traverse all nested types recursively
+    curClass.types.foreach { case (_, nestedType) =>
+      getOpaqueClasses(nestedType)
+    }
+
+    res
+  }
+
+  def getOpaqueDataTypes(dataType: BaseType): Iterable[ClassSpec] = {
+    dataType match {
+      case ut: UserType =>
+        if (ut.isOpaque) {
+          List(ut.classSpec.get)
+        } else {
+          List()
+        }
+      case SwitchType(_, cases) =>
+        cases.flatMap { case (_, ut) =>
+          getOpaqueDataTypes(ut)
+        }
+      case _ =>
+        // all other types are not opaque external user types
+        List()
     }
   }
 }
