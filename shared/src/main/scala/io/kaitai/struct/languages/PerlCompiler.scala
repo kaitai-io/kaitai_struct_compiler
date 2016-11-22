@@ -13,6 +13,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with UniversalFooter
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
+    with FixedContentsUsingArrayByteLiteral
     with EveryReadIsExpression {
 
   import PerlCompiler._
@@ -98,8 +99,8 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents(${contents.length}, ${translator.doByteArrayLiteral(contents)});")
+  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
+    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
