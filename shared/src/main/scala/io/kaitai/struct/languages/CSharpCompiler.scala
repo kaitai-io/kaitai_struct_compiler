@@ -13,6 +13,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with EveryReadIsExpression
+    with FixedContentsUsingArrayByteLiteral
     with NoNeedForFullClassPath {
   import CSharpCompiler._
 
@@ -96,9 +97,8 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts( "/// ]]></summary>")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents(${contents.length}, ${translator.doByteArrayLiteral(contents)});")
-  }
+  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
