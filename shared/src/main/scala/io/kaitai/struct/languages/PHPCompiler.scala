@@ -226,7 +226,8 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io->readBytesFull()"
       case t: UserType =>
-        s"new ${types2classAbs(t.classSpec.get.name)}($io, $$this, ${privateMemberName(RootIdentifier)})"
+        val addArgs = if (!t.isOpaque) s", $$this, ${privateMemberName(RootIdentifier)}" else ""
+        s"new ${types2classAbs(t.classSpec.get.name)}($io$addArgs)"
     }
   }
 
