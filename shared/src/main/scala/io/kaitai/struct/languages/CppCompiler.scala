@@ -50,6 +50,11 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     outHdr.puts(s"#endif  // ${defineName(topClassName)}")
   }
 
+  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+    classForwardDeclaration(classSpec.name)
+    outSrc.puts("#include \"" + outFileName(classSpec.name.head) + ".h\"")
+  }
+
   override def classHeader(name: List[String]): Unit = {
     outHdr.puts
     outHdr.puts(s"class ${type2class(List(name.last))} : public $kstructName {")
@@ -375,7 +380,8 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
       case BytesEosType(_) =>
         s"$io->read_bytes_full()"
       case t: UserType =>
-        s"new ${type2class(t.name)}($io, this, ${privateMemberName(RootIdentifier)})"
+        val addArgs = if (!t.isOpaque) s", this, ${privateMemberName(RootIdentifier)}" else ""
+        s"new ${type2class(t.name)}($io$addArgs)"
     }
   }
 
