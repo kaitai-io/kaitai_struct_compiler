@@ -12,6 +12,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with UniversalFooter
+    with FixedContentsUsingArrayByteLiteral
     with EveryReadIsExpression {
 
   import PHPCompiler._
@@ -102,10 +103,8 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts( " */")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    val strLiteral = contents.map { x => "\\x%02x".format(x) }.mkString
-    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents(${contents.length}, " + "\"" + strLiteral + "\");")
-  }
+  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
+    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
