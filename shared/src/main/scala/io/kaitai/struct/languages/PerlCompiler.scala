@@ -42,6 +42,9 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("1;")
   }
 
+  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
+    out.puts(s"use ${type2class(classSpec.name.head)};")
+
   override def classHeader(name: List[String]): Unit = {
     out.puts
     out.puts("########################################################################")
@@ -225,7 +228,8 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io->read_bytes_full()"
       case t: UserType =>
-        s"${types2class(t.classSpec.get.name)}->new($io, $$self, ${privateMemberName(RootIdentifier)})"
+        val addArgs = if (!t.isOpaque) s", $$self, ${privateMemberName(RootIdentifier)}" else ""
+        s"${types2class(t.classSpec.get.name)}->new($io$addArgs)"
     }
   }
 
