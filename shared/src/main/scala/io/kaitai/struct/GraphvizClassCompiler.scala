@@ -162,6 +162,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
           expression(ex, s"$currentTable:$portName", STYLE_EDGE_REPEAT) +
           " times</TD></TR>")
       case RepeatUntil(ex) =>
+        provider._currentIteratorType = Some(dataType)
         out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat until " +
           expression(ex, s"$currentTable:$portName", STYLE_EDGE_REPEAT) +
           "</TD></TR>")
@@ -289,6 +290,9 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
         }
       case expr.Subscript(value, idx) =>
         affectedVars(value) ++ affectedVars(idx)
+      case SwitchType.ELSE_CONST =>
+        // "_" is a special const for
+        List()
       case expr.Name(id) =>
         List(resolveLocalNode(id.name))
       case expr.List(elts) =>
