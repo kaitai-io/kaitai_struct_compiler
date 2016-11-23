@@ -1,7 +1,9 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
+import io.kaitai.struct.languages.RubyCompiler
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
@@ -11,6 +13,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s":${enumType}_${label}"
+  override def doEnumById(enumType: String, id: Ast.expr): String =
+    s"${RubyCompiler.kstreamName}::resolve_enum(${enumType.toUpperCase}, ${translate(id)})"
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
