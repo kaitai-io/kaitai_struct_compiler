@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.exprlang.DataType.{BaseType, KaitaiStreamType, UserTypeInstream}
+import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{TypeProvider, TypeUndecidedError}
 
@@ -49,10 +49,10 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
     }
   }
 
-  def makeUserType(csl: ClassSpecLike): UserTypeInstream = {
+  def makeUserType(csl: ClassSpecLike): BaseType = {
     csl match {
       case GenericStructClassSpec =>
-        UserTypeInstream(List("kaitai_struct"))
+        KaitaiStructType
       case cs: ClassSpec =>
         val ut = UserTypeInstream(cs.name)
         ut.classSpec = Some(cs)
