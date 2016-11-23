@@ -13,8 +13,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s":${enumType}_${label}"
-  override def doEnumById(enumType: String, id: Ast.expr): String =
-    s"${RubyCompiler.kstreamName}::resolve_enum(${enumType.toUpperCase}, ${translate(id)})"
+  override def doEnumById(enumType: String, id: String): String =
+    s"${RubyCompiler.kstreamName}::resolve_enum(${enumType.toUpperCase}, $id)"
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"

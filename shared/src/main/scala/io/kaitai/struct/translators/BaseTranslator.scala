@@ -27,7 +27,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
       case Ast.expr.EnumById(enumType, id) =>
-        doEnumById(enumType.name, id)
+        doEnumById(enumType.name, translate(id))
       case Ast.expr.EnumByLabel(enumType, label) =>
         doEnumByLabel(enumType.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
@@ -199,7 +199,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
   def doEnumByLabel(enumType: String, label: String): String
-  def doEnumById(enumType: String, id: Ast.expr): String = ???
+  def doEnumById(enumType: String, id: String): String = ???
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
