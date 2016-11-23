@@ -539,9 +539,16 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
       case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType, absolute)}>*"
 
       case KaitaiStreamType => s"$kstreamName*"
+      case KaitaiStructType => s"$kstructName*"
 
-      // TODO: derive type properly, we might actually use some primitive type there or something
-      case SwitchType(on, cases) => s"$kstructName*"
+      case SwitchType(on, cases) =>
+        kaitaiType2NativeType(BaseTranslator.combineTypes(
+          // C++ does not have a concept of AnyType, and common use case "lots of incompatible UserTypes
+          // for cases + 1 BytesType for else" combined would result in exactly AnyType - so we try extra
+          // hard to avoid that here with this pre-filtering. In C++, "else" case with raw byte array would
+          // be available through _raw_* attribute anyway.
+          cases.filterNot { case (caseExpr, caseValue) => caseExpr == SwitchType.ELSE_CONST }.values
+        ))
     }
   }
 
