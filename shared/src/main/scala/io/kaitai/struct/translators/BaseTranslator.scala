@@ -377,8 +377,7 @@ object BaseTranslator {
       // Obviously, if types are equal, they'll fit into one another
       t1
     } else {
-      Console.print(s"t1=$t1 t2=$t2 => ")
-      val r = (t1, t2) match {
+      (t1, t2) match {
         // for 1-byte integers, "unsigned" wins (it is always wider)
         case (Int1Type(false), Int1Type(true)) => Int1Type(false)
         case (Int1Type(true), Int1Type(false)) => Int1Type(false)
@@ -402,10 +401,15 @@ object BaseTranslator {
         case (KaitaiStructType, _: UserType) => KaitaiStructType
         case _ => AnyType
       }
-      Console.println(r)
-      r
     }
   }
+
+  /**
+    * Helper method to combine arbitrary number of types at once. Uses combineTypes mechanics internally.
+    * @param types types to combine
+    * @return type that can accommodate values of all source types without any data loss
+    */
+  def combineTypes(types: Iterable[BaseType]): BaseType = types.reduceLeft(combineTypes)
 
   /**
     * Tries to combine types using combineType. Throws exception when no sane combining type can be found
