@@ -482,6 +482,10 @@ object JavaCompiler extends LanguageCompilerStatic
       case _: StrType => "String"
       case _: BytesType => "byte[]"
 
+      case AnyType => "Object"
+      case KaitaiStreamType => kstreamName
+      case KaitaiStructType => kstructName
+
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => type2class(name)
 
@@ -520,13 +524,16 @@ object JavaCompiler extends LanguageCompilerStatic
       case _: StrType => "String"
       case _: BytesType => "byte[]"
 
+      case AnyType => "Object"
+      case KaitaiStreamType => kstreamName
+      case KaitaiStructType => kstructName
+
       case t: UserType => type2class(t.name.last)
       case EnumType(name, _) => type2class(name)
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
-      case SwitchType(on, cases) =>
-        commonSwitchType(cases)
+      case SwitchType(on, cases) => commonSwitchType(cases)
     }
   }
 
@@ -539,15 +546,8 @@ object JavaCompiler extends LanguageCompilerStatic
     * @return Java type name of common superclass
     */
   def commonSwitchType(cases: Map[Ast.expr, BaseType]): String = {
-    cases.values.foreach {
-      case _: UserType =>
-        // all good, continue, may be all we have is user types
-      case _ =>
-        // nope, something else, so just bail out early and stick
-        // with a generic Object
-        return "Object"
-    }
-    kstructName
+    val resType = cases.values.reduceLeft(BaseTranslator.combineTypes)
+    kaitaiType2JavaType(resType)
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
