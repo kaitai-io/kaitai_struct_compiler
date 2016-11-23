@@ -270,7 +270,8 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       //      case expr.Call(func, args) =>
       case expr.IntNum(_) | expr.FloatNum(_) | expr.Str(_) =>
         List()
-      //      case expr.EnumByLabel(enumName, label) =>
+      case expr.EnumByLabel(enumName, label) =>
+        List()
       case expr.Attribute(value, attr) =>
         val targetClass = translator.detectType(value)
         targetClass match {
