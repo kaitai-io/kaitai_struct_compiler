@@ -19,9 +19,18 @@ object InstanceSpec {
       case Some(value) =>
         // value instance
         // TODO: check conflicts with all other keys
+
+        // Wrap everything in EnumById if "enum" is used
+        val value2 = ParseUtils.getOptValueStr(srcMap, "enum", path) match {
+          case None =>
+            value
+          case Some(enumName) =>
+            Ast.expr.EnumById(Ast.identifier(enumName), value)
+        }
+
         ValueInstanceSpec(
           ParseUtils.getOptValueStr(srcMap, "doc", path),
-          value,
+          value2,
           None
         )
       case None =>
