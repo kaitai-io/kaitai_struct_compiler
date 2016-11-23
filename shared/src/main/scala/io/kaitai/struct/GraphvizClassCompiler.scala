@@ -107,7 +107,9 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   }
 
   val HEADER_BGCOLOR = "#E0FFE0"
+  val SWITCH_HEADER_BGCOLOR = "#F0F2E4"
   val TH_START = "<TD BGCOLOR=\"" + HEADER_BGCOLOR + "\">"
+  val SWITCH_TH_START = "<TD BGCOLOR=\"" + SWITCH_HEADER_BGCOLOR + "\">"
 
   def tableStart(className: List[String], extra: String): Unit = {
     currentTable = s"${type2class(className)}__$extra"
@@ -193,16 +195,29 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   def compileSwitch(attrName: String, st: SwitchType): Unit = {
 
     links += ((s"$currentTable:${attrName}_type", s"${currentTable}_${attrName}_switch", STYLE_EDGE_TYPE))
-    extraClusterLines.puts(s"${currentTable}_${attrName}_switch;")
+    extraClusterLines.puts(s"${currentTable}_${attrName}_switch " + "[label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">")
+    extraClusterLines.inc
+    extraClusterLines.puts(s"<TR>${SWITCH_TH_START}case</TD>${SWITCH_TH_START}type</TD></TR>")
 
+    var lineNum = 0
     st.cases.foreach { case (caseExpr, caseType) =>
       caseType match {
         case ut: UserType =>
-          links += ((s"${currentTable}_${attrName}_switch", type2class(ut.name) + "__seq", STYLE_EDGE_TYPE))
+          val exprStr = htmlEscape(translator.translate(caseExpr))
+          val portName = s"case$lineNum"
+          lineNum += 1
+          extraClusterLines.puts(
+            "<TR><TD>" + exprStr + "</TD>" + "" +
+              "<TD PORT=\"" + portName + "\">" + type2display(ut.name) + "</TD></TR>"
+          )
+          links += ((s"${currentTable}_${attrName}_switch:$portName", type2class(ut.name) + "__seq", STYLE_EDGE_TYPE))
         case _ =>
           // ignore, no links
       }
     }
+
+    extraClusterLines.dec
+    extraClusterLines.puts("</TABLE>>];")
   }
 
   val END_OF_STREAM = "⇲"
