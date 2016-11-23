@@ -26,6 +26,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         doStringLiteral(s)
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
+      case Ast.expr.EnumById(enumType, id) =>
+        doEnumById(enumType.name, id)
       case Ast.expr.EnumByLabel(enumType, label) =>
         doEnumByLabel(enumType.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
@@ -197,6 +199,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
   def doEnumByLabel(enumType: String, label: String): String
+  def doEnumById(enumType: String, id: Ast.expr): String = ???
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
@@ -227,6 +230,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Str(_) => CalcStrType
       case Ast.expr.Bool(_) => BooleanType
       case Ast.expr.EnumByLabel(enumType, _) => EnumType(enumType.name, CalcIntType)
+      case Ast.expr.EnumById(enumType, id) => EnumType(enumType.name, CalcIntType)
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
