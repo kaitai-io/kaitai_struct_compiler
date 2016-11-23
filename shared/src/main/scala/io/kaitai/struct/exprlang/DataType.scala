@@ -109,6 +109,8 @@ object DataType {
     override val process: Option[ProcessExpr]
   ) extends UserTypeKnownSize(_name)
 
+  case object AnyType extends BaseType
+  case object KaitaiStructType extends BaseType
   case object KaitaiStreamType extends BaseType
 
   case class EnumType(name: String, basedOn: IntType) extends BaseType
