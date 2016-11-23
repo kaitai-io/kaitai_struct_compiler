@@ -491,7 +491,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => kaitaiType2JavaTypeBoxed(attrType)
 
-      case SwitchType(on, cases) => kaitaiType2JavaTypeBoxed(attrType)
+      case SwitchType(on, cases) => kaitaiType2JavaTypePrim(BaseTranslator.combineTypes(cases.values))
     }
   }
 
@@ -533,21 +533,8 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
-      case SwitchType(on, cases) => commonSwitchType(cases)
+      case SwitchType(on, cases) => kaitaiType2JavaTypeBoxed(BaseTranslator.combineTypes(cases.values))
     }
-  }
-
-  /**
-    * Determine common superclass that will accommodate all possible results
-    * from a switch type. We just check if everything fits is a user type
-    * (and thus will fit in `KaitaiStruct`), or just return `Object`.
-    *
-    * @param cases
-    * @return Java type name of common superclass
-    */
-  def commonSwitchType(cases: Map[Ast.expr, BaseType]): String = {
-    val resType = cases.values.reduceLeft(BaseTranslator.combineTypes)
-    kaitaiType2JavaType(resType)
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
