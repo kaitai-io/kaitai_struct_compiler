@@ -14,6 +14,8 @@ class TypeMismatchError(msg: String) extends RuntimeException(msg)
 class TypeUndecidedError(msg: String) extends RuntimeException(msg)
 
 abstract class BaseTranslator(val provider: TypeProvider) {
+  import BaseTranslator._
+
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.IntNum(n) =>
@@ -274,7 +276,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case BooleanType =>
             val trueType = detectType(ifTrue)
             val falseType = detectType(ifFalse)
-            combineTypes(trueType, falseType)
+            combineTypesAndFail(trueType, falseType)
           case other => throw new TypeMismatchError(s"unable to switch over $other")
         }
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
@@ -289,14 +291,12 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
         valType match {
+          case KaitaiStructType =>
+            throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '$value'")
           case t: UserType =>
-            if (t.name == List("kaitai_struct")) {
-              throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '$value'")
-            } else {
-              t.classSpec match {
-                case Some(tt) => provider.determineType(tt, attr.name)
-                case None => throw new TypeUndecidedError(s"expression '$value' has undecided type '${t.name}' (while asking for attribute '${attr.name}')")
-              }
+            t.classSpec match {
+              case Some(tt) => provider.determineType(tt, attr.name)
+              case None => throw new TypeUndecidedError(s"expression '$value' has undecided type '${t.name}' (while asking for attribute '${attr.name}')")
             }
           case _: StrType =>
             attr.name match {
@@ -337,31 +337,6 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   }
 
   /**
-    * Checks if the values of two types can be combined (i.e. there exists a single type that can
-    * be used to hold values of both values - usually it means that they're either equal or one
-    * is a subset of another).
-    *
-    * @param t1 first type
-    * @param t2 second type
-    * @return type that can accommodate values of both source types without any data loss
-    */
-  def combineTypes(t1: BaseType, t2: BaseType): BaseType = {
-    if (t1 == t2) {
-      // Obviously, if types are equal, they'll fit into one another
-      t1
-    } else {
-      (t1, t2) match {
-        // for 1-byte integers, "unsigned" wins (it is always wider)
-        case (Int1Type(false), Int1Type(true)) => Int1Type(false)
-        case (Int1Type(true), Int1Type(false)) => Int1Type(false)
-        case (_: IntType, _: IntType) => CalcIntType
-        case (_: NumericType, _: NumericType) => CalcFloatType
-        case _ => throw new TypeMismatchError(s"ternary operator with different output types: $t1 vs $t2")
-      }
-    }
-  }
-
-  /**
     * Checks that elements in the array literal are all the of same type and
     * returns that type. Throws exception if multiple mismatching types are
     * encountered.
@@ -376,13 +351,74 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       val t2 = detectType(v)
       t1o = t1o match {
         case None => Some(t2)
-        case Some(t1) => Some(combineTypes(t1, t2))
+        case Some(t1) => Some(combineTypesAndFail(t1, t2))
       }
     }
 
     t1o match {
       case None => throw new RuntimeException("empty array literals are not allowed - can't detect array type")
       case Some(t) => t
+    }
+  }
+}
+
+object BaseTranslator {
+  /**
+    * Checks if the values of two types can be combined (i.e. there exists a single type that can
+    * be used to hold values of both values - usually it means that they're either equal or one
+    * is a subset of another).
+    *
+    * @param t1 first type
+    * @param t2 second type
+    * @return type that can accommodate values of both source types without any data loss
+    */
+  def combineTypes(t1: BaseType, t2: BaseType): BaseType = {
+    if (t1 == t2) {
+      // Obviously, if types are equal, they'll fit into one another
+      t1
+    } else {
+      Console.print(s"t1=$t1 t2=$t2 => ")
+      val r = (t1, t2) match {
+        // for 1-byte integers, "unsigned" wins (it is always wider)
+        case (Int1Type(false), Int1Type(true)) => Int1Type(false)
+        case (Int1Type(true), Int1Type(false)) => Int1Type(false)
+        case (Int1Type(_), _: IntMultiType) => t2
+        case (_: IntMultiType, Int1Type(_)) => t1
+        case (i1: IntMultiType, i2: IntMultiType) =>
+          if (i1.endian == i2.endian && i1.signed == i2.signed) {
+            val width = if (i1.width.width > i2.width.width) {
+              i1.width
+            } else {
+              i2.width
+            }
+            IntMultiType(i1.signed, width, i1.endian)
+          } else {
+            CalcIntType
+          }
+        case (_: IntType, _: IntType) => CalcIntType
+        case (_: NumericType, _: NumericType) => CalcFloatType
+        case (_: UserType, _: UserType) => KaitaiStructType
+        case (_: UserType, KaitaiStructType) => KaitaiStructType
+        case (KaitaiStructType, _: UserType) => KaitaiStructType
+        case _ => AnyType
+      }
+      Console.println(r)
+      r
+    }
+  }
+
+  /**
+    * Tries to combine types using combineType. Throws exception when no sane combining type can be found
+    * (i.e. only last-resort AnyType results).
+    * @param t1 first type
+    * @param t2 second type
+    * @return type that can accommodate values of both source types without any data loss
+    */
+  def combineTypesAndFail(t1: BaseType, t2: BaseType): BaseType = {
+    combineTypes(t1, t2) match {
+      case AnyType =>
+        throw new TypeMismatchError(s"can't combine output types: $t1 vs $t2")
+      case ct => ct
     }
   }
 }
