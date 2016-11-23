@@ -230,7 +230,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + ".ReadStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
       case EnumType(enumName, t) =>
-        s"((${type2class(enumName)}) ${parseExpr(t, io)})"
+        translator.doEnumById(enumName, parseExpr(t, io))
       case BytesLimitType(size, _) =>
         s"$io.ReadBytes(${expression(size)})"
       case BytesEosType(_) =>

@@ -33,6 +33,8 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s"${Utils.upperCamelCase(enumType)}.${Utils.upperCamelCase(label)}"
+  override def doEnumById(enumType: String, id: String): String =
+    s"((${Utils.upperCamelCase(enumType)}) $id)"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     if (op == Ast.cmpop.Eq) {
