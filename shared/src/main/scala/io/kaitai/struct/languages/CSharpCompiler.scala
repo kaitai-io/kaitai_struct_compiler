@@ -378,34 +378,17 @@ object CSharpCompiler extends LanguageCompilerStatic
       case _: StrType => "string"
       case _: BytesType => "byte[]"
 
+      case AnyType => "object"
+      case KaitaiStructType => kstructName
+      case KaitaiStreamType => kstreamName
+
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => type2class(name)
 
       case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"
 
-      // TODO: implement proper type derivation
-      case SwitchType(_, cases) => commonSwitchType(cases)
+      case SwitchType(_, cases) => kaitaiType2NativeType(BaseTranslator.combineTypes(cases.values))
     }
-  }
-
-  /**
-    * Determine common superclass that will accomodate all possible results
-    * from a switch type. We just check if everything fits is a user type
-    * (and thus will fit in `KaitaiStruct`), or just return `object`.
-    *
-    * @param cases
-    * @return C# type name of common superclass
-    */
-  def commonSwitchType(cases: Map[Ast.expr, BaseType]): String = {
-    cases.values.foreach {
-      case _: UserType =>
-      // all good, continue, may be all we have is user types
-      case _ =>
-        // nope, something else, so just bail out early and stick
-        // with a generic object
-        return "object"
-    }
-    kstructName
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
@@ -413,9 +396,5 @@ object CSharpCompiler extends LanguageCompilerStatic
   override def kstructName = "KaitaiStruct"
   override def kstreamName = "KaitaiStream"
 
-  override def type2class(name: String): String = name match {
-    case "kaitai_struct" => kstructName
-    case "kaitai_stream" => kstreamName
-    case _ => Utils.upperCamelCase(name)
-  }
+  override def type2class(name: String): String = Utils.upperCamelCase(name)
 }
