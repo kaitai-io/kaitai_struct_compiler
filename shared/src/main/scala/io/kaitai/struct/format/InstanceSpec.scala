@@ -1,6 +1,6 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.exprlang.DataType.BaseType
+import io.kaitai.struct.exprlang.DataType.{BaseType, Endianness}
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 // Note: can't be "sealed trait" due to Java JSON parser library compatibility!
@@ -9,7 +9,7 @@ case class ValueInstanceSpec(_doc: Option[String], value: Ast.expr, var dataType
 case class ParseInstanceSpec(_doc: Option[String], dataType: BaseType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec(_doc) with AttrLikeSpec
 
 object InstanceSpec {
-  def fromYaml(src: Any, path: List[String]): InstanceSpec = {
+  def fromYaml(src: Any, path: List[String], defEndian: Option[Endianness]): InstanceSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
 
     val pos = ParseUtils.getOptValueStr(srcMap, "pos", path).map(Expressions.parse)
@@ -36,7 +36,7 @@ object InstanceSpec {
       case None =>
         // normal positional instance
         val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io") + ("id" -> "fake")
-        val a = AttrSpec.fromYaml(fakeAttrMap, path)
+        val a = AttrSpec.fromYaml(fakeAttrMap, path, defEndian)
         ParseInstanceSpec(a.doc, a.dataType, a.cond, pos, io)
     }
   }

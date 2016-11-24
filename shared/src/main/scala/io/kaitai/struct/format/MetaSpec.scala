@@ -2,7 +2,11 @@ package io.kaitai.struct.format
 
 import io.kaitai.struct.exprlang.DataType.{BigEndian, Endianness, LittleEndian}
 
-case class MetaSpec(isOpaque: Boolean, id: String, endian: Option[Endianness])
+case class MetaSpec(
+  isOpaque: Boolean,
+  id: Option[String],
+  endian: Option[Endianness]
+)
 
 object MetaSpec {
   val LEGAL_KEYS = Set(
@@ -16,7 +20,7 @@ object MetaSpec {
     val srcMap = ParseUtils.asMapStr(src, path)
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
-    val id = ParseUtils.getValueStr(srcMap, "id", path)
+    val id = ParseUtils.getOptValueStr(srcMap, "id", path)
     val endian: Option[Endianness] = srcMap.get("endian") match {
       case None => None
       case Some("be") => Some(BigEndian)
@@ -27,11 +31,6 @@ object MetaSpec {
       )
     }
 
-    val meta = MetaSpec(false, id, endian)
-    // TODO: remove hack
-    globalMeta = Some(meta)
-    meta
+    MetaSpec(isOpaque = false, id, endian)
   }
-
-  var globalMeta: Option[MetaSpec] = None
 }
