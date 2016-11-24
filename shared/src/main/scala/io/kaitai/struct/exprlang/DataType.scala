@@ -1,6 +1,6 @@
 package io.kaitai.struct.exprlang
 
-import io.kaitai.struct.format.{ClassSpec, ProcessExpr, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpec, MetaDefaults, ProcessExpr, YAMLParseException}
 
 /**
   * A collection of case objects and classes that are used to represent internal
@@ -130,7 +130,7 @@ object DataType {
   def fromYaml(
     dto: Option[String],
     path: List[String],
-    defaultEndian: Option[Endianness],
+    metaDef: MetaDefaults,
     size: Option[Ast.expr],
     sizeEos: Boolean,
     encoding: Option[String],
@@ -170,7 +170,7 @@ object DataType {
               case "4" => Width4
               case "8" => Width8
             },
-            Endianness.fromString(Option(endianStr), defaultEndian, dt, path)
+            Endianness.fromString(Option(endianStr), metaDef.endian, dt, path)
           )
         case ReFloatType(widthStr, endianStr) =>
           FloatMultiType(
@@ -178,23 +178,21 @@ object DataType {
               case "4" => Width4
               case "8" => Width8
             },
-            Endianness.fromString(Option(endianStr), defaultEndian, dt, path)
+            Endianness.fromString(Option(endianStr), metaDef.endian, dt, path)
           )
         case "str" =>
-          if (encoding.isEmpty)
-            throw new RuntimeException("type str: encoding must be specified")
+          val enc = getEncoding(encoding, metaDef, path)
           (size, sizeEos) match {
-            case (Some(bs: Ast.expr), false) => StrByteLimitType(bs, encoding.get)
-            case (None, true) => StrEosType(encoding.get)
+            case (Some(bs: Ast.expr), false) => StrByteLimitType(bs, enc)
+            case (None, true) => StrEosType(enc)
             case (None, false) =>
               throw new RuntimeException(s"type $dt: either 'size' or 'size-eos' must be specified")
             case (Some(_), true) =>
               throw new RuntimeException(s"type $dt: only one of 'size' or 'size-eos' must be specified")
           }
         case "strz" =>
-          if (encoding.isEmpty)
-            throw new RuntimeException(s"type $dt: encoding must be specified")
-          StrZType(encoding.get, terminator, include, consume, eosError)
+          val enc = getEncoding(encoding, metaDef, path)
+          StrZType(enc, terminator, include, consume, eosError)
         case _ =>
           val dtl = dt.split("::", -1).toList
           (size, sizeEos) match {
@@ -219,6 +217,14 @@ object DataType {
         }
       case None =>
         r
+    }
+  }
+
+  def getEncoding(curEncoding: Option[String], metaDef: MetaDefaults, path: List[String]): String = {
+    curEncoding.orElse(metaDef.encoding) match {
+      case Some(enc) => enc
+      case None =>
+        throw new YAMLParseException("string type, but no encoding found", path)
     }
   }
 }

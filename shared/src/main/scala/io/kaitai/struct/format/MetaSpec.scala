@@ -5,13 +5,17 @@ import io.kaitai.struct.exprlang.DataType.{BigEndian, Endianness, LittleEndian}
 case class MetaSpec(
   isOpaque: Boolean,
   id: Option[String],
-  endian: Option[Endianness]
+  endian: Option[Endianness],
+  encoding: Option[String]
 )
 
 object MetaSpec {
+  val OPAQUE = MetaSpec(isOpaque = true, None, None, None)
+
   val LEGAL_KEYS = Set(
     "id",
     "endian",
+    "encoding",
     "file-extension",
     "application"
   )
@@ -30,7 +34,8 @@ object MetaSpec {
         path ++ List("endian")
       )
     }
+    val encoding = ParseUtils.getOptValueStr(srcMap, "encoding", path)
 
-    MetaSpec(isOpaque = false, id, endian)
+    MetaSpec(isOpaque = false, id, endian, encoding)
   }
 }

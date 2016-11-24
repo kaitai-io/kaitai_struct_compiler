@@ -79,7 +79,7 @@ object AttrSpec {
     "enum"
   )
 
-  def fromYaml(src: Any, path: List[String], defEndian: Option[Endianness]): AttrSpec = {
+  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults): AttrSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
 
     val idStr = ParseUtils.getValueStr(srcMap, "id", path)
@@ -107,7 +107,7 @@ object AttrSpec {
     val dataType: BaseType = typObj match {
       case None =>
         DataType.fromYaml(
-          None, path, defEndian,
+          None, path, metaDef,
           size, sizeEos,
           encoding, terminator, include, consume, eosError,
           contents, enum, process
@@ -116,7 +116,7 @@ object AttrSpec {
         x match {
           case simpleType: String =>
             DataType.fromYaml(
-              Some(simpleType), path, defEndian,
+              Some(simpleType), path, metaDef,
               size, sizeEos,
               encoding, terminator, include, consume, eosError,
               contents, enum, process
@@ -124,7 +124,7 @@ object AttrSpec {
           case switchMap: Map[Any, Any] =>
             val switchMapStr = ParseUtils.anyMapToStrMap(switchMap, path)
             parseSwitch(
-              switchMapStr, path, defEndian,
+              switchMapStr, path, metaDef,
               size, sizeEos,
               encoding, terminator, include, consume, eosError,
               contents, enum, process
@@ -181,7 +181,7 @@ object AttrSpec {
   private def parseSwitch(
     switchSpec: Map[String, Any],
     path: List[String],
-    defEndian: Option[Endianness],
+    metaDef: MetaDefaults,
     size: Option[Ast.expr],
     sizeEos: Boolean,
     encoding: Option[String],
@@ -202,7 +202,7 @@ object AttrSpec {
     val on = Expressions.parse(_on)
     val cases = _cases.map { case (condition, typeName) =>
       Expressions.parse(condition) -> DataType.fromYaml(
-        Some(typeName), path ++ List("cases"), defEndian,
+        Some(typeName), path ++ List("cases"), metaDef,
         size, sizeEos,
         encoding, terminator, include, consume, eosError,
         contents, enumRef, process

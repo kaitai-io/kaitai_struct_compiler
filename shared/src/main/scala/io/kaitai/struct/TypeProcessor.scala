@@ -131,7 +131,7 @@ object TypeProcessor {
       case None =>
         // Type definition not found - generate special "opaque placeholder" ClassSpec
         val placeholder = ClassSpec(
-          meta = Some(MetaSpec(isOpaque = true, None, None)),
+          meta = Some(MetaSpec.OPAQUE),
           seq = List(),
           types = Map(),
           instances = Map(),
