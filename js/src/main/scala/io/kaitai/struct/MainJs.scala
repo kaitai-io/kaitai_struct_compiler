@@ -15,7 +15,7 @@ object MainJs {
     val lang = LanguageCompilerStatic.byString(langStr)
 
     val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
-    val spec = ClassSpec.fromYaml(yamlScala, List())
+    val spec = ClassSpec.fromYaml(yamlScala)
     TypeProcessor.processTypes(spec)
 
     val (out1, out2, cc) = ClassCompiler.fromClassSpecToString(spec, lang, config)
