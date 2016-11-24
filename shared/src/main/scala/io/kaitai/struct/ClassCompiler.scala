@@ -10,7 +10,7 @@ import scala.collection.mutable.ListBuffer
 class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends AbstractCompiler {
   val provider = new ClassTypeProvider(topClass)
 
-  val topClassName = List(topClass.meta.get.id)
+  val topClassName = topClass.name
 
   override def compile {
     lang.open(topClassName.head, provider)
@@ -134,7 +134,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
 object ClassCompiler {
   def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): AbstractCompiler = {
-    val outPath = lang.outFilePath(config, outDir, topClass.meta.get.id)
+    val outPath = lang.outFilePath(config, outDir, topClass.name.head)
     if (config.verbose)
       Console.println(s"... => ${outPath}")
     lang match {
