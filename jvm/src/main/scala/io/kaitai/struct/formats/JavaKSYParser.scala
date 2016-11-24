@@ -13,7 +13,7 @@ import scala.collection.JavaConversions._
 object JavaKSYParser {
   def localFileToSpec(yamlFilename: String): ClassSpec = {
     val scalaSrc = readerToYaml(new FileReader(yamlFilename))
-    val spec = ClassSpec.fromYaml(scalaSrc, List())
+    val spec = ClassSpec.fromYaml(scalaSrc)
     TypeProcessor.processTypes(spec)
     spec
   }
