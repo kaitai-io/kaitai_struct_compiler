@@ -9,7 +9,7 @@ import scala.collection.mutable.ListBuffer
 object TypeProcessor {
   def processTypes(topClass: ClassSpec): Unit = {
     // Set top class name from meta
-    topClass.name = List(topClass.meta.get.id)
+    topClass.name = List(topClass.meta.get.id.get)
 
     markupClassNames(topClass)
     resolveUserTypes(topClass)
@@ -130,7 +130,13 @@ object TypeProcessor {
     res match {
       case None =>
         // Type definition not found - generate special "opaque placeholder" ClassSpec
-        val placeholder = ClassSpec(Some(MetaSpec(true, "", None)), List(), Map(), Map(), Map())
+        val placeholder = ClassSpec(
+          meta = Some(MetaSpec(isOpaque = true, None, None)),
+          seq = List(),
+          types = Map(),
+          instances = Map(),
+          enums = Map()
+        )
         placeholder.name = typeName
         Some(placeholder)
       case Some(x) =>
