@@ -1,7 +1,5 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.exprlang.DataType.Endianness
-
 sealed trait ClassSpecLike
 case object UnknownClassSpec extends ClassSpecLike
 case object GenericStructClassSpec extends ClassSpecLike
@@ -70,7 +68,7 @@ object ClassSpec {
     src match {
       case srcList: List[Any] =>
         srcList.zipWithIndex.map { case (attrSrc, idx) =>
-          AttrSpec.fromYaml(attrSrc, path ++ List(idx.toString), metaDef)
+          AttrSpec.fromYaml(attrSrc, path ++ List(idx.toString), metaDef, idx)
         }
       case unknown =>
         throw new YAMLParseException(s"expected array, found $unknown", path)
@@ -90,7 +88,7 @@ object ClassSpec {
       val instName = ParseUtils.asStr(key, path)
       val id = InstanceIdentifier(instName)
       // TODO: check this conversion
-      id -> InstanceSpec.fromYaml(body, path ++ List(instName), metaDef)
+      id -> InstanceSpec.fromYaml(body, path ++ List(instName), metaDef, id)
     }
   }
 

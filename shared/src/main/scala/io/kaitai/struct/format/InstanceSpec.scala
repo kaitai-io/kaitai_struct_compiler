@@ -9,7 +9,7 @@ case class ValueInstanceSpec(_doc: Option[String], value: Ast.expr, var dataType
 case class ParseInstanceSpec(_doc: Option[String], dataType: BaseType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec(_doc) with AttrLikeSpec
 
 object InstanceSpec {
-  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults): InstanceSpec = {
+  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults, id: InstanceIdentifier): InstanceSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
 
     val pos = ParseUtils.getOptValueStr(srcMap, "pos", path).map(Expressions.parse)
@@ -35,8 +35,8 @@ object InstanceSpec {
         )
       case None =>
         // normal positional instance
-        val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io") + ("id" -> "fake")
-        val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef)
+        val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io")
+        val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef, id)
         ParseInstanceSpec(a.doc, a.dataType, a.cond, pos, io)
     }
   }

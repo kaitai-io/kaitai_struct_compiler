@@ -79,12 +79,16 @@ object AttrSpec {
     "enum"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults): AttrSpec = {
+  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults, idx: Int): AttrSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
+    val id = ParseUtils.getOptValueStr(srcMap, "id", path) match {
+      case Some(idStr) => NamedIdentifier(idStr)
+      case None => NumberedIdentifier(idx)
+    }
+    fromYaml(srcMap, path, metaDef, id)
+  }
 
-    val idStr = ParseUtils.getValueStr(srcMap, "id", path)
-    val id = Some(NamedIdentifier(idStr))
-
+  def fromYaml(srcMap: Map[String, Any], path: List[String], metaDef: MetaDefaults, id: Identifier): AttrSpec = {
     val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
     val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path)) // TODO: add proper path propagation
     val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))
@@ -153,7 +157,7 @@ object AttrSpec {
       case None => NoRepeat
     }
 
-    AttrSpec(id.get, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
+    AttrSpec(id, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
   }
 
   def parseContentSpec(c: Any, path: List[String]): Array[Byte] = {
