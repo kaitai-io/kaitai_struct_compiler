@@ -164,7 +164,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     val t = attr.dataTypeComposite
 
     val checkFlag = id match {
-      case _: NamedIdentifier =>
+      case _: NamedIdentifier | _: NumberedIdentifier =>
         t match {
           case ut: UserType =>
             attr.cond.ifExpr.isDefined
@@ -574,6 +574,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
       case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
       case si: SpecialIdentifier => si.name
       case ni: NamedIdentifier => ni.name
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case ni: InstanceIdentifier => ni.name
     }
   }

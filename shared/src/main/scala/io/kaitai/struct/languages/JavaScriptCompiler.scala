@@ -357,6 +357,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     id match {
       case SpecialIdentifier(name) => name
       case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => s"_m_${Utils.lowerCamelCase(name)}"
       case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
     }

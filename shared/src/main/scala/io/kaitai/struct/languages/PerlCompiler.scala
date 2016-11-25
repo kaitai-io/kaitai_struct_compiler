@@ -294,6 +294,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def idToStr(id: Identifier): String = {
     id match {
       case NamedIdentifier(name) => name
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case si: SpecialIdentifier => si.name
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
       case InstanceIdentifier(name) => name
