@@ -488,9 +488,9 @@ object JavaCompiler extends LanguageCompilerStatic
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
-      case ArrayType(inType) => kaitaiType2JavaTypeBoxed(attrType)
+      case ArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
 
-      case SwitchType(on, cases) => kaitaiType2JavaTypePrim(BaseTranslator.combineTypes(cases.values))
+      case SwitchType(_, cases) => kaitaiType2JavaTypePrim(BaseTranslator.combineTypes(cases.values))
     }
   }
 
@@ -532,7 +532,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
-      case SwitchType(on, cases) => kaitaiType2JavaTypeBoxed(BaseTranslator.combineTypes(cases.values))
+      case SwitchType(_, cases) => kaitaiType2JavaTypeBoxed(BaseTranslator.combineTypes(cases.values))
     }
   }
 

@@ -241,7 +241,7 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case SpecialIdentifier(name) => name
       case NamedIdentifier(name) => name
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => s"_m_${name}"
+      case InstanceIdentifier(name) => s"_m_$name"
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
     }
   }
