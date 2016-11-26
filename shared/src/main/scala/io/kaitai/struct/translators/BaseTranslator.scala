@@ -3,12 +3,13 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.{cmpop, expr}
 import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.format.ClassSpec
+import io.kaitai.struct.format.{ClassSpec, EnumSpec}
 
 trait TypeProvider {
   def nowClass: ClassSpec
   def determineType(attrName: String): BaseType
   def determineType(inClass: ClassSpec, attrName: String): BaseType
+  def resolveEnum(enumName: String): EnumSpec
 }
 
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
@@ -28,10 +29,11 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
       case Ast.expr.EnumById(enumType, id) =>
-        // TODO: resolve proper absolute enum type
-        doEnumById(List(enumType.name), translate(id))
+        val enumSpec = provider.resolveEnum(enumType.name)
+        doEnumById(enumSpec.name, translate(id))
       case Ast.expr.EnumByLabel(enumType, label) =>
-        doEnumByLabel(enumType.name, label.name)
+        val enumSpec = provider.resolveEnum(enumType.name)
+        doEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         doLocalName(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
@@ -200,7 +202,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def doName(s: String): String
   def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
-  def doEnumByLabel(enumType: String, label: String): String
+  def doEnumByLabel(enumTypeAbs: List[String], label: String): String
   def doEnumById(enumTypeAbs: List[String], id: String): String
 
   // Predefined methods of various types
@@ -231,8 +233,14 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.FloatNum(_) => CalcFloatType
       case Ast.expr.Str(_) => CalcStrType
       case Ast.expr.Bool(_) => BooleanType
-      case Ast.expr.EnumByLabel(enumType, _) => EnumType(List(enumType.name), CalcIntType)
-      case Ast.expr.EnumById(enumType, _) => EnumType(List(enumType.name), CalcIntType)
+      case Ast.expr.EnumByLabel(enumType, _) =>
+        val t = EnumType(List(enumType.name), CalcIntType)
+        t.enumSpec = Some(provider.resolveEnum(enumType.name))
+        t
+      case Ast.expr.EnumById(enumType, _) =>
+        val t = EnumType(List(enumType.name), CalcIntType)
+        t.enumSpec = Some(provider.resolveEnum(enumType.name))
+        t
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)

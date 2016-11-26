@@ -11,8 +11,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doName(s: String) = s
 
-  override def doEnumByLabel(enumType: String, label: String): String =
-    s":${enumType}_$label"
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
+    s":${enumTypeAbs.last}_$label"
   override def doEnumById(enumType: List[String], id: String): String =
     s"${RubyCompiler.kstreamName}::resolve_enum(${enumType.last.toUpperCase}, $id)"
 

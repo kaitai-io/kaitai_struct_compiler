@@ -2,7 +2,7 @@ package io.kaitai.struct
 
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{TypeProvider, TypeUndecidedError}
+import io.kaitai.struct.translators.{TypeMismatchError, TypeProvider, TypeUndecidedError}
 
 class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
   var nowClass = topClass
@@ -57,6 +57,24 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
         val ut = UserTypeInstream(cs.name)
         ut.classSpec = Some(cs)
         ut
+    }
+  }
+
+  override def resolveEnum(enumName: String): EnumSpec = resolveEnum(nowClass, enumName)
+
+  def resolveEnum(inClass: ClassSpec, enumName: String): EnumSpec = {
+    inClass.enums.get(enumName) match {
+      case Some(spec) =>
+        spec
+      case None =>
+        // let's try upper levels of hierarchy
+        inClass.upClass match {
+          case Some(upClass) => resolveEnum(upClass, enumName)
+          case None =>
+            throw new RuntimeException(
+              s"Unable to find enum '$enumName', searching from ${nowClass.name.mkString("::")}"
+            )
+        }
     }
   }
 }

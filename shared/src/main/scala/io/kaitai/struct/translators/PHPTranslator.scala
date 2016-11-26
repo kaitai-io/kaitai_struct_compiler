@@ -33,8 +33,11 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
-  override def doEnumByLabel(enumType: String, label: String): String =
-    s"${Utils.upperCamelCase(enumType)}::${label.toUpperCase}"
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
+    val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
+    val enumClass = PHPCompiler.types2classRel(enumTypeRel)
+    s"$enumClass::${label.toUpperCase}"
+  }
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id

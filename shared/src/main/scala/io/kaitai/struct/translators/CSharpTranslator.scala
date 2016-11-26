@@ -31,12 +31,14 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     else
       s"${Utils.upperCamelCase(s)}"
 
-  override def doEnumByLabel(enumType: String, label: String): String =
-    s"${Utils.upperCamelCase(enumType)}.${Utils.upperCamelCase(label)}"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String = {
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
+    s"${enumClass(enumTypeAbs)}.${Utils.upperCamelCase(label)}"
+  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+    s"((${enumClass(enumTypeAbs)}) $id)"
+
+  def enumClass(enumTypeAbs: List[String]): String = {
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
-    val enumClass = enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
-    s"(($enumClass) $id)"
+    CSharpCompiler.types2class(enumTypeRel)
   }
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {

@@ -501,7 +501,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     outHdr.puts("};")
   }
 
-  def value2Const(enumName: String, label: String) = translator.doEnumByLabel(enumName, label)
+  def value2Const(enumName: String, label: String) = (enumName + "_" + label).toUpperCase
 
   def kaitaiType2NativeType(attrType: BaseType, absolute: Boolean = false): String = {
     attrType match {

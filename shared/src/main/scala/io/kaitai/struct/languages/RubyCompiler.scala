@@ -289,7 +289,7 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
   }
 
-  def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(enumName, enumLabel)
+  def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
 
   def value2Const(s: String) = s.toUpperCase
 

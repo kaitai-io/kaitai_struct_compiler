@@ -306,8 +306,6 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     "\\" + config.phpNamespace
   }
 
-  def types2classRel(names: List[String]) = names.map(type2class(_)).mkString("\\")
-
   def types2classAbs(names: List[String]) =
     names match {
       case List("kaitai_struct") => kstructName
@@ -349,4 +347,6 @@ object PHPCompiler extends LanguageCompilerStatic
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 
   override def kstructName: String = "\\Kaitai\\Struct\\Struct"
+
+  def types2classRel(names: List[String]) = names.map(type2class).mkString("\\")
 }

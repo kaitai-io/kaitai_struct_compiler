@@ -286,7 +286,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(enumName, enumLabel)
+  def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
 
   override def idToStr(id: Identifier): String = {
     id match {

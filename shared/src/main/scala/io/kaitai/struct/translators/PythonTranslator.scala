@@ -30,8 +30,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   }
   override def doName(s: String) = s
 
-  override def doEnumByLabel(enumType: String, label: String): String =
-    s"self._root.${Utils.upperCamelCase(enumType)}.${label}"
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
+    s"${PythonCompiler.types2class(enumTypeAbs)}.$label"
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     s"${PythonCompiler.types2class(enumTypeAbs)}($id)"
 

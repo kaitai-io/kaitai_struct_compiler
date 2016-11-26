@@ -339,6 +339,9 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   abstract class FakeTypeProvider extends TypeProvider {
     val nowClass = ClassSpec(None, List(), Map(), Map(), Map())
     nowClass.name = List("top_class")
+
+    override def resolveEnum(enumName: String) =
+      throw new NotImplementedError
   }
 
   case class Always(t: BaseType) extends FakeTypeProvider {
