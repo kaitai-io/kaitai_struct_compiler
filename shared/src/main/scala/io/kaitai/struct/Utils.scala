@@ -83,4 +83,17 @@ object Utils {
     if (!list.contains(element))
       list += element
   }
+
+  /**
+    * Derives relative name to fullPath, given that we're currently located curPath.
+    * @param fullPath
+    * @param curPath
+    * @return
+    */
+  def relClass(fullPath: List[String], curPath: List[String]): List[String] =
+    if (fullPath.startsWith(curPath)) {
+      fullPath.slice(curPath.length, fullPath.length)
+    } else {
+      fullPath
+    }
 }
