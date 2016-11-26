@@ -272,10 +272,6 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         io + ".readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + ".readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
-      case EnumType(enumName, t) =>
-        // Just an integer, without any casts / resolutions - one would have to look up constants manually
-        parseExpr(t, io)
-
       case BytesLimitType(size, _) =>
         s"$io.readBytes(${expression(size)})"
       case BytesEosType(_) =>

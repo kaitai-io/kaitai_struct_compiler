@@ -220,9 +220,6 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         io + "->read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + "->read_strz(\"" + encoding + '"' + s", $terminator, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
-      case EnumType(enumName, t) =>
-        parseExpr(t, io)
-
       case BytesLimitType(size, _) =>
         s"$io->read_bytes(${expression(size)})"
       case BytesEosType(_) =>

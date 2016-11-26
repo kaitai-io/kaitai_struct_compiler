@@ -34,6 +34,9 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s"this._root.constructor.${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"
+  override def doEnumById(enumTypeAbs: List[String], label: String): String =
+    // Just an integer, without any casts / resolutions - one would have to look up constants manually
+    label
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"

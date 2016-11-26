@@ -87,10 +87,10 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   }
 
   def compileEnums(curClass: ClassSpec): Unit =
-    curClass.enums.foreach { case(enumName, enumColl) => compileEnum(curClass, enumName, enumColl) }
+    curClass.enums.foreach { case(_, enumColl) => compileEnum(curClass, enumColl) }
 
   def compileSubclasses(curClass: ClassSpec): Unit =
-    curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
+    curClass.types.foreach { case (_, intClass) => compileClass(intClass) }
 
   def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
@@ -124,11 +124,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.instanceFooter
   }
 
-  def compileEnum(curClass: ClassSpec, enumName: String, enumColl: Map[Long, String]): Unit = {
-    // Stabilize order of generated enums by sorting it by integer ID - it
-    // both looks nicer and doesn't screw diffs in generated code
-    val enumSorted = enumColl.toSeq.sortBy(_._1)
-    lang.enumDeclaration(curClass.name, enumName, enumSorted)
+  def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit = {
+    lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
   }
 }
 

@@ -6,6 +6,7 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.ClassSpec
 
 trait TypeProvider {
+  def nowClass: ClassSpec
   def determineType(attrName: String): BaseType
   def determineType(inClass: ClassSpec, attrName: String): BaseType
 }
@@ -27,7 +28,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
       case Ast.expr.EnumById(enumType, id) =>
-        doEnumById(enumType.name, translate(id))
+        // TODO: resolve proper absolute enum type
+        doEnumById(List(enumType.name), translate(id))
       case Ast.expr.EnumByLabel(enumType, label) =>
         doEnumByLabel(enumType.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
@@ -199,7 +201,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
   def doEnumByLabel(enumType: String, label: String): String
-  def doEnumById(enumType: String, id: String): String = ???
+  def doEnumById(enumTypeAbs: List[String], id: String): String
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
@@ -229,8 +231,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.expr.FloatNum(_) => CalcFloatType
       case Ast.expr.Str(_) => CalcStrType
       case Ast.expr.Bool(_) => BooleanType
-      case Ast.expr.EnumByLabel(enumType, _) => EnumType(enumType.name, CalcIntType)
-      case Ast.expr.EnumById(enumType, id) => EnumType(enumType.name, CalcIntType)
+      case Ast.expr.EnumByLabel(enumType, _) => EnumType(List(enumType.name), CalcIntType)
+      case Ast.expr.EnumById(enumType, _) => EnumType(List(enumType.name), CalcIntType)
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)

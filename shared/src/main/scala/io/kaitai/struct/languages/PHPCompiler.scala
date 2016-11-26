@@ -219,8 +219,6 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         io + "->readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + "->readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
-      case EnumType(enumName, t) =>
-        parseExpr(t, io)
       case BytesLimitType(size, _) =>
         s"$io->readBytes(${expression(size)})"
       case BytesEosType(_) =>
@@ -334,7 +332,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case _: StrType | _: BytesType => "string"
 
       case t: UserType => types2classAbs(t.classSpec.get.name)
-      case EnumType(name, _) => type2class(name)
+      case t: EnumType => types2classAbs(t.enumSpec.get.name)
 
       case ArrayType(_) => "array"
     }

@@ -9,7 +9,7 @@ case class ClassSpec(
                       seq: List[AttrSpec],
                       types: Map[String, ClassSpec],
                       instances: Map[InstanceIdentifier, InstanceSpec],
-                      enums: Map[String, Map[Long, String]]
+                      enums: Map[String, EnumSpec]
                     ) extends ClassSpecLike {
   var parentClass: ClassSpecLike = UnknownClassSpec
   var name = List[String]()
@@ -30,7 +30,7 @@ object ClassSpec {
     "enums"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults) = {
+  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults): ClassSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
@@ -49,7 +49,7 @@ object ClassSpec {
       case Some(value) => instancesFromYaml(value, path ++ List("instances"), curMetaDef)
       case None => Map()
     }
-    val enums: Map[String, Map[Long, String]] = srcMap.get("enums") match {
+    val enums: Map[String, EnumSpec] = srcMap.get("enums") match {
       case Some(value) => enumsFromYaml(value, path ++ List("enums"))
       case None => Map()
     }
@@ -92,19 +92,11 @@ object ClassSpec {
     }
   }
 
-  def enumsFromYaml(src: Any, path: List[String]): Map[String, Map[Long, String]] = {
+  def enumsFromYaml(src: Any, path: List[String]): Map[String, EnumSpec] = {
     val srcMap = ParseUtils.asMap(src, path)
     srcMap.map { case (key, body) =>
       val enumName = ParseUtils.asStr(key, path)
-      enumName -> enumFromYaml(body, path ++ List(enumName))
-    }
-  }
-
-  def enumFromYaml(src: Any, path: List[String]): Map[Long, String] = {
-    val srcMap = ParseUtils.asMap(src, path)
-    srcMap.map { case (id, name) =>
-      val idLong = ParseUtils.asLong(id, path)
-      idLong -> ParseUtils.asStr(name, path ++ List(idLong.toString))
+      enumName -> EnumSpec.fromYaml(body, path ++ List(enumName))
     }
   }
 

@@ -41,6 +41,9 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s"$$${enumType.toUpperCase}_${label.toUpperCase}"
+  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+    // Just an integer, without any casts / resolutions - one would have to look up constants manually
+    id
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     val opStr = op match {

@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 
 class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
   extends LanguageCompiler(config, outSrc)
@@ -373,8 +373,6 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
         s"$io->read_str_eos(${encodingToStr(encoding)})"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         s"$io->read_strz(${encodingToStr(encoding)}, $terminator, $include, $consume, $eosError)"
-      case EnumType(enumName, t) =>
-        s"static_cast<${type2class(List(enumName))}>(${parseExpr(t, io)})"
       case BytesLimitType(size, _) =>
         s"$io->read_bytes(${expression(size)})"
       case BytesEosType(_) =>
@@ -535,7 +533,13 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
         })
         s"$typeStr*"
 
-      case EnumType(name, _) => type2class(List(name))
+      case t: EnumType =>
+        type2class(if (absolute) {
+          t.enumSpec.get.name
+        } else {
+          t.name
+        })
+
       case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType, absolute)}>*"
 
       case KaitaiStreamType => s"$kstreamName*"
@@ -561,13 +565,6 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     }
   }
 
-  def type2class(components: List[String]) = {
-    components.map {
-      case "kaitai_struct" => "kaitai::kstruct"
-      case s => s + "_t"
-    }.mkString("::")
-  }
-
   override def idToStr(id: Identifier): String = {
     id match {
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
@@ -591,4 +588,11 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
+
+  def type2class(components: List[String]) = {
+    components.map {
+      case "kaitai_struct" => "kaitai::kstruct"
+      case s => s + "_t"
+    }.mkString("::")
+  }
 }

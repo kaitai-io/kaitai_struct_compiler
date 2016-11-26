@@ -12,7 +12,6 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
     with UniversalFooter
-    with UpperCamelCaseClasses
     with EveryReadIsExpression
     with AllocateIOLocalVar
     with FixedContentsUsingArrayByteLiteral
@@ -175,16 +174,13 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         io + ".read_str_eos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + ".read_strz(\"" + encoding + '"' + s", $terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
-      case EnumType(enumName, t) =>
-        s"self._root.${type2class(enumName)}(${parseExpr(t, io)})"
-
       case BytesLimitType(size, _) =>
         s"$io.read_bytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io.read_bytes_full()"
       case t: UserType =>
         val addArgs = if (t.isOpaque) "" else ", self, self._root"
-        s"${types2class(t.classSpec.get)}($io$addArgs)"
+        s"${types2class(t.classSpec.get.name)}($io$addArgs)"
     }
   }
 
@@ -240,15 +236,6 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 
-  def types2class(cl: ClassSpec): String = {
-    if (cl.name.size > 1) {
-      val path = cl.name.drop(1).map(x => type2class(x)).mkString(".")
-      s"self._root.$path"
-    } else {
-      type2class(cl.name.head)
-    }
-  }
-
   def idToStr(id: Identifier): String = {
     id match {
       case SpecialIdentifier(name) => name
@@ -272,6 +259,7 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 }
 
 object PythonCompiler extends LanguageCompilerStatic
+  with UpperCamelCaseClasses
   with StreamStructNames {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
   override def indent: String = "    "
@@ -279,4 +267,13 @@ object PythonCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"
+
+  def types2class(name: List[String]): String = {
+    if (name.size > 1) {
+      val path = name.drop(1).map(x => type2class(x)).mkString(".")
+      s"self._root.$path"
+    } else {
+      type2class(name.head)
+    }
+  }
 }

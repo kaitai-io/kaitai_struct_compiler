@@ -1,6 +1,6 @@
 package io.kaitai.struct.exprlang
 
-import io.kaitai.struct.format.{ClassSpec, MetaDefaults, ProcessExpr, YAMLParseException}
+import io.kaitai.struct.format._
 
 /**
   * A collection of case objects and classes that are used to represent internal
@@ -113,7 +113,9 @@ object DataType {
   case object KaitaiStructType extends BaseType
   case object KaitaiStreamType extends BaseType
 
-  case class EnumType(name: String, basedOn: IntType) extends BaseType
+  case class EnumType(name: List[String], basedOn: IntType) extends BaseType {
+    var enumSpec: Option[EnumSpec] = None
+  }
 
   case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, BaseType]) extends BaseType
 
@@ -194,7 +196,7 @@ object DataType {
           val enc = getEncoding(encoding, metaDef, path)
           StrZType(enc, terminator, include, consume, eosError)
         case _ =>
-          val dtl = dt.split("::", -1).toList
+          val dtl = classNameToList(dt)
           (size, sizeEos) match {
             case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, bs, process)
             case (None, true) => UserTypeEos(dtl, process)
@@ -211,7 +213,7 @@ object DataType {
     enumRef match {
       case Some(enumName) =>
         r match {
-          case numType: IntType with ReadableType => EnumType(enumName, numType)
+          case numType: IntType with ReadableType => EnumType(classNameToList(enumName), numType)
           case _ =>
             throw new RuntimeException(s"tried to resolve non-integer $r to enum")
         }
@@ -227,4 +229,12 @@ object DataType {
         throw new YAMLParseException("string type, but no encoding found", path)
     }
   }
+
+  /**
+    * Splits complex class name notation (which may name class hierarchy `something::like::that`)
+    * into components, represented by a list of strings.
+    * @param s class name notation as string
+    * @return class name notation as list of components
+    */
+  def classNameToList(s: String): List[String] = s.split("::", -1).toList
 }

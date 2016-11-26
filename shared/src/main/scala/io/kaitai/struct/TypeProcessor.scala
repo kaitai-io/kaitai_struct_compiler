@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.exprlang.DataType.{BaseType, SwitchType, UserType}
+import io.kaitai.struct.exprlang.DataType.{BaseType, EnumType, SwitchType, UserType}
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeUndecidedError}
 
@@ -21,6 +21,10 @@ object TypeProcessor {
   // ==================================================================
 
   def markupClassNames(curClass: ClassSpec): Unit = {
+    curClass.enums.foreach { case (enumName, enumSpec) =>
+      enumSpec.name = curClass.name ::: List(enumName)
+    }
+
     curClass.types.foreach { case (nestedName: String, nestedClass) =>
       nestedClass.name = curClass.name ::: List(nestedName)
       nestedClass.upClass = Some(curClass)
@@ -107,6 +111,10 @@ object TypeProcessor {
     dataType match {
       case ut: UserType =>
         ut.classSpec = resolveUserType(curClass, ut.name)
+      case et: EnumType =>
+        et.enumSpec = resolveEnumSpec(curClass, et.name)
+        if (et.enumSpec.isEmpty)
+          throw new RuntimeException(s"enum not found: '${et.name}'")
       case SwitchType(_, cases) =>
         cases.foreach { case (_, ut) =>
           resolveUserType(curClass, ut)
@@ -175,13 +183,53 @@ object TypeProcessor {
     }
   }
 
+  def resolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
+    Console.println(s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
+    val res = realResolveEnumSpec(curClass, typeName)
+    Console.println("   => " + (res match {
+      case None => "???"
+      case Some(x) => x.name.mkString("|")
+    }))
+
+    res
+  }
+
+  private def realResolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
+    // First, try to do it in current class
+
+    // If we're seeking composite name, we only have to resolve the very first
+    // part of it at this stage
+    val firstName :: restNames = typeName
+
+    val resolvedHere = if (restNames.isEmpty) {
+      curClass.enums.get(firstName)
+    } else {
+      curClass.types.get(firstName).flatMap((nestedClass) =>
+        resolveEnumSpec(nestedClass, restNames)
+      )
+    }
+
+    resolvedHere match {
+      case Some(_) => resolvedHere
+      case None =>
+        // No luck resolving here, let's try upper levels, if they exist
+        curClass.upClass match {
+          case Some(upClass) =>
+            resolveEnumSpec(upClass, typeName)
+          case None =>
+            // No luck at all
+            None
+        }
+    }
+  }
+
   // ==================================================================
 
   def markupParentTypes(curClass: ClassSpec): Unit = {
     curClass.seq.foreach { attr =>
       markupParentTypesAdd(curClass, attr.dataType)
     }
-    curClass.instances.foreach { case (instName, instSpec) =>
+    curClass.instances.foreach { case (_, instSpec) =>
       markupParentTypesAdd(curClass, getInstanceDataType(instSpec))
     }
   }

@@ -229,8 +229,6 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         io + ".ReadStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + ".ReadStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
-      case EnumType(enumName, t) =>
-        translator.doEnumById(enumName, parseExpr(t, io))
       case BytesLimitType(size, _) =>
         s"$io.ReadBytes(${expression(size)})"
       case BytesEosType(_) =>
@@ -385,7 +383,7 @@ object CSharpCompiler extends LanguageCompilerStatic
       case KaitaiStreamType => kstreamName
 
       case t: UserType => types2class(t.name)
-      case EnumType(name, _) => type2class(name)
+      case EnumType(name, _) => types2class(name)
 
       case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"
 

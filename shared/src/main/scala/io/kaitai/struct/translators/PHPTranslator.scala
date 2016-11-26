@@ -35,6 +35,9 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s"${Utils.upperCamelCase(enumType)}::${label.toUpperCase}"
+  override def doEnumById(enumTypeAbs: List[String], id: String) =
+    // Just an integer, without any casts / resolutions - one would have to look up constants manually
+    id
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"

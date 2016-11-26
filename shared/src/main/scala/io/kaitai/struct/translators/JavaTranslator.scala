@@ -36,8 +36,10 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doEnumByLabel(enumType: String, label: String): String =
     s"${Utils.upperCamelCase(enumType)}.${label.toUpperCase}"
-  override def doEnumById(enumType: String, id: String): String =
-    s"${Utils.upperCamelCase(enumType)}.byId($id)"
+  override def doEnumById(enumTypeAbs: List[String], id: String): String = {
+    val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
+    enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".") + s".byId($id)"
+  }
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     if (op == Ast.cmpop.Eq) {

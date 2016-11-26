@@ -294,8 +294,6 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         io + ".readStrEos(\"" + encoding + "\")"
       case StrZType(encoding, terminator, include, consume, eosError) =>
         io + ".readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
-      case EnumType(enumName, t) =>
-        translator.doEnumById(enumName, parseExpr(t, io))
       case BytesLimitType(size, _) =>
         s"$io.readBytes(${expression(size)})"
       case BytesEosType(_) =>
@@ -488,7 +486,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case KaitaiStructType => kstructName
 
       case t: UserType => types2class(t.name)
-      case EnumType(name, _) => type2class(name)
+      case EnumType(name, _) => types2class(name)
 
       case ArrayType(inType) => kaitaiType2JavaTypeBoxed(attrType)
 
@@ -530,7 +528,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case KaitaiStructType => kstructName
 
       case t: UserType => type2class(t.name.last)
-      case EnumType(name, _) => type2class(name)
+      case EnumType(name, _) => types2class(name)
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 

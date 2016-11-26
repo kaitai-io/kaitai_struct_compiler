@@ -336,12 +336,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   type ResultMap = Map[LanguageCompilerStatic, String]
   type TestSpec = (String, TypeProvider, BaseType, ResultMap)
 
-  case class Always(t: BaseType) extends TypeProvider {
+  abstract class FakeTypeProvider extends TypeProvider {
+    val nowClass = ClassSpec(None, List(), Map(), Map(), Map())
+    nowClass.name = List("top_class")
+  }
+
+  case class Always(t: BaseType) extends FakeTypeProvider {
     override def determineType(name: String): BaseType = t
     override def determineType(inClass: ClassSpec, name: String): BaseType = t
   }
 
-  case object FooBarProvider extends TypeProvider {
+  case object FooBarProvider extends FakeTypeProvider {
     override def determineType(name: String): BaseType = {
       name match {
         case "foo" => userType("block")
