@@ -327,6 +327,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             attr.name match {
               case "size" => CalcIntType
               case "pos" => CalcIntType
+              case "eof" => BooleanType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
           case _ =>
