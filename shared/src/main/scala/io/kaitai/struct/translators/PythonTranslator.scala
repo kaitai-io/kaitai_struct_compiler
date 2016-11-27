@@ -1,9 +1,7 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type, IntType}
+import io.kaitai.struct.exprlang.DataType.IntType
 import io.kaitai.struct.languages.PythonCompiler
 
 class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -45,9 +43,9 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     case _ => super.unaryOp(op)
   }
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
+  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"${translate(ifTrue)} if ${translate(condition)} else ${translate(ifFalse)}"
 
   // Predefined methods of various types
@@ -64,9 +62,9 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
 
-  override def arrayFirst(a: expr): String =
+  override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[0]"
-  override def arrayLast(a: expr): String =
+  override def arrayLast(a: Ast.expr): String =
     s"${translate(a)}[-1]"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
