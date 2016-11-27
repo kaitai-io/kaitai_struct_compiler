@@ -184,12 +184,12 @@ object TypeProcessor {
   }
 
   def resolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
-    Console.println(s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
+//    Console.println(s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
     val res = realResolveEnumSpec(curClass, typeName)
-    Console.println("   => " + (res match {
-      case None => "???"
-      case Some(x) => x.name.mkString("|")
-    }))
+//    Console.println("   => " + (res match {
+//      case None => "???"
+//      case Some(x) => x.name.mkString("|")
+//    }))
 
     res
   }
