@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.IntType
 import io.kaitai.struct.languages.PHPCompiler
 
-class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + Utils.hexEscapeByteArray(arr) + "\""
 
@@ -34,8 +34,7 @@ class PHPTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
-    val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
-    val enumClass = PHPCompiler.types2classRel(enumTypeRel)
+    val enumClass = lang.types2classAbs(enumTypeAbs)
     s"$enumClass::${label.toUpperCase}"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String) =

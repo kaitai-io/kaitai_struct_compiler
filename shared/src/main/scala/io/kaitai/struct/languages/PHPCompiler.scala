@@ -5,7 +5,7 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, PHPTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
 class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   extends LanguageCompiler(config, out)
@@ -22,6 +22,13 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def innerEnums = false
 
   override def getStatic = PHPCompiler
+
+  // FIXME: special hack to provide an instance of PHPCompiler that knows of PHP namespace
+  // to the translator
+  override def open(topClassName: String, tp: ClassTypeProvider): Unit = {
+    _typeProvider = Some(tp)
+    _translator = Some(new PHPTranslator(tp, this))
+  }
 
   override def universalFooter: Unit = {
     out.dec
@@ -340,7 +347,8 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 object PHPCompiler extends LanguageCompilerStatic
   with StreamStructNames
   with UpperCamelCaseClasses {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new PHPTranslator(tp)
+  // FIXME: not really used, as we reimplement PHPCompiler.open()
+  override def getTranslator(tp: TypeProvider): BaseTranslator = ???
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
 
