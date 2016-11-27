@@ -1,8 +1,6 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type}
 import io.kaitai.struct.languages.RubyCompiler
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -16,29 +14,29 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doEnumById(enumType: List[String], id: String): String =
     s"${RubyCompiler.kstreamName}::resolve_enum(${enumType.last.toUpperCase}, $id)"
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
+  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
   // Predefined methods of various types
-  override def strToInt(s: expr, base: expr): String = {
+  override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     translate(s) + ".to_i" + (baseStr match {
       case "10" => ""
       case _ => s"($baseStr)"
     })
   }
-  override def strLength(s: expr): String =
+  override def strLength(s: Ast.expr): String =
     s"${translate(s)}.size"
-  override def strSubstring(s: expr, from: expr, to: expr): String =
+  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}, (${translate(to)} - 1)]"
 
-  override def arrayFirst(a: expr): String =
+  override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}.first"
-  override def arrayLast(a: expr): String =
+  override def arrayLast(a: Ast.expr): String =
     s"${translate(a)}.last"
 
-  override def kaitaiStreamEof(value: expr): String =
+  override def kaitaiStreamEof(value: Ast.expr): String =
     s"${translate(value)}.eof?"
 }
