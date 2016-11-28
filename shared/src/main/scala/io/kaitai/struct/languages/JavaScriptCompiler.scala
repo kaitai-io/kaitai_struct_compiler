@@ -13,8 +13,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with EveryReadIsExpression
-    with FixedContentsUsingArrayByteLiteral
-    with NoNeedForFullClassPath {
+    with FixedContentsUsingArrayByteLiteral {
   import JavaScriptCompiler._
 
   override def getStatic = JavaScriptCompiler
@@ -46,21 +45,29 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
   }
 
-  override def classHeader(name: String): Unit = {
+  override def classHeader(name: List[String]): Unit = {
+    val shortClassName = type2class(name.last)
+
+    val addNameExpr = if (name.size > 1) {
+      s" = ${types2class(name.takeRight(2))}"
+    } else {
+      ""
+    }
+
     out.puts
-    out.puts(s"var ${type2class(name)} = (function() {")
+    out.puts(s"var $shortClassName$addNameExpr = (function() {")
     out.inc
   }
 
-  override def classFooter(name: String): Unit = {
+  override def classFooter(name: List[String]): Unit = {
     out.puts
-    out.puts(s"return ${type2class(name)};")
+    out.puts(s"return ${type2class(name.last)};")
     out.dec
     out.puts("})();")
   }
 
-  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
-    out.puts(s"function ${type2class(name)}(_io, _parent, _root) {")
+  override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
+    out.puts(s"function ${type2class(name.last)}(_io, _parent, _root) {")
     out.inc
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
@@ -70,7 +77,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       out.dec
       out.puts("}")
       out.puts
-      out.puts(s"${type2class(name)}.prototype._read = function() {")
+      out.puts(s"${type2class(name.last)}.prototype._read = function() {")
       out.inc
     } else {
       out.puts
@@ -306,8 +313,8 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def switchEnd(): Unit =
     out.puts("}")
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
-    out.puts(s"Object.defineProperty(${type2class(className)}.prototype, '${publicMemberName(instName)}', {")
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
+    out.puts(s"Object.defineProperty(${type2class(className.last)}.prototype, '${publicMemberName(instName)}', {")
     out.inc
     out.puts("get: function() {")
     out.inc
@@ -331,8 +338,8 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
-    out.puts(s"${type2class(curClass)}.${type2class(enumName)} = Object.freeze({")
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+    out.puts(s"${type2class(curClass.last)}.${type2class(enumName)} = Object.freeze({")
     out.inc
     enumColl.foreach { case (id, label) =>
       out.puts(s"${enumValue(enumName, label)}: $id,")
@@ -380,4 +387,7 @@ object JavaScriptCompiler extends LanguageCompilerStatic
 
   // FIXME: probably KaitaiStruct will emerge some day in JavaScript runtime, but for now it is unused
   override def kstructName: String = ???
+
+  def types2class(types: List[String]): String =
+    types.map(JavaScriptCompiler.type2class).mkString(".")
 }
