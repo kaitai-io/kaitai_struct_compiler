@@ -45,6 +45,15 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
   }
 
+  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+    val typeName = classSpec.name.head
+    out.puts
+    out.puts("if (typeof require === 'function')")
+    out.inc
+    out.puts(s"${type2class(typeName)} = require('./${outFileName(typeName)}');")
+    out.dec
+  }
+
   override def classHeader(name: List[String]): Unit = {
     val shortClassName = type2class(name.last)
 
