@@ -38,7 +38,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     extraAttrs += AttrSpec(ParentIdentifier, UserTypeInstream(curClass.parentTypeName))
 
     // Forward declarations for recursive types
-    curClass.types.foreach { case (typeName, intClass) => lang.classForwardDeclaration(List(typeName)) }
+    curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(List(typeName)) }
 
     if (lang.innerEnums)
       compileEnums(curClass)
@@ -47,8 +47,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
       lang.debugClassSequence(curClass.seq)
 
     lang.classConstructorHeader(curClass.name, curClass.parentTypeName, topClassName)
-    curClass.instances.foreach { case (instName, instSpec) => lang.instanceClear(instName) }
-    curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs, lang.normalIO))
+    curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
+    curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs))
     lang.classConstructorFooter
 
     lang.classDestructorHeader(curClass.name, curClass.parentTypeName, topClassName)
@@ -107,16 +107,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
       case vi: ValueInstanceSpec =>
         lang.instanceCalculate(instName, dataType, vi.value)
       case i: ParseInstanceSpec =>
-        val io = i.io match {
-          case None => lang.normalIO
-          case Some(ex) => lang.useIO(ex)
-        }
-        i.pos.foreach { pos =>
-          lang.pushPos(io)
-          lang.seek(io, pos)
-        }
-        lang.attrParse(i, instName, extraAttrs, io)
-        i.pos.foreach((pos) => lang.popPos(io))
+        lang.attrParse(i, instName, extraAttrs)
     }
 
     lang.instanceSetCalculated(instName)

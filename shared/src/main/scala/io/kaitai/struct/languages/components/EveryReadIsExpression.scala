@@ -13,10 +13,7 @@ import scala.collection.mutable.ListBuffer
   * "handleAssignment".
   */
 trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage {
-  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], io: String): Unit = {
-    if (debug)
-      attrDebugStart(id, io, NoRepeat)
-
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     attr.cond.ifExpr match {
       case Some(e) =>
         condIfClear(id)
@@ -24,6 +21,26 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         condIfSetCalculated(id)
       case None => // ignore
     }
+
+    // Manage IO & seeking for ParseInstances
+    val io = attr match {
+      case pis: ParseInstanceSpec =>
+        val io = pis.io match {
+          case None => normalIO
+          case Some(ex) => useIO(ex)
+        }
+        pis.pos.foreach { pos =>
+          pushPos(io)
+          seek(io, pos)
+        }
+        io
+      case _ =>
+        // no seeking required for sequence attributes
+        normalIO
+    }
+
+    if (debug)
+      attrDebugStart(id, io, NoRepeat)
 
     attr.cond.repeat match {
       case RepeatEos =>
@@ -42,13 +59,21 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
     }
 
+    if (debug)
+      attrDebugEnd(id, io, NoRepeat)
+
+    // More position management after parsing for ParseInstanceSpecs
+    attr match {
+      case pis: ParseInstanceSpec =>
+        if (pis.pos.isDefined)
+          popPos(io)
+      case _ => // no seeking required for sequence attributes
+    }
+
     attr.cond.ifExpr match {
       case Some(e) => condIfFooter(e)
       case None => // ignore
     }
-
-    if (debug)
-      attrDebugEnd(id, io, NoRepeat)
   }
 
   def attrParse2(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
