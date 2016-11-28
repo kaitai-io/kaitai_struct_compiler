@@ -33,8 +33,8 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   }
 
   override def doEnumByLabel(enumType: List[String], label: String): String = {
-    val enumClass = enumType.map(Utils.upperCamelCase).mkString(".")
-    s"this._root.constructor.$enumClass.${label.toUpperCase}"
+    val enumClass = enumType.map(JavaScriptCompiler.type2class).mkString(".")
+    s"$enumClass.${label.toUpperCase}"
   }
   override def doEnumById(enumTypeAbs: List[String], label: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
