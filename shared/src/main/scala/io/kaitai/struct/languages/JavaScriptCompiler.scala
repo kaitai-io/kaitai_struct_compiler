@@ -50,7 +50,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts
     out.puts("if (typeof require === 'function')")
     out.inc
-    out.puts(s"${type2class(typeName)} = require('./${outFileName(typeName)}');")
+    out.puts(s"var ${type2class(typeName)} = require('./${outFileName(typeName)}');")
     out.dec
   }
 
