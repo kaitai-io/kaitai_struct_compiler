@@ -14,13 +14,7 @@ import scala.collection.mutable.ListBuffer
   */
 trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage {
   override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit = {
-    attr.cond.ifExpr match {
-      case Some(e) =>
-        condIfClear(id)
-        condIfHeader(e)
-        condIfSetCalculated(id)
-      case None => // ignore
-    }
+    attrParseIfHeader(id, attr.cond.ifExpr)
 
     // Manage IO & seeking for ParseInstances
     val io = attr match {
@@ -70,10 +64,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
       case _ => // no seeking required for sequence attributes
     }
 
-    attr.cond.ifExpr match {
-      case Some(e) => condIfFooter(e)
-      case None => // ignore
-    }
+    attrParseIfFooter(attr.cond.ifExpr)
   }
 
   def attrParse2(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {

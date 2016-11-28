@@ -105,7 +105,9 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     instSpec match {
       case vi: ValueInstanceSpec =>
+        lang.attrParseIfHeader(instName, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
+        lang.attrParseIfFooter(vi.ifExpr)
       case i: ParseInstanceSpec =>
         lang.attrParse(i, instName, extraAttrs)
     }

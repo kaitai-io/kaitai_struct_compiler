@@ -112,4 +112,21 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
     * @param seq sequence of attributes in a class
     */
   def debugClassSequence(seq: List[AttrSpec]) = {}
+
+  def attrParseIfHeader(id: Identifier, ifExpr: Option[Ast.expr]): Unit = {
+    ifExpr match {
+      case Some(e) =>
+        condIfClear(id)
+        condIfHeader(e)
+        condIfSetCalculated(id)
+      case None => // ignore
+    }
+  }
+
+  def attrParseIfFooter(ifExpr: Option[Ast.expr]): Unit = {
+    ifExpr match {
+      case Some(e) => condIfFooter(e)
+      case None => // ignore
+    }
+  }
 }

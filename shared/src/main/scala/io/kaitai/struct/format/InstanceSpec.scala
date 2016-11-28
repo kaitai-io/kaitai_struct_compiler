@@ -5,7 +5,7 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 // Note: can't be "sealed trait" due to Java JSON parser library compatibility!
 abstract class InstanceSpec(val doc: Option[String])
-case class ValueInstanceSpec(_doc: Option[String], value: Ast.expr, var dataType: Option[BaseType]) extends InstanceSpec(_doc)
+case class ValueInstanceSpec(_doc: Option[String], value: Ast.expr, ifExpr: Option[Ast.expr], var dataType: Option[BaseType]) extends InstanceSpec(_doc)
 case class ParseInstanceSpec(_doc: Option[String], dataType: BaseType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec(_doc) with AttrLikeSpec
 
 object InstanceSpec {
@@ -28,9 +28,12 @@ object InstanceSpec {
             Ast.expr.EnumById(Ast.identifier(enumName), value)
         }
 
+        val ifExpr = ParseUtils.getOptValueStr(srcMap, "if", path).map(Expressions.parse)
+
         ValueInstanceSpec(
           ParseUtils.getOptValueStr(srcMap, "doc", path),
           value2,
+          ifExpr,
           None
         )
       case None =>
