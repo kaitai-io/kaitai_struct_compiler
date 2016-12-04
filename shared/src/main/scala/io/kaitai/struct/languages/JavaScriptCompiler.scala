@@ -11,6 +11,7 @@ import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
+    with UniversalDoc
     with AllocateIOLocalVar
     with EveryReadIsExpression
     with FixedContentsUsingArrayByteLiteral {
@@ -102,7 +103,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeDoc(id: Identifier, doc: String): Unit = {
+  override def universalDoc(doc: String): Unit = {
     // JSDoc docstring style: http://usejsdoc.org/about-getting-started.html
     out.puts
     out.puts( "/**")

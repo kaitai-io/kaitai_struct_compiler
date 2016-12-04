@@ -12,6 +12,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with UniversalFooter
+    with UniversalDoc
     with FixedContentsUsingArrayByteLiteral
     with EveryReadIsExpression {
 
@@ -103,7 +104,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def attributeDoc(id: Identifier, doc: String): Unit = {
+  override def universalDoc(doc: String): Unit = {
     out.puts
     out.puts( "/**")
     out.puts(s" * $doc")

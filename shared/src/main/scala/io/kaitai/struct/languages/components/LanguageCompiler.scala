@@ -53,6 +53,7 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
     */
   def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {}
 
+  def classDoc(name: List[String], doc: String): Unit = {}
   def classHeader(name: List[String]): Unit
   def classFooter(name: List[String]): Unit
   def classForwardDeclaration(name: List[String]): Unit = {}

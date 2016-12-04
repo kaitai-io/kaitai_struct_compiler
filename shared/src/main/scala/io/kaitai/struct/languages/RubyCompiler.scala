@@ -12,6 +12,7 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
     with UniversalFooter
+    with UniversalDoc
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
     with EveryReadIsExpression
@@ -77,7 +78,7 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def attributeDoc(id: Identifier, doc: String): Unit = {
+  override def universalDoc(doc: String): Unit = {
     out.puts
     out.puts( "##")
     out.puts(s"# $doc")

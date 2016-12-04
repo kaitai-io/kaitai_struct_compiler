@@ -6,13 +6,14 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
 
 class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
   extends LanguageCompiler(config, outSrc)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with FixedContentsUsingArrayByteLiteral
+    with UniversalDoc
     with EveryReadIsExpression {
   import CppCompiler._
 
@@ -22,7 +23,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
   case object PrivateAccess extends AccessMode
   case object PublicAccess extends AccessMode
 
-  var accessMode: AccessMode = PrivateAccess
+  var accessMode: AccessMode = PublicAccess
 
   override def fileHeader(topClassName: String): Unit = {
     outSrc.puts(s"// $headerComment")
@@ -150,7 +151,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
 
-  override def attributeDoc(id: Identifier, doc: String): Unit = {
+  override def universalDoc(doc: String): Unit = {
     // All docstrings would be for public stuff, so it's safe to start it here
     ensureMode(PublicAccess)
 

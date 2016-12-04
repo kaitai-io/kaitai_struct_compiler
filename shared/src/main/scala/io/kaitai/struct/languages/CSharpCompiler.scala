@@ -13,6 +13,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with EveryReadIsExpression
+    with UniversalDoc
     with FixedContentsUsingArrayByteLiteral
     with NoNeedForFullClassPath {
   import CSharpCompiler._
@@ -90,7 +91,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
   }
 
-  override def attributeDoc(id: Identifier, doc: String): Unit = {
+  override def universalDoc(doc: String): Unit = {
     out.puts
     out.puts( "/// <summary><![CDATA[")
     out.puts(s"/// $doc")

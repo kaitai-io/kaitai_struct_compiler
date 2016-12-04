@@ -13,6 +13,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with ObjectOrientedLanguage
     with EveryReadIsExpression
     with UniversalFooter
+    with UniversalDoc
     with AllocateIOLocalVar
     with FixedContentsUsingArrayByteLiteral
     with NoNeedForFullClassPath {
@@ -125,7 +126,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"public ${kaitaiType2JavaType(attrType, condSpec)} ${idToStr(attrName)}() { return ${idToStr(attrName)}; }")
   }
 
-  override def attributeDoc(id: Identifier, doc: String): Unit = {
+  override def universalDoc(doc: String): Unit = {
     out.puts
     out.puts( "/**")
     out.puts(s" * $doc")

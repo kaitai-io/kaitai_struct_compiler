@@ -31,6 +31,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
+    curClass.doc.foreach((doc) => lang.classDoc(curClass.name, doc))
     lang.classHeader(curClass.name)
 
     val extraAttrs = ListBuffer[AttrSpec]()
