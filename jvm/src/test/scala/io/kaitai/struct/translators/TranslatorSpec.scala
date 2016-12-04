@@ -339,8 +339,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   type TestSpec = (String, TypeProvider, BaseType, ResultMap)
 
   abstract class FakeTypeProvider extends TypeProvider {
-    val nowClass = ClassSpec(None, List(), Map(), Map(), Map())
-    nowClass.name = List("top_class")
+    val nowClass = ClassSpec.opaquePlaceholder(List("top_class"))
 
     override def resolveEnum(enumName: String) =
       throw new NotImplementedError
@@ -369,8 +368,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
   def userType(name: String) = {
     val lname = List(name)
-    val cs = ClassSpec(None, List(), Map(), Map(), Map())
-    cs.name = lname
+    val cs = ClassSpec.opaquePlaceholder(lname)
     val ut = UserTypeInstream(lname)
     ut.classSpec = Some(cs)
     ut

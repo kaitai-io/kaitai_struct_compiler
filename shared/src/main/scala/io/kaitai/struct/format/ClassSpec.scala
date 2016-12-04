@@ -6,6 +6,7 @@ case object GenericStructClassSpec extends ClassSpecLike
 
 case class ClassSpec(
                       meta: Option[MetaSpec],
+                      doc: Option[String],
                       seq: List[AttrSpec],
                       types: Map[String, ClassSpec],
                       instances: Map[InstanceIdentifier, InstanceSpec],
@@ -24,6 +25,7 @@ case class ClassSpec(
 object ClassSpec {
   val LEGAL_KEYS = Set(
     "meta",
+    "doc",
     "seq",
     "types",
     "instances",
@@ -36,6 +38,8 @@ object ClassSpec {
 
     val meta = srcMap.get("meta").map(MetaSpec.fromYaml(_, path ++ List("meta")))
     val curMetaDef = metaDef.updateWith(meta)
+
+    val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
 
     val seq: List[AttrSpec] = srcMap.get("seq") match {
       case Some(value) => seqFromYaml(value, path ++ List("seq"), curMetaDef)
@@ -61,7 +65,7 @@ object ClassSpec {
         throw new YAMLParseException("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
     }
 
-    ClassSpec(meta, seq, types, instances, enums)
+    ClassSpec(meta, doc, seq, types, instances, enums)
   }
 
   def seqFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): List[AttrSpec] = {
@@ -101,4 +105,17 @@ object ClassSpec {
   }
 
   def fromYaml(src: Any): ClassSpec = fromYaml(src, List(), MetaDefaults(None, None))
+
+  def opaquePlaceholder(typeName: List[String]): ClassSpec = {
+    val placeholder = ClassSpec(
+      meta = Some(MetaSpec.OPAQUE),
+      doc = None,
+      seq = List(),
+      types = Map(),
+      instances = Map(),
+      enums = Map()
+    )
+    placeholder.name = typeName
+    placeholder
+  }
 }
