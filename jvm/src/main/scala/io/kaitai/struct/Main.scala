@@ -2,12 +2,13 @@ package io.kaitai.struct
 
 import java.io.File
 
-import io.kaitai.struct.format.{ClassSpec, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpec, KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
-import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
 object Main {
+  KSVersion.current = BuildInfo.version
+
   case class CLIConfig(
     srcFiles: Seq[File] = Seq(),
     outDir: File = new File("."),

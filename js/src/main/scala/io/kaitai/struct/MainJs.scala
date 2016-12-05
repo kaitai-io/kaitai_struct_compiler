@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.format.{ClassSpec, JavaScriptKSYParser}
+import io.kaitai.struct.format.{ClassSpec, JavaScriptKSYParser, KSVersion}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
 import scala.scalajs.js
@@ -9,6 +9,8 @@ import scala.scalajs.js.annotation.JSExport
 
 @JSExport
 object MainJs {
+  KSVersion.current = BuildInfo.version
+
   @JSExport
   def compile(langStr: String, yaml: js.Object, debug: Boolean = false): js.Array[String] = {
     val config = new RuntimeConfig(verbose = true, debug = debug)
