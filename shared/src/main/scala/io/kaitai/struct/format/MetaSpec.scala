@@ -16,12 +16,22 @@ object MetaSpec {
     "id",
     "endian",
     "encoding",
+    "title",
+    "ks-version",
+    "license",
     "file-extension",
     "application"
   )
 
   def fromYaml(src: Any, path: List[String]): MetaSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
+
+    ParseUtils.getOptValueStr(srcMap, "ks-version", path).foreach { (verStr) =>
+      val ver = KSVersion.fromStr(verStr)
+      if (ver > KSVersion.current)
+        throw YAMLParseException.incompatibleVersion(ver, KSVersion.current, path)
+    }
+
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
     val id = ParseUtils.getOptValueStr(srcMap, "id", path)
