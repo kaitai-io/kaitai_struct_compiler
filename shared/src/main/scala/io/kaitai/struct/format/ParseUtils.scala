@@ -31,6 +31,8 @@ object ParseUtils {
         Some(value)
       case Some(value: Int) =>
         Some(value.toString)
+      case Some(value: Double) =>
+        Some(value.toString)
       case unknown =>
         throw YAMLParseException.badType("string", unknown, path ++ List(field))
     }
