@@ -262,7 +262,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def switchEnd(): Unit = universalFooter
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
-    out.puts(s"public function ${idToStr(instName)}(): ${kaitaiType2NativeType(dataType)} {")
+    out.puts(s"public function ${idToStr(instName)}() {")
     out.inc
   }
 
@@ -322,11 +322,11 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
 
   /**
-    * Determine Java data type corresponding to a KS data type. A non-primitive type (i.e. "Integer", "Long", etc) will
-    * be returned, to be used when proper objects should be used.
+    * Determine PHP data type corresponding to a KS data type. Currently unused due to
+    * problems with nullable types (which were introduced only in PHP 7.1).
     *
     * @param attrType KS data type
-    * @return Java data type
+    * @return PHP data type
     */
   def kaitaiType2NativeType(attrType: BaseType): String = {
     attrType match {
@@ -338,7 +338,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case _: StrType | _: BytesType => "string"
 
       case t: UserType => types2classAbs(t.classSpec.get.name)
-      case t: EnumType => types2classAbs(t.enumSpec.get.name)
+      case t: EnumType => "int"
 
       case ArrayType(_) => "array"
     }
