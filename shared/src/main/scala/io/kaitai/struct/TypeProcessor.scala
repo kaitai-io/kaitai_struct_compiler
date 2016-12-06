@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.exprlang.DataType.{BaseType, EnumType, SwitchType, UserType}
+import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeUndecidedError}
 
@@ -237,6 +237,8 @@ object TypeProcessor {
           case (_, _) =>
             // ignore everything else
         }
+      case ArrayType(innerType) =>
+        markupParentTypesAdd(curClass, innerType)
       case _ => // ignore, it's standard type
     }
   }
