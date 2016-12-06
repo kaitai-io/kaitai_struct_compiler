@@ -553,7 +553,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
           // hard to avoid that here with this pre-filtering. In C++, "else" case with raw byte array would
           // be available through _raw_* attribute anyway.
           cases.filterNot { case (caseExpr, caseValue) => caseExpr == SwitchType.ELSE_CONST }.values
-        ))
+        ), absolute)
     }
   }
 
