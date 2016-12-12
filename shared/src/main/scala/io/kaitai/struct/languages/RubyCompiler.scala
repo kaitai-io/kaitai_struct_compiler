@@ -240,7 +240,8 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.read_bytes_full"
       case t: UserType =>
-        s"${type2class(t.name.last)}.new($io, self, @_root)"
+        val addArgs = if (t.isOpaque) "" else ", self, @_root"
+        s"${type2class(t.name.last)}.new($io$addArgs)"
     }
   }
 
