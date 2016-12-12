@@ -412,7 +412,27 @@ object BaseTranslator {
           }
         case (_: IntType, _: IntType) => CalcIntType
         case (_: NumericType, _: NumericType) => CalcFloatType
-        case (_: UserType, _: UserType) => KaitaiStructType
+        case (t1: UserType, t2: UserType) =>
+          // Two user types can differ in reserved size and/or processing, but that doesn't matter in case of
+          // type combining - we treat them the same as long as they result in same class spec or have same
+          // opaque name
+          (t1.classSpec, t2.classSpec) match {
+            case (None, None) =>
+              // opaque classes
+              if (t1.name == t2.name) {
+                t1
+              } else {
+                KaitaiStructType
+              }
+            case (Some(cs1), Some(cs2)) =>
+              if (cs1 == cs2) {
+                t1
+              } else {
+                KaitaiStructType
+              }
+            case (_, _) =>
+              KaitaiStructType
+          }
         case (_: UserType, KaitaiStructType) => KaitaiStructType
         case (KaitaiStructType, _: UserType) => KaitaiStructType
         case _ => AnyType
