@@ -20,8 +20,32 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("-456") should be (UnaryOp(Minus, IntNum(456)))
     }
 
+    it("parses positive integer with underscores") {
+      Expressions.parse("100_500") should be (IntNum(100500))
+    }
+
     it("parses hex integer") {
       Expressions.parse("0x1234") should be (IntNum(0x1234))
+    }
+
+    it("parses hex integer with underscores") {
+      Expressions.parse("0x12_34") should be (IntNum(0x1234))
+    }
+
+    it("parses octal integer") {
+      Expressions.parse("0o644") should be (IntNum(420))
+    }
+
+    it("parses octal integer with undescores") {
+      Expressions.parse("0o06_44") should be (IntNum(420))
+    }
+
+    it("parses binary integer") {
+      Expressions.parse("0b10101010") should be (IntNum(0xaa))
+    }
+
+    it("parses binary integer with undescores") {
+      Expressions.parse("0b1010_1_010") should be (IntNum(0xaa))
     }
 
     it("parses 1 + 2") {
