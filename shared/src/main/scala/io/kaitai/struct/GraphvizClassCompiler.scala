@@ -283,7 +283,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case expr.Compare(left, ops, right) =>
         affectedVars(left) ++ affectedVars(right)
       //      case expr.Call(func, args) =>
-      case expr.IntNum(_) | expr.FloatNum(_) | expr.Str(_) =>
+      case expr.IntNum(_) | expr.FloatNum(_) | expr.Str(_) | expr.Bool(_) =>
         List()
       case expr.EnumByLabel(enumName, label) =>
         List()
