@@ -255,7 +255,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
-	if (debug)
+    if (debug)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
     out.puts("do {")
     out.inc
