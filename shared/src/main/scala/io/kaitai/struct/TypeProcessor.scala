@@ -295,7 +295,7 @@ object TypeProcessor {
 
     // Traverse all nested types recursively
     curClass.types.foreach { case (_, nestedType) =>
-      getOpaqueClasses(nestedType)
+      res ++= getOpaqueClasses(nestedType)
     }
 
     res
