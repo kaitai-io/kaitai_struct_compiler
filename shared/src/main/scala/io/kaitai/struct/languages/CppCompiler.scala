@@ -127,10 +127,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
-
-    if (condSpec.ifExpr.nonEmpty) {
-      outHdr.puts(s"bool ${flagForInstName(attrName)};")
-    }
+    declareNullFlag(attrName, condSpec)
   }
 
   def ensureMode(newMode: AccessMode): Unit = {
@@ -177,7 +174,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     }
 
     if (checkFlag) {
-      outSrc.puts(s"if (${flagForInstName(id)}) {")
+      outSrc.puts(s"if (!${nullFlagForName(id)}) {")
       outSrc.inc
     }
 
@@ -274,17 +271,17 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
   override def popPos(io: String): Unit =
     outSrc.puts(s"$io->seek(_pos);")
 
-  override def instanceClear(instName: Identifier): Unit = {
-    outSrc.puts(s"${flagForInstName(instName)} = false;")
-  }
+  override def instanceClear(instName: InstanceIdentifier): Unit =
+    outSrc.puts(s"${calculatedFlagForName(instName)} = false;")
 
-  override def instanceSetCalculated(instName: Identifier): Unit = {
-    outSrc.puts(s"${flagForInstName(instName)} = true;")
-  }
+  override def instanceSetCalculated(instName: InstanceIdentifier): Unit =
+    outSrc.puts(s"${calculatedFlagForName(instName)} = true;")
 
-  override def condIfClear(instName: Identifier): Unit = instanceClear(instName)
+  override def condIfSetNull(instName: Identifier): Unit =
+    outSrc.puts(s"${nullFlagForName(instName)} = true;")
 
-  override def condIfSetCalculated(instName: Identifier): Unit = instanceSetCalculated(instName)
+  override def condIfSetNonNull(instName: Identifier): Unit =
+    outSrc.puts(s"${nullFlagForName(instName)} = false;")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     outSrc.puts(s"if (${expression(expr)}) {")
@@ -452,8 +449,9 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
-    outHdr.puts(s"bool ${flagForInstName(attrName)};")
+    outHdr.puts(s"bool ${calculatedFlagForName(attrName)};")
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+    declareNullFlag(attrName, condSpec)
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
@@ -471,7 +469,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
-    outSrc.puts(s"if (${flagForInstName(instName)})")
+    outSrc.puts(s"if (${calculatedFlagForName(instName)})")
     outSrc.inc
     instanceReturn(instName)
     outSrc.dec
@@ -559,10 +557,13 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
 
   def defineName(className: String) = className.toUpperCase + "_H_"
 
-  def flagForInstName(ksName: Identifier) = {
+  def calculatedFlagForName(ksName: InstanceIdentifier) =
+    s"f_${ksName.name}"
+
+  def nullFlagForName(ksName: Identifier) = {
     ksName match {
-      case NamedIdentifier(name) => s"f_$name"
-      case InstanceIdentifier(name) => s"f_$name"
+      case NamedIdentifier(name) => s"n_$name"
+      case InstanceIdentifier(name) => s"n_$name"
     }
   }
 
@@ -580,6 +581,15 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
   override def privateMemberName(id: Identifier): String = s"m_${idToStr(id)}"
 
   override def publicMemberName(id: Identifier): String = idToStr(id)
+
+  def declareNullFlag(attrName: Identifier, condSpec: ConditionalSpec) = {
+    if (condSpec.ifExpr.nonEmpty) {
+      outHdr.puts(s"bool ${nullFlagForName(attrName)};")
+      ensureMode(PublicAccess)
+      outHdr.puts(s"bool _is_null_${idToStr(attrName)}() { ${publicMemberName(attrName)}(); return ${nullFlagForName(attrName)}; };")
+      ensureMode(PrivateAccess)
+    }
+  }
 }
 
 object CppCompiler extends LanguageCompilerStatic with StreamStructNames {

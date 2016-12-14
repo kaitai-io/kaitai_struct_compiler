@@ -98,7 +98,11 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     val dataType = TypeProcessor.getInstanceDataType(instSpec)
 
     // Declare caching variable
-    lang.instanceDeclaration(instName, dataType, ConditionalSpec(None, NoRepeat))
+    val condSpec = instSpec match {
+      case vis: ValueInstanceSpec => ConditionalSpec(vis.ifExpr, NoRepeat)
+      case pis: ParseInstanceSpec => pis.cond
+    }
+    lang.instanceDeclaration(instName, dataType, condSpec)
 
     instSpec.doc.foreach((doc) => lang.attributeDoc(instName, doc))
     lang.instanceHeader(className, instName, dataType)

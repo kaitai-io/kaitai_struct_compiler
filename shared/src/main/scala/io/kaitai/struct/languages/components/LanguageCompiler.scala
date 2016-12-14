@@ -73,8 +73,8 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
 
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
 
-  def condIfClear(instName: Identifier): Unit = {}
-  def condIfSetCalculated(instName: Identifier): Unit = {}
+  def condIfSetNull(instName: Identifier): Unit = {}
+  def condIfSetNonNull(instName: Identifier): Unit = {}
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter(expr: Ast.expr): Unit
 
@@ -95,8 +95,8 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def seek(io: String, pos: Ast.expr): Unit
   def popPos(io: String): Unit
 
-  def instanceClear(instName: Identifier): Unit = {}
-  def instanceSetCalculated(instName: Identifier): Unit = {}
+  def instanceClear(instName: InstanceIdentifier): Unit = {}
+  def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
   def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
   def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit
   def instanceFooter: Unit
@@ -117,9 +117,9 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def attrParseIfHeader(id: Identifier, ifExpr: Option[Ast.expr]): Unit = {
     ifExpr match {
       case Some(e) =>
-        condIfClear(id)
+        condIfSetNull(id)
         condIfHeader(e)
-        condIfSetCalculated(id)
+        condIfSetNonNull(id)
       case None => // ignore
     }
   }

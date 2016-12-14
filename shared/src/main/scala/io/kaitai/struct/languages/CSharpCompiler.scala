@@ -148,11 +148,11 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.Seek(_pos);")
 
-  override def instanceClear(instName: Identifier): Unit = {
+  override def instanceClear(instName: InstanceIdentifier): Unit = {
     out.puts(s"${flagForInstName(instName)} = false;")
   }
 
-  override def instanceSetCalculated(instName: Identifier): Unit = {
+  override def instanceSetCalculated(instName: InstanceIdentifier): Unit = {
     out.puts(s"${flagForInstName(instName)} = true;")
   }
 
