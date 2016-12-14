@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.{ClassCompiler, LanguageOutputWriter, RuntimeConfig, TypeProcessor}
 
 class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
   extends LanguageCompiler(config, outSrc)
@@ -161,21 +161,36 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
   override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
     val t = attr.dataTypeComposite
 
-    val checkFlag = id match {
-      case _: NamedIdentifier | _: NumberedIdentifier =>
-        t match {
+    val checkFlags = attr match {
+      case is: InstanceSpec =>
+        val dataType = TypeProcessor.getInstanceDataType(is)
+        dataType match {
           case ut: UserType =>
-            attr.cond.ifExpr.isDefined
+            val checkLazy = calculatedFlagForName(id.asInstanceOf[InstanceIdentifier])
+            val checkNull = if (is.cond.ifExpr.isDefined) {
+              s" && !${nullFlagForName(id)}"
+            } else {
+              ""
+            }
+            outSrc.puts(s"if ($checkLazy$checkNull) {")
+            outSrc.inc
+            true
           case _ =>
             false
         }
-      case _: InstanceIdentifier =>
-        true
-    }
-
-    if (checkFlag) {
-      outSrc.puts(s"if (!${nullFlagForName(id)}) {")
-      outSrc.inc
+      case as: AttrSpec =>
+        as.dataType match {
+          case ut: UserType =>
+            if (as.cond.ifExpr.isDefined) {
+              outSrc.puts(s"if (!${nullFlagForName(id)}) {")
+              outSrc.inc
+              true
+            } else {
+              false
+            }
+          case _ =>
+            false
+        }
     }
 
     t match {
@@ -211,7 +226,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
         // no cleanup needed
     }
 
-    if (checkFlag) {
+    if (checkFlags) {
       outSrc.dec
       outSrc.puts("}")
     }
