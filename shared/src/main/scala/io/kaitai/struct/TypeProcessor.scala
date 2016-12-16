@@ -20,7 +20,7 @@ object TypeProcessor {
 
   def processTypes(topClass: ClassSpec): Unit = {
     // Set top class name from meta
-    topClass.name        = List(topClass.meta.get.id.get)
+    topClass.name = List(topClass.meta.get.id.get)
     topClass.parentClass = GenericStructClassSpec
 
     markupClassNames(topClass)
@@ -63,7 +63,7 @@ object TypeProcessor {
 //    Console.println(s"deriveValueType(${curClass.name.mkString("::")})")
     var hasChanged = false
 
-    provider.nowClass            = curClass
+    provider.nowClass = curClass
     provider.possibleParentClass = _parentsByChild.get(curClass.name.mkString("::"))
 
     curClass.instances.foreach {

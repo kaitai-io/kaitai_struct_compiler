@@ -5,7 +5,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{TypeMismatchError, TypeProvider, TypeUndecidedError}
 
 class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
-  var nowClass           : ClassSpec         = topClass
+  var nowClass : ClassSpec = topClass
   var possibleParentClass: Option[ClassSpec] = None
 
   var _currentIteratorType: Option[BaseType] = None
