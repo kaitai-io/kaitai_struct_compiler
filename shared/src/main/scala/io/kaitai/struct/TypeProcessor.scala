@@ -16,7 +16,7 @@ object TypeProcessor {
   // types and for some reasion their ClassSpec couldn't be queried as a key in the map without
   // running into UnsupportedOperationException of AbstractIdentifier.toString. This doesn't happen
   // if we provide a string using ClassSpec on our own.
-  val _parentsByChild = Map[String, ClassSpec]()
+  val parentsByChild = Map[String, ClassSpec]()
 
   def processTypes(topClass: ClassSpec): Unit = {
     // Set top class name from meta
@@ -64,7 +64,7 @@ object TypeProcessor {
     var hasChanged = false
 
     provider.nowClass = curClass
-    provider.possibleParentClass = _parentsByChild.get(curClass.name.mkString("::"))
+    provider.possibleParentClass = parentsByChild.get(curClass.name.mkString("::"))
 
     curClass.instances.foreach {
       case (instName, inst) =>
@@ -158,7 +158,7 @@ object TypeProcessor {
         // call is the proper one, so we simply overwrite mappings. Depending on the target language
         // in case of multiple incompatible usages compiler errors occur or such and things can be
         // fixed as needed.
-        _parentsByChild(child.name.mkString("::")) = curClass
+        parentsByChild(child.name.mkString("::")) = curClass
         res
       }
     }
