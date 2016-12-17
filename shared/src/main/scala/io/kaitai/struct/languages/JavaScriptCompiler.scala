@@ -169,38 +169,43 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
-  override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
+  def attrDebugName(attrId: Identifier, rep: RepeatSpec): Option[String] = {
     val name = attrId match {
       case NamedIdentifier(name) => name
       case InstanceIdentifier(name) => name
-      case _: RawIdentifier | _: SpecialIdentifier => return
+      case _: RawIdentifier | _: SpecialIdentifier => return None
     }
-    val debugName = idToStr(attrId)
-    rep match {
-      case NoRepeat =>
-        out.puts(s"this._debug.$debugName = { start: $io.pos };")
-      case _: RepeatExpr =>
-        out.puts(s"this._debug.$debugName.arr[i] = { start: $io.pos };")
-      case RepeatEos | _: RepeatUntil =>
-        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length] = { start: $io.pos };")
+
+    val arrIndexExpr = rep match {
+      case NoRepeat => ""
+      case _: RepeatExpr => ".arr[i]"
+      case RepeatEos | _: RepeatUntil => s".arr[${privateMemberName(attrId)}.length]"
     }
+
+    Some(s"this._debug.${idToStr(attrId)}$arrIndexExpr")
+  }
+
+  override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
+    val debugName = this.attrDebugName(attrId, rep) match {
+      case None => return
+      case Some(x) => x
+    }
+
+    val attrTypeExtraExpr = attrType match {
+      case EnumType(name, _) => s""", enumName: \"${types2class(name)}\""""
+      case _ => ""
+    }
+
+    out.puts(s"$debugName = { start: $io.pos$attrTypeExtraExpr };")
   }
 
   override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
-    val name = attrId match {
-      case NamedIdentifier(name) => name
-      case InstanceIdentifier(name) => name
-      case _: RawIdentifier | _: SpecialIdentifier => return
+    val debugName = this.attrDebugName(attrId, rep) match {
+      case None => return
+      case Some(x) => x
     }
-    val debugName = idToStr(attrId)
-    rep match {
-      case NoRepeat =>
-        out.puts(s"this._debug.$debugName.end = $io.pos;")
-      case _: RepeatExpr =>
-        out.puts(s"this._debug.$debugName.arr[i].end = $io.pos;")
-      case RepeatEos | _: RepeatUntil =>
-        out.puts(s"this._debug.$debugName.arr[${privateMemberName(attrId)}.length - 1].end = $io.pos;")
-    }
+
+    out.puts(s"$debugName.end = $io.pos;")
   }
 
   override def condIfHeader(expr: expr): Unit = {
