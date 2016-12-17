@@ -190,9 +190,9 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case None => return
       case Some(x) => x
     }
-
+    
     val attrTypeExtraExpr = attrType match {
-      case EnumType(name, _) => s""", enumName: \"${types2class(name)}\""""
+      case t: EnumType => s""", enumName: \"${types2class(t.enumSpec.get.name)}\""""
       case _ => ""
     }
 
@@ -362,6 +362,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     enumColl.foreach { case (id, label) =>
       out.puts(s"${enumValue(enumName, label)}: $id,")
     }
+    out.puts
     enumColl.foreach { case (id, label) =>
       out.puts(s"""$id: "${enumValue(enumName, label)}",""")
     }
