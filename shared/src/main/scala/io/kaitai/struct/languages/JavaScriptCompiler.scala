@@ -357,6 +357,9 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     enumColl.foreach { case (id, label) =>
       out.puts(s"${enumValue(enumName, label)}: $id,")
     }
+    enumColl.foreach { case (id, label) =>
+      out.puts(s"""$id: "${enumValue(enumName, label)}",""")
+    }
     out.dec
     out.puts("});")
     out.puts
