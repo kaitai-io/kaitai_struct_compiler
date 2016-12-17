@@ -34,7 +34,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
 
     if (debug)
-      attrDebugStart(id, io, NoRepeat)
+      attrDebugStart(id, attr.dataType, io, NoRepeat)
 
     attr.cond.repeat match {
       case RepeatEos =>
@@ -54,7 +54,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
 
     if (debug)
-      attrDebugEnd(id, io, NoRepeat)
+      attrDebugEnd(id, attr.dataType, io, NoRepeat)
 
     // More position management after parsing for ParseInstanceSpecs
     attr match {
@@ -69,7 +69,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
   def attrParse2(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
     if (debug && rep != NoRepeat)
-      attrDebugStart(id, io, rep)
+      attrDebugStart(id, dataType, io, rep)
 
     dataType match {
       case FixedBytesType(c, _) =>
@@ -89,7 +89,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
 
     if (debug && rep != NoRepeat)
-      attrDebugEnd(id, io, rep)
+      attrDebugEnd(id, dataType, io, rep)
   }
 
   def attrBytesTypeParse(id: Identifier, dataType: BytesType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
@@ -223,8 +223,8 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  def attrDebugStart(attrName: Identifier, io: String, repeat: RepeatSpec): Unit = {}
-  def attrDebugEnd(attrName: Identifier, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrName: Identifier, attrType: BaseType, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugEnd(attrName: Identifier, attrType: BaseType, io: String, repeat: RepeatSpec): Unit = {}
 
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit

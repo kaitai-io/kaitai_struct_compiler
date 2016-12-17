@@ -184,7 +184,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
-  override def attrDebugStart(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
     val name = attrId match {
       case _: RawIdentifier | _: SpecialIdentifier => return
       case _ => idToStr(attrId)
@@ -197,7 +197,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def attrDebugEnd(attrId: Identifier, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
     val name = attrId match {
       case _: RawIdentifier | _: SpecialIdentifier => return
       case _ => idToStr(attrId)
