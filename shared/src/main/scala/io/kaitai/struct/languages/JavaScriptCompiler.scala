@@ -186,7 +186,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   }
 
   override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
-    val debugName = this.attrDebugName(attrId, rep) match {
+    val debugName = attrDebugName(attrId, rep) match {
       case None => return
       case Some(x) => x
     }
@@ -200,7 +200,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   }
 
   override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
-    val debugName = this.attrDebugName(attrId, rep) match {
+    val debugName = attrDebugName(attrId, rep) match {
       case None => return
       case Some(x) => x
     }
