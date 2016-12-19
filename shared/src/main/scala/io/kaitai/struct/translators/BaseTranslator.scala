@@ -172,8 +172,12 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   }
 
   def doBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]): String = {
-    val opStr = s" ${booleanOp(op)} "
-    values.map(translate).mkString(opStr)
+    val opStr = s"${booleanOp(op)}"
+    val dividerStr = s" ) ${opStr} ( "
+    val valuesStr = values.map(translate).mkString("( ", dividerStr, " )")
+
+    // Improve compatibility for statements like: ( ... && ... || ... ) ? ... : ...
+    s" ( ${valuesStr} ) "
   }
 
   def booleanOp(op: Ast.boolop) = op match {
