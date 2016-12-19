@@ -169,7 +169,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
-  def attrDebugName(attrId: Identifier, rep: RepeatSpec): Option[String] = {
+  def attrDebugName(attrId: Identifier, rep: RepeatSpec, end: Boolean): Option[String] = {
     val name = attrId match {
       case NamedIdentifier(name) => name
       case InstanceIdentifier(name) => name
@@ -179,14 +179,14 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     val arrIndexExpr = rep match {
       case NoRepeat => ""
       case _: RepeatExpr => ".arr[i]"
-      case RepeatEos | _: RepeatUntil => s".arr[${privateMemberName(attrId)}.length]"
+      case RepeatEos | _: RepeatUntil => s".arr[${privateMemberName(attrId)}.length${if(end) " - 1" else ""}]"
     }
 
     Some(s"this._debug.${idToStr(attrId)}$arrIndexExpr")
   }
 
   override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
-    val debugName = attrDebugName(attrId, rep) match {
+    val debugName = attrDebugName(attrId, rep, false) match {
       case None => return
       case Some(x) => x
     }
@@ -200,7 +200,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   }
 
   override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
-    val debugName = attrDebugName(attrId, rep) match {
+    val debugName = attrDebugName(attrId, rep, true) match {
       case None => return
       case Some(x) => x
     }
