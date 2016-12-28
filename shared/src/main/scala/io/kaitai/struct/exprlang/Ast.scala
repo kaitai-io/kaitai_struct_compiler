@@ -81,9 +81,5 @@ object Ast {
     case object LtE extends cmpop
     case object Gt extends cmpop
     case object GtE extends cmpop
-    case object Is extends cmpop
-    case object IsNot extends cmpop
-    case object In extends cmpop
-    case object NotIn extends cmpop
   }
 }
