@@ -422,9 +422,19 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     }
   }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
     if (switchIfs) {
       outSrc.puts(s"if (on == ${expression(condition)}) {")
+      outSrc.inc
+    } else {
+      outSrc.puts(s"case ${expression(condition)}:")
+      outSrc.inc
+    }
+  }
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    if (switchIfs) {
+      outSrc.puts(s"else if (on == ${expression(condition)}) {")
       outSrc.inc
     } else {
       outSrc.puts(s"case ${expression(condition)}:")
