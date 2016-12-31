@@ -5,7 +5,7 @@ import io.kaitai.struct.Utils
 object ParseUtils {
   def ensureLegalKeys(src: Map[String, Any], legalKeys: Set[String], path: List[String]) = {
     src.keys.foreach((key) =>
-      if (!legalKeys.contains(key))
+      if (!key.startsWith("-") && !legalKeys.contains(key))
         throw new YAMLParseException(s"unknown key found, expected: ${legalKeys.toList.sorted.mkString(", ")}", path ++ List(key))
     )
   }

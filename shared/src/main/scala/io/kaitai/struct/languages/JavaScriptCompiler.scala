@@ -169,28 +169,11 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
-  def attrDebugName(attrId: Identifier, rep: RepeatSpec): Option[String] = {
-    val name = attrId match {
-      case NamedIdentifier(name) => name
-      case InstanceIdentifier(name) => name
-      case _: RawIdentifier | _: SpecialIdentifier => return None
-    }
-
-    val arrIndexExpr = rep match {
-      case NoRepeat => ""
-      case _: RepeatExpr => ".arr[i]"
-      case RepeatEos | _: RepeatUntil => s".arr[${privateMemberName(attrId)}.length]"
-    }
-
-    Some(s"this._debug.${idToStr(attrId)}$arrIndexExpr")
-  }
-
   override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
-    val debugName = this.attrDebugName(attrId, rep) match {
-      case None => return
-      case Some(x) => x
-    }
-    
+    if (!attrDebugNeeded(attrId))
+      return
+    val debugName = attrDebugName(attrId, rep, false)
+
     val attrTypeExtraExpr = attrType match {
       case t: EnumType => s""", enumName: \"${types2class(t.enumSpec.get.name)}\""""
       case _ => ""
@@ -200,10 +183,9 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   }
 
   override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
-    val debugName = this.attrDebugName(attrId, rep) match {
-      case None => return
-      case Some(x) => x
-    }
+    if (!attrDebugNeeded(attrId))
+      return
+    val debugName = attrDebugName(attrId, rep, true)
 
     out.puts(s"$debugName.end = $io.pos;")
   }
@@ -395,6 +377,22 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case NamedIdentifier(name) => Utils.lowerCamelCase(name)
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
     }
+  }
+
+  private
+  def attrDebugNeeded(attrId: Identifier) = attrId match {
+    case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
+    case _: RawIdentifier | _: SpecialIdentifier => false
+  }
+
+  def attrDebugName(attrId: Identifier, rep: RepeatSpec, end: Boolean) = {
+    val arrIndexExpr = rep match {
+      case NoRepeat => ""
+      case _: RepeatExpr => ".arr[i]"
+      case RepeatEos | _: RepeatUntil => s".arr[${privateMemberName(attrId)}.length${if (end) " - 1" else ""}]"
+    }
+
+    s"this._debug.${idToStr(attrId)}$arrIndexExpr"
   }
 }
 
