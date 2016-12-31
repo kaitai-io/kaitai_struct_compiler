@@ -179,7 +179,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case _ => ""
     }
 
-    out.puts(s"$debugName = { start: $io.pos$attrTypeExtraExpr };")
+    out.puts(s"$debugName = { start: $io.pos$attrTypeExtraExpr, ioOffset: $io._byteOffset };")
   }
 
   override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
