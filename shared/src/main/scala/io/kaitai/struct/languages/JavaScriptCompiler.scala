@@ -175,11 +175,11 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     val debugName = attrDebugName(attrId, rep, false)
 
     val attrTypeExtraExpr = attrType match {
-      case EnumType(name, _) => s""", enumName: \"${types2class(name)}\""""
+      case t: EnumType => s""", enumName: \"${types2class(t.enumSpec.get.name)}\""""
       case _ => ""
     }
 
-    out.puts(s"$debugName = { start: $io.pos$attrTypeExtraExpr };")
+    out.puts(s"$debugName = { start: $io.pos$attrTypeExtraExpr, ioOffset: $io._byteOffset };")
   }
 
   override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
@@ -344,6 +344,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     enumColl.foreach { case (id, label) =>
       out.puts(s"${enumValue(enumName, label)}: $id,")
     }
+    out.puts
     enumColl.foreach { case (id, label) =>
       out.puts(s"""$id: "${enumValue(enumName, label)}",""")
     }
