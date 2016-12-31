@@ -78,8 +78,8 @@ just as full name.
 Common options:
 
 * `<file>...` — source files (.ksy)
-* `-t <language> | --target <language>` — target languages (`csharp`,
-  `java`, `javascript`, `python`, `ruby`, `all`)
+* `-t <language> | --target <language>` — target languages (`cpp_stl`,
+  `csharp`, `java`, `javascript`, `perl`, `php`, `python`, `ruby`, `all`)
   * `all` is a special case: it compiles all possible target
     languages, creating language-specific directories (as per language
     identifiers) inside output directory, and then creating output
@@ -91,6 +91,7 @@ Language-specific options:
 
 * `--dot-net-namespace <namespace>` — .NET namespace (C# only, default: Kaitai)
 * `--java-package <package>` — Java package (Java only, default: root package)
+* `--php-namespace <namespace>` — PHP namespace (PHP only, default: root package)
 
 Misc options:
 
