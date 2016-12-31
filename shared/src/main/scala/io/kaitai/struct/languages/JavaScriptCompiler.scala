@@ -8,6 +8,8 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, JavaScriptTranslator, TypeProvider}
 import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 
+import scala.collection.mutable.ListBuffer
+
 class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
@@ -172,14 +174,17 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
     if (!attrDebugNeeded(attrId))
       return
+
     val debugName = attrDebugName(attrId, rep, false)
+    var debugProps = new ListBuffer[String]()
 
-    val attrTypeExtraExpr = attrType match {
-      case t: EnumType => s""", enumName: \"${types2class(t.enumSpec.get.name)}\""""
-      case _ => ""
-    }
+    if (attrType.isInstanceOf[EnumType])
+      debugProps += s"""enumName: "${types2class(attrType.asInstanceOf[EnumType].enumSpec.get.name)}""""
 
-    out.puts(s"$debugName = { start: $io.pos$attrTypeExtraExpr, ioOffset: $io._byteOffset };")
+    if (io != null)
+      debugProps += s"start: $io.pos, ioOffset: $io._byteOffset"
+
+    out.puts(s"$debugName = { ${debugProps.mkString(", ")} };")
   }
 
   override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
@@ -188,6 +193,10 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     val debugName = attrDebugName(attrId, rep, true)
 
     out.puts(s"$debugName.end = $io.pos;")
+  }
+
+  override def instanceDebug(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr): Unit = {
+    attrDebugStart(instName, dataType, null, NoRepeat);
   }
 
   override def condIfHeader(expr: expr): Unit = {

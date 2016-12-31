@@ -225,6 +225,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
   def attrDebugStart(attrName: Identifier, attrType: BaseType, io: String, repeat: RepeatSpec): Unit = {}
   def attrDebugEnd(attrName: Identifier, attrType: BaseType, io: String, repeat: RepeatSpec): Unit = {}
+  def instanceDebug(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr): Unit = {}
 
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
@@ -235,8 +236,10 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
   def parseExpr(dataType: BaseType, io: String): String
   def userTypeDebugRead(id: String): Unit = ???
 
-  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr) =
+  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr): Unit = {
+    instanceDebug(instName, dataType, value);
     handleAssignmentSimple(instName, expression(value))
+  }
 
   def switchStart(id: Identifier, on: Ast.expr): Unit
   def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)
