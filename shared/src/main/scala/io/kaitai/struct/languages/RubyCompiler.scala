@@ -137,7 +137,10 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)")
 
-  override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: Option[String], rep: RepeatSpec): Unit = {
+    if (io.isEmpty)
+      return
+
     val name = attrId match {
       case NamedIdentifier(name) => name
       case InstanceIdentifier(name) => name
