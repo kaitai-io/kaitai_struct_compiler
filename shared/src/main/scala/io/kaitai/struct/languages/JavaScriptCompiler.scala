@@ -291,7 +291,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
       case t: UserType =>
-      	val addArgs = if (t.isOpaque) "" else ", this, this._root"
+        val addArgs = if (t.isOpaque) "" else ", this, this._root"
         s"new ${type2class(t.name.last)}($io$addArgs)"
     }
   }
