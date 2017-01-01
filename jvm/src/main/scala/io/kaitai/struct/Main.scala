@@ -13,13 +13,8 @@ object Main {
     srcFiles: Seq[File] = Seq(),
     outDir: File = new File("."),
     targets: Seq[String] = Seq(),
-
-    private val _verbose: Boolean = false,
-    private val _debug: Boolean = false,
-    private val _javaPackage: String = "",
-    private val _dotNetNamespace: String = "",
-    private val _phpNamespace: String = ""
-  ) extends RuntimeConfig(_verbose, _debug, _javaPackage, _dotNetNamespace, _phpNamespace)
+    runtime: RuntimeConfig = RuntimeConfig()
+  )
 
   val ALL_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.keySet
   val VALID_LANGS = ALL_LANGS + "all"
@@ -57,22 +52,22 @@ object Main {
       } text("output directory (filenames will be auto-generated)")
 
       opt[String]("java-package") valueName("<package>") action { (x, c) =>
-        c.copy(_javaPackage = x)
+        c.copy(runtime = c.runtime.copy(javaPackage = x))
       } text("Java package (Java only, default: root package)")
 
       opt[String]("dotnet-namespace") valueName("<namespace>") action { (x, c) =>
-        c.copy(_dotNetNamespace = x)
+        c.copy(runtime = c.runtime.copy(dotNetNamespace = x))
       } text(".NET Namespace (.NET only, default: Kaitai)")
 
       opt[String]("php-namespace") valueName("<namespace>") action { (x, c) =>
-        c.copy(_phpNamespace = x)
+        c.copy(runtime = c.runtime.copy(phpNamespace = x))
       } text("PHP Namespace (PHP only, default: root package)")
 
       opt[Unit]("verbose") action { (x, c) =>
-        c.copy(_verbose = true)
+        c.copy(runtime = c.runtime.copy(verbose = true))
       } text("verbose output")
       opt[Unit]("debug") action { (x, c) =>
-        c.copy(_debug = true)
+        c.copy(runtime = c.runtime.copy(debug = true))
       } text("enable debugging helpers (mostly used by visualization tools)")
       help("help") text("display this help and exit")
       version("version") text("output version information and exit")
@@ -94,16 +89,16 @@ object Main {
   }
 
   def compileAll(srcFile: String, config: CLIConfig): Unit = {
-    if (config.verbose)
+    if (config.runtime.verbose)
       Console.println(s"reading $srcFile...")
 
     val topClass = JavaKSYParser.localFileToSpec(srcFile)
 
     config.targets.foreach { lang =>
       try {
-        if (config.verbose)
+        if (config.runtime.verbose)
           Console.print(s"... compiling it for $lang... ")
-        compileOne(topClass, lang, s"${config.outDir}/$lang", config)
+        compileOne(topClass, lang, s"${config.outDir}/$lang", config.runtime)
       } catch {
         case e: Exception =>
           e.printStackTrace()
@@ -122,7 +117,7 @@ object Main {
             config.targets match {
               case Seq(lang) =>
                 // single target, just use target directory as is
-                compileOne(srcFile.toString, lang, config.outDir.toString, config)
+                compileOne(srcFile.toString, lang, config.outDir.toString, config.runtime)
               case _ =>
                 // multiple targets, use additional directories
                 compileAll(srcFile.toString, config)
