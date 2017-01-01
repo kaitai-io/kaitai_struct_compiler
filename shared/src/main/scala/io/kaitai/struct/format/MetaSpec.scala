@@ -6,11 +6,13 @@ case class MetaSpec(
   isOpaque: Boolean,
   id: Option[String],
   endian: Option[Endianness],
-  encoding: Option[String]
+  encoding: Option[String],
+  forceDebug: Boolean
 )
 
 object MetaSpec {
-  val OPAQUE = MetaSpec(isOpaque = true, None, None, None)
+  val OPAQUE = MetaSpec(
+    isOpaque = true, None, None, None, forceDebug = false)
 
   val LEGAL_KEYS = Set(
     "id",
@@ -18,6 +20,7 @@ object MetaSpec {
     "encoding",
     "title",
     "ks-version",
+    "ks-debug",
     "license",
     "file-extension",
     "application"
@@ -46,6 +49,8 @@ object MetaSpec {
     }
     val encoding = ParseUtils.getOptValueStr(srcMap, "encoding", path)
 
-    MetaSpec(isOpaque = false, id, endian, encoding)
+    val forceDebug = ParseUtils.getOptValueBool(srcMap, "ks-debug", path).getOrElse(false)
+
+    MetaSpec(isOpaque = false, id, endian, encoding, forceDebug)
   }
 }
