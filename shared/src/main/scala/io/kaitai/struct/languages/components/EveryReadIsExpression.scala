@@ -34,7 +34,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
 
     if (debug)
-      attrDebugStart(id, attr.dataType, io, NoRepeat)
+      attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
 
     attr.cond.repeat match {
       case RepeatEos =>
@@ -69,7 +69,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
   def attrParse2(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
     if (debug && rep != NoRepeat)
-      attrDebugStart(id, dataType, io, rep)
+      attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
       case FixedBytesType(c, _) =>
@@ -223,7 +223,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  def attrDebugStart(attrName: Identifier, attrType: BaseType, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrName: Identifier, attrType: BaseType, io: Option[String], repeat: RepeatSpec): Unit = {}
   def attrDebugEnd(attrName: Identifier, attrType: BaseType, io: String, repeat: RepeatSpec): Unit = {}
 
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
@@ -235,8 +235,10 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
   def parseExpr(dataType: BaseType, io: String): String
   def userTypeDebugRead(id: String): Unit = ???
 
-  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr) =
+  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr): Unit = {
+    attrDebugStart(instName, dataType, None, NoRepeat);
     handleAssignmentSimple(instName, expression(value))
+  }
 
   def switchStart(id: Identifier, on: Ast.expr): Unit
   def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)

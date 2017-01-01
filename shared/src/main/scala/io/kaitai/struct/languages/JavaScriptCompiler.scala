@@ -8,6 +8,8 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, JavaScriptTranslator, TypeProvider}
 import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
 
+import scala.collection.mutable.ListBuffer
+
 class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   extends LanguageCompiler(config, out)
     with ObjectOrientedLanguage
@@ -169,17 +171,23 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
-  override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: Option[String], rep: RepeatSpec): Unit = {
     if (!attrDebugNeeded(attrId))
       return
+
     val debugName = attrDebugName(attrId, rep, false)
 
-    val attrTypeExtraExpr = attrType match {
-      case t: EnumType => s""", enumName: \"${types2class(t.enumSpec.get.name)}\""""
+    val ioProps = io match {
+      case None => ""
+      case Some(x) => s"start: $x.pos, ioOffset: $x._byteOffset"
+    }
+
+    val enumNameProps = attrType match {
+      case t: EnumType => s"""enumName: \"${types2class(t.enumSpec.get.name)}\""""
       case _ => ""
     }
 
-    out.puts(s"$debugName = { start: $io.pos$attrTypeExtraExpr, ioOffset: $io._byteOffset };")
+    out.puts(s"$debugName = { $ioProps${if (ioProps != "" && enumNameProps != "") ", " else ""}$enumNameProps };")
   }
 
   override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
