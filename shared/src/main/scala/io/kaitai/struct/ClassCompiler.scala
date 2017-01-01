@@ -128,7 +128,8 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 }
 
 object ClassCompiler {
-  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, config: RuntimeConfig): AbstractCompiler = {
+  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, conf: RuntimeConfig): AbstractCompiler = {
+    val config = updateConfig(conf, topClass)
     val outPath = lang.outFilePath(config, outDir, topClass.name.head)
     if (config.verbose)
       Console.println(s"... => ${outPath}")
@@ -146,8 +147,9 @@ object ClassCompiler {
     }
   }
 
-  def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, config: RuntimeConfig):
+  def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, conf: RuntimeConfig):
     (StringLanguageOutputWriter, Option[StringLanguageOutputWriter], AbstractCompiler) = {
+    val config = updateConfig(conf, topClass)
     lang match {
       case GraphvizClassCompiler =>
         val out = new StringLanguageOutputWriter(lang.indent)
@@ -172,5 +174,20 @@ object ClassCompiler {
     case PHPCompiler => new PHPCompiler(config, out)
     case PythonCompiler => new PythonCompiler(config, out)
     case RubyCompiler => new RubyCompiler(config, out)
+  }
+
+  /**
+    * Updates runtime configuration with "enforcement" options that came from a source file itself.
+    * Currently only used to enforce debug when "ks-debug: true" is specified in top-level "meta" key.
+    * @param config original runtime configuration
+    * @param topClass top-level class spec
+    * @return updated runtime configuration with applied enforcements
+    */
+  private def updateConfig(config: RuntimeConfig, topClass: ClassSpec): RuntimeConfig = {
+    if (topClass.meta.get.forceDebug) {
+      config.copy(debug = true)
+    } else {
+      config
+    }
   }
 }
