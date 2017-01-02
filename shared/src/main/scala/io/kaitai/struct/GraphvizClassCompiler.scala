@@ -203,7 +203,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     st.cases.foreach { case (caseExpr, caseType) =>
       caseType match {
         case ut: UserType =>
-          val exprStr = htmlEscape(translator.translate(caseExpr))
+          val exprStr = htmlEscape(translator.translate(caseExpr)._1)
           val portName = s"case$lineNum"
           lineNum += 1
           extraClusterLines.puts(
@@ -266,7 +266,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     affectedVars(e).foreach((v) =>
       links += ((v, portName, style))
     )
-    htmlEscape(translator.translate(e))
+    htmlEscape(translator.translate(e)._1)
   }
 
   def affectedVars(e: expr): List[String] = {
