@@ -37,7 +37,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     everybody("1 + 2 + 5", "((1 + 2) + 5)"),
 
-    everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", Map(
+    everybodyExcept("(1 + 2) / (7 * 8)", "(1 + 2) / (7 * 8)", Map(
       JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
       PerlCompiler -> "int((1 + 2) / (7 * 8))",
       PHPCompiler -> "intval((1 + 2) / (7 * 8))",
@@ -163,6 +163,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "a != 2 && a != 5"
     )),
 
+    full("(a and b and ((1 < 2) ? true : false)) ? 1000 : 0", BooleanType, CalcIntType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "a() != 2 && a() != 5",
+      CSharpCompiler -> "A != 2 && A != 5",
+      JavaCompiler -> "a() && b() && (1 < 2 ? true : false) ? 1000 : 0",
+      JavaScriptCompiler -> "this.a != 2 && this.a != 5",
+      PerlCompiler -> "$self->a() != 2 && $self->a() != 5",
+      PHPCompiler -> "$this->a() != 2 && $this->a() != 5",
+      PythonCompiler -> "self.a != 2 and self.a != 5",
+      RubyCompiler -> "a && b && (1 < 2 ? true : false) ? 1000 : 0"
+    )),
+
     // Arrays
     full("[0, 1, 100500]", CalcIntType, ArrayType(CalcIntType), Map[LanguageCompilerStatic, String](
       CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
@@ -244,6 +255,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "\"str\""
     )),
 
+    // TODO: add test for string literal with escaped characters
+
     everybodyExcept("\"str1\" + \"str2\"", "\"str1\" + \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str1\") + std::string(\"str2\")",
       PerlCompiler -> "\"str1\" . \"str2\"",
@@ -324,7 +337,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
             expOut.get(langObj) match {
               case Some(expResult) =>
                 tr.detectType(e) should be(expType)
-                tr.translate(e) should be(expResult)
+                tr.translate(e, Int.MaxValue) should be(expResult)
               case None =>
                 fail("no expected result")
             }
