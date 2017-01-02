@@ -237,7 +237,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
   def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr): Unit = {
     if (debug)
-        attrDebugStart(instName, dataType, None, NoRepeat)
+      attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }
 
