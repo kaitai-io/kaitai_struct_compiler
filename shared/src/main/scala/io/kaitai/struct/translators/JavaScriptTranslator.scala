@@ -5,14 +5,16 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.IntType
 import io.kaitai.struct.languages.JavaScriptCompiler
+import io.kaitai.struct.translators.components.CTernaryOperator
 
-class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) with CTernaryOperator {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"Math.floor(${translate(left)} / ${translate(right)})"
+        val divPrio = binOpPriority(Ast.operator.Div)
+        (s"Math.floor(${translate(left, divPrio)} / ${translate(right, divPrio)})", 0)
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${JavaScriptCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
+        (s"${JavaScriptCompiler.kstreamName}.mod(${translate(left, 0)}, ${translate(right, 0)})", 0)
       case _ =>
         super.numericBinOp(left, op, right)
     }
@@ -32,16 +34,14 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     }
   }
 
-  override def doEnumByLabel(enumType: List[String], label: String): String =
-    s"${JavaScriptCompiler.types2class(enumType)}.${label.toUpperCase}"
-  override def doEnumById(enumTypeAbs: List[String], label: String): String =
+  override def doEnumByLabel(enumType: List[String], label: String): (String, Int) =
+    (s"${JavaScriptCompiler.types2class(enumType)}.${label.toUpperCase}", 0)
+  override def doEnumById(enumTypeAbs: List[String], id: String): (String, Int) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    label
+    (id, 0)
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =

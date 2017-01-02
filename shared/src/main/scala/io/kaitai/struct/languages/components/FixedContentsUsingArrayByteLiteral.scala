@@ -8,6 +8,6 @@ import io.kaitai.struct.format.Identifier
   */
 trait FixedContentsUsingArrayByteLiteral extends LanguageCompiler {
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]) =
-    attrFixedContentsParse(attrName, translator.doByteArrayLiteral(contents))
+    attrFixedContentsParse(attrName, translator.doByteArrayLiteral(contents)._1)
   def attrFixedContentsParse(attrName: Identifier, contents: String): Unit
 }

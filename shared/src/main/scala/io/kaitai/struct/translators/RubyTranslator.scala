@@ -2,26 +2,27 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.languages.RubyCompiler
+import io.kaitai.struct.translators.components.CTernaryOperator
 
-class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
-  override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"${super.doByteArrayLiteral(arr)}.pack('C*')"
+class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) with CTernaryOperator {
+  override def doByteArrayLiteral(arr: Seq[Byte]): (String, Int) = {
+    val (bal, prio) = super.doByteArrayLiteral(arr)
+    (s"$bal.pack('C*')", prio)
+  }
 
   override def doName(s: String) = s
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s":${enumTypeAbs.last}_$label"
-  override def doEnumById(enumType: List[String], id: String): String =
-    s"${RubyCompiler.kstreamName}::resolve_enum(${enumType.last.toUpperCase}, $id)"
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): (String, Int) =
+    (s":${enumTypeAbs.last}_$label", 0)
+  override def doEnumById(enumType: List[String], id: String): (String, Int) =
+    (s"${RubyCompiler.kstreamName}::resolve_enum(${enumType.last.toUpperCase}, $id)", 0)
 
   override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
-    s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
   // Predefined methods of various types
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
-    val baseStr = translate(base)
+    val baseStr = translate(base, 0)
     translate(s) + ".to_i" + (baseStr match {
       case "10" => ""
       case _ => s"($baseStr)"

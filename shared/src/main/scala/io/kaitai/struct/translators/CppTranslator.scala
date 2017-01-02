@@ -5,21 +5,22 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.languages.CppCompiler
+import io.kaitai.struct.translators.components.CTernaryOperator
 
-class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) with CTernaryOperator {
   // TODO: add string escaping
-  override def doStringLiteral(s: String): String = "std::string(\"" + s + "\")"
+  override def doStringLiteral(s: String): (String, Int) = ("std::string(\"" + s + "\")", 0)
 
-  override def doArrayLiteral(t: BaseType, values: Seq[expr]): String =
+  override def doArrayLiteral(t: BaseType, values: Seq[expr]): (String, Int) =
     throw new RuntimeException("C++ literal arrays are not implemented yet")
 
-  override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "std::string(\"" + Utils.hexEscapeByteArray(arr) + "\", " + arr.length + ")"
+  override def doByteArrayLiteral(arr: Seq[Byte]): (String, Int) =
+    ("std::string(\"" + Utils.hexEscapeByteArray(arr) + "\", " + arr.length + ")", 0)
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${CppCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
+        (s"${CppCompiler.kstreamName}::mod(${translate(left, 0)}, ${translate(right, 0)})", 0)
       case _ =>
         super.numericBinOp(left, op, right)
     }
@@ -33,29 +34,29 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     case _ => s"$s()"
   }
 
-  override def doEnumByLabel(enumType: List[String], label: String): String =
-    (enumType.last + "_" + label).toUpperCase
-  override def doEnumById(enumType: List[String], id: String): String =
-    s"static_cast<${CppCompiler.type2class(enumType)}>($id)"
+  override def doEnumByLabel(enumType: List[String], label: String): (String, Int) =
+    ((enumType.last + "_" + label).toUpperCase, 0)
+  override def doEnumById(enumType: List[String], id: String): (String, Int) =
+    (s"static_cast<${CppCompiler.type2class(enumType)}>($id)", 0)
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    if (op == Ast.cmpop.Eq) {
-      s"${translate(left)} == (${translate(right)})"
-    } else if (op == Ast.cmpop.NotEq) {
-      s"${translate(left)} != ${translate(right)}"
-    } else {
-      s"(${translate(left)}.compare(${translate(right)}) ${cmpOp(op)} 0)"
+    op match {
+      case Ast.cmpop.Eq | Ast.cmpop.NotEq =>
+        super.doStrCompareOp(left, op, right)
+      case _ =>
+        (
+          s"${translate(left, 0)}.compare(${translate(right, 0)}) ${cmpOp(op)} 0",
+          cmpOpPriority(op)
+        )
     }
   }
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}->at(${translate(idx)})"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"(${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)})"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {
-    val baseStr = translate(base)
+    val baseStr = translate(base, 0)
     s"std::stoi(${translate(s)}" + (baseStr match {
       case "10" => ""
       case _ => s", 0, $baseStr"

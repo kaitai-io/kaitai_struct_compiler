@@ -1,7 +1,6 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.{cmpop, expr}
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.{ClassSpec, EnumSpec}
 
@@ -18,7 +17,16 @@ class TypeUndecidedError(msg: String) extends RuntimeException(msg)
 abstract class BaseTranslator(val provider: TypeProvider) {
   import BaseTranslator._
 
-  def translate(v: Ast.expr): String = {
+  def translate(v: Ast.expr, outerPriority: Int): String = {
+    val (txt, innerPriority) = translate(v)
+    if (innerPriority > outerPriority) {
+      s"($txt)"
+    } else {
+      txt
+    }
+  }
+
+  def translate(v: Ast.expr): (String, Int) = {
     v match {
       case Ast.expr.IntNum(n) =>
         doIntLiteral(n)
@@ -30,14 +38,15 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         doBoolLiteral(n)
       case Ast.expr.EnumById(enumType, id) =>
         val enumSpec = provider.resolveEnum(enumType.name)
-        doEnumById(enumSpec.name, translate(id))
+        doEnumById(enumSpec.name, translate(id, 0))
       case Ast.expr.EnumByLabel(enumType, label) =>
         val enumSpec = provider.resolveEnum(enumType.name)
         doEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
-        doLocalName(name.name)
+        (doLocalName(name.name), 0)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
-        s"${unaryOp(op)}${translate(v)}"
+        val prio = unaryOpPriority(op)
+        (s"${unaryOp(op)}${translate(v, prio)}", prio)
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
@@ -64,12 +73,12 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         }
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         doBooleanOp(op, values)
-      case Ast.expr.IfExp(condition: expr, ifTrue: expr, ifFalse: expr) =>
+      case Ast.expr.IfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr) =>
         doIfExp(condition, ifTrue, ifFalse)
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         detectType(idx) match {
           case _: IntType =>
-            doSubscript(container, idx)
+            (doSubscript(container, idx), 0)
           case idxType =>
             throw new RuntimeException(s"can't use $idx as array index (need int, got $idxType)")
         }
@@ -77,24 +86,24 @@ abstract class BaseTranslator(val provider: TypeProvider) {
         val valType = detectType(value)
         valType match {
           case _: UserType =>
-            userTypeField(value, attr.name)
+            (userTypeField(value, attr.name), 0)
           case _: StrType =>
             attr.name match {
-              case "length" => strLength(value)
-              case "to_i" => strToInt(value, Ast.expr.IntNum(10))
+              case "length" => (strLength(value), 0)
+              case "to_i" => (strToInt(value, Ast.expr.IntNum(10)), 0)
             }
           case _: IntType =>
             throw new RuntimeException(s"don't know how to call anything on ${valType}")
           case ArrayType(inType) =>
             attr.name match {
-              case "first" => arrayFirst(value)
-              case "last" => arrayLast(value)
+              case "first" => (arrayFirst(value), 0)
+              case "last" => (arrayLast(value), 0)
             }
           case KaitaiStreamType =>
             attr.name match {
-              case "size" => kaitaiStreamSize(value)
-              case "eof" => kaitaiStreamEof(value)
-              case "pos" => kaitaiStreamPos(value)
+              case "size" => (kaitaiStreamSize(value), 0)
+              case "eof" => (kaitaiStreamEof(value), 0)
+              case "pos" => (kaitaiStreamPos(value), 0)
             }
         }
       case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
@@ -103,8 +112,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             val objType = detectType(obj)
             (objType, methodName.name) match {
               // TODO: check argument quantity
-              case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
-              case (_: StrType, "to_i") => strToInt(obj, args(0))
+              case (_: StrType, "substring") => (strSubstring(obj, args(0), args(1)), 0)
+              case (_: StrType, "to_i") => (strToInt(obj, args(0)), 0)
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
@@ -129,11 +138,59 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     }
   }
 
-  def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
-    s"(${translate(left)} ${binOp(op)} ${translate(right)})"
+  def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): (String, Int) = {
+    val prio = binOpPriority(op)
+    (s"${translate(left, prio)} ${binOp(op)} ${translate(right, prio)}", prio)
   }
 
-  def binOp(op: Ast.operator): String = {
+  // 0 and increasing down to...
+  //
+  // 1. !, ~, unary +
+  // 2. **
+  // 3. unary -
+  // 4. *, /, %
+  // 5. +, -
+  // 6. <<, >>
+  // 7. &
+  // 8. |, ^
+  // 9. >, >=, <, <=
+  // 10. <=>, ==, ===, !=, =~, !~
+  // 11. &&
+  // 12. ||
+  // 13. ?, :
+
+  def binOpPriority(op: Ast.operator): Int =
+    op match {
+      case Ast.operator.Pow => 20
+      case Ast.operator.Mult |
+           Ast.operator.Div |
+           Ast.operator.Mod => 40
+      case Ast.operator.Add |
+           Ast.operator.Sub => 50
+      case Ast.operator.LShift |
+           Ast.operator.RShift => 60
+      case Ast.operator.BitAnd => 70
+      case Ast.operator.BitOr |
+           Ast.operator.BitXor => 80
+    }
+
+  def cmpOpPriority(op: Ast.cmpop): Int =
+    op match {
+      case Ast.cmpop.Lt |
+           Ast.cmpop.LtE |
+           Ast.cmpop.Gt |
+           Ast.cmpop.GtE => 90
+      case Ast.cmpop.Eq |
+           Ast.cmpop.NotEq => 100
+    }
+
+  def booleanOpPriority(op: Ast.boolop) =
+    op match {
+      case Ast.boolop.And => 110
+      case Ast.boolop.Or => 120
+    }
+
+  def binOp(op: Ast.operator): String =
     op match {
       case Ast.operator.Add => "+"
       case Ast.operator.Sub => "-"
@@ -146,18 +203,20 @@ abstract class BaseTranslator(val provider: TypeProvider) {
       case Ast.operator.LShift => "<<"
       case Ast.operator.RShift => ">>"
     }
+
+  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): (String, Int) = {
+    val prio = cmpOpPriority(op)
+    (s"${translate(left, prio)} ${cmpOp(op)} ${translate(right, prio)}", prio)
   }
 
-  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+  def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): (String, Int) = {
+    val prio = cmpOpPriority(op)
+    (s"${translate(left, prio)} ${cmpOp(op)} ${translate(right, prio)}", prio)
   }
 
-  def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-  }
-
-  def doEnumCompareOp(left: expr, op: cmpop, right: expr): String = {
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+  def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): (String, Int) = {
+    val prio = cmpOpPriority(op)
+    (s"${translate(left, prio)} ${cmpOp(op)} ${translate(right, prio)}", prio)
   }
 
   def cmpOp(op: Ast.cmpop): String = {
@@ -171,9 +230,13 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     }
   }
 
-  def doBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]): String = {
+  def doBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]): (String, Int) = {
+    val prio = booleanOpPriority(op)
     val opStr = s" ${booleanOp(op)} "
-    values.map(translate).mkString(opStr)
+    (
+      values.map(v => translate(v, prio)).mkString(opStr),
+      prio
+    )
   }
 
   def booleanOp(op: Ast.boolop) = op match {
@@ -181,32 +244,35 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     case Ast.boolop.And => "&&"
   }
 
+  def unaryOpPriority(op: Ast.unaryop) = 10
+
   def unaryOp(op: Ast.unaryop) = op match {
     case Ast.unaryop.Invert => "~"
     case Ast.unaryop.Minus => "-"
     case Ast.unaryop.Not => "!"
   }
 
-  def doSubscript(container: expr, idx: expr): String
-  def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String
+  def doSubscript(container: Ast.expr, idx: Ast.expr): String
+  def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): (String, Int)
 
   // Literals
-  def doIntLiteral(n: Any): String = n.toString
-  def doFloatLiteral(n: Any): String = n.toString
-  def doStringLiteral(s: String): String = "\"" + s + "\""
-  def doBoolLiteral(n: Boolean): String = n.toString
-  def doArrayLiteral(t: BaseType, value: Seq[expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
-  def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
+  def doIntLiteral(n: Any): (String, Int) = (n.toString, 0)
+  def doFloatLiteral(n: Any): (String, Int) = (n.toString, 0)
+  def doStringLiteral(s: String): (String, Int) = ("\"" + s + "\"", 0)
+  def doBoolLiteral(n: Boolean): (String, Int) = (n.toString, 0)
+  def doArrayLiteral(t: BaseType, value: Seq[Ast.expr]): (String, Int) = ("[" + value.map((v) => translate(v)).mkString(", ") + "]", 0)
+  def doByteArrayLiteral(arr: Seq[Byte]): (String, Int) = ("[" + arr.map(_ & 0xff).mkString(", ") + "]", 0)
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String
-  def userTypeField(value: expr, attrName: String): String =
+  def userTypeField(value: Ast.expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
-  def doEnumByLabel(enumTypeAbs: List[String], label: String): String
-  def doEnumById(enumTypeAbs: List[String], id: String): String
+  def doEnumByLabel(enumTypeAbs: List[String], label: String): (String, Int)
+  def doEnumById(enumTypeAbs: List[String], id: String): (String, Int)
 
   // Predefined methods of various types
-  def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
+  def strConcat(left: Ast.expr, right: Ast.expr): (String, Int) =
+    (s"${translate(left)} + ${translate(right)}", binOpPriority(Ast.operator.Add))
   def strToInt(s: Ast.expr, base: Ast.expr): String
   def strLength(s: Ast.expr): String
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
@@ -286,7 +352,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           }
         })
         BooleanType
-      case Ast.expr.IfExp(condition: expr, ifTrue: expr, ifFalse: expr) =>
+      case Ast.expr.IfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr) =>
         detectType(condition) match {
           case BooleanType =>
             val trueType = detectType(ifTrue)
@@ -360,7 +426,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
     * @param values
     * @return
     */
-  def detectArrayType(values: Seq[expr]): BaseType = {
+  def detectArrayType(values: Seq[Ast.expr]): BaseType = {
     var t1o: Option[BaseType] = None
 
     values.foreach { v =>

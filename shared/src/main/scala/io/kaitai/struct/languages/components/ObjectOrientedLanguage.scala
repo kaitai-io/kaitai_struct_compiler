@@ -6,7 +6,7 @@ import io.kaitai.struct.format.{Identifier, IoIdentifier}
 trait ObjectOrientedLanguage extends LanguageCompiler {
   def headerComment = "This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild"
 
-  def expression(e: Ast.expr): String = translator.translate(e)
+  def expression(e: Ast.expr): String = translator.translate(e)._1
 
   /**
     * Renders identifier to a string, specifically for a given

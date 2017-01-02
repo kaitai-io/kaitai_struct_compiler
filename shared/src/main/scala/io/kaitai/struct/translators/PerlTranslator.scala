@@ -3,24 +3,26 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{BaseType, IntType}
+import io.kaitai.struct.translators.components.CTernaryOperator
 
-class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) with CTernaryOperator {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"int(${translate(left)} / ${translate(right)})"
+        val prio = binOpPriority(Ast.operator.Div)
+        (s"int(${translate(left, prio)} / ${translate(right, prio)})", 0)
       case _ =>
         super.numericBinOp(left, op, right)
     }
   }
 
-  override def doBoolLiteral(n: Boolean): String = if (n) "1" else "0"
+  override def doBoolLiteral(n: Boolean): (String, Int) = (if (n) "1" else "0", 0)
 
-  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String =
-    "(" + value.map((v) => translate(v)).mkString(", ") + ")"
+  override def doArrayLiteral(t: BaseType, value: Seq[expr]): (String, Int) =
+    ("(" + value.map((v) => translate(v)).mkString(", ") + ")", 0)
 
-  override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"pack('C*', (${arr.map(_ & 0xff).mkString(", ")}))"
+  override def doByteArrayLiteral(arr: Seq[Byte]): (String, Int) =
+    (s"pack('C*', (${arr.map(_ & 0xff).mkString(", ")}))", 0)
 
   override def userTypeField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
@@ -39,13 +41,14 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     }
   }
 
-  override def doEnumByLabel(enumType: List[String], label: String): String =
-    s"$$${enumType.last.toUpperCase}_${label.toUpperCase}"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+  override def doEnumByLabel(enumType: List[String], label: String): (String, Int) =
+    (s"$$${enumType.last.toUpperCase}_${label.toUpperCase}", 0)
+  override def doEnumById(enumTypeAbs: List[String], id: String): (String, Int) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    id
+    (id, 0)
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
+    val prio = cmpOpPriority(op)
     val opStr = op match {
       case Ast.cmpop.Eq => "eq"
       case Ast.cmpop.NotEq => "ne"
@@ -54,27 +57,27 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case Ast.cmpop.Gt => "gt"
       case Ast.cmpop.GtE => "ge"
     }
-    s"${translate(left)} $opStr ${translate(right)}"
+    (s"${translate(left, prio)} $opStr ${translate(right, prio)}", prio)
   }
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
   // Predefined methods of various types
-  override def strConcat(left: Ast.expr, right: Ast.expr): String =
-    s"${translate(left)} . ${translate(right)}"
+  override def strConcat(left: Ast.expr, right: Ast.expr): (String, Int) = {
+    val prio = binOpPriority(Ast.operator.Add)
+    (s"${translate(left, prio)} . ${translate(right, prio)}", prio)
+  }
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     base match {
       case Ast.expr.IntNum(baseNum) =>
         baseNum.toInt match {
           case 10 =>
-            translate(s)
+            s"(${translate(s, 0)})"
           case 8 =>
-            s"oct(${translate(s)})"
+            s"oct(${translate(s, 0)})"
           case 16 =>
-            s"hex(${translate(s)})"
+            s"hex(${translate(s, 0)})"
         }
     }
   }

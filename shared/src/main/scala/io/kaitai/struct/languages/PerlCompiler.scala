@@ -302,7 +302,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
-  def boolLiteral(b: Boolean): String = translator.doBoolLiteral(b)
+  def boolLiteral(b: Boolean): String = translator.doBoolLiteral(b)._1
 
   def types2class(t: List[String]) = t.map(type2class).mkString("::")
 }

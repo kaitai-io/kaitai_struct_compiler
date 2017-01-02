@@ -81,7 +81,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
       case SwitchType(on, cases) =>
         attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep)
       case t: EnumType =>
-        val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, io))
+        val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, io))._1
         handleAssignment(id, expr, rep)
       case _ =>
         val expr = parseExpr(dataType, io)

@@ -5,17 +5,19 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.IntType
 import io.kaitai.struct.languages.PHPCompiler
+import io.kaitai.struct.translators.components.CTernaryOperator
 
-class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTranslator(provider) {
-  override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "\"" + Utils.hexEscapeByteArray(arr) + "\""
+class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTranslator(provider) with CTernaryOperator {
+  override def doByteArrayLiteral(arr: Seq[Byte]): (String, Int) =
+    ("\"" + Utils.hexEscapeByteArray(arr) + "\"", 0)
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"intval(${translate(left)} / ${translate(right)})"
+        val prio = binOpPriority(Ast.operator.Div)
+        (s"intval(${translate(left, prio)} / ${translate(right, prio)})", 0)
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${PHPCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
+        (s"${PHPCompiler.kstreamName}::mod(${translate(left, 0)}, ${translate(right, 0)})", 0)
       case _ =>
         super.numericBinOp(left, op, right)
     }
@@ -33,25 +35,25 @@ class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTrans
 
   override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): (String, Int) = {
     val enumClass = lang.types2classAbs(enumTypeAbs)
-    s"$enumClass::${label.toUpperCase}"
+    (s"$enumClass::${label.toUpperCase}", 0)
   }
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    id
+    (id, 0)
 
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)}"
 
   // Predefined methods of various types
-  override def strConcat(left: Ast.expr, right: Ast.expr): String =
-    s"${translate(left)} . ${translate(right)}"
+  override def strConcat(left: Ast.expr, right: Ast.expr): (String, Int) = {
+    val prio = binOpPriority(Ast.operator.Add)
+    (s"${translate(left, prio)} . ${translate(right, prio)}", prio)
+  }
 
   override def strToInt(s: expr, base: expr): String =
-    s"intval(${translate(s)}, ${translate(base)})"
+    s"intval(${translate(s, 0)}, ${translate(base, 0)})"
 
   override def strLength(s: expr): String =
     s"strlen(${translate(s)})"
