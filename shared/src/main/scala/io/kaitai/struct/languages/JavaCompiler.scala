@@ -301,6 +301,8 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         s"$io.readBytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
+      case BitsType(width: Int) =>
+        s"$io.readBitsInt($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) "" else ", this, _root"
         s"new ${types2class(t.name)}($io$addArgs)"
@@ -477,6 +479,8 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
+      case BitsType(_) => "long"
+
       case BooleanType => "boolean"
       case CalcIntType => "int"
       case CalcFloatType => "double"
@@ -518,6 +522,8 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case FloatMultiType(Width4, _) => "Float"
       case FloatMultiType(Width8, _) => "Double"
+
+      case BitsType(_) => "Long"
 
       case BooleanType => "Boolean"
       case CalcIntType => "Integer"
