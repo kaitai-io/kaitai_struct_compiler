@@ -178,6 +178,8 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         s"$io.read_bytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io.read_bytes_full()"
+      case BitsType(width: Int) =>
+        s"$io.read_bits_int($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) "" else ", self, self._root"
         s"${types2class(t.classSpec.get.name)}($io$addArgs)"
