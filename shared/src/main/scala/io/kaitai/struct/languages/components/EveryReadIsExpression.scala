@@ -233,7 +233,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
   def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit = ???
 
   def parseExpr(dataType: BaseType, io: String): String
-  def userTypeDebugRead(id: String): Unit = ???
+  def userTypeDebugRead(id: String): Unit = {}
 
   def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr): Unit = {
     if (debug)
