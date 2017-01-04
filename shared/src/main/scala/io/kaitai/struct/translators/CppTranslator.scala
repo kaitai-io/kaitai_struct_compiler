@@ -51,7 +51,7 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}->at(${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"(${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)})"
+    s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {
