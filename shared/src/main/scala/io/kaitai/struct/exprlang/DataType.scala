@@ -54,6 +54,7 @@ object DataType {
       s"$ch1${width.width}${endian.toString}"
     }
   }
+  case class BitsType(width: Int) extends IntType
 
   abstract class FloatType extends NumericType
   case object CalcFloatType extends FloatType
@@ -128,6 +129,7 @@ object DataType {
 
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
   private val ReFloatType = """f(4|8)(le|be)?""".r
+  private val ReBitType= """b(\d+)""".r
 
   def fromYaml(
     dto: Option[String],
@@ -182,6 +184,8 @@ object DataType {
             },
             Endianness.fromString(Option(endianStr), metaDef.endian, dt, path)
           )
+        case ReBitType(widthStr) =>
+          BitsType(widthStr.toInt)
         case "str" =>
           val enc = getEncoding(encoding, metaDef, path)
           (size, sizeEos) match {
