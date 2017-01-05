@@ -290,6 +290,8 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         s"$io.readBytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
+      case BitsType(width: Int) =>
+        s"$io.readBitsInt($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) "" else ", this, this._root"
         s"new ${type2class(t.name.last)}($io$addArgs)"
