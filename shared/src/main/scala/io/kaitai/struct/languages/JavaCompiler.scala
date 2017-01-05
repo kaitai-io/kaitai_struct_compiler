@@ -72,7 +72,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName _io) throws IOException {")
+    out.puts(s"public ${type2class(name)}($kstreamName _io) {")
     out.inc
     out.puts("super(_io);")
     if (name == rootClassName)
@@ -83,7 +83,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
 
     out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent) throws IOException {")
+    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent) {")
     out.inc
     out.puts("super(_io);")
     out.puts("this._parent = _parent;")
@@ -95,7 +95,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
 
     out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent, ${type2class(rootClassName)} _root) throws IOException {")
+    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent, ${type2class(rootClassName)} _root) {")
     out.inc
     out.puts("super(_io);")
     out.puts("this._parent = _parent;")
@@ -110,7 +110,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     } else {
       "private"
     }
-    out.puts(s"$readAccessAndType void _read() throws IOException {")
+    out.puts(s"$readAccessAndType void _read() {")
     out.inc
   }
 
@@ -352,7 +352,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   }
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
-    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${idToStr(instName)}() throws IOException {")
+    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${idToStr(instName)}() {")
     out.inc
   }
 
