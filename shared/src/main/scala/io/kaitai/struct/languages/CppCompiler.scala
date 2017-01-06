@@ -390,6 +390,8 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
         s"$io->read_bytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io->read_bytes_full()"
+      case BitsType(width: Int) =>
+        s"$io->read_bits_int($width)"
       case t: UserType =>
         val addArgs = if (!t.isOpaque) s", this, ${privateMemberName(RootIdentifier)}" else ""
         s"new ${type2class(t.name)}($io$addArgs)"
@@ -541,6 +543,9 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
 
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
+
+      case BitsType(1) => "bool"
+      case BitsType(_) => "uint64_t"
 
       case BooleanType => "bool"
       case CalcIntType => "int32_t"
