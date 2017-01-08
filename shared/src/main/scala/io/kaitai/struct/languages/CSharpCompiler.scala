@@ -234,6 +234,10 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         s"$io.ReadBytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io.ReadBytesFull()"
+      case BitsType(1) =>
+        s"$io.ReadBitsInt(1) != 0"
+      case BitsType(width: Int) =>
+        s"$io.ReadBitsInt($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) "" else s", this, ${privateMemberName(RootIdentifier)}"
         s"new ${types2class(t.name)}($io$addArgs)"
@@ -371,6 +375,9 @@ object CSharpCompiler extends LanguageCompilerStatic
 
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
+
+      case BitsType(1) => "bool"
+      case BitsType(_) => "ulong"
 
       case CalcIntType => "int"
       case CalcFloatType => "double"
