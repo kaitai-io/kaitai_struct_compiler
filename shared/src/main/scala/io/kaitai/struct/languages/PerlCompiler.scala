@@ -224,6 +224,8 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         s"$io->read_bytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io->read_bytes_full()"
+      case BitsType(width: Int) =>
+        s"$io->read_bits_int($width)"
       case t: UserType =>
         val addArgs = if (!t.isOpaque) s", $$self, ${privateMemberName(RootIdentifier)}" else ""
         s"${types2class(t.classSpec.get.name)}->new($io$addArgs)"
