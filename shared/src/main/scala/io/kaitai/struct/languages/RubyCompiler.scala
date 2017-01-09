@@ -107,6 +107,21 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
           s"8 - (${expression(rotValue)})"
         }
         s"$destName = $kstreamName::process_rotate_left($srcName, $expr, 1)"
+      case ProcessBcdToStr(endian, ltr) =>
+        val isLeStr = endian match {
+          case Some(BigEndian) => translator.doBoolLiteral(false)
+          case _ => translator.doBoolLiteral(true)
+        }
+        val needsLtrStr = translator.doBoolLiteral(ltr)
+
+        s"$destName = $kstreamName::process_bcd_to_str($srcName, ${isLeStr}, ${needsLtrStr})"
+      case ProcessBcdToDecimal(endian) =>
+        val isLeStr = endian match {
+            case Some(BigEndian) => translator.doBoolLiteral(false)
+            case _ => translator.doBoolLiteral(true)
+          }
+
+        s"$destName = $kstreamName::process_bcd_to_decimal($srcName, ${isLeStr})"
     })
   }
 
