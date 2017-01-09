@@ -154,13 +154,20 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         }
         out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
       case ProcessBcdToStr(endian, ltr) =>
-        val le = endian match {
-          case Some(BigEndian) => false
-          case _ => true
+        val isLeStr = endian match {
+          case Some(BigEndian) => translator.doBoolLiteral(false)
+          case _ => translator.doBoolLiteral(true)
         }
-        out.puts(s"$destName = $kstreamName.processBcdToStr($srcName, le, ltr);")
+        val needsLtrStr = translator.doBoolLiteral(ltr)
+
+        out.puts(s"$destName = $kstreamName.processBcdToStr($srcName, ${isLeStr}, ${needsLtrStr});")
       case ProcessBcdToDecimal(endian) =>
-        out.puts(s"$destName = $kstreamName.processBcdToDecimal($srcName, le);")
+        val isLeStr = endian match {
+            case Some(BigEndian) => translator.doBoolLiteral(false)
+            case _ => translator.doBoolLiteral(true)
+          }
+
+        out.puts(s"$destName = $kstreamName.processBcdToDecimal($srcName, ${isLeStr});")
     }
   }
 
