@@ -90,7 +90,7 @@ object AttrSpec {
 
   def fromYaml(srcMap: Map[String, Any], path: List[String], metaDef: MetaDefaults, id: Identifier): AttrSpec = {
     val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
-    val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path)) // TODO: add proper path propagation
+    val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path), metaDef) // TODO: add proper path propagation
     val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))
     val size = ParseUtils.getOptValueStr(srcMap, "size", path).map(Expressions.parse)
     val sizeEos = ParseUtils.getOptValueBool(srcMap, "size-eos", path).getOrElse(false)

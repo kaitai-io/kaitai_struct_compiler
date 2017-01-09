@@ -153,6 +153,14 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
           s"8 - (${expression(rotValue)})"
         }
         out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+      case ProcessBcdToStr(endian, ltr) =>
+        val le = endian match {
+          case Some(BigEndian) => false
+          case _ => true
+        }
+        out.puts(s"$destName = $kstreamName.processBcdToStr($srcName, le, ltr);")
+      case ProcessBcdToDecimal(endian) =>
+        out.puts(s"$destName = $kstreamName.processBcdToDecimal($srcName, le);")
     }
   }
 
