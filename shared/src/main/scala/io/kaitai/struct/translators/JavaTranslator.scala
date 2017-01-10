@@ -62,6 +62,8 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
     s"Long.parseLong(${translate(s)}, ${translate(base)})"
+  override def intToStr(i: expr, base: expr): String =
+    s"Long.toString(${translate(i)}, ${translate(base)})"
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strSubstring(s: expr, from: expr, to: expr): String =

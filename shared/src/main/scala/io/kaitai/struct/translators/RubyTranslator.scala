@@ -27,6 +27,9 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => s"($baseStr)"
     })
   }
+  override def intToStr(i: Ast.expr, base: Ast.expr): String = {
+    translate(i) + s".to_s(${translate(base)})"
+  }
   override def strLength(s: Ast.expr): String =
     s"${translate(s)}.size"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
