@@ -61,6 +61,14 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => s", 0, $baseStr"
     }) + ")"
   }
+  override def intToStr(i: expr, base: expr): String = {
+    val baseStr = translate(base)
+    baseStr match {
+      case "10" =>
+        s"std::to_string(${translate(i)})"
+      case _ => throw new UnsupportedOperationException(baseStr)
+    }
+  }
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strSubstring(s: expr, from: expr, to: expr): String =

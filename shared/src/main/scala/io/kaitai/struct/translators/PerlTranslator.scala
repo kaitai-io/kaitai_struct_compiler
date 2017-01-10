@@ -66,17 +66,30 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def strConcat(left: Ast.expr, right: Ast.expr): String =
     s"${translate(left)} . ${translate(right)}"
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
-    base match {
-      case Ast.expr.IntNum(baseNum) =>
-        baseNum.toInt match {
-          case 10 =>
-            translate(s)
-          case 8 =>
-            s"oct(${translate(s)})"
-          case 16 =>
-            s"hex(${translate(s)})"
-        }
+    val baseStr = translate(base)
+    baseStr match {
+      case "8" =>
+        s"oct(${translate(s)})"
+      case "10" =>
+        translate(s)
+      case "16" =>
+        s"hex(${translate(s)})"
+      case _ => throw new UnsupportedOperationException(baseStr)
     }
+  }
+  override def intToStr(i: Ast.expr, base: Ast.expr): String = {
+    val baseStr = translate(base)
+    val format = baseStr match {
+      case "8" =>
+        s"%o"
+      case "10" =>
+        s"%d"
+      case "16" =>
+        s"0x%X"
+      case _ => throw new UnsupportedOperationException(baseStr)
+    }
+
+    s"sprintf('$format', ${translate(i)})"
   }
   override def strLength(value: Ast.expr): String =
     s"length(${translate(value)})"

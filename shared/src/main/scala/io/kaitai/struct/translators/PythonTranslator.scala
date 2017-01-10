@@ -57,6 +57,18 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     }
     s"int(${translate(s)}$add)"
   }
+  override def intToStr(i: Ast.expr, base: Ast.expr): String = {
+    val baseStr = translate(base)
+    val func = baseStr match {
+      case "2" => "bin"
+      case "8" => "oct"
+      case "10" => "str"
+      case "16" => "hex"
+      case _ => throw new UnsupportedOperationException(baseStr)
+    }
+
+    s"$func(${translate(i)})"
+  }
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
