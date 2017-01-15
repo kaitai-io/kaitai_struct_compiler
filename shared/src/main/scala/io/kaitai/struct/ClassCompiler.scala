@@ -40,6 +40,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
               intClass.name = conflict.resolveInnerClassNameConflict(intClass.name)
           }
         })
+      case _ =>
     }
 
     curClass.doc.foreach((doc) => lang.classDoc(curClass.name, doc))
