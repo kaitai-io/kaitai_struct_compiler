@@ -15,7 +15,8 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with EveryReadIsExpression
     with UniversalDoc
     with FixedContentsUsingArrayByteLiteral
-    with NoNeedForFullClassPath {
+    with NoNeedForFullClassPath
+    with InnerClassPropertyConflict {
   import CSharpCompiler._
 
   override def getStatic = CSharpCompiler
@@ -240,7 +241,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         s"$io.ReadBitsInt($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) "" else s", this, ${privateMemberName(RootIdentifier)}"
-        s"new ${types2class(t.name)}($io$addArgs)"
+        s"new ${kaitaiType2NativeType(t)}($io$addArgs)"
     }
   }
 
@@ -346,6 +347,9 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case _ => s"_${idToStr(id)}"
     }
   }
+
+  override def resolveInnerClassNameConflict(oldName: List[String]): List[String] =
+    oldName.init:+oldName.last.concat("_struct")
 }
 
 object CSharpCompiler extends LanguageCompilerStatic
@@ -390,7 +394,11 @@ object CSharpCompiler extends LanguageCompilerStatic
       case KaitaiStructType => kstructName
       case KaitaiStreamType => kstreamName
 
-      case t: UserType => types2class(t.name)
+      case t: UserType => t.classSpec match {
+        case Some(x) => type2class(x.name.last)
+        case None => types2class(t.name)
+      }
+
       case EnumType(name, _) => types2class(name)
 
       case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"

@@ -3,7 +3,7 @@ package io.kaitai.struct
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages._
-import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
+import io.kaitai.struct.languages.components.{InnerClassPropertyConflict, LanguageCompiler, LanguageCompilerStatic}
 
 import scala.collection.mutable.ListBuffer
 
@@ -30,6 +30,17 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
+
+    lang match {
+      case conflict: InnerClassPropertyConflict =>
+        val propNames = curClass.seq.map(x => x.id).collect { case x: NamedIdentifier => x.name } ++ curClass.instances.keys.map(x => x.name)
+        curClass.types.foreach({
+          case (name, intClass) => {
+            if (propNames.contains(intClass.name.last))
+              intClass.name = conflict.resolveInnerClassNameConflict(intClass.name)
+          }
+        })
+    }
 
     curClass.doc.foreach((doc) => lang.classDoc(curClass.name, doc))
     lang.classHeader(curClass.name)
