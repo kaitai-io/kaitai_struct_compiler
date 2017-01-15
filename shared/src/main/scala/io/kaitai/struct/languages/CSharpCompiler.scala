@@ -58,13 +58,18 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
   }
 
-  override def classFooter(name: String): Unit = fileFooter(name)
+  override def classFooter(name: String): Unit = {
+    out.puts(s"public $kstreamName M_Io { get; protected set; }")
+    fileFooter(name)
+    out.puts
+  }
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName io, ${type2class(parentClassName)} parent = null, ${type2class(rootClassName)} root = null) : base(io)")
+    out.puts(s"public ${type2class(name)}($kstreamName io, ${type2class(parentClassName)} parent = null, ${type2class(rootClassName)} root = null)")
     out.puts(s"{")
     out.inc
+    out.puts(s"M_Io = io;")
     out.puts(s"${privateMemberName(ParentIdentifier)} = parent;")
 
     if (name == rootClassName)
@@ -82,21 +87,24 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.inc
   }
 
-  override def classConstructorFooter: Unit = fileFooter(null)
+  override def classConstructorFooter: Unit = {
+    fileFooter(null)
+    out.puts
+  }
 
   override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+    //out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
   override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
+    out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get; protected set; }")
   }
 
   override def universalDoc(doc: String): Unit = {
     out.puts
-    out.puts( "/// <summary><![CDATA[")
+    out.puts( "/// <summary>")
     out.puts(s"/// $doc")
-    out.puts( "/// ]]></summary>")
+    out.puts( "/// </summary>")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
@@ -324,9 +332,9 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   def idToStr(id: Identifier): String = {
     id match {
       case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NamedIdentifier(name) => Utils.upperCamelCase(name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
       case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
     }
   }
@@ -341,12 +349,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def privateMemberName(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => s"m${Utils.lowerCamelCase(name)}"
-      case _ => s"_${idToStr(id)}"
-    }
-  }
+  override def privateMemberName(id: Identifier): String = publicMemberName(id)
 
   override def resolveInnerClassConflict(oldName: List[String]): List[String] =
     oldName.init:+oldName.last.concat("_struct")
@@ -402,7 +405,8 @@ object CSharpCompiler extends LanguageCompilerStatic
         case None => types2class(t.name)
       }
 
-      case EnumType(name, _) => types2class(name)
+      case EnumType(name, _) =>
+        types2class(name)
 
       case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"
 
@@ -412,8 +416,9 @@ object CSharpCompiler extends LanguageCompilerStatic
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 
-  override def kstructName = "KaitaiStruct"
+  override def kstructName = "IKaitaiStruct"
   override def kstreamName = "KaitaiStream"
 
-  override def type2class(name: String): String = Utils.upperCamelCase(name)
+  override def type2class(name: String): String =
+    if (name == "kaitai_struct") kstructName else Utils.upperCamelCase(name)
 }
