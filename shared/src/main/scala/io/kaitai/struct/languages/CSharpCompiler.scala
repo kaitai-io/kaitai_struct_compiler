@@ -16,7 +16,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     with UniversalDoc
     with FixedContentsUsingArrayByteLiteral
     with NoNeedForFullClassPath
-    with InnerClassPropertyConflict {
+    with PropertyNameConflict {
   import CSharpCompiler._
 
   override def getStatic = CSharpCompiler
