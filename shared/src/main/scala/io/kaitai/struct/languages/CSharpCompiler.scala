@@ -348,8 +348,11 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def resolveInnerClassNameConflict(oldName: List[String]): List[String] =
+  override def resolveInnerClassConflict(oldName: List[String]): List[String] =
     oldName.init:+oldName.last.concat("_struct")
+
+  override def resolveInnerEnumConflict(oldName: List[String]): List[String] =
+    oldName.init:+oldName.last.concat("_enum")
 }
 
 object CSharpCompiler extends LanguageCompilerStatic

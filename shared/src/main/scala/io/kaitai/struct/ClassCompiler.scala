@@ -3,7 +3,7 @@ package io.kaitai.struct
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages._
-import io.kaitai.struct.languages.components.{InnerClassPropertyConflict, LanguageCompiler, LanguageCompilerStatic}
+import io.kaitai.struct.languages.components.{PropertyNameConflict, LanguageCompiler, LanguageCompilerStatic}
 
 import scala.collection.mutable.ListBuffer
 
@@ -32,14 +32,32 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     provider.nowClass = curClass
 
     lang match {
-      case conflict: InnerClassPropertyConflict =>
+      case conflict: PropertyNameConflict =>
         val propNames = curClass.seq.map(x => x.id).collect { case x: NamedIdentifier => x.name } ++ curClass.instances.keys.map(x => x.name)
         curClass.types.foreach({
           case (name, intClass) => {
             if (propNames.contains(intClass.name.last))
-              intClass.name = conflict.resolveInnerClassNameConflict(intClass.name)
+              intClass.name = conflict.resolveInnerClassConflict(intClass.name)
           }
         })
+//        curClass.enums.foreach({
+//          case (name, enumSpec) => {
+//            if (propNames.contains(enumSpec.name.last)){
+//              val newName = conflict.resolveInnerEnumConflict(enumSpec.name)
+//
+//              // TODO: recursive
+//              curClass.seq.foreach(attrSpec => {
+//                attrSpec.dataType match {
+//                  case enum: EnumType =>
+//                    if (enum.name.last == enumSpec.name.last)
+//                      enum = EnumType(newName, enum.basedOn)
+//                  case _ =>
+//                }
+//              })
+//              enumSpec.name = newName
+//            }
+//          }
+//        })
       case _ =>
     }
 
