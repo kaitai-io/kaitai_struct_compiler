@@ -81,9 +81,9 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     curClass.seq.foreach { (attr) =>
       attr.id match {
         case NamedIdentifier(name) =>
-          tableRow(className, seqPos.map(_.toString), attr, name)
+          tableRow(className, seqPosToStr(seqPos), attr, name)
 
-          val size = dataTypeSize(attr.dataType)
+          val size = dataTypeBitsSize(attr.dataType)
           seqPos = (seqPos, size) match {
             case (Some(pos), Some(siz)) => Some(pos + siz)
             case _ => None
@@ -91,6 +91,18 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       }
     }
     tableEnd
+  }
+
+  def seqPosToStr(seqPos: Option[Int]): Option[String] = {
+    seqPos.map { (pos) =>
+      val posByte = pos / 8
+      val posBit = pos % 8
+      if (posBit == 0) {
+        s"$posByte"
+      } else {
+        s"$posByte:$posBit"
+      }
+    }
   }
 
   def compileParseInstance(className: List[String], id: InstanceIdentifier, inst: ParseInstanceSpec): Unit = {
@@ -247,6 +259,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case UserTypeInstream(_) => UNKNOWN
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
       case _: SwitchType => UNKNOWN
+      case BitsType(width) => s"${width}b"
     }
   }
 
@@ -372,12 +385,26 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
   def type2display(name: List[String]) = name.map(Utils.upperCamelCase).mkString("::")
 
   /**
-    * Determines how many bytes occupies given data type.
+    * Determines how many bits occupies given data type.
+    *
+    * @param dataType data type to analyze
+    * @return number of bits or None, if it's impossible to determine a priori
+    */
+  def dataTypeBitsSize(dataType: BaseType): Option[Int] = {
+    dataType match {
+      case BitsType(width) => Some(width)
+      case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
+      case _ => dataTypeByteSize(dataType).map((byteSize) => byteSize * 8)
+    }
+  }
+
+  /**
+    * Determines how many bytes occupies a given data type.
     *
     * @param dataType data type to analyze
     * @return number of bytes or None, if it's impossible to determine a priori
     */
-  def dataTypeSize(dataType: BaseType): Option[Int] = {
+  def dataTypeByteSize(dataType: BaseType): Option[Int] = {
     dataType match {
       case _: Int1Type => Some(1)
       case IntMultiType(_, width, _) => Some(width.width)
@@ -391,7 +418,6 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case UserTypeByteLimit(_, ex, _) => evaluateIntLiteral(ex)
       case _: UserTypeEos => None
       case UserTypeInstream(_) => None
-      case EnumType(_, basedOn) => dataTypeSize(basedOn)
       case _: SwitchType => None
     }
   }
@@ -417,6 +443,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
         s"strz(${args.mkString(", ")})"
       case EnumType(name, basedOn) =>
         s"${dataTypeName(basedOn)}→${type2display(name)}"
+      case BitsType(width) => s"b$width"
       case _ => dataType.toString
     }
   }
