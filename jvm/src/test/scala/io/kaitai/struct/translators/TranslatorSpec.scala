@@ -19,6 +19,11 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("1234", "1234"),
     everybody("-456", "-456"),
     everybody("0x1234", "4660"),
+    // less and more than 32 Bit signed int
+    everybody("1000000000", "1000000000"),
+    everybodyExcept("100000000000", "100000000000", Map[LanguageCompilerStatic, String](
+        JavaCompiler -> "100000000000L"
+    )),
 
     // Float literals
     everybody("1.0", "1.0", CalcFloatType),

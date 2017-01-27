@@ -197,7 +197,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String
 
   // Literals
-  def doIntLiteral(n: Any): String = n.toString
+  def doIntLiteral(n: BigInt): String = n.toString
   def doFloatLiteral(n: Any): String = n.toString
   def doStringLiteral(s: String): String = "\"" + s + "\""
   def doBoolLiteral(n: Boolean): String = n.toString
