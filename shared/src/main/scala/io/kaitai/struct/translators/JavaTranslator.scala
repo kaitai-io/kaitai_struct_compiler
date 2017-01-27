@@ -54,8 +54,16 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     }
   }
 
-  override def doSubscript(container: expr, idx: expr): String =
-    s"${translate(container)}.get(Long.valueOf(${translate(idx)}).intValue())"
+  override def doSubscript(container: expr, idx: expr): String = {
+    val idxStr = translate(idx);
+    val contStr = translate(container);
+    val idxArgStr = idx match {
+      case Ast.expr.IntNum(_) => idxStr
+      case _ => s"Long.valueOf(${idxStr}).intValue()"
+    }
+
+    s"${contStr}.get(${idxArgStr})"
+  }
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 
