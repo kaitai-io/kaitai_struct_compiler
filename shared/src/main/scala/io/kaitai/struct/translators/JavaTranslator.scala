@@ -7,6 +7,13 @@ import io.kaitai.struct.exprlang.DataType.{BaseType, IntType}
 import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def doIntLiteral(n: BigInt): String = {
+    val literal = n.toString
+    val suffix = if (n > Int.MaxValue) "L" else ""
+
+    s"${literal}${suffix}"
+  }
+
   override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
     val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
