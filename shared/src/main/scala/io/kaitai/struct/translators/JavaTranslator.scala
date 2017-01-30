@@ -26,7 +26,7 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   def doIntLiteralCalcIntType(n: BigInt): String = {
     val literal = doIntLiteral(n)
     val isLong = JavaCompiler.kaitaiType2JavaTypePrim(CalcIntType) == "long"
-    val suffixNeeded = if (isLong && !literal.endsWith("L")) true else false
+    val suffixNeeded = isLong && !literal.endsWith("L")
     val suffix = if (suffixNeeded) "L" else ""
 
     s"${literal}${suffix}"
