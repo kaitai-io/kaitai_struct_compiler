@@ -35,7 +35,10 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
     val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
     val values = t match {
-      case CalcIntType => value.map((v) => doIntLiteralCalcIntType(v match { case Ast.expr.IntNum(n) => n }))
+      case CalcIntType => value.map((v) => v match {
+        case Ast.expr.IntNum(n) => doIntLiteralCalcIntType(n)
+        case _ => throw new UnsupportedOperationException("CalcIntType should only be used for numbers.")
+      })
       case _ => value.map((v) => translate(v))
     }
     val commaStr = values.mkString(", ")
