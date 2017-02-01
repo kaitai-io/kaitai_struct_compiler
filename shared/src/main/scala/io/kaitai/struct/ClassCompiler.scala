@@ -49,7 +49,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     lang.classConstructorHeader(curClass.name, curClass.parentTypeName, topClassName)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
-    curClass.seq.foreach((attr) => lang.attrParse(attr, attr.id, extraAttrs))
+    compileSeq(curClass.seq, extraAttrs)
     lang.classConstructorFooter
 
     lang.classDestructorHeader(curClass.name, curClass.parentTypeName, topClassName)
@@ -85,6 +85,17 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
     if (!lang.innerEnums)
       compileEnums(curClass)
+  }
+
+  def compileSeq(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec]) = {
+    var wasUnaligned = false
+    seq.foreach { (attr) =>
+      val nowUnaligned = isUnalignedBits(attr.dataType)
+      if (wasUnaligned && !nowUnaligned)
+        lang.alignToByte(lang.normalIO)
+      lang.attrParse(attr, attr.id, extraAttrs)
+      wasUnaligned = nowUnaligned
+    }
   }
 
   def compileEnums(curClass: ClassSpec): Unit =
@@ -125,6 +136,12 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit = {
     lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
   }
+
+  def isUnalignedBits(dt: BaseType) =
+    dt match {
+      case _: BitsType => true
+      case _ => false
+    }
 }
 
 object ClassCompiler {
