@@ -286,6 +286,9 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
   override def popPos(io: String): Unit =
     outSrc.puts(s"$io->seek(_pos);")
 
+  override def alignToByte(io: String): Unit =
+    outSrc.puts(s"$io->align_to_byte();")
+
   override def instanceClear(instName: InstanceIdentifier): Unit =
     outSrc.puts(s"${calculatedFlagForName(instName)} = false;")
 
