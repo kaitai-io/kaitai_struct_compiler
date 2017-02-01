@@ -158,6 +158,9 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io->seek($$_pos);")
 
+  override def alignToByte(io: String): Unit =
+    out.puts(s"$io->align_to_byte();")
+
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
     out.inc
