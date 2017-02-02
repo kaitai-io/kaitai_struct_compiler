@@ -94,7 +94,7 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def pushPos(io: String): Unit
   def seek(io: String, pos: Ast.expr): Unit
   def popPos(io: String): Unit
-  def alignToByte(io: String): Unit = {} // FIXME
+  def alignToByte(io: String): Unit
 
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
