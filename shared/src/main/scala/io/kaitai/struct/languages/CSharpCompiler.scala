@@ -148,6 +148,9 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.Seek(_pos);")
 
+  override def alignToByte(io: String): Unit =
+    out.puts(s"$io.AlignToByte();")
+
   override def instanceClear(instName: InstanceIdentifier): Unit = {
     out.puts(s"${flagForInstName(instName)} = false;")
   }
