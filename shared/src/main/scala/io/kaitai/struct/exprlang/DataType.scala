@@ -217,7 +217,7 @@ object DataType {
     enumRef match {
       case Some(enumName) =>
         r match {
-          case numType: IntType with ReadableType => EnumType(classNameToList(enumName), numType)
+          case numType: IntType => EnumType(classNameToList(enumName), numType)
           case _ =>
             throw new RuntimeException(s"tried to resolve non-integer $r to enum")
         }
