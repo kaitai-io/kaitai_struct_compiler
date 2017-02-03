@@ -259,6 +259,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case UserTypeInstream(_) => UNKNOWN
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
       case _: SwitchType => UNKNOWN
+      case BitsType1 => "1b"
       case BitsType(width) => s"${width}b"
     }
   }
@@ -392,6 +393,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     */
   def dataTypeBitsSize(dataType: BaseType): Option[Int] = {
     dataType match {
+      case BitsType1 => Some(1)
       case BitsType(width) => Some(width)
       case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
       case _ => dataTypeByteSize(dataType).map((byteSize) => byteSize * 8)

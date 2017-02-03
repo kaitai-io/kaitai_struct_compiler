@@ -393,6 +393,8 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
         s"$io->read_bytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io->read_bytes_full()"
+      case BitsType1 =>
+        s"$io->read_bits_int(1)"
       case BitsType(width: Int) =>
         s"$io->read_bits_int($width)"
       case t: UserType =>
@@ -547,7 +549,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType(1) => "bool"
+      case BitsType1 => "bool"
       case BitsType(_) => "uint64_t"
 
       case BooleanType => "bool"

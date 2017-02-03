@@ -139,7 +139,7 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
 
   def isUnalignedBits(dt: BaseType) =
     dt match {
-      case _: BitsType => true
+      case _: BitsType | BitsType1 => true
       case _ => false
     }
 }

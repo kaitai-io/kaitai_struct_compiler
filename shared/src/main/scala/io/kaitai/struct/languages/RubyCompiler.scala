@@ -244,7 +244,7 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         s"$io.read_bytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io.read_bytes_full"
-      case BitsType(1) =>
+      case BitsType1 =>
         s"$io.read_bits_int(1) != 0"
       case BitsType(width: Int) =>
         s"$io.read_bits_int($width)"

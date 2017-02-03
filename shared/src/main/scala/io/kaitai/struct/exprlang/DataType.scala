@@ -54,6 +54,7 @@ object DataType {
       s"$ch1${width.width}${endian.toString}"
     }
   }
+  case object BitsType1 extends BaseType
   case class BitsType(width: Int) extends IntType
 
   abstract class FloatType extends NumericType
@@ -185,7 +186,14 @@ object DataType {
             Endianness.fromString(Option(endianStr), metaDef.endian, dt, path)
           )
         case ReBitType(widthStr) =>
-          BitsType(widthStr.toInt)
+          (enumRef, widthStr.toInt) match {
+            case (None, 1) =>
+              // if we're not inside enum and it's 1-bit type
+              BitsType1
+            case (_, width) =>
+              // either inside enum (any width) or (width != 1)
+              BitsType(width)
+          }
         case "str" =>
           val enc = getEncoding(encoding, metaDef, path)
           (size, sizeEos) match {

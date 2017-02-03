@@ -304,7 +304,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         s"$io.readBytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io.readBytesFull()"
-      case BitsType(1) =>
+      case BitsType1 =>
         s"$io.readBitsInt(1) != 0"
       case BitsType(width: Int) =>
         s"$io.readBitsInt($width)"
@@ -484,7 +484,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType(1) => "boolean"
+      case BitsType1 => "boolean"
       case BitsType(_) => "long"
 
       case BooleanType => "boolean"
@@ -529,7 +529,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "Float"
       case FloatMultiType(Width8, _) => "Double"
 
-      case BitsType(1) => "Boolean"
+      case BitsType1 => "Boolean"
       case BitsType(_) => "Long"
 
       case BooleanType => "Boolean"

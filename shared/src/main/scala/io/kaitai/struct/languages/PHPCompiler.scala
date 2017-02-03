@@ -234,7 +234,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
         s"$io->readBytes(${expression(size)})"
       case BytesEosType(_) =>
         s"$io->readBytesFull()"
-      case BitsType(1) =>
+      case BitsType1 =>
         s"$io->readBitsInt(1) != 0"
       case BitsType(width: Int) =>
         s"$io->readBitsInt($width)"
