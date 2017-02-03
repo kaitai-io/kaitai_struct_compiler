@@ -65,7 +65,9 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     val baseStr = translate(base)
     baseStr match {
       case "10" =>
-        s"std::to_string(${translate(i)})"
+        // FIXME: proper way for C++11, but not available in earlier versions
+        //s"std::to_string(${translate(i)})"
+        s"${CppCompiler.kstreamName}::to_string(${translate(i)})"
       case _ => throw new UnsupportedOperationException(baseStr)
     }
   }
