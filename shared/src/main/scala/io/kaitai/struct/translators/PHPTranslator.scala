@@ -54,8 +54,13 @@ class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTrans
     s"intval(${translate(s)}, ${translate(base)})"
 
   override def intToStr(i: expr, base: expr): String = {
-    val fromBase = Ast.expr.IntNum(10)
-    s"base_convert(strval(${translate(i)}, ${translate(fromBase)}, ${translate(base)}))"
+    val baseStr = translate(base)
+    baseStr match {
+      case "10" =>
+        s"strval(${translate(i)})"
+      case _ =>
+        s"base_convert(strval(${translate(i)}), 10, $baseStr)"
+    }
   }
 
   override def strLength(s: expr): String =
