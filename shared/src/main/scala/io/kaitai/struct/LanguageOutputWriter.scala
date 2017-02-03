@@ -14,6 +14,19 @@ abstract class LanguageOutputWriter(indentStr: String) {
   def puts(s: String): Unit
   def puts: Unit
   def close: Unit
+
+  /**
+    * Utility method that outputs several lines at once, splitting
+    * input by newline. Useful to print out multi-line comments,
+    * as for docstrings.
+    * @param prefix prefix to prepend to every line
+    * @param lines lines as a string, joined by newline
+    */
+  def putsLines(prefix: String, lines: String): Unit = {
+    lines.split("\n").foreach((line) =>
+      puts(s"$prefix$line")
+    )
+  }
 }
 
 class FileLanguageOutputWriter(fileName: String, indentStr: String) extends LanguageOutputWriter(indentStr) {

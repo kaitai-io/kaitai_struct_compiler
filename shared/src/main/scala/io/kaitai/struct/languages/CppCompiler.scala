@@ -154,7 +154,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
 
     outHdr.puts
     outHdr.puts( "/**")
-    outHdr.puts(s" * $doc")
+    outHdr.putsLines(" * ", doc)
     outHdr.puts( " */")
   }
 

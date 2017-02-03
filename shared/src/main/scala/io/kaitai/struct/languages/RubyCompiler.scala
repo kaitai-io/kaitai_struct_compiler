@@ -81,7 +81,7 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def universalDoc(doc: String): Unit = {
     out.puts
     out.puts( "##")
-    out.puts(s"# $doc")
+    out.putsLines("# ", doc)
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =

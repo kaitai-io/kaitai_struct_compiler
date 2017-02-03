@@ -94,7 +94,7 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def universalDoc(doc: String): Unit = {
     out.puts
     out.puts( "/// <summary><![CDATA[")
-    out.puts(s"/// $doc")
+    out.putsLines("/// ", doc)
     out.puts( "/// ]]></summary>")
   }
 

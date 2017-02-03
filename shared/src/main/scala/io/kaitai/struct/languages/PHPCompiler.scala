@@ -107,7 +107,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def universalDoc(doc: String): Unit = {
     out.puts
     out.puts( "/**")
-    out.puts(s" * $doc")
+    out.putsLines(" * ", doc)
     out.puts( " */")
   }
 

@@ -109,7 +109,7 @@ class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     // JSDoc docstring style: http://usejsdoc.org/about-getting-started.html
     out.puts
     out.puts( "/**")
-    out.puts(s" * $doc")
+    out.putsLines(" * ", doc)
     out.puts( " */")
   }
 
