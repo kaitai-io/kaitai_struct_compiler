@@ -86,7 +86,7 @@ TODO
 #### Java
 
 * Pump version, set version to `$VERSION`, without `-SNAPSHOT`
-* `mvn publish`
+* `mvn deploy`
 * Go to https://oss.sonatype.org/#stagingRepositories
 * Scroll to the very end of list, seek `iokaitai-...` repositories
 * Select our staging repository
