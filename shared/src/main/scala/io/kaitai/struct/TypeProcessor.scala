@@ -169,8 +169,13 @@ object TypeProcessor {
           case Some(upClass) =>
             resolveUserType(upClass, typeName)
           case None =>
-            // No luck at all
-            None
+            // Check this class if it's top-level class
+            if (curClass.name.head == firstName) {
+              Some(curClass)
+            } else {
+              // No luck at all
+              None
+            }
         }
     }
   }
