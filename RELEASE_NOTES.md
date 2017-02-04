@@ -1,3 +1,43 @@
+# 0.6 (2017-02-04)
+
+* Unaligned bit parsing support
+  * Use `type: b12` to parse 12 bits as integer from a stream (obviously, one can use `b1`, `b2`, `b3`, etc)
+  * `b1` is parsed as a boolean value
+  * If several `bXX` are chained in a sequence, can be used to parse bit masks/fields
+  * Using of regular types (i.e. `u1`, `s4`, `str`, etc) starts parsing normally, aligning to next byte
+* More meta information, documentation and non-standard keys usage:
+  * `doc` for docstrings is allowed on type level
+  * `meta` can now include:
+    * `title` (to give proper full title for type)
+    * `license` (to specify work licensing)
+    * `ks-version` (to specify minimal version of Kaitai Struct compiler that must be used to process a .ksy - i.e. `0.6`)
+    * `ks-debug` (to enforce generation of classes as if `--debug` mode was specified in command line)
+  * `meta` is non-global now, but can be used on multiple levels and inherited from closest one
+  * Non-(yet)-standard keys can be used everywhere now using `-key` syntax: for example, Web IDE uses `-webide-representation` key which is ignored by the compiler, but useful for clearer debugging
+* Enums are proper first-class citizens now: `enum: XXX` specifications are not just strings, but proper references to declared enums, thus they're checked for validity, can reference upper level nested enums from lower levels, etc - this fixes majority of existing enum namespacing problems in JavaScript, Python, PHP and Perl
+* `id` in `seq` elements in now optional: it can be useful for quick exploration mapping (one can always assign identifiers later), or for unused ("reserved for later use") attributes - such attributes would be assigned numbered IDs automatically
+* Allow value instances to use `if` and `enum`
+* Proper support for "opaque" external types: one can use an undeclared data type, it's expected to be declared in some other .ksy file and it will be properly imported/included in current file
+* Expression language:
+  * Support for integer literals with underscores for readability: one can use stuff like `123_456_789` or `0b0101_0011` now
+  * `to_s` method for integer types to convert them to strings
+* Language-specific improvements:
+  * C++: clearly separated "null" (no result, for example, due to failed `if` condition) and "not yet calculated" results - introduced `_is_null_XXX()` method for check for true null result in generated API
+  * JavaScript: generated enums can be queried for both ID => name and name => ID
+  * PHP: dropped type generation for now due to nullable types - one day they might return strictly for PHP 7.1+
+  * GraphViz: major compatibility fixes, diagram readability improvements, support for switch types
+* Runtime API changes:
+  * `ensure_fixed_contents` no longer requires both expected byte array and its length, only array is required
+  * Java: all methods no longer use checked exceptions, i.e. `IOException`
+* Bugfixes:
+  * Type derivation of parent types when using switched `type`, array types, and type combining on switching / ternary operators
+  * Multiple translator fixes: type derivation, parenthesis generation
+  * Assorted code generation bugfixes in C++, Python, Ruby
+* Refactorings and optimizations:
+  * Type derivation engine
+  * Parse instances use more optimal order of conditionals / debug / IO management applications
+  * Improved error messages
+
 # 0.5 (2016-11-09)
 
 * Target languages support:
