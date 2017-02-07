@@ -39,6 +39,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(a)}.first"
   override def arrayLast(a: Ast.expr): String =
     s"${translate(a)}.last"
+  override def arraySize(a: Ast.expr): String =
+    s"${translate(a)}.length"
 
   override def kaitaiStreamEof(value: Ast.expr): String =
     s"${translate(value)}.eof?"

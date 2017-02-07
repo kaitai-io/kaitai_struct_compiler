@@ -91,6 +91,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
             attr.name match {
               case "first" => arrayFirst(value)
               case "last" => arrayLast(value)
+              case "size" => arraySize(value)
             }
           case KaitaiStreamType =>
             attr.name match {
@@ -220,6 +221,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
 
   def arrayFirst(a: Ast.expr): String
   def arrayLast(a: Ast.expr): String
+  def arraySize(a: Ast.expr): String
 
   def kaitaiStreamSize(value: Ast.expr): String = userTypeField(value, "size")
   def kaitaiStreamEof(value: Ast.expr): String = userTypeField(value, "is_eof")
@@ -334,6 +336,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case ArrayType(inType) =>
             attr.name match {
               case "first" | "last" => inType
+              case "size" => CalcIntType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
           case KaitaiStreamType =>

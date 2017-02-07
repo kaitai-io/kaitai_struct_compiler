@@ -78,6 +78,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"${translate(a)}[0]"
   override def arrayLast(a: Ast.expr): String =
     s"${translate(a)}[-1]"
+  override def arraySize(a: Ast.expr): String =
+    s"len(${translate(a)})"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"${translate(value)}.size()"

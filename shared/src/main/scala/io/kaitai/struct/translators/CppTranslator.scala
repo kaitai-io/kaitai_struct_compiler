@@ -80,4 +80,6 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(a)}->front()"
   override def arrayLast(a: expr): String =
     s"${translate(a)}->back()"
+  override def arraySize(a: expr): String =
+    s"${translate(a)}->size()"
 }
