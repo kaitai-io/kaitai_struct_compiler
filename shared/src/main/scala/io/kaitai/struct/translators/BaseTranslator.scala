@@ -81,6 +81,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case _: StrType =>
             attr.name match {
               case "length" => strLength(value)
+              case "reverse" => strReverse(value)
               case "to_i" => strToInt(value, Ast.expr.IntNum(10))
             }
           case _: IntType =>
@@ -217,6 +218,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def strToInt(s: Ast.expr, base: Ast.expr): String
   def intToStr(i: Ast.expr, base: Ast.expr): String
   def strLength(s: Ast.expr): String
+  def strReverse(s: Ast.expr): String
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
 
   def arrayFirst(a: Ast.expr): String
@@ -325,6 +327,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case _: StrType =>
             attr.name match {
               case "length" => CalcIntType
+              case "reverse" => CalcStrType
               case "to_i" => CalcIntType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }

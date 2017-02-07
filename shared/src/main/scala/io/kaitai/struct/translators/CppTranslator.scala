@@ -73,6 +73,8 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
+  override def strReverse(s: expr): String =
+    s"${CppCompiler.kstreamName}::reverse(${translate(s)})"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substr(${translate(from)}, (${translate(to)}) - (${translate(from)}))"
 
