@@ -301,7 +301,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     )),
 
     full("\"str\".reverse", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
-        CppCompiler -> "std::reverse(...)",
+        CppCompiler -> "kaitai::kstream::reverse(std::string(\"str\"))",
         CSharpCompiler -> "new string(Array.Reverse(\"str\".ToCharArray()))",
         JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
         JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
