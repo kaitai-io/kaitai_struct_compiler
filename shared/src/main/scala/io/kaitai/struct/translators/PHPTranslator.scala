@@ -75,4 +75,6 @@ class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTrans
     val v = translate(a)
     s"$v[$v.length - 1]"
   }
+  override def arraySize(a: expr): String =
+    s"count(${translate(a)})"
 }

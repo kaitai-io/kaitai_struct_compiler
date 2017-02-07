@@ -82,4 +82,6 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     val v = translate(a)
     s"$v.get($v.size() - 1)"
   }
+  override def arraySize(a: expr): String =
+    s"${translate(a)}.size()"
 }

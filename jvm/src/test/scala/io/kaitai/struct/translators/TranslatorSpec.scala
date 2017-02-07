@@ -237,6 +237,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "a.last"
     )),
 
+    full("a.size", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
+        CppCompiler -> "a()->size()",
+        CSharpCompiler -> "A.Count",
+        JavaCompiler -> "a().size()",
+        JavaScriptCompiler -> "this.a.length",
+        PHPCompiler -> "count(a)",
+        PerlCompiler -> "scalar($self->a())",
+        PythonCompiler -> "len(self.a)",
+        RubyCompiler -> "a.length"
+      )),
+
     // Strings
     full("\"str\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str\")",

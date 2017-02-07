@@ -72,4 +72,6 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     val v = translate(a)
     s"$v[$v.Length - 1]"
   }
+  override def arraySize(a: expr): String =
+    s"${translate(a)}.Count"
 }
