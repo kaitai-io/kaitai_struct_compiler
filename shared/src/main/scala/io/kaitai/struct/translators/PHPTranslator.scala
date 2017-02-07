@@ -65,7 +65,8 @@ class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTrans
 
   override def strLength(s: expr): String =
     s"strlen(${translate(s)})"
-
+  override def strReverse(s: expr): String =
+    s"strrev(${translate(s)})"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 

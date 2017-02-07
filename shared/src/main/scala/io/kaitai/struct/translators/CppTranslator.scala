@@ -73,6 +73,13 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
+
+  // TODO std::reverse seems the proper thing to do, but needs a local variable to work properly and
+  // the additional header <algorithm>. Maybe there's a better solution?
+  override def strReverse(s: expr): String =
+    //s"std::reverse(${translate(s)}.begin(), ${translate(s)}.end());"
+    throw new RuntimeException("Reversing strings is not implemented yet in C++.")
+
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substr(${translate(from)}, (${translate(to)}) - (${translate(from)}))"
 

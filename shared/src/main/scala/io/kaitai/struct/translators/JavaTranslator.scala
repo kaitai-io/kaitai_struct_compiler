@@ -73,6 +73,8 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"Long.toString(${translate(i)}, ${translate(base)})"
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
+  override def strReverse(s: expr): String =
+    s"new StringBuilder(${translate(s)}).reverse().toString()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 

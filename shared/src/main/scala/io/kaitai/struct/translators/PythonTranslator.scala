@@ -71,6 +71,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   }
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
+  override def strReverse(value: Ast.expr): String =
+    s"${translate(value)}[::-1]"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
 
