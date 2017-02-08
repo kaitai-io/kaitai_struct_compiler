@@ -44,6 +44,11 @@ object JavaKSYParser {
         src
       case javaInt: java.lang.Integer =>
         javaInt.intValue
+      case null =>
+        // may be not the very best idea, but these nulls
+        // should be handled by real parsing code, i.e. where
+        // it tracks tree depth, etc.
+        null
     }
   }
 }

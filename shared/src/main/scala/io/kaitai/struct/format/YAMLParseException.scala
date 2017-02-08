@@ -5,7 +5,11 @@ class YAMLParseException(msg: String, path: List[String])
 
 object YAMLParseException {
   def badType(expected: String, got: Any, path: List[String]): YAMLParseException = {
-    new YAMLParseException(s"expected $expected, got $got (${got.getClass})", path)
+    val gotStr = got match {
+      case null => "null"
+      case _ => s"$got (${got.getClass})"
+    }
+    new YAMLParseException(s"expected $expected, got $gotStr", path)
   }
 
   def incompatibleVersion(expected: KSVersion, got: KSVersion, path: List[String]): YAMLParseException =
