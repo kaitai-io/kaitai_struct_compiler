@@ -27,4 +27,13 @@ object KSVersion {
 
   def fromStr(str: String): KSVersion =
     KSVersion(str.replace("-SNAPSHOT", "").split('.').map(_.toInt).toList)
+
+  /**
+    * Hardcoded minimal version of runtime API that this particular
+    * version of compiler is compatible with. Anything less that this
+    * is not compatible and will trigger an error (compile-time, if
+    * language supports it) when trying to use generated file together
+    * with this older runtime API.
+    */
+  val minimalRuntime: KSVersion = KSVersion.fromStr("0.6")
 }
