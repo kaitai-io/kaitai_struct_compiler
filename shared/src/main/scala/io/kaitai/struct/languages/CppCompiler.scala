@@ -44,6 +44,16 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     outHdr.puts("#include <stdint.h>")
     outHdr.puts("#include <vector>") // TODO: add only if required
     outHdr.puts("#include <sstream>") // TODO: add only if required
+
+    // API compatibility check
+    val minVer = KSVersion.minimalRuntime.toInt
+    outHdr.puts
+    outHdr.puts(s"#if KAITAI_STRUCT_VERSION < ${minVer}L")
+    outHdr.puts(
+      "#error \"Incompatible Kaitai Struct C++/STL API: version " +
+        KSVersion.minimalRuntime + " or later is required"
+    )
+    outHdr.puts("#endif")
   }
 
   override def fileFooter(topClassName: String): Unit = {
