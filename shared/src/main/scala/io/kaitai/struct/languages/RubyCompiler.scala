@@ -34,6 +34,22 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("require 'kaitai/struct/struct'")
     out.puts("require 'zlib'") // TODO: add only if actually used
     out.puts
+
+    // API compatibility check
+    out.puts(
+      "unless Gem::Version.new(Kaitai::Struct::VERSION) >= Gem::Version.new('" +
+      KSVersion.minimalRuntime +
+      "')"
+    )
+    out.inc
+    out.puts(
+      "raise \"Incompatible Kaitai Struct Ruby API: " +
+      KSVersion.minimalRuntime +
+      " or later is required, but you have #{Kaitai::Struct::VERSION}\""
+    )
+    out.dec
+    out.puts("end")
+    out.puts
   }
 
   override def classHeader(name: String): Unit = {
