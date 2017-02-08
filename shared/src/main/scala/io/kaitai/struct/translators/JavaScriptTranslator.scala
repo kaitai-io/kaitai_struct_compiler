@@ -53,6 +53,10 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def strLength(s: expr): String =
     s"${translate(s)}.length"
 
+  // http://stackoverflow.com/a/36525647/2055163
+  override def strReverse(s: expr): String =
+    s"Array.from(${translate(s)}).reverse().join('')"
+
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
@@ -62,6 +66,8 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     val v = translate(a)
     s"$v[$v.length - 1]"
   }
+  override def arraySize(a: expr): String =
+    s"${translate(a)}.length"
 
   override def kaitaiStreamEof(value: Ast.expr): String =
     s"${translate(value)}.isEof()"

@@ -237,6 +237,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "a.last"
     )),
 
+    full("a.size", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
+        CppCompiler -> "a()->size()",
+        CSharpCompiler -> "A.Count",
+        JavaCompiler -> "a().size()",
+        JavaScriptCompiler -> "this.a.length",
+        PHPCompiler -> "count(a)",
+        PerlCompiler -> "scalar($self->a())",
+        PythonCompiler -> "len(self.a)",
+        RubyCompiler -> "a.length"
+      )),
+
     // Strings
     full("\"str\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str\")",
@@ -288,6 +299,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       PythonCompiler -> "len(u\"str\")",
       RubyCompiler -> "\"str\".size"
     )),
+
+    full("\"str\".reverse", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
+        CppCompiler -> "kaitai::kstream::reverse(std::string(\"str\"))",
+        CSharpCompiler -> "new string(Array.Reverse(\"str\".ToCharArray()))",
+        JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
+        JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
+        PerlCompiler -> "scalar(reverse(\"str\"))",
+        PHPCompiler -> "strrev(\"str\")",
+        PythonCompiler -> "u\"str\"[::-1]",
+        RubyCompiler -> "\"str\".reverse"
+      )),
 
     full("\"12345\".to_i", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::stoi(std::string(\"12345\"))",

@@ -93,6 +93,8 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
   override def strLength(value: Ast.expr): String =
     s"length(${translate(value)})"
+  override def strReverse(value: Ast.expr): String =
+    s"scalar(reverse(${translate(value)}))"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
 
@@ -100,6 +102,8 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String =
     s"${translate(a)}[-1]"
+  override def arraySize(a: expr): String =
+    s"scalar(${translate(a)})"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"${translate(value)}->size()"
