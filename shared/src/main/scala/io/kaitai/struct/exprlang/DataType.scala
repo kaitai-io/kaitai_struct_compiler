@@ -156,9 +156,9 @@ object DataType {
               case (Some(bs: Ast.expr), false) => BytesLimitType(bs, process)
               case (None, true) => BytesEosType(process)
               case (None, false) =>
-                throw new RuntimeException("no type: either 'size' or 'size-eos' must be specified")
+                throw new YAMLParseException("no type: either 'size' or 'size-eos' must be specified", path)
               case (Some(_), true) =>
-                throw new RuntimeException("no type: only one of 'size' or 'size-eos' must be specified")
+                throw new YAMLParseException("no type: only one of 'size' or 'size-eos' must be specified", path)
             }
         }
       case Some(dt) => dt match {
@@ -200,9 +200,9 @@ object DataType {
             case (Some(bs: Ast.expr), false) => StrByteLimitType(bs, enc)
             case (None, true) => StrEosType(enc)
             case (None, false) =>
-              throw new RuntimeException(s"type $dt: either 'size' or 'size-eos' must be specified")
+              throw new YAMLParseException(s"type $dt: either 'size' or 'size-eos' must be specified", path)
             case (Some(_), true) =>
-              throw new RuntimeException(s"type $dt: only one of 'size' or 'size-eos' must be specified")
+              throw new YAMLParseException(s"type $dt: only one of 'size' or 'size-eos' must be specified", path)
           }
         case "strz" =>
           val enc = getEncoding(encoding, metaDef, path)
@@ -214,10 +214,10 @@ object DataType {
             case (None, true) => UserTypeEos(dtl, process)
             case (None, false) =>
               if (process.isDefined)
-                throw new RuntimeException(s"user type '$dt': need either 'size' or 'size-eos' if 'process' is used")
+                throw new YAMLParseException(s"user type '$dt': need either 'size' or 'size-eos' if 'process' is used", path)
               UserTypeInstream(dtl)
             case (Some(_), true) =>
-              throw new RuntimeException(s"user type '$dt': only one of 'size' or 'size-eos' must be specified")
+              throw new YAMLParseException(s"user type '$dt': only one of 'size' or 'size-eos' must be specified", path)
           }
       }
     }
@@ -227,7 +227,7 @@ object DataType {
         r match {
           case numType: IntType => EnumType(classNameToList(enumName), numType)
           case _ =>
-            throw new RuntimeException(s"tried to resolve non-integer $r to enum")
+            throw new YAMLParseException(s"tried to resolve non-integer $r to enum", path)
         }
       case None =>
         r
