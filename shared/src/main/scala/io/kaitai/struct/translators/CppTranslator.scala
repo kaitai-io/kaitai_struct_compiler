@@ -71,6 +71,8 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => throw new UnsupportedOperationException(baseStr)
     }
   }
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"${CppCompiler.kstreamName}::bytes_to_str($bytesExpr, ${translate(encoding)})"
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =

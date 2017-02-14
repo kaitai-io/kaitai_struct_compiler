@@ -69,6 +69,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
 
     s"$func(${translate(i)})"
   }
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"($bytesExpr).decode(${translate(encoding)})"
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
   override def strReverse(value: Ast.expr): String =

@@ -3,6 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{BaseType, IntType}
+import io.kaitai.struct.languages.PHPCompiler
 
 class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
@@ -91,6 +92,8 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
     s"sprintf('$format', ${translate(i)})"
   }
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"Encode::decode(${translate(encoding)}, $bytesExpr)"
   override def strLength(value: Ast.expr): String =
     s"length(${translate(value)})"
   override def strReverse(value: Ast.expr): String =

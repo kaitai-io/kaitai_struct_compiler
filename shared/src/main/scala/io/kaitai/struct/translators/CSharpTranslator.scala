@@ -61,6 +61,8 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"Convert.ToInt64(${translate(s)}, ${translate(base)})"
   override def intToStr(i: expr, base: expr): String =
     s"Convert.ToString(${translate(i)}, ${translate(base)})"
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"System.Text.Encoding.GetEncoding(${translate(encoding)}).GetString($bytesExpr)"
   override def strLength(s: expr): String =
     s"${translate(s)}.Length"
 
