@@ -218,7 +218,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
   def strToInt(s: Ast.expr, base: Ast.expr): String
   def intToStr(i: Ast.expr, base: Ast.expr): String
-  def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = ???
+  def bytesToStr(bytesExpr: String, encoding: Ast.expr): String
   def strLength(s: Ast.expr): String
   def strReverse(s: Ast.expr): String
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
