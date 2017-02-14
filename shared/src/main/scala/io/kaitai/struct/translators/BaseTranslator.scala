@@ -109,6 +109,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
               // TODO: check argument quantity
               case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
               case (_: StrType, "to_i") => strToInt(obj, args(0))
+              case (_: BytesType, "to_s") => bytesToStr(translate(obj), args(0))
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
@@ -217,6 +218,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
   def strToInt(s: Ast.expr, base: Ast.expr): String
   def intToStr(i: Ast.expr, base: Ast.expr): String
+  def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = ???
   def strLength(s: Ast.expr): String
   def strReverse(s: Ast.expr): String
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
