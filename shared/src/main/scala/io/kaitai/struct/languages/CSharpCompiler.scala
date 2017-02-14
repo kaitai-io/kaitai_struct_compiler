@@ -226,17 +226,12 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     dataType match {
       case t: ReadableType =>
         s"$io.Read${Utils.capitalize(t.apiCall)}()"
-      // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-      case StrByteLimitType(bs, encoding) =>
-        s"$io.ReadStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
-      case StrEosType(encoding) =>
-        io + ".ReadStrEos(\"" + encoding + "\")"
-      case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + ".ReadStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
-      case BytesLimitType(size, _) =>
-        s"$io.ReadBytes(${expression(size)})"
-      case BytesEosType(_) =>
+      case blt: BytesLimitType =>
+        s"$io.ReadBytes(${expression(blt.size)})"
+      case _: BytesEosType =>
         s"$io.ReadBytesFull()"
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1 =>
         s"$io.ReadBitsInt(1) != 0"
       case BitsType(width: Int) =>

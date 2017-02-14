@@ -80,6 +80,9 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         attrBytesTypeParse(id, t, io, extraAttrs, rep)
       case SwitchType(on, cases) =>
         attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep)
+      case t: StrFromBytesType =>
+        val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), Ast.expr.Str(t.encoding))
+        handleAssignment(id, expr, rep)
       case t: EnumType =>
         val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, io))
         handleAssignment(id, expr, rep)
@@ -102,11 +105,25 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         rawId
     }
 
-    val expr = parseExpr(dataType, io)
+    val expr = parseExprBytes(dataType, io)
     handleAssignment(rawId, expr, rep)
 
     // apply post-processing
     dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
+  }
+
+  def parseExprBytes(dataType: BytesType, io: String): String = {
+    val expr = parseExpr(dataType, io)
+
+    // apply pad stripping and termination
+    dataType match {
+      case BytesEosType(terminator, include, padRight, _) =>
+        bytesPadTermExpr(expr, padRight, terminator, include)
+      case BytesLimitType(_, terminator, include, padRight, _) =>
+        bytesPadTermExpr(expr, padRight, terminator, include)
+      case _ =>
+        expr
+    }
   }
 
   def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
@@ -115,8 +132,8 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType match {
-          case UserTypeByteLimit(_, size, process) => BytesLimitType(size, process)
-          case UserTypeEos(_, process) => BytesEosType(process)
+          case UserTypeByteLimit(_, size, process) => BytesLimitType(size, None, false, None, process)
+          case UserTypeEos(_, process) => BytesEosType(None, false, None, process)
         }
 
         attrParse2(rawId, byteType, io, extraAttrs, rep)
@@ -233,6 +250,8 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
   def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit = ???
 
   def parseExpr(dataType: BaseType, io: String): String
+  // FIXME
+  def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = expr0
   def userTypeDebugRead(id: String): Unit = {}
 
   def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr): Unit = {

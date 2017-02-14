@@ -51,7 +51,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     outHdr.puts(s"#if KAITAI_STRUCT_VERSION < ${minVer}L")
     outHdr.puts(
       "#error \"Incompatible Kaitai Struct C++/STL API: version " +
-        KSVersion.minimalRuntime + " or later is required"
+        KSVersion.minimalRuntime + " or later is required\""
     )
     outHdr.puts("#endif")
   }
@@ -392,17 +392,12 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     dataType match {
       case t: ReadableType =>
         s"$io->read_${t.apiCall}()"
-      // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-      case StrByteLimitType(bs, encoding) =>
-        s"$io->read_str_byte_limit(${expression(bs)}, ${encodingToStr(encoding)})"
-      case StrEosType(encoding) =>
-        s"$io->read_str_eos(${encodingToStr(encoding)})"
-      case StrZType(encoding, terminator, include, consume, eosError) =>
-        s"$io->read_strz(${encodingToStr(encoding)}, $terminator, $include, $consume, $eosError)"
-      case BytesLimitType(size, _) =>
-        s"$io->read_bytes(${expression(size)})"
-      case BytesEosType(_) =>
+      case blt: BytesLimitType =>
+        s"$io->read_bytes(${expression(blt.size)})"
+      case _: BytesEosType =>
         s"$io->read_bytes_full()"
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        s"$io->read_bytes_term($terminator, $include, $consume, $eosError)"
       case BitsType1 =>
         s"$io->read_bits_int(1)"
       case BitsType(width: Int) =>

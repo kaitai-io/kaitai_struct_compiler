@@ -64,15 +64,12 @@ object AttrSpec {
   val LEGAL_KEYS_STR = Set(
     "size",
     "size-eos",
-    "encoding"
-  )
-
-  val LEGAL_KEYS_STRZ = Set(
-    "encoding",
+    "pad-right",
     "terminator",
     "consume",
     "include",
-    "eos-error"
+    "eos-error",
+    "encoding"
   )
 
   val LEGAL_KEYS_ENUM = Set(
@@ -99,10 +96,11 @@ object AttrSpec {
     val repeat = ParseUtils.getOptValueStr(srcMap, "repeat", path)
     val repeatExpr = ParseUtils.getOptValueStr(srcMap, "repeat-expr", path).map(Expressions.parse)
     val repeatUntil = ParseUtils.getOptValueStr(srcMap, "repeat-until", path).map(Expressions.parse)
-    val terminator = ParseUtils.getOptValueInt(srcMap, "terminator", path).getOrElse(0)
+    val terminator = ParseUtils.getOptValueInt(srcMap, "terminator", path)
     val consume = ParseUtils.getOptValueBool(srcMap, "consume", path).getOrElse(true)
     val include = ParseUtils.getOptValueBool(srcMap, "include", path).getOrElse(false)
     val eosError = ParseUtils.getOptValueBool(srcMap, "eos-error", path).getOrElse(true)
+    val padRight = ParseUtils.getOptValueInt(srcMap, "pad-right", path)
     val enum = ParseUtils.getOptValueStr(srcMap, "enum", path)
 
     val typObj = srcMap.get("type")
@@ -113,7 +111,7 @@ object AttrSpec {
         DataType.fromYaml(
           None, path, metaDef,
           size, sizeEos,
-          encoding, terminator, include, consume, eosError,
+          encoding, terminator, include, consume, eosError, padRight,
           contents, enum, process
         )
       case Some(x) =>
@@ -122,7 +120,7 @@ object AttrSpec {
             DataType.fromYaml(
               Some(simpleType), path, metaDef,
               size, sizeEos,
-              encoding, terminator, include, consume, eosError,
+              encoding, terminator, include, consume, eosError, padRight,
               contents, enum, process
             )
           case switchMap: Map[Any, Any] =>
@@ -130,7 +128,7 @@ object AttrSpec {
             parseSwitch(
               switchMapStr, path, metaDef,
               size, sizeEos,
-              encoding, terminator, include, consume, eosError,
+              encoding, terminator, include, consume, eosError, padRight,
               contents, enum, process
             )
           case unknown =>
@@ -140,8 +138,7 @@ object AttrSpec {
 
     val legalKeys = LEGAL_KEYS ++ (dataType match {
       case _: BytesType => LEGAL_KEYS_BYTES
-      case _: StrEosType | _: StrByteLimitType => LEGAL_KEYS_STR
-      case _: StrZType => LEGAL_KEYS_STRZ
+      case _: StrFromBytesType => LEGAL_KEYS_STR
       case _: UserType => LEGAL_KEYS_BYTES
       case EnumType(_, _) => LEGAL_KEYS_ENUM
       case SwitchType(on, cases) => LEGAL_KEYS_BYTES
@@ -189,10 +186,11 @@ object AttrSpec {
     size: Option[Ast.expr],
     sizeEos: Boolean,
     encoding: Option[String],
-    terminator: Int,
+    terminator: Option[Int],
     include: Boolean,
     consume: Boolean,
     eosError: Boolean,
+    padRight: Option[Int],
     contents: Option[Array[Byte]],
     enumRef: Option[String],
     process: Option[ProcessExpr]
@@ -208,7 +206,7 @@ object AttrSpec {
       Expressions.parse(condition) -> DataType.fromYaml(
         Some(typeName), path ++ List("cases"), metaDef,
         size, sizeEos,
-        encoding, terminator, include, consume, eosError,
+        encoding, terminator, include, consume, eosError, padRight,
         contents, enumRef, process
       )
     }
@@ -221,9 +219,9 @@ object AttrSpec {
     } else {
       (size, sizeEos) match {
         case (Some(sizeValue), false) =>
-          Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, process))
+          Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, None, false, None, process))
         case (None, true) =>
-          Map(SwitchType.ELSE_CONST -> BytesEosType(process))
+          Map(SwitchType.ELSE_CONST -> BytesEosType(None, false, None, process))
         case (None, false) =>
           Map()
         case (Some(_), true) =>

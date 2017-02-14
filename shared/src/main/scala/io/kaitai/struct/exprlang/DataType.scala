@@ -1,5 +1,6 @@
 package io.kaitai.struct.exprlang
 
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 
 /**
@@ -74,20 +75,30 @@ object DataType {
     override def process = None
   }
   case class FixedBytesType(contents: Array[Byte], override val process: Option[ProcessExpr]) extends BytesType
-  case class BytesEosType(override val process: Option[ProcessExpr]) extends BytesType
-  case class BytesLimitType(s: Ast.expr, override val process: Option[ProcessExpr]) extends BytesType
-
-  abstract class StrType extends BaseType
-  case object CalcStrType extends StrType
-  case class StrEosType(encoding: String) extends StrType
-  case class StrByteLimitType(s: Ast.expr, encoding: String) extends StrType
-  case class StrZType(
-    encoding: String,
+  case class BytesEosType(
+    terminator: Option[Int],
+    include: Boolean,
+    padRight: Option[Int],
+    override val process: Option[ProcessExpr]
+  ) extends BytesType
+  case class BytesLimitType(
+    size: Ast.expr,
+    terminator: Option[Int],
+    include: Boolean,
+    padRight: Option[Int],
+    override val process: Option[ProcessExpr]
+  ) extends BytesType
+  case class BytesTerminatedType(
     terminator: Int,
     include: Boolean,
     consume: Boolean,
-    eosError: Boolean
-  ) extends StrType
+    eosError: Boolean,
+    override val process: Option[ProcessExpr]
+  ) extends BytesType
+
+  abstract class StrType extends BaseType
+  case object CalcStrType extends StrType
+  case class StrFromBytesType(bytes: BytesType, encoding: String) extends StrType
 
   case object BooleanType extends BaseType
   case class ArrayType(elType: BaseType) extends BaseType
@@ -139,10 +150,11 @@ object DataType {
     size: Option[Ast.expr],
     sizeEos: Boolean,
     encoding: Option[String],
-    terminator: Int,
+    terminator: Option[Int],
     include: Boolean,
     consume: Boolean,
     eosError: Boolean,
+    padRight: Option[Int],
     contents: Option[Array[Byte]],
     enumRef: Option[String],
     process: Option[ProcessExpr]
@@ -152,14 +164,12 @@ object DataType {
         contents match {
           case Some(c) => FixedBytesType(c, process)
           case _ =>
-            (size, sizeEos) match {
-              case (Some(bs: Ast.expr), false) => BytesLimitType(bs, process)
-              case (None, true) => BytesEosType(process)
-              case (None, false) =>
-                throw new YAMLParseException("no type: either 'size' or 'size-eos' must be specified", path)
-              case (Some(_), true) =>
-                throw new YAMLParseException("no type: only one of 'size' or 'size-eos' must be specified", path)
-            }
+            getByteArrayType(
+              size, sizeEos,
+              terminator, include, consume, eosError,
+              padRight,
+              process, path
+            )
         }
       case Some(dt) => dt match {
         case "u1" => Int1Type(false)
@@ -194,19 +204,23 @@ object DataType {
               // either inside enum (any width) or (width != 1)
               BitsType(width)
           }
-        case "str" =>
+        case "str" | "strz" =>
           val enc = getEncoding(encoding, metaDef, path)
-          (size, sizeEos) match {
-            case (Some(bs: Ast.expr), false) => StrByteLimitType(bs, enc)
-            case (None, true) => StrEosType(enc)
-            case (None, false) =>
-              throw new YAMLParseException(s"type $dt: either 'size' or 'size-eos' must be specified", path)
-            case (Some(_), true) =>
-              throw new YAMLParseException(s"type $dt: only one of 'size' or 'size-eos' must be specified", path)
+
+          // "strz" makes terminator = 0 by default
+          val term = if (dt == "strz") {
+            terminator.orElse(Some(0))
+          } else {
+            terminator
           }
-        case "strz" =>
-          val enc = getEncoding(encoding, metaDef, path)
-          StrZType(enc, terminator, include, consume, eosError)
+
+          val bat = getByteArrayType(
+            size, sizeEos,
+            term, include, consume, eosError,
+            padRight,
+            process, path
+          )
+          StrFromBytesType(bat, enc)
         case _ =>
           val dtl = classNameToList(dt)
           (size, sizeEos) match {
@@ -231,6 +245,34 @@ object DataType {
         }
       case None =>
         r
+    }
+  }
+
+  private def getByteArrayType(
+    size: Option[expr],
+    sizeEos: Boolean,
+    terminator: Option[Int],
+    include: Boolean,
+    consume: Boolean,
+    eosError: Boolean,
+    padRight: Option[Int],
+    process: Option[ProcessExpr],
+    path: List[String]
+  ) = {
+    (size, sizeEos) match {
+      case (Some(bs: expr), false) =>
+        BytesLimitType(bs, terminator, include, padRight, process)
+      case (None, true) =>
+        BytesEosType(terminator, include, padRight, process)
+      case (None, false) =>
+        terminator match {
+          case Some(term) =>
+            BytesTerminatedType(term, include, consume, eosError, process)
+          case None =>
+            throw new YAMLParseException("'size', 'size-eos' or 'terminator' must be specified", path)
+        }
+      case (Some(_), true) =>
+        throw new YAMLParseException("only one of 'size' or 'size-eos' must be specified", path)
     }
   }
 

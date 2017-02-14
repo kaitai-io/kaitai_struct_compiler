@@ -223,17 +223,12 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     dataType match {
       case t: ReadableType =>
         s"$io->read${Utils.capitalize(t.apiCall)}()"
-      // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-      case StrByteLimitType(bs, encoding) =>
-        s"$io->readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
-      case StrEosType(encoding) =>
-        io + "->readStrEos(\"" + encoding + "\")"
-      case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + "->readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
-      case BytesLimitType(size, _) =>
-        s"$io->readBytes(${expression(size)})"
-      case BytesEosType(_) =>
+      case blt: BytesLimitType =>
+        s"$io->readBytes(${expression(blt.size)})"
+      case _: BytesEosType =>
         s"$io->readBytesFull()"
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        s"$io->readBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1 =>
         s"$io->readBitsInt(1) != 0"
       case BitsType(width: Int) =>

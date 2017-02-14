@@ -249,11 +249,10 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case IntMultiType(_, width, _) => width.width.toString
       case FloatMultiType(width, _) => width.width.toString
       case FixedBytesType(contents, _) => contents.length.toString
-      case BytesEosType(_) => END_OF_STREAM
-      case BytesLimitType(ex, _) => expressionSize(ex, attrName)
-      case StrByteLimitType(ex, _) => expressionSize(ex, attrName)
-      case StrEosType(_) => END_OF_STREAM
-      case _: StrZType => UNKNOWN
+      case _: BytesEosType => END_OF_STREAM
+      case blt: BytesLimitType => expressionSize(blt.size, attrName)
+      case _: BytesTerminatedType => UNKNOWN
+      case StrFromBytesType(basedOn, _) => dataTypeSizeAsString(basedOn, attrName)
       case UserTypeByteLimit(_, ex, _) => expressionSize(ex, attrName)
       case _: UserTypeEos => END_OF_STREAM
       case UserTypeInstream(_) => UNKNOWN
@@ -412,11 +411,10 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case IntMultiType(_, width, _) => Some(width.width)
       case FixedBytesType(contents, _) => Some(contents.length)
       case FloatMultiType(width, _) => Some(width.width)
-      case BytesEosType(_) => None
-      case BytesLimitType(ex, _) => evaluateIntLiteral(ex)
-      case StrByteLimitType(ex, _) => evaluateIntLiteral(ex)
-      case StrEosType(_) => None
-      case _: StrZType => None
+      case _: BytesEosType => None
+      case blt: BytesLimitType => evaluateIntLiteral(blt.size)
+      case _: BytesTerminatedType => None
+      case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
       case UserTypeByteLimit(_, ex, _) => evaluateIntLiteral(ex)
       case _: UserTypeEos => None
       case UserTypeInstream(_) => None
@@ -429,11 +427,8 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case rt: ReadableType => rt.apiCall
       case ut: UserType => type2display(ut.name)
       case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
-      case _: BytesType => ""
-      case StrByteLimitType(_, encoding) => s"str($encoding)"
-      case StrEosType(encoding) => s"str($encoding)"
-      case StrZType(encoding, terminator, include, consume, eosError) =>
-        val args = ListBuffer(encoding)
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        val args = ListBuffer[String]()
         if (terminator != 0)
           args += s"term=$terminator"
         if (include)
@@ -442,7 +437,12 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
           args += "don't consume"
         if (!eosError)
           args += "ignore EOS"
-        s"strz(${args.mkString(", ")})"
+        args.mkString(", ")
+      case _: BytesType => ""
+      case StrFromBytesType(basedOn, encoding) =>
+        val bytesStr = dataTypeName(basedOn)
+        val comma = if (bytesStr.isEmpty) "" else ", "
+        s"str($bytesStr$comma$encoding)"
       case EnumType(name, basedOn) =>
         s"${dataTypeName(basedOn)}→${type2display(name)}"
       case BitsType(width) => s"b$width"
