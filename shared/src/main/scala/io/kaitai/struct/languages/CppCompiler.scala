@@ -408,7 +408,17 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     }
   }
 
-  def encodingToStr(encoding: String): String = "\"" + encoding + "\""
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+    val expr1 = padRight match {
+      case Some(padByte) => s"$kstreamName::bytes_strip_right($expr0, $padByte)"
+      case None => expr0
+    }
+    val expr2 = terminator match {
+      case Some(term) => s"$kstreamName::bytes_terminate($expr1, $term, $include)"
+      case None => expr1
+    }
+    expr2
+  }
 
   /**
     * Designates switch mode. If false, we're doing real switch-case for this
