@@ -51,7 +51,7 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     s"(${translate(i)}).toString(${translate(base)})"
 
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"${JavaScriptCompiler.kstreamName}.arrayToString($bytesExpr, ${translate(encoding)})"
+    s"${JavaScriptCompiler.kstreamName}.bytesToStr($bytesExpr, ${translate(encoding)})"
 
   override def strLength(s: expr): String =
     s"${translate(s)}.length"
