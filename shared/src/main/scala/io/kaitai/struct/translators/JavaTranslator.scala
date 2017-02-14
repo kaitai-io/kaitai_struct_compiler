@@ -71,6 +71,8 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"Long.parseLong(${translate(s)}, ${translate(base)})"
   override def intToStr(i: expr, base: expr): String =
     s"Long.toString(${translate(i)}, ${translate(base)})"
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =
