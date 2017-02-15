@@ -42,14 +42,14 @@ object TypeProcessor {
     var iterNum = 1
     var hasChanged = false
     do {
-//      Console.println(s"... deriveValueType: iteration #$iterNum")
+      Log.typeProcValue.info(() => s"... deriveValueType: iteration #$iterNum")
       hasChanged = deriveValueType(provider, translator, topClass)
       iterNum += 1
     } while (hasChanged)
   }
 
   def deriveValueType(provider: ClassTypeProvider, translator: BaseTranslator, curClass: ClassSpec): Boolean = {
-//    Console.println(s"deriveValueType(${curClass.name.mkString("::")})")
+    Log.typeProcValue.info(() => s"deriveValueType(${curClass.name.mkString("::")})")
     var hasChanged = false
 
     provider.nowClass = curClass
@@ -62,11 +62,11 @@ object TypeProcessor {
                 try {
                   val viType = translator.detectType(vi.value)
                   vi.dataType = Some(viType)
-//                  Console.println(s"${instName.name} derived type: $viType")
+                  Log.typeProcValue.info(() => s"${instName.name} derived type: $viType")
                   hasChanged = true
                 } catch {
                   case tue: TypeUndecidedError =>
-//                    Console.println(s"${instName.name} type undecided: ${tue.getMessage}")
+                    Log.typeProcValue.info(() => s"${instName.name} type undecided: ${tue.getMessage}")
                     // just ignore, we're not there yet, probably we'll get it on next iteration
                 }
               case Some(_) =>
