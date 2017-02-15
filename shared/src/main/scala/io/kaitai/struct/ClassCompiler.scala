@@ -148,8 +148,7 @@ object ClassCompiler {
   def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, conf: RuntimeConfig): AbstractCompiler = {
     val config = updateConfig(conf, topClass)
     val outPath = lang.outFilePath(config, outDir, topClass.name.head)
-    if (config.verbose)
-      Console.println(s"... => ${outPath}")
+    Log.fileOps.info(() => s"... => $outPath")
     lang match {
       case GraphvizClassCompiler =>
         val out = new FileLanguageOutputWriter(outPath, lang.indent)

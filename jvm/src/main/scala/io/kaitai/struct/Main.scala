@@ -10,6 +10,7 @@ object Main {
   KSVersion.current = BuildInfo.version
 
   case class CLIConfig(
+    verbose: Seq[String] = Seq(),
     srcFiles: Seq[File] = Seq(),
     outDir: File = new File("."),
     targets: Seq[String] = Seq(),
@@ -63,9 +64,21 @@ object Main {
         c.copy(runtime = c.runtime.copy(phpNamespace = x))
       } text("PHP Namespace (PHP only, default: root package)")
 
-      opt[Unit]("verbose") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(verbose = true))
-      } text("verbose output")
+      opt[String]("verbose") action { (x, c) =>
+        // TODO: make support for something like "--verbose file,parent"
+        if (x == "all") {
+          c.copy(verbose = Log.VALID_SUBSYS)
+        } else {
+          c.copy(verbose = c.verbose :+ x)
+        }
+      } text("verbose output") validate { x =>
+        if (x == "all" || Log.VALID_SUBSYS.contains(x)) {
+          success
+        } else {
+          failure(s"'$x' is not a valid verbosity flag; valid ones are: ${Log.VALID_SUBSYS.mkString(", ")}")
+        }
+      }
+
       opt[Unit]("debug") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(debug = true))
       } text("enable debugging helpers (mostly used by visualization tools)")
@@ -77,8 +90,7 @@ object Main {
   }
 
   def compileOne(srcFile: String, lang: String, outDir: String, config: RuntimeConfig): Unit = {
-    if (config.verbose)
-      Console.println(s"compiling ${srcFile} for ${lang}...")
+    Log.fileOps.info(() => s"compiling $srcFile for $lang...")
 
     val spec = JavaKSYParser.localFileToSpec(srcFile)
     compileOne(spec, lang, outDir, config)
@@ -89,15 +101,13 @@ object Main {
   }
 
   def compileAll(srcFile: String, config: CLIConfig): Unit = {
-    if (config.runtime.verbose)
-      Console.println(s"reading $srcFile...")
+    Log.fileOps.info(() => s"reading $srcFile...")
 
     val topClass = JavaKSYParser.localFileToSpec(srcFile)
 
     config.targets.foreach { lang =>
       try {
-        if (config.runtime.verbose)
-          Console.print(s"... compiling it for $lang... ")
+        Log.fileOps.info(() => s"... compiling it for $lang... ")
         compileOne(topClass, lang, s"${config.outDir}/$lang", config.runtime)
       } catch {
         case e: Exception =>
@@ -112,6 +122,7 @@ object Main {
     parseCommandLine(args)  match {
       case None => System.exit(1)
       case Some(config) =>
+        Log.initFromVerboseFlag(config.verbose)
         config.srcFiles.foreach { srcFile =>
           try {
             config.targets match {
