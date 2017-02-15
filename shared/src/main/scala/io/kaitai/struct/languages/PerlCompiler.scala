@@ -233,6 +233,18 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+    val expr1 = padRight match {
+      case Some(padByte) => s"$kstreamName::bytes_strip_right($expr0, $padByte)"
+      case None => expr0
+    }
+    val expr2 = terminator match {
+      case Some(term) => s"$kstreamName::bytes_terminate($expr1, $term, ${boolLiteral(include)})"
+      case None => expr1
+    }
+    expr2
+  }
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     typeProvider._currentSwitchType = Some(translator.detectType(on))
     out.puts(s"my $$_on = ${expression(on)};")
