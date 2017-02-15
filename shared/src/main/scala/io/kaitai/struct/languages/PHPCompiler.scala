@@ -239,6 +239,18 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+    val expr1 = padRight match {
+      case Some(padByte) => s"$kstreamName::bytesStripRight($expr0, $padByte)"
+      case None => expr0
+    }
+    val expr2 = terminator match {
+      case Some(term) => s"$kstreamName::bytesTerminate($expr1, $term, $include)"
+      case None => expr1
+    }
+    expr2
+  }
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     val onType = translator.detectType(on)
 
