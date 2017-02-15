@@ -101,7 +101,8 @@ TODO
 #### Python
 
 * Pump version in `setup.py`, seek `version=`
-* `python setup.py sdist upload`
+* `python3 setup.py sdist upload`
+  * (use `python3 setup.py sdist upload -r pypitest` to publish to testing server)
 * Check that new version appears at https://pypi.python.org/pypi/kaitaistruct/$VERSION
 * `git tag $VERSION`
 * `git push --tags`
