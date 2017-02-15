@@ -63,7 +63,7 @@ class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTrans
     }
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"${PHPCompiler.kstreamName}::toUtf8($bytesExpr, ${translate(encoding)})"
+    s"${PHPCompiler.kstreamName}::bytesToStr($bytesExpr, ${translate(encoding)})"
   override def strLength(s: expr): String =
     s"strlen(${translate(s)})"
   override def strReverse(s: expr): String =
