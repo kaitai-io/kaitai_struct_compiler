@@ -33,9 +33,25 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("import struct")
     out.puts("import zlib")
     out.puts("from enum import Enum")
+    out.puts("from pkg_resources import parse_version")
     out.puts
-    out.puts(s"from kaitaistruct import $kstructName, $kstreamName, BytesIO")
+    out.puts(s"from kaitaistruct import __version__ as ks_version, $kstructName, $kstreamName, BytesIO")
     out.puts
+    out.puts
+
+    // API compatibility check
+    out.puts(
+      "if parse_version(ks_version) < parse_version('" +
+        KSVersion.minimalRuntime +
+        "'):"
+    )
+    out.inc
+    out.puts(
+      "raise Exception(\"Incompatible Kaitai Struct Python API: " +
+        KSVersion.minimalRuntime +
+        " or later is required, but you have %s\" % (ks_version))"
+    )
+    out.dec
     out.puts
   }
 
