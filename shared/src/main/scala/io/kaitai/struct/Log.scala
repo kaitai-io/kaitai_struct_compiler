@@ -18,10 +18,12 @@ case object ConsoleLogger extends Logger {
 object Log {
   val VALID_SUBSYS = Seq(
     "file",
+    "value",
     "parent"
   )
 
   var fileOps: Logger = NullLogger
+  var typeProcValue: Logger = NullLogger
   var typeProcParent: Logger = NullLogger
 
   def initFromVerboseFlag(subsystems: Seq[String]): Unit = {
@@ -30,6 +32,7 @@ object Log {
 
     subsystems.foreach {
       case "file" => fileOps = ConsoleLogger
+      case "value" => typeProcValue = ConsoleLogger
       case "parent" => typeProcParent = ConsoleLogger
     }
   }
