@@ -1,5 +1,9 @@
 package io.kaitai.struct.format
 
+/**
+  * Type that we use when we want to refer to a class specification or something
+  * close, but not (yet) that well defined.
+  */
 sealed trait ClassSpecLike
 case object UnknownClassSpec extends ClassSpecLike
 case object GenericStructClassSpec extends ClassSpecLike
@@ -13,7 +17,18 @@ case class ClassSpec(
                       enums: Map[String, EnumSpec]
                     ) extends ClassSpecLike {
   var parentClass: ClassSpecLike = UnknownClassSpec
+
+  /**
+    * Full absolute name of the class (including all names of classes that
+    * it's nested into, as a namespace). Derived either from `meta`/`id`
+    * (for top-level classes), or from keys in `types` (for nested classes).
+    */
   var name = List[String]()
+
+  /**
+    * The class specification that this class is nested into, if it exists.
+    * For top-level classes, it's None.
+    */
   var upClass: Option[ClassSpec] = None
 
   def parentTypeName: List[String] = parentClass match {
