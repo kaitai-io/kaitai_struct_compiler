@@ -26,6 +26,12 @@ case class ClassSpec(
   var name = List[String]()
 
   /**
+    * @return Absolute name of class as string, components separated by
+    *         double colon operator `::`
+    */
+  def nameAsStr = name.mkString("::")
+
+  /**
     * The class specification that this class is nested into, if it exists.
     * For top-level classes, it's None.
     */
