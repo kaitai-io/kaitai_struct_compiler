@@ -5,7 +5,8 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{TypeMismatchError, TypeProvider, TypeUndecidedError}
 
 class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
-  var nowClass = topClass
+  var nowClass: ClassSpec = topClass
+  var possibleParentClass: Option[ClassSpec] = None
 
   var _currentIteratorType: Option[BaseType] = None
   var _currentSwitchType: Option[BaseType] = None
@@ -21,9 +22,13 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
       case "_root" =>
         makeUserType(topClass)
       case "_parent" =>
-        if (inClass.parentClass == UnknownClassSpec)
+        var parent = inClass.parentClass
+        if ((parent == UnknownClassSpec) && (possibleParentClass != None))
+          parent = possibleParentClass.get
+        if (parent == UnknownClassSpec)
           throw new RuntimeException(s"Unable to derive _parent type in ${inClass.name.mkString("::")}")
-        makeUserType(inClass.parentClass)
+
+        makeUserType(parent)
       case "_io" =>
         KaitaiStreamType
       case "_" =>

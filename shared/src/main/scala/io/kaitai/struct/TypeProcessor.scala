@@ -5,17 +5,28 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeUndecidedError}
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.Map
 
 object TypeProcessor {
+  // We need to record the parent types of resolved user types at their usage, which we know about
+  // on resolving user types, to be able to properly resolve "_parent" in value instances to solve
+  // some chicken&egg problem in the current implementation.
+  //
+  // The key is a string by purpose currently, because on deriving value there may be some opaque
+  // types and for some reasion their ClassSpec couldn't be queried as a key in the map without
+  // running into UnsupportedOperationException of AbstractIdentifier.toString. This doesn't happen
+  // if we provide a string using ClassSpec on our own.
+  val parentsByChild = Map[String, ClassSpec]()
+
   def processTypes(topClass: ClassSpec): Unit = {
     // Set top class name from meta
     topClass.name = List(topClass.meta.get.id.get)
+    topClass.parentClass = GenericStructClassSpec
 
     markupClassNames(topClass)
     resolveUserTypes(topClass)
     deriveValueTypes(topClass)
     markupParentTypes(topClass)
-    topClass.parentClass = GenericStructClassSpec
   }
 
   // ==================================================================
@@ -53,6 +64,8 @@ object TypeProcessor {
     var hasChanged = false
 
     provider.nowClass = curClass
+    provider.possibleParentClass = parentsByChild.get(curClass.name.mkString("::"))
+
     curClass.instances.foreach {
       case (instName, inst) =>
         inst match {
@@ -139,8 +152,15 @@ object TypeProcessor {
       case None =>
         // Type definition not found - generate special "opaque placeholder" ClassSpec
         Some(ClassSpec.opaquePlaceholder(typeName))
-      case Some(x) =>
+      case Some(child) => {
+        // We might be called multiple times, but only have two situations: It's either always the
+        // same context or in case of different/incompatible ones there's some chance that the last
+        // call is the proper one, so we simply overwrite mappings. Depending on the target language
+        // in case of multiple incompatible usages compiler errors occur or such and things can be
+        // fixed as needed.
+        parentsByChild(child.name.mkString("::")) = curClass
         res
+      }
     }
   }
 
