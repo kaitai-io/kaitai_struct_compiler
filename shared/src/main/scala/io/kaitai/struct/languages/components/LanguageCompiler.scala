@@ -1,9 +1,9 @@
 package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.DataType.BaseType
+import io.kaitai.struct.exprlang.DataType.{BaseType, BooleanType}
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.BaseTranslator
+import io.kaitai.struct.translators.{BaseTranslator, TypeMismatchError}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
 
 import scala.collection.mutable.ListBuffer
@@ -118,9 +118,15 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def attrParseIfHeader(id: Identifier, ifExpr: Option[Ast.expr]): Unit = {
     ifExpr match {
       case Some(e) =>
-        condIfSetNull(id)
-        condIfHeader(e)
-        condIfSetNonNull(id)
+        translator.detectType(e) match {
+          case BooleanType =>
+            // everything's fine, we've got boolean-resulting expression
+            condIfSetNull(id)
+            condIfHeader(e)
+            condIfSetNonNull(id)
+          case t =>
+            throw new TypeMismatchError(s"expected boolean expression in `if`, got $t")
+        }
       case None => // ignore
     }
   }
