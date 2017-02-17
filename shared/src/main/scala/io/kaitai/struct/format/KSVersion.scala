@@ -34,6 +34,25 @@ case class KSVersion(nums: List[Int]) extends Ordered[KSVersion] {
       }
     }
   }
+
+  /**
+    * Dumps a version in Perl-style string, that is 1.2.3 becomes "1.002_003".
+    * The limitation are the same as for `toInt`: 3 components max, each is
+    * 0 to 999 inclusive.
+    * @return version as a Perl-style string
+    */
+  def toPerlVersion: String = {
+    if (nums.size > 3)
+      throw new RuntimeException(s"C-style version int can have max 3 components, but $this is given")
+    nums.foreach((comp) =>
+      if (comp < 0 || comp > 999) {
+        throw new RuntimeException(s"C-style version int only allows components [0..999], but $comp was used")
+      }
+    )
+
+    val v1 :: v2 :: v3 :: _ = nums ++ List.fill(3 - nums.size)(0)
+    "%d.%03d_%03d".format(v1, v2, v3)
+  }
 }
 
 object KSVersion {
