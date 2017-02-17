@@ -32,8 +32,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts
     out.puts("use strict;")
     out.puts("use warnings;")
-    out.puts(s"use $kstructName;")
-    out.puts(s"use $kstreamName;")
+    out.puts(s"use $packageName ${KSVersion.minimalRuntime.toPerlVersion};")
     out.puts("use Compress::Zlib;")
     out.puts("use Encode;")
   }
@@ -60,7 +59,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts
     out.puts("open($fd, '<', $filename) or return undef;")
     out.puts("binmode($fd);")
-    out.puts("return new($class, Kaitai::Stream->new($fd));")
+    out.puts(s"return new($$class, $kstreamName->new($$fd));")
     universalFooter
   }
 
@@ -71,7 +70,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("sub new {")
     out.inc
     out.puts("my ($class, $_io, $_parent, $_root) = @_;")
-    out.puts("my $self = Kaitai::Struct->new($_io);")
+    out.puts(s"my $$self = $kstructName->new($$_io);")
     out.puts
     out.puts("bless $self, $class;")
     out.puts(s"${privateMemberName(ParentIdentifier)} = $$_parent;")
@@ -90,7 +89,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
     attrName match {
       case RootIdentifier | ParentIdentifier =>
-        // ignore, they are already defined in Kaitai::Struct class
+        // ignore, they are already defined in KaitaiStruct class
       case _ =>
         out.puts
         out.puts(s"sub ${publicMemberName(attrName)} {")
@@ -329,6 +328,7 @@ object PerlCompiler extends LanguageCompilerStatic
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
   override def indent: String = "    "
 
-  override def kstreamName: String = "Kaitai::Stream"
-  override def kstructName: String = "Kaitai::Struct"
+  def packageName: String = "IO::KaitaiStruct"
+  override def kstreamName: String = s"$packageName::Stream"
+  override def kstructName: String = s"$packageName::Struct"
 }
