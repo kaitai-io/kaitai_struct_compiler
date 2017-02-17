@@ -13,7 +13,7 @@ object MainJs {
 
   @JSExport
   def compile(langStr: String, yaml: js.Object, debug: Boolean = false): js.Array[String] = {
-    val config = new RuntimeConfig(verbose = true, debug = debug)
+    val config = new RuntimeConfig(debug = debug)
     val lang = LanguageCompilerStatic.byString(langStr)
 
     val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
