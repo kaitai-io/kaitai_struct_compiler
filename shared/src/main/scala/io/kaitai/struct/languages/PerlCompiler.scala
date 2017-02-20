@@ -227,7 +227,15 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BitsType(width: Int) =>
         s"$io->read_bits_int($width)"
       case t: UserType =>
-        val addArgs = if (!t.isOpaque) s", $$self, ${privateMemberName(RootIdentifier)}" else ""
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(fp) => translator.translate(fp)
+            case None => "$self"
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}"
+        }
         s"${types2class(t.classSpec.get.name)}->new($io$addArgs)"
     }
   }
