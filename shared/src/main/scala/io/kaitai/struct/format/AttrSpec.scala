@@ -45,6 +45,10 @@ object AttrSpec {
     "doc",
     "type",
     "if",
+    "terminator",
+    "consume",
+    "include",
+    "eos-error",
     "repeat",
     "repeat-expr",
     "repeat-until"
@@ -62,10 +66,6 @@ object AttrSpec {
     "size",
     "size-eos",
     "pad-right",
-    "terminator",
-    "consume",
-    "include",
-    "eos-error",
     "encoding"
   )
 
