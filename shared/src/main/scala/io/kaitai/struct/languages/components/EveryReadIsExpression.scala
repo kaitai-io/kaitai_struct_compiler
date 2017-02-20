@@ -132,8 +132,8 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType match {
-          case UserTypeByteLimit(_, size, process) => BytesLimitType(size, None, false, None, process)
-          case UserTypeEos(_, process) => BytesEosType(None, false, None, process)
+          case UserTypeByteLimit(_, _, size, process) => BytesLimitType(size, None, false, None, process)
+          case UserTypeEos(_, _, process) => BytesEosType(None, false, None, process)
         }
 
         attrParse2(rawId, byteType, io, extraAttrs, rep)

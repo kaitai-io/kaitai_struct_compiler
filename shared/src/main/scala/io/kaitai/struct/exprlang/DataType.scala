@@ -103,24 +103,26 @@ object DataType {
   case object BooleanType extends BaseType
   case class ArrayType(elType: BaseType) extends BaseType
 
-  abstract class UserType(val name: List[String]) extends BaseType {
+  abstract class UserType(val name: List[String], val forcedParent: Option[Ast.expr]) extends BaseType {
     var classSpec: Option[ClassSpec] = None
     def isOpaque = classSpec.get.meta match {
       case None => false
       case Some(meta) => meta.isOpaque
     }
   }
-  case class UserTypeInstream(_name: List[String]) extends UserType(_name)
-  abstract class UserTypeKnownSize(_name: List[String]) extends UserType(_name) with Processing
+  case class UserTypeInstream(_name: List[String], _forcedParent: Option[Ast.expr]) extends UserType(_name, _forcedParent)
+  abstract class UserTypeKnownSize(_name: List[String], _forcedParent: Option[Ast.expr]) extends UserType(_name, _forcedParent) with Processing
   case class UserTypeByteLimit(
     _name: List[String],
+    _forcedParent: Option[Ast.expr],
     size: Ast.expr,
     override val process: Option[ProcessExpr]
-  ) extends UserTypeKnownSize(_name)
+  ) extends UserTypeKnownSize(_name, _forcedParent)
   case class UserTypeEos(
     _name: List[String],
+    _forcedParent: Option[Ast.expr],
     override val process: Option[ProcessExpr]
-  ) extends UserTypeKnownSize(_name)
+  ) extends UserTypeKnownSize(_name, _forcedParent)
 
   case object AnyType extends BaseType
   case object KaitaiStructType extends BaseType
@@ -157,6 +159,7 @@ object DataType {
     padRight: Option[Int],
     contents: Option[Array[Byte]],
     enumRef: Option[String],
+    parent: Option[Ast.expr],
     process: Option[ProcessExpr]
   ): BaseType = {
     val r = dto match {
@@ -224,12 +227,12 @@ object DataType {
         case _ =>
           val dtl = classNameToList(dt)
           (size, sizeEos) match {
-            case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, bs, process)
-            case (None, true) => UserTypeEos(dtl, process)
+            case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, parent, bs, process)
+            case (None, true) => UserTypeEos(dtl, parent, process)
             case (None, false) =>
               if (process.isDefined)
                 throw new YAMLParseException(s"user type '$dt': need either 'size' or 'size-eos' if 'process' is used", path)
-              UserTypeInstream(dtl)
+              UserTypeInstream(dtl, parent)
             case (Some(_), true) =>
               throw new YAMLParseException(s"user type '$dt': only one of 'size' or 'size-eos' must be specified", path)
           }

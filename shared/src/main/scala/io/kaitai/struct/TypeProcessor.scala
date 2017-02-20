@@ -2,7 +2,7 @@ package io.kaitai.struct
 
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeUndecidedError}
+import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeMismatchError, TypeUndecidedError}
 
 import scala.collection.mutable.ListBuffer
 
@@ -246,7 +246,23 @@ object TypeProcessor {
   def markupParentTypesAdd(curClass: ClassSpec, dt: BaseType): Unit = {
     dt match {
       case userType: UserType =>
-        markupParentAs(curClass, userType)
+        val parentClass = userType.forcedParent match {
+          case None =>
+            curClass
+          case Some(parent) =>
+            val provider = new ClassTypeProvider(curClass)
+            // TODO: make more abstract translator subtype for type detection only
+            val translator = new RubyTranslator(provider)
+            val parentType = translator.detectType(parent)
+            Log.typeProcParent.info(() => s"..... enforced parent type = $parentType")
+            parentType match {
+              case ut: UserType =>
+                ut.classSpec.get
+              case other =>
+                throw new TypeMismatchError(s"parent=$parent is expected to be of user type, but $other found")
+            }
+        }
+        markupParentAs(parentClass, userType)
       case switchType: SwitchType =>
         switchType.cases.foreach {
           case (_, ut: UserType) =>

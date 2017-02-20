@@ -44,20 +44,17 @@ object AttrSpec {
     "id",
     "doc",
     "type",
-    "process",
-    "contents",
-    "size",
-    "size-eos",
     "if",
-    "encoding",
     "repeat",
     "repeat-expr",
     "repeat-until"
   )
 
   val LEGAL_KEYS_BYTES = Set(
+    "contents",
     "size",
     "size-eos",
+    "parent",
     "process"
   )
 
@@ -102,6 +99,7 @@ object AttrSpec {
     val eosError = ParseUtils.getOptValueBool(srcMap, "eos-error", path).getOrElse(true)
     val padRight = ParseUtils.getOptValueInt(srcMap, "pad-right", path)
     val enum = ParseUtils.getOptValueStr(srcMap, "enum", path)
+    val parent = ParseUtils.getOptValueStr(srcMap, "parent", path).map(Expressions.parse)
 
     val typObj = srcMap.get("type")
 
@@ -112,7 +110,7 @@ object AttrSpec {
           None, path, metaDef,
           size, sizeEos,
           encoding, terminator, include, consume, eosError, padRight,
-          contents, enum, process
+          contents, enum, parent, process
         )
       case Some(x) =>
         x match {
@@ -121,7 +119,7 @@ object AttrSpec {
               Some(simpleType), path, metaDef,
               size, sizeEos,
               encoding, terminator, include, consume, eosError, padRight,
-              contents, enum, process
+              contents, enum, parent, process
             )
           case switchMap: Map[Any, Any] =>
             val switchMapStr = ParseUtils.anyMapToStrMap(switchMap, path)
@@ -129,7 +127,7 @@ object AttrSpec {
               switchMapStr, path, metaDef,
               size, sizeEos,
               encoding, terminator, include, consume, eosError, padRight,
-              contents, enum, process
+              contents, enum, parent, process
             )
           case unknown =>
             throw new YAMLParseException(s"expected map or string, found $unknown", path ++ List("type"))
@@ -193,6 +191,7 @@ object AttrSpec {
     padRight: Option[Int],
     contents: Option[Array[Byte]],
     enumRef: Option[String],
+    parent: Option[Ast.expr],
     process: Option[ProcessExpr]
   ): BaseType = {
     val _on = ParseUtils.getValueStr(switchSpec, "switch-on", path)
@@ -207,7 +206,7 @@ object AttrSpec {
         Some(typeName), path ++ List("cases"), metaDef,
         size, sizeEos,
         encoding, terminator, include, consume, eosError, padRight,
-        contents, enumRef, process
+        contents, enumRef, parent, process
       )
     }
 

@@ -253,9 +253,9 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
       case blt: BytesLimitType => expressionSize(blt.size, attrName)
       case _: BytesTerminatedType => UNKNOWN
       case StrFromBytesType(basedOn, _) => dataTypeSizeAsString(basedOn, attrName)
-      case UserTypeByteLimit(_, ex, _) => expressionSize(ex, attrName)
+      case UserTypeByteLimit(_, _, ex, _) => expressionSize(ex, attrName)
       case _: UserTypeEos => END_OF_STREAM
-      case UserTypeInstream(_) => UNKNOWN
+      case UserTypeInstream(_, _) => UNKNOWN
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
       case _: SwitchType => UNKNOWN
       case BitsType1 => "1b"
@@ -415,9 +415,9 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case blt: BytesLimitType => evaluateIntLiteral(blt.size)
       case _: BytesTerminatedType => None
       case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
-      case UserTypeByteLimit(_, ex, _) => evaluateIntLiteral(ex)
+      case UserTypeByteLimit(_, _, ex, _) => evaluateIntLiteral(ex)
       case _: UserTypeEos => None
-      case UserTypeInstream(_) => None
+      case UserTypeInstream(_, _) => None
       case _: SwitchType => None
     }
   }
