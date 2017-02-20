@@ -260,7 +260,15 @@ class RubyCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BitsType(width: Int) =>
         s"$io.read_bits_int($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) "" else ", self, @_root"
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(fp) => translator.translate(fp)
+            case None => "self"
+          }
+          s", $parent, @_root"
+        }
         s"${type2class(t.name.last)}.new($io$addArgs)"
     }
   }
