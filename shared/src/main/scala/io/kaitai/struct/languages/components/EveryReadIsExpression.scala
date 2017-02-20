@@ -128,13 +128,10 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
   def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
     val newIO = dataType match {
-      case knownSizeType: UserTypeKnownSize =>
+      case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
-        val byteType = knownSizeType match {
-          case UserTypeByteLimit(_, _, size, process) => BytesLimitType(size, None, false, None, process)
-          case UserTypeEos(_, _, process) => BytesEosType(None, false, None, process)
-        }
+        val byteType = knownSizeType.bytes
 
         attrParse2(rawId, byteType, io, extraAttrs, rep)
 
@@ -180,7 +177,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
   def needRaw(dataType: BaseType): Boolean = {
     dataType match {
-      case t: UserTypeKnownSize => true
+      case t: UserTypeFromBytes => true
       case _ => false
     }
   }

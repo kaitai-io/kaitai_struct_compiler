@@ -111,18 +111,12 @@ object DataType {
     }
   }
   case class UserTypeInstream(_name: List[String], _forcedParent: Option[Ast.expr]) extends UserType(_name, _forcedParent)
-  abstract class UserTypeKnownSize(_name: List[String], _forcedParent: Option[Ast.expr]) extends UserType(_name, _forcedParent) with Processing
-  case class UserTypeByteLimit(
+  case class UserTypeFromBytes(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
-    size: Ast.expr,
+    bytes: BytesType,
     override val process: Option[ProcessExpr]
-  ) extends UserTypeKnownSize(_name, _forcedParent)
-  case class UserTypeEos(
-    _name: List[String],
-    _forcedParent: Option[Ast.expr],
-    override val process: Option[ProcessExpr]
-  ) extends UserTypeKnownSize(_name, _forcedParent)
+  ) extends UserType(_name, _forcedParent) with Processing
 
   case object AnyType extends BaseType
   case object KaitaiStructType extends BaseType
@@ -226,15 +220,18 @@ object DataType {
           StrFromBytesType(bat, enc)
         case _ =>
           val dtl = classNameToList(dt)
-          (size, sizeEos) match {
-            case (Some(bs: Ast.expr), false) => UserTypeByteLimit(dtl, parent, bs, process)
-            case (None, true) => UserTypeEos(dtl, parent, process)
-            case (None, false) =>
-              if (process.isDefined)
-                throw new YAMLParseException(s"user type '$dt': need either 'size' or 'size-eos' if 'process' is used", path)
-              UserTypeInstream(dtl, parent)
-            case (Some(_), true) =>
-              throw new YAMLParseException(s"user type '$dt': only one of 'size' or 'size-eos' must be specified", path)
+          if (size.isEmpty && !sizeEos && terminator.isEmpty) {
+            if (process.isDefined)
+              throw new YAMLParseException(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path)
+            UserTypeInstream(dtl, parent)
+          } else {
+            val bat = getByteArrayType(
+              size, sizeEos,
+              terminator, include, consume, eosError,
+              padRight,
+              process, path
+            )
+            UserTypeFromBytes(dtl, parent, bat, process)
           }
       }
     }

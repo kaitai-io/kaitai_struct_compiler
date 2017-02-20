@@ -204,7 +204,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     }
 
     t match {
-      case ArrayType(_: UserTypeKnownSize) =>
+      case ArrayType(_: UserTypeFromBytes) =>
         outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
       case _ =>
         // no cleanup needed
@@ -223,7 +223,7 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
     }
 
     t match {
-      case _: UserTypeKnownSize =>
+      case _: UserTypeFromBytes =>
         outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
       case _ =>
         // no cleanup needed
