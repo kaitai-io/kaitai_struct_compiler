@@ -237,7 +237,15 @@ class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BitsType(width: Int) =>
         s"$io.ReadBitsInt($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) "" else s", this, ${privateMemberName(RootIdentifier)}"
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(fp) => translator.translate(fp)
+            case None => "this"
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}"
+        }
         s"new ${types2class(t.name)}($io$addArgs)"
     }
   }
