@@ -28,15 +28,17 @@ case class NamedIdentifier(name: String) extends Identifier {
   Identifier.checkIdentifier(name)
 }
 
+case class InvalidIdentifier(id: String) extends RuntimeException
+
 object Identifier {
   val ReIdentifier = "^[a-z][a-z0-9_]*$".r
 
   def checkIdentifier(id: String): Unit = {
     id match {
       case ReIdentifier() =>
-      // name is valid, everything's fine
+        // name is valid, everything's fine
       case _ =>
-        throw new RuntimeException("invalid identifier: \"" + id + "\"")
+        throw new InvalidIdentifier(id)
     }
   }
 }
