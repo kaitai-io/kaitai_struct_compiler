@@ -403,7 +403,15 @@ class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: L
       case BitsType(width: Int) =>
         s"$io->read_bits_int($width)"
       case t: UserType =>
-        val addArgs = if (!t.isOpaque) s", this, ${privateMemberName(RootIdentifier)}" else ""
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(fp) => translator.translate(fp)
+            case None => "this"
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}"
+        }
         s"new ${type2class(t.name)}($io$addArgs)"
     }
   }
