@@ -13,5 +13,14 @@ object YAMLParseException {
   }
 
   def incompatibleVersion(expected: KSVersion, got: KSVersion, path: List[String]): YAMLParseException =
-    new YAMLParseException(s"this ksy requires compiler version at least $expected, but you have $got", path)
+    new YAMLParseException(
+      s"this ksy requires compiler version at least $expected, but you have $got",
+      path
+    )
+
+  def invalidId(id: String, entity: String, path: List[String]): YAMLParseException =
+    new YAMLParseException(
+      s"invalid $entity ID: '$id', expected /${Identifier.ReIdentifier.toString}/",
+      path
+    )
 }
