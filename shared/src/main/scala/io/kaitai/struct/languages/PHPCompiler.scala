@@ -234,7 +234,15 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BitsType(width: Int) =>
         s"$io->readBitsInt($width)"
       case t: UserType =>
-        val addArgs = if (!t.isOpaque) s", $$this, ${privateMemberName(RootIdentifier)}" else ""
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(fp) => translator.translate(fp)
+            case None => "$this"
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}"
+        }
         s"new ${types2classAbs(t.classSpec.get.name)}($io$addArgs)"
     }
   }
