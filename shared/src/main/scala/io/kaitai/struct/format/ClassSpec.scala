@@ -103,6 +103,12 @@ object ClassSpec {
   def typesFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): Map[String, ClassSpec] = {
     val srcMap = ParseUtils.asMapStr(src, path)
     srcMap.map { case (typeName, body) =>
+      try {
+        Identifier.checkIdentifier(typeName)
+      } catch {
+        case InvalidIdentifier(name) =>
+          throw YAMLParseException.invalidId(name, "type", path ++ List(name))
+      }
       typeName -> ClassSpec.fromYaml(body, path ++ List(typeName), metaDef)
     }
   }
@@ -111,9 +117,13 @@ object ClassSpec {
     val srcMap = ParseUtils.asMap(src, path)
     srcMap.map { case (key, body) =>
       val instName = ParseUtils.asStr(key, path)
-      val id = InstanceIdentifier(instName)
-      // TODO: check this conversion
-      id -> InstanceSpec.fromYaml(body, path ++ List(instName), metaDef, id)
+      try {
+        val id = InstanceIdentifier(instName)
+        id -> InstanceSpec.fromYaml(body, path ++ List(instName), metaDef, id)
+      } catch {
+        case InvalidIdentifier(name) =>
+          throw YAMLParseException.invalidId(name, "instance", path ++ List(name))
+      }
     }
   }
 
@@ -121,6 +131,12 @@ object ClassSpec {
     val srcMap = ParseUtils.asMap(src, path)
     srcMap.map { case (key, body) =>
       val enumName = ParseUtils.asStr(key, path)
+      try {
+        Identifier.checkIdentifier(enumName)
+      } catch {
+        case InvalidIdentifier(name) =>
+          throw YAMLParseException.invalidId(name, "enum", path ++ List(name))
+      }
       enumName -> EnumSpec.fromYaml(body, path ++ List(enumName))
     }
   }
