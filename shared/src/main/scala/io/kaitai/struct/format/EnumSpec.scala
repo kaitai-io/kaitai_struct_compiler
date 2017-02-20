@@ -15,7 +15,16 @@ object EnumSpec {
     val srcMap = ParseUtils.asMap(src, path)
     EnumSpec(srcMap.map { case (id, name) =>
       val idLong = ParseUtils.asLong(id, path)
-      idLong -> ParseUtils.asStr(name, path ++ List(idLong.toString))
+      val symbName = ParseUtils.asStr(name, path ++ List(idLong.toString))
+
+      try {
+        Identifier.checkIdentifier(symbName)
+      } catch {
+        case InvalidIdentifier(name) =>
+          throw YAMLParseException.invalidId(name, "enum member", path ++ List(idLong.toString))
+      }
+
+      idLong -> symbName
     })
   }
 }
