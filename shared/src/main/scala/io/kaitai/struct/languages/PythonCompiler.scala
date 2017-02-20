@@ -197,7 +197,15 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BitsType(width: Int) =>
         s"$io.read_bits_int($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) "" else ", self, self._root"
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(fp) => translator.translate(fp)
+            case None => "self"
+          }
+          s", $parent, self._root"
+        }
         s"${types2class(t.classSpec.get.name)}($io$addArgs)"
     }
   }
