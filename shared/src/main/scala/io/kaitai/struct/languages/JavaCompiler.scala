@@ -305,7 +305,15 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
       case BitsType(width: Int) =>
         s"$io.readBitsInt($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) "" else ", this, _root"
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(fp) => translator.translate(fp)
+            case None => "this"
+          }
+          s", $parent, _root"
+        }
         s"new ${types2class(t.name)}($io$addArgs)"
     }
   }
