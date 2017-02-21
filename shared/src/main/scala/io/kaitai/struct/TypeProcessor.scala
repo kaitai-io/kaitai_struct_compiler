@@ -2,7 +2,7 @@ package io.kaitai.struct
 
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeMismatchError, TypeUndecidedError}
+import io.kaitai.struct.translators._
 
 import scala.collection.mutable.ListBuffer
 
@@ -36,19 +36,18 @@ object TypeProcessor {
 
   def deriveValueTypes(topClass: ClassSpec) {
     val provider = new ClassTypeProvider(topClass)
-    // TODO: make more abstract translator subtype for type detection only
-    val translator = new RubyTranslator(provider)
+    val detector = new TypeDetector(provider)
 
     var iterNum = 1
     var hasChanged = false
     do {
       Log.typeProcValue.info(() => s"### deriveValueType: iteration #$iterNum")
-      hasChanged = deriveValueType(provider, translator, topClass)
+      hasChanged = deriveValueType(provider, detector, topClass)
       iterNum += 1
     } while (hasChanged)
   }
 
-  def deriveValueType(provider: ClassTypeProvider, translator: BaseTranslator, curClass: ClassSpec): Boolean = {
+  def deriveValueType(provider: ClassTypeProvider, detector: TypeDetector, curClass: ClassSpec): Boolean = {
     Log.typeProcValue.info(() => s"deriveValueType(${curClass.nameAsStr})")
     var hasChanged = false
 
@@ -60,7 +59,7 @@ object TypeProcessor {
             vi.dataType match {
               case None =>
                 try {
-                  val viType = translator.detectType(vi.value)
+                  val viType = detector.detectType(vi.value)
                   vi.dataType = Some(viType)
                   Log.typeProcValue.info(() => s"${instName.name} derived type: $viType")
                   hasChanged = true
@@ -80,7 +79,7 @@ object TypeProcessor {
     // Continue with all nested types
     curClass.types.foreach {
       case (_, classSpec) =>
-        hasChanged ||= deriveValueType(provider, translator, classSpec)
+        hasChanged ||= deriveValueType(provider, detector, classSpec)
     }
 
     hasChanged
@@ -251,9 +250,8 @@ object TypeProcessor {
             curClass
           case Some(parent) =>
             val provider = new ClassTypeProvider(curClass)
-            // TODO: make more abstract translator subtype for type detection only
-            val translator = new RubyTranslator(provider)
-            val parentType = translator.detectType(parent)
+            val detector = new TypeDetector(provider)
+            val parentType = detector.detectType(parent)
             Log.typeProcParent.info(() => s"..... enforced parent type = $parentType")
             parentType match {
               case ut: UserType =>
