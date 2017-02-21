@@ -129,7 +129,7 @@ object Expressions {
     val cast = P( "." ~ "as" ~ "<" ~ NAME ~ ">" ).map(
       typeName => (lhs: Ast.expr) => Ast.expr.CastToType(lhs, typeName)
     )
-    val attr = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id)).log()
+    val attr = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id))
     P( call | slice | cast | attr )
   }
 
