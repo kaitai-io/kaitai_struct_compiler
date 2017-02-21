@@ -7,14 +7,17 @@ import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompiler
 
 import scala.collection.mutable.ListBuffer
 
-class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends AbstractCompiler {
+class ClassCompiler(
+  val topClass: ClassSpec,
+  config: RuntimeConfig,
+  langObj: LanguageCompilerStatic,
+  outs: List[LanguageOutputWriter]
+) extends AbstractCompiler {
   val provider = new ClassTypeProvider(topClass)
-
   val topClassName = topClass.name
+  val lang: LanguageCompiler = langObj.getCompiler(provider, config, outs)
 
   override def compile {
-    lang.open(topClassName.head, provider)
-
     lang.fileHeader(topClassName.head)
     compileOpaqueClasses(topClass)
     compileClass(topClass)
@@ -157,10 +160,10 @@ object ClassCompiler {
       case CppCompiler =>
         val outSrc = new FileLanguageOutputWriter(s"$outPath.cpp", lang.indent)
         val outHdr = new FileLanguageOutputWriter(s"$outPath.h", lang.indent)
-        new ClassCompiler(topClass, new CppCompiler(config, outSrc, outHdr))
+        new ClassCompiler(topClass, config, lang, List(outSrc, outHdr))
       case _ =>
         val out = new FileLanguageOutputWriter(outPath, lang.indent)
-        new ClassCompiler(topClass, getCompiler(lang, config, out))
+        new ClassCompiler(topClass, config, lang, List(out))
     }
   }
 
@@ -174,23 +177,13 @@ object ClassCompiler {
       case CppCompiler =>
         val outSrc = new StringLanguageOutputWriter(lang.indent)
         val outHdr = new StringLanguageOutputWriter(lang.indent)
-        val cc = new ClassCompiler(topClass, new CppCompiler(config, outSrc, outHdr))
+        val cc = new ClassCompiler(topClass, config, lang, List(outSrc, outHdr))
         (outSrc, Some(outHdr), cc)
       case _ =>
         val out = new StringLanguageOutputWriter(lang.indent)
-        val cc = new ClassCompiler(topClass, getCompiler(lang, config, out))
+        val cc = new ClassCompiler(topClass, config, lang, List(out))
         (out, None, cc)
     }
-  }
-
-  private def getCompiler(lang: LanguageCompilerStatic, config: RuntimeConfig, out: LanguageOutputWriter) = lang match {
-    case CSharpCompiler => new CSharpCompiler(config, out)
-    case JavaCompiler => new JavaCompiler(config, out)
-    case JavaScriptCompiler => new JavaScriptCompiler(config, out)
-    case PerlCompiler => new PerlCompiler(config, out)
-    case PHPCompiler => new PHPCompiler(config, out)
-    case PythonCompiler => new PythonCompiler(config, out)
-    case RubyCompiler => new RubyCompiler(config, out)
   }
 
   /**

@@ -6,12 +6,10 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, JavaScriptTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
-import scala.collection.mutable.ListBuffer
-
-class JavaScriptCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(config, out)
+class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(typeProvider, config, out)
     with ObjectOrientedLanguage
     with UniversalDoc
     with AllocateIOLocalVar
@@ -423,6 +421,11 @@ object JavaScriptCompiler extends LanguageCompilerStatic
   override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig,
+    outs: List[LanguageOutputWriter]
+  ): LanguageCompiler = new JavaScriptCompiler(tp, config, outs.head)
 
   override def kstreamName: String = "KaitaiStream"
 

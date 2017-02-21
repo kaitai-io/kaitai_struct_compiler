@@ -7,8 +7,8 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, PHPTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
-class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(config, out)
+class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(typeProvider, config, out)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with UniversalFooter
@@ -26,10 +26,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   // FIXME: special hack to provide an instance of PHPCompiler that knows of PHP namespace
   // to the translator
-  override def open(topClassName: String, tp: ClassTypeProvider): Unit = {
-    _typeProvider = Some(tp)
-    _translator = Some(new PHPTranslator(tp, this))
-  }
+  override val translator = new PHPTranslator(typeProvider, this)
 
   override def universalFooter: Unit = {
     out.dec
@@ -374,6 +371,11 @@ object PHPCompiler extends LanguageCompilerStatic
   override def getTranslator(tp: TypeProvider): BaseTranslator = ???
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig,
+    outs: List[LanguageOutputWriter]
+  ): LanguageCompiler = new PHPCompiler(tp, config, outs.head)
 
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 

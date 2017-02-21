@@ -6,10 +6,14 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeProvider}
-import io.kaitai.struct.{ClassCompiler, LanguageOutputWriter, RuntimeConfig, TypeProcessor}
+import io.kaitai.struct._
 
-class CppCompiler(config: RuntimeConfig, outSrc: LanguageOutputWriter, outHdr: LanguageOutputWriter)
-  extends LanguageCompiler(config, outSrc)
+class CppCompiler(
+  typeProvider: ClassTypeProvider,
+  config: RuntimeConfig,
+  outSrc: LanguageOutputWriter,
+  outHdr: LanguageOutputWriter
+) extends LanguageCompiler(typeProvider, config, outSrc)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with FixedContentsUsingArrayByteLiteral
@@ -654,6 +658,11 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
   override def getTranslator(tp: TypeProvider): BaseTranslator = new CppTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = topClassName
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig,
+    outs: List[LanguageOutputWriter]
+  ): LanguageCompiler = new CppCompiler(tp, config, outs(0), outs(1))
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"

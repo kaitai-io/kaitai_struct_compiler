@@ -8,7 +8,13 @@ import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
 
 import scala.collection.mutable.ListBuffer
 
-abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter) {
+abstract class LanguageCompiler(
+  typeProvider: ClassTypeProvider,
+  config: RuntimeConfig,
+  out: LanguageOutputWriter
+) {
+  val translator: BaseTranslator = getStatic.getTranslator(typeProvider)
+
   /**
     * Declares whether language is capable of doing inner classes (i.e. classes
     * nested inside each other) or not. Affects calling sequence of rendering
@@ -32,13 +38,7 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   protected var _typeProvider: Option[ClassTypeProvider] = None
 
   def getStatic: LanguageCompilerStatic
-  def open(topClassName: String, tp: ClassTypeProvider): Unit = {
-    _typeProvider = Some(tp)
-    _translator = Some(getStatic.getTranslator(tp))
-  }
   def close = out.close
-  def typeProvider: ClassTypeProvider = _typeProvider.get
-  def translator: BaseTranslator = _translator.get
 
   def debug = config.debug
 

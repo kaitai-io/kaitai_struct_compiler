@@ -6,10 +6,10 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
-class CSharpCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(config, out)
+class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(typeProvider, config, out)
     with ObjectOrientedLanguage
     with AllocateIOLocalVar
     with EveryReadIsExpression
@@ -372,6 +372,12 @@ object CSharpCompiler extends LanguageCompilerStatic
   override def getTranslator(tp: TypeProvider): BaseTranslator = new CSharpTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
+
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig,
+    outs: List[LanguageOutputWriter]
+  ): LanguageCompiler = new CSharpCompiler(tp, config, outs.head)
 
   /**
     * Determine .NET data type corresponding to a KS data type.

@@ -6,10 +6,10 @@ import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
-class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(config, out)
+class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(typeProvider, config, out)
     with ObjectOrientedLanguage
     with EveryReadIsExpression
     with UniversalFooter
@@ -468,6 +468,12 @@ object JavaCompiler extends LanguageCompilerStatic
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
   override def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String): String =
     s"$outDir/src/${config.javaPackage.replace('.', '/')}/${outFileName(topClassName)}"
+
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig,
+    outs: List[LanguageOutputWriter]
+  ): LanguageCompiler = new JavaCompiler(tp, config, outs.head)
 
   def kaitaiType2JavaType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
 

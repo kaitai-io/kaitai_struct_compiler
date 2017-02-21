@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.{UserType, _}
@@ -8,8 +8,8 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{NoNeedForFullClassPath, _}
 import io.kaitai.struct.translators.{BaseTranslator, PerlTranslator, TypeProvider}
 
-class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(config, out)
+class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
+  extends LanguageCompiler(typeProvider, config, out)
     with UniversalFooter
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
@@ -335,6 +335,11 @@ object PerlCompiler extends LanguageCompilerStatic
   override def getTranslator(tp: TypeProvider): BaseTranslator = new PerlTranslator(tp)
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
   override def indent: String = "    "
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig,
+    outs: List[LanguageOutputWriter]
+  ): LanguageCompiler = new PerlCompiler(tp, config, outs.head)
 
   def packageName: String = "IO::KaitaiStruct"
   override def kstreamName: String = s"$packageName::Stream"

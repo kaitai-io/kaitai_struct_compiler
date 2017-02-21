@@ -4,7 +4,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.components.LanguageCompilerStatic
+import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
 
 import scala.collection.mutable.ListBuffer
@@ -379,6 +379,13 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
   override def indent: String = "\t"
   override def outFileName(topClassName: String): String = s"$topClassName.dot"
   override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
+
+  // FIXME: Unused, should be probably separated from LanguageCompilerStatic
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig,
+    outs: List[LanguageOutputWriter]
+  ): LanguageCompiler = ???
 
   def type2class(name: List[String]) = name.last
   def type2display(name: List[String]) = name.map(Utils.upperCamelCase).mkString("::")
