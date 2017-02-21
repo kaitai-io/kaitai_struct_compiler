@@ -137,9 +137,10 @@ class ClassCompiler(val topClass: ClassSpec, val lang: LanguageCompiler) extends
     lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
   }
 
-  def isUnalignedBits(dt: BaseType) =
+  def isUnalignedBits(dt: BaseType): Boolean =
     dt match {
       case _: BitsType | BitsType1 => true
+      case et: EnumType => isUnalignedBits(et.basedOn)
       case _ => false
     }
 }
