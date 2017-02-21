@@ -52,6 +52,8 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(container)}->at(${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
+  override def doCast(value: Ast.expr, typeName: String): String =
+    s"static_cast<${CppCompiler.type2class(List(typeName))}*>(${translate(value)})"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {
