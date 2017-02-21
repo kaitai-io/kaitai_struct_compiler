@@ -126,8 +126,11 @@ object Expressions {
   val trailer: P[Ast.expr => Ast.expr] = {
     val call = P("(" ~ arglist ~ ")").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Call(lhs, args)}
     val slice = P("[" ~ test ~ "]").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Subscript(lhs, args)}
-    val attr = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id))
-    P( call | slice | attr )
+    val cast = P( "." ~ "as" ~ "<" ~ NAME ~ ">" ).map(
+      typeName => (lhs: Ast.expr) => Ast.expr.CastToType(lhs, typeName)
+    )
+    val attr = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id)).log()
+    P( call | slice | cast | attr )
   }
 
   val exprlist: P[Seq[Ast.expr]] = P( expr.rep(1, sep = ",") ~ ",".? )

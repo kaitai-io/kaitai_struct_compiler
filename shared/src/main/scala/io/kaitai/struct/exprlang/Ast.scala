@@ -40,6 +40,7 @@ object Ast {
     case class EnumById(enumName: identifier, id: expr) extends expr
 
     case class Attribute(value: expr, attr: identifier) extends expr
+    case class CastToType(value: expr, typeName: identifier) extends expr
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
