@@ -9,7 +9,7 @@ trait LanguageCompilerStatic {
   def outFileName(topClassName: String): String
   def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String) = s"$outDir/${outFileName(topClassName)}"
   def getCompiler(tp: ClassTypeProvider, config: RuntimeConfig, outs: List[LanguageOutputWriter]): LanguageCompiler
-  def getTranslator(tp: TypeProvider): BaseTranslator
+  def getTranslator(tp: TypeProvider, config: RuntimeConfig): BaseTranslator
 }
 
 object LanguageCompilerStatic {

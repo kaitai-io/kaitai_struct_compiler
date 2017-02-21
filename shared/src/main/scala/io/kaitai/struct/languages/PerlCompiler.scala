@@ -332,7 +332,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
 object PerlCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new PerlTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new PerlTranslator(tp)
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
   override def indent: String = "    "
   override def getCompiler(

@@ -463,7 +463,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
 object JavaCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
   override def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String): String =

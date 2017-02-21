@@ -418,7 +418,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
 object JavaScriptCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaScriptTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaScriptTranslator(tp)
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
   override def getCompiler(

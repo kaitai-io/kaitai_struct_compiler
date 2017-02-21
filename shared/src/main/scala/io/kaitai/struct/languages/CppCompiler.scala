@@ -655,7 +655,7 @@ class CppCompiler(
 }
 
 object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new CppTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new CppTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = topClassName
   override def getCompiler(

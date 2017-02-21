@@ -1,12 +1,12 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{RuntimeConfig, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType.IntType
 import io.kaitai.struct.languages.PHPCompiler
 
-class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTranslator(provider) {
+class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + Utils.hexEscapeByteArray(arr) + "\""
 
@@ -34,7 +34,7 @@ class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTrans
   override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
-    val enumClass = lang.types2classAbs(enumTypeAbs)
+    val enumClass = types2classAbs(enumTypeAbs)
     s"$enumClass::${label.toUpperCase}"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String) =
@@ -79,4 +79,17 @@ class PHPTranslator(provider: TypeProvider, lang: PHPCompiler) extends BaseTrans
   }
   override def arraySize(a: expr): String =
     s"count(${translate(a)})"
+
+  val namespaceRef = if (config.phpNamespace.isEmpty) {
+    ""
+  } else {
+    "\\" + config.phpNamespace
+  }
+
+  def types2classAbs(names: List[String]) =
+    names match {
+      case List("kaitai_struct") => PHPCompiler.kstructName
+      case _ =>
+        namespaceRef + "\\" + PHPCompiler.types2classRel(names)
+    }
 }

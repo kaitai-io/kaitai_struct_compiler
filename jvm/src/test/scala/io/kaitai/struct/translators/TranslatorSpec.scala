@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.RuntimeConfig
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.ClassSpec
@@ -340,7 +341,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaCompiler -> "((Block) (other())).bar()",
       JavaScriptCompiler -> "this.other.bar",
       PerlCompiler -> "$self->other()->bar()",
-      PHPCompiler -> "$this->foo()->bar()",
+      PHPCompiler -> "$this->other()->bar()",
       PythonCompiler -> "self.other.bar",
       RubyCompiler -> "other.bar"
     )),
@@ -359,7 +360,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       test(s"$langName:$src") {
         eo match {
           case Some(e) =>
-            val tr: BaseTranslator = langObj.getTranslator(tp)
+            val tr: BaseTranslator = langObj.getTranslator(tp, RuntimeConfig())
             expOut.get(langObj) match {
               case Some(expResult) =>
                 tr.detectType(e) should be(expType)

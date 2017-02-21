@@ -24,9 +24,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
 
   override def getStatic = PHPCompiler
 
-  // FIXME: special hack to provide an instance of PHPCompiler that knows of PHP namespace
-  // to the translator
-  override val translator = new PHPTranslator(typeProvider, this)
+  override val translator: PHPTranslator = new PHPTranslator(typeProvider, config)
 
   override def universalFooter: Unit = {
     out.dec
@@ -70,8 +68,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     out.puts(
       "public function __construct(" +
       kstreamName + " $io, " +
-      types2classAbs(parentClassName) + " $parent = null, " +
-      types2classAbs(rootClassName) + " $root = null) {"
+      translator.types2classAbs(parentClassName) + " $parent = null, " +
+      translator.types2classAbs(rootClassName) + " $root = null) {"
     )
     out.inc
     out.puts("parent::__construct($io, $parent, $root);")
@@ -240,7 +238,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
           }
           s", $parent, ${privateMemberName(RootIdentifier)}"
         }
-        s"new ${types2classAbs(t.classSpec.get.name)}($io$addArgs)"
+        s"new ${translator.types2classAbs(t.classSpec.get.name)}($io$addArgs)"
     }
   }
 
@@ -327,19 +325,6 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
 
   override def publicMemberName(id: Identifier) = idToStr(id)
 
-  def namespaceRef = if (config.phpNamespace.isEmpty) {
-    ""
-  } else {
-    "\\" + config.phpNamespace
-  }
-
-  def types2classAbs(names: List[String]) =
-    names match {
-      case List("kaitai_struct") => kstructName
-      case _ =>
-        namespaceRef + "\\" + types2classRel(names)
-    }
-
   /**
     * Determine PHP data type corresponding to a KS data type. Currently unused due to
     * problems with nullable types (which were introduced only in PHP 7.1).
@@ -356,7 +341,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
 
       case _: StrType | _: BytesType => "string"
 
-      case t: UserType => types2classAbs(t.classSpec.get.name)
+      case t: UserType => translator.types2classAbs(t.classSpec.get.name)
       case t: EnumType => "int"
 
       case ArrayType(_) => "array"
@@ -367,8 +352,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
 object PHPCompiler extends LanguageCompilerStatic
   with StreamStructNames
   with UpperCamelCaseClasses {
-  // FIXME: not really used, as we reimplement PHPCompiler.open()
-  override def getTranslator(tp: TypeProvider): BaseTranslator = ???
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig): PHPTranslator = new PHPTranslator(tp, config)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
   override def getCompiler(

@@ -15,7 +15,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
   val topClassName = List(topClass.meta.get.id)
 
   val provider = new ClassTypeProvider(topClass)
-  val translator = getTranslator(provider)
+  val translator = getTranslator(provider, RuntimeConfig())
   val links = ListBuffer[(String, String, String)]()
   val extraClusterLines = new StringLanguageOutputWriter(GraphvizClassCompiler.indent)
 
@@ -378,7 +378,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
 object GraphvizClassCompiler extends LanguageCompilerStatic {
   override def indent: String = "\t"
   override def outFileName(topClassName: String): String = s"$topClassName.dot"
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig): BaseTranslator = new RubyTranslator(tp)
 
   // FIXME: Unused, should be probably separated from LanguageCompilerStatic
   override def getCompiler(

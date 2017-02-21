@@ -357,7 +357,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
 
 object RubyCompiler extends LanguageCompilerStatic
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new RubyTranslator(tp)
   override def outFileName(topClassName: String): String = s"$topClassName.rb"
   override def indent: String = "  "
   override def getCompiler(

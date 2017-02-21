@@ -369,7 +369,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
 object CSharpCompiler extends LanguageCompilerStatic
   with StreamStructNames
   with UpperCamelCaseClasses {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new CSharpTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new CSharpTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
 

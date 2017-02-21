@@ -301,7 +301,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
 object PythonCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new PythonTranslator(tp)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"$topClassName.py"
   override def getCompiler(

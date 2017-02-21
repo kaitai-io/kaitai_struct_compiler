@@ -13,7 +13,7 @@ abstract class LanguageCompiler(
   config: RuntimeConfig,
   out: LanguageOutputWriter
 ) {
-  val translator: BaseTranslator = getStatic.getTranslator(typeProvider)
+  val translator: BaseTranslator = getStatic.getTranslator(typeProvider, config)
 
   /**
     * Declares whether language is capable of doing inner classes (i.e. classes
@@ -33,9 +33,6 @@ abstract class LanguageCompiler(
     *         (false)
     */
   def innerEnums: Boolean = true
-
-  protected var _translator: Option[BaseTranslator] = None
-  protected var _typeProvider: Option[ClassTypeProvider] = None
 
   def getStatic: LanguageCompilerStatic
   def close = out.close
