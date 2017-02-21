@@ -77,4 +77,24 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
         }
     }
   }
+
+  override def resolveType(typeName: String): BaseType = resolveType(nowClass, typeName)
+
+  def resolveType(inClass: ClassSpec, typeName: String): BaseType = {
+    inClass.types.get(typeName) match {
+      case Some(spec) =>
+        val ut = UserTypeInstream(spec.name, None)
+        ut.classSpec = Some(spec)
+        ut
+      case None =>
+        // let's try upper levels of hierarchy
+        inClass.upClass match {
+          case Some(upClass) => resolveType(upClass, typeName)
+          case None =>
+            throw new RuntimeException(
+              s"Unable to find type '$typeName', searching from ${nowClass.name.mkString("::")}"
+            )
+        }
+    }
+  }
 }

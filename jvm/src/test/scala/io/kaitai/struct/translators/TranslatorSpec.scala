@@ -333,6 +333,18 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "\"1234fe\".to_i(16)"
     )),
 
+    // casts
+    full("other.as<block>.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "static_cast<block_t>(other())->bar()",
+      CSharpCompiler -> "((Block) (Foo)).Bar",
+      JavaCompiler -> "((Block) (other())).bar()",
+      JavaScriptCompiler -> "this.other.bar",
+      PerlCompiler -> "$self->other()->bar()",
+      PHPCompiler -> "$this->foo()->bar()",
+      PythonCompiler -> "self.other.bar",
+      RubyCompiler -> "other.bar"
+    )),
+
     // very simple workaround for Scala not having optional trailing commas
     everybody("999", "999")
   )
@@ -370,6 +382,9 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     override def resolveEnum(enumName: String) =
       throw new NotImplementedError
+
+    override def resolveType(typeName: String): BaseType =
+      throw new NotImplementedError
   }
 
   case class Always(t: BaseType) extends FakeTypeProvider {
@@ -389,6 +404,12 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
         case (List("block"), "bar") => CalcStrType
         case (List("block"), "inner") => userType("innerblock")
         case (List("innerblock"), "baz") => CalcIntType
+      }
+    }
+
+    override def resolveType(typeName: String): BaseType = {
+      typeName match {
+        case "top_class" | "block" | "innerblock" => userType(typeName)
       }
     }
   }

@@ -10,6 +10,7 @@ trait TypeProvider {
   def determineType(attrName: String): BaseType
   def determineType(inClass: ClassSpec, attrName: String): BaseType
   def resolveEnum(enumName: String): EnumSpec
+  def resolveType(typeName: String): BaseType
 }
 
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
@@ -131,6 +132,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case _ =>
             doArrayLiteral(t, values)
         }
+      case Ast.expr.CastToType(value, typeName) =>
+        doCast(value, typeName.name)
     }
   }
 
@@ -198,6 +201,7 @@ abstract class BaseTranslator(val provider: TypeProvider) {
 
   def doSubscript(container: expr, idx: expr): String
   def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String
+  def doCast(value: Ast.expr, typeName: String): String = translate(value)
 
   // Literals
   def doIntLiteral(n: BigInt): String = n.toString
@@ -369,6 +373,8 @@ abstract class BaseTranslator(val provider: TypeProvider) {
           case Int1Type(_) => CalcBytesType
           case t => ArrayType(t)
         }
+      case Ast.expr.CastToType(value, typeName) =>
+        provider.resolveType(typeName.name)
     }
   }
 
