@@ -335,8 +335,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     // casts
     full("other.as<block>.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
-      CppCompiler -> "static_cast<block_t>(other())->bar()",
-      CSharpCompiler -> "((Block) (Foo)).Bar",
+      CppCompiler -> "static_cast<block_t*>(other())->bar()",
+      CSharpCompiler -> "((Block) (Other)).Bar",
       JavaCompiler -> "((Block) (other())).bar()",
       JavaScriptCompiler -> "this.other.bar",
       PerlCompiler -> "$self->other()->bar()",
