@@ -130,6 +130,7 @@ class ExpressionsSpec extends FunSpec {
       )
     }
 
+    // Boolean literals
     it("parses true") {
       Expressions.parse("true") should be (Bool(true))
     }
@@ -140,6 +141,50 @@ class ExpressionsSpec extends FunSpec {
 
     it("parses truer") {
       Expressions.parse("truer") should be (Name(identifier("truer")))
+    }
+
+    // Casts
+    it("parses 123.as<u4>") {
+      Expressions.parse("123.as<u4>") should be (CastToType(IntNum(123),identifier("u4")))
+    }
+
+    it("parses (123).as<u4>") {
+      Expressions.parse("(123).as<u4>") should be (CastToType(IntNum(123),identifier("u4")))
+    }
+
+    it("parses \"str\".as<x>") {
+      Expressions.parse("\"str\".as<x>") should be (CastToType(Str("str"),identifier("x")))
+    }
+
+    it("parses foo.as<x>") {
+      Expressions.parse("foo.as<x>") should be (CastToType(Name(identifier("foo")),identifier("x")))
+    }
+
+    it("parses foo.as < x  >  ") {
+      Expressions.parse("foo.as < x  >  ") should be (CastToType(Name(identifier("foo")),identifier("x")))
+    }
+
+    it("parses foo.as") {
+      Expressions.parse("foo.as") should be (Attribute(Name(identifier("foo")),identifier("as")))
+    }
+
+    it("parses foo.as<x") {
+      Expressions.parse("foo.as<x") should be (
+        Compare(
+          Attribute(Name(identifier("foo")),identifier("as")),
+          Lt,
+          Name(identifier("x"))
+        )
+      )
+    }
+
+    // Attribute / method call
+    it("parses 123.to_s") {
+      Expressions.parse("123.to_s") should be (Attribute(IntNum(123),identifier("to_s")))
+    }
+
+    it("parses 123.4.to_s") {
+      Expressions.parse("123.4.to_s") should be (Attribute(FloatNum(123.4),identifier("to_s")))
     }
   }
 }
