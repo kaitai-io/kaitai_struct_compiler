@@ -5,7 +5,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeDetector, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
 class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
@@ -419,7 +419,7 @@ object CSharpCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"
 
-      case SwitchType(_, cases) => kaitaiType2NativeType(BaseTranslator.combineTypes(cases.values))
+      case SwitchType(_, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
     }
   }
 

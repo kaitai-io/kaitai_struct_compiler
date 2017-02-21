@@ -5,7 +5,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeDetector, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
 class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
@@ -525,7 +525,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
 
-      case SwitchType(_, cases) => kaitaiType2JavaTypePrim(BaseTranslator.combineTypes(cases.values))
+      case SwitchType(_, cases) => kaitaiType2JavaTypePrim(TypeDetector.combineTypes(cases.values))
     }
   }
 
@@ -570,7 +570,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
-      case SwitchType(_, cases) => kaitaiType2JavaTypeBoxed(BaseTranslator.combineTypes(cases.values))
+      case SwitchType(_, cases) => kaitaiType2JavaTypeBoxed(TypeDetector.combineTypes(cases.values))
     }
   }
 

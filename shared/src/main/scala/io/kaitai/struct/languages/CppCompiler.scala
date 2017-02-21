@@ -5,7 +5,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeProvider}
+import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeDetector, TypeProvider}
 import io.kaitai.struct._
 
 class CppCompiler(
@@ -607,7 +607,7 @@ class CppCompiler(
       case KaitaiStructType => s"$kstructName*"
 
       case SwitchType(on, cases) =>
-        kaitaiType2NativeType(BaseTranslator.combineTypes(
+        kaitaiType2NativeType(TypeDetector.combineTypes(
           // C++ does not have a concept of AnyType, and common use case "lots of incompatible UserTypes
           // for cases + 1 BytesType for else" combined would result in exactly AnyType - so we try extra
           // hard to avoid that here with this pre-filtering. In C++, "else" case with raw byte array would
