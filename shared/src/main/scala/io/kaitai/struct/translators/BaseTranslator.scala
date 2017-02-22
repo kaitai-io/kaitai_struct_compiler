@@ -2,7 +2,8 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.{cmpop, expr}
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 
 abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(provider) {
   def translate(v: Ast.expr): String = {
@@ -194,7 +195,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   def doFloatLiteral(n: Any): String = n.toString
   def doStringLiteral(s: String): String = "\"" + s + "\""
   def doBoolLiteral(n: Boolean): String = n.toString
-  def doArrayLiteral(t: BaseType, value: Seq[expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
+  def doArrayLiteral(t: DataType, value: Seq[expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
 
   def doLocalName(s: String): String = doName(s)

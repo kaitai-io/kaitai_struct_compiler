@@ -1,9 +1,9 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{BaseType, IntType}
-import io.kaitai.struct.languages.PHPCompiler
 
 class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
@@ -17,7 +17,7 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doBoolLiteral(n: Boolean): String = if (n) "1" else "0"
 
-  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String =
+  override def doArrayLiteral(t: DataType, value: Seq[expr]): String =
     "(" + value.map((v) => translate(v)).mkString(", ") + ")"
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =

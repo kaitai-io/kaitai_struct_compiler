@@ -1,6 +1,6 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.exprlang.DataType.BaseType
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.format.{ClassSpec, EnumSpec}
 
 /**
@@ -10,8 +10,8 @@ import io.kaitai.struct.format.{ClassSpec, EnumSpec}
   */
 trait TypeProvider {
   def nowClass: ClassSpec
-  def determineType(attrName: String): BaseType
-  def determineType(inClass: ClassSpec, attrName: String): BaseType
+  def determineType(attrName: String): DataType
+  def determineType(inClass: ClassSpec, attrName: String): DataType
   def resolveEnum(enumName: String): EnumSpec
-  def resolveType(typeName: String): BaseType
+  def resolveType(typeName: String): DataType
 }

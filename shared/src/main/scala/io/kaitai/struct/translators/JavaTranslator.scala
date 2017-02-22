@@ -3,7 +3,8 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
-import io.kaitai.struct.exprlang.DataType.{BaseType, IntType}
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -14,7 +15,7 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${literal}${suffix}"
   }
 
-  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
+  override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
     s"new ArrayList<$javaType>(Arrays.asList($commaStr))"

@@ -1,10 +1,11 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, PHPTranslator, TypeProvider}
+import io.kaitai.struct.translators.{PHPTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
 class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
@@ -81,7 +82,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     out.inc
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     attrName match {
       case ParentIdentifier | RootIdentifier | IoIdentifier =>
         // just ignore it for now
@@ -90,7 +91,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     }
   }
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     attrName match {
       case ParentIdentifier | RootIdentifier =>
         // just ignore it for now
@@ -166,7 +167,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
@@ -178,7 +179,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     out.puts(s"${privateMemberName(id)}[] = $expr;")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
@@ -191,7 +192,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     out.puts(s"${privateMemberName(id)}[] = $expr;")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
@@ -204,7 +205,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     out.puts(s"${privateMemberName(id)}[] = ${translator.doLocalName("_")};")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
@@ -214,7 +215,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io->read${Utils.capitalize(t.apiCall)}()"
@@ -278,7 +279,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
 
   override def switchEnd(): Unit = universalFooter
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"public function ${idToStr(instName)}() {")
     out.inc
   }
@@ -332,7 +333,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     * @param attrType KS data type
     * @return PHP data type
     */
-  def kaitaiType2NativeType(attrType: BaseType): String = {
+  def kaitaiType2NativeType(attrType: DataType): String = {
     attrType match {
       case _: IntType => "int"
       case _: FloatType => "float"

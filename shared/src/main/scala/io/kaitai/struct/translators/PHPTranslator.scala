@@ -1,10 +1,10 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{RuntimeConfig, Utils}
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.IntType
 import io.kaitai.struct.languages.PHPCompiler
+import io.kaitai.struct.{RuntimeConfig, Utils}
 
 class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =

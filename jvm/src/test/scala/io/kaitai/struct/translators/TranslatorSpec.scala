@@ -1,7 +1,8 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.RuntimeConfig
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
@@ -376,7 +377,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   }
 
   type ResultMap = Map[LanguageCompilerStatic, String]
-  type TestSpec = (String, TypeProvider, BaseType, ResultMap)
+  type TestSpec = (String, TypeProvider, DataType, ResultMap)
 
   abstract class FakeTypeProvider extends TypeProvider {
     val nowClass = ClassSpec.opaquePlaceholder(List("top_class"))
@@ -384,23 +385,23 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     override def resolveEnum(enumName: String) =
       throw new NotImplementedError
 
-    override def resolveType(typeName: String): BaseType =
+    override def resolveType(typeName: String): DataType =
       throw new NotImplementedError
   }
 
-  case class Always(t: BaseType) extends FakeTypeProvider {
-    override def determineType(name: String): BaseType = t
-    override def determineType(inClass: ClassSpec, name: String): BaseType = t
+  case class Always(t: DataType) extends FakeTypeProvider {
+    override def determineType(name: String): DataType = t
+    override def determineType(inClass: ClassSpec, name: String): DataType = t
   }
 
   case object FooBarProvider extends FakeTypeProvider {
-    override def determineType(name: String): BaseType = {
+    override def determineType(name: String): DataType = {
       name match {
         case "foo" => userType("block")
       }
     }
 
-    override def determineType(inClass: ClassSpec, name: String): BaseType = {
+    override def determineType(inClass: ClassSpec, name: String): DataType = {
       (inClass.name, name) match {
         case (List("block"), "bar") => CalcStrType
         case (List("block"), "inner") => userType("innerblock")
@@ -408,7 +409,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       }
     }
 
-    override def resolveType(typeName: String): BaseType = {
+    override def resolveType(typeName: String): DataType = {
       typeName match {
         case "top_class" | "block" | "innerblock" => userType(typeName)
       }
@@ -425,17 +426,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
   lazy val ALL_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.values
 
-  def full(src: String, srcType: BaseType, expType: BaseType, expOut: ResultMap): TestSpec =
+  def full(src: String, srcType: DataType, expType: DataType, expOut: ResultMap): TestSpec =
     (src, Always(srcType), expType, expOut)
 
-  def full(src: String, tp: TypeProvider, expType: BaseType, expOut: ResultMap): TestSpec =
+  def full(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap): TestSpec =
     (src, tp, expType, expOut)
 
-  def everybody(src: String, expOut: String, expType: BaseType = CalcIntType): TestSpec = {
+  def everybody(src: String, expOut: String, expType: DataType = CalcIntType): TestSpec = {
     (src, Always(CalcIntType), expType, ALL_LANGS.map((langObj) => langObj -> expOut).toMap)
   }
 
-  def everybodyExcept(src: String, commonExpOut: String, rm: ResultMap, expType: BaseType = CalcIntType): TestSpec = {
+  def everybodyExcept(src: String, commonExpOut: String, rm: ResultMap, expType: DataType = CalcIntType): TestSpec = {
     (src, Always(CalcIntType), expType, ALL_LANGS.map((langObj) =>
       langObj -> rm.getOrElse(langObj, commonExpOut)
     ).toMap)

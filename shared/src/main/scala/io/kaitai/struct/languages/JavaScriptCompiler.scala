@@ -1,11 +1,12 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, JavaScriptTranslator, TypeProvider}
+import io.kaitai.struct.translators.{JavaScriptTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
 class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
@@ -99,9 +100,9 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
     out.puts("}")
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
   override def universalDoc(doc: String): Unit = {
     // JSDoc docstring style: http://usejsdoc.org/about-getting-started.html
@@ -172,7 +173,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
   override def alignToByte(io: String): Unit =
     out.puts(s"$io.alignToByte();")
 
-  override def attrDebugStart(attrId: Identifier, attrType: BaseType, io: Option[String], rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], rep: RepeatSpec): Unit = {
     if (!attrDebugNeeded(attrId))
       return
 
@@ -191,7 +192,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
     out.puts(s"$debugName = { $ioProps${if (ioProps != "" && enumNameProps != "") ", " else ""}$enumNameProps };")
   }
 
-  override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
     if (!attrDebugNeeded(attrId))
       return
     val debugName = attrDebugName(attrId, rep, true)
@@ -209,7 +210,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
     out.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
@@ -228,7 +229,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
     out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
@@ -247,7 +248,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
@@ -262,7 +263,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
     out.puts(s"${privateMemberName(id)}.push(${translator.doName("_")});")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
@@ -272,10 +273,10 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
-  override def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit =
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"var $id = $expr;")
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall)}()"
@@ -332,7 +333,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
   override def switchEnd(): Unit =
     out.puts("}")
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"Object.defineProperty(${type2class(className.last)}.prototype, '${publicMemberName(instName)}', {")
     out.inc
     out.puts("get: function() {")

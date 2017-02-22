@@ -1,22 +1,23 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{TypeMismatchError, TypeProvider, TypeUndecidedError}
+import io.kaitai.struct.translators.{TypeProvider, TypeUndecidedError}
 
 class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
   var nowClass = topClass
 
-  var _currentIteratorType: Option[BaseType] = None
-  var _currentSwitchType: Option[BaseType] = None
-  def currentIteratorType: BaseType = _currentIteratorType.get
-  def currentSwitchType: BaseType = _currentSwitchType.get
+  var _currentIteratorType: Option[DataType] = None
+  var _currentSwitchType: Option[DataType] = None
+  def currentIteratorType: DataType = _currentIteratorType.get
+  def currentSwitchType: DataType = _currentSwitchType.get
 
-  override def determineType(attrName: String): BaseType = {
+  override def determineType(attrName: String): DataType = {
     determineType(nowClass, attrName)
   }
 
-  override def determineType(inClass: ClassSpec, attrName: String): BaseType = {
+  override def determineType(inClass: ClassSpec, attrName: String): DataType = {
     attrName match {
       case "_root" =>
         makeUserType(topClass)
@@ -49,7 +50,7 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
     }
   }
 
-  def makeUserType(csl: ClassSpecLike): BaseType = {
+  def makeUserType(csl: ClassSpecLike): DataType = {
     csl match {
       case GenericStructClassSpec =>
         KaitaiStructType
@@ -78,9 +79,9 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
     }
   }
 
-  override def resolveType(typeName: String): BaseType = resolveType(nowClass, typeName)
+  override def resolveType(typeName: String): DataType = resolveType(nowClass, typeName)
 
-  def resolveType(inClass: ClassSpec, typeName: String): BaseType = {
+  def resolveType(inClass: ClassSpec, typeName: String): DataType = {
     inClass.types.get(typeName) match {
       case Some(spec) =>
         val ut = UserTypeInstream(spec.name, None)

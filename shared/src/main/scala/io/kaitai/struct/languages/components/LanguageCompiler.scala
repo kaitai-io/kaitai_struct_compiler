@@ -1,7 +1,8 @@
 package io.kaitai.struct.languages.components
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.DataType.{BaseType, BooleanType}
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{BaseTranslator, TypeMismatchError}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
@@ -61,8 +62,8 @@ abstract class LanguageCompiler(
   def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {}
   def classDestructorFooter: Unit = {}
 
-  def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit
-  def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit
+  def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
+  def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
   def attributeDoc(id: Identifier, doc: String): Unit = {}
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit
@@ -75,14 +76,14 @@ abstract class LanguageCompiler(
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter(expr: Ast.expr): Unit
 
-  def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit
+  def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit
   def condRepeatEosFooter: Unit
 
-  def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
+  def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
   def condRepeatExprFooter: Unit
 
-  def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
-  def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
+  def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
+  def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
 
   def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
 
@@ -95,12 +96,12 @@ abstract class LanguageCompiler(
 
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
-  def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
-  def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit
+  def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
+  def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit
   def instanceReturn(instName: InstanceIdentifier): Unit
-  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr)
+  def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr)
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit
 

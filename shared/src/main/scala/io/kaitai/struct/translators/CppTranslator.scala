@@ -3,14 +3,15 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.languages.CppCompiler
 
 class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   // TODO: add string escaping
   override def doStringLiteral(s: String): String = "std::string(\"" + s + "\")"
 
-  override def doArrayLiteral(t: BaseType, values: Seq[expr]): String =
+  override def doArrayLiteral(t: DataType, values: Seq[expr]): String =
     throw new RuntimeException("C++ literal arrays are not implemented yet")
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =

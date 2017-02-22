@@ -2,7 +2,8 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{RubyTranslator, TypeProvider}
@@ -83,9 +84,9 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     universalFooter
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     attrName match {
       case RootIdentifier | ParentIdentifier =>
         // ignore, they are already added in Kaitai::Struct::Struct
@@ -156,7 +157,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
   override def alignToByte(io: String): Unit =
     out.puts(s"$io.align_to_byte")
 
-  override def attrDebugStart(attrId: Identifier, attrType: BaseType, ios: Option[String], rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
       val name = attrId match {
         case NamedIdentifier(name) => name
@@ -174,7 +175,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     }
   }
 
-  override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
     val name = attrId match {
       case NamedIdentifier(name) => name
       case InstanceIdentifier(name) => name
@@ -195,7 +196,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
 
@@ -206,7 +207,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} << $expr")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = Array.new(${expression(repeatExpr)})")
     out.puts(s"${privateMemberName(id)} = Array.new(${expression(repeatExpr)})")
@@ -220,7 +221,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
@@ -233,7 +234,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     out.puts(s"${privateMemberName(id)} << ${translator.doName("_")}")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"end until ${expression(untilExpr)}")
@@ -242,10 +243,10 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
-  override def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit =
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"$id = $expr")
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io.read_${t.apiCall}"
@@ -307,7 +308,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
   override def switchEnd(): Unit =
     out.puts("end")
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"def ${instName.name}")
     out.inc
   }

@@ -1,12 +1,13 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, CppTranslator, TypeDetector, TypeProvider}
-import io.kaitai.struct._
+import io.kaitai.struct.translators.{CppTranslator, TypeDetector, TypeProvider}
 
 class CppCompiler(
   typeProvider: ClassTypeProvider,
@@ -138,7 +139,7 @@ class CppCompiler(
 
   override def classDestructorFooter = classConstructorFooter
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
     declareNullFlag(attrName, condSpec)
@@ -157,7 +158,7 @@ class CppCompiler(
     }
   }
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PublicAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
@@ -325,7 +326,7 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
@@ -342,7 +343,7 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
     if (needRaw) {
@@ -364,7 +365,7 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
@@ -380,7 +381,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)}->push_back(${translator.doName("_")});")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     outSrc.dec
     outSrc.puts(s"} while (!(${expression(untilExpr)}));")
@@ -392,7 +393,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)} = $expr;")
   }
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io->read_${t.apiCall}()"
@@ -506,14 +507,14 @@ class CppCompiler(
 
   override def switchBytesOnlyAsRaw = true
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"bool ${calculatedFlagForName(attrName)};")
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
     declareNullFlag(attrName, condSpec)
   }
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
     ensureMode(PublicAccess)
     outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
 
@@ -561,7 +562,7 @@ class CppCompiler(
 
   def value2Const(enumName: String, label: String) = (enumName + "_" + label).toUpperCase
 
-  def kaitaiType2NativeType(attrType: BaseType, absolute: Boolean = false): String = {
+  def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
     attrType match {
       case Int1Type(false) => "uint8_t"
       case IntMultiType(false, Width2, _) => "uint16_t"

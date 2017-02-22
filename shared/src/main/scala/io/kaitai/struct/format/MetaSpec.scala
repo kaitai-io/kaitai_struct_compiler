@@ -1,6 +1,6 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.exprlang.DataType.{BigEndian, Endianness, LittleEndian}
+import io.kaitai.struct.datatype.Endianness
 
 case class MetaSpec(
   isOpaque: Boolean,
@@ -38,15 +38,10 @@ object MetaSpec {
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
     val id = ParseUtils.getOptValueStr(srcMap, "id", path)
-    val endian: Option[Endianness] = srcMap.get("endian") match {
-      case None => None
-      case Some("be") => Some(BigEndian)
-      case Some("le") => Some(LittleEndian)
-      case unknown => throw new YAMLParseException(
-        s"must be `be` or `le`, but `$unknown` found",
-        path ++ List("endian")
-      )
-    }
+    val endian: Option[Endianness] = Endianness.defaultFromString(
+      ParseUtils.getOptValueStr(srcMap, "endian", path),
+      path
+    )
     val encoding = ParseUtils.getOptValueStr(srcMap, "encoding", path)
 
     val forceDebug = ParseUtils.getOptValueBool(srcMap, "ks-debug", path).getOrElse(false)

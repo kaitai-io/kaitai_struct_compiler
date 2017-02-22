@@ -2,7 +2,8 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{PythonTranslator, TypeProvider}
@@ -73,9 +74,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     out.puts("self._root = _root if _root else self")
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents($contents)")
@@ -137,7 +138,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
@@ -147,7 +148,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}.append($expr)")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [None] * (${expression(repeatExpr)})")
     out.puts(s"${privateMemberName(id)} = [None] * (${expression(repeatExpr)})")
@@ -157,7 +158,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[i] = $expr")
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
@@ -170,7 +171,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     out.puts(s"${privateMemberName(id)}.append(${translator.doName("_")})")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(untilExpr)}:")
     out.inc
@@ -182,7 +183,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io.read_${t.apiCall}()"
@@ -246,7 +247,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
 
   override def switchEnd(): Unit = {}
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts("@property")
     out.puts(s"def ${publicMemberName(instName)}(self):")
     out.inc

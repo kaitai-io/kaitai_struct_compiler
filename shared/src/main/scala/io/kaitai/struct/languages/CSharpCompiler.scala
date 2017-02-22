@@ -2,7 +2,8 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeDetector, TypeProvider}
@@ -83,11 +84,11 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
 
   override def classConstructorFooter: Unit = fileFooter(null)
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
   }
 
@@ -166,7 +167,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
 
   override def condIfFooter(expr: expr): Unit = fileFooter(null)
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
@@ -180,7 +181,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
 
   override def condRepeatEosFooter: Unit = fileFooter(null)
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
@@ -194,7 +195,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
 
   override def condRepeatExprFooter: Unit = fileFooter(null)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
@@ -210,7 +211,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     out.puts(s"${privateMemberName(id)}.Add(${translator.doName("_")});")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
@@ -222,7 +223,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io.Read${Utils.capitalize(t.apiCall)}()"
@@ -284,12 +285,12 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
   override def switchEnd(): Unit =
     out.puts("}")
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private bool ${flagForInstName(attrName)};")
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
   }
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"public ${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}")
     out.puts("{")
     out.inc
@@ -316,7 +317,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit =
+  override def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: expr): Unit =
     // Perform explicit cast as unsigned integers can't be directly assigned to the default int type
     handleAssignmentSimple(instName, s"(${kaitaiType2NativeType(dataType)}) (${expression(value)})")
 
@@ -385,7 +386,7 @@ object CSharpCompiler extends LanguageCompilerStatic
     * @param attrType KS data type
     * @return .NET data type
     */
-  def kaitaiType2NativeType(attrType: BaseType): String = {
+  def kaitaiType2NativeType(attrType: DataType): String = {
     attrType match {
       case Int1Type(false) => "byte"
       case IntMultiType(false, Width2, _) => "ushort"

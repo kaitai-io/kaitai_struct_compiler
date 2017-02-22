@@ -2,7 +2,8 @@ package io.kaitai.struct
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
@@ -243,7 +244,7 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     * @param attrName attribute name to be used to generate port name for affected vars linking
     * @return a String that should be displayed in table's column "size"
     */
-  def dataTypeSizeAsString(dataType: BaseType, attrName: String): String = {
+  def dataTypeSizeAsString(dataType: DataType, attrName: String): String = {
     dataType match {
       case _: Int1Type => "1"
       case IntMultiType(_, width, _) => width.width.toString
@@ -396,7 +397,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     * @param dataType data type to analyze
     * @return number of bits or None, if it's impossible to determine a priori
     */
-  def dataTypeBitsSize(dataType: BaseType): Option[Int] = {
+  def dataTypeBitsSize(dataType: DataType): Option[Int] = {
     dataType match {
       case BitsType1 => Some(1)
       case BitsType(width) => Some(width)
@@ -411,7 +412,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     * @param dataType data type to analyze
     * @return number of bytes or None, if it's impossible to determine a priori
     */
-  def dataTypeByteSize(dataType: BaseType): Option[Int] = {
+  def dataTypeByteSize(dataType: DataType): Option[Int] = {
     dataType match {
       case _: Int1Type => Some(1)
       case IntMultiType(_, width, _) => Some(width.width)
@@ -427,7 +428,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     }
   }
 
-  def dataTypeName(dataType: BaseType): String = {
+  def dataTypeName(dataType: DataType): String = {
     dataType match {
       case rt: ReadableType => rt.apiCall
       case ut: UserType => type2display(ut.name)

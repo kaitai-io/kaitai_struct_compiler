@@ -2,7 +2,8 @@ package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 
 import scala.collection.mutable.ListBuffer
@@ -67,7 +68,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     attrParseIfFooter(attr.cond.ifExpr)
   }
 
-  def attrParse2(id: Identifier, dataType: BaseType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+  def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
     if (debug && rep != NoRepeat)
       attrDebugStart(id, dataType, Some(io), rep)
 
@@ -175,14 +176,14 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  def needRaw(dataType: BaseType): Boolean = {
+  def needRaw(dataType: DataType): Boolean = {
     dataType match {
       case t: UserTypeFromBytes => true
       case _ => false
     }
   }
 
-  def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, BaseType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+  def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, DataType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
     switchStart(id, on)
 
     // Pass 1: only normal case clauses
@@ -237,20 +238,20 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  def attrDebugStart(attrName: Identifier, attrType: BaseType, io: Option[String], repeat: RepeatSpec): Unit = {}
-  def attrDebugEnd(attrName: Identifier, attrType: BaseType, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrName: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
+  def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
 
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit
   def handleAssignmentSimple(id: Identifier, expr: String): Unit
-  def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit = ???
+  def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
 
-  def parseExpr(dataType: BaseType, io: String): String
+  def parseExpr(dataType: DataType, io: String): String
   def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String
   def userTypeDebugRead(id: String): Unit = {}
 
-  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr): Unit = {
+  def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr): Unit = {
     if (debug)
       attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))

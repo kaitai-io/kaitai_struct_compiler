@@ -1,7 +1,7 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.DataType.IntType
 import io.kaitai.struct.languages.PythonCompiler
 
 class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {

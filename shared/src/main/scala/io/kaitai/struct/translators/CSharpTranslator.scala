@@ -1,13 +1,14 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
-import io.kaitai.struct.exprlang.DataType.{BaseType, Int1Type, IntType}
-import io.kaitai.struct.languages.{CSharpCompiler, CppCompiler}
+import io.kaitai.struct.languages.CSharpCompiler
 
 class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
-  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
+  override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
     s"new List<$nativeType> { $commaStr }"

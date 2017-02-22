@@ -1,9 +1,9 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.format.{ClassSpec, EnumSpec}
 
 class TypeMismatchError(msg: String) extends RuntimeException(msg)
 class TypeUndecidedError(msg: String) extends RuntimeException(msg)
@@ -17,7 +17,7 @@ class TypeUndecidedError(msg: String) extends RuntimeException(msg)
 class TypeDetector(provider: TypeProvider) {
   import TypeDetector._
 
-  def detectType(v: Ast.expr): BaseType = {
+  def detectType(v: Ast.expr): DataType = {
     v match {
       case Ast.expr.IntNum(x) =>
         if (x < 0 || x > 255) {
@@ -95,7 +95,7 @@ class TypeDetector(provider: TypeProvider) {
         }
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         detectType(container) match {
-          case ArrayType(elType: BaseType) =>
+          case ArrayType(elType: DataType) =>
             detectType(idx) match {
               case _: IntType => elType
               case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
@@ -168,8 +168,8 @@ class TypeDetector(provider: TypeProvider) {
     * @param values
     * @return
     */
-  def detectArrayType(values: Seq[expr]): BaseType = {
-    var t1o: Option[BaseType] = None
+  def detectArrayType(values: Seq[expr]): DataType = {
+    var t1o: Option[DataType] = None
 
     values.foreach { v =>
       val t2 = detectType(v)
@@ -196,7 +196,7 @@ object TypeDetector {
     * @param t2 second type
     * @return type that can accommodate values of both source types without any data loss
     */
-  def combineTypes(t1: BaseType, t2: BaseType): BaseType = {
+  def combineTypes(t1: DataType, t2: DataType): DataType = {
     if (t1 == t2) {
       // Obviously, if types are equal, they'll fit into one another
       t1
@@ -253,7 +253,7 @@ object TypeDetector {
     * @param types types to combine
     * @return type that can accommodate values of all source types without any data loss
     */
-  def combineTypes(types: Iterable[BaseType]): BaseType = types.reduceLeft(combineTypes)
+  def combineTypes(types: Iterable[DataType]): DataType = types.reduceLeft(combineTypes)
 
   /**
     * Tries to combine types using combineType. Throws exception when no sane combining type can be found
@@ -262,7 +262,7 @@ object TypeDetector {
     * @param t2 second type
     * @return type that can accommodate values of both source types without any data loss
     */
-  def combineTypesAndFail(t1: BaseType, t2: BaseType): BaseType = {
+  def combineTypesAndFail(t1: DataType, t2: DataType): DataType = {
     combineTypes(t1, t2) match {
       case AnyType =>
         throw new TypeMismatchError(s"can't combine output types: $t1 vs $t2")

@@ -1,12 +1,13 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{UserType, _}
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.components.{NoNeedForFullClassPath, _}
-import io.kaitai.struct.translators.{BaseTranslator, PerlTranslator, TypeProvider}
+import io.kaitai.struct.languages.components._
+import io.kaitai.struct.translators.{PerlTranslator, TypeProvider}
+import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
 
 class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
   extends LanguageCompiler(typeProvider, config, out)
@@ -84,9 +85,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     universalFooter
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     attrName match {
       case RootIdentifier | ParentIdentifier =>
         // ignore, they are already defined in KaitaiStruct class
@@ -166,7 +167,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
@@ -177,7 +178,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
@@ -190,7 +191,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[$$i] = $expr;")
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
@@ -203,7 +204,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     out.puts(s"push @{${privateMemberName(id)}}, ${translator.doName("_")};")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} until (${expression(untilExpr)});")
@@ -212,7 +213,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io->read_${t.apiCall}()"
@@ -285,7 +286,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
   def onComparisonExpr(condition: Ast.expr) =
     Ast.expr.Compare(Ast.expr.Name(Ast.identifier("_on")), Ast.cmpop.Eq, condition)
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts
     out.puts(s"sub ${instName.name} {")
     out.inc

@@ -1,6 +1,7 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators._
 
@@ -106,7 +107,7 @@ object TypeProcessor {
   def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec): Unit =
     resolveUserType(curClass, attr.dataType)
 
-  def resolveUserType(curClass: ClassSpec, dataType: BaseType): Unit = {
+  def resolveUserType(curClass: ClassSpec, dataType: DataType): Unit = {
     dataType match {
       case ut: UserType =>
         ut.classSpec = resolveUserType(curClass, ut.name)
@@ -242,7 +243,7 @@ object TypeProcessor {
     }
   }
 
-  def markupParentTypesAdd(curClass: ClassSpec, dt: BaseType): Unit = {
+  def markupParentTypesAdd(curClass: ClassSpec, dt: DataType): Unit = {
     dt match {
       case userType: UserType =>
         val parentClass = userType.forcedParent match {
@@ -303,7 +304,7 @@ object TypeProcessor {
     }
   }
 
-  def getInstanceDataType(instSpec: InstanceSpec): BaseType = {
+  def getInstanceDataType(instSpec: InstanceSpec): DataType = {
     instSpec match {
       case t: ValueInstanceSpec => t.dataType.get
       case t: ParseInstanceSpec => t.dataTypeComposite
@@ -333,7 +334,7 @@ object TypeProcessor {
     res
   }
 
-  def getOpaqueDataTypes(dataType: BaseType): Iterable[ClassSpec] = {
+  def getOpaqueDataTypes(dataType: DataType): Iterable[ClassSpec] = {
     dataType match {
       case ut: UserType =>
         if (ut.isOpaque) {

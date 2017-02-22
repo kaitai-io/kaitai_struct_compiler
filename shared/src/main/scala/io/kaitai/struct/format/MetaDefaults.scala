@@ -1,6 +1,6 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.exprlang.DataType.Endianness
+import io.kaitai.struct.datatype.Endianness
 
 case class MetaDefaults(
   endian: Option[Endianness],

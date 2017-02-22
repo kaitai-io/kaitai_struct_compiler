@@ -1,6 +1,7 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
@@ -140,7 +141,7 @@ class ClassCompiler(
     lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
   }
 
-  def isUnalignedBits(dt: BaseType): Boolean =
+  def isUnalignedBits(dt: DataType): Boolean =
     dt match {
       case _: BitsType | BitsType1 => true
       case et: EnumType => isUnalignedBits(et.basedOn)

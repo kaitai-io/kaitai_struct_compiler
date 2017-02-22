@@ -3,9 +3,10 @@ package io.kaitai.struct.format
 import java.nio.charset.Charset
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
-import io.kaitai.struct.exprlang.{Ast, DataType, Expressions}
+import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 import scala.collection.JavaConversions._
 
@@ -18,13 +19,13 @@ case object NoRepeat extends RepeatSpec
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 
 trait AttrLikeSpec {
-  def dataType: BaseType
+  def dataType: DataType
   def cond: ConditionalSpec
   def doc: Option[String]
 
   def isArray: Boolean = cond.repeat != NoRepeat
 
-  def dataTypeComposite: BaseType = {
+  def dataTypeComposite: DataType = {
     if (isArray) {
       ArrayType(dataType)
     } else {
@@ -34,10 +35,10 @@ trait AttrLikeSpec {
 }
 
 case class AttrSpec(
-  id: Identifier,
-  dataType: BaseType,
-  cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
-  doc: Option[String] = None
+                     id: Identifier,
+                     dataType: DataType,
+                     cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
+                     doc: Option[String] = None
 ) extends AttrLikeSpec
 
 case class YamlAttrArgs(
@@ -144,7 +145,7 @@ object AttrSpec {
     )
 
     // Unfortunately, this monstrous match can't rewritten in simpler way due to Java type erasure
-    val dataType: BaseType = typObj match {
+    val dataType: DataType = typObj match {
       case None =>
         DataType.fromYaml(
           None, path, metaDef, yamlAttrArgs
@@ -216,7 +217,7 @@ object AttrSpec {
     path: List[String],
     metaDef: MetaDefaults,
     arg: YamlAttrArgs
-  ): BaseType = {
+  ): DataType = {
     val _on = ParseUtils.getValueStr(switchSpec, "switch-on", path)
     val _cases: Map[String, String] = switchSpec.get("cases") match {
       case None => Map()
@@ -236,7 +237,7 @@ object AttrSpec {
     // If we have size defined, and we don't have any "else" case already, add
     // an implicit "else" case that will at least catch everything else as
     // "untyped" byte array of given size
-    val addCases: Map[Ast.expr, BaseType] = if (cases.containsKey(SwitchType.ELSE_CONST)) {
+    val addCases: Map[Ast.expr, DataType] = if (cases.containsKey(SwitchType.ELSE_CONST)) {
       Map()
     } else {
       (arg.size, arg.sizeEos) match {
