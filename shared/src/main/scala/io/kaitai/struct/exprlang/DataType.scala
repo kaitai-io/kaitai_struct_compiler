@@ -143,30 +143,13 @@ object DataType {
     dto: Option[String],
     path: List[String],
     metaDef: MetaDefaults,
-    size: Option[Ast.expr],
-    sizeEos: Boolean,
-    encoding: Option[String],
-    terminator: Option[Int],
-    include: Boolean,
-    consume: Boolean,
-    eosError: Boolean,
-    padRight: Option[Int],
-    contents: Option[Array[Byte]],
-    enumRef: Option[String],
-    parent: Option[Ast.expr],
-    process: Option[ProcessExpr]
+    arg: YamlAttrArgs
   ): BaseType = {
     val r = dto match {
       case None =>
-        contents match {
-          case Some(c) => FixedBytesType(c, process)
-          case _ =>
-            getByteArrayType(
-              size, sizeEos,
-              terminator, include, consume, eosError,
-              padRight,
-              process, path
-            )
+        arg.contents match {
+          case Some(c) => FixedBytesType(c, arg.process)
+          case _ => arg.getByteArrayType(path)
         }
       case Some(dt) => dt match {
         case "u1" => Int1Type(false)
@@ -193,7 +176,7 @@ object DataType {
             Endianness.fromString(Option(endianStr), metaDef.endian, dt, path)
           )
         case ReBitType(widthStr) =>
-          (enumRef, widthStr.toInt) match {
+          (arg.enumRef, widthStr.toInt) match {
             case (None, 1) =>
               // if we're not inside enum and it's 1-bit type
               BitsType1
@@ -202,41 +185,31 @@ object DataType {
               BitsType(width)
           }
         case "str" | "strz" =>
-          val enc = getEncoding(encoding, metaDef, path)
+          val enc = getEncoding(arg.encoding, metaDef, path)
 
           // "strz" makes terminator = 0 by default
           val term = if (dt == "strz") {
-            terminator.orElse(Some(0))
+            arg.terminator.orElse(Some(0))
           } else {
-            terminator
+            arg.terminator
           }
 
-          val bat = getByteArrayType(
-            size, sizeEos,
-            term, include, consume, eosError,
-            padRight,
-            process, path
-          )
+          val bat = arg.getByteArrayType(path)
           StrFromBytesType(bat, enc)
         case _ =>
           val dtl = classNameToList(dt)
-          if (size.isEmpty && !sizeEos && terminator.isEmpty) {
-            if (process.isDefined)
+          if (arg.size.isEmpty && !arg.sizeEos && arg.terminator.isEmpty) {
+            if (arg.process.isDefined)
               throw new YAMLParseException(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path)
-            UserTypeInstream(dtl, parent)
+            UserTypeInstream(dtl, arg.parent)
           } else {
-            val bat = getByteArrayType(
-              size, sizeEos,
-              terminator, include, consume, eosError,
-              padRight,
-              process, path
-            )
-            UserTypeFromBytes(dtl, parent, bat, process)
+            val bat = arg.getByteArrayType(path)
+            UserTypeFromBytes(dtl, arg.parent, bat, arg.process)
           }
       }
     }
 
-    enumRef match {
+    arg.enumRef match {
       case Some(enumName) =>
         r match {
           case numType: IntType => EnumType(classNameToList(enumName), numType)
@@ -245,34 +218,6 @@ object DataType {
         }
       case None =>
         r
-    }
-  }
-
-  private def getByteArrayType(
-    size: Option[expr],
-    sizeEos: Boolean,
-    terminator: Option[Int],
-    include: Boolean,
-    consume: Boolean,
-    eosError: Boolean,
-    padRight: Option[Int],
-    process: Option[ProcessExpr],
-    path: List[String]
-  ) = {
-    (size, sizeEos) match {
-      case (Some(bs: expr), false) =>
-        BytesLimitType(bs, terminator, include, padRight, process)
-      case (None, true) =>
-        BytesEosType(terminator, include, padRight, process)
-      case (None, false) =>
-        terminator match {
-          case Some(term) =>
-            BytesTerminatedType(term, include, consume, eosError, process)
-          case None =>
-            throw new YAMLParseException("'size', 'size-eos' or 'terminator' must be specified", path)
-        }
-      case (Some(_), true) =>
-        throw new YAMLParseException("only one of 'size' or 'size-eos' must be specified", path)
     }
   }
 
