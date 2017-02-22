@@ -169,13 +169,13 @@ object DataType {
           val enc = getEncoding(arg.encoding, metaDef, path)
 
           // "strz" makes terminator = 0 by default
-          val term = if (dt == "strz") {
-            arg.terminator.orElse(Some(0))
+          val arg2 = if (dt == "strz") {
+            arg.copy(terminator = arg.terminator.orElse(Some(0)))
           } else {
-            arg.terminator
+            arg
           }
 
-          val bat = arg.getByteArrayType(path)
+          val bat = arg2.getByteArrayType(path)
           StrFromBytesType(bat, enc)
         case _ =>
           val dtl = classNameToList(dt)
