@@ -1,6 +1,5 @@
 package io.kaitai.struct.exprlang
 
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 
 /**
