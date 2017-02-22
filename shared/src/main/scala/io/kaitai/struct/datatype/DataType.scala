@@ -25,6 +25,8 @@ object DataType {
   }
 
   abstract class NumericType extends DataType
+  abstract class BooleanType extends DataType
+
   abstract class IntType extends NumericType
   case object CalcIntType extends IntType
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
@@ -36,7 +38,7 @@ object DataType {
       s"$ch1${width.width}${endian.toString}"
     }
   }
-  case object BitsType1 extends DataType
+  case object BitsType1 extends BooleanType
   case class BitsType(width: Int) extends IntType
 
   abstract class FloatType extends NumericType
@@ -81,7 +83,7 @@ object DataType {
   case object CalcStrType extends StrType
   case class StrFromBytesType(bytes: BytesType, encoding: String) extends StrType
 
-  case object BooleanType extends DataType
+  case object CalcBooleanType extends BooleanType
   case class ArrayType(elType: DataType) extends DataType
 
   abstract class UserType(val name: List[String], val forcedParent: Option[Ast.expr]) extends DataType {

@@ -507,10 +507,9 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType1 => "boolean"
       case BitsType(_) => "long"
 
-      case BooleanType => "boolean"
+      case _: BooleanType => "boolean"
       case CalcIntType => "int"
       case CalcFloatType => "double"
 
@@ -552,10 +551,9 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "Float"
       case FloatMultiType(Width8, _) => "Double"
 
-      case BitsType1 => "Boolean"
       case BitsType(_) => "Long"
 
-      case BooleanType => "Boolean"
+      case _: BooleanType => "Boolean"
       case CalcIntType => "Integer"
       case CalcFloatType => "Double"
 

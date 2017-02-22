@@ -1,7 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.{cmpop, expr}
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 
@@ -30,6 +30,14 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
             doNumericCompareOp(left, op, right)
+          case (_: BooleanType, _: BooleanType) =>
+            op match {
+              case Ast.cmpop.Eq | Ast.cmpop.NotEq =>
+                // FIXME: probably for some languages we'll need non-numeric comparison
+                doNumericCompareOp(left, op, right)
+              case _ =>
+                throw new TypeMismatchError(s"can't compare booleans using $op operator")
+            }
           case (_: StrType, _: StrType) =>
             doStrCompareOp(left, op, right)
           case (EnumType(ltype, _), EnumType(rtype, _)) =>
@@ -151,7 +159,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
   }
 
-  def doEnumCompareOp(left: expr, op: cmpop, right: expr): String = {
+  def doEnumCompareOp(left: expr, op: Ast.cmpop, right: expr): String = {
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
   }
 

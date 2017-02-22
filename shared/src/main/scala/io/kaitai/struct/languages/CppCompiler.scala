@@ -577,10 +577,9 @@ class CppCompiler(
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType1 => "bool"
       case BitsType(_) => "uint64_t"
 
-      case BooleanType => "bool"
+      case _: BooleanType => "bool"
       case CalcIntType => "int32_t"
       case CalcFloatType => "double"
 

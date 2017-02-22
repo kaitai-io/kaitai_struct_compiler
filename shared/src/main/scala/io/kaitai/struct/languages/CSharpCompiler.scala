@@ -401,12 +401,11 @@ object CSharpCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType1 => "bool"
       case BitsType(_) => "ulong"
 
       case CalcIntType => "int"
       case CalcFloatType => "double"
-      case BooleanType => "bool"
+      case _: BooleanType => "bool"
 
       case _: StrType => "string"
       case _: BytesType => "byte[]"

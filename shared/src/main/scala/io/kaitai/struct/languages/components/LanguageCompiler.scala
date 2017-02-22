@@ -117,7 +117,7 @@ abstract class LanguageCompiler(
     ifExpr match {
       case Some(e) =>
         translator.detectType(e) match {
-          case BooleanType =>
+          case _: BooleanType =>
             // everything's fine, we've got boolean-resulting expression
             condIfSetNull(id)
             condIfHeader(e)

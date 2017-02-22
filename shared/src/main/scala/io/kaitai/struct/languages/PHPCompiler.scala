@@ -338,7 +338,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
       case _: IntType => "int"
       case _: FloatType => "float"
 
-      case BooleanType => "bool"
+      case _: BooleanType => "bool"
 
       case _: StrType | _: BytesType => "string"
 

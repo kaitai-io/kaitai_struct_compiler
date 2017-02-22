@@ -51,9 +51,9 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       PythonCompiler -> "(1 + 2) // (7 * 8)"
     )),
 
-    everybody("1 < 2", "1 < 2", BooleanType),
+    everybody("1 < 2", "1 < 2", CalcBooleanType),
 
-    everybody("1 == 2", "1 == 2", BooleanType),
+    everybody("1 == 2", "1 == 2", CalcBooleanType),
 
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "(2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\"))",
@@ -74,14 +74,14 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("1.2 + 3", "(1.2 + 3)", CalcFloatType),
     everybody("1 + 3.4", "(1 + 3.4)", CalcFloatType),
 
-    everybody("1.0 < 2", "1.0 < 2", BooleanType),
+    everybody("1.0 < 2", "1.0 < 2", CalcBooleanType),
 
     everybody("3 / 2.0", "(3 / 2.0)", CalcFloatType),
 
     everybody("(1 + 2) / (7 * 8.1)", "((1 + 2) / (7 * 8.1))", CalcFloatType),
 
     // Boolean literals
-    full("true", BooleanType, BooleanType, Map[LanguageCompilerStatic, String](
+    full("true", CalcBooleanType, CalcBooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "true",
       CSharpCompiler -> "true",
       JavaCompiler -> "true",
@@ -92,7 +92,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "true"
     )),
 
-    full("false", BooleanType, BooleanType, Map[LanguageCompilerStatic, String](
+    full("false", CalcBooleanType, CalcBooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "false",
       CSharpCompiler -> "false",
       JavaCompiler -> "false",
@@ -159,7 +159,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "_root.foo"
     )),
 
-    full("a != 2 and a != 5", CalcIntType, BooleanType, Map[LanguageCompilerStatic, String](
+    full("a != 2 and a != 5", CalcIntType, CalcBooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "a() != 2 && a() != 5",
       CSharpCompiler -> "A != 2 && A != 5",
       JavaCompiler -> "a() != 2 && a() != 5",
@@ -274,14 +274,14 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaCompiler -> "\"str1\".equals(\"str2\")",
       PerlCompiler -> "\"str1\" eq \"str2\"",
       PythonCompiler -> "u\"str1\" == u\"str2\""
-    ), BooleanType),
+    ), CalcBooleanType),
 
     everybodyExcept("\"str1\" != \"str2\"", "\"str1\" != \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str1\") != std::string(\"str2\")",
       JavaCompiler -> "!(\"str1\").equals(\"str2\")",
       PerlCompiler -> "\"str1\" ne \"str2\"",
       PythonCompiler -> "u\"str1\" != u\"str2\""
-    ), BooleanType),
+    ), CalcBooleanType),
 
     everybodyExcept("\"str1\" < \"str2\"", "\"str1\" < \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "(std::string(\"str1\").compare(std::string(\"str2\")) < 0)",
@@ -289,7 +289,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaCompiler -> "(\"str1\".compareTo(\"str2\") < 0)",
       PerlCompiler -> "\"str1\" lt \"str2\"",
       PythonCompiler -> "u\"str1\" < u\"str2\""
-    ), BooleanType),
+    ), CalcBooleanType),
 
     full("\"str\".length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str\").length()",

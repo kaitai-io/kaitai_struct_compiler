@@ -31,7 +31,7 @@ class TypeDetector(provider: TypeProvider) {
         }
       case Ast.expr.FloatNum(_) => CalcFloatType
       case Ast.expr.Str(_) => CalcStrType
-      case Ast.expr.Bool(_) => BooleanType
+      case Ast.expr.Bool(_) => CalcBooleanType
       case Ast.expr.EnumByLabel(enumType, _) =>
         val t = EnumType(List(enumType.name), CalcIntType)
         t.enumSpec = Some(provider.resolveEnum(enumType.name))
@@ -47,7 +47,7 @@ class TypeDetector(provider: TypeProvider) {
           case (IntMultiType(_, w, _), Ast.unaryop.Minus | Ast.unaryop.Invert) if w.width > 4 => t
           case (_: IntType, Ast.unaryop.Minus | Ast.unaryop.Invert) => CalcIntType
           case (_: FloatType, Ast.unaryop.Minus) => t
-          case (BooleanType, Ast.unaryop.Not) => t
+          case (_: BooleanType, Ast.unaryop.Not) => t
           case _ => throw new TypeMismatchError(s"unable to apply unary operator $op to $t")
         }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
@@ -56,6 +56,7 @@ class TypeDetector(provider: TypeProvider) {
         (ltype, rtype) match {
           case (_: StrType, _: StrType) => // ok
           case (_: NumericType, _: NumericType) => // ok
+          case (_: BooleanType, _: BooleanType) => // ok
           case (EnumType(name1, _), EnumType(name2, _)) =>
             if (name1 != name2) {
               throw new TypeMismatchError(s"can't compare different enums '$name1' and '$name2'")
@@ -68,7 +69,7 @@ class TypeDetector(provider: TypeProvider) {
           case _ =>
             throw new TypeMismatchError(s"can't compare $ltype and $rtype")
         }
-        BooleanType
+        CalcBooleanType
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
           case (_: IntType, _: IntType, _) => CalcIntType
@@ -80,14 +81,16 @@ class TypeDetector(provider: TypeProvider) {
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         values.foreach(v => {
           val t = detectType(v)
-          if (t != BooleanType) {
-            throw new TypeMismatchError(s"unable to use $t argument in $op boolean expression")
+          t match {
+            case _: BooleanType => // we're fine
+            case _ =>
+              throw new TypeMismatchError(s"unable to use $t argument in $op boolean expression")
           }
         })
-        BooleanType
+        CalcBooleanType
       case Ast.expr.IfExp(condition: expr, ifTrue: expr, ifFalse: expr) =>
         detectType(condition) match {
-          case BooleanType =>
+          case _: BooleanType =>
             val trueType = detectType(ifTrue)
             val falseType = detectType(ifFalse)
             combineTypesAndFail(trueType, falseType)
@@ -134,7 +137,7 @@ class TypeDetector(provider: TypeProvider) {
             attr.name match {
               case "size" => CalcIntType
               case "pos" => CalcIntType
-              case "eof" => BooleanType
+              case "eof" => CalcBooleanType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
           case _ =>
