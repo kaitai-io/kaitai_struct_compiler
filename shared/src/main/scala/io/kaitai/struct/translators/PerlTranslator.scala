@@ -78,6 +78,8 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => throw new UnsupportedOperationException(baseStr)
     }
   }
+  override def enumToInt(v: expr, et: EnumType): String =
+    translate(v)
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     val format = baseStr match {

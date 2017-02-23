@@ -62,6 +62,8 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
     s"Convert.ToInt64(${translate(s)}, ${translate(base)})"
+  override def enumToInt(v: expr, et: EnumType): String =
+    translate(v)
   override def intToStr(i: expr, base: expr): String =
     s"Convert.ToString(${translate(i)}, ${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =

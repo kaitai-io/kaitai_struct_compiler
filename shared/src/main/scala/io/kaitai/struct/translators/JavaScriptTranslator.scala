@@ -47,6 +47,9 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def strToInt(s: expr, base: expr): String =
     s"Number.parseInt(${translate(s)}, ${translate(base)})"
 
+  override def enumToInt(v: expr, et: EnumType): String =
+    translate(v)
+
   override def intToStr(i: expr, base: expr): String =
     s"(${translate(i)}).toString(${translate(base)})"
 

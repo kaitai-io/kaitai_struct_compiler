@@ -64,6 +64,8 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => s", 0, $baseStr"
     }) + ")"
   }
+  override def enumToInt(v: expr, et: EnumType): String =
+    translate(v)
   override def intToStr(i: expr, base: expr): String = {
     val baseStr = translate(base)
     baseStr match {
