@@ -1,7 +1,6 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 
@@ -60,7 +59,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
         }
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         doBooleanOp(op, values)
-      case Ast.expr.IfExp(condition: expr, ifTrue: expr, ifFalse: expr) =>
+      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
         doIfExp(condition, ifTrue, ifFalse)
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         detectType(idx) match {
@@ -95,6 +94,11 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
               case "size" => kaitaiStreamSize(value)
               case "eof" => kaitaiStreamEof(value)
               case "pos" => kaitaiStreamPos(value)
+            }
+          case et: EnumType =>
+            attr.name match {
+              case "to_i" => enumToInt(value, et)
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
         }
       case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
@@ -159,7 +163,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
   }
 
-  def doEnumCompareOp(left: expr, op: Ast.cmpop, right: expr): String = {
+  def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
   }
 
@@ -194,8 +198,8 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     case Ast.unaryop.Not => "!"
   }
 
-  def doSubscript(container: expr, idx: expr): String
-  def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String
+  def doSubscript(container: Ast.expr, idx: Ast.expr): String
+  def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: String): String = translate(value)
 
   // Literals
@@ -203,12 +207,12 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   def doFloatLiteral(n: Any): String = n.toString
   def doStringLiteral(s: String): String = "\"" + s + "\""
   def doBoolLiteral(n: Boolean): String = n.toString
-  def doArrayLiteral(t: DataType, value: Seq[expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
+  def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String
-  def userTypeField(value: expr, attrName: String): String =
+  def userTypeField(value: Ast.expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
   def doEnumByLabel(enumTypeAbs: List[String], label: String): String
   def doEnumById(enumTypeAbs: List[String], id: String): String
@@ -216,6 +220,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
   def strToInt(s: Ast.expr, base: Ast.expr): String
+  def enumToInt(value: Ast.expr, et: EnumType): String = ???
   def intToStr(i: Ast.expr, base: Ast.expr): String
   def bytesToStr(bytesExpr: String, encoding: Ast.expr): String
   def strLength(s: Ast.expr): String

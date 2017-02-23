@@ -140,6 +140,11 @@ class TypeDetector(provider: TypeProvider) {
               case "eof" => CalcBooleanType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
+          case et: EnumType =>
+            attr.name match {
+              case "to_i" => CalcIntType
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+            }
           case _ =>
             throw new TypeMismatchError(s"don't know how to call anything on $valType")
         }
