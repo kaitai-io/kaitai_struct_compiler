@@ -220,7 +220,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
   def strToInt(s: Ast.expr, base: Ast.expr): String
-  def enumToInt(value: Ast.expr, et: EnumType): String = ???
+  def enumToInt(value: Ast.expr, et: EnumType): String
   def intToStr(i: Ast.expr, base: Ast.expr): String
   def bytesToStr(bytesExpr: String, encoding: Ast.expr): String
   def strLength(s: Ast.expr): String
