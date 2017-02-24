@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType.EnumType
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.languages.RubyCompiler
 
@@ -27,6 +28,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => s"($baseStr)"
     })
   }
+  override def enumToInt(v: Ast.expr, et: EnumType): String =
+    s"${RubyCompiler.inverseEnumName(et.name.last.toUpperCase)}[${translate(v)}]"
   override def intToStr(i: Ast.expr, base: Ast.expr): String =
     translate(i) + s".to_s(${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =

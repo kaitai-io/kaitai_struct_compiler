@@ -320,14 +320,19 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+    val enumConst = value2Const(enumName)
+
     out.puts
-    out.puts(s"${value2Const(enumName)} = {")
+    out.puts(s"$enumConst = {")
     out.inc
     enumColl.foreach { case (id, label) =>
       out.puts(s"$id => ${enumValue(enumName, label)},")
     }
     out.dec
     out.puts("}")
+
+    // Generate inverse hash
+    out.puts(s"${inverseEnumName(enumConst)} = $enumConst.invert")
   }
 
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
@@ -367,4 +372,6 @@ object RubyCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"
+
+  def inverseEnumName(enumName: String) = s"I__$enumName"
 }
