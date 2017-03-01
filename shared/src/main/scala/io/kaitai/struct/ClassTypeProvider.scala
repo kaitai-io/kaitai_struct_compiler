@@ -3,7 +3,8 @@ package io.kaitai.struct
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{TypeProvider, TypeUndecidedError}
+import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeUndecidedError}
+import io.kaitai.struct.translators.TypeProvider
 
 class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
   var nowClass = topClass
@@ -46,7 +47,7 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
           case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
           case None => // do nothing
         }
-        throw new RuntimeException(s"Unable to access $attrName in ${inClass.name} context")
+        throw new FieldNotFoundError(attrName, inClass)
     }
   }
 
@@ -72,9 +73,7 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
         inClass.upClass match {
           case Some(upClass) => resolveEnum(upClass, enumName)
           case None =>
-            throw new RuntimeException(
-              s"Unable to find enum '$enumName', searching from ${nowClass.name.mkString("::")}"
-            )
+            throw new EnumNotFoundError(enumName, nowClass)
         }
     }
   }
