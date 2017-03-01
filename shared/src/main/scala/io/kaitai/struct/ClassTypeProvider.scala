@@ -3,7 +3,7 @@ package io.kaitai.struct
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeUndecidedError}
+import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundError, TypeUndecidedError}
 import io.kaitai.struct.translators.TypeProvider
 
 class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
@@ -91,9 +91,7 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
         inClass.upClass match {
           case Some(upClass) => resolveType(upClass, typeName)
           case None =>
-            throw new RuntimeException(
-              s"Unable to find type '$typeName', searching from ${nowClass.name.mkString("::")}"
-            )
+            throw new TypeNotFoundError(typeName, nowClass)
         }
     }
   }
