@@ -38,9 +38,9 @@ class ValueTypesDeriver(topClass: ClassSpec) {
                   case tue: TypeUndecidedError =>
                     Log.typeProcValue.info(() => s"${instName.name} type undecided: ${tue.getMessage}")
                     // just ignore, we're not there yet, probably we'll get it on next iteration
-                  case tme: TypeMismatchError =>
+                  case err: ExpressionError =>
                     throw new YAMLParseException(
-                      tme.getMessage,
+                      err.getMessage,
                       path ++ List("instances", instName.name, "value")
                     )
                 }
