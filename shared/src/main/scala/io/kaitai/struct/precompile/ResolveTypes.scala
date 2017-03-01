@@ -13,37 +13,42 @@ object ResolveTypes {
     * Resolves user types and enum types recursively starting from a certain
     * ClassSpec.
     * @param curClass class to start from, might be top-level class
+    * @param path original .ksy path to make error messages more meaningful
     */
-  def resolveUserTypes(curClass: ClassSpec): Unit = {
-    curClass.seq.foreach((attr) => resolveUserTypeForAttr(curClass, attr))
+  def resolveUserTypes(curClass: ClassSpec, path: List[String] = List()): Unit = {
+    curClass.seq.zipWithIndex.foreach { case (attr, attrIdx) =>
+      resolveUserTypeForAttr(curClass, attr, path ++ List("seq", attrIdx.toString))
+    }
     curClass.instances.foreach { case (instName, instSpec) =>
       instSpec match {
         case pis: ParseInstanceSpec =>
-          resolveUserTypeForAttr(curClass, pis)
+          resolveUserTypeForAttr(curClass, pis, path ++ List("instances", instName.name))
         case _: ValueInstanceSpec =>
           // ignore all other types of instances
       }
     }
 
-    curClass.types.foreach { case (_, nestedClass) =>
-      resolveUserTypes(nestedClass)
+    curClass.types.foreach { case (typeName, nestedClass) =>
+      resolveUserTypes(nestedClass, path ++ List("types", typeName))
     }
   }
 
-  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec): Unit =
-    resolveUserType(curClass, attr.dataType)
+  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec, path: List[String]): Unit =
+    resolveUserType(curClass, attr.dataType, path)
 
-  def resolveUserType(curClass: ClassSpec, dataType: DataType): Unit = {
+  def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Unit = {
     dataType match {
       case ut: UserType =>
         ut.classSpec = resolveUserType(curClass, ut.name)
       case et: EnumType =>
         et.enumSpec = resolveEnumSpec(curClass, et.name)
-        if (et.enumSpec.isEmpty)
-          throw new RuntimeException(s"enum not found: '${et.name}'")
+        if (et.enumSpec.isEmpty) {
+          val err = new EnumNotFoundError(et.name.mkString("::"), curClass)
+          throw new YAMLParseException(err.getMessage, path)
+        }
       case SwitchType(_, cases) =>
-        cases.foreach { case (_, ut) =>
-          resolveUserType(curClass, ut)
+        cases.foreach { case (caseName, ut) =>
+          resolveUserType(curClass, ut, path ++ List("type", "cases", caseName.toString))
         }
       case _ =>
         // not a user type, nothing to resolve
