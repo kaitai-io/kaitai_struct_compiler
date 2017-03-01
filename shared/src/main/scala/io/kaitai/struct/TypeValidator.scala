@@ -56,28 +56,16 @@ class TypeValidator(topClass: ClassSpec) {
     * @param path original .ksy path to make error messages more meaningful
     */
   def validateAttr(attr: AttrLikeSpec, path: List[String]) {
-    attr.cond.ifExpr match {
-      case Some(ifExpr) =>
-        detector.detectType(ifExpr) match {
-          case _: BooleanType => // good
-          case actual => throw YAMLParseException.exprType("boolean", actual, path ++ List("if"))
-        }
-      case None =>
-        // good
-    }
+    attr.cond.ifExpr.foreach((ifExpr) =>
+      checkAssert[BooleanType](ifExpr, "boolean", path, "if")
+    )
 
     provider._currentIteratorType = Some(attr.dataType)
     attr.cond.repeat match {
       case RepeatExpr(expr) =>
-        detector.detectType(expr) match {
-          case _: IntType => // good
-          case actual => throw YAMLParseException.exprType("integer", actual, path ++ List("repeat-expr"))
-        }
+        checkAssert[IntType](expr, "integer", path, "repeat-expr")
       case RepeatUntil(expr) =>
-        detector.detectType(expr) match {
-          case _: BooleanType => // good
-          case actual => throw YAMLParseException.exprType("boolean", actual, path ++ List("repeat-until"))
-        }
+        checkAssert[BooleanType](expr, "boolean", path, "repeat-until")
       case RepeatEos | NoRepeat =>
         // good
     }
@@ -94,10 +82,7 @@ class TypeValidator(topClass: ClassSpec) {
   def validateDataType(dataType: DataType, path: List[String]) {
     dataType match {
       case blt: BytesLimitType =>
-        detector.detectType(blt.size) match {
-          case _: IntType => // good
-          case actual => throw YAMLParseException.exprType("integer", actual, path ++ List("size"))
-        }
+        checkAssert[IntType](blt.size, "integer", path, "size")
       case st: StrFromBytesType =>
         validateDataType(st.bytes, path)
       case ut: UserTypeFromBytes =>
@@ -123,17 +108,29 @@ class TypeValidator(topClass: ClassSpec) {
     }
   }
 
-//  def checkAssert[T](
-//    expr: Ast.expr,
-//    expectStr: String,
-//    path: List[String],
-//    pathKey: String
-//  ): Unit = {
-//    detector.detectType(expr) match {
-//      case x: T => // good
-//        Console.err.println("! " + x.isInstanceOf[T])
-//        Console.err.println("! " + x)
-//      case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
-//    }
-//  }
+  /**
+    * Checks that expression's type conforms to a given datatype, otherwise
+    * throw a human-readable exception, with some pointers that would help
+    * finding the expression in source .ksy.
+    *
+    * Note: `T: Manifest` is required due to JVM type erasure. See
+    * http://stackoverflow.com/a/42533114 for more info.
+    *
+    * @param expr expression to check
+    * @param expectStr string to include
+    * @param path path to expression base
+    * @param pathKey key that contains expression in given path
+    * @tparam T type that expression must conform to
+    */
+  def checkAssert[T: Manifest](
+    expr: Ast.expr,
+    expectStr: String,
+    path: List[String],
+    pathKey: String
+  ): Unit = {
+    detector.detectType(expr) match {
+      case _: T => // good
+      case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
+    }
+  }
 }
