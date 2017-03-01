@@ -1,8 +1,8 @@
 package io.kaitai.struct.precompile
 
-import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.format.{ClassSpec, ValueInstanceSpec, YAMLParseException}
-import io.kaitai.struct.translators.{TypeDetector, TypeMismatchError, TypeUndecidedError}
+import io.kaitai.struct.translators.TypeDetector
+import io.kaitai.struct.{ClassTypeProvider, Log}
 
 class ValueTypesDeriver(topClass: ClassSpec) {
   val provider = new ClassTypeProvider(topClass)

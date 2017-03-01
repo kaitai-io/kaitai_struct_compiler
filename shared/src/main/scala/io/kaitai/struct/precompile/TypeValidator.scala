@@ -5,7 +5,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{TypeDetector, TypeMismatchError}
+import io.kaitai.struct.translators.TypeDetector
 
 /**
   * Validates all expressions used inside the given ClassSpec to use expected types.
@@ -135,8 +135,8 @@ class TypeValidator(topClass: ClassSpec) {
         case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
       }
     } catch {
-      case tme: TypeMismatchError =>
-        throw new YAMLParseException(tme.getMessage, path ++ List(pathKey))
+      case err: ExpressionError =>
+        throw new YAMLParseException(err.getMessage, path ++ List(pathKey))
     }
   }
 }

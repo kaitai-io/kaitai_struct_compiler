@@ -3,6 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.precompile.TypeMismatchError
 
 abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(provider) {
   def translate(v: Ast.expr): String = {

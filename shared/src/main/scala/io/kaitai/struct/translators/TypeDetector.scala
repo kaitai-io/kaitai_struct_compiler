@@ -4,9 +4,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-
-class TypeMismatchError(msg: String) extends RuntimeException(msg)
-class TypeUndecidedError(msg: String) extends RuntimeException(msg)
+import io.kaitai.struct.precompile.{TypeMismatchError, TypeUndecidedError}
 
 /**
   * Basic class the implements type inferring functionality for Ast.expr

@@ -3,7 +3,7 @@ package io.kaitai.struct
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.precompile.{ResolveTypes, TypeValidator, ValueTypesDeriver}
+import io.kaitai.struct.precompile.{ResolveTypes, TypeMismatchError, TypeValidator, ValueTypesDeriver}
 import io.kaitai.struct.translators._
 
 import scala.collection.mutable.ListBuffer
