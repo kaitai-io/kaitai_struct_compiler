@@ -1,8 +1,8 @@
 package io.kaitai.struct.precompile
 
 import io.kaitai.struct.{ClassTypeProvider, Log}
-import io.kaitai.struct.format.{ClassSpec, ValueInstanceSpec}
-import io.kaitai.struct.translators.{TypeDetector, TypeUndecidedError}
+import io.kaitai.struct.format.{ClassSpec, ValueInstanceSpec, YAMLParseException}
+import io.kaitai.struct.translators.{TypeDetector, TypeMismatchError, TypeUndecidedError}
 
 class ValueTypesDeriver(topClass: ClassSpec) {
   val provider = new ClassTypeProvider(topClass)
@@ -13,12 +13,12 @@ class ValueTypesDeriver(topClass: ClassSpec) {
     var hasChanged = false
     do {
       Log.typeProcValue.info(() => s"### deriveValueType: iteration #$iterNum")
-      hasChanged = deriveValueType(topClass)
+      hasChanged = deriveValueType(topClass, List())
       iterNum += 1
     } while (hasChanged)
   }
 
-  def deriveValueType(curClass: ClassSpec): Boolean = {
+  def deriveValueType(curClass: ClassSpec, path: List[String]): Boolean = {
     Log.typeProcValue.info(() => s"deriveValueType(${curClass.nameAsStr})")
     var hasChanged = false
 
@@ -38,6 +38,11 @@ class ValueTypesDeriver(topClass: ClassSpec) {
                   case tue: TypeUndecidedError =>
                     Log.typeProcValue.info(() => s"${instName.name} type undecided: ${tue.getMessage}")
                     // just ignore, we're not there yet, probably we'll get it on next iteration
+                  case tme: TypeMismatchError =>
+                    throw new YAMLParseException(
+                      tme.getMessage,
+                      path ++ List("instances", instName.name, "value")
+                    )
                 }
               case Some(_) =>
                 // already derived, do nothing
@@ -49,8 +54,8 @@ class ValueTypesDeriver(topClass: ClassSpec) {
 
     // Continue with all nested types
     curClass.types.foreach {
-      case (_, classSpec) =>
-        hasChanged ||= deriveValueType(classSpec)
+      case (typeName, classSpec) =>
+        hasChanged ||= deriveValueType(classSpec, path ++ List("types", typeName))
     }
 
     hasChanged
