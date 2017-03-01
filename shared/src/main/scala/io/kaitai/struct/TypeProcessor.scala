@@ -16,6 +16,8 @@ object TypeProcessor {
     resolveUserTypes(topClass)
     markupParentTypes(topClass)
     deriveValueTypes(topClass)
+    new TypeValidator(topClass).validate()
+
     topClass.parentClass = GenericStructClassSpec
   }
 
