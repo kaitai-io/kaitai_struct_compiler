@@ -38,6 +38,10 @@ object MetaSpec {
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
     val id = ParseUtils.getOptValueStr(srcMap, "id", path)
+    id.foreach((idStr) =>
+      Identifier.checkIdentifierSource(idStr, "meta", path ++ List("id"))
+    )
+
     val endian: Option[Endianness] = Endianness.defaultFromString(
       ParseUtils.getOptValueStr(srcMap, "endian", path),
       path
