@@ -18,7 +18,7 @@ class TypeValidator(topClass: ClassSpec) {
   /**
     * Starts the check from top-level class.
     */
-  def validate(): Unit =
+  def run(): Unit =
     validateClass(topClass, List())
 
   /**

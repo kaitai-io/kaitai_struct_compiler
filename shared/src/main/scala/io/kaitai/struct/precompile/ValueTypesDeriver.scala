@@ -8,7 +8,7 @@ class ValueTypesDeriver(topClass: ClassSpec) {
   val provider = new ClassTypeProvider(topClass)
   val detector = new TypeDetector(provider)
 
-  def derive() {
+  def run() {
     var iterNum = 1
     var hasChanged = false
     do {
