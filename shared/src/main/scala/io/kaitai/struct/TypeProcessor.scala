@@ -3,7 +3,7 @@ package io.kaitai.struct
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.precompile.TypeValidator
+import io.kaitai.struct.precompile.{TypeValidator, ValueTypesDeriver}
 import io.kaitai.struct.translators._
 
 import scala.collection.mutable.ListBuffer
@@ -16,7 +16,7 @@ object TypeProcessor {
     markupClassNames(topClass)
     resolveUserTypes(topClass)
     markupParentTypes(topClass)
-    deriveValueTypes(topClass)
+    new ValueTypesDeriver(topClass).derive()
     new TypeValidator(topClass).validate()
 
     topClass.parentClass = GenericStructClassSpec
@@ -34,59 +34,6 @@ object TypeProcessor {
       nestedClass.upClass = Some(curClass)
       markupClassNames(nestedClass)
     }
-  }
-
-  // ==================================================================
-
-  def deriveValueTypes(topClass: ClassSpec) {
-    val provider = new ClassTypeProvider(topClass)
-    val detector = new TypeDetector(provider)
-
-    var iterNum = 1
-    var hasChanged = false
-    do {
-      Log.typeProcValue.info(() => s"### deriveValueType: iteration #$iterNum")
-      hasChanged = deriveValueType(provider, detector, topClass)
-      iterNum += 1
-    } while (hasChanged)
-  }
-
-  def deriveValueType(provider: ClassTypeProvider, detector: TypeDetector, curClass: ClassSpec): Boolean = {
-    Log.typeProcValue.info(() => s"deriveValueType(${curClass.nameAsStr})")
-    var hasChanged = false
-
-    provider.nowClass = curClass
-    curClass.instances.foreach {
-      case (instName, inst) =>
-        inst match {
-          case vi: ValueInstanceSpec =>
-            vi.dataType match {
-              case None =>
-                try {
-                  val viType = detector.detectType(vi.value)
-                  vi.dataType = Some(viType)
-                  Log.typeProcValue.info(() => s"${instName.name} derived type: $viType")
-                  hasChanged = true
-                } catch {
-                  case tue: TypeUndecidedError =>
-                    Log.typeProcValue.info(() => s"${instName.name} type undecided: ${tue.getMessage}")
-                    // just ignore, we're not there yet, probably we'll get it on next iteration
-                }
-              case Some(_) =>
-                // already derived, do nothing
-            }
-          case _ =>
-            // do nothing
-        }
-    }
-
-    // Continue with all nested types
-    curClass.types.foreach {
-      case (_, classSpec) =>
-        hasChanged ||= deriveValueType(provider, detector, classSpec)
-    }
-
-    hasChanged
   }
 
   // ==================================================================
