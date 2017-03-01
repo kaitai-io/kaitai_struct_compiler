@@ -1,6 +1,7 @@
 package io.kaitai.struct.format
 
 import fastparse.StringReprOps
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Expressions
 
 class YAMLParseException(msg: String, path: List[String])
@@ -35,4 +36,7 @@ object YAMLParseException {
       path
     )
   }
+
+  def exprType(expected: String, got: DataType, path: List[String]): YAMLParseException =
+    new YAMLParseException(s"invalid type: expected $expected, got $got", path)
 }
