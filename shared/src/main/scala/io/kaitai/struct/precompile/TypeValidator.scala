@@ -1,5 +1,6 @@
-package io.kaitai.struct
+package io.kaitai.struct.precompile
 
+import io.kaitai.struct.ClassTypeProvider
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
