@@ -53,22 +53,7 @@ class TypeDetector(provider: TypeProvider) {
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         val ltype = detectType(left)
         val rtype = detectType(right)
-        (ltype, rtype) match {
-          case (_: StrType, _: StrType) => // ok
-          case (_: NumericType, _: NumericType) => // ok
-          case (_: BooleanType, _: BooleanType) => // ok
-          case (EnumType(name1, _), EnumType(name2, _)) =>
-            if (name1 != name2) {
-              throw new TypeMismatchError(s"can't compare different enums '$name1' and '$name2'")
-            }
-            op match {
-              case Ast.cmpop.Eq | Ast.cmpop.NotEq => // ok
-              case _ =>
-                throw new TypeMismatchError(s"can't use comparison operator $op on enums")
-            }
-          case _ =>
-            throw new TypeMismatchError(s"can't compare $ltype and $rtype")
-        }
+        assertCompareTypes(ltype, rtype, op)
         CalcBooleanType
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
@@ -195,6 +180,32 @@ class TypeDetector(provider: TypeProvider) {
 }
 
 object TypeDetector {
+  /**
+    * Checks is values of two types can be compared with a given comparison operator.
+    * Throws exception in case of incompatibility.
+    * @param ltype first type
+    * @param rtype second type
+    * @param op comparison operator
+    */
+  def assertCompareTypes(ltype: DataType, rtype: DataType, op: Ast.cmpop): Unit = {
+    (ltype, rtype) match {
+      case (_: StrType, _: StrType) => // ok
+      case (_: NumericType, _: NumericType) => // ok
+      case (_: BooleanType, _: BooleanType) => // ok
+      case (EnumType(name1, _), EnumType(name2, _)) =>
+        if (name1 != name2) {
+          throw new TypeMismatchError(s"can't compare different enums '$name1' and '$name2'")
+        }
+        op match {
+          case Ast.cmpop.Eq | Ast.cmpop.NotEq => // ok
+          case _ =>
+            throw new TypeMismatchError(s"can't use comparison operator $op on enums")
+        }
+      case _ =>
+        throw new TypeMismatchError(s"can't compare $ltype and $rtype")
+    }
+  }
+
   /**
     * Checks if the values of two types can be combined (i.e. there exists a single type that can
     * be used to hold values of both values - usually it means that they're either equal or one
