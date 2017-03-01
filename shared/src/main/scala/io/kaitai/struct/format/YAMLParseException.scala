@@ -1,5 +1,8 @@
 package io.kaitai.struct.format
 
+import fastparse.StringReprOps
+import io.kaitai.struct.exprlang.Expressions
+
 class YAMLParseException(msg: String, path: List[String])
   extends RuntimeException(s"/${path.mkString("/")}: $msg", null)
 
@@ -23,4 +26,13 @@ object YAMLParseException {
       s"invalid $entity ID: '$id', expected /${Identifier.ReIdentifier.toString}/",
       path
     )
+
+  def expression(epe: Expressions.ParseException, path: List[String]): YAMLParseException = {
+    val f = epe.failure
+    val pos = StringReprOps.prettyIndex(f.extra.input, f.index)
+    new YAMLParseException(
+      s"parsing expression '${epe.src}' failed on $pos, expected ${f.extra.traced.expected}",
+      path
+    )
+  }
 }

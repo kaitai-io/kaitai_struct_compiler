@@ -158,16 +158,15 @@ object Expressions {
 
   val topExpr: P[Ast.expr] = P( test ~ End )
 
-  class ParseException(msg: String) extends RuntimeException(msg, null)
+  class ParseException(val src: String, val failure: Parsed.Failure)
+    extends RuntimeException(failure.msg)
 
   def parse(src: String): Ast.expr = {
     val r = Expressions.topExpr.parse(src)
     r match {
       case Parsed.Success(value, index) => value
       case f: Parsed.Failure =>
-        Console.err.println(s"parsing expression '$src' failed on ${StringReprOps.prettyIndex(f.extra.input, f.index)}")
-        Console.err.println(s"expected: ${f.extra.traced.expected}")
-        throw new ParseException(f.msg)
+        throw new ParseException(src, f)
     }
   }
 }
