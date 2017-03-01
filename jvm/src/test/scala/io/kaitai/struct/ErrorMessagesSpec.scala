@@ -3,11 +3,15 @@ package io.kaitai.struct
 import java.io._
 import java.nio.charset.Charset
 
-import io.kaitai.struct.format.YAMLParseException
+import io.kaitai.struct.format.{KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
 import org.scalatest.FunSuite
 
 class ErrorMessagesSpec extends FunSuite {
+  // required, because this class is the sole entry point and this test needs
+  // version info
+  KSVersion.current = BuildInfo.version
+
   val FORMATS_ERR_DIR = "../tests/formats_err"
   val CHARSET_UTF8 = Charset.forName("UTF-8")
 
@@ -34,7 +38,13 @@ class ErrorMessagesSpec extends FunSuite {
       val caught = intercept[YAMLParseException] {
         val classSpec = JavaKSYParser.localFileToSpec(fn)
       }
-      assertResult(expected) { caught.getMessage }
+      assertResult(expected) {
+        // replace version-dependent message with a moniker
+        caught.getMessage.replace(
+          s"but you have ${KSVersion.current}",
+          "but you have $KS_VERSION"
+        )
+      }
     }
   }
 
