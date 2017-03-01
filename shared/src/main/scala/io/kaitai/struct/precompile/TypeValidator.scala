@@ -129,9 +129,14 @@ class TypeValidator(topClass: ClassSpec) {
     path: List[String],
     pathKey: String
   ): Unit = {
-    detector.detectType(expr) match {
-      case _: T => // good
-      case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
+    try {
+      detector.detectType(expr) match {
+        case _: T => // good
+        case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
+      }
+    } catch {
+      case tme: TypeMismatchError =>
+        throw new YAMLParseException(tme.getMessage, path ++ List(pathKey))
     }
   }
 }
