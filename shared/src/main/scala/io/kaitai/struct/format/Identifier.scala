@@ -41,6 +41,23 @@ object Identifier {
         throw new InvalidIdentifier(id)
     }
   }
+
+  /**
+    * Check if a given string is a valid identifier. If not, throw a custom
+    * YAMLParseException, properly annotated with entity info and source file
+    * path.
+    * @param id string to check as identifier
+    * @param entity which entity this object represents (i.e. "instance", "enum", etc)
+    * @param path path in a source .ksy file to report in exception
+    */
+  def checkIdentifierSource(id: String, entity: String, path: List[String]): Unit = {
+    id match {
+      case ReIdentifier() =>
+        // name is valid, everything's fine
+      case _ =>
+        throw YAMLParseException.invalidId(id, entity, path)
+    }
+  }
 }
 
 case class RawIdentifier(innerId: Identifier) extends Identifier
