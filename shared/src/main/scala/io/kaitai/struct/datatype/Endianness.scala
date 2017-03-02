@@ -15,9 +15,8 @@ object Endianness {
     case None => None
     case Some("be") => Some(BigEndian)
     case Some("le") => Some(LittleEndian)
-    case unknown => throw new YAMLParseException(
-      s"must be `be` or `le`, but `$unknown` found",
-      path ++ List("endian")
+    case Some(unknown) => throw YAMLParseException.badDictValue(
+      Set("be", "le"), unknown, path ++ List("endian")
     )
   }
 
