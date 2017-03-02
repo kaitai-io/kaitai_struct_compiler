@@ -3,8 +3,7 @@ package io.kaitai.struct.format
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 
-// Note: can't be "sealed trait" due to Java JSON parser library compatibility!
-abstract class InstanceSpec(val doc: Option[String])
+sealed abstract class InstanceSpec(val doc: Option[String])
 case class ValueInstanceSpec(_doc: Option[String], value: Ast.expr, ifExpr: Option[Ast.expr], var dataType: Option[DataType]) extends InstanceSpec(_doc)
 case class ParseInstanceSpec(_doc: Option[String], dataType: DataType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec(_doc) with AttrLikeSpec
 
