@@ -17,6 +17,23 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   override def doStringLiteral(s: String): String = "u" + super.doStringLiteral(s)
   override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
 
+  /**
+    * https://docs.python.org/2.7/reference/lexical_analysis.html#string-literals
+    * https://docs.python.org/3.6/reference/lexical_analysis.html#string-and-bytes-literals
+    */
+  override val asciiCharQuoteMap: Map[Char, String] = Map(
+    '\t' -> "\\t",
+    '\n' -> "\\n",
+    '\r' -> "\\r",
+    '"' -> "\\\"",
+    '\\' -> "\\\\",
+
+    '\7' -> "\\a",
+    '\f' -> "\\f",
+    '\13' -> "\\v",
+    '\b' -> "\\b"
+  )
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"struct.pack('${arr.length}b', ${arr.mkString(", ")})"
 
