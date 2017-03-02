@@ -4,6 +4,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.format.Identifier
 
 class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
@@ -35,7 +36,8 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doName(s: String) = {
     s match {
-      case "_" => "$_"
+      case Identifier.ITERATOR => "$_"
+      case Identifier.ITERATOR2 => "$_buf"
       case _ => s"$s()"
     }
   }
