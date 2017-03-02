@@ -58,6 +58,13 @@ object Identifier {
         throw YAMLParseException.invalidId(id, entity, path)
     }
   }
+
+  // Constants for special names used in expression language
+  val ROOT = "_root"
+  val PARENT = "_parent"
+  val IO = "_io"
+  val ITERATOR = "_"
+  val ITERATOR2 = "_buf"
 }
 
 case class RawIdentifier(innerId: Identifier) extends Identifier
@@ -70,6 +77,6 @@ case class InstanceIdentifier(name: String) extends Identifier {
 
 case class SpecialIdentifier(name: String) extends Identifier
 
-object RootIdentifier extends SpecialIdentifier("_root")
-object ParentIdentifier extends SpecialIdentifier("_parent")
-object IoIdentifier extends SpecialIdentifier("_io")
+object RootIdentifier extends SpecialIdentifier(Identifier.ROOT)
+object ParentIdentifier extends SpecialIdentifier(Identifier.PARENT)
+object IoIdentifier extends SpecialIdentifier(Identifier.IO)
