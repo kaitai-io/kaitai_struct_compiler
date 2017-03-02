@@ -143,6 +143,27 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("truer") should be (Name(identifier("truer")))
     }
 
+    // String literals
+    it("parses simple string") {
+      Expressions.parse("\"abc\"") should be (Str("abc"))
+    }
+
+    it("parses interpolated string with newline") {
+      Expressions.parse("\"abc\\ndef\"") should be (Str("abc\ndef"))
+    }
+
+    it("parses non-interpolated string with newline") {
+      Expressions.parse("'abc\\ndef'") should be (Str("abc\\ndef"))
+    }
+
+    it("parses interpolated string with zero char") {
+      Expressions.parse("\"abc\\0def\"") should be (Str("abc\0def"))
+    }
+
+    it("parses non-interpolated string with zero char") {
+      Expressions.parse("'abc\\0def'") should be (Str("abc\\0def"))
+    }
+
     // Casts
     it("parses 123.as<u4>") {
       Expressions.parse("123.as<u4>") should be (CastToType(IntNum(123),identifier("u4")))
