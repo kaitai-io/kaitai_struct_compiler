@@ -172,33 +172,7 @@ object AttrSpec {
         }
     }
 
-    val (repeatSpec, legalRepeatKeys: Set[String]) = repeat match {
-      case Some("until") =>
-        val repeatSpec = repeatUntil match {
-          case Some(expr) => RepeatUntil(expr)
-          case None =>
-            throw new YAMLParseException(
-              "`repeat: until` requires a `repeat-until` expression",
-              path ++ List("repeat")
-            )
-        }
-        (repeatSpec, Set("repeat-until"))
-      case Some("expr") =>
-        val repeatSpec = repeatExpr match {
-          case Some(expr) => RepeatExpr(expr)
-          case None =>
-            throw new YAMLParseException(
-              "`repeat: expr` requires a `repeat-expr` expression",
-              path ++ List("repeat")
-            )
-        }
-        (repeatSpec, Set("repeat-expr"))
-      case Some("eos") => (RepeatEos, Set())
-      case None => (NoRepeat, Set())
-      case Some(other) => throw YAMLParseException.badDictValue(
-        Set("until", "expr", "eos"), other, path ++ List("repeat")
-      )
-    }
+    val (repeatSpec, legalRepeatKeys) = parseRepeat(repeat, repeatExpr, repeatUntil, path)
 
     val legalKeys = LEGAL_KEYS ++ legalRepeatKeys ++ (dataType match {
       case _: BytesType => LEGAL_KEYS_BYTES
@@ -282,5 +256,43 @@ object AttrSpec {
     }
 
     SwitchType(on, cases ++ addCases)
+  }
+
+  private def parseRepeat(
+    repeat: Option[String],
+    rExpr: Option[Ast.expr],
+    rUntil: Option[Ast.expr],
+    path: List[String]
+  ): (RepeatSpec, Set[String]) = {
+    repeat match {
+      case None =>
+        (NoRepeat, Set())
+      case Some("until") =>
+        val spec = rUntil match {
+          case Some(expr) => RepeatUntil(expr)
+          case None =>
+            throw new YAMLParseException(
+              "`repeat: until` requires a `repeat-until` expression",
+              path ++ List("repeat")
+            )
+        }
+        (spec, Set("repeat-until"))
+      case Some("expr") =>
+        val spec = rExpr match {
+          case Some(expr) => RepeatExpr(expr)
+          case None =>
+            throw new YAMLParseException(
+              "`repeat: expr` requires a `repeat-expr` expression",
+              path ++ List("repeat")
+            )
+        }
+        (spec, Set("repeat-expr"))
+      case Some("eos") =>
+        (RepeatEos, Set())
+      case Some(other) =>
+        throw YAMLParseException.badDictValue(
+          Set("until", "expr", "eos"), other, path ++ List("repeat")
+        )
+    }
   }
 }
