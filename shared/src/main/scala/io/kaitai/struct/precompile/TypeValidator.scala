@@ -7,6 +7,8 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
+import scala.reflect.ClassTag
+
 /**
   * Validates all expressions used inside the given ClassSpec to use expected types.
   * @param topClass class to start check with
@@ -123,7 +125,7 @@ class TypeValidator(topClass: ClassSpec) {
     * @param pathKey key that contains expression in given path
     * @tparam T type that expression must conform to
     */
-  def checkAssert[T: Manifest](
+  def checkAssert[T: ClassTag](
     expr: Ast.expr,
     expectStr: String,
     path: List[String],
