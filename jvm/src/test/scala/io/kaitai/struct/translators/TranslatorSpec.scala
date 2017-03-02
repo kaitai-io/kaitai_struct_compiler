@@ -1,6 +1,6 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.RuntimeConfig
+import io.kaitai.struct.{GraphvizClassCompiler, RuntimeConfig}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
@@ -262,6 +262,28 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "\"str\""
     )),
 
+    full("\"str\\nnext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "std::string(\"str\\nnext\")",
+      CSharpCompiler -> "\"str\\nnext\"",
+      JavaCompiler -> "\"str\\nnext\"",
+      JavaScriptCompiler -> "\"str\\nnext\"",
+      PerlCompiler -> "\"str\\nnext\"",
+      PHPCompiler -> "\"str\\nnext\"",
+      PythonCompiler -> "u\"str\\nnext\"",
+      RubyCompiler -> "\"str\\nnext\""
+    )),
+
+    full("\"str\\u000anext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "std::string(\"str\\nnext\")",
+      CSharpCompiler -> "\"str\\nnext\"",
+      JavaCompiler -> "\"str\\nnext\"",
+      JavaScriptCompiler -> "\"str\\nnext\"",
+      PerlCompiler -> "\"str\\nnext\"",
+      PHPCompiler -> "\"str\\nnext\"",
+      PythonCompiler -> "u\"str\\nnext\"",
+      RubyCompiler -> "\"str\\nnext\""
+    )),
+
     everybodyExcept("\"str1\" + \"str2\"", "\"str1\" + \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str1\") + std::string(\"str2\")",
       PerlCompiler -> "\"str1\" . \"str2\"",
@@ -357,7 +379,9 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       eo = Some(Expressions.parse(src))
     }
 
-    LanguageCompilerStatic.NAME_TO_CLASS.foreach { case (langName, langObj) =>
+    LanguageCompilerStatic.NAME_TO_CLASS.
+      filter { case (_, langObj) => langObj != GraphvizClassCompiler }.
+      foreach { case (langName, langObj) =>
       test(s"$langName:$src") {
         eo match {
           case Some(e) =>
