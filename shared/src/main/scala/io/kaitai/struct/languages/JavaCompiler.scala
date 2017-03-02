@@ -165,7 +165,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
-      case RepeatUntil(_) => translator.doName("_2")
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
       case NoRepeat => javaName
     }
 
