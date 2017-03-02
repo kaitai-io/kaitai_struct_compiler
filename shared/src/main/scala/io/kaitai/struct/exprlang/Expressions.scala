@@ -65,7 +65,7 @@ object Expressions {
   val comp_op = P( LtE|GtE|Eq|Gt|Lt|NotEq )
   val Add = op("+", Ast.operator.Add)
   val Sub = op("-", Ast.operator.Sub)
-  val Pow = op("**", Ast.operator.Pow)
+//  val Pow = op("**", Ast.operator.Pow)
   val Mult= op("*", Ast.operator.Mult)
   val Div = op("/", Ast.operator.Div)
   val Mod = op("%", Ast.operator.Mod)
@@ -89,26 +89,26 @@ object Expressions {
   val factor: P[Ast.expr] = P(
     ("+" ~ factor) |
     ("-" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Minus, _)) |
-    ("~" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Invert, _)) |
-    power
+    ("~" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Invert, _))
+//  | power
   )
-  val power: P[Ast.expr] = P( atom ~ trailer.rep ~ (Pow ~ factor).? ).map{
-    case (lhs, trailers, rhs) =>
-      val left = trailers.foldLeft(lhs)((l, t) => t(l))
-      rhs match{
-        case None => left
-        case Some((op, right)) => Ast.expr.BinOp(left, op, right)
-      }
-  }
+//  val power: P[Ast.expr] = P( atom ~ trailer.rep ~ (Pow ~ factor).? ).map{
+//    case (lhs, trailers, rhs) =>
+//      val left = trailers.foldLeft(lhs)((l, t) => t(l))
+//      rhs match{
+//        case None => left
+//        case Some((op, right)) => Ast.expr.BinOp(left, op, right)
+//      }
+//  }
   val atom: P[Ast.expr] = {
     val empty_list = ("[" ~ "]").map(_ => Ast.expr.List(Nil))
-    val empty_dict = ("{" ~ "}").map(_ => Ast.expr.Dict(Nil, Nil))
+//    val empty_dict = ("{" ~ "}").map(_ => Ast.expr.Dict(Nil, Nil))
     P(
       empty_list |
-      empty_dict |
+//      empty_dict |
       "(" ~ test ~ ")" |
       "[" ~ list ~ "]" |
-      "{" ~ dictorsetmaker ~ "}" |
+//      "{" ~ dictorsetmaker ~ "}" |
       enumByName |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
       NAME.map((x) => x.name match {
@@ -135,16 +135,16 @@ object Expressions {
 
   val exprlist: P[Seq[Ast.expr]] = P( expr.rep(1, sep = ",") ~ ",".? )
   val testlist: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") ~ ",".? )
-  val dictorsetmaker: P[Ast.expr] = {
-    val dict_item = P( test ~ ":" ~ test )
-    val dict: P[Ast.expr.Dict] = P(
-      (dict_item.rep(1, ",") ~ ",".?).map{x =>
-        val (keys, values) = x.unzip
-        Ast.expr.Dict(keys, values)
-      }
-    )
-    P( /*dict_comp |*/ dict /*| set_comp | set*/)
-  }
+//  val dictorsetmaker: P[Ast.expr] = {
+//    val dict_item = P( test ~ ":" ~ test )
+//    val dict: P[Ast.expr.Dict] = P(
+//      (dict_item.rep(1, ",") ~ ",".?).map{x =>
+//        val (keys, values) = x.unzip
+//        Ast.expr.Dict(keys, values)
+//      }
+//    )
+//    P( /*dict_comp |*/ dict /*| set_comp | set*/)
+//  }
 
   val arglist: P[Seq[Ast.expr]] = P( (test).rep(0, ",") )
 

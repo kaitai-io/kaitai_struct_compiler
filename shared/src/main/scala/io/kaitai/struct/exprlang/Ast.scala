@@ -29,7 +29,7 @@ object Ast {
     case class BinOp(left: expr, op: operator, right: expr) extends expr
     case class UnaryOp(op: unaryop, operand: expr) extends expr
     case class IfExp(condition: expr, ifTrue: expr, ifFalse: expr) extends expr
-    case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
+//    case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
     case class IntNum(n: BigInt) extends expr
@@ -59,7 +59,7 @@ object Ast {
     case object Mult  extends operator
     case object Div  extends operator
     case object Mod  extends operator
-    case object Pow  extends operator
+//    case object Pow  extends operator
     case object LShift  extends operator
     case object RShift  extends operator
     case object BitOr  extends operator
