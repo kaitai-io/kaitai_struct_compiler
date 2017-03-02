@@ -84,9 +84,7 @@ object AttrSpec {
     "consume",
     "include",
     "eos-error",
-    "repeat",
-    "repeat-expr",
-    "repeat-until"
+    "repeat"
   )
 
   val LEGAL_KEYS_BYTES = Set(
@@ -174,7 +172,35 @@ object AttrSpec {
         }
     }
 
-    val legalKeys = LEGAL_KEYS ++ (dataType match {
+    val (repeatSpec, legalRepeatKeys: Set[String]) = repeat match {
+      case Some("until") =>
+        val repeatSpec = repeatUntil match {
+          case Some(expr) => RepeatUntil(expr)
+          case None =>
+            throw new YAMLParseException(
+              "`repeat: until` requires a `repeat-until` expression",
+              path ++ List("repeat")
+            )
+        }
+        (repeatSpec, Set("repeat-until"))
+      case Some("expr") =>
+        val repeatSpec = repeatExpr match {
+          case Some(expr) => RepeatExpr(expr)
+          case None =>
+            throw new YAMLParseException(
+              "`repeat: expr` requires a `repeat-expr` expression",
+              path ++ List("repeat")
+            )
+        }
+        (repeatSpec, Set("repeat-expr"))
+      case Some("eos") => (RepeatEos, Set())
+      case None => (NoRepeat, Set())
+      case Some(other) => throw YAMLParseException.badDictValue(
+        Set("until", "expr", "eos"), other, path ++ List("repeat")
+      )
+    }
+
+    val legalKeys = LEGAL_KEYS ++ legalRepeatKeys ++ (dataType match {
       case _: BytesType => LEGAL_KEYS_BYTES
       case _: StrFromBytesType => LEGAL_KEYS_STR
       case _: UserType => LEGAL_KEYS_BYTES
@@ -184,16 +210,6 @@ object AttrSpec {
     })
 
     ParseUtils.ensureLegalKeys(srcMap, legalKeys, path)
-
-    val repeatSpec = repeat match {
-      case Some("until") => RepeatUntil(repeatUntil.get)
-      case Some("expr") => RepeatExpr(repeatExpr.get)
-      case Some("eos") => RepeatEos
-      case None => NoRepeat
-      case Some(other) => throw YAMLParseException.badDictValue(
-        Set("until", "expr", "eos"), other, path ++ List("repeat")
-      )
-    }
 
     AttrSpec(id, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
   }
