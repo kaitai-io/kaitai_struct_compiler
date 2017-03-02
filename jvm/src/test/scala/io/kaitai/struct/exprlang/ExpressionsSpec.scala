@@ -164,6 +164,14 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("'abc\\0def'") should be (Str("abc\\0def"))
     }
 
+    it("parses interpolated string with octal char") {
+      Expressions.parse("\"abc\\75def\"") should be (Str("abc=def"))
+    }
+
+    it("parses interpolated string with hex unicode char") {
+      Expressions.parse("\"abc\\u21bbdef\"") should be (Str("abc\u21bbdef"))
+    }
+
     // Casts
     it("parses 123.as<u4>") {
       Expressions.parse("123.as<u4>") should be (CastToType(IntNum(123),identifier("u4")))
