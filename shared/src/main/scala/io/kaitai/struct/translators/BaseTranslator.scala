@@ -206,10 +206,57 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   // Literals
   def doIntLiteral(n: BigInt): String = n.toString
   def doFloatLiteral(n: Any): String = n.toString
-  def doStringLiteral(s: String): String = "\"" + s + "\""
+
+  def doStringLiteral(s: String): String = {
+    val encoded = s.toCharArray.map((code) =>
+      if (code <= 0xff) {
+        strLiteralAsciiChar(code)
+      } else {
+        strLiteralUnicode(code)
+      }
+    ).mkString
+    "\"" + encoded + "\""
+  }
   def doBoolLiteral(n: Boolean): String = n.toString
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
+
+  /**
+    * Handle ASCII character conversion for inlining into string literals.
+    * Default implementation consults [[asciiCharQuoteMap]] first, then
+    * just dumps it as is if it's a printable ASCII charcter, or calls
+    * [[strLiteralGenericCC]] if it's a control character.
+    * @param code character code to convert into string for inclusion in
+    *             a string literal
+    */
+  def strLiteralAsciiChar(code: Char): String = {
+    asciiCharQuoteMap.get(code) match {
+      case Some(encoded) => encoded
+      case None =>
+        if (code >= 0x20 && code < 0x80) {
+          Character.toString(code)
+        } else {
+          strLiteralGenericCC(code)
+        }
+    }
+  }
+
+  def strLiteralGenericCC(code: Char) =
+    "\\%o".format(code.toInt)
+
+  def strLiteralUnicode(code: Char): String =
+    "\\u%04x".format(code.toInt)
+
+  /**
+    * Character quotation map for inclusion in string literals.
+    * Default implementation includes bare minimum that seems
+    * to be available in all languages.
+    */
+  val asciiCharQuoteMap: Map[Char, String] = Map(
+    '\t' -> "\\t",
+    '\n' -> "\\n",
+    '\r' -> "\\r"
+  )
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String
