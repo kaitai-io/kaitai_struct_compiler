@@ -72,7 +72,7 @@ object Lexical {
 
   val integer: P[BigInt] = P( octinteger | hexinteger | bininteger | decimalinteger)
   val decimalinteger: P[BigInt] = P( nonzerodigit ~ (digit | "_").rep | "0" ).!.map(parseNum(_, 10))
-  val octinteger: P[BigInt] = P( "0" ~ ("o" | "O") ~ octdigit.rep(1).! | "0" ~ octdigit.rep(1).! ).map(parseNum(_, 8))
+  val octinteger: P[BigInt] = P( "0" ~ ("o" | "O") ~ octdigit.rep(1).! ).map(parseNum(_, 8))
   val hexinteger: P[BigInt] = P( "0" ~ ("x" | "X") ~ hexdigit.rep(1).! ).map(parseNum(_, 16))
   val bininteger: P[BigInt] = P( "0" ~ ("b" | "B") ~ bindigit.rep(1).! ).map(parseNum(_, 2))
   val nonzerodigit: P0 = P( CharIn('1' to '9') )
