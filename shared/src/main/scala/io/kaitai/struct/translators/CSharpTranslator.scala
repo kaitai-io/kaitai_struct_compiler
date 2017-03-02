@@ -17,6 +17,22 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new byte[] { ${arr.map(_ & 0xff).mkString(", ")} }"
 
+  override val asciiCharQuoteMap: Map[Char, String] = Map(
+    '\t' -> "\\t",
+    '\n' -> "\\n",
+    '\r' -> "\\r",
+    '"' -> "\\\"",
+    '\\' -> "\\\\",
+
+    '\0' -> "\\0",
+    '\7' -> "\\a",
+    '\f' -> "\\f",
+    '\13' -> "\\v",
+    '\b' -> "\\b"
+  )
+
+  override def strLiteralGenericCC(code: Char): String = strLiteralUnicode(code)
+
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
