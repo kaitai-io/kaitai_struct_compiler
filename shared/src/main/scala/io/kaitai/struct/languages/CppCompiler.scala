@@ -279,7 +279,8 @@ class CppCompiler(
     val ioName = IoStorageIdentifier(varName)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) | RepeatUntil(_) => s"$memberName->at($memberName->size() - 1)"
+      case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
       case NoRepeat => memberName
     }
 
@@ -367,7 +368,7 @@ class CppCompiler(
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
-      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
     outSrc.puts("{")
     outSrc.inc
@@ -377,8 +378,13 @@ class CppCompiler(
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    outSrc.puts(s"${translator.doName("_")} = $expr;")
-    outSrc.puts(s"${privateMemberName(id)}->push_back(${translator.doName("_")});")
+    val (typeDecl, tempVar) = if (isRaw) {
+      ("std::string ", translator.doName(Identifier.ITERATOR2))
+    } else {
+      ("", translator.doName(Identifier.ITERATOR))
+    }
+    outSrc.puts(s"$typeDecl$tempVar = $expr;")
+    outSrc.puts(s"${privateMemberName(id)}->push_back($tempVar);")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {

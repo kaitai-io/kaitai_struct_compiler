@@ -5,6 +5,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CppCompiler
 
 class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -30,7 +31,8 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(value)}->${doName(attrName)}"
 
   override def doName(s: String) = s match {
-    case "_" => s
+    case Identifier.ITERATOR => "_"
+    case Identifier.ITERATOR2 => "_buf"
     case _ => s"$s()"
   }
 
