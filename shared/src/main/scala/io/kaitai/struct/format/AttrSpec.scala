@@ -190,6 +190,9 @@ object AttrSpec {
       case Some("expr") => RepeatExpr(repeatExpr.get)
       case Some("eos") => RepeatEos
       case None => NoRepeat
+      case Some(other) => throw YAMLParseException.badDictValue(
+        Set("until", "expr", "eos"), other, path ++ List("repeat")
+      )
     }
 
     AttrSpec(id, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
