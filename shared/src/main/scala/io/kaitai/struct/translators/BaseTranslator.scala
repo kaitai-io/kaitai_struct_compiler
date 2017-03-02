@@ -255,7 +255,9 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",
-    '\r' -> "\\r"
+    '\r' -> "\\r",
+    '"' -> "\\\"",
+    '\\' -> "\\\\"
   )
 
   def doLocalName(s: String): String = doName(s)
