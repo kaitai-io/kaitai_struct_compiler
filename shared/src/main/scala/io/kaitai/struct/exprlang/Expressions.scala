@@ -89,8 +89,8 @@ object Expressions {
   val factor: P[Ast.expr] = P(
     ("+" ~ factor) |
     ("-" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Minus, _)) |
-    ("~" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Invert, _))
-//  | power
+    ("~" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Invert, _)) |
+    power
   )
 //  val power: P[Ast.expr] = P( atom ~ trailer.rep ~ (Pow ~ factor).? ).map{
 //    case (lhs, trailers, rhs) =>
@@ -100,6 +100,10 @@ object Expressions {
 //        case Some((op, right)) => Ast.expr.BinOp(left, op, right)
 //      }
 //  }
+  val power: P[Ast.expr] = P( atom ~ trailer.rep ).map {
+    case (lhs, trailers) =>
+      trailers.foldLeft(lhs)((l, t) => t(l))
+  }
   val atom: P[Ast.expr] = {
     val empty_list = ("[" ~ "]").map(_ => Ast.expr.List(Nil))
 //    val empty_dict = ("{" ~ "}").map(_ => Ast.expr.Dict(Nil, Nil))
