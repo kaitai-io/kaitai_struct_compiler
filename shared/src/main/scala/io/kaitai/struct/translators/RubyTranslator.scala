@@ -8,6 +8,20 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"${super.doByteArrayLiteral(arr)}.pack('C*')"
 
+  override val asciiCharQuoteMap: Map[Char, String] = Map(
+    '\t' -> "\\t",
+    '\n' -> "\\n",
+    '\r' -> "\\r",
+    '"' -> "\\\"",
+    '\\' -> "\\\\",
+
+    '\7' -> "\\a",
+    '\f' -> "\\f",
+    '\13' -> "\\v",
+    '\33' -> "\\e",
+    '\b' -> "\\b"
+  )
+
   override def doName(s: String) = s
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
