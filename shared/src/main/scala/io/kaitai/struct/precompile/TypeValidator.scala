@@ -101,11 +101,13 @@ class TypeValidator(topClass: ClassSpec) {
     val onType = detector.detectType(st.on)
     st.cases.foreach { case (caseExpr, caseType) =>
       val casePath = path ++ List("type", "cases", caseExpr.toString)
-      try {
-        TypeDetector.assertCompareTypes(onType, detector.detectType(caseExpr), Ast.cmpop.Eq)
-      } catch {
-        case tme: TypeMismatchError =>
-          throw new YAMLParseException(tme.getMessage, casePath)
+      if (caseExpr != SwitchType.ELSE_CONST) {
+        try {
+          TypeDetector.assertCompareTypes(onType, detector.detectType(caseExpr), Ast.cmpop.Eq)
+        } catch {
+          case tme: TypeMismatchError =>
+            throw new YAMLParseException(tme.getMessage, casePath)
+        }
       }
       validateDataType(caseType, casePath)
     }
