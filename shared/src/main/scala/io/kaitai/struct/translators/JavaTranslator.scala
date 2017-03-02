@@ -5,6 +5,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -35,10 +36,11 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doName(s: String) =
     s match {
-      case "_root" => s
-      case "_parent" => "_parent()"
-      case "_io" => "_io()"
-      case "_" => "_it"
+      case Identifier.ROOT => s
+      case Identifier.PARENT => "_parent()"
+      case Identifier.IO => "_io()"
+      case Identifier.ITERATOR => "_it"
+      case Identifier.ITERATOR2 => "_buf"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 
