@@ -4,7 +4,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.format._
+import io.kaitai.struct.format.{RepeatUntil, _}
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeDetector, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
@@ -127,7 +127,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     val ioName = s"io_$privateVarName"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) | RepeatUntil(_) => s"$privateVarName[$privateVarName.Count - 1]"
+      case RepeatEos | RepeatExpr(_) => s"$privateVarName[$privateVarName.Count - 1]"
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
       case NoRepeat => privateVarName
     }
 
@@ -207,8 +208,13 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    out.puts(s"${translator.doName("_")} = $expr;")
-    out.puts(s"${privateMemberName(id)}.Add(${translator.doName("_")});")
+    val (typeDecl, tempVar) = if (isRaw) {
+      ("byte[] ", translator.doName(Identifier.ITERATOR2))
+    } else {
+      ("", translator.doName(Identifier.ITERATOR))
+    }
+    out.puts(s"$typeDecl$tempVar = $expr;")
+    out.puts(s"${privateMemberName(id)}.Add($tempVar);")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
