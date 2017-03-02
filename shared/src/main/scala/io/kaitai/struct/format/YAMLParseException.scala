@@ -16,6 +16,9 @@ object YAMLParseException {
     new YAMLParseException(s"expected $expected, got $gotStr", path)
   }
 
+  def badDictValue(expected: Set[String], got: String, path: List[String]): YAMLParseException =
+    new YAMLParseException(s"expected ${expected.toList.sorted.mkString(" / ")}, got '$got'", path)
+
   def incompatibleVersion(expected: KSVersion, got: KSVersion, path: List[String]): YAMLParseException =
     new YAMLParseException(
       s"this ksy requires compiler version at least $expected, but you have $got",
