@@ -164,7 +164,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     val ioName = s"_io_$javaName"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
+      case RepeatEos | RepeatExpr(_) | RepeatUntil(_) => s"$javaName.get($javaName.size() - 1)"
       case NoRepeat => javaName
     }
 

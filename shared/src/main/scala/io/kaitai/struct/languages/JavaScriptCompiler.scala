@@ -147,7 +147,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
     val ioName = s"_io_$langName"
 
     val args = rep match {
-      case RepeatEos => s"$memberCall[$memberCall.length - 1]"
+      case RepeatEos | RepeatUntil(_) => s"$memberCall[$memberCall.length - 1]"
       case RepeatExpr(_) => s"$memberCall[i]"
       case NoRepeat => memberCall
     }

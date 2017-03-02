@@ -127,7 +127,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     val ioName = s"io_$privateVarName"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$privateVarName[$privateVarName.Count - 1]"
+      case RepeatEos | RepeatExpr(_) | RepeatUntil(_) => s"$privateVarName[$privateVarName.Count - 1]"
       case NoRepeat => privateVarName
     }
 
