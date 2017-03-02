@@ -376,7 +376,7 @@ class CppCompiler(
     outSrc.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     outSrc.puts(s"${translator.doName("_")} = $expr;")
     outSrc.puts(s"${privateMemberName(id)}->push_back(${translator.doName("_")});")
   }

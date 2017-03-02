@@ -164,7 +164,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     val ioName = s"_io_$javaName"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) | RepeatUntil(_) => s"$javaName.get($javaName.size() - 1)"
+      case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
+      case RepeatUntil(_) => translator.doName("_2")
       case NoRepeat => javaName
     }
 
@@ -272,9 +273,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
-    out.puts(s"${translator.doName("_")} = $expr;")
-    out.puts(s"${privateMemberName(id)}.add(${translator.doName("_")});")
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+    val (typeDecl, tempVar) = if (isRaw) {
+      ("byte[] ", translator.doName(Identifier.ITERATOR2))
+    } else {
+      ("", translator.doName(Identifier.ITERATOR))
+    }
+    out.puts(s"$typeDecl$tempVar = $expr;")
+    out.puts(s"${privateMemberName(id)}.add($tempVar);")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {

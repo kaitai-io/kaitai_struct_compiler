@@ -166,9 +166,10 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
-    out.puts(s"${translator.doName("_")} = $expr")
-    out.puts(s"${privateMemberName(id)}.append(${translator.doName("_")})")
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    out.puts(s"$tmpName = $expr")
+    out.puts(s"${privateMemberName(id)}.append($tmpName)")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {

@@ -200,9 +200,10 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
-    out.puts(s"${translator.doLocalName("_")} = $expr;")
-    out.puts(s"${privateMemberName(id)}[] = ${translator.doLocalName("_")};")
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+    val tmpName = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    out.puts(s"$tmpName = $expr;")
+    out.puts(s"${privateMemberName(id)}[] = $tmpName;")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {

@@ -206,7 +206,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     out.puts(s"${translator.doName("_")} = $expr;")
     out.puts(s"${privateMemberName(id)}.Add(${translator.doName("_")});")
   }

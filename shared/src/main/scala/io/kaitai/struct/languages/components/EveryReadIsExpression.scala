@@ -40,18 +40,18 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosHeader(id, io, attr.dataType, needRaw(attr.dataType))
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
         condRepeatEosFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
         condRepeatExprHeader(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
         condRepeatExprFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
         condRepeatUntilHeader(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
         condRepeatUntilFooter(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
       case NoRepeat =>
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
     }
 
     if (debug)
@@ -68,7 +68,14 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     attrParseIfFooter(attr.cond.ifExpr)
   }
 
-  def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+  def attrParse2(
+    id: Identifier,
+    dataType: DataType,
+    io: String,
+    extraAttrs: ListBuffer[AttrSpec],
+    rep: RepeatSpec,
+    isRaw: Boolean
+  ): Unit = {
     if (debug && rep != NoRepeat)
       attrDebugStart(id, dataType, Some(io), rep)
 
@@ -78,25 +85,32 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
       case t: UserType =>
         attrUserTypeParse(id, t, io, extraAttrs, rep)
       case t: BytesType =>
-        attrBytesTypeParse(id, t, io, extraAttrs, rep)
+        attrBytesTypeParse(id, t, io, extraAttrs, rep, isRaw)
       case SwitchType(on, cases) =>
         attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep)
       case t: StrFromBytesType =>
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), Ast.expr.Str(t.encoding))
-        handleAssignment(id, expr, rep)
+        handleAssignment(id, expr, rep, isRaw)
       case t: EnumType =>
         val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, io))
-        handleAssignment(id, expr, rep)
+        handleAssignment(id, expr, rep, isRaw)
       case _ =>
         val expr = parseExpr(dataType, io)
-        handleAssignment(id, expr, rep)
+        handleAssignment(id, expr, rep, isRaw)
     }
 
     if (debug && rep != NoRepeat)
       attrDebugEnd(id, dataType, io, rep)
   }
 
-  def attrBytesTypeParse(id: Identifier, dataType: BytesType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+  def attrBytesTypeParse(
+    id: Identifier,
+    dataType: BytesType,
+    io: String,
+    extraAttrs: ListBuffer[AttrSpec],
+    rep: RepeatSpec,
+    isRaw: Boolean
+  ): Unit = {
     // use intermediate variable name, if we'll be doing post-processing
     val rawId = dataType.process match {
       case None => id
@@ -107,7 +121,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
 
     val expr = parseExprBytes(dataType, io)
-    handleAssignment(rawId, expr, rep)
+    handleAssignment(rawId, expr, rep, isRaw)
 
     // apply post-processing
     dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
@@ -134,7 +148,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType.bytes
 
-        attrParse2(rawId, byteType, io, extraAttrs, rep)
+        attrParse2(rawId, byteType, io, extraAttrs, rep, true)
 
         val extraType = rep match {
           case NoRepeat => byteType
@@ -157,7 +171,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
     val expr = parseExpr(dataType, newIO)
     if (!debug) {
-      handleAssignment(id, expr, rep)
+      handleAssignment(id, expr, rep, false)
     } else {
       // Debug mode requires one to actually call "_read" method on constructed user type,
       // and this must be done as a separate statement - or else exception handler would
@@ -170,7 +184,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         case _ =>
           val tempVarName = s"_t_${idToStr(id)}"
           handleAssignmentTempVar(dataType, tempVarName, expr)
-          handleAssignment(id, tempVarName, rep)
+          handleAssignment(id, tempVarName, rep, false)
           userTypeDebugRead(tempVarName)
       }
     }
@@ -200,7 +214,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
           } else {
             switchCaseStart(condition)
           }
-          attrParse2(id, dataType, io, extraAttrs, rep)
+          attrParse2(id, dataType, io, extraAttrs, rep, false)
           switchCaseEnd()
       }
     }
@@ -213,12 +227,12 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
           if (switchBytesOnlyAsRaw) {
             dataType match {
               case t: BytesType =>
-                attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep)
+                attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep, false)
               case _ =>
-                attrParse2(id, dataType, io, extraAttrs, rep)
+                attrParse2(id, dataType, io, extraAttrs, rep, false)
             }
           } else {
-            attrParse2(id, dataType, io, extraAttrs, rep)
+            attrParse2(id, dataType, io, extraAttrs, rep, false)
           }
           switchElseEnd()
         case _ =>
@@ -229,11 +243,11 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     switchEnd()
   }
 
-  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec): Unit = {
+  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
     rep match {
       case RepeatEos => handleAssignmentRepeatEos(id, expr)
       case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
-      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr)
+      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr, isRaw)
       case NoRepeat => handleAssignmentSimple(id, expr)
     }
   }
@@ -243,7 +257,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
-  def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit
+  def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit
   def handleAssignmentSimple(id: Identifier, expr: String): Unit
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
 
