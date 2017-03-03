@@ -7,6 +7,32 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
 
 class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  // http://perldoc.perl.org/perlrebackslash.html#Character-Escapes
+  override val asciiCharQuoteMap: Map[Char, String] = Map(
+    '\t' -> "\\t",
+    '\n' -> "\\n",
+    '\r' -> "\\r",
+    '"' -> "\\\"",
+    '\\' -> "\\\\",
+
+    // Perl double-quoted interpolation variables
+    '$' -> "\\$",
+    '@' -> "\\@",
+    '%' -> "\\%",
+
+    '\7' -> "\\a",
+    '\f' -> "\\f",
+    '\33' -> "\\e",
+    '\b' -> "\\b"
+
+    // \v is available since 5.10, but according to documentation
+    // it's used for a class of "vertical tabulation" characters,
+    // not a single character
+  )
+
+  override def strLiteralUnicode(code: Char): String =
+    "\\N{U+%04x}".format(code.toInt)
+
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
