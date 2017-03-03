@@ -137,7 +137,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) | RepeatUntil(_) => s"end($memberName)"
+      case RepeatEos | RepeatExpr(_) => s"end($memberName)"
+      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
       case NoRepeat => memberName
     }
 
