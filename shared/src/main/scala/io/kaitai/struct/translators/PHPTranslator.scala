@@ -19,6 +19,9 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
+    // allowed and required to not trigger variable interpolation
+    '$' -> "\\$",
+
     '\f' -> "\\f",
     '\13' -> "\\v",
     '\33' -> "\\e"
