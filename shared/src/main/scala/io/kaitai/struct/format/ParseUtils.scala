@@ -3,10 +3,15 @@ package io.kaitai.struct.format
 import io.kaitai.struct.Utils
 
 object ParseUtils {
-  def ensureLegalKeys(src: Map[String, Any], legalKeys: Set[String], path: List[String]) = {
+  def ensureLegalKeys(src: Map[String, Any], legalKeys: Set[String], path: List[String], where: Option[String] = None) = {
     src.keys.foreach((key) =>
-      if (!key.startsWith("-") && !legalKeys.contains(key))
-        throw new YAMLParseException(s"unknown key found, expected: ${legalKeys.toList.sorted.mkString(", ")}", path ++ List(key))
+      if (!key.startsWith("-") && !legalKeys.contains(key)) {
+        val msg = where match {
+          case Some(ctx) => s"invalid key found in $ctx, allowed"
+          case None => "unknown key found, expected"
+        }
+        throw new YAMLParseException(s"$msg: ${legalKeys.toList.sorted.mkString(", ")}", path ++ List(key))
+      }
     )
   }
 

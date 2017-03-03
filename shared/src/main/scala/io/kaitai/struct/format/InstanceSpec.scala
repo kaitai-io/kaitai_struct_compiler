@@ -8,16 +8,20 @@ case class ValueInstanceSpec(_doc: Option[String], value: Ast.expr, ifExpr: Opti
 case class ParseInstanceSpec(_doc: Option[String], dataType: DataType, cond: ConditionalSpec, pos: Option[Ast.expr], io: Option[Ast.expr]) extends InstanceSpec(_doc) with AttrLikeSpec
 
 object InstanceSpec {
+  val LEGAL_KEYS_VALUE_INST = Set(
+    "value",
+    "doc",
+    "enum",
+    "if"
+  )
+
   def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults, id: InstanceIdentifier): InstanceSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
-
-    val pos = ParseUtils.getOptValueStr(srcMap, "pos", path).map(Expressions.parse)
-    val io = ParseUtils.getOptValueStr(srcMap, "io", path).map(Expressions.parse)
 
     ParseUtils.getOptValueStr(srcMap, "value", path).map(Expressions.parse) match {
       case Some(value) =>
         // value instance
-        // TODO: check conflicts with all other keys
+        ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS_VALUE_INST, path, Some("value instance"))
 
         // Wrap everything in EnumById if "enum" is used
         val value2 = ParseUtils.getOptValueStr(srcMap, "enum", path) match {
@@ -37,6 +41,9 @@ object InstanceSpec {
         )
       case None =>
         // normal positional instance
+        val pos = ParseUtils.getOptValueStr(srcMap, "pos", path).map(Expressions.parse)
+        val io = ParseUtils.getOptValueStr(srcMap, "io", path).map(Expressions.parse)
+
         val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io")
         val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef, id)
         ParseInstanceSpec(a.doc, a.dataType, a.cond, pos, io)
