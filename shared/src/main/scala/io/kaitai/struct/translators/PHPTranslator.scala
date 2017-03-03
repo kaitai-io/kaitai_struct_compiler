@@ -11,6 +11,22 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + Utils.hexEscapeByteArray(arr) + "\""
 
+  // http://php.net/manual/en/language.types.string.php#language.types.string.syntax.double
+  override val asciiCharQuoteMap: Map[Char, String] = Map(
+    '\t' -> "\\t",
+    '\n' -> "\\n",
+    '\r' -> "\\r",
+    '"' -> "\\\"",
+    '\\' -> "\\\\",
+
+    '\f' -> "\\f",
+    '\13' -> "\\v",
+    '\33' -> "\\e"
+  )
+
+  override def strLiteralUnicode(code: Char): String =
+    "\\u{%x}".format(code.toInt)
+
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
