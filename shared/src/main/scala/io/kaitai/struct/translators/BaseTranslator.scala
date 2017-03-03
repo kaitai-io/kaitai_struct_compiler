@@ -241,8 +241,20 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     }
   }
 
+  /**
+    * Converts generic control character code into something that's allowed
+    * inside a string literal. Default implementation uses octal encoding,
+    * which is ok for most C-derived languages.
+    *
+    * Note that we use strictly 3 octal digits to work around potential
+    * problems with following decimal digits, i.e. "\0" + "2" that would be
+    * parsed as single character "\02" = "\x02", instead of two characters
+    * "\x00\x32".
+    * @param code character code to represent
+    * @return string literal representation of given code
+    */
   def strLiteralGenericCC(code: Char) =
-    "\\%o".format(code.toInt)
+    "\\%03o".format(code.toInt)
 
   def strLiteralUnicode(code: Char): String =
     "\\u%04x".format(code.toInt)
