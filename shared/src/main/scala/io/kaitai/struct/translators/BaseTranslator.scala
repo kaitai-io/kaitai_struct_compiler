@@ -256,6 +256,13 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   def strLiteralGenericCC(code: Char) =
     "\\%03o".format(code.toInt)
 
+  /**
+    * Converts Unicode (typically, non-ASCII) character code into something
+    * that's allowed inside a string literal. Default implementation uses
+    * Unicode 4-digit hex encoding, which is ok for most C-derived languages.
+    * @param code character code to represent
+    * @return string literal representation of given code
+    */
   def strLiteralUnicode(code: Char): String =
     "\\u%04x".format(code.toInt)
 
