@@ -8,6 +8,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"${super.doByteArrayLiteral(arr)}.pack('C*')"
 
+  // https://github.com/ruby/ruby/blob/trunk/doc/syntax/literals.rdoc#strings
+  // https://github.com/ruby/ruby/blob/trunk/string.c - see "rb_str_inspect"
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",
@@ -15,6 +17,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
+    '#' -> "\\#",
     '\7' -> "\\a",
     '\f' -> "\\f",
     '\13' -> "\\v",
