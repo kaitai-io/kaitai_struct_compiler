@@ -88,9 +88,12 @@ object DataType {
 
   abstract class UserType(val name: List[String], val forcedParent: Option[Ast.expr]) extends DataType {
     var classSpec: Option[ClassSpec] = None
-    def isOpaque = classSpec.get.meta match {
-      case None => false
-      case Some(meta) => meta.isOpaque
+    def isOpaque = {
+      val cs = classSpec.get
+      cs.isTopLevel || (cs.meta match {
+        case None => false
+        case Some(meta) => meta.isOpaque
+      })
     }
   }
   case class UserTypeInstream(_name: List[String], _forcedParent: Option[Ast.expr]) extends UserType(_name, _forcedParent)
