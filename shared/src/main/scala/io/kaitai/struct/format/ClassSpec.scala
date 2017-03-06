@@ -79,14 +79,21 @@ object ClassSpec {
       case None => Map()
     }
 
+    val cs = ClassSpec(meta, doc, seq, types, instances, enums)
+
+    // If that's a top-level class, set its name from meta/id
     if (path.isEmpty) {
       if (meta.isEmpty)
         throw new YAMLParseException("no `meta` encountered in top-level class spec", path)
-      if (meta.get.id.isEmpty)
-        throw new YAMLParseException("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
+      meta.get.id match {
+        case None =>
+          throw new YAMLParseException("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
+        case Some(id) =>
+          cs.name = List(id)
+      }
     }
 
-    ClassSpec(meta, doc, seq, types, instances, enums)
+    cs
   }
 
   def seqFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): List[AttrSpec] = {
