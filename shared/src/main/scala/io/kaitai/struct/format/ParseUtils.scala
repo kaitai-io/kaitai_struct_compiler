@@ -65,6 +65,52 @@ object ParseUtils {
     }
   }
 
+  /**
+    * Gets a list of T-typed values from a given YAML map's key "field",
+    * reporting errors accurately and ensuring type safety.
+    *
+    * Ensures that this is indeed a valid list, and each list's element
+    * is converted using `convertFunc` function. Lack of "field" key
+    * results in an empty list.
+    *
+    * @param src YAML map to get list from
+    * @param field key name in YAML map, value expected to be a list
+    * @param convertFunc function that gets element of Any type, expected
+    *                    to check its type and do the conversion
+    * @param path path used to report YAML errors
+    * @tparam T type of list's elements
+    * @return
+    */
+  def getList[T](
+                  src: Map[String, Any],
+                  field: String,
+                  convertFunc: ((Any, List[String]) => (T)),
+                  path: List[String]
+  ): List[T] = {
+    val pathField = path ++ List(field)
+    src.get(field) match {
+      case Some(srcList: List[Any]) =>
+        srcList.zipWithIndex.map { case (element, idx) =>
+          convertFunc(element, pathField ++ List(idx.toString))
+        }
+      case None =>
+        List()
+      case unknown =>
+        throw YAMLParseException.badType("array", unknown, pathField)
+    }
+  }
+
+  /**
+    * Gets a list of strings from a given YAML map's key "field",
+    * reporting errors accurately and ensuring type safety.
+    * @param src YAML map to get list from
+    * @param field key name in YAML map, value expected to be a list
+    * @param path path used to report YAML errors
+    * @return list of strings from YAML map
+    */
+  def getListStr(src: Map[String, Any], field: String, path: List[String]): List[String] =
+    getList[String](src, field, asStr, path)
+
   def asStr(src: Any, path: List[String]): String = {
     src match {
       case str: String =>
