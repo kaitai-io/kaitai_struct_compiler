@@ -32,10 +32,9 @@ object TypeProcessor {
   // ==================================================================
 
   def loadImports(specs: ClassSpecs, curClass: ClassSpec): Unit = {
-    curClass.meta match {
-      case Some(meta) =>
+    curClass.meta.foreach((meta) =>
         meta.imports.foreach((name) => loadImport(specs, name))
-    }
+    )
 
     curClass.types.foreach { case (_, nestedClass) =>
       loadImports(specs, nestedClass)
