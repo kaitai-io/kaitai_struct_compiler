@@ -20,12 +20,14 @@ object Log {
     "file",
     "value",
     "parent",
+    "type_resolve",
     "import"
   )
 
   var fileOps: Logger = NullLogger
   var typeProcValue: Logger = NullLogger
   var typeProcParent: Logger = NullLogger
+  var typeResolve: Logger = NullLogger
   var importOps: Logger = NullLogger
 
   def initFromVerboseFlag(subsystems: Seq[String]): Unit = {
@@ -36,6 +38,7 @@ object Log {
       case "file" => fileOps = ConsoleLogger
       case "value" => typeProcValue = ConsoleLogger
       case "parent" => typeProcParent = ConsoleLogger
+      case "type_resolve" => typeResolve = ConsoleLogger
       case "import" => importOps = ConsoleLogger
     }
   }

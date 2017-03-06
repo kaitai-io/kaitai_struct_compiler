@@ -1,5 +1,6 @@
 package io.kaitai.struct.precompile
 
+import io.kaitai.struct.Log
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType.{EnumType, SwitchType, UserType}
 import io.kaitai.struct.format._
@@ -56,12 +57,8 @@ object ResolveTypes {
   }
 
   def resolveUserType(curClass: ClassSpec, typeName: List[String]): Option[ClassSpec] = {
-    //    Console.println(s"resolveUserType: at ${curClass.name} doing ${typeName.mkString("|")}")
+    Log.typeResolve.info(() => s"resolveUserType: at ${curClass.name} doing ${typeName.mkString("|")}")
     val res = realResolveUserType(curClass, typeName)
-    //    Console.println("   => " + (res match {
-    //      case None => "???"
-    //      case Some(x) => x.name.mkString("|")
-    //    }))
 
     // TODO: add some option to control whether using an unresolved type should be a error or a placeholder should be
     // generated
@@ -69,8 +66,10 @@ object ResolveTypes {
     res match {
       case None =>
         // Type definition not found - generate special "opaque placeholder" ClassSpec
+        Log.typeResolve.info(() => "    => ??? (generating opaque type)")
         Some(ClassSpec.opaquePlaceholder(typeName))
       case Some(x) =>
+        Log.typeResolve.info(() => s"    => ${x.nameAsStr}")
         res
     }
   }
