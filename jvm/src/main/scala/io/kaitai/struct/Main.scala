@@ -2,7 +2,7 @@ package io.kaitai.struct
 
 import java.io.File
 
-import io.kaitai.struct.format.{ClassSpec, KSVersion, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
@@ -92,23 +92,21 @@ object Main {
   def compileOne(srcFile: String, lang: String, outDir: String, config: RuntimeConfig): Unit = {
     Log.fileOps.info(() => s"compiling $srcFile for $lang...")
 
-    val spec = JavaKSYParser.localFileToSpec(srcFile)
-    compileOne(spec, lang, outDir, config)
+    val specs = JavaKSYParser.localFileToSpecs(srcFile)
+    compileOne(specs, lang, outDir, config)
   }
 
-  def compileOne(topClass: ClassSpec, lang: String, outDir: String, config: RuntimeConfig): Unit = {
-    ClassCompiler.fromClassSpecToFile(topClass, LanguageCompilerStatic.byString(lang), outDir, config).compile
+  def compileOne(specs: ClassSpecs, lang: String, outDir: String, config: RuntimeConfig): Unit = {
+    ClassCompiler.compile(specs, LanguageCompilerStatic.byString(lang), outDir, config)
   }
 
   def compileAll(srcFile: String, config: CLIConfig): Unit = {
-    Log.fileOps.info(() => s"reading $srcFile...")
-
-    val topClass = JavaKSYParser.localFileToSpec(srcFile)
+    val specs = JavaKSYParser.localFileToSpecs(srcFile)
 
     config.targets.foreach { lang =>
       try {
         Log.fileOps.info(() => s"... compiling it for $lang... ")
-        compileOne(topClass, lang, s"${config.outDir}/$lang", config.runtime)
+        compileOne(specs, lang, s"${config.outDir}/$lang", config.runtime)
       } catch {
         case e: Exception =>
           e.printStackTrace()

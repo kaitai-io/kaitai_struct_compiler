@@ -1,21 +1,29 @@
 package io.kaitai.struct.formats
 
-import java.io.FileReader
+import java.io.{File, FileReader}
+import java.util.{List => JList, Map => JMap}
 
-import io.kaitai.struct.TypeProcessor
-import io.kaitai.struct.format.ClassSpec
+import io.kaitai.struct.{Log, TypeProcessor}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.SafeConstructor
 
-import java.util.{List => JList, Map => JMap}
 import scala.collection.JavaConversions._
 
 object JavaKSYParser {
-  def localFileToSpec(yamlFilename: String): ClassSpec = {
+  def localFileToSpecs(yamlFilename: String): ClassSpecs = {
+    val specs = new JavaClassSpecs(new File(yamlFilename).getParent)
+
+    val firstSpec = fileNameToSpec(yamlFilename)
+
+    TypeProcessor.processTypesMany(specs, firstSpec)
+    specs
+  }
+
+  def fileNameToSpec(yamlFilename: String): ClassSpec = {
+    Log.fileOps.info(() => s"reading $yamlFilename...")
     val scalaSrc = readerToYaml(new FileReader(yamlFilename))
-    val spec = ClassSpec.fromYaml(scalaSrc)
-    TypeProcessor.processTypes(spec)
-    spec
+    ClassSpec.fromYaml(scalaSrc)
   }
 
   def readerToYaml(reader: FileReader): Any = {

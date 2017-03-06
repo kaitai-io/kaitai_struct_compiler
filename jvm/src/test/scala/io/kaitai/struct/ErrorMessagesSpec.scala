@@ -36,7 +36,7 @@ class ErrorMessagesSpec extends FunSuite {
     test(testName) {
       val expected = getExpected(fn)
       val caught = intercept[YAMLParseException] {
-        val classSpec = JavaKSYParser.localFileToSpec(fn)
+        val classSpec = JavaKSYParser.localFileToSpecs(fn)
       }
       assertResult(expected) {
         // replace version-dependent message with a moniker

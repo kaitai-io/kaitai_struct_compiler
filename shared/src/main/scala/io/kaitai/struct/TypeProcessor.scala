@@ -9,17 +9,52 @@ import io.kaitai.struct.translators._
 import scala.collection.mutable.ListBuffer
 
 object TypeProcessor {
-  def processTypes(topClass: ClassSpec): Unit = {
-    // Set top class name from meta
-    topClass.name = List(topClass.meta.get.id.get)
+  def processTypesMany(specs: ClassSpecs, firstSpec: ClassSpec): Unit = {
+    specs(firstSpec.name.head) = firstSpec
+    loadImports(specs, firstSpec)
+    Log.importOps.info(() => s"imports done, got: ${specs.keys}")
 
-    markupClassNames(topClass)
+    specs.foreach { case (_, classSpec) =>
+      processTypes(specs, classSpec)
+    }
+  }
+
+  def processTypes(classSpecs: ClassSpecs, topClass: ClassSpec): Unit = {
+    classSpecs.foreach { case (_, curClass) => markupClassNames(curClass) }
     ResolveTypes.resolveUserTypes(topClass)
     markupParentTypes(topClass)
     new ValueTypesDeriver(topClass).run()
     new TypeValidator(topClass).run()
 
     topClass.parentClass = GenericStructClassSpec
+  }
+
+  // ==================================================================
+
+  def loadImports(specs: ClassSpecs, curClass: ClassSpec): Unit = {
+    curClass.meta match {
+      case Some(meta) =>
+        meta.imports.foreach((name) => loadImport(specs, name))
+    }
+
+    curClass.types.foreach { case (_, nestedClass) =>
+      loadImports(specs, nestedClass)
+    }
+  }
+
+  def loadImport(specs: ClassSpecs, name: String): Unit = {
+    val parts = name.split('/').toList
+    val head::tail = parts
+    val optSpec = if (head.isEmpty) {
+      specs.importAbsolute(tail)
+    } else {
+      specs.importRelative(parts)
+    }
+
+    optSpec.foreach { (spec) =>
+      specs(spec.name.head) = spec
+      loadImports(specs, spec)
+    }
   }
 
   // ==================================================================
