@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.format.{ClassSpec, JavaScriptKSYParser, KSVersion}
+import io.kaitai.struct.format.{ClassSpec, JavaScriptClassSpecs, JavaScriptKSYParser, KSVersion}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
 import scala.scalajs.js
@@ -16,17 +16,21 @@ object MainJs {
     val config = new RuntimeConfig(debug = debug)
     val lang = LanguageCompilerStatic.byString(langStr)
 
+    val specs = new JavaScriptClassSpecs()
     val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
-    val spec = ClassSpec.fromYaml(yamlScala)
-    TypeProcessor.processTypes(spec)
+    val firstSpec = ClassSpec.fromYaml(yamlScala)
+    TypeProcessor.processTypesMany(specs, firstSpec)
 
-    val (out1, out2, cc) = ClassCompiler.fromClassSpecToString(spec, lang, config)
-    cc.compile
-
-    out2 match {
-      case None => js.Array(out1.result)
-      case Some(outHdr) => js.Array(out1.result, outHdr.result)
+    val res = specs.flatMap { case (specName, spec) =>
+      val (out1, out2, cc) = ClassCompiler.fromClassSpecToString(spec, lang, config)
+      cc.compile
+      out2 match {
+        case None => js.Array(out1.result)
+        case Some(outHdr) => js.Array(out1.result, outHdr.result)
+      }
     }
+
+    res.toJSArray
   }
 
   @JSExport
