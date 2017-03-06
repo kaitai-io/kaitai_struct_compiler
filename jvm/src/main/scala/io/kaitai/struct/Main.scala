@@ -97,7 +97,7 @@ object Main {
   }
 
   def compileOne(specs: ClassSpecs, langStr: String, outDir: String, config: RuntimeConfig): Unit = {
-    val lang = LanguageCompilerStatic.byString(lang)
+    val lang = LanguageCompilerStatic.byString(langStr)
     specs.foreach { case (_, classSpec) =>
       ClassCompiler.fromClassSpecToFile(classSpec, lang, outDir, config).compile
     }
