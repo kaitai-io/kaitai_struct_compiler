@@ -96,8 +96,11 @@ object Main {
     compileOne(specs, lang, outDir, config)
   }
 
-  def compileOne(specs: ClassSpecs, lang: String, outDir: String, config: RuntimeConfig): Unit = {
-    ClassCompiler.compile(specs, LanguageCompilerStatic.byString(lang), outDir, config)
+  def compileOne(specs: ClassSpecs, langStr: String, outDir: String, config: RuntimeConfig): Unit = {
+    val lang = LanguageCompilerStatic.byString(lang)
+    specs.foreach { case (_, classSpec) =>
+      ClassCompiler.fromClassSpecToFile(classSpec, lang, outDir, config).compile
+    }
   }
 
   def compileAll(srcFile: String, config: CLIConfig): Unit = {

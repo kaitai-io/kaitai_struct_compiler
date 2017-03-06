@@ -150,12 +150,6 @@ class ClassCompiler(
 }
 
 object ClassCompiler {
-  def compile(specs: ClassSpecs, lang: LanguageCompilerStatic, outDir: String, conf: RuntimeConfig): Unit = {
-    specs.foreach { case (_, classSpec) =>
-      fromClassSpecToFile(classSpec, lang, outDir, conf).compile
-    }
-  }
-
   def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, conf: RuntimeConfig): AbstractCompiler = {
     val config = updateConfig(conf, topClass)
     val outPath = lang.outFilePath(config, outDir, topClass.name.head)
