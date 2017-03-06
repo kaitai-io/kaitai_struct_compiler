@@ -18,10 +18,13 @@ class JavaClassSpecs(relPath: String) extends ClassSpecs {
     relFiles.get(name) match {
       case Some(_) =>
         // Yes, it's already loaded and processed, nothing new here
+        Log.importOps.info(() => s".... cached")
         None
       case None =>
         // Nope, let's import it
-        Some(JavaKSYParser.fileNameToSpec(relPath + "/" + name.mkString("/") + ".ksy"))
+        val spec = JavaKSYParser.fileNameToSpec(relPath + "/" + name.mkString("/") + ".ksy")
+        relFiles(name) = spec
+        Some(spec)
     }
   }
 
