@@ -51,8 +51,17 @@ object TypeProcessor {
     }
 
     optSpec.foreach { (spec) =>
-      specs(spec.name.head) = spec
-      loadImports(specs, spec)
+      val specName = spec.name.head
+      // Check if we've already had this spec in our ClassSpecs. If we do,
+      // don't do anything: we've already processed it and reprocessing it
+      // might lead to infinite recursion.
+      //
+      // In theory, duplicate imports shouldn't be returned at all by
+      // import* methods due to caching, but we won't rely on it here.
+      if (!specs.contains(specName)) {
+        specs(specName) = spec
+        loadImports(specs, spec)
+      }
     }
   }
 
