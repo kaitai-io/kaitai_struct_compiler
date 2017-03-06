@@ -21,7 +21,7 @@ object TypeProcessor {
 
   def processTypes(classSpecs: ClassSpecs, topClass: ClassSpec): Unit = {
     classSpecs.foreach { case (_, curClass) => markupClassNames(curClass) }
-    ResolveTypes.resolveUserTypes(topClass)
+    new ResolveTypes(classSpecs).run()
     classSpecs.foreach { case (_, curClass) => markupParentTypes(curClass) }
     new ValueTypesDeriver(topClass).run()
     new TypeValidator(topClass).run()

@@ -9,7 +9,13 @@ import io.kaitai.struct.format._
   * A collection of methods that resolves user types and enum types, i.e.
   * converts names into ClassSpec / EnumSpec references.
   */
-object ResolveTypes {
+class ResolveTypes(specs: ClassSpecs) {
+  def run(): Unit =
+    specs.foreach { case (_, spec) =>
+      // FIXME: grab exception and rethrow more localized one, with a specName?
+      resolveUserTypes(spec)
+    }
+
   /**
     * Resolves user types and enum types recursively starting from a certain
     * ClassSpec.
@@ -103,8 +109,9 @@ object ResolveTypes {
             if (curClass.name.head == firstName) {
               Some(curClass)
             } else {
-              // No luck at all
-              None
+              // Check if top-level specs has this name
+              // If there's None => no luck at all
+              specs.get(firstName)
             }
         }
     }
