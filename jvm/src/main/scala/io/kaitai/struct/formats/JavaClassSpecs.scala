@@ -9,8 +9,8 @@ import scala.collection.mutable
   * Java implementation of ClassSpec container, doing imports from local files.
   */
 class JavaClassSpecs(relPath: String) extends ClassSpecs {
-  val relFiles = mutable.Map[List[String], ClassSpec]()
-  val absFiles = mutable.Map[List[String], ClassSpec]()
+  private val relFiles = mutable.Map[List[String], ClassSpec]()
+  private val absFiles = mutable.Map[List[String], ClassSpec]()
 
   override def importRelative(name: List[String]): Option[ClassSpec] = {
     Log.importOps.info(() => s".. importing relative $name")
