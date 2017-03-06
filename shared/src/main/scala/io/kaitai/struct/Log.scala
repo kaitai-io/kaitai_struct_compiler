@@ -19,12 +19,14 @@ object Log {
   val VALID_SUBSYS = Seq(
     "file",
     "value",
-    "parent"
+    "parent",
+    "import"
   )
 
   var fileOps: Logger = NullLogger
   var typeProcValue: Logger = NullLogger
   var typeProcParent: Logger = NullLogger
+  var importOps: Logger = NullLogger
 
   def initFromVerboseFlag(subsystems: Seq[String]): Unit = {
     fileOps = NullLogger
@@ -34,6 +36,7 @@ object Log {
       case "file" => fileOps = ConsoleLogger
       case "value" => typeProcValue = ConsoleLogger
       case "parent" => typeProcParent = ConsoleLogger
+      case "import" => importOps = ConsoleLogger
     }
   }
 }
