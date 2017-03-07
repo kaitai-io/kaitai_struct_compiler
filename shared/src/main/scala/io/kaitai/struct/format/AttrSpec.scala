@@ -18,7 +18,7 @@ case object NoRepeat extends RepeatSpec
 
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 
-trait AttrLikeSpec {
+trait AttrLikeSpec extends YAMLPath {
   def dataType: DataType
   def cond: ConditionalSpec
   def doc: Option[String]
@@ -40,7 +40,7 @@ case class AttrSpec(
   dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
   doc: Option[String] = None
-) extends AttrLikeSpec with YAMLPath
+) extends AttrLikeSpec
 
 case class YamlAttrArgs(
   size: Option[Ast.expr],
