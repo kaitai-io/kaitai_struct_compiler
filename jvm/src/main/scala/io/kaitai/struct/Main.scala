@@ -2,7 +2,7 @@ package io.kaitai.struct
 
 import java.io.File
 
-import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpecs, KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
@@ -14,6 +14,7 @@ object Main {
     srcFiles: Seq[File] = Seq(),
     outDir: File = new File("."),
     targets: Seq[String] = Seq(),
+    throwExceptions: Boolean = false,
     runtime: RuntimeConfig = RuntimeConfig()
   )
 
@@ -67,6 +68,10 @@ object Main {
       opt[Boolean]("opaque-types") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
       } text("opaque types allowed, default: false")
+
+      opt[Unit]("ksc-exceptions") action { (x, c) =>
+        c.copy(throwExceptions = true)
+      } text("ksc throws exceptions instead of human-readable error messages")
 
       opt[String]("verbose") action { (x, c) =>
         // TODO: make support for something like "--verbose file,parent"
@@ -140,7 +145,11 @@ object Main {
             }
           } catch {
             case e: YAMLParseException =>
-              Console.println(e.getMessage)
+              if (config.throwExceptions) {
+                throw e
+              } else {
+                Console.println(e.getMessage)
+              }
           }
         }
     }
