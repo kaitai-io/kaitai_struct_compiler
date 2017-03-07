@@ -28,7 +28,8 @@ class ClassCompiler(
 
   def compileOpaqueClasses(topClass: ClassSpec) = {
     TypeProcessor.getOpaqueClasses(topClass).foreach((classSpec) =>
-      lang.opaqueClassDeclaration(classSpec)
+      if (classSpec != topClass)
+        lang.opaqueClassDeclaration(classSpec)
     )
   }
 
