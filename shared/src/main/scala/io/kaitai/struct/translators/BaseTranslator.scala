@@ -42,12 +42,12 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
             doStrCompareOp(left, op, right)
           case (EnumType(ltype, _), EnumType(rtype, _)) =>
             if (ltype != rtype) {
-              throw new TypeMismatchError(s"can't compare enums type ${ltype} and ${rtype}")
+              throw new TypeMismatchError(s"can't compare enums type $ltype and $rtype")
             } else {
               doEnumCompareOp(left, op, right)
             }
           case (ltype, rtype) =>
-            throw new RuntimeException(s"can't compare ${ltype} and ${rtype}")
+            throw new TypeMismatchError(s"can't compare $ltype and $rtype")
         }
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
@@ -56,7 +56,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
           case (_: StrType, _: StrType, Ast.operator.Add) =>
             strConcat(left, right)
           case (ltype, rtype, _) =>
-            throw new RuntimeException(s"can't do ${ltype} ${op} ${rtype}")
+            throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         doBooleanOp(op, values)
@@ -67,7 +67,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
           case _: IntType =>
             doSubscript(container, idx)
           case idxType =>
-            throw new RuntimeException(s"can't use $idx as array index (need int, got $idxType)")
+            throw new TypeMismatchError(s"can't use $idx as array index (need int, got $idxType)")
         }
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
         val valType = detectType(value)
@@ -111,7 +111,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
               case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
               case (_: StrType, "to_i") => strToInt(obj, args(0))
               case (_: BytesType, "to_s") => bytesToStr(translate(obj), args(0))
-              case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
+              case _ => throw new TypeMismatchError(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
       case Ast.expr.List(values: Seq[Ast.expr]) =>
@@ -126,7 +126,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
                   x.toByte
                 }
               case n =>
-                throw new RuntimeException(s"got $n in byte array, unable to put it literally")
+                throw new TypeMismatchError(s"got $n in byte array, unable to put it literally")
             }
             doByteArrayLiteral(literalBytes)
           case _ =>
@@ -156,17 +156,14 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     }
   }
 
-  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
+  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-  }
 
-  def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
+  def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-  }
 
-  def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
+  def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-  }
 
   def cmpOp(op: Ast.cmpop): String = {
     op match {
@@ -181,19 +178,19 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
 
   def doBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]): String = {
     val opStr = s"${booleanOp(op)}"
-    val dividerStr = s") ${opStr} ("
+    val dividerStr = s") $opStr ("
     val valuesStr = values.map(translate).mkString("(", dividerStr, ")")
 
     // Improve compatibility for statements like: ( ... && ... || ... ) ? ... : ...
-    s" (${valuesStr}) "
+    s" ($valuesStr) "
   }
 
-  def booleanOp(op: Ast.boolop) = op match {
+  def booleanOp(op: Ast.boolop): String = op match {
     case Ast.boolop.Or => "||"
     case Ast.boolop.And => "&&"
   }
 
-  def unaryOp(op: Ast.unaryop) = op match {
+  def unaryOp(op: Ast.unaryop): String = op match {
     case Ast.unaryop.Invert => "~"
     case Ast.unaryop.Minus => "-"
     case Ast.unaryop.Not => "!"
@@ -253,7 +250,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     * @param code character code to represent
     * @return string literal representation of given code
     */
-  def strLiteralGenericCC(code: Char) =
+  def strLiteralGenericCC(code: Char): String =
     "\\%03o".format(code.toInt)
 
   /**
