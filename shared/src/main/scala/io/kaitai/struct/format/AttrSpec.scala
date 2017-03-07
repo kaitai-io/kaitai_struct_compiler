@@ -35,10 +35,10 @@ trait AttrLikeSpec {
 }
 
 case class AttrSpec(
-                     id: Identifier,
-                     dataType: DataType,
-                     cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
-                     doc: Option[String] = None
+  id: Identifier,
+  dataType: DataType,
+  cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
+  doc: Option[String] = None
 ) extends AttrLikeSpec
 
 case class YamlAttrArgs(
