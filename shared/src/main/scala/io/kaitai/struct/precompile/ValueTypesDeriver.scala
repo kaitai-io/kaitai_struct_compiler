@@ -13,12 +13,12 @@ class ValueTypesDeriver(topClass: ClassSpec) {
     var hasChanged = false
     do {
       Log.typeProcValue.info(() => s"### deriveValueType: iteration #$iterNum")
-      hasChanged = deriveValueType(topClass, List())
+      hasChanged = deriveValueType(topClass)
       iterNum += 1
     } while (hasChanged)
   }
 
-  def deriveValueType(curClass: ClassSpec, path: List[String]): Boolean = {
+  def deriveValueType(curClass: ClassSpec): Boolean = {
     Log.typeProcValue.info(() => s"deriveValueType(${curClass.nameAsStr})")
     var hasChanged = false
 
@@ -41,7 +41,7 @@ class ValueTypesDeriver(topClass: ClassSpec) {
                   case err: ExpressionError =>
                     throw new YAMLParseException(
                       err.getMessage,
-                      path ++ List("instances", instName.name, "value")
+                      vi.path ++ List("value")
                     )
                 }
               case Some(_) =>
@@ -54,8 +54,8 @@ class ValueTypesDeriver(topClass: ClassSpec) {
 
     // Continue with all nested types
     curClass.types.foreach {
-      case (typeName, classSpec) =>
-        hasChanged ||= deriveValueType(classSpec, path ++ List("types", typeName))
+      case (_, classSpec) =>
+        hasChanged ||= deriveValueType(classSpec)
     }
 
     hasChanged
