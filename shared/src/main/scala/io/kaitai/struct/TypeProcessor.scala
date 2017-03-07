@@ -3,7 +3,7 @@ package io.kaitai.struct
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.precompile.{ResolveTypes, TypeMismatchError, TypeValidator, ValueTypesDeriver}
+import io.kaitai.struct.precompile._
 import io.kaitai.struct.translators._
 
 import scala.collection.mutable.ListBuffer
@@ -11,7 +11,7 @@ import scala.collection.mutable.ListBuffer
 object TypeProcessor {
   def processTypesMany(specs: ClassSpecs, firstSpec: ClassSpec, config: RuntimeConfig): Unit = {
     specs(firstSpec.name.head) = firstSpec
-    loadImports(specs, firstSpec)
+    new LoadImports(specs).processClass(firstSpec)
     Log.importOps.info(() => s"imports done, got: ${specs.keys}")
 
     specs.foreach { case (_, classSpec) =>
@@ -28,42 +28,6 @@ object TypeProcessor {
     new TypeValidator(topClass).run()
 
     topClass.parentClass = GenericStructClassSpec
-  }
-
-  // ==================================================================
-
-  def loadImports(specs: ClassSpecs, curClass: ClassSpec): Unit = {
-    curClass.meta.foreach((meta) =>
-        meta.imports.foreach((name) => loadImport(specs, name))
-    )
-
-    curClass.types.foreach { case (_, nestedClass) =>
-      loadImports(specs, nestedClass)
-    }
-  }
-
-  def loadImport(specs: ClassSpecs, name: String): Unit = {
-    val parts = name.split('/').toList
-    val head::tail = parts
-    val optSpec = if (head.isEmpty) {
-      specs.importAbsolute(tail)
-    } else {
-      specs.importRelative(parts)
-    }
-
-    optSpec.foreach { (spec) =>
-      val specName = spec.name.head
-      // Check if we've already had this spec in our ClassSpecs. If we do,
-      // don't do anything: we've already processed it and reprocessing it
-      // might lead to infinite recursion.
-      //
-      // In theory, duplicate imports shouldn't be returned at all by
-      // import* methods due to caching, but we won't rely on it here.
-      if (!specs.contains(specName)) {
-        specs(specName) = spec
-        loadImports(specs, spec)
-      }
-    }
   }
 
   // ==================================================================
