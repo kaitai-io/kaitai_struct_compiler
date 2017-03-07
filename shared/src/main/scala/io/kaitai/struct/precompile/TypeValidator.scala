@@ -21,7 +21,7 @@ class TypeValidator(topClass: ClassSpec) {
     * Starts the check from top-level class.
     */
   def run(): Unit =
-    validateClass(topClass, List())
+    validateClass(topClass)
 
   /**
     * Performs validation of a single ClassSpec: would validate
@@ -29,26 +29,23 @@ class TypeValidator(topClass: ClassSpec) {
     * nested subtypes (`types`) recursively. `doc` and `enums` are
     * not checked, as they contain no expressions.
     * @param curClass class to check
-    * @param path original .ksy path to make error messages more meaningful
     */
-  def validateClass(curClass: ClassSpec, path: List[String]): Unit = {
+  def validateClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
-    curClass.seq.zipWithIndex.foreach { case (attr, attrIdx) =>
-      validateAttr(attr, path ++ List("seq", attrIdx.toString))
-    }
+    curClass.seq.foreach(validateAttr)
 
-    curClass.instances.foreach { case (instName, inst) =>
+    curClass.instances.foreach { case (_, inst) =>
       inst match {
         case pis: ParseInstanceSpec =>
-          validateAttr(pis, path ++ List("instances", instName.name))
+          validateAttr(pis)
         case vis: ValueInstanceSpec =>
           // TODO
       }
     }
 
-    curClass.types.foreach { case (nestedName, nestedClass) =>
-      validateClass(nestedClass, path ++ List("types", nestedName))
+    curClass.types.foreach { case (_, nestedClass) =>
+      validateClass(nestedClass)
     }
   }
 
@@ -56,9 +53,10 @@ class TypeValidator(topClass: ClassSpec) {
     * Performs validation of a single parsed attribute (either from a sequence
     * or a parse instance).
     * @param attr attribute to check
-    * @param path original .ksy path to make error messages more meaningful
     */
-  def validateAttr(attr: AttrLikeSpec, path: List[String]) {
+  def validateAttr(attr: AttrLikeSpec) {
+    val path = attr.path
+
     attr.cond.ifExpr.foreach((ifExpr) =>
       checkAssert[BooleanType](ifExpr, "boolean", path, "if")
     )
