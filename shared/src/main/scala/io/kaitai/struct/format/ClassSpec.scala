@@ -9,6 +9,7 @@ case object UnknownClassSpec extends ClassSpecLike
 case object GenericStructClassSpec extends ClassSpecLike
 
 case class ClassSpec(
+  path: List[String],
   isTopLevel: Boolean,
   meta: Option[MetaSpec],
   doc: Option[String],
@@ -16,7 +17,7 @@ case class ClassSpec(
   types: Map[String, ClassSpec],
   instances: Map[InstanceIdentifier, InstanceSpec],
   enums: Map[String, EnumSpec]
-) extends ClassSpecLike {
+) extends ClassSpecLike with YAMLPath {
   var parentClass: ClassSpecLike = UnknownClassSpec
 
   /**
@@ -80,7 +81,7 @@ object ClassSpec {
       case None => Map()
     }
 
-    val cs = ClassSpec(path.isEmpty, meta, doc, seq, types, instances, enums)
+    val cs = ClassSpec(path, path.isEmpty, meta, doc, seq, types, instances, enums)
 
     // If that's a top-level class, set its name from meta/id
     if (path.isEmpty) {
@@ -139,6 +140,7 @@ object ClassSpec {
 
   def opaquePlaceholder(typeName: List[String]): ClassSpec = {
     val placeholder = ClassSpec(
+      List(),
       true,
       meta = Some(MetaSpec.OPAQUE),
       doc = None,

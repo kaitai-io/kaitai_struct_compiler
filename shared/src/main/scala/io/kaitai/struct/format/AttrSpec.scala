@@ -35,11 +35,12 @@ trait AttrLikeSpec {
 }
 
 case class AttrSpec(
+  path: List[String],
   id: Identifier,
   dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
   doc: Option[String] = None
-) extends AttrLikeSpec
+) extends AttrLikeSpec with YAMLPath
 
 case class YamlAttrArgs(
   size: Option[Ast.expr],
@@ -185,7 +186,7 @@ object AttrSpec {
 
     ParseUtils.ensureLegalKeys(srcMap, legalKeys, path)
 
-    AttrSpec(id, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
+    AttrSpec(path, id, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
   }
 
   def parseContentSpec(c: Any, path: List[String]): Array[Byte] = {

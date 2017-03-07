@@ -5,18 +5,20 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 sealed abstract class InstanceSpec(val doc: Option[String])
 case class ValueInstanceSpec(
+  path: List[String],
   private val _doc: Option[String],
   value: Ast.expr,
   ifExpr: Option[Ast.expr],
   var dataType: Option[DataType]
-) extends InstanceSpec(_doc)
+) extends InstanceSpec(_doc) with YAMLPath
 case class ParseInstanceSpec(
+  path: List[String],
   private val _doc: Option[String],
   dataType: DataType,
   cond: ConditionalSpec,
   pos: Option[Ast.expr],
   io: Option[Ast.expr]
-) extends InstanceSpec(_doc) with AttrLikeSpec
+) extends InstanceSpec(_doc) with AttrLikeSpec with YAMLPath
 
 object InstanceSpec {
   val LEGAL_KEYS_VALUE_INST = Set(
@@ -45,6 +47,7 @@ object InstanceSpec {
         val ifExpr = ParseUtils.getOptValueStr(srcMap, "if", path).map(Expressions.parse)
 
         ValueInstanceSpec(
+          path,
           ParseUtils.getOptValueStr(srcMap, "doc", path),
           value2,
           ifExpr,
@@ -57,7 +60,7 @@ object InstanceSpec {
 
         val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io")
         val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef, id)
-        ParseInstanceSpec(a.doc, a.dataType, a.cond, pos, io)
+        ParseInstanceSpec(path, a.doc, a.dataType, a.cond, pos, io)
     }
   }
 }

@@ -116,7 +116,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
       case None => id
       case Some(_) =>
         val rawId = RawIdentifier(id)
-        Utils.addUniqueAttr(extraAttrs, AttrSpec(rawId, dataType))
+        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, dataType))
         rawId
     }
 
@@ -155,12 +155,12 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
           case _ => ArrayType(byteType)
         }
 
-        Utils.addUniqueAttr(extraAttrs, AttrSpec(rawId, extraType))
+        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, extraType))
 
         this match {
           case thisStore: AllocateAndStoreIO =>
             val ourIO = thisStore.allocateIO(rawId, rep)
-            Utils.addUniqueAttr(extraAttrs, AttrSpec(ourIO, KaitaiStreamType))
+            Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
             privateMemberName(ourIO)
           case thisLocal: AllocateIOLocalVar =>
             thisLocal.allocateIO(rawId, rep)
