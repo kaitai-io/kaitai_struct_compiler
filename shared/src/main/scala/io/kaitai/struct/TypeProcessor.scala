@@ -6,7 +6,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.precompile._
 import io.kaitai.struct.translators._
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
 
 object TypeProcessor {
   def processTypesMany(specs: ClassSpecs, firstSpec: ClassSpec, config: RuntimeConfig): Unit = {
@@ -138,7 +138,7 @@ object TypeProcessor {
   // ==================================================================
 
   def getOpaqueClasses(curClass: ClassSpec): Iterable[ClassSpec] = {
-    val res = ListBuffer[ClassSpec]()
+    val res = mutable.Set[ClassSpec]()
     curClass.seq.map((attr) =>
       res ++= getOpaqueDataTypes(attr.dataType)
     )
