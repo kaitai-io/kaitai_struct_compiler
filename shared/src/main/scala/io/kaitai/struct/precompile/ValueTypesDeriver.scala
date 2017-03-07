@@ -8,19 +8,13 @@ class ValueTypesDeriver(topClass: ClassSpec) {
   val provider = new ClassTypeProvider(topClass)
   val detector = new TypeDetector(provider)
 
-  def run() {
-    var iterNum = 1
-    var hasChanged = false
-    do {
-      Log.typeProcValue.info(() => s"### deriveValueType: iteration #$iterNum")
-      hasChanged = deriveValueType(topClass)
-      iterNum += 1
-    } while (hasChanged)
-  }
+  def run(): Boolean =
+    deriveValueType(topClass)
 
   def deriveValueType(curClass: ClassSpec): Boolean = {
     Log.typeProcValue.info(() => s"deriveValueType(${curClass.nameAsStr})")
     var hasChanged = false
+    var hasUndecided = false
 
     provider.nowClass = curClass
     curClass.instances.foreach {
@@ -37,6 +31,7 @@ class ValueTypesDeriver(topClass: ClassSpec) {
                 } catch {
                   case tue: TypeUndecidedError =>
                     Log.typeProcValue.info(() => s"${instName.name} type undecided: ${tue.getMessage}")
+                    hasUndecided = true
                     // just ignore, we're not there yet, probably we'll get it on next iteration
                   case err: ExpressionError =>
                     throw new YAMLParseException(

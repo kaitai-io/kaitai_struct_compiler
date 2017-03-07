@@ -24,7 +24,7 @@ object TypeProcessor {
     val opaqueTypes = topClass.meta.get.opaqueTypes.getOrElse(config.opaqueTypes)
     new ResolveTypes(classSpecs, opaqueTypes).run()
     classSpecs.foreach { case (_, curClass) => markupParentTypes(curClass) }
-    new ValueTypesDeriver(topClass).run()
+    new SpecsValueTypeDerive(classSpecs).run()
     new TypeValidator(topClass).run()
 
     topClass.parentClass = GenericStructClassSpec
