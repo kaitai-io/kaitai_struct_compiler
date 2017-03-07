@@ -12,7 +12,8 @@ import scala.collection.JavaConversions._
 
 object JavaKSYParser {
   def localFileToSpecs(yamlFilename: String, config: RuntimeConfig): ClassSpecs = {
-    val specs = new JavaClassSpecs(new File(yamlFilename).getParent)
+    val yamlDir = Option(new File(yamlFilename).getParent).getOrElse(".")
+    val specs = new JavaClassSpecs(yamlDir)
 
     val firstSpec = fileNameToSpec(yamlFilename)
 
