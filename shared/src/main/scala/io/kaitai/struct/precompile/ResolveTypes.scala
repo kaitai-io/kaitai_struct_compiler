@@ -20,28 +20,26 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
     * Resolves user types and enum types recursively starting from a certain
     * ClassSpec.
     * @param curClass class to start from, might be top-level class
-    * @param path original .ksy path to make error messages more meaningful
     */
-  def resolveUserTypes(curClass: ClassSpec, path: List[String] = List()): Unit = {
-    curClass.seq.zipWithIndex.foreach { case (attr, attrIdx) =>
-      resolveUserTypeForAttr(curClass, attr, path ++ List("seq", attrIdx.toString))
-    }
-    curClass.instances.foreach { case (instName, instSpec) =>
+  def resolveUserTypes(curClass: ClassSpec): Unit = {
+    curClass.seq.foreach((attr) => resolveUserTypeForAttr(curClass, attr))
+
+    curClass.instances.foreach { case (_, instSpec) =>
       instSpec match {
         case pis: ParseInstanceSpec =>
-          resolveUserTypeForAttr(curClass, pis, path ++ List("instances", instName.name))
+          resolveUserTypeForAttr(curClass, pis)
         case _: ValueInstanceSpec =>
           // ignore all other types of instances
       }
     }
 
-    curClass.types.foreach { case (typeName, nestedClass) =>
-      resolveUserTypes(nestedClass, path ++ List("types", typeName))
+    curClass.types.foreach { case (_, nestedClass) =>
+      resolveUserTypes(nestedClass)
     }
   }
 
-  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec, path: List[String]): Unit =
-    resolveUserType(curClass, attr.dataType, path)
+  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec): Unit =
+    resolveUserType(curClass, attr.dataType, attr.path)
 
   def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Unit = {
     dataType match {
