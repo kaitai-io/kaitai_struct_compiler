@@ -3,7 +3,7 @@ package io.kaitai.struct.formats
 import java.io.{File, FileReader}
 import java.util.{List => JList, Map => JMap}
 
-import io.kaitai.struct.{Log, TypeProcessor}
+import io.kaitai.struct.{Log, RuntimeConfig, TypeProcessor}
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.SafeConstructor
@@ -11,12 +11,12 @@ import org.yaml.snakeyaml.constructor.SafeConstructor
 import scala.collection.JavaConversions._
 
 object JavaKSYParser {
-  def localFileToSpecs(yamlFilename: String): ClassSpecs = {
+  def localFileToSpecs(yamlFilename: String, config: RuntimeConfig): ClassSpecs = {
     val specs = new JavaClassSpecs(new File(yamlFilename).getParent)
 
     val firstSpec = fileNameToSpec(yamlFilename)
 
-    TypeProcessor.processTypesMany(specs, firstSpec)
+    TypeProcessor.processTypesMany(specs, firstSpec, config)
     specs
   }
 

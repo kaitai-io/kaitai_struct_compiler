@@ -64,6 +64,10 @@ object Main {
         c.copy(runtime = c.runtime.copy(phpNamespace = x))
       } text("PHP Namespace (PHP only, default: root package)")
 
+      opt[Boolean]("opaque-types") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(opaqueTypes = x))
+      } text("opaque types allowed, default: false")
+
       opt[String]("verbose") action { (x, c) =>
         // TODO: make support for something like "--verbose file,parent"
         if (x == "all") {
@@ -92,7 +96,7 @@ object Main {
   def compileOne(srcFile: String, lang: String, outDir: String, config: RuntimeConfig): Unit = {
     Log.fileOps.info(() => s"compiling $srcFile for $lang...")
 
-    val specs = JavaKSYParser.localFileToSpecs(srcFile)
+    val specs = JavaKSYParser.localFileToSpecs(srcFile, config)
     compileOne(specs, lang, outDir, config)
   }
 
@@ -104,7 +108,7 @@ object Main {
   }
 
   def compileAll(srcFile: String, config: CLIConfig): Unit = {
-    val specs = JavaKSYParser.localFileToSpecs(srcFile)
+    val specs = JavaKSYParser.localFileToSpecs(srcFile, config.runtime)
 
     config.targets.foreach { lang =>
       try {

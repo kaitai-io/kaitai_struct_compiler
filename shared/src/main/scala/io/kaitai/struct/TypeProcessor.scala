@@ -9,19 +9,20 @@ import io.kaitai.struct.translators._
 import scala.collection.mutable.ListBuffer
 
 object TypeProcessor {
-  def processTypesMany(specs: ClassSpecs, firstSpec: ClassSpec): Unit = {
+  def processTypesMany(specs: ClassSpecs, firstSpec: ClassSpec, config: RuntimeConfig): Unit = {
     specs(firstSpec.name.head) = firstSpec
     loadImports(specs, firstSpec)
     Log.importOps.info(() => s"imports done, got: ${specs.keys}")
 
     specs.foreach { case (_, classSpec) =>
-      processTypes(specs, classSpec)
+      processTypes(specs, classSpec, config)
     }
   }
 
-  def processTypes(classSpecs: ClassSpecs, topClass: ClassSpec): Unit = {
+  def processTypes(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Unit = {
     classSpecs.foreach { case (_, curClass) => markupClassNames(curClass) }
-    new ResolveTypes(classSpecs).run()
+    val opaqueTypes = topClass.meta.get.opaqueTypes.getOrElse(config.opaqueTypes)
+    new ResolveTypes(classSpecs, opaqueTypes).run()
     classSpecs.foreach { case (_, curClass) => markupParentTypes(curClass) }
     new ValueTypesDeriver(topClass).run()
     new TypeValidator(topClass).run()

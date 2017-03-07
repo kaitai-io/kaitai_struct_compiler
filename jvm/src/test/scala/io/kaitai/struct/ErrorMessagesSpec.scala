@@ -14,6 +14,7 @@ class ErrorMessagesSpec extends FunSuite {
 
   val FORMATS_ERR_DIR = "../tests/formats_err"
   val CHARSET_UTF8 = Charset.forName("UTF-8")
+  val DEFAULT_CONFIG = RuntimeConfig()
 
   def getExpected(fn: String): String = {
     val fis = new FileInputStream(fn)
@@ -36,7 +37,7 @@ class ErrorMessagesSpec extends FunSuite {
     test(testName) {
       val expected = getExpected(fn)
       val caught = intercept[YAMLParseException] {
-        val classSpec = JavaKSYParser.localFileToSpecs(fn)
+        val classSpec = JavaKSYParser.localFileToSpecs(fn, DEFAULT_CONFIG)
       }
       assertResult(expected) {
         // replace version-dependent message with a moniker

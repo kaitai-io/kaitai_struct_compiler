@@ -9,7 +9,7 @@ import io.kaitai.struct.format._
   * A collection of methods that resolves user types and enum types, i.e.
   * converts names into ClassSpec / EnumSpec references.
   */
-class ResolveTypes(specs: ClassSpecs) {
+class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
   def run(): Unit =
     specs.foreach { case (_, spec) =>
       // FIXME: grab exception and rethrow more localized one, with a specName?
@@ -46,7 +46,7 @@ class ResolveTypes(specs: ClassSpecs) {
   def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Unit = {
     dataType match {
       case ut: UserType =>
-        ut.classSpec = resolveUserType(curClass, ut.name)
+        ut.classSpec = resolveUserType(curClass, ut.name, path)
       case et: EnumType =>
         et.enumSpec = resolveEnumSpec(curClass, et.name)
         if (et.enumSpec.isEmpty) {
@@ -62,25 +62,29 @@ class ResolveTypes(specs: ClassSpecs) {
     }
   }
 
-  def resolveUserType(curClass: ClassSpec, typeName: List[String]): Option[ClassSpec] = {
+  def resolveUserType(curClass: ClassSpec, typeName: List[String], path: List[String]): Option[ClassSpec] = {
     Log.typeResolve.info(() => s"resolveUserType: at ${curClass.name} doing ${typeName.mkString("|")}")
-    val res = realResolveUserType(curClass, typeName)
-
-    // TODO: add some option to control whether using an unresolved type should be a error or a placeholder should be
-    // generated
+    val res = realResolveUserType(curClass, typeName, path)
 
     res match {
       case None =>
-        // Type definition not found - generate special "opaque placeholder" ClassSpec
-        Log.typeResolve.info(() => "    => ??? (generating opaque type)")
-        Some(ClassSpec.opaquePlaceholder(typeName))
+        // Type definition not found
+        if (opaqueTypes) {
+          // Generate special "opaque placeholder" ClassSpec
+          Log.typeResolve.info(() => "    => ??? (generating opaque type)")
+          Some(ClassSpec.opaquePlaceholder(typeName))
+        } else {
+          // Opaque types are disabled => that is an error
+          val err = new TypeNotFoundError(typeName.mkString("::"), curClass)
+          throw new YAMLParseException(err.getMessage, path)
+        }
       case Some(x) =>
         Log.typeResolve.info(() => s"    => ${x.nameAsStr}")
         res
     }
   }
 
-  private def realResolveUserType(curClass: ClassSpec, typeName: List[String]): Option[ClassSpec] = {
+  private def realResolveUserType(curClass: ClassSpec, typeName: List[String], path: List[String]): Option[ClassSpec] = {
     // First, try to do it in current class
 
     // If we're seeking composite name, we only have to resolve the very first
@@ -93,7 +97,7 @@ class ResolveTypes(specs: ClassSpecs) {
         Some(nestedClass)
       } else {
         // Try to resolve recursively
-        resolveUserType(nestedClass, restNames)
+        resolveUserType(nestedClass, restNames, path)
       }
     )
 
@@ -103,7 +107,7 @@ class ResolveTypes(specs: ClassSpecs) {
         // No luck resolving here, let's try upper levels, if they exist
         curClass.upClass match {
           case Some(upClass) =>
-            resolveUserType(upClass, typeName)
+            resolveUserType(upClass, typeName, path)
           case None =>
             // Check this class if it's top-level class
             if (curClass.name.head == firstName) {
