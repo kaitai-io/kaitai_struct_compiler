@@ -2,8 +2,9 @@ package io.kaitai.struct
 
 import java.io.File
 
-import io.kaitai.struct.format.{ClassSpecs, KSVersion, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
+import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
 object Main {
@@ -108,7 +109,7 @@ object Main {
   def compileOne(specs: ClassSpecs, langStr: String, outDir: String, config: RuntimeConfig): Unit = {
     val lang = LanguageCompilerStatic.byString(langStr)
     specs.foreach { case (_, classSpec) =>
-      ClassCompiler.fromClassSpecToFile(classSpec, lang, outDir, config).compile
+      fromClassSpecToFile(classSpec, lang, outDir, config).compile
     }
   }
 
@@ -125,6 +126,24 @@ object Main {
         case e: Error =>
           e.printStackTrace()
       }
+    }
+  }
+
+  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, conf: RuntimeConfig): AbstractCompiler = {
+    val config = ClassCompiler.updateConfig(conf, topClass)
+    val outPath = lang.outFilePath(config, outDir, topClass.name.head)
+    Log.fileOps.info(() => s"... => $outPath")
+    lang match {
+      case GraphvizClassCompiler =>
+        val out = new FileLanguageOutputWriter(outPath, lang.indent)
+        new GraphvizClassCompiler(topClass, out)
+      case CppCompiler =>
+        val outSrc = new FileLanguageOutputWriter(s"$outPath.cpp", lang.indent)
+        val outHdr = new FileLanguageOutputWriter(s"$outPath.h", lang.indent)
+        new ClassCompiler(topClass, config, lang, List(outSrc, outHdr))
+      case _ =>
+        val out = new FileLanguageOutputWriter(outPath, lang.indent)
+        new ClassCompiler(topClass, config, lang, List(out))
     }
   }
 

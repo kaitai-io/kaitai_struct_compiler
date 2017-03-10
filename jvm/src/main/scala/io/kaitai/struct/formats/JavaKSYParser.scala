@@ -9,6 +9,8 @@ import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.SafeConstructor
 
 import scala.collection.JavaConversions._
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 object JavaKSYParser {
   def localFileToSpecs(yamlFilename: String, config: RuntimeConfig): ClassSpecs = {
@@ -17,7 +19,7 @@ object JavaKSYParser {
 
     val firstSpec = fileNameToSpec(yamlFilename)
 
-    TypeProcessor.processTypesMany(specs, firstSpec, config)
+    Await.result(TypeProcessor.processTypesMany(specs, firstSpec, config), Duration.Inf)
     specs
   }
 

@@ -1,6 +1,10 @@
 package io.kaitai.struct.precompile
 
+import io.kaitai.struct.Log
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
+
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Precompilation stage that manages loading of extra .ksy files requested in
@@ -18,36 +22,50 @@ class LoadImports(specs: ClassSpecs) {
     *
     * @param curClass class spec to start recursive import from
     */
-  def processClass(curClass: ClassSpec): Unit = {
-    curClass.meta.foreach((meta) =>
-      meta.imports.foreach((name) => loadImport(name))
-    )
+  def processClass(curClass: ClassSpec): Future[List[ClassSpec]] = {
+    Log.importOps.info(() => s".. LoadImports: processing class ${curClass.nameAsStr}")
 
-    curClass.types.foreach { case (_, nestedClass) =>
-      processClass(nestedClass)
+    val thisMetaFuture: Future[List[ClassSpec]] = curClass.meta match {
+      case Some(meta) =>
+        Future.sequence(meta.imports.map((name) => loadImport(name))).map((x) => x.flatten)
+      case None =>
+        Future { List() }
     }
+
+    val nestedFuture: Future[Iterable[ClassSpec]] = Future.sequence(curClass.types.map({
+      case (_, nestedClass) => processClass(nestedClass)
+    })).map((listOfLists) => listOfLists.flatten)
+
+    Future.sequence(List(thisMetaFuture, nestedFuture)).map((x) => x.flatten)
   }
 
-  private def loadImport(name: String): Unit = {
+  private def loadImport(name: String): Future[List[ClassSpec]] = {
     val parts = name.split('/').toList
     val head::tail = parts
-    val optSpec = if (head.isEmpty) {
+    val futureSpec = if (head.isEmpty) {
       specs.importAbsolute(tail)
     } else {
       specs.importRelative(parts)
     }
 
-    optSpec.foreach { (spec) =>
-      val specName = spec.name.head
-      // Check if we've already had this spec in our ClassSpecs. If we do,
-      // don't do anything: we've already processed it and reprocessing it
-      // might lead to infinite recursion.
-      //
-      // In theory, duplicate imports shouldn't be returned at all by
-      // import* methods due to caching, but we won't rely on it here.
-      if (!specs.contains(specName)) {
-        specs(specName) = spec
-        processClass(spec)
+    futureSpec.flatMap { case optSpec =>
+      optSpec match {
+        case Some(spec) =>
+          val specName = spec.name.head
+          // Check if we've already had this spec in our ClassSpecs. If we do,
+          // don't do anything: we've already processed it and reprocessing it
+          // might lead to infinite recursion.
+          //
+          // In theory, duplicate imports shouldn't be returned at all by
+          // import* methods due to caching, but we won't rely on it here.
+          if (!specs.contains(specName)) {
+            specs(specName) = spec
+            processClass(spec)
+          } else {
+            Future { List() }
+          }
+        case None =>
+          Future { List() }
       }
     }
   }

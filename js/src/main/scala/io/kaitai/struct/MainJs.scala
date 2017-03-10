@@ -6,31 +6,30 @@ import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExport
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 @JSExport
 object MainJs {
   KSVersion.current = BuildInfo.version
 
   @JSExport
-  def compile(langStr: String, yaml: js.Object, debug: Boolean = false): js.Array[String] = {
-    val config = new RuntimeConfig(debug = debug)
-    val lang = LanguageCompilerStatic.byString(langStr)
+  def compile(langStr: String, yaml: js.Object, importer: JavaScriptImporter, debug: Boolean = false): js.Promise[js.Dictionary[String]] = {
+    try {
+      val config = new RuntimeConfig(debug = debug)
+      val lang = LanguageCompilerStatic.byString(langStr)
 
-    val specs = new JavaScriptClassSpecs()
-    val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
-    val firstSpec = ClassSpec.fromYaml(yamlScala)
-    TypeProcessor.processTypesMany(specs, firstSpec)
-
-    val res = specs.flatMap { case (specName, spec) =>
-      val (out1, out2, cc) = ClassCompiler.fromClassSpecToString(spec, lang, config)
-      cc.compile
-      out2 match {
-        case None => js.Array(out1.result)
-        case Some(outHdr) => js.Array(out1.result, outHdr.result)
-      }
+      val specs = new JavaScriptClassSpecs(importer)
+      val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
+      val firstSpec = ClassSpec.fromYaml(yamlScala)
+      TypeProcessor.processTypesMany(specs, firstSpec, config).map { (_) =>
+        specs.flatMap({ case (_, spec) =>
+          ClassCompiler.fromClassSpecToString(spec, lang, config)
+        }).toJSDictionary
+      }.toJSPromise
+    } catch {
+      case err: Throwable => Future { throw err }.toJSPromise
     }
-
-    res.toJSArray
   }
 
   @JSExport

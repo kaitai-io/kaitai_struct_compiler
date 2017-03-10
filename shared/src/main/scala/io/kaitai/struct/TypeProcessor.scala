@@ -7,15 +7,18 @@ import io.kaitai.struct.precompile._
 import io.kaitai.struct.translators._
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 object TypeProcessor {
-  def processTypesMany(specs: ClassSpecs, firstSpec: ClassSpec, config: RuntimeConfig): Unit = {
+  def processTypesMany(specs: ClassSpecs, firstSpec: ClassSpec, config: RuntimeConfig): Future[Unit] = {
     specs(firstSpec.name.head) = firstSpec
-    new LoadImports(specs).processClass(firstSpec)
-    Log.importOps.info(() => s"imports done, got: ${specs.keys}")
+    new LoadImports(specs).processClass(firstSpec).map { (allSpecs) =>
+      Log.importOps.info(() => s"imports done, got: ${specs.keys} (async=$allSpecs)")
 
-    specs.foreach { case (_, classSpec) =>
-      processTypes(specs, classSpec, config)
+      specs.foreach { case (_, classSpec) =>
+        processTypes(specs, classSpec, config)
+      }
     }
   }
 

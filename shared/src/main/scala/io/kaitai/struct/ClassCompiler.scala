@@ -151,40 +151,29 @@ class ClassCompiler(
 }
 
 object ClassCompiler {
-  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, conf: RuntimeConfig): AbstractCompiler = {
-    val config = updateConfig(conf, topClass)
-    val outPath = lang.outFilePath(config, outDir, topClass.name.head)
-    Log.fileOps.info(() => s"... => $outPath")
-    lang match {
-      case GraphvizClassCompiler =>
-        val out = new FileLanguageOutputWriter(outPath, lang.indent)
-        new GraphvizClassCompiler(topClass, out)
-      case CppCompiler =>
-        val outSrc = new FileLanguageOutputWriter(s"$outPath.cpp", lang.indent)
-        val outHdr = new FileLanguageOutputWriter(s"$outPath.h", lang.indent)
-        new ClassCompiler(topClass, config, lang, List(outSrc, outHdr))
-      case _ =>
-        val out = new FileLanguageOutputWriter(outPath, lang.indent)
-        new ClassCompiler(topClass, config, lang, List(out))
-    }
-  }
-
   def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, conf: RuntimeConfig):
-    (StringLanguageOutputWriter, Option[StringLanguageOutputWriter], AbstractCompiler) = {
+    Map[String, String] = {
     val config = updateConfig(conf, topClass)
     lang match {
       case GraphvizClassCompiler =>
         val out = new StringLanguageOutputWriter(lang.indent)
-        (out, None, new GraphvizClassCompiler(topClass, out))
+        val cc = new GraphvizClassCompiler(topClass, out)
+        cc.compile
+        Map(lang.outFileName(topClass.name.head) -> out.result)
       case CppCompiler =>
         val outSrc = new StringLanguageOutputWriter(lang.indent)
         val outHdr = new StringLanguageOutputWriter(lang.indent)
         val cc = new ClassCompiler(topClass, config, lang, List(outSrc, outHdr))
-        (outSrc, Some(outHdr), cc)
+        cc.compile
+        Map(
+          s"${topClass.name.head}.h" -> outHdr.result,
+          s"${topClass.name.head}.cpp" -> outSrc.result
+        )
       case _ =>
         val out = new StringLanguageOutputWriter(lang.indent)
         val cc = new ClassCompiler(topClass, config, lang, List(out))
-        (out, None, cc)
+        cc.compile
+        Map(lang.outFileName(topClass.name.head) -> out.result)
     }
   }
 
@@ -195,7 +184,7 @@ object ClassCompiler {
     * @param topClass top-level class spec
     * @return updated runtime configuration with applied enforcements
     */
-  private def updateConfig(config: RuntimeConfig, topClass: ClassSpec): RuntimeConfig = {
+  def updateConfig(config: RuntimeConfig, topClass: ClassSpec): RuntimeConfig = {
     if (topClass.meta.get.forceDebug) {
       config.copy(debug = true)
     } else {

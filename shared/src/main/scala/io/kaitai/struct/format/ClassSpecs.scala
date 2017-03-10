@@ -1,6 +1,7 @@
 package io.kaitai.struct.format
 
 import scala.collection.mutable
+import scala.concurrent.Future
 
 /**
   * Top-level abstract container for all ClassSpecs. Used for recursive
@@ -9,6 +10,6 @@ import scala.collection.mutable
   * are platform-dependent.
   */
 abstract class ClassSpecs extends mutable.HashMap[String, ClassSpec] {
-  def importRelative(name: List[String]): Option[ClassSpec]
-  def importAbsolute(name: List[String]): Option[ClassSpec]
+  def importRelative(name: List[String]): Future[Option[ClassSpec]]
+  def importAbsolute(name: List[String]): Future[Option[ClassSpec]]
 }
