@@ -3,6 +3,7 @@ package io.kaitai.struct.format
 import io.kaitai.struct.datatype.Endianness
 
 case class MetaSpec(
+  path: List[String],
   isOpaque: Boolean,
   id: Option[String],
   endian: Option[Endianness],
@@ -10,11 +11,18 @@ case class MetaSpec(
   forceDebug: Boolean,
   opaqueTypes: Option[Boolean],
   imports: List[String]
-)
+) extends YAMLPath
 
 object MetaSpec {
   val OPAQUE = MetaSpec(
-    isOpaque = true, None, None, None, forceDebug = false, None, List()
+    path = List(),
+    isOpaque = true,
+    id = None,
+    endian = None,
+    encoding = None,
+    forceDebug = false,
+    opaqueTypes = None,
+    imports = List()
   )
 
   val LEGAL_KEYS = Set(
@@ -58,6 +66,6 @@ object MetaSpec {
 
     val imports = ParseUtils.getListStr(srcMap, "imports", path)
 
-    MetaSpec(isOpaque = false, id, endian, encoding, forceDebug, opaqueTypes, imports)
+    MetaSpec(path, isOpaque = false, id, endian, encoding, forceDebug, opaqueTypes, imports)
   }
 }
