@@ -1,8 +1,8 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.precompile.TypeMismatchError
 
 abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(provider) {
@@ -99,6 +99,11 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
           case et: EnumType =>
             attr.name match {
               case "to_i" => enumToInt(value, et)
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+            }
+          case _: BooleanType =>
+            attr.name match {
+              case "to_i" => boolToInt(value)
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
         }
@@ -287,6 +292,8 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
   def strToInt(s: Ast.expr, base: Ast.expr): String
   def enumToInt(value: Ast.expr, et: EnumType): String
+  def boolToInt(value: Ast.expr): String =
+    doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0))
   def intToStr(i: Ast.expr, base: Ast.expr): String
   def bytesToStr(bytesExpr: String, encoding: Ast.expr): String
   def strLength(s: Ast.expr): String

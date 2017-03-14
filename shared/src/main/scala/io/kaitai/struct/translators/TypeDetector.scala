@@ -128,6 +128,11 @@ class TypeDetector(provider: TypeProvider) {
               case "to_i" => CalcIntType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
+          case _: BooleanType =>
+            attr.name match {
+              case "to_i" => CalcIntType
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+            }
           case _ =>
             throw new TypeMismatchError(s"don't know how to call anything on $valType")
         }
