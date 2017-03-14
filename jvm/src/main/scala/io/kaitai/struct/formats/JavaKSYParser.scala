@@ -3,8 +3,9 @@ package io.kaitai.struct.formats
 import java.io.{File, FileReader}
 import java.util.{List => JList, Map => JMap}
 
-import io.kaitai.struct.{Log, RuntimeConfig, TypeProcessor}
+import io.kaitai.struct.Main.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
+import io.kaitai.struct.{Log, TypeProcessor}
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.SafeConstructor
 
@@ -13,13 +14,13 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 object JavaKSYParser {
-  def localFileToSpecs(yamlFilename: String, config: RuntimeConfig): ClassSpecs = {
+  def localFileToSpecs(yamlFilename: String, config: CLIConfig): ClassSpecs = {
     val yamlDir = Option(new File(yamlFilename).getParent).getOrElse(".")
-    val specs = new JavaClassSpecs(yamlDir)
+    val specs = new JavaClassSpecs(yamlDir, config.importPaths)
 
     val firstSpec = fileNameToSpec(yamlFilename)
 
-    Await.result(TypeProcessor.processTypesMany(specs, firstSpec, config), Duration.Inf)
+    Await.result(TypeProcessor.processTypesMany(specs, firstSpec, config.runtime), Duration.Inf)
     specs
   }
 

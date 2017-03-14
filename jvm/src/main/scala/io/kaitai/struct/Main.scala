@@ -16,6 +16,7 @@ object Main {
     outDir: File = new File("."),
     targets: Seq[String] = Seq(),
     throwExceptions: Boolean = false,
+    importPaths: Seq[String] = Seq(),
     runtime: RuntimeConfig = RuntimeConfig()
   )
 
@@ -53,6 +54,11 @@ object Main {
       opt[File]('d', "outdir") valueName("<directory>") action { (x, c) =>
         c.copy(outDir = x)
       } text("output directory (filenames will be auto-generated)")
+
+      val importPathExample = List("<directory>", "<directory>", "...").mkString(File.pathSeparator)
+      opt[String]('I', "import-path") valueName(importPathExample) action { (x, c) =>
+        c.copy(importPaths = c.importPaths ++ x.split(File.pathSeparatorChar))
+      } text(".ksy library search path(s) for imports (see also KSPATH env variable)")
 
       opt[String]("java-package") valueName("<package>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(javaPackage = x))
@@ -99,11 +105,11 @@ object Main {
     parser.parse(args, CLIConfig())
   }
 
-  def compileOne(srcFile: String, lang: String, outDir: String, config: RuntimeConfig): Unit = {
+  def compileOne(srcFile: String, lang: String, outDir: String, config: CLIConfig): Unit = {
     Log.fileOps.info(() => s"compiling $srcFile for $lang...")
 
     val specs = JavaKSYParser.localFileToSpecs(srcFile, config)
-    compileOne(specs, lang, outDir, config)
+    compileOne(specs, lang, outDir, config.runtime)
   }
 
   def compileOne(specs: ClassSpecs, langStr: String, outDir: String, config: RuntimeConfig): Unit = {
@@ -114,7 +120,7 @@ object Main {
   }
 
   def compileAll(srcFile: String, config: CLIConfig): Unit = {
-    val specs = JavaKSYParser.localFileToSpecs(srcFile, config.runtime)
+    val specs = JavaKSYParser.localFileToSpecs(srcFile, config)
 
     config.targets.foreach { lang =>
       try {
@@ -147,17 +153,21 @@ object Main {
     }
   }
 
-  def main(args : Array[String]): Unit = {
+  private def envPaths: List[String] =
+    sys.env.get("KSPATH").toList.flatMap((x) => x.split(File.pathSeparatorChar))
+
+  def main(args: Array[String]): Unit = {
     parseCommandLine(args)  match {
       case None => System.exit(1)
-      case Some(config) =>
+      case Some(config0) =>
+        val config = config0.copy(importPaths = config0.importPaths ++ envPaths)
         Log.initFromVerboseFlag(config.verbose)
         config.srcFiles.foreach { srcFile =>
           try {
             config.targets match {
               case Seq(lang) =>
                 // single target, just use target directory as is
-                compileOne(srcFile.toString, lang, config.outDir.toString, config.runtime)
+                compileOne(srcFile.toString, lang, config.outDir.toString, config)
               case _ =>
                 // multiple targets, use additional directories
                 compileAll(srcFile.toString, config)

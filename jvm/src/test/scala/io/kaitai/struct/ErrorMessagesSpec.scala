@@ -3,6 +3,7 @@ package io.kaitai.struct
 import java.io._
 import java.nio.charset.Charset
 
+import io.kaitai.struct.Main.CLIConfig
 import io.kaitai.struct.format.{KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
 import org.scalatest.FunSuite
@@ -14,7 +15,7 @@ class ErrorMessagesSpec extends FunSuite {
 
   val FORMATS_ERR_DIR = "../tests/formats_err"
   val CHARSET_UTF8 = Charset.forName("UTF-8")
-  val DEFAULT_CONFIG = RuntimeConfig()
+  val DEFAULT_CONFIG = CLIConfig()
 
   def getExpected(fn: String): String = {
     val fis = new FileInputStream(fn)
