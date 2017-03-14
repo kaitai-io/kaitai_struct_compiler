@@ -2,10 +2,12 @@ package io.kaitai.struct
 
 sealed trait Logger {
   def info(msgGen: () => String)
+  def warn(msgGen: () => String)
 }
 
 case object NullLogger extends Logger {
   override def info(msgGen: () => String): Unit = {}
+  override def warn(msgGen: () => String): Unit = {}
 }
 
 case object ConsoleLogger extends Logger {
@@ -13,6 +15,8 @@ case object ConsoleLogger extends Logger {
     val msg: String = msgGen()
     Console.println(msg)
   }
+
+  override def warn(msgGen: () => String): Unit = info(msgGen)
 }
 
 object Log {
