@@ -50,6 +50,19 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
 
+  /**
+    * Converts a boolean (true or false) to integer (1 or 0, respectively) in
+    * JavaScript. There are quite a few methods to so, this one is generally
+    * accepted as one of the fastest (other top methods are +-0.3%), and it's
+    * pretty concise and readable.
+    *
+    * @see http://stackoverflow.com/questions/7820683/convert-boolean-result-into-number-integer
+    * @param v boolean expression to convert
+    * @return string rendition of conversion
+    */
+  override def boolToInt(v: expr): String =
+    s"(${translate(v)} | 0)"
+
   override def intToStr(i: expr, base: expr): String =
     s"(${translate(i)}).toString(${translate(base)})"
 

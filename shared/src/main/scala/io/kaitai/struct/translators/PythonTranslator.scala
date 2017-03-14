@@ -76,6 +76,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
     s"${translate(v)}.value"
+  override def boolToInt(v: Ast.expr): String =
+    s"int(${translate(v)})"
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     val func = baseStr match {

@@ -77,6 +77,9 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
 
+  override def boolToInt(v: expr): String =
+    s"intval(${translate(v)})"
+
   override def intToStr(i: expr, base: expr): String = {
     val baseStr = translate(base)
     baseStr match {

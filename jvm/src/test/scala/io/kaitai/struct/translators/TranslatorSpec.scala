@@ -103,6 +103,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "false"
     )),
 
+    full("some_bool.to_i", CalcBooleanType, CalcIntType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "some_bool()",
+      CSharpCompiler -> "(SomeBool ? 1 : 0)",
+      JavaCompiler -> "(someBool() ? 1 : 0)",
+      JavaScriptCompiler -> "(this.someBool | 0)",
+      PerlCompiler -> "$self->some_bool()",
+      PHPCompiler -> "intval($this->someBool())",
+      PythonCompiler -> "int(self.some_bool)",
+      RubyCompiler -> "(some_bool ? 1 : 0)"
+    )),
+
     // Member access
     full("foo_str", CalcStrType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "foo_str()",

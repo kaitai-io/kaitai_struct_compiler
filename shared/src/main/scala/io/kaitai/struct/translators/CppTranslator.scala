@@ -107,6 +107,8 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
+  override def boolToInt(v: expr): String =
+    translate(v)
   override def intToStr(i: expr, base: expr): String = {
     val baseStr = translate(base)
     baseStr match {
