@@ -10,10 +10,10 @@ import scala.concurrent.{ExecutionContext, Future}
   * Java implementation of ClassSpec container, doing imports from local files.
   */
 class JavaClassSpecs(relPath: String) extends ClassSpecs {
-  private val relFiles = mutable.Map[List[String], ClassSpec]()
-  private val absFiles = mutable.Map[List[String], ClassSpec]()
+  private val relFiles = mutable.Map[String, ClassSpec]()
+  private val absFiles = mutable.Map[String, ClassSpec]()
 
-  override def importRelative(name: List[String]): Future[Option[ClassSpec]] = {
+  override def importRelative(name: String): Future[Option[ClassSpec]] = {
     Future {
       Log.importOps.info(() => s".. importing relative $name")
       // Have we loaded it previously?
@@ -24,12 +24,12 @@ class JavaClassSpecs(relPath: String) extends ClassSpecs {
           None
         case None =>
           // Nope, let's import it
-          val spec = JavaKSYParser.fileNameToSpec(relPath + "/" + name.mkString("/") + ".ksy")
+          val spec = JavaKSYParser.fileNameToSpec(s"$relPath/$name.ksy")
           relFiles(name) = spec
           Some(spec)
       }
     }(ExecutionContext.global)
   }
 
-  override def importAbsolute(name: List[String]): Future[Option[ClassSpec]] = ???
+  override def importAbsolute(name: String): Future[Option[ClassSpec]] = ???
 }

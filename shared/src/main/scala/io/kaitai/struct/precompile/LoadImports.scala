@@ -40,12 +40,10 @@ class LoadImports(specs: ClassSpecs) {
   }
 
   private def loadImport(name: String): Future[List[ClassSpec]] = {
-    val parts = name.split('/').toList
-    val head::tail = parts
-    val futureSpec = if (head.isEmpty) {
-      specs.importAbsolute(tail)
+    val futureSpec = if (name.startsWith("/")) {
+      specs.importAbsolute(name.substring(1))
     } else {
-      specs.importRelative(parts)
+      specs.importRelative(name)
     }
 
     futureSpec.flatMap { case optSpec =>
