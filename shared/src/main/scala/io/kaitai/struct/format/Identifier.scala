@@ -2,13 +2,8 @@ package io.kaitai.struct.format
 
 /**
   * Common abstract container for all identifiers that Kaitai Struct deals with.
-  * Disables "toString" operation to make sure that identifier never goes into the
-  * output stream without some sort of language-specific treatment (i.e. idToStr
-  * or something like that)
   */
-abstract class Identifier {
-  override def toString: String = throw new UnsupportedOperationException
-}
+abstract class Identifier
 
 /**
   * Identifier generated automatically for seq attributes which lack true string "id" field.
