@@ -6,6 +6,7 @@ import java.nio.charset.Charset
 import io.kaitai.struct.Main.CLIConfig
 import io.kaitai.struct.format.{KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
+import io.kaitai.struct.precompile.ErrorInInput
 import org.scalatest.FunSuite
 
 class ErrorMessagesSpec extends FunSuite {
@@ -37,15 +38,21 @@ class ErrorMessagesSpec extends FunSuite {
     val fn = f.toString
     test(testName) {
       val expected = getExpected(fn)
-      val caught = intercept[YAMLParseException] {
+      val caught = intercept[RuntimeException] {
         val classSpec = JavaKSYParser.localFileToSpecs(fn, DEFAULT_CONFIG)
       }
-      assertResult(expected) {
-        // replace version-dependent message with a moniker
-        caught.getMessage.replace(
-          s"but you have ${KSVersion.current}",
-          "but you have $KS_VERSION"
-        )
+      caught match {
+        case _: YAMLParseException | _: ErrorInInput =>
+          assertResult(expected) {
+            // replace version-dependent message with a moniker
+            caught.getMessage.replace(
+              s"but you have ${KSVersion.current}",
+              "but you have $KS_VERSION"
+            )
+          }
+        case other =>
+          System.err.println("got other exception, rethrowing")
+          throw other
       }
     }
   }

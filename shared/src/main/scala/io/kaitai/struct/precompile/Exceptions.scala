@@ -3,6 +3,21 @@ package io.kaitai.struct.precompile
 import io.kaitai.struct.format.ClassSpec
 
 /**
+  * Container for a real exception that happened due to some known problem
+  * with input file, and we know where exactly is the culprit (path and file).
+  * @param err inner exception
+  * @param path YAML path components in file
+  * @param file file to report as erroneous, None means "main compilation unit"
+  */
+class ErrorInInput(err: Throwable, path: List[String] = List(), file: Option[String] = None)
+  extends RuntimeException(ErrorInInput.message(err, path, file))
+
+object ErrorInInput {
+  private def message(err: Throwable, path: List[String], file: Option[String]) =
+    s"${file.getOrElse("(main)")}: /${path.mkString("/")}: ${err.getMessage}"
+}
+
+/**
   * Base class for all expression-related errors, not localized to a certain path
   * in source file.
   */

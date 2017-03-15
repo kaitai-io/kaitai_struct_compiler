@@ -9,9 +9,9 @@ class JavaScriptClassSpecs(importer: JavaScriptImporter) extends ClassSpecs {
   val MODE_REL = "rel"
   val MODE_ABS = "abs"
 
-  override def importRelative(name: String): Future[Option[ClassSpec]] =
+  override def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] =
     doImport(name, MODE_REL)
-  override def importAbsolute(name: String): Future[Option[ClassSpec]] =
+  override def importAbsolute(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] =
     doImport(name, MODE_ABS)
 
   def doImport(name: String, mode: String): Future[Option[ClassSpec]] =

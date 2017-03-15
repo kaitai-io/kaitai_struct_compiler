@@ -10,6 +10,6 @@ import scala.concurrent.Future
   * are platform-dependent.
   */
 abstract class ClassSpecs extends mutable.HashMap[String, ClassSpec] {
-  def importRelative(name: String): Future[Option[ClassSpec]]
-  def importAbsolute(name: String): Future[Option[ClassSpec]]
+  def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]]
+  def importAbsolute(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]]
 }

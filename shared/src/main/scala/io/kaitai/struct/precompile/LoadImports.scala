@@ -3,8 +3,8 @@ package io.kaitai.struct.precompile
 import io.kaitai.struct.Log
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 /**
   * Precompilation stage that manages loading of extra .ksy files requested in
@@ -27,7 +27,9 @@ class LoadImports(specs: ClassSpecs) {
 
     val thisMetaFuture: Future[List[ClassSpec]] = curClass.meta match {
       case Some(meta) =>
-        Future.sequence(meta.imports.map((name) => loadImport(name))).map((x) => x.flatten)
+        Future.sequence(meta.imports.zipWithIndex.map { case (name, idx) =>
+          loadImport(name, meta.path ++ List("imports", idx.toString), Some(curClass.nameAsStr))
+        }).map((x) => x.flatten)
       case None =>
         Future { List() }
     }
@@ -39,11 +41,11 @@ class LoadImports(specs: ClassSpecs) {
     Future.sequence(List(thisMetaFuture, nestedFuture)).map((x) => x.flatten)
   }
 
-  private def loadImport(name: String): Future[List[ClassSpec]] = {
+  private def loadImport(name: String, path: List[String], inFile: Option[String]): Future[List[ClassSpec]] = {
     val futureSpec = if (name.startsWith("/")) {
-      specs.importAbsolute(name.substring(1))
+      specs.importAbsolute(name.substring(1), path, inFile)
     } else {
-      specs.importRelative(name)
+      specs.importRelative(name, path, inFile)
     }
 
     futureSpec.flatMap { case optSpec =>

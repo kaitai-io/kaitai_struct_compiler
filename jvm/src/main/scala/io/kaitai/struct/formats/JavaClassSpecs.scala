@@ -1,9 +1,10 @@
 package io.kaitai.struct.formats
 
-import java.io.{File, FileNotFoundException}
+import java.io.{File, FileNotFoundException, IOError}
 
 import io.kaitai.struct.Log
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
+import io.kaitai.struct.precompile.ErrorInInput
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -16,16 +17,16 @@ class JavaClassSpecs(relPath: String, absPaths: Seq[String]) extends ClassSpecs 
   private val relFiles = mutable.Map[String, ClassSpec]()
   private val absFiles = mutable.Map[String, ClassSpec]()
 
-  override def importRelative(name: String): Future[Option[ClassSpec]] = Future {
+  override def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] = Future {
     Log.importOps.info(() => s".. importing relative $name")
-    JavaClassSpecs.cached(relFiles, name, (_) =>
+    JavaClassSpecs.cached(path, inFile, relFiles, name, (_) =>
       JavaKSYParser.fileNameToSpec(s"$relPath/$name.ksy")
     )
   }
 
-  override def importAbsolute(name: String): Future[Option[ClassSpec]] = Future {
+  override def importAbsolute(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] = Future {
     Log.importOps.info(() => s".. importing absolute $name")
-    JavaClassSpecs.cached(absFiles, name, tryAbsolutePaths)
+    JavaClassSpecs.cached(path, inFile, absFiles, name, tryAbsolutePaths)
   }
 
   def tryAbsolutePaths(name: String): ClassSpec = {
@@ -50,6 +51,8 @@ class JavaClassSpecs(relPath: String, absPaths: Seq[String]) extends ClassSpecs 
 
 object JavaClassSpecs {
   def cached(
+    path: List[String],
+    inFile: Option[String],
     cacheMap: mutable.Map[String, ClassSpec],
     name: String,
     importOp: (String) => ClassSpec
@@ -62,9 +65,13 @@ object JavaClassSpecs {
         None
       case None =>
         // Nope, let's import it
-        val spec = importOp(name)
-        cacheMap(name) = spec
-        Some(spec)
+        try {
+          val spec = importOp(name)
+          cacheMap(name) = spec
+          Some(spec)
+        } catch {
+          case err: Throwable => throw new ErrorInInput(err, path, inFile)
+        }
     }
   }
 }
