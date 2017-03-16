@@ -46,6 +46,7 @@ abstract class LanguageCompiler(
   def indent: String
   def outFileName(topClassName: String): String
 
+  def type2class(className: String): String
   def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}
 

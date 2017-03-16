@@ -85,7 +85,7 @@ class CppCompiler(
 
   override def classHeader(name: List[String]): Unit = {
     outHdr.puts
-    outHdr.puts(s"class ${type2class(List(name.last))} : public $kstructName {")
+    outHdr.puts(s"class ${types2class(List(name.last))} : public $kstructName {")
     outHdr.inc
     accessMode = PrivateAccess
     ensureMode(PublicAccess)
@@ -110,22 +110,22 @@ class CppCompiler(
   }
 
   override def classForwardDeclaration(name: List[String]): Unit = {
-    outHdr.puts(s"class ${type2class(name)};")
+    outHdr.puts(s"class ${types2class(name)};")
   }
 
   override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
     outHdr.puts
-    outHdr.puts(s"${type2class(List(name.last))}(" +
+    outHdr.puts(s"${types2class(List(name.last))}(" +
       s"$kstreamName* p_io, " +
-      s"${type2class(parentClassName)}* p_parent = 0, " +
-      s"${type2class(rootClassName)}* p_root = 0);"
+      s"${types2class(parentClassName)}* p_parent = 0, " +
+      s"${types2class(rootClassName)}* p_root = 0);"
     )
 
     outSrc.puts
-    outSrc.puts(s"${type2class(name)}::${type2class(List(name.last))}(" +
+    outSrc.puts(s"${types2class(name)}::${types2class(List(name.last))}(" +
       s"$kstreamName *p_io, " +
-      s"${type2class(parentClassName)} *p_parent, " +
-      s"${type2class(rootClassName)} *p_root) : $kstructName(p_io) {"
+      s"${types2class(parentClassName)} *p_parent, " +
+      s"${types2class(rootClassName)} *p_root) : $kstructName(p_io) {"
     )
     outSrc.inc
     handleAssignmentSimple(ParentIdentifier, "p_parent")
@@ -142,10 +142,10 @@ class CppCompiler(
   }
 
   override def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {
-    outHdr.puts(s"~${type2class(List(name.last))}();")
+    outHdr.puts(s"~${types2class(List(name.last))}();")
 
     outSrc.puts
-    outSrc.puts(s"${type2class(name)}::~${type2class(List(name.last))}() {")
+    outSrc.puts(s"${types2class(name)}::~${types2class(List(name.last))}() {")
     outSrc.inc
   }
 
@@ -435,7 +435,7 @@ class CppCompiler(
           }
           s", $parent, ${privateMemberName(RootIdentifier)}"
         }
-        s"new ${type2class(t.name)}($io$addArgs)"
+        s"new ${types2class(t.name)}($io$addArgs)"
     }
   }
 
@@ -537,7 +537,7 @@ class CppCompiler(
     outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
 
     outSrc.puts
-    outSrc.puts(s"${kaitaiType2NativeType(dataType, true)} ${type2class(className)}::${publicMemberName(instName)}() {")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType, true)} ${types2class(className)}::${publicMemberName(instName)}() {")
     outSrc.inc
   }
 
@@ -558,7 +558,7 @@ class CppCompiler(
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
-    val enumClass = type2class(List(enumName))
+    val enumClass = types2class(List(enumName))
 
     outHdr.puts
     outHdr.puts(s"enum $enumClass {")
@@ -605,7 +605,7 @@ class CppCompiler(
       case _: BytesType => "std::string"
 
       case t: UserType =>
-        val typeStr = type2class(if (absolute) {
+        val typeStr = types2class(if (absolute) {
           t.classSpec.get.name
         } else {
           t.name
@@ -613,7 +613,7 @@ class CppCompiler(
         s"$typeStr*"
 
       case t: EnumType =>
-        type2class(if (absolute) {
+        types2class(if (absolute) {
           t.enumSpec.get.name
         } else {
           t.name
@@ -670,6 +670,8 @@ class CppCompiler(
       ensureMode(PrivateAccess)
     }
   }
+
+  def type2class(name: String) = name + "_t"
 }
 
 object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
@@ -682,7 +684,7 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
 
-  def type2class(components: List[String]) = {
+  def types2class(components: List[String]) = {
     components.map {
       case "kaitai_struct" => "kaitai::kstruct"
       case s => s + "_t"

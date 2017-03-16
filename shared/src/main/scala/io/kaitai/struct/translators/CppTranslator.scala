@@ -78,7 +78,7 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doEnumByLabel(enumType: List[String], label: String): String =
     (enumType.last + "_" + label).toUpperCase
   override def doEnumById(enumType: List[String], id: String): String =
-    s"static_cast<${CppCompiler.type2class(enumType)}>($id)"
+    s"static_cast<${CppCompiler.types2class(enumType)}>($id)"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     if (op == Ast.cmpop.Eq) {
@@ -95,7 +95,7 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
   override def doCast(value: Ast.expr, typeName: String): String =
-    s"static_cast<${CppCompiler.type2class(List(typeName))}*>(${translate(value)})"
+    s"static_cast<${CppCompiler.types2class(List(typeName))}*>(${translate(value)})"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {

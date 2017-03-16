@@ -24,7 +24,7 @@ class ClassCompiler(
     lang.fileFooter(topClassName.head)
 
     CompileLog.SpecSuccess(
-      "*dummy*",
+      lang.type2class(topClassName.head),
       lang.results(topClass).map { case (fileName, contents) => FileSuccess(fileName, contents) }.toList
     )
   }

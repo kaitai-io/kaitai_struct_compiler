@@ -11,6 +11,7 @@ import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig,
 
 class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
+    with UpperCamelCaseClasses
     with ObjectOrientedLanguage
     with SingleOutputFile
     with AllocateIOLocalVar

@@ -12,6 +12,7 @@ import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
 class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
+    with UpperCamelCaseClasses
     with SingleOutputFile
     with UniversalFooter
     with EveryReadIsExpression

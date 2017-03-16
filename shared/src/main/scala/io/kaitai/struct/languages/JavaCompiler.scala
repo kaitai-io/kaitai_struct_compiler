@@ -12,6 +12,7 @@ import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig,
 class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
+    with UpperCamelCaseClasses
     with ObjectOrientedLanguage
     with EveryReadIsExpression
     with UniversalFooter
