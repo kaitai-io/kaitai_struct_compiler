@@ -22,7 +22,7 @@ object MainJs {
       val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
       val firstSpec = ClassSpec.fromYaml(yamlScala)
       val specs = new JavaScriptClassSpecs(importer, firstSpec)
-      TypeProcessor.processTypesMany(specs, config).map { (_) =>
+      Main.importAndPrecompile(specs, config).map { (_) =>
         specs.flatMap({ case (_, spec) =>
           val files = Main.compile(spec, lang, config).files
           files.map((x) => x.fileName -> x.contents).toMap
