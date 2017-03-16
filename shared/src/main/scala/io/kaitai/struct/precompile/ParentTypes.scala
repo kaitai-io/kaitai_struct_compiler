@@ -23,7 +23,7 @@ object ParentTypes {
         case pis: ParseInstanceSpec =>
           markupParentTypesAdd(curClass, pis.dataTypeComposite)
         case _: ValueInstanceSpec =>
-        // value instances have no effect on parenting, just do nothing
+          // value instances have no effect on parenting, just do nothing
       }
     }
   }
@@ -52,7 +52,7 @@ object ParentTypes {
           case (_, ut: UserType) =>
             markupParentAs(curClass, ut)
           case (_, _) =>
-          // ignore everything else
+            // ignore everything else
         }
       case ArrayType(innerType) =>
         markupParentTypesAdd(curClass, innerType)
@@ -85,14 +85,7 @@ object ParentTypes {
           child.parentClass = GenericStructClassSpec
         }
       case GenericStructClassSpec =>
-      // already most generic case, do nothing
-    }
-  }
-
-  def getInstanceDataType(instSpec: InstanceSpec): DataType = {
-    instSpec match {
-      case t: ValueInstanceSpec => t.dataType.get
-      case t: ParseInstanceSpec => t.dataTypeComposite
+        // already most generic case, do nothing
     }
   }
 }

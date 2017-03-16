@@ -190,7 +190,7 @@ class CppCompiler(
 
     val checkFlags = attr match {
       case is: InstanceSpec =>
-        val dataType = TypeProcessor.getInstanceDataType(is)
+        val dataType = is.dataTypeComposite
         dataType match {
           case ut: UserType =>
             val checkLazy = calculatedFlagForName(id.asInstanceOf[InstanceIdentifier])

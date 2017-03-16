@@ -114,7 +114,7 @@ class ClassCompiler(
 
   def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
-    val dataType = TypeProcessor.getInstanceDataType(instSpec)
+    val dataType = instSpec.dataTypeComposite
 
     // Declare caching variable
     val condSpec = instSpec match {
