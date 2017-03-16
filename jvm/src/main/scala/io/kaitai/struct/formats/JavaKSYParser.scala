@@ -5,7 +5,7 @@ import java.util.{List => JList, Map => JMap}
 
 import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
-import io.kaitai.struct.{Log, TypeProcessor}
+import io.kaitai.struct.{Log, Main}
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.SafeConstructor
 
@@ -19,7 +19,7 @@ object JavaKSYParser {
     val yamlDir = Option(new File(yamlFilename).getParent).getOrElse(".")
     val specs = new JavaClassSpecs(yamlDir, config.importPaths, firstSpec)
 
-    Await.result(TypeProcessor.processTypesMany(specs, config.runtime), Duration.Inf)
+    Await.result(Main.importAndPrecompile(specs, config.runtime), Duration.Inf)
     specs
   }
 

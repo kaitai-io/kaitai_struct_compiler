@@ -3,37 +3,10 @@ package io.kaitai.struct
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.precompile._
-import io.kaitai.struct.translators._
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 object TypeProcessor {
-  def processTypesMany(specs: ClassSpecs, config: RuntimeConfig): Future[Unit] = {
-    new LoadImports(specs).processClass(specs.firstSpec).map { (allSpecs) =>
-      Log.importOps.info(() => s"imports done, got: ${specs.keys} (async=$allSpecs)")
-
-      specs.foreach { case (_, classSpec) =>
-        processTypes(specs, classSpec, config)
-      }
-    }
-  }
-
-  def processTypes(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Unit = {
-    classSpecs.foreach { case (_, curClass) => MarkupClassNames.markupClassNames(curClass) }
-    val opaqueTypes = topClass.meta.get.opaqueTypes.getOrElse(config.opaqueTypes)
-    new ResolveTypes(classSpecs, opaqueTypes).run()
-    classSpecs.foreach { case (_, curClass) => ParentTypes.markup(curClass) }
-    new SpecsValueTypeDerive(classSpecs).run()
-    new TypeValidator(topClass).run()
-
-    topClass.parentClass = GenericStructClassSpec
-  }
-
-  // ==================================================================
-
   def getOpaqueClasses(curClass: ClassSpec): Iterable[ClassSpec] = {
     val res = mutable.Set[ClassSpec]()
     curClass.seq.map((attr) =>
