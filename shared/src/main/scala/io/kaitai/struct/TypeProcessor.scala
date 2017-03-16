@@ -22,7 +22,7 @@ object TypeProcessor {
   }
 
   def processTypes(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Unit = {
-    classSpecs.foreach { case (_, curClass) => markupClassNames(curClass) }
+    classSpecs.foreach { case (_, curClass) => MarkupClassNames.markupClassNames(curClass) }
     val opaqueTypes = topClass.meta.get.opaqueTypes.getOrElse(config.opaqueTypes)
     new ResolveTypes(classSpecs, opaqueTypes).run()
     classSpecs.foreach { case (_, curClass) => markupParentTypes(curClass) }
@@ -30,20 +30,6 @@ object TypeProcessor {
     new TypeValidator(topClass).run()
 
     topClass.parentClass = GenericStructClassSpec
-  }
-
-  // ==================================================================
-
-  def markupClassNames(curClass: ClassSpec): Unit = {
-    curClass.enums.foreach { case (enumName, enumSpec) =>
-      enumSpec.name = curClass.name ::: List(enumName)
-    }
-
-    curClass.types.foreach { case (nestedName: String, nestedClass) =>
-      nestedClass.name = curClass.name ::: List(nestedName)
-      nestedClass.upClass = Some(curClass)
-      markupClassNames(nestedClass)
-    }
   }
 
   // ==================================================================
