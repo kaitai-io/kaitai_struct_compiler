@@ -57,7 +57,7 @@ lazy val compiler = crossProject.in(file(".")).
     )
   ).
   jvmSettings(
-    mainClass in Compile := Some("io.kaitai.struct.Main"),
+    mainClass in Compile := Some("io.kaitai.struct.JavaMain"),
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "2.2.6" % "test",
       "com.github.scopt" %% "scopt" % "3.4.0"
