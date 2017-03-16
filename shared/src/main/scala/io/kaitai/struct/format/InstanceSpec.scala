@@ -3,14 +3,18 @@ package io.kaitai.struct.format
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 
-sealed abstract class InstanceSpec(val doc: Option[String])
+sealed abstract class InstanceSpec(val doc: Option[String]) {
+  def dataTypeComposite: DataType
+}
 case class ValueInstanceSpec(
   path: List[String],
   private val _doc: Option[String],
   value: Ast.expr,
   ifExpr: Option[Ast.expr],
   var dataType: Option[DataType]
-) extends InstanceSpec(_doc) with YAMLPath
+) extends InstanceSpec(_doc) with YAMLPath {
+  override def dataTypeComposite = dataType.get
+}
 case class ParseInstanceSpec(
   path: List[String],
   private val _doc: Option[String],
