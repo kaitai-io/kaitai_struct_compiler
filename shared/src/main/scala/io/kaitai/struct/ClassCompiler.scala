@@ -1,9 +1,9 @@
 package io.kaitai.struct
 
+import io.kaitai.struct.CompileLog.FileSuccess
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 
 import scala.collection.mutable.ListBuffer
@@ -11,19 +11,22 @@ import scala.collection.mutable.ListBuffer
 class ClassCompiler(
   val topClass: ClassSpec,
   config: RuntimeConfig,
-  langObj: LanguageCompilerStatic,
-  outs: List[LanguageOutputWriter]
+  langObj: LanguageCompilerStatic
 ) extends AbstractCompiler {
   val provider = new ClassTypeProvider(topClass)
   val topClassName = topClass.name
-  val lang: LanguageCompiler = langObj.getCompiler(provider, config, outs)
+  val lang: LanguageCompiler = langObj.getCompiler(provider, config)
 
-  override def compile {
+  override def compile: CompileLog.SpecSuccess = {
     lang.fileHeader(topClassName.head)
     compileOpaqueClasses(topClass)
     compileClass(topClass)
     lang.fileFooter(topClassName.head)
-    lang.close
+
+    CompileLog.SpecSuccess(
+      "*dummy*",
+      lang.results(topClass).map { case (fileName, contents) => FileSuccess(fileName, contents) }.toList
+    )
   }
 
   def compileOpaqueClasses(topClass: ClassSpec) = {
@@ -148,47 +151,4 @@ class ClassCompiler(
       case et: EnumType => isUnalignedBits(et.basedOn)
       case _ => false
     }
-}
-
-object ClassCompiler {
-  def fromClassSpecToString(topClass: ClassSpec, lang: LanguageCompilerStatic, conf: RuntimeConfig):
-    Map[String, String] = {
-    val config = updateConfig(conf, topClass)
-    lang match {
-      case GraphvizClassCompiler =>
-        val out = new StringLanguageOutputWriter(lang.indent)
-        val cc = new GraphvizClassCompiler(topClass, out)
-        cc.compile
-        Map(lang.outFileName(topClass.name.head) -> out.result)
-      case CppCompiler =>
-        val outSrc = new StringLanguageOutputWriter(lang.indent)
-        val outHdr = new StringLanguageOutputWriter(lang.indent)
-        val cc = new ClassCompiler(topClass, config, lang, List(outSrc, outHdr))
-        cc.compile
-        Map(
-          s"${topClass.name.head}.h" -> outHdr.result,
-          s"${topClass.name.head}.cpp" -> outSrc.result
-        )
-      case _ =>
-        val out = new StringLanguageOutputWriter(lang.indent)
-        val cc = new ClassCompiler(topClass, config, lang, List(out))
-        cc.compile
-        Map(lang.outFileName(topClass.name.head) -> out.result)
-    }
-  }
-
-  /**
-    * Updates runtime configuration with "enforcement" options that came from a source file itself.
-    * Currently only used to enforce debug when "ks-debug: true" is specified in top-level "meta" key.
-    * @param config original runtime configuration
-    * @param topClass top-level class spec
-    * @return updated runtime configuration with applied enforcements
-    */
-  def updateConfig(config: RuntimeConfig, topClass: ClassSpec): RuntimeConfig = {
-    if (topClass.meta.get.forceDebug) {
-      config.copy(debug = true)
-    } else {
-      config
-    }
-  }
 }

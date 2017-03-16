@@ -8,9 +8,10 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{PHPTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
-class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(typeProvider, config, out)
+class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
+    with SingleOutputFile
     with AllocateIOLocalVar
     with UniversalFooter
     with UniversalDoc
@@ -31,6 +32,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: L
     out.dec
     out.puts("}")
   }
+
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts("<?php")
@@ -356,13 +360,10 @@ object PHPCompiler extends LanguageCompilerStatic
   with StreamStructNames
   with UpperCamelCaseClasses {
   override def getTranslator(tp: TypeProvider, config: RuntimeConfig): PHPTranslator = new PHPTranslator(tp, config)
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
   override def getCompiler(
     tp: ClassTypeProvider,
-    config: RuntimeConfig,
-    outs: List[LanguageOutputWriter]
-  ): LanguageCompiler = new PHPCompiler(tp, config, outs.head)
+    config: RuntimeConfig
+  ): LanguageCompiler = new PHPCompiler(tp, config)
 
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 

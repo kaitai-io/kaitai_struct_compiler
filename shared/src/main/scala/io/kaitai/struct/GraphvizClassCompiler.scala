@@ -10,21 +10,21 @@ import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvide
 
 import scala.collection.mutable.ListBuffer
 
-class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) extends AbstractCompiler {
+class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
   import GraphvizClassCompiler._
 
-  val topClassName = List(topClass.meta.get.id)
+  val out = new StringLanguageOutputWriter(indent)
 
   val provider = new ClassTypeProvider(topClass)
   val translator = getTranslator(provider, RuntimeConfig())
   val links = ListBuffer[(String, String, String)]()
-  val extraClusterLines = new StringLanguageOutputWriter(GraphvizClassCompiler.indent)
+  val extraClusterLines = new StringLanguageOutputWriter(indent)
 
   def nowClass: ClassSpec = provider.nowClass
   def nowClassName = provider.nowClass.name
   var currentTable: String = ""
 
-  override def compile: Unit = {
+  override def compile: CompileLog.SpecSuccess = {
     out.puts("digraph {")
     out.inc
     out.puts("rankdir=LR;")
@@ -38,6 +38,14 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
 
     out.dec
     out.puts("}")
+
+    CompileLog.SpecSuccess(
+      "",
+      List(CompileLog.FileSuccess(
+        outFileName(topClass.nameAsStr),
+        out.result
+      ))
+    )
   }
 
   def compileClass(curClass: ClassSpec): Unit = {
@@ -374,18 +382,18 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
 
     throw new RuntimeException(s"unable to resolve node '$s' in type '${type2display(className)}'")
   }
+
+  def indent: String = "\t"
+  def outFileName(topClassName: String): String = s"$topClassName.dot"
 }
 
 object GraphvizClassCompiler extends LanguageCompilerStatic {
-  override def indent: String = "\t"
-  override def outFileName(topClassName: String): String = s"$topClassName.dot"
   override def getTranslator(tp: TypeProvider, config: RuntimeConfig): BaseTranslator = new RubyTranslator(tp)
 
   // FIXME: Unused, should be probably separated from LanguageCompilerStatic
   override def getCompiler(
     tp: ClassTypeProvider,
-    config: RuntimeConfig,
-    outs: List[LanguageOutputWriter]
+    config: RuntimeConfig
   ): LanguageCompiler = ???
 
   def type2class(name: List[String]) = name.last

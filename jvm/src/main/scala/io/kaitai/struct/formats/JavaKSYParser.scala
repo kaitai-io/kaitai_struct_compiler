@@ -3,7 +3,7 @@ package io.kaitai.struct.formats
 import java.io.{File, FileReader}
 import java.util.{List => JList, Map => JMap}
 
-import io.kaitai.struct.Main.CLIConfig
+import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
 import io.kaitai.struct.{Log, TypeProcessor}
 import org.yaml.snakeyaml.Yaml

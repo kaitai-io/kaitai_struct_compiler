@@ -9,8 +9,9 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{JavaTranslator, TypeDetector, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
-class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(typeProvider, config, out)
+class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
+    with SingleOutputFile
     with ObjectOrientedLanguage
     with EveryReadIsExpression
     with UniversalFooter
@@ -26,6 +27,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     out.dec
     out.puts("}")
   }
+
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String =
+    s"src/${config.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
@@ -471,16 +476,11 @@ object JavaCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
   override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaTranslator(tp)
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
-  override def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String): String =
-    s"$outDir/src/${config.javaPackage.replace('.', '/')}/${outFileName(topClassName)}"
 
   override def getCompiler(
     tp: ClassTypeProvider,
-    config: RuntimeConfig,
-    outs: List[LanguageOutputWriter]
-  ): LanguageCompiler = new JavaCompiler(tp, config, outs.head)
+    config: RuntimeConfig
+  ): LanguageCompiler = new JavaCompiler(tp, config)
 
   def kaitaiType2JavaType(attrType: DataType): String = kaitaiType2JavaTypePrim(attrType)
 

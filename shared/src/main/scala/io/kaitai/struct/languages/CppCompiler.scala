@@ -11,16 +11,25 @@ import io.kaitai.struct.translators.{CppTranslator, TypeDetector, TypeProvider}
 
 class CppCompiler(
   typeProvider: ClassTypeProvider,
-  config: RuntimeConfig,
-  outSrc: LanguageOutputWriter,
-  outHdr: LanguageOutputWriter
-) extends LanguageCompiler(typeProvider, config, outSrc)
+  config: RuntimeConfig
+) extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
     with EveryReadIsExpression {
   import CppCompiler._
+
+  val outSrc = new StringLanguageOutputWriter(indent)
+  val outHdr = new StringLanguageOutputWriter(indent)
+
+  override def results(topClass: ClassSpec): Map[String, String] = {
+    val fn = topClass.nameAsStr
+    Map(
+      s"$fn.cpp" -> outSrc.result,
+      s"$fn.h" -> outHdr.result
+    )
+  }
 
   override def getStatic = CppCompiler
 
@@ -29,6 +38,9 @@ class CppCompiler(
   case object PublicAccess extends AccessMode
 
   var accessMode: AccessMode = PublicAccess
+
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = topClassName
 
   override def fileHeader(topClassName: String): Unit = {
     outSrc.puts(s"// $headerComment")
@@ -662,13 +674,10 @@ class CppCompiler(
 
 object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
   override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new CppTranslator(tp)
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = topClassName
   override def getCompiler(
     tp: ClassTypeProvider,
-    config: RuntimeConfig,
-    outs: List[LanguageOutputWriter]
-  ): LanguageCompiler = new CppCompiler(tp, config, outs(0), outs(1))
+    config: RuntimeConfig
+  ): LanguageCompiler = new CppCompiler(tp, config)
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"

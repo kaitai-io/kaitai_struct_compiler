@@ -9,9 +9,10 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{RubyTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
 
-class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(typeProvider, config, out)
+class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
+    with SingleOutputFile
     with UniversalFooter
     with UniversalDoc
     with UpperCamelCaseClasses
@@ -28,6 +29,9 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     out.dec
     out.puts("end")
   }
+
+  override def outFileName(topClassName: String): String = s"$topClassName.rb"
+  override def indent: String = "  "
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
@@ -363,13 +367,10 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
 object RubyCompiler extends LanguageCompilerStatic
   with StreamStructNames {
   override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new RubyTranslator(tp)
-  override def outFileName(topClassName: String): String = s"$topClassName.rb"
-  override def indent: String = "  "
   override def getCompiler(
     tp: ClassTypeProvider,
-    config: RuntimeConfig,
-    outs: List[LanguageOutputWriter]
-  ): LanguageCompiler = new RubyCompiler(tp, config, outs.head)
+    config: RuntimeConfig
+  ): LanguageCompiler = new RubyCompiler(tp, config)
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"

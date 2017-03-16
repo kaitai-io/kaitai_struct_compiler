@@ -1,13 +1,14 @@
 package io.kaitai.struct
 
-import java.io.File
+import java.io.{File, FileWriter}
 
+import io.kaitai.struct.CompileLog._
+import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
-import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
-object Main {
+object JavaMain {
   KSVersion.current = BuildInfo.version
 
   case class CLIConfig(
@@ -16,6 +17,7 @@ object Main {
     outDir: File = new File("."),
     targets: Seq[String] = Seq(),
     throwExceptions: Boolean = false,
+    jsonOutput: Boolean = false,
     importPaths: Seq[String] = Seq(),
     runtime: RuntimeConfig = RuntimeConfig()
   )
@@ -80,6 +82,10 @@ object Main {
         c.copy(throwExceptions = true)
       } text("ksc throws exceptions instead of human-readable error messages")
 
+      opt[Unit]("ksc-json-output") action { (x, c) =>
+        c.copy(jsonOutput = true)
+      } text("output compilation results as JSON to stdout")
+
       opt[String]("verbose") action { (x, c) =>
         // TODO: make support for something like "--verbose file,parent"
         if (x == "all") {
@@ -105,82 +111,104 @@ object Main {
     parser.parse(args, CLIConfig())
   }
 
-  def compileOne(srcFile: String, lang: String, outDir: String, config: CLIConfig): Unit = {
-    Log.fileOps.info(() => s"compiling $srcFile for $lang...")
-
-    val specs = JavaKSYParser.localFileToSpecs(srcFile, config)
-    compileOne(specs, lang, outDir, config.runtime)
-  }
-
-  def compileOne(specs: ClassSpecs, langStr: String, outDir: String, config: RuntimeConfig): Unit = {
-    val lang = LanguageCompilerStatic.byString(langStr)
-    specs.foreach { case (_, classSpec) =>
-      fromClassSpecToFile(classSpec, lang, outDir, config).compile
-    }
-  }
-
-  def compileAll(srcFile: String, config: CLIConfig): Unit = {
-    val specs = JavaKSYParser.localFileToSpecs(srcFile, config)
-
-    config.targets.foreach { lang =>
-      try {
-        Log.fileOps.info(() => s"... compiling it for $lang... ")
-        compileOne(specs, lang, s"${config.outDir}/$lang", config.runtime)
-      } catch {
-        case e: Exception =>
-          e.printStackTrace()
-        case e: Error =>
-          e.printStackTrace()
-      }
-    }
-  }
-
-  def fromClassSpecToFile(topClass: ClassSpec, lang: LanguageCompilerStatic, outDir: String, conf: RuntimeConfig): AbstractCompiler = {
-    val config = ClassCompiler.updateConfig(conf, topClass)
-    val outPath = lang.outFilePath(config, outDir, topClass.name.head)
-    Log.fileOps.info(() => s"... => $outPath")
-    lang match {
-      case GraphvizClassCompiler =>
-        val out = new FileLanguageOutputWriter(outPath, lang.indent)
-        new GraphvizClassCompiler(topClass, out)
-      case CppCompiler =>
-        val outSrc = new FileLanguageOutputWriter(s"$outPath.cpp", lang.indent)
-        val outHdr = new FileLanguageOutputWriter(s"$outPath.h", lang.indent)
-        new ClassCompiler(topClass, config, lang, List(outSrc, outHdr))
-      case _ =>
-        val out = new FileLanguageOutputWriter(outPath, lang.indent)
-        new ClassCompiler(topClass, config, lang, List(out))
-    }
-  }
-
   private def envPaths: List[String] =
     sys.env.get("KSPATH").toList.flatMap((x) => x.split(File.pathSeparatorChar))
 
   def main(args: Array[String]): Unit = {
-    parseCommandLine(args)  match {
+    parseCommandLine(args) match {
       case None => System.exit(1)
       case Some(config0) =>
         val config = config0.copy(importPaths = config0.importPaths ++ envPaths)
-        Log.initFromVerboseFlag(config.verbose)
-        config.srcFiles.foreach { srcFile =>
-          try {
-            config.targets match {
-              case Seq(lang) =>
-                // single target, just use target directory as is
-                compileOne(srcFile.toString, lang, config.outDir.toString, config)
-              case _ =>
-                // multiple targets, use additional directories
-                compileAll(srcFile.toString, config)
-            }
-          } catch {
-            case e: YAMLParseException =>
-              if (config.throwExceptions) {
-                throw e
-              } else {
-                Console.println(e.getMessage)
-              }
-          }
+        new JavaMain(config).run()
+    }
+  }
+}
+
+class JavaMain(config: CLIConfig) {
+  import JavaMain._
+
+  Log.initFromVerboseFlag(config.verbose)
+
+  def run(): Unit = {
+    val logs: Map[String, InputEntry] = config.srcFiles.map { srcFile =>
+      val log = if (config.throwExceptions) {
+        compileOneInput(srcFile.toString)
+      } else {
+        try {
+          compileOneInput(srcFile.toString)
+        } catch {
+          case ex: Throwable =>
+            InputFailure(List(exceptionToCompileError(ex, srcFile.toString)))
         }
+      }
+      srcFile.toString -> log
+    }.toMap
+    if (config.jsonOutput)
+      Console.println(JSON.mapToJson(logs))
+  }
+
+  private def compileOneInput(srcFile: String) = {
+    Log.fileOps.info(() => s"parsing $srcFile...")
+    val specs = JavaKSYParser.localFileToSpecs(srcFile, config)
+
+    val output: Map[String, Map[String, SpecEntry]] = config.targets match {
+      case Seq(lang) =>
+        // single target, just use target directory as is
+        val out = compileOneLang(specs, lang, config.outDir.toString)
+        Map(lang -> out)
+      case _ =>
+        // multiple targets, use additional directories
+        compileAllLangs(specs, config)
+    }
+    InputSuccess(
+      specs.firstSpec.nameAsStr,
+      output
+    )
+  }
+
+  def compileAllLangs(specs: ClassSpecs, config: CLIConfig): Map[String, Map[String, SpecEntry]] = {
+    config.targets.map { lang =>
+      lang -> compileOneLang(specs, lang, s"${config.outDir}/$lang")
+    }.toMap
+  }
+
+  def compileOneLang(specs: ClassSpecs, langStr: String, outDir: String): Map[String, SpecEntry] = {
+    Log.fileOps.info(() => s"... compiling it for $langStr... ")
+    val lang = LanguageCompilerStatic.byString(langStr)
+    specs.map { case (_, classSpec) =>
+      val res = try {
+        compileSpecAndWriteToFile(classSpec, lang, outDir)
+      } catch {
+        case ex: Throwable =>
+          SpecFailure(List(exceptionToCompileError(ex, classSpec.nameAsStr)))
+      }
+      classSpec.nameAsStr -> res
+    }.toMap
+  }
+
+  def compileSpecAndWriteToFile(
+    spec: ClassSpec,
+    lang: LanguageCompilerStatic,
+    outDir: String
+  ): SpecSuccess = {
+    val res = Main.compile(spec, lang, config.runtime)
+    res.files.foreach { (file) =>
+      Log.fileOps.info(() => s".... writing ${file.fileName}")
+      val fw = new FileWriter(outDir + "/" + file.fileName)
+      fw.write(file.contents)
+      fw.close()
+    }
+    res
+  }
+
+  private def exceptionToCompileError(ex: Throwable, srcFile: String): CompileError = {
+    if (!config.jsonOutput)
+      Console.println(ex.getMessage)
+    ex match {
+      case ype: YAMLParseException =>
+        CompileError("(main)", ype.path, ype.msg)
+      case _ =>
+        CompileError(srcFile, List(), ex.getMessage)
     }
   }
 }

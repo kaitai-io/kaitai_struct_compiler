@@ -7,10 +7,11 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{PerlTranslator, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
-class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(typeProvider, config, out)
+class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
+    with SingleOutputFile
     with UniversalFooter
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
@@ -27,6 +28,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: 
     out.dec
     out.puts("}")
   }
+
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
@@ -340,13 +344,10 @@ object PerlCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
   override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new PerlTranslator(tp)
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
-  override def indent: String = "    "
   override def getCompiler(
     tp: ClassTypeProvider,
-    config: RuntimeConfig,
-    outs: List[LanguageOutputWriter]
-  ): LanguageCompiler = new PerlCompiler(tp, config, outs.head)
+    config: RuntimeConfig
+  ): LanguageCompiler = new PerlCompiler(tp, config)
 
   def packageName: String = "IO::KaitaiStruct"
   override def kstreamName: String = s"$packageName::Stream"

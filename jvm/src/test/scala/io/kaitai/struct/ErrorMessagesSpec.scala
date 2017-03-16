@@ -3,7 +3,7 @@ package io.kaitai.struct
 import java.io._
 import java.nio.charset.Charset
 
-import io.kaitai.struct.Main.CLIConfig
+import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.precompile.ErrorInInput

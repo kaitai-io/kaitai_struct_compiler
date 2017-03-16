@@ -9,9 +9,10 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{PythonTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
 
-class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(typeProvider, config, out)
+class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
+    with SingleOutputFile
     with UniversalFooter
     with EveryReadIsExpression
     with AllocateIOLocalVar
@@ -26,6 +27,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
     out.dec
     out.puts
   }
+
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"$topClassName.py"
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
@@ -304,13 +308,10 @@ object PythonCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
   override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new PythonTranslator(tp)
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"$topClassName.py"
   override def getCompiler(
     tp: ClassTypeProvider,
-    config: RuntimeConfig,
-    outs: List[LanguageOutputWriter]
-  ): LanguageCompiler = new PythonCompiler(tp, config, outs.head)
+    config: RuntimeConfig
+  ): LanguageCompiler = new PythonCompiler(tp, config)
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"

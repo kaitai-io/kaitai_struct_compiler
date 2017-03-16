@@ -9,9 +9,10 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeDetector, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
-class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(typeProvider, config, out)
+class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
+    with SingleOutputFile
     with AllocateIOLocalVar
     with EveryReadIsExpression
     with UniversalDoc
@@ -20,6 +21,9 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out
   import CSharpCompiler._
 
   override def getStatic = CSharpCompiler
+
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
@@ -377,14 +381,11 @@ object CSharpCompiler extends LanguageCompilerStatic
   with StreamStructNames
   with UpperCamelCaseClasses {
   override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new CSharpTranslator(tp)
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
 
   override def getCompiler(
     tp: ClassTypeProvider,
-    config: RuntimeConfig,
-    outs: List[LanguageOutputWriter]
-  ): LanguageCompiler = new CSharpCompiler(tp, config, outs.head)
+    config: RuntimeConfig
+  ): LanguageCompiler = new CSharpCompiler(tp, config)
 
   /**
     * Determine .NET data type corresponding to a KS data type.

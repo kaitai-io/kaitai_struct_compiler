@@ -9,9 +9,10 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{JavaScriptTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
-class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(typeProvider, config, out)
+class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
+    with SingleOutputFile
     with UniversalDoc
     with AllocateIOLocalVar
     with EveryReadIsExpression
@@ -19,6 +20,9 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig,
   import JavaScriptCompiler._
 
   override def getStatic = JavaScriptCompiler
+
+  override def indent: String = "  "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
@@ -421,13 +425,10 @@ object JavaScriptCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
   override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaScriptTranslator(tp)
-  override def indent: String = "  "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
   override def getCompiler(
     tp: ClassTypeProvider,
-    config: RuntimeConfig,
-    outs: List[LanguageOutputWriter]
-  ): LanguageCompiler = new JavaScriptCompiler(tp, config, outs.head)
+    config: RuntimeConfig
+  ): LanguageCompiler = new JavaScriptCompiler(tp, config)
 
   override def kstreamName: String = "KaitaiStream"
 

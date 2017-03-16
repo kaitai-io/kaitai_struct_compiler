@@ -4,16 +4,21 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.BaseTranslator
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
 import scala.collection.mutable.ListBuffer
 
 abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
-  config: RuntimeConfig,
-  out: LanguageOutputWriter
+  config: RuntimeConfig
 ) {
   val translator: BaseTranslator = getStatic.getTranslator(typeProvider, config)
+
+  /**
+    * @return compilation results as a map: keys are file names, values are
+    *         file contents.
+    */
+  def results(topClass: ClassSpec): Map[String, String]
 
   /**
     * Declares whether language is capable of doing inner classes (i.e. classes
@@ -35,9 +40,11 @@ abstract class LanguageCompiler(
   def innerEnums: Boolean = true
 
   def getStatic: LanguageCompilerStatic
-  def close = out.close
 
   def debug = config.debug
+
+  def indent: String
+  def outFileName(topClassName: String): String
 
   def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}
