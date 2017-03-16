@@ -4,7 +4,7 @@ import fastparse.StringReprOps
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Expressions
 
-class YAMLParseException(msg: String, path: List[String])
+class YAMLParseException(val msg: String, val path: List[String])
   extends RuntimeException(s"/${path.mkString("/")}: $msg", null)
 
 object YAMLParseException {
