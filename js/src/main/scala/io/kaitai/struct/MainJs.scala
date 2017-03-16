@@ -19,12 +19,13 @@ object MainJs {
       val config = new RuntimeConfig(debug = debug)
       val lang = LanguageCompilerStatic.byString(langStr)
 
-      val specs = new JavaScriptClassSpecs(importer)
       val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
       val firstSpec = ClassSpec.fromYaml(yamlScala)
-      TypeProcessor.processTypesMany(specs, firstSpec, config).map { (_) =>
+      val specs = new JavaScriptClassSpecs(importer, firstSpec)
+      TypeProcessor.processTypesMany(specs, config).map { (_) =>
         specs.flatMap({ case (_, spec) =>
-          ClassCompiler.fromClassSpecToString(spec, lang, config)
+          val files = Main.compile(spec, lang, config).files
+          files.map((x) => x.fileName -> x.contents).toMap
         }).toJSDictionary
       }.toJSPromise
     } catch {
