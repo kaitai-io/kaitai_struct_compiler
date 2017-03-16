@@ -15,12 +15,11 @@ import scala.concurrent.duration.Duration
 
 object JavaKSYParser {
   def localFileToSpecs(yamlFilename: String, config: CLIConfig): ClassSpecs = {
-    val yamlDir = Option(new File(yamlFilename).getParent).getOrElse(".")
-    val specs = new JavaClassSpecs(yamlDir, config.importPaths)
-
     val firstSpec = fileNameToSpec(yamlFilename)
+    val yamlDir = Option(new File(yamlFilename).getParent).getOrElse(".")
+    val specs = new JavaClassSpecs(yamlDir, config.importPaths, firstSpec)
 
-    Await.result(TypeProcessor.processTypesMany(specs, firstSpec, config.runtime), Duration.Inf)
+    Await.result(TypeProcessor.processTypesMany(specs, config.runtime), Duration.Inf)
     specs
   }
 

@@ -5,7 +5,9 @@ import io.kaitai.struct.JavaScriptImporter
 import scala.concurrent.Future
 import scala.scalajs.concurrent.JSExecutionContext
 
-class JavaScriptClassSpecs(importer: JavaScriptImporter) extends ClassSpecs {
+class JavaScriptClassSpecs(importer: JavaScriptImporter, firstSpec: ClassSpec)
+  extends ClassSpecs(firstSpec) {
+
   val MODE_REL = "rel"
   val MODE_ABS = "abs"
 

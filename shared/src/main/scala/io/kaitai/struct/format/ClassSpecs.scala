@@ -9,7 +9,9 @@ import scala.concurrent.Future
   * (which at least differ between JVM vs JS), and thus implementations
   * are platform-dependent.
   */
-abstract class ClassSpecs extends mutable.HashMap[String, ClassSpec] {
+abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[String, ClassSpec] {
+  this(firstSpec.name.head) = firstSpec
+
   def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]]
   def importAbsolute(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]]
 }

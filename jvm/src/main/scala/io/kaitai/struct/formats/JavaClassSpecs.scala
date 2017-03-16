@@ -13,7 +13,9 @@ import scala.concurrent.Future
 /**
   * Java implementation of ClassSpec container, doing imports from local files.
   */
-class JavaClassSpecs(relPath: String, absPaths: Seq[String]) extends ClassSpecs {
+class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpec)
+  extends ClassSpecs(firstSpec) {
+
   private val relFiles = mutable.Map[String, ClassSpec]()
   private val absFiles = mutable.Map[String, ClassSpec]()
 

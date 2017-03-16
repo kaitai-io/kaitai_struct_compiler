@@ -11,9 +11,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 object TypeProcessor {
-  def processTypesMany(specs: ClassSpecs, firstSpec: ClassSpec, config: RuntimeConfig): Future[Unit] = {
-    specs(firstSpec.name.head) = firstSpec
-    new LoadImports(specs).processClass(firstSpec).map { (allSpecs) =>
+  def processTypesMany(specs: ClassSpecs, config: RuntimeConfig): Future[Unit] = {
+    new LoadImports(specs).processClass(specs.firstSpec).map { (allSpecs) =>
       Log.importOps.info(() => s"imports done, got: ${specs.keys} (async=$allSpecs)")
 
       specs.foreach { case (_, classSpec) =>
