@@ -194,7 +194,14 @@ class JavaMain(config: CLIConfig) {
     val res = Main.compile(spec, lang, config.runtime)
     res.files.foreach { (file) =>
       Log.fileOps.info(() => s".... writing ${file.fileName}")
-      val fw = new FileWriter(outDir + "/" + file.fileName)
+
+      val outPath = new File(outDir + "/" + file.fileName)
+
+      // Ensure that all directories leading to this path exist
+      val parentPath = outPath.getParentFile
+      parentPath.mkdirs
+
+      val fw = new FileWriter(outPath)
       fw.write(file.contents)
       fw.close()
     }
