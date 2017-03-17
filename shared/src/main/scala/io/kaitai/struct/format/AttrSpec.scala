@@ -114,7 +114,7 @@ object AttrSpec {
         try {
           NamedIdentifier(idStr)
         } catch {
-          case e: InvalidIdentifier =>
+          case _: InvalidIdentifier =>
             throw YAMLParseException.invalidId(idStr, "attribute", path ++ List("id"))
         }
       case None => NumberedIdentifier(idx)
