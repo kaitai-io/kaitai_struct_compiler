@@ -32,12 +32,8 @@ object ParseUtils {
     src.get(field) match {
       case None =>
         None
-      case Some(value: String) =>
-        Some(value)
-      case Some(value: Int) =>
-        Some(value.toString)
-      case Some(value: Double) =>
-        Some(value.toString)
+      case Some(value) =>
+        Some(asStr(value, path ++ List(field)))
       case unknown =>
         throw YAMLParseException.badType("string", unknown, path ++ List(field))
     }
@@ -116,6 +112,10 @@ object ParseUtils {
       case str: String =>
         str
       case n: Int =>
+        n.toString
+      case n: Double =>
+        n.toString
+      case n: Boolean =>
         n.toString
       case unknown =>
         throw YAMLParseException.badType("string", unknown, path)
