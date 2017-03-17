@@ -110,7 +110,13 @@ object AttrSpec {
   def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults, idx: Int): AttrSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     val id = ParseUtils.getOptValueStr(srcMap, "id", path) match {
-      case Some(idStr) => NamedIdentifier(idStr)
+      case Some(idStr) =>
+        try {
+          NamedIdentifier(idStr)
+        } catch {
+          case e: InvalidIdentifier =>
+            throw YAMLParseException.invalidId(idStr, "attribute", path ++ List("id"))
+        }
       case None => NumberedIdentifier(idx)
     }
     fromYaml(srcMap, path, metaDef, id)
