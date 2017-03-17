@@ -104,6 +104,8 @@ object DataType {
     override val process: Option[ProcessExpr]
   ) extends UserType(_name, _forcedParent) with Processing
 
+  val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
+
   case object AnyType extends DataType
   case object KaitaiStructType extends DataType
   case object KaitaiStreamType extends DataType

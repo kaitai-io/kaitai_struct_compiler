@@ -3,6 +3,7 @@ package io.kaitai.struct.precompile
 import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType.{ArrayType, SwitchType, UserType}
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
@@ -28,12 +29,16 @@ object ParentTypes {
     }
   }
 
+  private
   def markupParentTypesAdd(curClass: ClassSpec, dt: DataType): Unit = {
     dt match {
       case userType: UserType =>
-        val parentClass = userType.forcedParent match {
+        (userType.forcedParent match {
           case None =>
-            curClass
+            Some(curClass)
+          case Some(DataType.USER_TYPE_NO_PARENT) =>
+            Log.typeProcParent.info(() => s"..... no parent type added")
+            None
           case Some(parent) =>
             val provider = new ClassTypeProvider(curClass)
             val detector = new TypeDetector(provider)
@@ -41,12 +46,11 @@ object ParentTypes {
             Log.typeProcParent.info(() => s"..... enforced parent type = $parentType")
             parentType match {
               case ut: UserType =>
-                ut.classSpec.get
+                Some(ut.classSpec.get)
               case other =>
-                throw new TypeMismatchError(s"parent=$parent is expected to be of user type, but $other found")
+                throw new TypeMismatchError(s"parent=$parent is expected to be either of user type or `false`, but $other found")
             }
-        }
-        markupParentAs(parentClass, userType)
+        }).foreach((parentClass) => markupParentAs(parentClass, userType))
       case switchType: SwitchType =>
         switchType.cases.foreach {
           case (_, ut: UserType) =>

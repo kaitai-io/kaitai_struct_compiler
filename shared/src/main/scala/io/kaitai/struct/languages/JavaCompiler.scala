@@ -322,6 +322,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           ""
         } else {
           val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "null"
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
