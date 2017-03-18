@@ -430,6 +430,7 @@ class CppCompiler(
           ""
         } else {
           val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "0"
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
