@@ -14,6 +14,8 @@
     all (and, subsequently, remove it from parent type inferring
     process)
   * Type inferring: value instances are now allowed to use `_parent`
+  * `doc-ref` to add references to external documentation for types /
+    attributes
 * Improved compilation process:
   * Compilation is now clearly separated in 3 phases: YAML parsing,
     precompilation, compilation. Phases 1 and 2 are language-agnostic
@@ -49,8 +51,6 @@
     * byte arrays: `to_s(encoding)`
     * enums: `to_i`
     * strings: `reverse`
-* Perl module now uses `IO::KaitaiStruct` package name (instead of
-  `Kaitai`)
 * Runtime API changes:
   * All bytearray to string functions are named `bytes_to_str` in all
     languages
@@ -59,6 +59,8 @@
   * Removed `read_str_*` methods, they are to be replaced now with
     combination of `read_bytes_*` + `bytes_to_str`
   * Added `bytes_strip_right` and `bytes_terminate`
+  * Perl module now uses `IO::KaitaiStruct` package name (instead of
+    `Kaitai`)
 * Major bugfixes:
   * Recursive top-level types
   * Unaligned bits reading with enums on top of bit-level integers
