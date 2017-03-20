@@ -1,3 +1,69 @@
+# 0.7 (2017-03-20)
+
+* New ksy features:
+  * Type importing system: `meta/import` can be used to import other
+    types as first-class citizens in current compilation unit; "opaque
+    types" are now disabled by default (see below)
+  * Byte-terminated notation (`terminator`, `include` and `consume`)
+    can be now used not only for strings, but also for any byte types
+    and user types
+  * `pad-right` to remove declare excess right padding (usually with
+    0s)
+  * User types can now use `parent: expression` to enforce a specific
+    parent for an object, or `parent: false` to disable parenting at
+    all (and, subsequently, remove it from parent type inferring
+    process)
+  * Type inferring: value instances are now allowed to use `_parent`
+* Improved compilation process:
+  * Compilation is now clearly separated in 3 phases: YAML parsing,
+    precompilation, compilation. Phases 1 and 2 are language-agnostic
+    and "precompilation" now does all possible sanity checks
+    preliminary, making sure that language-specific "compilation"
+    doesn't have to deal with invalid data.
+  * Improved compilation results reporting: now all error messages
+    reported by compiler have file / code location and proper
+    user-readable text. Added more than 50 tests for erroneous input
+    files. Exceptions thrown directly are considered a compiler bug
+    from now on.
+  * Generated code now checks for runtime library version
+    compatibility and fails to compile / run with non-compliant
+    runtime
+* Command-line compiler options:
+  * `--opaque-types=true` to enable opaque types (disabled by default,
+    i.e. using unknown type would be treated as error)
+  * `--verbose` now allows fine-tuned verbose logging for various
+    compiler's subsystems; using `--verbose=all` exposes a lot of
+    internal logic.
+  * `--ksc-json-output` to dump compilation results in
+    machine-readable JSON format (simplifies ksc integration in other
+    tools, like visualizers)
+* Console visualizer: faster loading, automatic handling of imports
+  (no more need to specify all .ksy files manually on invocation)
+* Expression language:
+  * Two string types: single quotes (verbatim), double quotes
+    (interpolating with escape characters)
+  * New type casting operator: `.as<foo>`
+  * New methods:
+    * arrays: `size`
+    * booleans: `to_i`
+    * byte arrays: `to_s(encoding)`
+    * enums: `to_i`
+    * strings: `reverse`
+* Perl module now uses `IO::KaitaiStruct` package name (instead of
+  `Kaitai`)
+* Runtime API changes:
+  * All bytearray to string functions are named `bytes_to_str` in all
+    languages
+  * Added `read_bytes_term` (akin to what `read_str_term` did
+    previously to strings)
+  * Removed `read_str_*` methods, they are to be replaced now with
+    combination of `read_bytes_*` + `bytes_to_str`
+  * Added `bytes_strip_right` and `bytes_terminate`
+* Major bugfixes:
+  * Recursive top-level types
+  * Unaligned bits reading with enums on top of bit-level integers
+  * `repeat-until` handling with substreams
+
 # 0.6 (2017-02-04)
 
 * Unaligned bit parsing support
