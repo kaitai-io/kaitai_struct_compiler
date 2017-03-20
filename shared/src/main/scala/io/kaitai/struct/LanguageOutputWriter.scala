@@ -18,11 +18,13 @@ abstract class LanguageOutputWriter(indentStr: String) {
     * as for docstrings.
     * @param prefix prefix to prepend to every line
     * @param lines lines as a string, joined by newline
+    * @param hanging prefix to prepend to every line except for the first
+    *                (i.e. hanging indent)
     */
-  def putsLines(prefix: String, lines: String): Unit = {
-    lines.split("\n").foreach((line) =>
-      puts(s"$prefix$line")
-    )
+  def putsLines(prefix: String, lines: String, hanging: String = ""): Unit = {
+    val strs = lines.split("\n")
+    puts(s"$prefix${strs(0)}")
+    strs.drop(1).foreach((line) => puts(s"$prefix$hanging$line"))
   }
 }
 
