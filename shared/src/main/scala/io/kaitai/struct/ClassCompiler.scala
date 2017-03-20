@@ -39,7 +39,8 @@ class ClassCompiler(
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
-    curClass.doc.foreach((doc) => lang.classDoc(curClass.name, doc))
+    if (!curClass.doc.isEmpty)
+      lang.classDoc(curClass.name, curClass.doc)
     lang.classHeader(curClass.name)
 
     val extraAttrs = ListBuffer[AttrSpec]()
@@ -82,7 +83,8 @@ class ClassCompiler(
     // Attributes declarations and readers
     (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
     (curClass.seq ++ extraAttrs).foreach { (attr) =>
-      attr.doc.foreach((doc) => lang.attributeDoc(attr.id, doc))
+      if (!attr.doc.isEmpty)
+        lang.attributeDoc(attr.id, attr.doc)
       lang.attributeReader(attr.id, attr.dataTypeComposite, attr.cond)
     }
 
@@ -123,7 +125,8 @@ class ClassCompiler(
     }
     lang.instanceDeclaration(instName, dataType, condSpec)
 
-    instSpec.doc.foreach((doc) => lang.attributeDoc(instName, doc))
+    if (!instSpec.doc.isEmpty)
+      lang.attributeDoc(instName, instSpec.doc)
     lang.instanceHeader(className, instName, dataType)
     lang.instanceCheckCacheAndReturn(instName)
 

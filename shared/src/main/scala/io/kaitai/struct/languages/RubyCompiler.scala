@@ -99,10 +99,20 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def universalDoc(doc: String): Unit = {
+  override def universalDoc(doc: DocSpec): Unit = {
     out.puts
-    out.puts( "##")
-    out.putsLines("# ", doc)
+    out.puts("##")
+
+    doc.summary.foreach((summary) => out.putsLines("# ", summary))
+
+    doc.ref match {
+      case TextRef(text) =>
+        out.putsLines("# ", s"@see '' $text", "  ")
+      case UrlRef(url, text) =>
+        out.putsLines("# ", s"@see $url $text", "  ")
+      case NoRef =>
+        // do nothing
+    }
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =

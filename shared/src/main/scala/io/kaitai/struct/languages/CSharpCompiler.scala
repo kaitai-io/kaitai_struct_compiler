@@ -1,13 +1,13 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.{RepeatUntil, _}
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, CSharpTranslator, TypeDetector, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct.translators.{CSharpTranslator, TypeDetector, TypeProvider}
 
 class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -97,11 +97,25 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
   }
 
-  override def universalDoc(doc: String): Unit = {
+  override def universalDoc(doc: DocSpec): Unit = {
     out.puts
-    out.puts( "/// <summary><![CDATA[")
-    out.putsLines("/// ", doc)
-    out.puts( "/// ]]></summary>")
+    doc.summary.foreach { (summary) =>
+      out.puts("/// <summary>")
+      out.putsLines("/// ", XMLUtils.escape(summary))
+      out.puts("/// </summary>")
+    }
+
+    if (doc.ref != NoRef) {
+      out.puts("/// <remarks>")
+
+      val refStr = doc.ref match {
+        case TextRef(text) => XMLUtils.escape(text)
+        case ref: UrlRef => ref.toAhref
+      }
+
+      out.putsLines("/// ", s"Reference: $refStr")
+      out.puts("/// </remarks>")
+    }
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =

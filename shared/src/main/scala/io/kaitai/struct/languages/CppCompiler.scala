@@ -175,13 +175,24 @@ class CppCompiler(
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
 
-  override def universalDoc(doc: String): Unit = {
+  override def universalDoc(doc: DocSpec): Unit = {
     // All docstrings would be for public stuff, so it's safe to start it here
     ensureMode(PublicAccess)
 
     outHdr.puts
     outHdr.puts( "/**")
-    outHdr.putsLines(" * ", doc)
+
+    doc.summary.foreach((docStr) => outHdr.putsLines(" * ", docStr))
+
+    doc.ref match {
+      case TextRef(text) =>
+        outHdr.putsLines(" * ", s"\\sa $text")
+      case UrlRef(url, text) =>
+        outHdr.putsLines(" * ", s"\\sa $text")
+      case NoRef =>
+        // nothing to output
+    }
+
     outHdr.puts( " */")
   }
 

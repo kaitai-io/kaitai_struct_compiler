@@ -21,7 +21,7 @@ case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 trait AttrLikeSpec extends YAMLPath {
   def dataType: DataType
   def cond: ConditionalSpec
-  def doc: Option[String]
+  def doc: DocSpec
 
   def isArray: Boolean = cond.repeat != NoRepeat
 
@@ -39,7 +39,7 @@ case class AttrSpec(
   id: Identifier,
   dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
-  doc: Option[String] = None
+  doc: DocSpec = DocSpec.EMPTY
 ) extends AttrLikeSpec
 
 case class YamlAttrArgs(
@@ -79,6 +79,7 @@ object AttrSpec {
   val LEGAL_KEYS = Set(
     "id",
     "doc",
+    "doc-ref",
     "type",
     "if",
     "terminator",
@@ -132,7 +133,7 @@ object AttrSpec {
   }
 
   def fromYaml2(srcMap: Map[String, Any], path: List[String], metaDef: MetaDefaults, id: Identifier): AttrSpec = {
-    val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
+    val doc = DocSpec.fromYaml(srcMap, path)
     val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path))
     // TODO: add proper path propagation
     val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))

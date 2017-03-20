@@ -105,10 +105,10 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def universalDoc(doc: String): Unit = {
+  override def universalDoc(doc: DocSpec): Unit = {
     out.puts
     out.puts( "/**")
-    out.putsLines(" * ", doc)
+    doc.summary.foreach((summary) => out.putsLines(" * ", summary))
     out.puts( " */")
   }
 

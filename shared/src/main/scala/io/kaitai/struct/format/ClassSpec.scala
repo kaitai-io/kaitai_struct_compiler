@@ -12,7 +12,7 @@ case class ClassSpec(
   path: List[String],
   isTopLevel: Boolean,
   meta: Option[MetaSpec],
-  doc: Option[String],
+  doc: DocSpec,
   seq: List[AttrSpec],
   types: Map[String, ClassSpec],
   instances: Map[InstanceIdentifier, InstanceSpec],
@@ -49,6 +49,7 @@ object ClassSpec {
   val LEGAL_KEYS = Set(
     "meta",
     "doc",
+    "doc-ref",
     "seq",
     "types",
     "instances",
@@ -62,7 +63,7 @@ object ClassSpec {
     val meta = srcMap.get("meta").map(MetaSpec.fromYaml(_, path ++ List("meta")))
     val curMetaDef = metaDef.updateWith(meta)
 
-    val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
+    val doc = DocSpec.fromYaml(srcMap, path)
 
     val seq: List[AttrSpec] = srcMap.get("seq") match {
       case Some(value) => seqFromYaml(value, path ++ List("seq"), curMetaDef)
@@ -143,7 +144,7 @@ object ClassSpec {
       List(),
       true,
       meta = Some(MetaSpec.OPAQUE),
-      doc = None,
+      doc = DocSpec.EMPTY,
       seq = List(),
       types = Map(),
       instances = Map(),

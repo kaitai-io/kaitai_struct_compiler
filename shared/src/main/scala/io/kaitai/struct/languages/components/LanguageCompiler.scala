@@ -58,7 +58,7 @@ abstract class LanguageCompiler(
     */
   def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {}
 
-  def classDoc(name: List[String], doc: String): Unit = {}
+  def classDoc(name: List[String], doc: DocSpec): Unit = {}
   def classHeader(name: List[String]): Unit
   def classFooter(name: List[String]): Unit
   def classForwardDeclaration(name: List[String]): Unit = {}
@@ -71,7 +71,7 @@ abstract class LanguageCompiler(
 
   def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
   def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
-  def attributeDoc(id: Identifier, doc: String): Unit = {}
+  def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}

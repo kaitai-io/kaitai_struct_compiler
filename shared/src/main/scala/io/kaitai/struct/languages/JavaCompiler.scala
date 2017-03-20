@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{JavaTranslator, TypeDetector, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct._
 
 class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -134,10 +134,21 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public ${kaitaiType2JavaType(attrType, condSpec)} ${idToStr(attrName)}() { return ${idToStr(attrName)}; }")
   }
 
-  override def universalDoc(doc: String): Unit = {
+  override def universalDoc(doc: DocSpec): Unit = {
     out.puts
     out.puts( "/**")
-    out.putsLines(" * ", doc)
+
+    doc.summary.foreach((summary) => out.putsLines(" * ", summary))
+
+    doc.ref match {
+      case TextRef(text) =>
+        out.putsLines(" * ", "@see \"" + text + "\"")
+      case ref: UrlRef =>
+        out.putsLines(" * ", s"@see ${ref.toAhref}")
+      case NoRef =>
+        // no reference => output nothing
+    }
+
     out.puts( " */")
   }
 
