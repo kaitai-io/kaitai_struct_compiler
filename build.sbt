@@ -1,4 +1,4 @@
-import com.typesafe.sbt.packager.linux.LinuxSymlink
+import com.typesafe.sbt.packager.linux.{LinuxPackageMapping, LinuxSymlink}
 import sbt.Keys._
 
 resolvers += Resolver.sonatypeRepo("public")
@@ -65,8 +65,22 @@ lazy val compiler = crossProject.in(file(".")).
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
 
+    // Universal: add extra files (formats repo) for distribution
+    mappings in Universal ++= NativePackagerHelper.directory("../formats"),
+
     // Create symlink to allow calling compiler quickly as "ksc"
-    linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", s"/usr/bin/${name.value}"),
+    linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", name.value),
+
+    // Add symlink for ksy files library location for Linux packages
+    linuxPackageSymlinks += LinuxSymlink(s"/usr/share/${name.value}/formats", "../kaitai-struct"),
+
+    // Hack: we need /usr/share/kaitai-struct (the format directory) to be
+    // created as empty dir and packaged in compiler package, to be filled in
+    // with actual repository contents by "kaitai-struct-formats" package.
+    // "jvm/src/main/resources" is guaranteed to be an empty directory.
+    linuxPackageMappings += LinuxPackageMapping(Map(
+      new File("jvm/src/main/resources") -> "/usr/share/kaitai-struct"
+    )),
 
     // Remove all "maintainer scripts", such as prerm/postrm/preinst/postinst: default
     // implementations create per-package virtual user that we won't use anyway
