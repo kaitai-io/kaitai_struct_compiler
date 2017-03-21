@@ -65,8 +65,21 @@ lazy val compiler = crossProject.in(file(".")).
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
 
-    // Universal: add extra files (formats repo) for distribution
-    mappings in Universal ++= NativePackagerHelper.directory("../formats"),
+    // Universal: add extra files (formats repo) for distribution, removing
+    // .git special files and various dirty/backup files that git normally
+    // ignores.
+    //
+    // NOTE: This requires formats repo to be checked out on the level higher
+    // that the compiler
+    mappings in Universal ++= NativePackagerHelper.directory("../formats").filterNot {
+      case (_, dst) =>
+        val dstFile = new File(dst)
+        val dstFileName = dstFile.getName
+        dst.startsWith("formats/_") ||
+          dstFileName == ".git" ||
+          dstFileName.endsWith("~") ||
+          dstFileName.endsWith("#")
+    },
 
     // Create symlink to allow calling compiler quickly as "ksc"
     linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", name.value),
