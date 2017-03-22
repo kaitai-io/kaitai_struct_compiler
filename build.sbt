@@ -1,3 +1,5 @@
+import java.io.File
+
 import com.typesafe.sbt.packager.linux.{LinuxPackageMapping, LinuxSymlink}
 import sbt.Keys._
 
@@ -75,11 +77,17 @@ lazy val compiler = crossProject.in(file(".")).
       case (_, dst) =>
         val dstFile = new File(dst)
         val dstFileName = dstFile.getName
-        dst.startsWith("formats/_") ||
+        dst.startsWith(s"formats${File.separator}_") ||
           dstFileName == ".git" ||
           dstFileName.endsWith("~") ||
           dstFileName.endsWith("#")
     },
+
+    // Uncomment if ever need to debug Windows file lists
+//    mappings in Windows := (mappings in Universal).value.map { (x) =>
+//      System.err.println("WINDOWS MAPPING: " + x)
+//      x
+//    },
 
     // Create symlink to allow calling compiler quickly as "ksc"
     linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", s"/usr/bin/${name.value}"),
