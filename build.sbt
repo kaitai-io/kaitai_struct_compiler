@@ -82,10 +82,26 @@ lazy val compiler = crossProject.in(file(".")).
     },
 
     // Create symlink to allow calling compiler quickly as "ksc"
-    linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", name.value),
+    linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", s"/usr/bin/${name.value}"),
 
     // Add symlink for ksy files library location for Linux packages
-    linuxPackageSymlinks += LinuxSymlink(s"/usr/share/${name.value}/formats", "../kaitai-struct"),
+    linuxPackageSymlinks += LinuxSymlink(s"/usr/share/${name.value}/formats", "/usr/share/kaitai-struct"),
+
+    // Formats should be present in universal (for zips, etc), but
+    // should be filtered out from Linux package, as we'll pack them
+    // in separate package there
+    linuxPackageMappings := {
+      linuxPackageMappings.value.map { (lpm) =>
+//        System.err.println("== mapping start")
+        val r = lpm.copy(mappings = lpm.mappings.filterNot { case (src, dst) =>
+//          System.err.println(s"DEBIAN MAP FILTER: $src -> $dst")
+          val srcStr = src.toString
+          srcStr == "../formats" || srcStr.startsWith("../formats/")
+        })
+//        System.err.println(s"== mapping stop: $r")
+        r
+      }
+    },
 
     // Hack: we need /usr/share/kaitai-struct (the format directory) to be
     // created as empty dir and packaged in compiler package, to be filled in
