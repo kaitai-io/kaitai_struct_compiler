@@ -1,4 +1,4 @@
-# 0.7 (2017-03-20)
+# 0.7 (2017-03-22)
 
 * New ksy features:
   * Type importing system: `meta/import` can be used to import other
