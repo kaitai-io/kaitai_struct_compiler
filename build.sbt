@@ -131,6 +131,8 @@ lazy val compiler = crossProject.in(file(".")).
     // Fix version for Windows: Wix doesn't allow stuff like "-SNAPSHOT" to appear in the version
     version in Windows := VERSION.replace("-SNAPSHOT", ""),
 
+    wixProductId := "ddcf06bc-fd48-434b-93db-1e97ba8d13a7",
+    wixProductUpgradeId := "63e85f5f-7680-4b3e-9bb9-dea0f70e970a",
     wixProductLicense := Some(new File("shared/src/windows/License.rtf")),
 
     maintainer in Windows := "Kaitai Project",
