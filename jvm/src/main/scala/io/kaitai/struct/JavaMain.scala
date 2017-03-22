@@ -1,6 +1,7 @@
 package io.kaitai.struct
 
 import java.io.{File, FileWriter}
+import java.net.URLDecoder
 
 import io.kaitai.struct.CompileLog._
 import io.kaitai.struct.JavaMain.CLIConfig
@@ -111,6 +112,70 @@ object JavaMain {
     parser.parse(args, CLIConfig())
   }
 
+  /**
+    * Insanely hacky method that relies on some JVM black magic to get
+    * application "home". From that, we can check if it has a "formats" subdir,
+    * and if it does, consider that an additional default ksy imports path.
+    * @return additional import search path ("default", platform-specific one),
+    *         if it's found
+    */
+  private def homePath: Option[String] = {
+    // fStr is mysterious and probably unreliable, but that's the best I've
+    // came up with. It uses java.security API, in which CodeSource is used
+    // to have indicative "code location", but AFAIK, in Sun/Oracle applications
+    // it is only used as URL for comparison purposes. It is URL-encoded, so
+    // we need to decode it as well.
+    //
+    // Linux, from IDE:
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.11/classes/
+    //
+    // Linux, from stage:
+    // $HOME/git/kaitai_struct/compiler/jvm/target/universal/stage/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    //
+    // Linux, from "sbt compilerJVM/run"
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.11/classes/
+    //
+    // Linux, from universal, custom install path:
+    // /tmp/a%20b/kaitai-struct-compiler-0.7-SNAPSHOT/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    //
+    // Linux, from Debian install:
+    // /usr/share/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    //
+    // Windows, default install path:
+    // /C:/Program%20Files/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    //
+    // Windows, custom install path with spaces and non-latin chars:
+    // /G:/%d0%b3%d0%b4%d0%b5-%d1%82%d0%be%20%d1%82%d0%b0%d0%bc/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+
+    val fStr = classOf[JavaMain].getProtectionDomain.getCodeSource.getLocation.getPath
+    Log.importOps.info(() => s"home path: location = $fStr")
+
+    if (fStr.endsWith(".jar")) {
+      val fDec = URLDecoder.decode(fStr, "UTF-8")
+      Log.importOps.info(() => s"... URL-decoded = $fDec")
+
+      val homeFile = new File(fDec).getParentFile.getParentFile
+      Log.importOps.info(() => s"... home = $homeFile")
+
+      if (homeFile.exists) {
+        val homeFormat = new File(homeFile, "formats")
+        Log.importOps.info(() => s"... formats = $homeFormat")
+        if (homeFormat.exists) {
+          Some(homeFormat.toString)
+        } else {
+          Log.importOps.info(() => "... home formats dir doesn't exist => fail")
+          None
+        }
+      } else {
+        Log.importOps.info(() => s"... home doesn't exist => no home import paths")
+        None
+      }
+    } else {
+      Log.importOps.info(() => s"... not a jar, we're not running a packaged app => no home")
+      None
+    }
+  }
+
   private def envPaths: List[String] =
     sys.env.get("KSPATH").toList.flatMap((x) => x.split(File.pathSeparatorChar))
 
@@ -118,7 +183,8 @@ object JavaMain {
     parseCommandLine(args) match {
       case None => System.exit(1)
       case Some(config0) =>
-        val config = config0.copy(importPaths = config0.importPaths ++ envPaths)
+        Log.initFromVerboseFlag(config0.verbose)
+        val config = config0.copy(importPaths = config0.importPaths ++ envPaths ++ homePath)
         new JavaMain(config).run()
     }
   }
@@ -126,8 +192,6 @@ object JavaMain {
 
 class JavaMain(config: CLIConfig) {
   import JavaMain._
-
-  Log.initFromVerboseFlag(config.verbose)
 
   def run(): Unit = {
     val logs: Map[String, InputEntry] = config.srcFiles.map { srcFile =>
