@@ -285,7 +285,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
-    out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
+    condRepeatExprHeader2(id, io, dataType, needRaw, repeatExpr)
+  }
+
+  override def condRepeatExprHeader2(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
+    out.puts(s"for (int _i = 0; _i < ${expression(repeatExpr)}; _i++) {")
     out.inc
   }
 
