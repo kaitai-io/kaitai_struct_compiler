@@ -58,8 +58,14 @@ class ClassCompiler(
 
     lang.classConstructorHeader(curClass.name, curClass.parentTypeName, topClassName)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
-    compileSeq(curClass.seq, extraAttrs)
+    compileSeqRead(curClass.seq, extraAttrs)
     lang.classConstructorFooter
+
+    if (config.readWrite) {
+      lang.funcWriteHeader(curClass)
+      compileSeqWrite(curClass.seq, extraAttrs)
+      lang.funcWriteFooter(curClass)
+    }
 
     lang.classDestructorHeader(curClass.name, curClass.parentTypeName, topClassName)
     curClass.seq.foreach((attr) => lang.attrDestructor(attr, attr.id))
@@ -97,13 +103,24 @@ class ClassCompiler(
       compileEnums(curClass)
   }
 
-  def compileSeq(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec]) = {
+  def compileSeqRead(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec]) = {
     var wasUnaligned = false
     seq.foreach { (attr) =>
       val nowUnaligned = isUnalignedBits(attr.dataType)
       if (wasUnaligned && !nowUnaligned)
         lang.alignToByte(lang.normalIO)
       lang.attrParse(attr, attr.id, extraAttrs)
+      wasUnaligned = nowUnaligned
+    }
+  }
+
+  def compileSeqWrite(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec]) = {
+    var wasUnaligned = false
+    seq.foreach { (attr) =>
+      val nowUnaligned = isUnalignedBits(attr.dataType)
+      if (wasUnaligned && !nowUnaligned)
+        lang.alignToByte(lang.normalIO)
+      lang.attrWrite(attr, attr.id, extraAttrs)
       wasUnaligned = nowUnaligned
     }
   }

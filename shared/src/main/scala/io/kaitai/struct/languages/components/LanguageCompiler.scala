@@ -76,6 +76,10 @@ abstract class LanguageCompiler(
   def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
+  def funcWriteHeader(curClass: ClassSpec): Unit = ???
+  def funcWriteFooter(curClass: ClassSpec): Unit = ???
+  def attrWrite(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit = ???
+
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
 
   def condIfSetNull(instName: Identifier): Unit = {}

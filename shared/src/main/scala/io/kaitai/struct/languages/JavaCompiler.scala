@@ -15,6 +15,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UpperCamelCaseClasses
     with ObjectOrientedLanguage
     with EveryReadIsExpression
+    with EveryWriteIsExpression
     with UniversalFooter
     with UniversalDoc
     with AllocateIOLocalVar
@@ -85,7 +86,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("super(_io);")
     if (name == rootClassName)
       out.puts("this._root = this;")
-    if (!debug)
+    if (!(debug || config.readWrite))
       out.puts("_read();")
     out.dec
     out.puts("}")
@@ -97,7 +98,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("this._parent = _parent;")
     if (name == rootClassName)
       out.puts("this._root = this;")
-    if (!debug)
+    if (!(debug || config.readWrite))
       out.puts("_read();")
     out.dec
     out.puts("}")
@@ -108,12 +109,13 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("super(_io);")
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root;")
-    if (!debug)
+    if (!(debug || config.readWrite))
       out.puts("_read();")
     out.dec
     out.puts("}")
 
-    val readAccessAndType = if (debug) {
+    out.puts
+    val readAccessAndType = if (debug || config.readWrite) {
       "public"
     } else {
       "private"
@@ -131,7 +133,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(attrType, condSpec)} ${idToStr(attrName)}() { return ${idToStr(attrName)}; }")
+    val javaType = kaitaiType2JavaType(attrType, condSpec)
+    val name = idToStr(attrName)
+
+    out.puts(s"public $javaType $name() { return $name; }")
+
+    if (config.readWrite) {
+      out.puts(s"public void set${idToSetterStr(attrName)}($javaType _v) { $name = _v; }")
+    }
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -150,6 +159,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     out.puts( " */")
+  }
+
+  override def funcWriteHeader(curClass: ClassSpec): Unit = {
+    out.puts("public void _write() {")
+    out.inc
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
@@ -468,6 +482,30 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public static String[] _seqFields = new String[] { $seqStr };")
   }
 
+  override def attrPrimitiveWrite(io: String, expr: String, dataType: DataType): Unit = {
+    val stmt = dataType match {
+      case t: ReadableType =>
+        s"$io.write${Utils.capitalize(t.apiCall)}($expr)"
+      case BitsType1 =>
+        s"$io.writeBitsInt(1, ($expr) ? 1 : 0)"
+      case BitsType(width: Int) =>
+        s"$io.writeBitsInt($width, $expr)"
+      case t: UserType =>
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "null"
+            case Some(fp) => translator.translate(fp)
+            case None => "this"
+          }
+          s", $parent, _root"
+        }
+        s"new ${types2class(t.name)}($io$addArgs)"
+    }
+    out.puts(stmt + ";")
+  }
+
   def value2Const(s: String) = s.toUpperCase
 
   def idToStr(id: Identifier): String = {
@@ -477,6 +515,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
+    }
+  }
+
+  def idToSetterStr(id: Identifier): String = {
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.upperCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case RawIdentifier(innerId) => "_raw_" + idToSetterStr(innerId)
     }
   }
 
