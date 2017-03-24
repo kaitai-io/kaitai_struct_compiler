@@ -20,16 +20,18 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
 
   override def determineType(inClass: ClassSpec, attrName: String): DataType = {
     attrName match {
-      case "_root" =>
+      case Identifier.ROOT =>
         makeUserType(topClass)
-      case "_parent" =>
+      case Identifier.PARENT =>
         if (inClass.parentClass == UnknownClassSpec)
           throw new RuntimeException(s"Unable to derive _parent type in ${inClass.name.mkString("::")}")
         makeUserType(inClass.parentClass)
-      case "_io" =>
+      case Identifier.IO =>
         KaitaiStreamType
-      case "_" =>
+      case Identifier.ITERATOR =>
         currentIteratorType
+      case Identifier.ITERATOR_I =>
+        CalcIntType
       case "_on" =>
         currentSwitchType
       case _ =>
