@@ -490,6 +490,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.writeBitsInt(1, ($expr) ? 1 : 0)"
       case BitsType(width: Int) =>
         s"$io.writeBitsInt($width, $expr)"
+      case _: BytesType =>
+        s"$io.writeBytes($expr)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) {
           ""

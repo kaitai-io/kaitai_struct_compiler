@@ -46,8 +46,8 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 //        attrBytesTypeWrite(id, c)
 //      case t: UserType =>
 //        attrUserTypeWrite(id, t, io, extraAttrs, rep)
-//      case t: BytesType =>
-//        attrBytesTypeWrite(id, t, io, extraAttrs, rep, isRaw)
+      case t: BytesType =>
+        attrBytesTypeWrite(id, t, io, extraAttrs, rep, isRaw)
 //      case SwitchType(on, cases) =>
 //        attrSwitchTypeWrite(id, on, cases, io, extraAttrs, rep)
 //      case t: StrFromBytesType =>
@@ -64,6 +64,19 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 
   def writeExpr(id: Identifier, rep: RepeatSpec, isRaw: Boolean): String =
     privateMemberName(id)
+
+  def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean) = {
+    t match {
+//      case FixedBytesType(contents, process) =>
+//      case BytesEosType(terminator, include, padRight, process) =>
+//      case BytesLimitType(size, terminator, include, padRight, process) =>
+      case t: BytesTerminatedType =>
+        val expr = writeExpr(id, rep, isRaw)
+        attrPrimitiveWrite(io, expr, t)
+        if (t.consume && !t.include)
+          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false))
+    }
+  }
 
   def attrPrimitiveWrite(io: String, expr: String, dt: DataType): Unit
 
