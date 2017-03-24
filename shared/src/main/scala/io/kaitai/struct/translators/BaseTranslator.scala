@@ -296,6 +296,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0))
   def intToStr(i: Ast.expr, base: Ast.expr): String
   def bytesToStr(bytesExpr: String, encoding: Ast.expr): String
+  def strToBytes(strExpr: String, encoding: Ast.expr): String = ???
   def strLength(s: Ast.expr): String
   def strReverse(s: Ast.expr): String
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
