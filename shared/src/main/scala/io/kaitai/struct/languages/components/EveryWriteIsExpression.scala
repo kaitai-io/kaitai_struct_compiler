@@ -67,7 +67,8 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 
   def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean) = {
     t match {
-//      case FixedBytesType(contents, process) =>
+      case FixedBytesType(contents, process) =>
+        attrPrimitiveWrite(io, translator.doByteArrayLiteral(contents), t)
 //      case BytesEosType(terminator, include, padRight, process) =>
 //      case BytesLimitType(size, terminator, include, padRight, process) =>
       case t: BytesTerminatedType =>
