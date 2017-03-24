@@ -1,6 +1,8 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.{GraphvizClassCompiler, RuntimeConfig}
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
@@ -19,6 +21,11 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("1234", "1234"),
     everybody("-456", "-456"),
     everybody("0x1234", "4660"),
+    // less and more than 32 Bit signed int
+    everybody("1000000000", "1000000000"),
+    everybodyExcept("100000000000", "100000000000", Map[LanguageCompilerStatic, String](
+        JavaCompiler -> "100000000000L"
+    )),
 
     // Float literals
     everybody("1.0", "1.0", CalcFloatType),
@@ -44,9 +51,9 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       PythonCompiler -> "(1 + 2) // (7 * 8)"
     )),
 
-    everybody("1 < 2", "1 < 2", BooleanType),
+    everybody("1 < 2", "1 < 2", CalcBooleanType),
 
-    everybody("1 == 2", "1 == 2", BooleanType),
+    everybody("1 == 2", "1 == 2", CalcBooleanType),
 
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "(2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\"))",
@@ -67,14 +74,14 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     everybody("1.2 + 3", "(1.2 + 3)", CalcFloatType),
     everybody("1 + 3.4", "(1 + 3.4)", CalcFloatType),
 
-    everybody("1.0 < 2", "1.0 < 2", BooleanType),
+    everybody("1.0 < 2", "1.0 < 2", CalcBooleanType),
 
     everybody("3 / 2.0", "(3 / 2.0)", CalcFloatType),
 
     everybody("(1 + 2) / (7 * 8.1)", "((1 + 2) / (7 * 8.1))", CalcFloatType),
 
     // Boolean literals
-    full("true", BooleanType, BooleanType, Map[LanguageCompilerStatic, String](
+    full("true", CalcBooleanType, CalcBooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "true",
       CSharpCompiler -> "true",
       JavaCompiler -> "true",
@@ -85,7 +92,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "true"
     )),
 
-    full("false", BooleanType, BooleanType, Map[LanguageCompilerStatic, String](
+    full("false", CalcBooleanType, CalcBooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "false",
       CSharpCompiler -> "false",
       JavaCompiler -> "false",
@@ -94,6 +101,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       PHPCompiler -> "false",
       PythonCompiler -> "False",
       RubyCompiler -> "false"
+    )),
+
+    full("some_bool.to_i", CalcBooleanType, CalcIntType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "some_bool()",
+      CSharpCompiler -> "(SomeBool ? 1 : 0)",
+      JavaCompiler -> "(someBool() ? 1 : 0)",
+      JavaScriptCompiler -> "(this.someBool | 0)",
+      PerlCompiler -> "$self->some_bool()",
+      PHPCompiler -> "intval($this->someBool())",
+      PythonCompiler -> "int(self.some_bool)",
+      RubyCompiler -> "(some_bool ? 1 : 0)"
     )),
 
     // Member access
@@ -152,7 +170,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "_root.foo"
     )),
 
-    full("a != 2 and a != 5", CalcIntType, BooleanType, Map[LanguageCompilerStatic, String](
+    full("a != 2 and a != 5", CalcIntType, CalcBooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "a() != 2 && a() != 5",
       CSharpCompiler -> "A != 2 && A != 5",
       JavaCompiler -> "a() != 2 && a() != 5",
@@ -232,6 +250,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "a.last"
     )),
 
+    full("a.size", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
+        CppCompiler -> "a()->size()",
+        CSharpCompiler -> "A.Count",
+        JavaCompiler -> "a().size()",
+        JavaScriptCompiler -> "this.a.length",
+        PHPCompiler -> "count(a)",
+        PerlCompiler -> "scalar($self->a())",
+        PythonCompiler -> "len(self.a)",
+        RubyCompiler -> "a.length"
+      )),
+
     // Strings
     full("\"str\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str\")",
@@ -242,6 +271,39 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       PHPCompiler -> "\"str\"",
       PythonCompiler -> "u\"str\"",
       RubyCompiler -> "\"str\""
+    )),
+
+    full("\"str\\nnext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "std::string(\"str\\nnext\")",
+      CSharpCompiler -> "\"str\\nnext\"",
+      JavaCompiler -> "\"str\\nnext\"",
+      JavaScriptCompiler -> "\"str\\nnext\"",
+      PerlCompiler -> "\"str\\nnext\"",
+      PHPCompiler -> "\"str\\nnext\"",
+      PythonCompiler -> "u\"str\\nnext\"",
+      RubyCompiler -> "\"str\\nnext\""
+    )),
+
+    full("\"str\\u000anext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "std::string(\"str\\nnext\")",
+      CSharpCompiler -> "\"str\\nnext\"",
+      JavaCompiler -> "\"str\\nnext\"",
+      JavaScriptCompiler -> "\"str\\nnext\"",
+      PerlCompiler -> "\"str\\nnext\"",
+      PHPCompiler -> "\"str\\nnext\"",
+      PythonCompiler -> "u\"str\\nnext\"",
+      RubyCompiler -> "\"str\\nnext\""
+    )),
+
+    full("\"str\\0next\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "std::string(\"str\\000next\", 8)",
+      CSharpCompiler -> "\"str\\0next\"",
+      JavaCompiler -> "\"str\\000next\"",
+      JavaScriptCompiler -> "\"str\\000next\"",
+      PerlCompiler -> "\"str\\000next\"",
+      PHPCompiler -> "\"str\\000next\"",
+      PythonCompiler -> "u\"str\\000next\"",
+      RubyCompiler -> "\"str\\000next\""
     )),
 
     everybodyExcept("\"str1\" + \"str2\"", "\"str1\" + \"str2\"", Map[LanguageCompilerStatic, String](
@@ -256,14 +318,14 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaCompiler -> "\"str1\".equals(\"str2\")",
       PerlCompiler -> "\"str1\" eq \"str2\"",
       PythonCompiler -> "u\"str1\" == u\"str2\""
-    ), BooleanType),
+    ), CalcBooleanType),
 
     everybodyExcept("\"str1\" != \"str2\"", "\"str1\" != \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str1\") != std::string(\"str2\")",
       JavaCompiler -> "!(\"str1\").equals(\"str2\")",
       PerlCompiler -> "\"str1\" ne \"str2\"",
       PythonCompiler -> "u\"str1\" != u\"str2\""
-    ), BooleanType),
+    ), CalcBooleanType),
 
     everybodyExcept("\"str1\" < \"str2\"", "\"str1\" < \"str2\"", Map[LanguageCompilerStatic, String](
       CppCompiler -> "(std::string(\"str1\").compare(std::string(\"str2\")) < 0)",
@@ -271,7 +333,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaCompiler -> "(\"str1\".compareTo(\"str2\") < 0)",
       PerlCompiler -> "\"str1\" lt \"str2\"",
       PythonCompiler -> "u\"str1\" < u\"str2\""
-    ), BooleanType),
+    ), CalcBooleanType),
 
     full("\"str\".length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::string(\"str\").length()",
@@ -283,6 +345,17 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       PythonCompiler -> "len(u\"str\")",
       RubyCompiler -> "\"str\".size"
     )),
+
+    full("\"str\".reverse", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
+        CppCompiler -> "kaitai::kstream::reverse(std::string(\"str\"))",
+        CSharpCompiler -> "new string(Array.Reverse(\"str\".ToCharArray()))",
+        JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
+        JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
+        PerlCompiler -> "scalar(reverse(\"str\"))",
+        PHPCompiler -> "strrev(\"str\")",
+        PythonCompiler -> "u\"str\"[::-1]",
+        RubyCompiler -> "\"str\".reverse"
+      )),
 
     full("\"12345\".to_i", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "std::stoi(std::string(\"12345\"))",
@@ -306,6 +379,18 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> "\"1234fe\".to_i(16)"
     )),
 
+    // casts
+    full("other.as<block>.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
+      CppCompiler -> "static_cast<block_t*>(other())->bar()",
+      CSharpCompiler -> "((Block) (Other)).Bar",
+      JavaCompiler -> "((Block) (other())).bar()",
+      JavaScriptCompiler -> "this.other.bar",
+      PerlCompiler -> "$self->other()->bar()",
+      PHPCompiler -> "$this->other()->bar()",
+      PythonCompiler -> "self.other.bar",
+      RubyCompiler -> "other.bar"
+    )),
+
     // very simple workaround for Scala not having optional trailing commas
     everybody("999", "999")
   )
@@ -316,11 +401,13 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       eo = Some(Expressions.parse(src))
     }
 
-    LanguageCompilerStatic.NAME_TO_CLASS.foreach { case (langName, langObj) =>
+    LanguageCompilerStatic.NAME_TO_CLASS.
+      filter { case (_, langObj) => langObj != GraphvizClassCompiler }.
+      foreach { case (langName, langObj) =>
       test(s"$langName:$src") {
         eo match {
           case Some(e) =>
-            val tr: BaseTranslator = langObj.getTranslator(tp)
+            val tr: BaseTranslator = langObj.getTranslator(tp, RuntimeConfig())
             expOut.get(langObj) match {
               case Some(expResult) =>
                 tr.detectType(e) should be(expType)
@@ -336,32 +423,41 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   }
 
   type ResultMap = Map[LanguageCompilerStatic, String]
-  type TestSpec = (String, TypeProvider, BaseType, ResultMap)
+  type TestSpec = (String, TypeProvider, DataType, ResultMap)
 
   abstract class FakeTypeProvider extends TypeProvider {
     val nowClass = ClassSpec.opaquePlaceholder(List("top_class"))
 
     override def resolveEnum(enumName: String) =
       throw new NotImplementedError
+
+    override def resolveType(typeName: String): DataType =
+      throw new NotImplementedError
   }
 
-  case class Always(t: BaseType) extends FakeTypeProvider {
-    override def determineType(name: String): BaseType = t
-    override def determineType(inClass: ClassSpec, name: String): BaseType = t
+  case class Always(t: DataType) extends FakeTypeProvider {
+    override def determineType(name: String): DataType = t
+    override def determineType(inClass: ClassSpec, name: String): DataType = t
   }
 
   case object FooBarProvider extends FakeTypeProvider {
-    override def determineType(name: String): BaseType = {
+    override def determineType(name: String): DataType = {
       name match {
         case "foo" => userType("block")
       }
     }
 
-    override def determineType(inClass: ClassSpec, name: String): BaseType = {
+    override def determineType(inClass: ClassSpec, name: String): DataType = {
       (inClass.name, name) match {
         case (List("block"), "bar") => CalcStrType
         case (List("block"), "inner") => userType("innerblock")
         case (List("innerblock"), "baz") => CalcIntType
+      }
+    }
+
+    override def resolveType(typeName: String): DataType = {
+      typeName match {
+        case "top_class" | "block" | "innerblock" => userType(typeName)
       }
     }
   }
@@ -369,24 +465,24 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
   def userType(name: String) = {
     val lname = List(name)
     val cs = ClassSpec.opaquePlaceholder(lname)
-    val ut = UserTypeInstream(lname)
+    val ut = UserTypeInstream(lname, None)
     ut.classSpec = Some(cs)
     ut
   }
 
   lazy val ALL_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.values
 
-  def full(src: String, srcType: BaseType, expType: BaseType, expOut: ResultMap): TestSpec =
+  def full(src: String, srcType: DataType, expType: DataType, expOut: ResultMap): TestSpec =
     (src, Always(srcType), expType, expOut)
 
-  def full(src: String, tp: TypeProvider, expType: BaseType, expOut: ResultMap): TestSpec =
+  def full(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap): TestSpec =
     (src, tp, expType, expOut)
 
-  def everybody(src: String, expOut: String, expType: BaseType = CalcIntType): TestSpec = {
+  def everybody(src: String, expOut: String, expType: DataType = CalcIntType): TestSpec = {
     (src, Always(CalcIntType), expType, ALL_LANGS.map((langObj) => langObj -> expOut).toMap)
   }
 
-  def everybodyExcept(src: String, commonExpOut: String, rm: ResultMap, expType: BaseType = CalcIntType): TestSpec = {
+  def everybodyExcept(src: String, commonExpOut: String, rm: ResultMap, expType: DataType = CalcIntType): TestSpec = {
     (src, Always(CalcIntType), expType, ALL_LANGS.map((langObj) =>
       langObj -> rm.getOrElse(langObj, commonExpOut)
     ).toMap)

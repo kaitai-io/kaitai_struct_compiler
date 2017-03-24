@@ -1,19 +1,42 @@
 package io.kaitai.struct.format
 
+/**
+  * Type that we use when we want to refer to a class specification or something
+  * close, but not (yet) that well defined.
+  */
 sealed trait ClassSpecLike
 case object UnknownClassSpec extends ClassSpecLike
 case object GenericStructClassSpec extends ClassSpecLike
 
 case class ClassSpec(
-                      meta: Option[MetaSpec],
-                      doc: Option[String],
-                      seq: List[AttrSpec],
-                      types: Map[String, ClassSpec],
-                      instances: Map[InstanceIdentifier, InstanceSpec],
-                      enums: Map[String, EnumSpec]
-                    ) extends ClassSpecLike {
+  path: List[String],
+  isTopLevel: Boolean,
+  meta: Option[MetaSpec],
+  doc: DocSpec,
+  seq: List[AttrSpec],
+  types: Map[String, ClassSpec],
+  instances: Map[InstanceIdentifier, InstanceSpec],
+  enums: Map[String, EnumSpec]
+) extends ClassSpecLike with YAMLPath {
   var parentClass: ClassSpecLike = UnknownClassSpec
+
+  /**
+    * Full absolute name of the class (including all names of classes that
+    * it's nested into, as a namespace). Derived either from `meta`/`id`
+    * (for top-level classes), or from keys in `types` (for nested classes).
+    */
   var name = List[String]()
+
+  /**
+    * @return Absolute name of class as string, components separated by
+    *         double colon operator `::`
+    */
+  def nameAsStr = name.mkString("::")
+
+  /**
+    * The class specification that this class is nested into, if it exists.
+    * For top-level classes, it's None.
+    */
   var upClass: Option[ClassSpec] = None
 
   def parentTypeName: List[String] = parentClass match {
@@ -26,6 +49,7 @@ object ClassSpec {
   val LEGAL_KEYS = Set(
     "meta",
     "doc",
+    "doc-ref",
     "seq",
     "types",
     "instances",
@@ -39,7 +63,7 @@ object ClassSpec {
     val meta = srcMap.get("meta").map(MetaSpec.fromYaml(_, path ++ List("meta")))
     val curMetaDef = metaDef.updateWith(meta)
 
-    val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
+    val doc = DocSpec.fromYaml(srcMap, path)
 
     val seq: List[AttrSpec] = srcMap.get("seq") match {
       case Some(value) => seqFromYaml(value, path ++ List("seq"), curMetaDef)
@@ -58,14 +82,21 @@ object ClassSpec {
       case None => Map()
     }
 
+    val cs = ClassSpec(path, path.isEmpty, meta, doc, seq, types, instances, enums)
+
+    // If that's a top-level class, set its name from meta/id
     if (path.isEmpty) {
       if (meta.isEmpty)
         throw new YAMLParseException("no `meta` encountered in top-level class spec", path)
-      if (meta.get.id.isEmpty)
-        throw new YAMLParseException("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
+      meta.get.id match {
+        case None =>
+          throw new YAMLParseException("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
+        case Some(id) =>
+          cs.name = List(id)
+      }
     }
 
-    ClassSpec(meta, doc, seq, types, instances, enums)
+    cs
   }
 
   def seqFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): List[AttrSpec] = {
@@ -82,6 +113,7 @@ object ClassSpec {
   def typesFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): Map[String, ClassSpec] = {
     val srcMap = ParseUtils.asMapStr(src, path)
     srcMap.map { case (typeName, body) =>
+      Identifier.checkIdentifierSource(typeName, "type", path ++ List(typeName))
       typeName -> ClassSpec.fromYaml(body, path ++ List(typeName), metaDef)
     }
   }
@@ -90,8 +122,8 @@ object ClassSpec {
     val srcMap = ParseUtils.asMap(src, path)
     srcMap.map { case (key, body) =>
       val instName = ParseUtils.asStr(key, path)
+      Identifier.checkIdentifierSource(instName, "instance", path ++ List(instName))
       val id = InstanceIdentifier(instName)
-      // TODO: check this conversion
       id -> InstanceSpec.fromYaml(body, path ++ List(instName), metaDef, id)
     }
   }
@@ -100,6 +132,7 @@ object ClassSpec {
     val srcMap = ParseUtils.asMap(src, path)
     srcMap.map { case (key, body) =>
       val enumName = ParseUtils.asStr(key, path)
+      Identifier.checkIdentifierSource(enumName, "enum", path ++ List(enumName))
       enumName -> EnumSpec.fromYaml(body, path ++ List(enumName))
     }
   }
@@ -108,8 +141,10 @@ object ClassSpec {
 
   def opaquePlaceholder(typeName: List[String]): ClassSpec = {
     val placeholder = ClassSpec(
+      List(),
+      true,
       meta = Some(MetaSpec.OPAQUE),
-      doc = None,
+      doc = DocSpec.EMPTY,
       seq = List(),
       types = Map(),
       instances = Map(),

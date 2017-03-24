@@ -1,31 +1,35 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.format.{ClassSpec, JavaScriptKSYParser, KSVersion}
+import io.kaitai.struct.format.{ClassSpec, JavaScriptClassSpecs, JavaScriptKSYParser, KSVersion}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExport
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 @JSExport
 object MainJs {
   KSVersion.current = BuildInfo.version
 
   @JSExport
-  def compile(langStr: String, yaml: js.Object, debug: Boolean = false): js.Array[String] = {
-    val config = new RuntimeConfig(verbose = true, debug = debug)
-    val lang = LanguageCompilerStatic.byString(langStr)
+  def compile(langStr: String, yaml: js.Object, importer: JavaScriptImporter, debug: Boolean = false): js.Promise[js.Dictionary[String]] = {
+    try {
+      val config = new RuntimeConfig(debug = debug)
+      val lang = LanguageCompilerStatic.byString(langStr)
 
-    val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
-    val spec = ClassSpec.fromYaml(yamlScala)
-    TypeProcessor.processTypes(spec)
-
-    val (out1, out2, cc) = ClassCompiler.fromClassSpecToString(spec, lang, config)
-    cc.compile
-
-    out2 match {
-      case None => js.Array(out1.result)
-      case Some(outHdr) => js.Array(out1.result, outHdr.result)
+      val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
+      val firstSpec = ClassSpec.fromYaml(yamlScala)
+      val specs = new JavaScriptClassSpecs(importer, firstSpec)
+      Main.importAndPrecompile(specs, config).map { (_) =>
+        specs.flatMap({ case (_, spec) =>
+          val files = Main.compile(spec, lang, config).files
+          files.map((x) => x.fileName -> x.contents).toMap
+        }).toJSDictionary
+      }.toJSPromise
+    } catch {
+      case err: Throwable => Future { throw err }.toJSPromise
     }
   }
 

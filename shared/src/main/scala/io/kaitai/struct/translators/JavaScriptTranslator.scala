@@ -1,9 +1,9 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.IntType
 import io.kaitai.struct.languages.JavaScriptCompiler
 
 class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -47,11 +47,34 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def strToInt(s: expr, base: expr): String =
     s"Number.parseInt(${translate(s)}, ${translate(base)})"
 
+  override def enumToInt(v: expr, et: EnumType): String =
+    translate(v)
+
+  /**
+    * Converts a boolean (true or false) to integer (1 or 0, respectively) in
+    * JavaScript. There are quite a few methods to so, this one is generally
+    * accepted as one of the fastest (other top methods are +-0.3%), and it's
+    * pretty concise and readable.
+    *
+    * @see http://stackoverflow.com/questions/7820683/convert-boolean-result-into-number-integer
+    * @param v boolean expression to convert
+    * @return string rendition of conversion
+    */
+  override def boolToInt(v: expr): String =
+    s"(${translate(v)} | 0)"
+
   override def intToStr(i: expr, base: expr): String =
     s"(${translate(i)}).toString(${translate(base)})"
 
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"${JavaScriptCompiler.kstreamName}.bytesToStr($bytesExpr, ${translate(encoding)})"
+
   override def strLength(s: expr): String =
     s"${translate(s)}.length"
+
+  // http://stackoverflow.com/a/36525647/2055163
+  override def strReverse(s: expr): String =
+    s"Array.from(${translate(s)}).reverse().join('')"
 
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
@@ -62,6 +85,8 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     val v = translate(a)
     s"$v[$v.length - 1]"
   }
+  override def arraySize(a: expr): String =
+    s"${translate(a)}.length"
 
   override def kaitaiStreamEof(value: Ast.expr): String =
     s"${translate(value)}.isEof()"

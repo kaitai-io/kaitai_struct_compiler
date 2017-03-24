@@ -1,9 +1,11 @@
-import com.typesafe.sbt.packager.linux.LinuxSymlink
+import java.io.File
+
+import com.typesafe.sbt.packager.linux.{LinuxPackageMapping, LinuxSymlink}
 import sbt.Keys._
 
 resolvers += Resolver.sonatypeRepo("public")
 
-val VERSION = "0.6-SNAPSHOT"
+val VERSION = "0.7"
 val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Perl, PHP, Python, Ruby"
 
 lazy val root = project.in(file(".")).
@@ -57,7 +59,7 @@ lazy val compiler = crossProject.in(file(".")).
     )
   ).
   jvmSettings(
-    mainClass in Compile := Some("io.kaitai.struct.Main"),
+    mainClass in Compile := Some("io.kaitai.struct.JavaMain"),
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "2.2.6" % "test",
       "com.github.scopt" %% "scopt" % "3.4.0"
@@ -65,8 +67,57 @@ lazy val compiler = crossProject.in(file(".")).
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
 
+    // Universal: add extra files (formats repo) for distribution, removing
+    // .git special files and various dirty/backup files that git normally
+    // ignores.
+    //
+    // NOTE: This requires formats repo to be checked out on the level higher
+    // that the compiler
+    mappings in Universal ++= NativePackagerHelper.directory("../formats").filterNot {
+      case (_, dst) =>
+        val dstFile = new File(dst)
+        val dstFileName = dstFile.getName
+        dst.startsWith(s"formats${File.separator}_") ||
+          dstFileName == ".git" ||
+          dstFileName.endsWith("~") ||
+          dstFileName.endsWith("#")
+    },
+
+    // Uncomment if ever need to debug Windows file lists
+//    mappings in Windows := (mappings in Universal).value.map { (x) =>
+//      System.err.println("WINDOWS MAPPING: " + x)
+//      x
+//    },
+
     // Create symlink to allow calling compiler quickly as "ksc"
     linuxPackageSymlinks += LinuxSymlink("/usr/bin/ksc", s"/usr/bin/${name.value}"),
+
+    // Add symlink for ksy files library location for Linux packages
+    linuxPackageSymlinks += LinuxSymlink(s"/usr/share/${name.value}/formats", "/usr/share/kaitai-struct"),
+
+    // Formats should be present in universal (for zips, etc), but
+    // should be filtered out from Linux package, as we'll pack them
+    // in separate package there
+    linuxPackageMappings := {
+      linuxPackageMappings.value.map { (lpm) =>
+//        System.err.println("== mapping start")
+        val r = lpm.copy(mappings = lpm.mappings.filterNot { case (src, dst) =>
+//          System.err.println(s"DEBIAN MAP FILTER: $src -> $dst")
+          val srcStr = src.toString
+          srcStr == "../formats" || srcStr.startsWith("../formats/")
+        })
+//        System.err.println(s"== mapping stop: $r")
+        r
+      }
+    },
+
+    // Hack: we need /usr/share/kaitai-struct (the format directory) to be
+    // created as empty dir and packaged in compiler package, to be filled in
+    // with actual repository contents by "kaitai-struct-formats" package.
+    // "jvm/src/main/resources" is guaranteed to be an empty directory.
+    linuxPackageMappings += LinuxPackageMapping(Map(
+      new File("jvm/src/main/resources") -> "/usr/share/kaitai-struct"
+    )),
 
     // Remove all "maintainer scripts", such as prerm/postrm/preinst/postinst: default
     // implementations create per-package virtual user that we won't use anyway
@@ -88,6 +139,8 @@ lazy val compiler = crossProject.in(file(".")).
     // Fix version for Windows: Wix doesn't allow stuff like "-SNAPSHOT" to appear in the version
     version in Windows := VERSION.replace("-SNAPSHOT", ""),
 
+    wixProductId := "ddcf06bc-fd48-434b-93db-1e97ba8d13a7",
+    wixProductUpgradeId := "63e85f5f-7680-4b3e-9bb9-dea0f70e970a",
     wixProductLicense := Some(new File("shared/src/windows/License.rtf")),
 
     maintainer in Windows := "Kaitai Project",

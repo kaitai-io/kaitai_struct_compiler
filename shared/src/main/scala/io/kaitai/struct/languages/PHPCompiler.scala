@@ -1,15 +1,18 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, PHPTranslator, TypeProvider}
+import io.kaitai.struct.translators.{PHPTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
 
-class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(config, out)
+class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
+    with UpperCamelCaseClasses
+    with SingleOutputFile
     with AllocateIOLocalVar
     with UniversalFooter
     with UniversalDoc
@@ -24,17 +27,15 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def getStatic = PHPCompiler
 
-  // FIXME: special hack to provide an instance of PHPCompiler that knows of PHP namespace
-  // to the translator
-  override def open(topClassName: String, tp: ClassTypeProvider): Unit = {
-    _typeProvider = Some(tp)
-    _translator = Some(new PHPTranslator(tp, this))
-  }
+  override val translator: PHPTranslator = new PHPTranslator(typeProvider, config)
 
   override def universalFooter: Unit = {
     out.dec
     out.puts("}")
   }
+
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts("<?php")
@@ -73,8 +74,8 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(
       "public function __construct(" +
       kstreamName + " $io, " +
-      types2classAbs(parentClassName) + " $parent = null, " +
-      types2classAbs(rootClassName) + " $root = null) {"
+      translator.types2classAbs(parentClassName) + " $parent = null, " +
+      translator.types2classAbs(rootClassName) + " $root = null) {"
     )
     out.inc
     out.puts("parent::__construct($io, $parent, $root);")
@@ -86,7 +87,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.inc
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     attrName match {
       case ParentIdentifier | RootIdentifier | IoIdentifier =>
         // just ignore it for now
@@ -95,7 +96,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     attrName match {
       case ParentIdentifier | RootIdentifier =>
         // just ignore it for now
@@ -104,10 +105,10 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def universalDoc(doc: String): Unit = {
+  override def universalDoc(doc: DocSpec): Unit = {
     out.puts
     out.puts( "/**")
-    out.puts(s" * $doc")
+    doc.summary.foreach((summary) => out.putsLines(" * ", summary))
     out.puts( " */")
   }
 
@@ -142,6 +143,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"end($memberName)"
+      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
       case NoRepeat => memberName
     }
 
@@ -163,12 +165,15 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io->seek($$_pos);")
 
+  override def alignToByte(io: String): Unit =
+    out.puts(s"$io->alignToByte();")
+
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
@@ -180,7 +185,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"${privateMemberName(id)}[] = $expr;")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
@@ -193,7 +198,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"${privateMemberName(id)}[] = $expr;")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
@@ -201,12 +206,13 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
-    out.puts(s"${translator.doLocalName("_")} = $expr;")
-    out.puts(s"${privateMemberName(id)}[] = ${translator.doLocalName("_")};")
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+    val tmpName = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    out.puts(s"$tmpName = $expr;")
+    out.puts(s"${privateMemberName(id)}[] = $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
@@ -216,29 +222,45 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io->read${Utils.capitalize(t.apiCall)}()"
-      // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-      case StrByteLimitType(bs, encoding) =>
-        s"$io->readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
-      case StrEosType(encoding) =>
-        io + "->readStrEos(\"" + encoding + "\")"
-      case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + "->readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
-      case BytesLimitType(size, _) =>
-        s"$io->readBytes(${expression(size)})"
-      case BytesEosType(_) =>
+      case blt: BytesLimitType =>
+        s"$io->readBytes(${expression(blt.size)})"
+      case _: BytesEosType =>
         s"$io->readBytesFull()"
-      case BitsType(1) =>
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        s"$io->readBytesTerm($terminator, $include, $consume, $eosError)"
+      case BitsType1 =>
         s"$io->readBitsInt(1) != 0"
       case BitsType(width: Int) =>
         s"$io->readBitsInt($width)"
       case t: UserType =>
-        val addArgs = if (!t.isOpaque) s", $$this, ${privateMemberName(RootIdentifier)}" else ""
-        s"new ${types2classAbs(t.classSpec.get.name)}($io$addArgs)"
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "null"
+            case Some(fp) => translator.translate(fp)
+            case None => "$this"
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}"
+        }
+        s"new ${translator.types2classAbs(t.classSpec.get.name)}($io$addArgs)"
     }
+  }
+
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+    val expr1 = padRight match {
+      case Some(padByte) => s"$kstreamName::bytesStripRight($expr0, $padByte)"
+      case None => expr0
+    }
+    val expr2 = terminator match {
+      case Some(term) => s"$kstreamName::bytesTerminate($expr1, $term, $include)"
+      case None => expr1
+    }
+    expr2
   }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
@@ -265,7 +287,7 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def switchEnd(): Unit = universalFooter
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"public function ${idToStr(instName)}() {")
     out.inc
   }
@@ -312,19 +334,6 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def publicMemberName(id: Identifier) = idToStr(id)
 
-  def namespaceRef = if (config.phpNamespace.isEmpty) {
-    ""
-  } else {
-    "\\" + config.phpNamespace
-  }
-
-  def types2classAbs(names: List[String]) =
-    names match {
-      case List("kaitai_struct") => kstructName
-      case _ =>
-        namespaceRef + "\\" + types2classRel(names)
-    }
-
   /**
     * Determine PHP data type corresponding to a KS data type. Currently unused due to
     * problems with nullable types (which were introduced only in PHP 7.1).
@@ -332,16 +341,16 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     * @param attrType KS data type
     * @return PHP data type
     */
-  def kaitaiType2NativeType(attrType: BaseType): String = {
+  def kaitaiType2NativeType(attrType: DataType): String = {
     attrType match {
       case _: IntType => "int"
       case _: FloatType => "float"
 
-      case BooleanType => "bool"
+      case _: BooleanType => "bool"
 
       case _: StrType | _: BytesType => "string"
 
-      case t: UserType => types2classAbs(t.classSpec.get.name)
+      case t: UserType => translator.types2classAbs(t.classSpec.get.name)
       case t: EnumType => "int"
 
       case ArrayType(_) => "array"
@@ -352,10 +361,11 @@ class PHPCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 object PHPCompiler extends LanguageCompilerStatic
   with StreamStructNames
   with UpperCamelCaseClasses {
-  // FIXME: not really used, as we reimplement PHPCompiler.open()
-  override def getTranslator(tp: TypeProvider): BaseTranslator = ???
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.php"
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig): PHPTranslator = new PHPTranslator(tp, config)
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig
+  ): LanguageCompiler = new PHPCompiler(tp, config)
 
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 

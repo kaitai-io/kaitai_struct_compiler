@@ -1,14 +1,12 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.{GraphvizClassCompiler, RuntimeConfig}
+import io.kaitai.struct._
 import io.kaitai.struct.languages._
 import io.kaitai.struct.translators.{BaseTranslator, TypeProvider}
 
 trait LanguageCompilerStatic {
-  def indent: String
-  def outFileName(topClassName: String): String
-  def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String) = s"$outDir/${outFileName(topClassName)}"
-  def getTranslator(tp: TypeProvider): BaseTranslator
+  def getCompiler(tp: ClassTypeProvider, config: RuntimeConfig): LanguageCompiler
+  def getTranslator(tp: TypeProvider, config: RuntimeConfig): BaseTranslator
 }
 
 object LanguageCompilerStatic {

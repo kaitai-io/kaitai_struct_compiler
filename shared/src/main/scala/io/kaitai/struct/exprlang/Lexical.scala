@@ -34,24 +34,51 @@ object Lexical {
   val uppercase  = P( CharIn('A' to 'Z') )
   val digit      = P( CharIn('0' to '9') )
 
-  val stringliteral: P[String] = P( shortstring0("'") | shortstring0("\"") )
-  def shortstring0(delimiter: String) = P( delimiter ~ shortstringitem(delimiter).rep.! ~ delimiter)
-  def shortstringitem(quote: String): P0 = P( shortstringchar(quote) | escapeseq )
-  def shortstringchar(quote: String): P0 = P( CharsWhile(!s"\\\n${quote(0)}".contains(_)) )
+  val stringliteral: P[String] = P( singlestring | doublestring )
+  val singlestring = P("'" ~/ singlestringchar.rep.! ~ "'")
+  val singlestringchar = P( CharsWhile(!"'".contains(_)) )
 
-  val escapeseq: P0 = P( "\\" ~ AnyChar )
+  val doublestring: P[String] = P("\"" ~/ doublestringitem.rep ~ "\"").map(_.mkString)
+  val doublestringitem = P( doublestringchar.! | escapeseq )
+  val doublestringchar = P( CharsWhile(!"\\\"".contains(_)) )
+  val escapeseq = P( "\\" ~/ (quotedchar | quotedoctal | quotedhex) )
 
+  val QUOTED_CC = Map(
+    "a" -> "\7",  // bell, ASCII code 7
+    "b" -> "\b",  // backspace, ASCII code 8
+    "t" -> "\t",  // horizontal tab, ASCII code 9
+    "n" -> "\n",  // newline, ASCII code 10
+    "v" -> "\13", // vertical tab, ASCII code 11 = 0o13
+    "f" -> "\14", // form feed, ASCII code 12 = 0o14
+    "r" -> "\r",  // carriage return, ASCII code 13
+    "e" -> "\33", // escape, ASCII code 27 = 0o33
+    "'" -> "'",   // single quote
+    "\"" -> "\"", // double quote
+    "\\" -> "\\"  // backslash
+  )
+  val VALID_QUOTED = QUOTED_CC.keys.toList.sorted.mkString
+  val quotedchar = P( CharIn(VALID_QUOTED).! ).map(QUOTED_CC)
+  val quotedoctal: P[String] = P( octdigit.rep(1).! ).map { (digits) =>
+    val code = Integer.parseInt(digits, 8).toChar
+    Character.toString(code)
+  }
+  val quotedhex: P[String] = P( "u" ~/ hexdigit.rep(exactly = 4).! ).map { (digits) =>
+    val code = Integer.parseInt(digits, 16).toChar
+    Character.toString(code)
+  }
+  // FIXME: fix this mess with octdigit / hexdigit allowing underscore
+  // probably underscore shouldn't be inside them, but somehow added separately
+  // plus there's a problem with "0x_" and "0o_" being legal now
 
   val integer: P[BigInt] = P( octinteger | hexinteger | bininteger | decimalinteger)
   val decimalinteger: P[BigInt] = P( nonzerodigit ~ (digit | "_").rep | "0" ).!.map(parseNum(_, 10))
-  val octinteger: P[BigInt] = P( "0" ~ ("o" | "O") ~ octdigit.rep(1).! | "0" ~ octdigit.rep(1).! ).map(parseNum(_, 8))
+  val octinteger: P[BigInt] = P( "0" ~ ("o" | "O") ~ octdigit.rep(1).! ).map(parseNum(_, 8))
   val hexinteger: P[BigInt] = P( "0" ~ ("x" | "X") ~ hexdigit.rep(1).! ).map(parseNum(_, 16))
   val bininteger: P[BigInt] = P( "0" ~ ("b" | "B") ~ bindigit.rep(1).! ).map(parseNum(_, 2))
   val nonzerodigit: P0 = P( CharIn('1' to '9') )
   val octdigit: P0 = P( CharIn('0' to '7') | "_" )
   val bindigit: P0 = P( "0" | "1" | "_" )
   val hexdigit: P0 = P( digit | CharIn('a' to 'f', 'A' to 'F') | "_" )
-
 
   val floatnumber: P[BigDecimal] = P( pointfloat | exponentfloat )
   val pointfloat: P[BigDecimal] = P( intpart.? ~ fraction | intpart ~ "." ).!.map(BigDecimal(_))

@@ -1,15 +1,18 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, JavaTranslator, TypeProvider}
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct.translators.{JavaTranslator, TypeDetector, TypeProvider}
+import io.kaitai.struct._
 
-class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(config, out)
+class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
+    with SingleOutputFile
+    with UpperCamelCaseClasses
     with ObjectOrientedLanguage
     with EveryReadIsExpression
     with UniversalFooter
@@ -26,6 +29,10 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
   }
 
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String =
+    s"src/${config.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
+
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
     if (!config.javaPackage.isEmpty) {
@@ -41,6 +48,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("import java.util.ArrayList;")
     out.puts("import java.util.HashMap;")
     out.puts("import java.util.Map;")
+    out.puts("import java.nio.charset.Charset;")
 
     out.puts
   }
@@ -118,18 +126,29 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     universalFooter
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2JavaType(attrType, condSpec)} ${idToStr(attrName)};")
   }
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"public ${kaitaiType2JavaType(attrType, condSpec)} ${idToStr(attrName)}() { return ${idToStr(attrName)}; }")
   }
 
-  override def universalDoc(doc: String): Unit = {
+  override def universalDoc(doc: DocSpec): Unit = {
     out.puts
     out.puts( "/**")
-    out.puts(s" * $doc")
+
+    doc.summary.foreach((summary) => out.putsLines(" * ", summary))
+
+    doc.ref match {
+      case TextRef(text) =>
+        out.putsLines(" * ", "@see \"" + text + "\"")
+      case ref: UrlRef =>
+        out.putsLines(" * ", s"@see ${ref.toAhref}")
+      case NoRef =>
+        // no reference => output nothing
+    }
+
     out.puts( " */")
   }
 
@@ -163,6 +182,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
       case NoRepeat => javaName
     }
 
@@ -184,7 +204,10 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
-  override def attrDebugStart(attrId: Identifier, attrType: BaseType, ios: Option[String], rep: RepeatSpec): Unit = {
+  override def alignToByte(io: String): Unit =
+    out.puts(s"$io.alignToByte();")
+
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
       val name = attrId match {
         case _: RawIdentifier | _: SpecialIdentifier => return
@@ -199,7 +222,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     }
   }
 
-  override def attrDebugEnd(attrId: Identifier, attrType: BaseType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
     val name = attrId match {
       case _: RawIdentifier | _: SpecialIdentifier => return
       case _ => idToStr(attrId)
@@ -232,7 +255,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
@@ -244,7 +267,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>(Long.valueOf(${expression(repeatExpr)}).intValue());")
     out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}(Long.valueOf(${expression(repeatExpr)}).intValue());")
@@ -256,7 +279,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
@@ -267,12 +290,17 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
-    out.puts(s"${translator.doName("_")} = $expr;")
-    out.puts(s"${privateMemberName(id)}.add(${translator.doName("_")});")
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+    val (typeDecl, tempVar) = if (isRaw) {
+      ("byte[] ", translator.doName(Identifier.ITERATOR2))
+    } else {
+      ("", translator.doName(Identifier.ITERATOR))
+    }
+    out.puts(s"$typeDecl$tempVar = $expr;")
+    out.puts(s"${privateMemberName(id)}.add($tempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
@@ -283,32 +311,48 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
 
-  override def handleAssignmentTempVar(dataType: BaseType, id: String, expr: String): Unit =
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"${kaitaiType2JavaType(dataType)} $id = $expr;")
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall)}()"
-      // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-      case StrByteLimitType(bs, encoding) =>
-        s"$io.readStrByteLimit(${expression(bs)}, " + '"' + encoding + "\")"
-      case StrEosType(encoding) =>
-        io + ".readStrEos(\"" + encoding + "\")"
-      case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + ".readStrz(\"" + encoding + '"' + s", $terminator, $include, $consume, $eosError)"
-      case BytesLimitType(size, _) =>
-        s"$io.readBytes(${expression(size)})"
-      case BytesEosType(_) =>
+      case blt: BytesLimitType =>
+        s"$io.readBytes(${expression(blt.size)})"
+      case _: BytesEosType =>
         s"$io.readBytesFull()"
-      case BitsType(1) =>
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
+      case BitsType1 =>
         s"$io.readBitsInt(1) != 0"
       case BitsType(width: Int) =>
         s"$io.readBitsInt($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) "" else ", this, _root"
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "null"
+            case Some(fp) => translator.translate(fp)
+            case None => "this"
+          }
+          s", $parent, _root"
+        }
         s"new ${types2class(t.name)}($io$addArgs)"
     }
+  }
+
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+    val expr1 = padRight match {
+      case Some(padByte) => s"$kstreamName.bytesStripRight($expr0, (byte) $padByte)"
+      case None => expr0
+    }
+    val expr2 = terminator match {
+      case Some(term) => s"$kstreamName.bytesTerminate($expr1, (byte) $term, $include)"
+      case None => expr1
+    }
+    expr2
   }
 
   override def userTypeDebugRead(id: String): Unit =
@@ -347,11 +391,11 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def switchEnd(): Unit =
     out.puts("}")
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
   }
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${idToStr(instName)}() {")
     out.inc
   }
@@ -367,7 +411,7 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: expr): Unit = {
+  override def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: expr): Unit = {
     val primType = kaitaiType2JavaTypePrim(dataType)
     val boxedType = kaitaiType2JavaTypeBoxed(dataType)
 
@@ -444,15 +488,16 @@ class JavaCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 object JavaCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new JavaTranslator(tp)
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.java"
-  override def outFilePath(config: RuntimeConfig, outDir: String, topClassName: String): String =
-    s"$outDir/src/${config.javaPackage.replace('.', '/')}/${outFileName(topClassName)}"
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaTranslator(tp)
 
-  def kaitaiType2JavaType(attrType: BaseType): String = kaitaiType2JavaTypePrim(attrType)
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig
+  ): LanguageCompiler = new JavaCompiler(tp, config)
 
-  def kaitaiType2JavaType(attrType: BaseType, condSpec: ConditionalSpec): String =
+  def kaitaiType2JavaType(attrType: DataType): String = kaitaiType2JavaTypePrim(attrType)
+
+  def kaitaiType2JavaType(attrType: DataType, condSpec: ConditionalSpec): String =
     if (condSpec.ifExpr.nonEmpty) {
       kaitaiType2JavaTypeBoxed(attrType)
     } else {
@@ -466,7 +511,7 @@ object JavaCompiler extends LanguageCompilerStatic
     * @param attrType KS data type
     * @return Java data type
     */
-  def kaitaiType2JavaTypePrim(attrType: BaseType): String = {
+  def kaitaiType2JavaTypePrim(attrType: DataType): String = {
     attrType match {
       case Int1Type(false) => "int"
       case IntMultiType(false, Width2, _) => "int"
@@ -481,7 +526,6 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType(1) => "boolean"
       case BitsType(_) => "long"
 
       case BooleanType => "boolean"
@@ -500,7 +544,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
 
-      case SwitchType(_, cases) => kaitaiType2JavaTypePrim(BaseTranslator.combineTypes(cases.values))
+      case SwitchType(_, cases) => kaitaiType2JavaTypePrim(TypeDetector.combineTypes(cases.values))
     }
   }
 
@@ -511,7 +555,7 @@ object JavaCompiler extends LanguageCompilerStatic
     * @param attrType KS data type
     * @return Java data type
     */
-  def kaitaiType2JavaTypeBoxed(attrType: BaseType): String = {
+  def kaitaiType2JavaTypeBoxed(attrType: DataType): String = {
     attrType match {
       case Int1Type(false) => "Integer"
       case IntMultiType(false, Width2, _) => "Integer"
@@ -526,7 +570,6 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "Float"
       case FloatMultiType(Width8, _) => "Double"
 
-      case BitsType(1) => "Boolean"
       case BitsType(_) => "Long"
 
       case BooleanType => "Boolean"
@@ -545,7 +588,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
-      case SwitchType(_, cases) => kaitaiType2JavaTypeBoxed(BaseTranslator.combineTypes(cases.values))
+      case SwitchType(_, cases) => kaitaiType2JavaTypeBoxed(TypeDetector.combineTypes(cases.values))
     }
   }
 

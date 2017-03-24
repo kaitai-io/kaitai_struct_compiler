@@ -65,7 +65,7 @@ object Expressions {
   val comp_op = P( LtE|GtE|Eq|Gt|Lt|NotEq )
   val Add = op("+", Ast.operator.Add)
   val Sub = op("-", Ast.operator.Sub)
-  val Pow = op("**", Ast.operator.Pow)
+//  val Pow = op("**", Ast.operator.Pow)
   val Mult= op("*", Ast.operator.Mult)
   val Div = op("/", Ast.operator.Div)
   val Mod = op("%", Ast.operator.Mod)
@@ -92,23 +92,27 @@ object Expressions {
     ("~" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Invert, _)) |
     power
   )
-  val power: P[Ast.expr] = P( atom ~ trailer.rep ~ (Pow ~ factor).? ).map{
-    case (lhs, trailers, rhs) =>
-      val left = trailers.foldLeft(lhs)((l, t) => t(l))
-      rhs match{
-        case None => left
-        case Some((op, right)) => Ast.expr.BinOp(left, op, right)
-      }
+//  val power: P[Ast.expr] = P( atom ~ trailer.rep ~ (Pow ~ factor).? ).map{
+//    case (lhs, trailers, rhs) =>
+//      val left = trailers.foldLeft(lhs)((l, t) => t(l))
+//      rhs match{
+//        case None => left
+//        case Some((op, right)) => Ast.expr.BinOp(left, op, right)
+//      }
+//  }
+  val power: P[Ast.expr] = P( atom ~ trailer.rep ).map {
+    case (lhs, trailers) =>
+      trailers.foldLeft(lhs)((l, t) => t(l))
   }
   val atom: P[Ast.expr] = {
     val empty_list = ("[" ~ "]").map(_ => Ast.expr.List(Nil))
-    val empty_dict = ("{" ~ "}").map(_ => Ast.expr.Dict(Nil, Nil))
+//    val empty_dict = ("{" ~ "}").map(_ => Ast.expr.Dict(Nil, Nil))
     P(
       empty_list |
-      empty_dict |
+//      empty_dict |
       "(" ~ test ~ ")" |
       "[" ~ list ~ "]" |
-      "{" ~ dictorsetmaker ~ "}" |
+//      "{" ~ dictorsetmaker ~ "}" |
       enumByName |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
       NAME.map((x) => x.name match {
@@ -126,22 +130,25 @@ object Expressions {
   val trailer: P[Ast.expr => Ast.expr] = {
     val call = P("(" ~ arglist ~ ")").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Call(lhs, args)}
     val slice = P("[" ~ test ~ "]").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Subscript(lhs, args)}
+    val cast = P( "." ~ "as" ~ "<" ~ NAME ~ ">" ).map(
+      typeName => (lhs: Ast.expr) => Ast.expr.CastToType(lhs, typeName)
+    )
     val attr = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id))
-    P( call | slice | attr )
+    P( call | slice | cast | attr )
   }
 
   val exprlist: P[Seq[Ast.expr]] = P( expr.rep(1, sep = ",") ~ ",".? )
   val testlist: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") ~ ",".? )
-  val dictorsetmaker: P[Ast.expr] = {
-    val dict_item = P( test ~ ":" ~ test )
-    val dict: P[Ast.expr.Dict] = P(
-      (dict_item.rep(1, ",") ~ ",".?).map{x =>
-        val (keys, values) = x.unzip
-        Ast.expr.Dict(keys, values)
-      }
-    )
-    P( /*dict_comp |*/ dict /*| set_comp | set*/)
-  }
+//  val dictorsetmaker: P[Ast.expr] = {
+//    val dict_item = P( test ~ ":" ~ test )
+//    val dict: P[Ast.expr.Dict] = P(
+//      (dict_item.rep(1, ",") ~ ",".?).map{x =>
+//        val (keys, values) = x.unzip
+//        Ast.expr.Dict(keys, values)
+//      }
+//    )
+//    P( /*dict_comp |*/ dict /*| set_comp | set*/)
+//  }
 
   val arglist: P[Seq[Ast.expr]] = P( (test).rep(0, ",") )
 
@@ -155,16 +162,15 @@ object Expressions {
 
   val topExpr: P[Ast.expr] = P( test ~ End )
 
-  class ParseException(msg: String) extends RuntimeException(msg, null)
+  class ParseException(val src: String, val failure: Parsed.Failure)
+    extends RuntimeException(failure.msg)
 
   def parse(src: String): Ast.expr = {
     val r = Expressions.topExpr.parse(src)
     r match {
       case Parsed.Success(value, index) => value
       case f: Parsed.Failure =>
-        Console.err.println(s"parsing expression '$src' failed on ${StringReprOps.prettyIndex(f.extra.input, f.index)}")
-        Console.err.println(s"expected: ${f.extra.traced.expected}")
-        throw new ParseException(f.msg)
+        throw new ParseException(src, f)
     }
   }
 }

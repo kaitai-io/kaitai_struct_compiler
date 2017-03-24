@@ -1,16 +1,19 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{BaseTranslator, PythonTranslator, TypeProvider}
+import io.kaitai.struct.translators.{PythonTranslator, TypeProvider}
+import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
 
-class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(config, out)
+class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
+    with UpperCamelCaseClasses
+    with SingleOutputFile
     with UniversalFooter
     with EveryReadIsExpression
     with AllocateIOLocalVar
@@ -26,6 +29,9 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts
   }
 
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"$topClassName.py"
+
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
     out.puts
@@ -33,9 +39,25 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("import struct")
     out.puts("import zlib")
     out.puts("from enum import Enum")
+    out.puts("from pkg_resources import parse_version")
     out.puts
-    out.puts(s"from kaitaistruct import $kstructName, $kstreamName, BytesIO")
+    out.puts(s"from kaitaistruct import __version__ as ks_version, $kstructName, $kstreamName, BytesIO")
     out.puts
+    out.puts
+
+    // API compatibility check
+    out.puts(
+      "if parse_version(ks_version) < parse_version('" +
+        KSVersion.minimalRuntime +
+        "'):"
+    )
+    out.inc
+    out.puts(
+      "raise Exception(\"Incompatible Kaitai Struct Python API: " +
+        KSVersion.minimalRuntime +
+        " or later is required, but you have %s\" % (ks_version))"
+    )
+    out.dec
     out.puts
   }
 
@@ -57,9 +79,9 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("self._root = _root if _root else self")
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents($contents)")
@@ -113,12 +135,15 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)")
 
+  override def alignToByte(io: String): Unit =
+    out.puts(s"$io.align_to_byte()")
+
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)}:")
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
@@ -128,7 +153,7 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}.append($expr)")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [None] * (${expression(repeatExpr)})")
     out.puts(s"${privateMemberName(id)} = [None] * (${expression(repeatExpr)})")
@@ -138,7 +163,7 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[i] = $expr")
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
@@ -146,12 +171,13 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
-    out.puts(s"${translator.doName("_")} = $expr")
-    out.puts(s"${privateMemberName(id)}.append(${translator.doName("_")})")
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    out.puts(s"$tmpName = $expr")
+    out.puts(s"${privateMemberName(id)}.append($tmpName)")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(untilExpr)}:")
     out.inc
@@ -163,29 +189,44 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io.read_${t.apiCall}()"
-      // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-      case StrByteLimitType(bs, encoding) =>
-        s"$io.read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
-      case StrEosType(encoding) =>
-        io + ".read_str_eos(\"" + encoding + "\")"
-      case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + ".read_strz(\"" + encoding + '"' + s", $terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
-      case BytesLimitType(size, _) =>
-        s"$io.read_bytes(${expression(size)})"
-      case BytesEosType(_) =>
+      case blt: BytesLimitType =>
+        s"$io.read_bytes(${expression(blt.size)})"
+      case _: BytesEosType =>
         s"$io.read_bytes_full()"
-      case BitsType(1) =>
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        s"$io.read_bytes_term($terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
+      case BitsType1 =>
         s"$io.read_bits_int(1) != 0"
       case BitsType(width: Int) =>
         s"$io.read_bits_int($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) "" else ", self, self._root"
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(fp) => translator.translate(fp)
+            case None => "self"
+          }
+          s", $parent, self._root"
+        }
         s"${types2class(t.classSpec.get.name)}($io$addArgs)"
     }
+  }
+
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+    val expr1 = padRight match {
+      case Some(padByte) => s"$kstreamName.bytes_strip_right($expr0, $padByte)"
+      case None => expr0
+    }
+    val expr2 = terminator match {
+      case Some(term) => s"$kstreamName.bytes_terminate($expr1, $term, ${bool2Py(include)})"
+      case None => expr1
+    }
+    expr2
   }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
@@ -212,7 +253,7 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 
   override def switchEnd(): Unit = {}
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts("@property")
     out.puts(s"def ${publicMemberName(instName)}(self):")
     out.inc
@@ -267,9 +308,11 @@ class PythonCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 object PythonCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new PythonTranslator(tp)
-  override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"$topClassName.py"
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new PythonTranslator(tp)
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig
+  ): LanguageCompiler = new PythonCompiler(tp, config)
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"

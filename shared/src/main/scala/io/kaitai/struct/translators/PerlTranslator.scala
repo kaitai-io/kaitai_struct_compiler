@@ -1,10 +1,38 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{BaseType, IntType}
+import io.kaitai.struct.format.Identifier
 
 class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  // http://perldoc.perl.org/perlrebackslash.html#Character-Escapes
+  override val asciiCharQuoteMap: Map[Char, String] = Map(
+    '\t' -> "\\t",
+    '\n' -> "\\n",
+    '\r' -> "\\r",
+    '"' -> "\\\"",
+    '\\' -> "\\\\",
+
+    // Perl double-quoted interpolation variables
+    '$' -> "\\$",
+    '@' -> "\\@",
+    '%' -> "\\%",
+
+    '\7' -> "\\a",
+    '\f' -> "\\f",
+    '\33' -> "\\e",
+    '\b' -> "\\b"
+
+    // \v is available since 5.10, but according to documentation
+    // it's used for a class of "vertical tabulation" characters,
+    // not a single character
+  )
+
+  override def strLiteralUnicode(code: Char): String =
+    "\\N{U+%04x}".format(code.toInt)
+
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
@@ -16,7 +44,7 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doBoolLiteral(n: Boolean): String = if (n) "1" else "0"
 
-  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String =
+  override def doArrayLiteral(t: DataType, value: Seq[expr]): String =
     "(" + value.map((v) => translate(v)).mkString(", ") + ")"
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
@@ -34,7 +62,8 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doName(s: String) = {
     s match {
-      case "_" => "$_"
+      case Identifier.ITERATOR => "$_"
+      case Identifier.ITERATOR2 => "$_buf"
       case _ => s"$s()"
     }
   }
@@ -77,6 +106,10 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => throw new UnsupportedOperationException(baseStr)
     }
   }
+  override def enumToInt(v: expr, et: EnumType): String =
+    translate(v)
+  override def boolToInt(v: expr): String =
+    translate(v)
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     val format = baseStr match {
@@ -91,8 +124,12 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
     s"sprintf('$format', ${translate(i)})"
   }
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"Encode::decode(${translate(encoding)}, $bytesExpr)"
   override def strLength(value: Ast.expr): String =
     s"length(${translate(value)})"
+  override def strReverse(value: Ast.expr): String =
+    s"scalar(reverse(${translate(value)}))"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
 
@@ -100,6 +137,8 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String =
     s"${translate(a)}[-1]"
+  override def arraySize(a: expr): String =
+    s"scalar(${translate(a)})"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"${translate(value)}->size()"

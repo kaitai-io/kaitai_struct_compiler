@@ -3,7 +3,9 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
-import io.kaitai.struct.exprlang.DataType.{BaseType, CalcIntType, IntType}
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -32,7 +34,7 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${literal}${suffix}"
   }
 
-  override def doArrayLiteral(t: BaseType, value: Seq[expr]): String = {
+  override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
     val values = t match {
       case CalcIntType => value.map((v) => v match {
@@ -60,10 +62,11 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doName(s: String) =
     s match {
-      case "_root" => s
-      case "_parent" => "_parent()"
-      case "_io" => "_io()"
-      case "_" => "_it"
+      case Identifier.ROOT => s
+      case Identifier.PARENT => "_parent()"
+      case Identifier.IO => "_io()"
+      case Identifier.ITERATOR => "_it"
+      case Identifier.ITERATOR2 => "_buf"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 
@@ -99,14 +102,22 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
+  override def doCast(value: Ast.expr, typeName: String): String =
+    s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
     s"Long.parseLong(${translate(s)}, ${translate(base)})"
+  override def enumToInt(v: expr, et: EnumType): String =
+    s"${translate(v)}.id()"
   override def intToStr(i: expr, base: expr): String =
     s"Long.toString(${translate(i)}, ${translate(base)})"
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
+  override def strReverse(s: expr): String =
+    s"new StringBuilder(${translate(s)}).reverse().toString()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
@@ -116,4 +127,6 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     val v = translate(a)
     s"$v.get($v.size() - 1)"
   }
+  override def arraySize(a: expr): String =
+    s"${translate(a)}.size()"
 }

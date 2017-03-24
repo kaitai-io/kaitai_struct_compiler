@@ -1,15 +1,17 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType.{UserType, _}
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.components.{NoNeedForFullClassPath, _}
-import io.kaitai.struct.translators.{BaseTranslator, PerlTranslator, TypeProvider}
+import io.kaitai.struct.languages.components._
+import io.kaitai.struct.translators.{PerlTranslator, TypeProvider}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
-class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
-  extends LanguageCompiler(config, out)
+class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
+    with SingleOutputFile
     with UniversalFooter
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
@@ -27,14 +29,17 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("}")
   }
 
+  override def indent: String = "    "
+  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
+
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
     out.puts
     out.puts("use strict;")
     out.puts("use warnings;")
-    out.puts(s"use $kstructName;")
-    out.puts(s"use $kstreamName;")
+    out.puts(s"use $packageName ${KSVersion.minimalRuntime.toPerlVersion};")
     out.puts("use Compress::Zlib;")
+    out.puts("use Encode;")
   }
 
   override def fileFooter(topClassName: String): Unit = {
@@ -59,7 +64,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts
     out.puts("open($fd, '<', $filename) or return undef;")
     out.puts("binmode($fd);")
-    out.puts("return new($class, Kaitai::Stream->new($fd));")
+    out.puts(s"return new($$class, $kstreamName->new($$fd));")
     universalFooter
   }
 
@@ -70,7 +75,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.puts("sub new {")
     out.inc
     out.puts("my ($class, $_io, $_parent, $_root) = @_;")
-    out.puts("my $self = Kaitai::Struct->new($_io);")
+    out.puts(s"my $$self = $kstructName->new($$_io);")
     out.puts
     out.puts("bless $self, $class;")
     out.puts(s"${privateMemberName(ParentIdentifier)} = $$_parent;")
@@ -84,12 +89,12 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     universalFooter
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
-  override def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     attrName match {
       case RootIdentifier | ParentIdentifier =>
-        // ignore, they are already defined in Kaitai::Struct class
+        // ignore, they are already defined in KaitaiStruct class
       case _ =>
         out.puts
         out.puts(s"sub ${publicMemberName(attrName)} {")
@@ -133,8 +138,9 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatEos | RepeatUntil(_) => s"$memberName[-1]"
+      case RepeatEos => s"$memberName[-1]"
       case RepeatExpr(_) => s"$memberName[$$i]"
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
       case NoRepeat => s"$memberName"
     }
 
@@ -158,12 +164,15 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def popPos(io: String): Unit =
     out.puts(s"$io->seek($$_pos);")
 
+  override def alignToByte(io: String): Unit =
+    out.puts(s"$io->align_to_byte();")
+
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
@@ -174,7 +183,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
@@ -187,7 +196,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[$$i] = $expr;")
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
@@ -195,12 +204,17 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String): Unit = {
-    out.puts(s"${translator.doName("_")} = $expr;")
-    out.puts(s"push @{${privateMemberName(id)}}, ${translator.doName("_")};")
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+    val (decl, tmpName) = if (isRaw) {
+      ("my ", translator.doName(Identifier.ITERATOR2))
+    } else {
+      ("", translator.doName(Identifier.ITERATOR))
+    }
+    out.puts(s"$decl$tmpName = $expr;")
+    out.puts(s"push @{${privateMemberName(id)}}, $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} until (${expression(untilExpr)});")
@@ -209,27 +223,44 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
 
-  override def parseExpr(dataType: BaseType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
         s"$io->read_${t.apiCall}()"
-      // Aw, crap, can't use interpolated strings here: https://issues.scala-lang.org/browse/SI-6476
-      case StrByteLimitType(bs, encoding) =>
-        s"$io->read_str_byte_limit(${expression(bs)}, " + '"' + encoding + "\")"
-      case StrEosType(encoding) =>
-        io + "->read_str_eos(\"" + encoding + "\")"
-      case StrZType(encoding, terminator, include, consume, eosError) =>
-        io + "->read_strz(\"" + encoding + '"' + s", $terminator, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
-      case BytesLimitType(size, _) =>
-        s"$io->read_bytes(${expression(size)})"
-      case BytesEosType(_) =>
+      case blt: BytesLimitType =>
+        s"$io->read_bytes(${expression(blt.size)})"
+      case _: BytesEosType =>
         s"$io->read_bytes_full()"
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        s"$io->read_bytes_term($terminator, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
+      case BitsType1 =>
+        s"$io->read_bits_int(1)"
       case BitsType(width: Int) =>
         s"$io->read_bits_int($width)"
       case t: UserType =>
-        val addArgs = if (!t.isOpaque) s", $$self, ${privateMemberName(RootIdentifier)}" else ""
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(fp) => translator.translate(fp)
+            case None => "$self"
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}"
+        }
         s"${types2class(t.classSpec.get.name)}->new($io$addArgs)"
     }
+  }
+
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+    val expr1 = padRight match {
+      case Some(padByte) => s"$kstreamName::bytes_strip_right($expr0, $padByte)"
+      case None => expr0
+    }
+    val expr2 = terminator match {
+      case Some(term) => s"$kstreamName::bytes_terminate($expr1, $term, ${boolLiteral(include)})"
+      case None => expr1
+    }
+    expr2
   }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
@@ -265,7 +296,7 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
   def onComparisonExpr(condition: Ast.expr) =
     Ast.expr.Compare(Ast.expr.Name(Ast.identifier("_on")), Ast.cmpop.Eq, condition)
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts
     out.puts(s"sub ${instName.name} {")
     out.inc
@@ -312,10 +343,13 @@ class PerlCompiler(config: RuntimeConfig, out: LanguageOutputWriter)
 object PerlCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new PerlTranslator(tp)
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
-  override def indent: String = "    "
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new PerlTranslator(tp)
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig
+  ): LanguageCompiler = new PerlCompiler(tp, config)
 
-  override def kstreamName: String = "Kaitai::Stream"
-  override def kstructName: String = "Kaitai::Struct"
+  def packageName: String = "IO::KaitaiStruct"
+  override def kstreamName: String = s"$packageName::Stream"
+  override def kstructName: String = s"$packageName::Struct"
 }

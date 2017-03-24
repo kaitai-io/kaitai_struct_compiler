@@ -1,21 +1,32 @@
 package io.kaitai.struct.formats
 
-import java.io.FileReader
+import java.io.{File, FileReader}
+import java.util.{List => JList, Map => JMap}
 
-import io.kaitai.struct.TypeProcessor
-import io.kaitai.struct.format.ClassSpec
+import io.kaitai.struct.JavaMain.CLIConfig
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
+import io.kaitai.struct.{Log, Main}
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.SafeConstructor
 
-import java.util.{List => JList, Map => JMap}
 import scala.collection.JavaConversions._
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 object JavaKSYParser {
-  def localFileToSpec(yamlFilename: String): ClassSpec = {
+  def localFileToSpecs(yamlFilename: String, config: CLIConfig): ClassSpecs = {
+    val firstSpec = fileNameToSpec(yamlFilename)
+    val yamlDir = Option(new File(yamlFilename).getParent).getOrElse(".")
+    val specs = new JavaClassSpecs(yamlDir, config.importPaths, firstSpec)
+
+    Await.result(Main.importAndPrecompile(specs, config.runtime), Duration.Inf)
+    specs
+  }
+
+  def fileNameToSpec(yamlFilename: String): ClassSpec = {
+    Log.fileOps.info(() => s"reading $yamlFilename...")
     val scalaSrc = readerToYaml(new FileReader(yamlFilename))
-    val spec = ClassSpec.fromYaml(scalaSrc)
-    TypeProcessor.processTypes(spec)
-    spec
+    ClassSpec.fromYaml(scalaSrc)
   }
 
   def readerToYaml(reader: FileReader): Any = {
@@ -44,6 +55,11 @@ object JavaKSYParser {
         src
       case javaInt: java.lang.Integer =>
         javaInt.intValue
+      case null =>
+        // may be not the very best idea, but these nulls
+        // should be handled by real parsing code, i.e. where
+        // it tracks tree depth, etc.
+        null
     }
   }
 }

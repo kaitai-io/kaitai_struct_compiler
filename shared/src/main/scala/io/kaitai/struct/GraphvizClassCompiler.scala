@@ -2,28 +2,29 @@ package io.kaitai.struct
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.exprlang.DataType._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.components.LanguageCompilerStatic
+import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
 
 import scala.collection.mutable.ListBuffer
 
-class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) extends AbstractCompiler {
+class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
   import GraphvizClassCompiler._
 
-  val topClassName = List(topClass.meta.get.id)
+  val out = new StringLanguageOutputWriter(indent)
 
   val provider = new ClassTypeProvider(topClass)
-  val translator = getTranslator(provider)
+  val translator = getTranslator(provider, RuntimeConfig())
   val links = ListBuffer[(String, String, String)]()
-  val extraClusterLines = new StringLanguageOutputWriter(GraphvizClassCompiler.indent)
+  val extraClusterLines = new StringLanguageOutputWriter(indent)
 
   def nowClass: ClassSpec = provider.nowClass
   def nowClassName = provider.nowClass.name
   var currentTable: String = ""
 
-  override def compile: Unit = {
+  override def compile: CompileLog.SpecSuccess = {
     out.puts("digraph {")
     out.inc
     out.puts("rankdir=LR;")
@@ -37,6 +38,14 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
 
     out.dec
     out.puts("}")
+
+    CompileLog.SpecSuccess(
+      "",
+      List(CompileLog.FileSuccess(
+        outFileName(topClass.nameAsStr),
+        out.result
+      ))
+    )
   }
 
   def compileClass(curClass: ClassSpec): Unit = {
@@ -243,22 +252,21 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
     * @param attrName attribute name to be used to generate port name for affected vars linking
     * @return a String that should be displayed in table's column "size"
     */
-  def dataTypeSizeAsString(dataType: BaseType, attrName: String): String = {
+  def dataTypeSizeAsString(dataType: DataType, attrName: String): String = {
     dataType match {
       case _: Int1Type => "1"
       case IntMultiType(_, width, _) => width.width.toString
       case FloatMultiType(width, _) => width.width.toString
       case FixedBytesType(contents, _) => contents.length.toString
-      case BytesEosType(_) => END_OF_STREAM
-      case BytesLimitType(ex, _) => expressionSize(ex, attrName)
-      case StrByteLimitType(ex, _) => expressionSize(ex, attrName)
-      case StrEosType(_) => END_OF_STREAM
-      case _: StrZType => UNKNOWN
-      case UserTypeByteLimit(_, ex, _) => expressionSize(ex, attrName)
-      case _: UserTypeEos => END_OF_STREAM
-      case UserTypeInstream(_) => UNKNOWN
+      case _: BytesEosType => END_OF_STREAM
+      case blt: BytesLimitType => expressionSize(blt.size, attrName)
+      case _: BytesTerminatedType => UNKNOWN
+      case StrFromBytesType(basedOn, _) => dataTypeSizeAsString(basedOn, attrName)
+      case utb: UserTypeFromBytes => dataTypeSizeAsString(utb.bytes, attrName)
+      case UserTypeInstream(_, _) => UNKNOWN
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
       case _: SwitchType => UNKNOWN
+      case BitsType1 => "1b"
       case BitsType(width) => s"${width}b"
     }
   }
@@ -374,12 +382,19 @@ class GraphvizClassCompiler(topClass: ClassSpec, out: LanguageOutputWriter) exte
 
     throw new RuntimeException(s"unable to resolve node '$s' in type '${type2display(className)}'")
   }
+
+  def indent: String = "\t"
+  def outFileName(topClassName: String): String = s"$topClassName.dot"
 }
 
 object GraphvizClassCompiler extends LanguageCompilerStatic {
-  override def indent: String = "\t"
-  override def outFileName(topClassName: String): String = s"$topClassName.dot"
-  override def getTranslator(tp: TypeProvider): BaseTranslator = new RubyTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig): BaseTranslator = new RubyTranslator(tp)
+
+  // FIXME: Unused, should be probably separated from LanguageCompilerStatic
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig
+  ): LanguageCompiler = ???
 
   def type2class(name: List[String]) = name.last
   def type2display(name: List[String]) = name.map(Utils.upperCamelCase).mkString("::")
@@ -390,8 +405,9 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     * @param dataType data type to analyze
     * @return number of bits or None, if it's impossible to determine a priori
     */
-  def dataTypeBitsSize(dataType: BaseType): Option[Int] = {
+  def dataTypeBitsSize(dataType: DataType): Option[Int] = {
     dataType match {
+      case BitsType1 => Some(1)
       case BitsType(width) => Some(width)
       case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
       case _ => dataTypeByteSize(dataType).map((byteSize) => byteSize * 8)
@@ -404,34 +420,29 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     * @param dataType data type to analyze
     * @return number of bytes or None, if it's impossible to determine a priori
     */
-  def dataTypeByteSize(dataType: BaseType): Option[Int] = {
+  def dataTypeByteSize(dataType: DataType): Option[Int] = {
     dataType match {
       case _: Int1Type => Some(1)
       case IntMultiType(_, width, _) => Some(width.width)
       case FixedBytesType(contents, _) => Some(contents.length)
       case FloatMultiType(width, _) => Some(width.width)
-      case BytesEosType(_) => None
-      case BytesLimitType(ex, _) => evaluateIntLiteral(ex)
-      case StrByteLimitType(ex, _) => evaluateIntLiteral(ex)
-      case StrEosType(_) => None
-      case _: StrZType => None
-      case UserTypeByteLimit(_, ex, _) => evaluateIntLiteral(ex)
-      case _: UserTypeEos => None
-      case UserTypeInstream(_) => None
+      case _: BytesEosType => None
+      case blt: BytesLimitType => evaluateIntLiteral(blt.size)
+      case _: BytesTerminatedType => None
+      case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
+      case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
+      case UserTypeInstream(_, _) => None
       case _: SwitchType => None
     }
   }
 
-  def dataTypeName(dataType: BaseType): String = {
+  def dataTypeName(dataType: DataType): String = {
     dataType match {
       case rt: ReadableType => rt.apiCall
       case ut: UserType => type2display(ut.name)
       case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
-      case _: BytesType => ""
-      case StrByteLimitType(_, encoding) => s"str($encoding)"
-      case StrEosType(encoding) => s"str($encoding)"
-      case StrZType(encoding, terminator, include, consume, eosError) =>
-        val args = ListBuffer(encoding)
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        val args = ListBuffer[String]()
         if (terminator != 0)
           args += s"term=$terminator"
         if (include)
@@ -440,7 +451,12 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
           args += "don't consume"
         if (!eosError)
           args += "ignore EOS"
-        s"strz(${args.mkString(", ")})"
+        args.mkString(", ")
+      case _: BytesType => ""
+      case StrFromBytesType(basedOn, encoding) =>
+        val bytesStr = dataTypeName(basedOn)
+        val comma = if (bytesStr.isEmpty) "" else ", "
+        s"str($bytesStr$comma$encoding)"
       case EnumType(name, basedOn) =>
         s"${dataTypeName(basedOn)}→${type2display(name)}"
       case BitsType(width) => s"b$width"

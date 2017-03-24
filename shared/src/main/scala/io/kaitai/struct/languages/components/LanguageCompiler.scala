@@ -1,14 +1,25 @@
 package io.kaitai.struct.languages.components
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.DataType.BaseType
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.BaseTranslator
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
 import scala.collection.mutable.ListBuffer
 
-abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter) {
+abstract class LanguageCompiler(
+  typeProvider: ClassTypeProvider,
+  config: RuntimeConfig
+) {
+  val translator: BaseTranslator = getStatic.getTranslator(typeProvider, config)
+
+  /**
+    * @return compilation results as a map: keys are file names, values are
+    *         file contents.
+    */
+  def results(topClass: ClassSpec): Map[String, String]
+
   /**
     * Declares whether language is capable of doing inner classes (i.e. classes
     * nested inside each other) or not. Affects calling sequence of rendering
@@ -28,20 +39,14 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
     */
   def innerEnums: Boolean = true
 
-  protected var _translator: Option[BaseTranslator] = None
-  protected var _typeProvider: Option[ClassTypeProvider] = None
-
   def getStatic: LanguageCompilerStatic
-  def open(topClassName: String, tp: ClassTypeProvider): Unit = {
-    _typeProvider = Some(tp)
-    _translator = Some(getStatic.getTranslator(tp))
-  }
-  def close = out.close
-  def typeProvider: ClassTypeProvider = _typeProvider.get
-  def translator: BaseTranslator = _translator.get
 
   def debug = config.debug
 
+  def indent: String
+  def outFileName(topClassName: String): String
+
+  def type2class(className: String): String
   def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}
 
@@ -53,7 +58,7 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
     */
   def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {}
 
-  def classDoc(name: List[String], doc: String): Unit = {}
+  def classDoc(name: List[String], doc: DocSpec): Unit = {}
   def classHeader(name: List[String]): Unit
   def classFooter(name: List[String]): Unit
   def classForwardDeclaration(name: List[String]): Unit = {}
@@ -64,9 +69,9 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {}
   def classDestructorFooter: Unit = {}
 
-  def attributeDeclaration(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit
-  def attributeReader(attrName: Identifier, attrType: BaseType, condSpec: ConditionalSpec): Unit
-  def attributeDoc(id: Identifier, doc: String): Unit = {}
+  def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
+  def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
+  def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
@@ -78,14 +83,14 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter(expr: Ast.expr): Unit
 
-  def condRepeatEosHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean): Unit
+  def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit
   def condRepeatEosFooter: Unit
 
-  def condRepeatExprHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
+  def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
   def condRepeatExprFooter: Unit
 
-  def condRepeatUntilHeader(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
-  def condRepeatUntilFooter(id: Identifier, io: String, dataType: BaseType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
+  def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
+  def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
 
   def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
 
@@ -94,15 +99,16 @@ abstract class LanguageCompiler(config: RuntimeConfig, out: LanguageOutputWriter
   def pushPos(io: String): Unit
   def seek(io: String, pos: Ast.expr): Unit
   def popPos(io: String): Unit
+  def alignToByte(io: String): Unit
 
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
-  def instanceDeclaration(attrName: InstanceIdentifier, attrType: BaseType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
-  def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: BaseType): Unit
+  def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
+  def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit
   def instanceReturn(instName: InstanceIdentifier): Unit
-  def instanceCalculate(instName: InstanceIdentifier, dataType: BaseType, value: Ast.expr)
+  def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr)
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit
 

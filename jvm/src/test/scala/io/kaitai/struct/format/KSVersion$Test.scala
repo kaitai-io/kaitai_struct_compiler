@@ -30,4 +30,36 @@ class KSVersion$Test extends FunSpec {
       (v2 > v1) should be(true)
     }
   }
+
+  describe("KSVersion.toInt") {
+    it("properly dumps 1.2.3") {
+      val v = KSVersion.fromStr("1.2.3")
+      v.toInt should be(1002003)
+    }
+
+    it("properly dumps 1.2") {
+      val v = KSVersion.fromStr("1.2")
+      v.toInt should be(1002000)
+    }
+
+    it("properly dumps 1") {
+      val v = KSVersion.fromStr("1")
+      v.toInt should be(1000000)
+    }
+
+    it("properly dumps 0.6") {
+      val v = KSVersion.fromStr("0.6")
+      v.toInt should be(6000)
+    }
+
+    it("fails on too long version 1.2.3.4") {
+      val v = KSVersion.fromStr("1.2.3.4")
+      an [RuntimeException] should be thrownBy v.toInt
+    }
+
+    it("fails on version with bogus component 1.78373") {
+      val v = KSVersion.fromStr("1.78373")
+      an [RuntimeException] should be thrownBy v.toInt
+    }
+  }
 }

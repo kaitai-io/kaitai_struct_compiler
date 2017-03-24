@@ -1,7 +1,7 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.DataType.IntType
 import io.kaitai.struct.languages.PythonCompiler
 
 class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -14,8 +14,25 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     }
   }
 
-  override def doStringLiteral(s: String): String = "u\"" + s + "\""
+  override def doStringLiteral(s: String): String = "u" + super.doStringLiteral(s)
   override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
+
+  /**
+    * https://docs.python.org/2.7/reference/lexical_analysis.html#string-literals
+    * https://docs.python.org/3.6/reference/lexical_analysis.html#string-and-bytes-literals
+    */
+  override val asciiCharQuoteMap: Map[Char, String] = Map(
+    '\t' -> "\\t",
+    '\n' -> "\\n",
+    '\r' -> "\\r",
+    '"' -> "\\\"",
+    '\\' -> "\\\\",
+
+    '\7' -> "\\a",
+    '\f' -> "\\f",
+    '\13' -> "\\v",
+    '\b' -> "\\b"
+  )
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"struct.pack('${arr.length}b', ${arr.mkString(", ")})"
@@ -57,6 +74,10 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     }
     s"int(${translate(s)}$add)"
   }
+  override def enumToInt(v: Ast.expr, et: EnumType): String =
+    s"${translate(v)}.value"
+  override def boolToInt(v: Ast.expr): String =
+    s"int(${translate(v)})"
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     val func = baseStr match {
@@ -69,8 +90,12 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
 
     s"$func(${translate(i)})"
   }
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"($bytesExpr).decode(${translate(encoding)})"
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
+  override def strReverse(value: Ast.expr): String =
+    s"${translate(value)}[::-1]"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
 
@@ -78,6 +103,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"${translate(a)}[0]"
   override def arrayLast(a: Ast.expr): String =
     s"${translate(a)}[-1]"
+  override def arraySize(a: Ast.expr): String =
+    s"len(${translate(a)})"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"${translate(value)}.size()"
