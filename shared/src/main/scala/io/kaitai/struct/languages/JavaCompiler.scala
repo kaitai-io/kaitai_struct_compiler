@@ -528,7 +528,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case BitsType(_) => "long"
 
-      case BooleanType => "boolean"
+      case _: BooleanType => "boolean"
       case CalcIntType => "long"
       case CalcFloatType => "double"
 
@@ -572,7 +572,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case BitsType(_) => "Long"
 
-      case BooleanType => "Boolean"
+      case _: BooleanType => "Boolean"
       case CalcIntType => "Long"
       case CalcFloatType => "Double"
 
