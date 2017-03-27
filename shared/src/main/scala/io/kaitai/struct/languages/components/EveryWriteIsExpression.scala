@@ -42,8 +42,8 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
                   isRaw: Boolean
                 ): Unit = {
     dataType match {
-//      case t: UserType =>
-//        attrUserTypeWrite(id, t, io, extraAttrs, rep)
+      case t: UserType =>
+        attrUserTypeWrite(id, t, io, extraAttrs, rep, isRaw)
       case t: BytesType =>
         attrBytesTypeWrite(id, t, io, extraAttrs, rep, isRaw)
 //      case SwitchType(on, cases) =>
@@ -82,7 +82,9 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
         attrPrimitiveWrite(io, expr, t)
         if (t.terminator.isDefined && !t.include)
           attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false))
-//      case BytesLimitType(size, terminator, include, padRight, process) =>
+      case blt: BytesLimitType =>
+        val expr = writeExpr(id, rep, isRaw)
+        attrBytesLimitWrite2(io, expr, blt)
       case t: BytesTerminatedType =>
         val expr = writeExpr(id, rep, isRaw)
         attrPrimitiveWrite(io, expr, t)
@@ -111,7 +113,43 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     }
   }
 
+  def attrBytesLimitWrite2(io: String, expr: String, blt: BytesLimitType): Unit = {
+    val (term, padRight) = (blt.terminator, blt.padRight, blt.include) match {
+      case (None, None, false) =>
+        // no terminator, no padding => just a regular output
+        // validation should check that expression's length matches size
+        attrPrimitiveWrite(io, expr, blt)
+        return
+      case (_, None, true) =>
+        // terminator included, no padding => pad with zeroes
+        (0, 0)
+      case (_, Some(p), true) =>
+        // terminator included, padding specified
+        (p, p)
+      case (Some(t), None, false) =>
+        // only terminator given, don't care about what's gonna go after that
+        // we'll just pad with zeroes
+        (t, 0)
+      case (None, Some(p), false) =>
+        // only padding given, just add terminator equal to padding
+        (p, p)
+      case (Some(t), Some(p), false) =>
+        // both terminator and padding specified
+        (t, p)
+    }
+    attrBytesLimitWrite(io, expr, translator.translate(blt.size), term, padRight)
+  }
+
   def attrPrimitiveWrite(io: String, expr: String, dt: DataType): Unit
+  def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit
+  def attrUserTypeWrite(
+    id: Identifier,
+    t: UserType,
+    io: String,
+    extraAttrs: ListBuffer[AttrSpec],
+    rep: RepeatSpec,
+    isRaw: Boolean
+  ): Unit
 
   // FIXME: unify with EveryReadIsExpression
   def needRaww(dataType: DataType): Boolean = {

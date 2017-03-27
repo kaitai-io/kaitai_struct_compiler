@@ -9,6 +9,8 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{JavaTranslator, TypeDetector, TypeProvider}
 import io.kaitai.struct._
 
+import scala.collection.mutable.ListBuffer
+
 class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
@@ -496,21 +498,15 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.writeBitsInt($width, $expr)"
       case _: BytesType =>
         s"$io.writeBytes($expr)"
-      case t: UserType =>
-        val addArgs = if (t.isOpaque) {
-          ""
-        } else {
-          val parent = t.forcedParent match {
-            case Some(USER_TYPE_NO_PARENT) => "null"
-            case Some(fp) => translator.translate(fp)
-            case None => "this"
-          }
-          s", $parent, _root"
-        }
-        s"new ${types2class(t.name)}($io$addArgs)"
     }
     out.puts(stmt + ";")
   }
+
+  override def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit =
+    out.puts(s"$io.writeBytesLimit($expr, $size, (byte) $term, (byte) $padRight);")
+
+  override def attrUserTypeWrite(id: Identifier, t: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean): Unit =
+    out.puts(s"${privateMemberName(id)}._write();")
 
   def value2Const(s: String) = s.toUpperCase
 
