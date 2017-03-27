@@ -93,6 +93,7 @@ object AttrSpec {
     "contents",
     "size",
     "size-eos",
+    "pad-right",
     "parent",
     "process"
   )
