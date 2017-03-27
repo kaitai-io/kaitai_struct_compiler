@@ -191,6 +191,25 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
+    proc match {
+      case ProcessXor(xorValue) =>
+        out.puts(s"$destName = $kstreamName.processXor($srcName, ${expression(xorValue)});")
+      case ProcessZlib =>
+        out.puts(s"$destName = $kstreamName.unprocessZlib($srcName);")
+      case ProcessRotate(isLeft, rotValue) =>
+        val expr = if (!isLeft) {
+          expression(rotValue)
+        } else {
+          s"8 - (${expression(rotValue)})"
+        }
+        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+    }
+  }
+
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val javaName = idToStr(varName)
 
@@ -505,8 +524,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit =
     out.puts(s"$io.writeBytesLimit($expr, $size, (byte) $term, (byte) $padRight);")
 
-  override def attrUserTypeWrite(id: Identifier, t: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean): Unit =
-    out.puts(s"${privateMemberName(id)}._write();")
+  override def attrUserTypeInstreamWrite(expr: String) =
+    out.puts(s"$expr._write();")
 
   def value2Const(s: String) = s.toUpperCase
 

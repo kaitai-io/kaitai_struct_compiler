@@ -74,19 +74,27 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
   }
 
   def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean) = {
+    val idToWrite = t.process match {
+      case Some(proc) =>
+        val rawId = RawIdentifier(id)
+        attrUnprocess(proc, id, rawId)
+        rawId
+      case None =>
+        id
+    }
     t match {
       case FixedBytesType(contents, process) =>
         attrPrimitiveWrite(io, translator.doByteArrayLiteral(contents), t)
       case t: BytesEosType =>
-        val expr = writeExpr(id, rep, isRaw)
+        val expr = writeExpr(idToWrite, rep, isRaw)
         attrPrimitiveWrite(io, expr, t)
         if (t.terminator.isDefined && !t.include)
           attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false))
       case blt: BytesLimitType =>
-        val expr = writeExpr(id, rep, isRaw)
+        val expr = writeExpr(idToWrite, rep, isRaw)
         attrBytesLimitWrite2(io, expr, blt)
       case t: BytesTerminatedType =>
-        val expr = writeExpr(id, rep, isRaw)
+        val expr = writeExpr(idToWrite, rep, isRaw)
         attrPrimitiveWrite(io, expr, t)
         if (t.consume && !t.include)
           attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false))
@@ -140,8 +148,6 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     attrBytesLimitWrite(io, expr, translator.translate(blt.size), term, padRight)
   }
 
-  def attrPrimitiveWrite(io: String, expr: String, dt: DataType): Unit
-  def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit
   def attrUserTypeWrite(
     id: Identifier,
     t: UserType,
@@ -149,7 +155,16 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
     isRaw: Boolean
-  ): Unit
+  ) = {
+    val expr = writeExpr(id, rep, isRaw)
+    attrUserTypeInstreamWrite(expr)
+  }
+
+  def attrPrimitiveWrite(io: String, expr: String, dt: DataType): Unit
+  def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit
+  def attrUserTypeInstreamWrite(expr: String): Unit
+
+  def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
 
   // FIXME: unify with EveryReadIsExpression
   def needRaww(dataType: DataType): Boolean = {
