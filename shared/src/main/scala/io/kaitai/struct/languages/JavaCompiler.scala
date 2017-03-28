@@ -1,5 +1,6 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
@@ -7,9 +8,6 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{JavaTranslator, TypeDetector, TypeProvider}
-import io.kaitai.struct._
-
-import scala.collection.mutable.ListBuffer
 
 class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -82,6 +80,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
+    if (config.readWrite) {
+      out.puts(s"public ${type2class(name)}() {")
+      out.inc
+      out.puts("this(null);")
+      out.dec
+      out.puts("}")
+    }
+
     out.puts
     out.puts(s"public ${type2class(name)}($kstreamName _io) {")
     out.inc
@@ -164,6 +170,18 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def funcWriteHeader(curClass: ClassSpec): Unit = {
+    out.puts
+    out.puts(s"public void _write($kstreamName io) {")
+    out.inc
+    out.puts("if (this._io == null)")
+    out.inc
+    out.puts("this._io = io;")
+    out.dec
+    out.puts("_write();")
+    out.dec
+    out.puts("}")
+
+    out.puts
     out.puts("public void _write() {")
     out.inc
   }
@@ -224,6 +242,17 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$kstreamName $ioName = new $kstreamName($args);")
     ioName
   }
+
+  override def allocateIOFixed(varName: Identifier, size: String): String = {
+    val javaName = idToStr(varName)
+    val ioName = s"_io_$javaName"
+
+    out.puts(s"$kstreamName $ioName = new $kstreamName($size);")
+    ioName
+  }
+
+  override def allocateIOGrowing(varName: Identifier): String =
+    allocateIOFixed(varName, "100000") // FIXME to use real growing buffer
 
   override def useIO(ioEx: expr): String = {
     out.puts(s"$kstreamName io = ${expression(ioEx)};")
@@ -524,8 +553,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit =
     out.puts(s"$io.writeBytesLimit($expr, $size, (byte) $term, (byte) $padRight);")
 
-  override def attrUserTypeInstreamWrite(expr: String) =
-    out.puts(s"$expr._write();")
+  override def attrUserTypeInstreamWrite(io: String, expr: String) =
+    out.puts(s"$expr._write($io);")
+
+  override def attrWriteStreamToStream(srcIo: String, dstIo: String) =
+    out.puts(s"$dstIo.writeStream($srcIo);")
 
   def value2Const(s: String) = s.toUpperCase
 

@@ -157,12 +157,35 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     isRaw: Boolean
   ) = {
     val expr = writeExpr(id, rep, isRaw)
-    attrUserTypeInstreamWrite(expr)
+
+    t match {
+      case _: UserTypeInstream =>
+        attrUserTypeInstreamWrite(io, expr)
+      case knownSizeType: UserTypeFromBytes =>
+        val rawId = RawIdentifier(id)
+        val byteType = knownSizeType.bytes
+        byteType match {
+          case blt: BytesLimitType =>
+            this match {
+              //      case thisStore: AllocateAndStoreIO =>
+              //        val ourIO = thisStore.allocateIO(rawId, rep)
+              //        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
+              //        privateMemberName(ourIO)
+              case thisLocal: AllocateIOLocalVar =>
+                val ioFixed = thisLocal.allocateIOFixed(rawId, translator.translate(blt.size))
+                attrUserTypeInstreamWrite(ioFixed, expr)
+                attrWriteStreamToStream(ioFixed, io)
+            }
+          case _ =>
+            attrUserTypeInstreamWrite(io, expr)
+        }
+    }
   }
 
   def attrPrimitiveWrite(io: String, expr: String, dt: DataType): Unit
   def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit
-  def attrUserTypeInstreamWrite(expr: String): Unit
+  def attrUserTypeInstreamWrite(io: String, expr: String): Unit
+  def attrWriteStreamToStream(srcIo: String, dstIo: String): Unit
 
   def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
 
