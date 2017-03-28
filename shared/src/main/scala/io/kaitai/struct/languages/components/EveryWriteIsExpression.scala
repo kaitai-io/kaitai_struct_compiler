@@ -7,7 +7,7 @@ import io.kaitai.struct.format._
 
 import scala.collection.mutable.ListBuffer
 
-trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguage {
+trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguage with EveryReadIsExpression {
   override def attrWrite(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     attrParseIfHeader(id, attr.cond.ifExpr)
 
@@ -164,20 +164,34 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case knownSizeType: UserTypeFromBytes =>
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType.bytes
-        byteType match {
-          case blt: BytesLimitType =>
-            this match {
-              //      case thisStore: AllocateAndStoreIO =>
-              //        val ourIO = thisStore.allocateIO(rawId, rep)
-              //        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
-              //        privateMemberName(ourIO)
-              case thisLocal: AllocateIOLocalVar =>
-                val ioFixed = thisLocal.allocateIOFixed(rawId, translator.translate(blt.size))
-                attrUserTypeInstreamWrite(ioFixed, expr)
-                attrWriteStreamToStream(ioFixed, io)
+        byteType.process match {
+          case None =>
+            byteType match {
+              case blt: BytesLimitType =>
+                this match {
+                  //      case thisStore: AllocateAndStoreIO =>
+                  //        val ourIO = thisStore.allocateIO(rawId, rep)
+                  //        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
+                  //        privateMemberName(ourIO)
+                  case thisLocal: AllocateIOLocalVar =>
+                    val ioFixed = thisLocal.allocateIOFixed(rawId, translator.translate(blt.size))
+                    attrUserTypeInstreamWrite(ioFixed, expr)
+                    attrWriteStreamToStream(ioFixed, io)
+                }
+              case _ =>
+                attrUserTypeInstreamWrite(io, expr)
             }
-          case _ =>
-            attrUserTypeInstreamWrite(io, expr)
+          case Some(process) =>
+            byteType match {
+              case blt: BytesLimitType =>
+                this match {
+                  case thisLocal: AllocateIOLocalVar =>
+                    val ioFixed = thisLocal.allocateIOFixed(rawId, translator.translate(blt.size))
+                    attrUserTypeInstreamWrite(ioFixed, expr)
+                    handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, isRaw)
+                    attrBytesTypeWrite(rawId, byteType, io, extraAttrs, rep, isRaw)
+                }
+            }
         }
     }
   }
@@ -186,6 +200,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
   def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit
   def attrUserTypeInstreamWrite(io: String, expr: String): Unit
   def attrWriteStreamToStream(srcIo: String, dstIo: String): Unit
+  def exprStreamToByteArray(ioFixed: String): String
 
   def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
 

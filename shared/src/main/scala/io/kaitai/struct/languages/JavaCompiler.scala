@@ -568,6 +568,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrWriteStreamToStream(srcIo: String, dstIo: String) =
     out.puts(s"$dstIo.writeStream($srcIo);")
 
+  override def exprStreamToByteArray(io: String): String =
+    s"$io.toByteArray()"
+
   def value2Const(s: String) = s.toUpperCase
 
   def idToStr(id: Identifier): String = {
