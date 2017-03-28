@@ -61,7 +61,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       ""
     }
 
-    out.puts(s"public ${staticStr}class ${type2class(name)} extends $kstructName {")
+    val interfaces = if (config.readWrite) {
+      s"$kstructName.Readable, $kstructName.Writable"
+    } else {
+      s"$kstructName.Readable"
+    }
+
+    out.puts(
+      s"public ${staticStr}class ${type2class(name)} " +
+      s"extends $kstructName implements $interfaces {"
+    )
     out.inc
 
     if (debug) {
