@@ -61,15 +61,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       ""
     }
 
-    val interfaces = if (config.readWrite) {
-      s"$kstructName.Readable, $kstructName.Writable"
-    } else {
-      s"$kstructName.Readable"
-    }
-
     out.puts(
       s"public ${staticStr}class ${type2class(name)} " +
-      s"extends $kstructName implements $interfaces {"
+      s"extends $kstructNameFull {"
     )
     out.inc
 
@@ -179,17 +173,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def funcWriteHeader(curClass: ClassSpec): Unit = {
-    out.puts
-    out.puts(s"public void _write($kstreamName io) {")
-    out.inc
-    out.puts("if (this._io == null)")
-    out.inc
-    out.puts("this._io = io;")
-    out.dec
-    out.puts("_write();")
-    out.dec
-    out.puts("}")
-
     out.puts
     out.puts("public void _write() {")
     out.inc
@@ -601,17 +584,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
 
   override def publicMemberName(id: Identifier) = idToStr(id)
-}
-
-object JavaCompiler extends LanguageCompilerStatic
-  with UpperCamelCaseClasses
-  with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaTranslator(tp)
-
-  override def getCompiler(
-    tp: ClassTypeProvider,
-    config: RuntimeConfig
-  ): LanguageCompiler = new JavaCompiler(tp, config)
 
   def kaitaiType2JavaType(attrType: DataType): String = kaitaiType2JavaTypePrim(attrType)
 
@@ -655,7 +627,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case AnyType => "Object"
       case KaitaiStreamType => kstreamName
-      case KaitaiStructType => kstructName
+      case KaitaiStructType => kstructNameFull
 
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
@@ -699,7 +671,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case AnyType => "Object"
       case KaitaiStreamType => kstreamName
-      case KaitaiStructType => kstructName
+      case KaitaiStructType => kstructNameFull
 
       case t: UserType => type2class(t.name.last)
       case EnumType(name, _) => types2class(name)
@@ -711,6 +683,20 @@ object JavaCompiler extends LanguageCompilerStatic
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+
+  def kstructNameFull: String =
+    kstructName + "." + (if (config.readWrite) "ReadWrite" else "ReadOnly")
+}
+
+object JavaCompiler extends LanguageCompilerStatic
+  with UpperCamelCaseClasses
+  with StreamStructNames {
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaTranslator(tp, config)
+
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig
+  ): LanguageCompiler = new JavaCompiler(tp, config)
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"

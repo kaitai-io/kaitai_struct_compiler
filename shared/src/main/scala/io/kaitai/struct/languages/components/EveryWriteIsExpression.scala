@@ -3,6 +3,7 @@ package io.kaitai.struct.languages.components
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 
 import scala.collection.mutable.ListBuffer
@@ -34,20 +35,20 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
   }
 
   def attrWrite2(
-                  id: Identifier,
-                  dataType: DataType,
-                  io: String,
-                  extraAttrs: ListBuffer[AttrSpec],
-                  rep: RepeatSpec,
-                  isRaw: Boolean
-                ): Unit = {
+    id: Identifier,
+    dataType: DataType,
+    io: String,
+    extraAttrs: ListBuffer[AttrSpec],
+    rep: RepeatSpec,
+    isRaw: Boolean
+  ): Unit = {
     dataType match {
       case t: UserType =>
         attrUserTypeWrite(id, t, io, extraAttrs, rep, isRaw)
       case t: BytesType =>
         attrBytesTypeWrite(id, t, io, extraAttrs, rep, isRaw)
-//      case SwitchType(on, cases) =>
-//        attrSwitchTypeWrite(id, on, cases, io, extraAttrs, rep)
+      case SwitchType(on, cases) =>
+        attrSwitchTypeWrite(id, on, cases, io, extraAttrs, rep)
       case t: StrFromBytesType =>
         attrStrTypeWrite(id, t, io, extraAttrs, rep, isRaw)
       case t: EnumType =>
@@ -194,6 +195,52 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
             }
         }
     }
+  }
+
+  def attrSwitchTypeWrite(id: Identifier, on: expr, cases: Map[expr, DataType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec) = {
+    switchStart(id, on)
+
+    // Pass 1: only normal case clauses
+    var first = true
+
+    cases.foreach { case (condition, dataType) =>
+      condition match {
+        case SwitchType.ELSE_CONST =>
+        // skip for now
+        case _ =>
+          if (first) {
+            switchCaseFirstStart(condition)
+            first = false
+          } else {
+            switchCaseStart(condition)
+          }
+          attrWrite2(id, dataType, io, extraAttrs, rep, false)
+          switchCaseEnd()
+      }
+    }
+
+    // Pass 2: else clause, if it is there
+    cases.foreach { case (condition, dataType) =>
+      condition match {
+        case SwitchType.ELSE_CONST =>
+          switchElseStart()
+          if (switchBytesOnlyAsRaw) {
+            dataType match {
+              case t: BytesType =>
+                attrWrite2(RawIdentifier(id), dataType, io, extraAttrs, rep, false)
+              case _ =>
+                attrWrite2(id, dataType, io, extraAttrs, rep, false)
+            }
+          } else {
+            attrWrite2(id, dataType, io, extraAttrs, rep, false)
+          }
+          switchElseEnd()
+        case _ =>
+        // ignore normal case clauses
+      }
+    }
+
+    switchEnd()
   }
 
   def attrPrimitiveWrite(io: String, expr: String, dt: DataType): Unit

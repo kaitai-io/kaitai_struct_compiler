@@ -1,14 +1,14 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
-import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast._
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaCompiler
 
-class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class JavaTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
     val literal = n.toString
     val suffix = if (n > Int.MaxValue) "L" else ""
@@ -17,7 +17,10 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
+    // FIXME
+    val compiler = new JavaCompiler(provider.asInstanceOf[ClassTypeProvider], config)
+
+    val javaType = compiler.kaitaiType2JavaTypeBoxed(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
     s"new ArrayList<$javaType>(Arrays.asList($commaStr))"
   }
