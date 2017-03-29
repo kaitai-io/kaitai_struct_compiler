@@ -336,6 +336,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
+  override def condRepeatEosHeader2(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
+    out.puts(s"for (int _i = 0; _i < ${privateMemberName(id)}.size(); _i++) {")
+    out.inc
+  }
+
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }

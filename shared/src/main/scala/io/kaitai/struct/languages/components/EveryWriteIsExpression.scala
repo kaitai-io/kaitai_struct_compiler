@@ -15,7 +15,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 
     attr.cond.repeat match {
       case RepeatEos =>
-        condRepeatEosHeader(id, io, attr.dataType, needRaww(attr.dataType))
+        condRepeatEosHeader2(id, io, attr.dataType, needRaww(attr.dataType))
         attrWrite2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
         condRepeatEosFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
@@ -61,7 +61,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 
   def writeExpr(id: Identifier, rep: RepeatSpec, isRaw: Boolean): String = {
     rep match {
-      case _: RepeatExpr =>
+      case _: RepeatExpr | RepeatEos =>
         translator.translate(
           Ast.expr.Subscript(
             Ast.expr.Name(Ast.identifier(idToStr(id))),
@@ -212,5 +212,6 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     }
   }
 
-  def condRepeatExprHeader2(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = ???
+  def condRepeatEosHeader2(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit
+  def condRepeatExprHeader2(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
 }
