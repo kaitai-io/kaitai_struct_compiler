@@ -16,6 +16,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with ObjectOrientedLanguage
     with EveryReadIsExpression
     with EveryWriteIsExpression
+    with GenericChecks
     with UniversalFooter
     with UniversalDoc
     with AllocateIOLocalVar
@@ -41,8 +42,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"package ${config.javaPackage};")
     }
     out.puts
-    out.puts(s"import io.kaitai.struct.$kstructName;")
-    out.puts(s"import io.kaitai.struct.$kstreamName;")
+    out.puts("import io.kaitai.struct.*;")
     out.puts
     out.puts("import java.io.IOException;")
     out.puts("import java.util.Arrays;")
@@ -175,6 +175,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def funcWriteHeader(curClass: ClassSpec): Unit = {
     out.puts
     out.puts("public void _write() {")
+    out.inc
+  }
+
+  override def funcCheckHeader(curClass: ClassSpec): Unit = {
+    out.puts
+    out.puts("public void _check() {")
     out.inc
   }
 
@@ -558,6 +564,15 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def exprStreamToByteArray(io: String): String =
     s"$io.toByteArray()"
+
+  override def attrBasicCheck(checkExpr: String, actual: String, expected: String, msg: String): Unit = {
+    val msgStr = translator.translate(Ast.expr.Str(msg))
+
+    out.puts(s"if ($checkExpr)")
+    out.inc
+    out.puts(s"throw new ConsistencyError($msgStr, $actual, $expected);")
+    out.dec
+  }
 
   def value2Const(s: String) = s.toUpperCase
 

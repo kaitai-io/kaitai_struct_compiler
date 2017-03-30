@@ -65,6 +65,10 @@ class ClassCompiler(
       lang.funcWriteHeader(curClass)
       compileSeqWrite(curClass.seq, extraAttrs)
       lang.funcWriteFooter(curClass)
+
+      lang.funcCheckHeader(curClass)
+      compileSeqCheck(curClass.seq)
+      lang.funcCheckFooter(curClass)
     }
 
     lang.classDestructorHeader(curClass.name, curClass.parentTypeName, topClassName)
@@ -122,6 +126,12 @@ class ClassCompiler(
         lang.alignToByte(lang.normalIO)
       lang.attrWrite(attr, attr.id, extraAttrs)
       wasUnaligned = nowUnaligned
+    }
+  }
+
+  def compileSeqCheck(seq: List[AttrSpec]) = {
+    seq.foreach { (attr) =>
+      lang.attrCheck(attr, attr.id)
     }
   }
 

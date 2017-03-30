@@ -16,6 +16,7 @@ trait UniversalFooter extends LanguageCompiler {
   def classFooter(name: String): Unit = universalFooter
   def classConstructorFooter: Unit = universalFooter
   override def funcWriteFooter(curClass: ClassSpec): Unit = universalFooter
+  override def funcCheckFooter(curClass: ClassSpec): Unit = universalFooter
   def condRepeatExprFooter = universalFooter
   def condRepeatEosFooter: Unit = universalFooter
   def condIfFooter(expr: expr): Unit = universalFooter
