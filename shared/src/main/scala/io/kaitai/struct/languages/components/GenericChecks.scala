@@ -1,5 +1,6 @@
 package io.kaitai.struct.languages.components
 import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
@@ -31,17 +32,35 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
   }
 
   def attrCheck2(id: Identifier, dataType: DataType, io: String, repeat: RepeatSpec, isRaw: Boolean) = {
+    dataType match {
+      case t: BytesType =>
+        attrByteSizeCheck(id, t, exprByteArraySize(idToName(id)))
+      case st: StrFromBytesType =>
+        attrByteSizeCheck(id, st.bytes,
+          exprByteArraySize(exprStrToBytes(idToName(id), st.encoding))
+        )
+      case _ => // no checks
+    }
   }
 
-  def attrArraySizeCheck(id: Identifier, expectedSize: Ast.expr) =
+  def attrArraySizeCheck(id: Identifier, expectedSize: Ast.expr): Unit =
     attrBasicCheck(
-      Ast.expr.Attribute(
-        idToName(id),
-        Ast.identifier("size")
-      ),
+      exprArraySize(idToName(id)),
       expectedSize,
-      idToName(id).id.name
+      idToMsg(id)
     )
+
+  def attrByteSizeCheck(id: Identifier, t: BytesType, actualSize: Ast.expr): Unit = {
+    t match {
+      case blt: BytesLimitType =>
+        attrBasicCheck(
+          actualSize,
+          blt.size,
+          idToMsg(id)
+        )
+      case _ => // no checks
+    }
+  }
 
   def attrBasicCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
     attrBasicCheck(
@@ -54,15 +73,31 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
   def attrBasicCheck(checkExpr: String, actual: String, expected: String, msg: String): Unit
 
   private
-  def idToName(id: Identifier): Ast.expr.Name = {
-    val str = id match {
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case NamedIdentifier(name) => name
-      case RawIdentifier(innerId) => s"_raw_$innerId"
-      case IoStorageIdentifier(innerId) => s"_io_$innerId"
-      case InstanceIdentifier(name) => name
-      case SpecialIdentifier(name) => name
-    }
-    Ast.expr.Name(Ast.identifier(str))
+  def idToMsg(id: Identifier): String = id match {
+    case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+    case NamedIdentifier(name) => name
+    case RawIdentifier(innerId) => s"_raw_$innerId"
+    case IoStorageIdentifier(innerId) => s"_io_$innerId"
+    case InstanceIdentifier(name) => name
+    case SpecialIdentifier(name) => name
   }
+
+  def idToName(id: Identifier): Ast.expr.Name = Ast.expr.Name(Ast.identifier(idToMsg(id)))
+
+  def exprByteArraySize(name: Ast.expr) =
+    Ast.expr.Attribute(
+      name,
+      Ast.identifier("size")
+    )
+
+  def exprArraySize(name: Ast.expr) = exprByteArraySize(name)
+
+  def exprStrToBytes(name: Ast.expr, encoding: String) =
+    Ast.expr.Call(
+      Ast.expr.Attribute(
+        name,
+        Ast.identifier("to_b")
+      ),
+      Seq(Ast.expr.Str(encoding))
+    )
 }
