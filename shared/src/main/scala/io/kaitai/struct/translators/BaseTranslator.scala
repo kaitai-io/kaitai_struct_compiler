@@ -92,6 +92,8 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
             }
           case _: BytesType =>
             attr.name match {
+              case "first" => bytesFirst(value)
+              case "last" => bytesLast(value)
               case "size" => bytesSize(value)
             }
           case KaitaiStreamType =>
@@ -301,6 +303,8 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0))
   def intToStr(i: Ast.expr, base: Ast.expr): String
   def bytesToStr(bytesExpr: String, encoding: Ast.expr): String
+  def bytesFirst(b: Ast.expr): String = ???
+  def bytesLast(b: Ast.expr): String = ???
   def bytesSize(b: Ast.expr): String = ???
   def strToBytes(strExpr: String, encoding: Ast.expr): String = ???
   def strLength(s: Ast.expr): String

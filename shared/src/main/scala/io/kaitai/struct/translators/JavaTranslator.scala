@@ -84,6 +84,12 @@ class JavaTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     s"Long.toString(${translate(i)}, ${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
+  override def bytesFirst(b: Ast.expr): String =
+    s"${translate(b)}[0]"
+  override def bytesLast(b: Ast.expr): String = {
+    val v = translate(b)
+    s"$v[$v.length - 1]"
+  }
   override def bytesSize(b: Ast.expr): String =
     s"${translate(b)}.length"
   override def strToBytes(strExpr: String, encoding: expr): String =

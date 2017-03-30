@@ -118,6 +118,7 @@ class TypeDetector(provider: TypeProvider) {
             }
           case _: BytesType =>
             attr.name match {
+              case "first" | "last" => Int1Type(false)
               case "size" => CalcIntType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
