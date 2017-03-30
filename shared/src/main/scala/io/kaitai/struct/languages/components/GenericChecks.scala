@@ -44,7 +44,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
   }
 
   def attrArraySizeCheck(id: Identifier, expectedSize: Ast.expr): Unit =
-    attrBasicCheck(
+    attrAssertEqual(
       exprArraySize(idToName(id)),
       expectedSize,
       idToMsg(id)
@@ -53,22 +53,40 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
   def attrByteSizeCheck(id: Identifier, t: BytesType, actualSize: Ast.expr): Unit = {
     t match {
       case blt: BytesLimitType =>
-        attrBasicCheck(
-          actualSize,
-          blt.size,
-          idToMsg(id)
-        )
+        if (blt.padRight.isDefined) {
+          // size must be "<= declared"
+          attrAssertLtE(actualSize, blt.size, idToMsg(id))
+          blt.terminator.foreach { (term) =>
+            if (blt.include)
+              attrAssertLastByte(id, term, idToMsg(id))
+          }
+        } else {
+          blt.terminator match {
+            case Some(term) =>
+              if (!blt.include) {
+                // size must be "<= (declared - 1)", i.e. "< declared"
+                attrAssertLt(actualSize, blt.size, idToMsg(id))
+              } else {
+                // terminator is included into the string, so
+                // size must be "<= declared"
+                attrAssertLtE(actualSize, blt.size, idToMsg(id))
+                attrAssertLastByte(id, term, idToMsg(id))
+              }
+            case None =>
+              // size must match declared size exactly
+              attrAssertEqual(
+                actualSize,
+                blt.size,
+                idToMsg(id)
+              )
+          }
+        }
+      case btt: BytesTerminatedType =>
+        if (btt.include)
+          attrAssertLastByte(id, btt.terminator, idToMsg(id))
       case _ => // no checks
     }
   }
-
-  def attrBasicCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
-    attrBasicCheck(
-      translator.translate(Ast.expr.Compare(actual, Ast.cmpop.NotEq, expected)),
-      translator.translate(actual),
-      translator.translate(expected),
-      msg
-    )
 
   def attrBasicCheck(checkExpr: String, actual: String, expected: String, msg: String): Unit
 
@@ -99,5 +117,33 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
         Ast.identifier("to_b")
       ),
       Seq(Ast.expr.Str(encoding))
+    )
+
+  def attrAssertLastByte(actualId: Identifier, expectedLast: Int, msg: String): Unit = {
+    attrAssertEqual(
+      Ast.expr.Attribute(
+        idToName(actualId),
+        Ast.identifier("last")
+      ),
+      Ast.expr.IntNum(expectedLast),
+      msg
+    )
+  }
+
+  def attrAssertEqual(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
+    attrAssertCmp(actual, Ast.cmpop.NotEq, expected, msg)
+
+  def attrAssertLtE(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
+    attrAssertCmp(actual, Ast.cmpop.Gt, expected, msg)
+
+  def attrAssertLt(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
+    attrAssertCmp(actual, Ast.cmpop.GtE, expected, msg)
+
+  def attrAssertCmp(actual: Ast.expr, op: Ast.cmpop, expected: Ast.expr, msg: String): Unit =
+    attrBasicCheck(
+      translator.translate(Ast.expr.Compare(actual, op, expected)),
+      translator.translate(actual),
+      translator.translate(expected),
+      msg
     )
 }
