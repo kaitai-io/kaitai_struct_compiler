@@ -84,6 +84,8 @@ class JavaTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     s"Long.toString(${translate(i)}, ${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
+  override def bytesSize(b: Ast.expr): String =
+    s"${translate(b)}.length"
   override def strToBytes(strExpr: String, encoding: expr): String =
     s"($strExpr).getBytes(Charset.forName(${translate(encoding)}))"
   override def strLength(s: expr): String =

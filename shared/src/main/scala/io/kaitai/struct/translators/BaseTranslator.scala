@@ -90,6 +90,10 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
               case "last" => arrayLast(value)
               case "size" => arraySize(value)
             }
+          case _: BytesType =>
+            attr.name match {
+              case "size" => bytesSize(value)
+            }
           case KaitaiStreamType =>
             attr.name match {
               case "size" => kaitaiStreamSize(value)
@@ -116,6 +120,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
               case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
               case (_: StrType, "to_i") => strToInt(obj, args(0))
               case (_: BytesType, "to_s") => bytesToStr(translate(obj), args(0))
+              case (_: StrType, "to_b") => strToBytes(translate(obj), args(0))
               case _ => throw new TypeMismatchError(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
@@ -296,6 +301,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0))
   def intToStr(i: Ast.expr, base: Ast.expr): String
   def bytesToStr(bytesExpr: String, encoding: Ast.expr): String
+  def bytesSize(b: Ast.expr): String = ???
   def strToBytes(strExpr: String, encoding: Ast.expr): String = ???
   def strLength(s: Ast.expr): String
   def strReverse(s: Ast.expr): String

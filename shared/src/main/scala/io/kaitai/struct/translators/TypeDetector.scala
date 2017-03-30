@@ -116,6 +116,11 @@ class TypeDetector(provider: TypeProvider) {
               case "size" => CalcIntType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
+          case _: BytesType =>
+            attr.name match {
+              case "size" => CalcIntType
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+            }
           case KaitaiStreamType =>
             attr.name match {
               case "size" => CalcIntType
@@ -143,6 +148,7 @@ class TypeDetector(provider: TypeProvider) {
             (objType, methodName.name) match {
               case (_: StrType, "substring") => CalcStrType
               case (_: StrType, "to_i") => CalcIntType
+              case (_: StrType, "to_b") => CalcBytesType
               case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
             }
         }
