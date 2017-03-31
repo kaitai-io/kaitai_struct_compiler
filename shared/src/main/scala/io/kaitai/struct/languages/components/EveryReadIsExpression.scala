@@ -193,8 +193,17 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
   def needRaw(dataType: DataType): Boolean = {
     dataType match {
       case t: UserTypeFromBytes => true
+      case t: SwitchType => needRaw(t)
       case _ => false
     }
+  }
+
+  def needRaw(switchType: SwitchType): Boolean = {
+    val byCase = switchType.cases.mapValues(v => needRaw(v))
+    val byBool = byCase.groupBy(pair => pair._2)
+    val retVal = byBool.contains(true)
+
+    retVal
   }
 
   def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, DataType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
