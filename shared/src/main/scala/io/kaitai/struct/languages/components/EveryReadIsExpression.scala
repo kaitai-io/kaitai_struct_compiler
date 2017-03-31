@@ -200,7 +200,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
 
   def needRaw(switchType: SwitchType): Boolean = {
     val byCase = switchType.cases.mapValues(v => needRaw(v))
-    val byBool = byCase.groupBy(pair => pair._2)
+    val byBool = byCase.groupBy({ case (k, v) => v })
     val retVal = byBool.contains(true)
 
     retVal
