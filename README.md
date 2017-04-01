@@ -65,8 +65,8 @@ source code in repository:
 
     git clone https://github.com/kaitai-io/kaitai_struct_compiler
 
-See [DEVELOPERS.md](DEVELOPERS.md) for general pointers on how to proceed
-with the source code then.
+See the [developer documentation](http://doc.kaitai.io/developers.html) for 
+general pointers on how to proceed with the source code then.
 
 ## Usage
 
