@@ -25,7 +25,7 @@ object JSON {
 
   // FIXME: do proper string handling
   def stringToJson(str: String): String =
-    "\"%s\"".format(str)
+    "\"%s\"".format(str.replaceAll("\\\\", "/"))
 
   def listToJson(obj: List[_]): String =
     "[" + obj.map((x) => stringify(x)).mkString(",") + "]"
