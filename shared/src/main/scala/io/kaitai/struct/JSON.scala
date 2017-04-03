@@ -1,5 +1,8 @@
 package io.kaitai.struct
 
+import io.kaitai.struct.format.ClassSpec
+import io.kaitai.struct.translators.JavaScriptTranslator
+
 trait Jsonable {
   def toJson: String
 }
@@ -23,9 +26,12 @@ object JSON {
     }
   }
 
-  // FIXME: do proper string handling
+  private lazy val translator = new JavaScriptTranslator(
+    new ClassTypeProvider(ClassSpec.opaquePlaceholder(List("foo")))
+  )
+
   def stringToJson(str: String): String =
-    "\"%s\"".format(str)
+    translator.doStringLiteral(str)
 
   def listToJson(obj: List[_]): String =
     "[" + obj.map((x) => stringify(x)).mkString(",") + "]"
