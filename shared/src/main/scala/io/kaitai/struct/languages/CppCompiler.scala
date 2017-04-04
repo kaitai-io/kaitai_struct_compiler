@@ -61,6 +61,7 @@ class CppCompiler(
     outHdr.puts("#include <stdint.h>")
     outHdr.puts("#include <vector>") // TODO: add only if required
     outHdr.puts("#include <sstream>") // TODO: add only if required
+    outHdr.puts("#include <algorithm>") // TODO: add only if required
 
     // API compatibility check
     val minVer = KSVersion.minimalRuntime.toInt

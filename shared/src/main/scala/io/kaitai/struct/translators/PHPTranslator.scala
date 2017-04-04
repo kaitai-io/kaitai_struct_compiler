@@ -101,11 +101,17 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String = {
+    // For huge debate on efficiency of PHP last element of array methods, see:
+    // http://stackoverflow.com/a/41795859/487064
     val v = translate(a)
-    s"$v[$v.length - 1]"
+    s"$v[count($v) - 1]"
   }
   override def arraySize(a: expr): String =
     s"count(${translate(a)})"
+  override def arrayMin(a: Ast.expr): String =
+    s"min(${translate(a)})"
+  override def arrayMax(a: Ast.expr): String =
+    s"max(${translate(a)})"
 
   val namespaceRef = if (config.phpNamespace.isEmpty) {
     ""

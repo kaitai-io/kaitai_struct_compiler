@@ -89,6 +89,8 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
               case "first" => arrayFirst(value)
               case "last" => arrayLast(value)
               case "size" => arraySize(value)
+              case "min" => arrayMin(value)
+              case "max" => arrayMax(value)
             }
           case KaitaiStreamType =>
             attr.name match {
@@ -303,6 +305,8 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   def arrayFirst(a: Ast.expr): String
   def arrayLast(a: Ast.expr): String
   def arraySize(a: Ast.expr): String
+  def arrayMin(a: Ast.expr): String
+  def arrayMax(a: Ast.expr): String
 
   def kaitaiStreamSize(value: Ast.expr): String = userTypeField(value, "size")
   def kaitaiStreamEof(value: Ast.expr): String = userTypeField(value, "is_eof")

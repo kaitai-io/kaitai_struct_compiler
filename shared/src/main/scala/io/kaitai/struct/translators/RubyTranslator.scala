@@ -2,6 +2,7 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.datatype.DataType.EnumType
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.languages.RubyCompiler
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -64,6 +65,10 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(a)}.last"
   override def arraySize(a: Ast.expr): String =
     s"${translate(a)}.length"
+  override def arrayMin(a: expr): String =
+    s"${translate(a)}.min"
+  override def arrayMax(a: expr): String =
+    s"${translate(a)}.max"
 
   override def kaitaiStreamEof(value: Ast.expr): String =
     s"${translate(value)}.eof?"

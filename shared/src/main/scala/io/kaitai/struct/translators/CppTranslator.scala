@@ -134,4 +134,12 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(a)}->back()"
   override def arraySize(a: expr): String =
     s"${translate(a)}->size()"
+  override def arrayMin(a: expr): String = {
+    val v = translate(a)
+    s"*std::min_element($v->begin(), $v->end())"
+  }
+  override def arrayMax(a: expr): String = {
+    val v = translate(a)
+    s"*std::max_element($v->begin(), $v->end())"
+  }
 }
