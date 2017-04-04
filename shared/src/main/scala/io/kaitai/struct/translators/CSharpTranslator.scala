@@ -99,8 +99,12 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String = {
     val v = translate(a)
-    s"$v[$v.Length - 1]"
+    s"$v[$v.Count - 1]"
   }
   override def arraySize(a: expr): String =
     s"${translate(a)}.Count"
+  override def arrayMin(a: Ast.expr): String =
+    s"${translate(a)}.Min()"
+  override def arrayMax(a: Ast.expr): String =
+    s"${translate(a)}.Max()"
 }

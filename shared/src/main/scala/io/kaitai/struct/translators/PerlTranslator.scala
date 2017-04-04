@@ -134,11 +134,25 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}[0]"
+    s"@{${translate(a)}}[0]"
   override def arrayLast(a: expr): String =
-    s"${translate(a)}[-1]"
+    s"@{${translate(a)}}[-1]"
   override def arraySize(a: expr): String =
-    s"scalar(${translate(a)})"
+    s"scalar(@{${translate(a)}})"
+  override def arrayMin(a: Ast.expr): String = {
+    val funcName = detectType(a).asInstanceOf[ArrayType].elType match {
+      case _: StrType => "minstr"
+      case _ => "min"
+    }
+    s"List::Util::$funcName(@{${translate(a)}})"
+  }
+  override def arrayMax(a: Ast.expr): String = {
+    val funcName = detectType(a).asInstanceOf[ArrayType].elType match {
+      case _: StrType => "maxstr"
+      case _ => "max"
+    }
+    s"List::Util::$funcName(@{${translate(a)}})"
+  }
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"${translate(value)}->size()"

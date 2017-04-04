@@ -109,4 +109,8 @@ class JavaTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   }
   override def arraySize(a: expr): String =
     s"${translate(a)}.size()"
+  override def arrayMin(a: Ast.expr): String =
+    s"Collections.min(${translate(a)})"
+  override def arrayMax(a: Ast.expr): String =
+    s"Collections.max(${translate(a)})"
 }

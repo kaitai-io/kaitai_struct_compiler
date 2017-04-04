@@ -36,6 +36,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts("using System;")
     out.puts("using System.Collections.Generic;")
+    out.puts("using System.Linq;")
     if (ns != "Kaitai") out.puts("using Kaitai;")
     out.puts
 

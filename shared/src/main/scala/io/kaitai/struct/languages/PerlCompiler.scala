@@ -40,6 +40,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"use $packageName ${KSVersion.minimalRuntime.toPerlVersion};")
     out.puts("use Compress::Zlib;")
     out.puts("use Encode;")
+    out.puts("use List::Util;")
   }
 
   override def fileFooter(topClassName: String): Unit = {

@@ -112,7 +112,7 @@ class TypeDetector(provider: TypeProvider) {
             }
           case ArrayType(inType) =>
             attr.name match {
-              case "first" | "last" => inType
+              case "first" | "last" | "min" | "max" => inType
               case "size" => CalcIntType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
