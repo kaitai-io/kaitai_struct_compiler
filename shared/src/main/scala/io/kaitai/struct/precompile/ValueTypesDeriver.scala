@@ -34,10 +34,7 @@ class ValueTypesDeriver(topClass: ClassSpec) {
                     hasUndecided = true
                     // just ignore, we're not there yet, probably we'll get it on next iteration
                   case err: ExpressionError =>
-                    throw new YAMLParseException(
-                      err.getMessage,
-                      vi.path ++ List("value")
-                    )
+                    throw new ErrorInInput(err, vi.path ++ List("value"))
                 }
               case Some(_) =>
                 // already derived, do nothing
