@@ -244,6 +244,8 @@ class JavaMain(config: CLIConfig) {
         compileSpecAndWriteToFile(classSpec, lang, outDir)
       } catch {
         case ex: Throwable =>
+          if (config.throwExceptions)
+            ex.printStackTrace()
           SpecFailure(List(exceptionToCompileError(ex, classSpec.nameAsStr)))
       }
       classSpec.nameAsStr -> res
