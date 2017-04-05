@@ -3,7 +3,6 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
 
 class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -44,13 +43,13 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doBoolLiteral(n: Boolean): String = if (n) "1" else "0"
 
-  override def doArrayLiteral(t: DataType, value: Seq[expr]): String =
+  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String =
     "(" + value.map((v) => translate(v)).mkString(", ") + ")"
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"pack('C*', (${arr.map(_ & 0xff).mkString(", ")}))"
 
-  override def userTypeField(value: expr, attrName: String): String =
+  override def userTypeField(value: Ast.expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
 
   override def doLocalName(s: String) = {
@@ -89,9 +88,9 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     doStrCompareOp(left, op, right)
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
+  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 
   // Predefined methods of various types
@@ -109,9 +108,9 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case _ => throw new UnsupportedOperationException(baseStr)
     }
   }
-  override def enumToInt(v: expr, et: EnumType): String =
+  override def enumToInt(v: Ast.expr, et: EnumType): String =
     translate(v)
-  override def boolToInt(v: expr): String =
+  override def boolToInt(v: Ast.expr): String =
     translate(v)
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
@@ -136,11 +135,11 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
 
-  override def arrayFirst(a: expr): String =
+  override def arrayFirst(a: Ast.expr): String =
     s"@{${translate(a)}}[0]"
-  override def arrayLast(a: expr): String =
+  override def arrayLast(a: Ast.expr): String =
     s"@{${translate(a)}}[-1]"
-  override def arraySize(a: expr): String =
+  override def arraySize(a: Ast.expr): String =
     s"scalar(@{${translate(a)}})"
   override def arrayMin(a: Ast.expr): String = {
     val funcName = detectType(a).asInstanceOf[ArrayType].elType match {
