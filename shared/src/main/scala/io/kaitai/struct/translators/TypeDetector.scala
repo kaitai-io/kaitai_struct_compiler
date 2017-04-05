@@ -195,6 +195,7 @@ object TypeDetector {
       case (_: StrType, _: StrType) => // ok
       case (_: NumericType, _: NumericType) => // ok
       case (_: BooleanType, _: BooleanType) => // ok
+      case (_: BytesType, _: BytesType) => // ok
       case (EnumType(name1, _), EnumType(name2, _)) =>
         if (name1 != name2) {
           throw new TypeMismatchError(s"can't compare different enums '$name1' and '$name2'")
