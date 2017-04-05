@@ -700,8 +700,13 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 
-  def kstructNameFull: String =
-    kstructName + "." + (if (config.readWrite) "ReadWrite" else "ReadOnly")
+  def kstructNameFull: String = {
+    kstructName + ((config.debug, config.readWrite) match {
+      case (_, true) => ".ReadWrite"
+      case (true, false) => ".ReadOnly"
+      case (false, false) => ""
+    })
+  }
 }
 
 object JavaCompiler extends LanguageCompilerStatic
