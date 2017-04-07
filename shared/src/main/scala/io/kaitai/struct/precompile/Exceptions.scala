@@ -13,8 +13,13 @@ class ErrorInInput(err: Throwable, path: List[String] = List(), file: Option[Str
   extends RuntimeException(ErrorInInput.message(err, path, file), err)
 
 object ErrorInInput {
-  private def message(err: Throwable, path: List[String], file: Option[String]) =
-    s"${file.getOrElse("(main)")}: /${path.mkString("/")}: ${err.getMessage}"
+  private def message(err: Throwable, path: List[String], file: Option[String]) = {
+    val fileStr = file match {
+      case Some(x) => x.replace('\\', '/')
+      case None => "(main)"
+    }
+    s"$fileStr: /${path.mkString("/")}: ${err.getMessage}"
+  }
 }
 
 /**
