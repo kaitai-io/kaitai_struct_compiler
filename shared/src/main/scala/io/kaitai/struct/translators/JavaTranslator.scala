@@ -68,6 +68,17 @@ class JavaTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     }
   }
 
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
+    op match {
+      case Ast.cmpop.Eq =>
+        s"Arrays.equals(${translate(left)}, ${translate(right)})"
+      case Ast.cmpop.NotEq =>
+        s"!Arrays.equals(${translate(left)}, ${translate(right)})"
+      case _ =>
+        s"(${JavaCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
+    }
+  }
+
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}.get((int) ${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =

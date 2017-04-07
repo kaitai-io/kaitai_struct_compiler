@@ -244,15 +244,13 @@ class JavaMain(config: CLIConfig) {
     Log.fileOps.info(() => s"... compiling it for $langStr... ")
     val lang = LanguageCompilerStatic.byString(langStr)
     specs.map { case (_, classSpec) =>
-      val res = if (config.throwExceptions) {
+      val res = try {
         compileSpecAndWriteToFile(classSpec, lang, outDir)
-      } else {
-        try {
-          compileSpecAndWriteToFile(classSpec, lang, outDir)
-        } catch {
-          case ex: Throwable =>
-            SpecFailure(List(exceptionToCompileError(ex, classSpec.nameAsStr)))
-        }
+      } catch {
+        case ex: Throwable =>
+          if (config.throwExceptions)
+            ex.printStackTrace()
+          SpecFailure(List(exceptionToCompileError(ex, classSpec.nameAsStr)))
       }
       classSpec.nameAsStr -> res
     }.toMap

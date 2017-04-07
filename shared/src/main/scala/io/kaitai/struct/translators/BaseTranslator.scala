@@ -40,6 +40,8 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
             }
           case (_: StrType, _: StrType) =>
             doStrCompareOp(left, op, right)
+          case (_: BytesType, _: BytesType) =>
+            doBytesCompareOp(left, op, right)
           case (EnumType(ltype, _), EnumType(rtype, _)) =>
             if (ltype != rtype) {
               throw new TypeMismatchError(s"can't compare enums type $ltype and $rtype")
@@ -177,6 +179,9 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
 
   def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+
+  def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
 
   def cmpOp(op: Ast.cmpop): String = {
