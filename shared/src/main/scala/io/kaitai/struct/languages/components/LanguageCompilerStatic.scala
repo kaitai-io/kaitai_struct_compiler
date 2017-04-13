@@ -14,6 +14,7 @@ object LanguageCompilerStatic {
     "cpp_stl" -> CppCompiler,
     "csharp" -> CSharpCompiler,
     "graphviz" -> GraphvizClassCompiler,
+    "go" -> GoCompiler,
     "java" -> JavaCompiler,
     "javascript" -> JavaScriptCompiler,
     "perl" -> PerlCompiler,
