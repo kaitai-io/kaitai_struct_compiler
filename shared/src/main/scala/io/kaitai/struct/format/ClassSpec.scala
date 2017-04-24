@@ -1,5 +1,8 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType.{KaitaiStructType, UserTypeInstream}
+
 /**
   * Type that we use when we want to refer to a class specification or something
   * close, but not (yet) that well defined.
@@ -42,6 +45,11 @@ case class ClassSpec(
   def parentTypeName: List[String] = parentClass match {
     case UnknownClassSpec | GenericStructClassSpec => List("kaitai_struct")
     case t: ClassSpec => t.name
+  }
+
+  def parentType: DataType = parentClass match {
+    case UnknownClassSpec | GenericStructClassSpec => KaitaiStructType
+    case t: ClassSpec => UserTypeInstream(t.name, None)
   }
 }
 
