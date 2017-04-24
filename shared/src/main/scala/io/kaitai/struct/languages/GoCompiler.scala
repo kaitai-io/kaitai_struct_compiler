@@ -31,13 +31,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def indent: String = "\t"
-  override def outFileName(topClassName: String): String = s"$topClassName.go"
+  override def outFileName(topClassName: String): String =
+    s"src/${config.goPackage}/$topClassName.go"
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"// $headerComment")
-    if (!config.javaPackage.isEmpty) {
+    if (!config.goPackage.isEmpty) {
       out.puts
-      out.puts(s"package ${config.javaPackage};")
+      out.puts(s"package ${config.goPackage}")
     }
     out.puts
     out.puts("import \"github.com/tarm/kaitai_struct_go_runtime/kaitai\"")
@@ -52,19 +53,27 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
     out.puts
-    out.puts(s"func (h *${type2class(name)}) Unmarshal(s *$kstreamName) (err error) {")
+    out.puts(s"func (this *${type2class(name)}) Read(io *$kstreamName) (err error) {")
     out.inc
+    out.puts(s"${privateMemberName(IoIdentifier)} = io")
+    out.puts(s"${privateMemberName(RootIdentifier)} = this")
+    out.puts(s"${privateMemberName(ParentIdentifier)} = this")
+    out.puts
   }
 
-  override def classConstructorFooter: Unit =
+  override def classConstructorFooter: Unit = {
+    out.puts("return err")
     universalFooter
-
-  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"${idToStr(attrName)} ${kaitaiType2JavaType(attrType, condSpec)}")
   }
+
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit =
+    out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
 
   override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"public ${kaitaiType2JavaType(attrType, condSpec)} ${idToStr(attrName)}() { return ${idToStr(attrName)}; }")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) ${publicMemberName(attrName)}() ${kaitaiType2NativeType(attrType)} {")
+    out.inc
+    out.puts(s"return this.${idToStr(attrName)}")
+    universalFooter
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -191,7 +200,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
@@ -203,7 +212,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
+    out.puts(s"${idToStr(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
@@ -215,10 +224,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
     out.puts("{")
     out.inc
-    out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_")};")
+    out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
     out.puts("do {")
     out.inc
   }
@@ -241,26 +250,30 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)} = $expr;")
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+    out.puts(s"if ${privateMemberName(id)}, err = $expr; err != nil {")
+    out.inc
+    out.puts("return err")
+    universalFooter
+  }
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
-    out.puts(s"${kaitaiType2JavaType(dataType)} $id = $expr;")
+    out.puts(s"${kaitaiType2NativeType(dataType)} $id = $expr;")
 
   override def parseExpr(dataType: DataType, io: String): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read${Utils.capitalize(t.apiCall)}()"
+        s"$io.Read${Utils.capitalize(t.apiCall)}()"
       case blt: BytesLimitType =>
-        s"$io.readBytes(${expression(blt.size)})"
+        s"$io.ReadBytes(${expression(blt.size)})"
       case _: BytesEosType =>
-        s"$io.readBytesFull()"
+        s"$io.ReadBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
+        s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1 =>
-        s"$io.readBitsInt(1) != 0"
+        s"$io.ReadBitsInt(1) != 0"
       case BitsType(width: Int) =>
-        s"$io.readBitsInt($width)"
+        s"$io.ReadBitsInt($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) {
           ""
@@ -345,20 +358,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr): Unit = {
-    val primType = kaitaiType2JavaTypePrim(dataType)
-    val boxedType = kaitaiType2JavaTypeBoxed(dataType)
-
-    if (primType != boxedType) {
-      // Special trick to achieve both implicit type conversion + boxing.
-      // Unfortunately, Java can't do both in one assignment, i.e. this would fail:
-      //
-      // Double c = 1.0f + 1;
-
-      out.puts(s"$primType _tmp = ($primType) (${expression(value)});")
-      out.puts(s"${privateMemberName(instName)} = _tmp;")
-    } else {
-      out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
-    }
+    out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
@@ -415,7 +415,17 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
 
-  override def publicMemberName(id: Identifier) = idToStr(id)
+  override def publicMemberName(id: Identifier): String = {
+    id match {
+      case IoIdentifier => "_IO"
+      case RootIdentifier => "_Root"
+      case ParentIdentifier => "_Parent"
+      case NamedIdentifier(name) => Utils.upperCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
+    }
+  }
 }
 
 object GoCompiler extends LanguageCompilerStatic
@@ -428,33 +438,23 @@ object GoCompiler extends LanguageCompilerStatic
     config: RuntimeConfig
   ): LanguageCompiler = new GoCompiler(tp, config)
 
-  def kaitaiType2JavaType(attrType: DataType): String = kaitaiType2JavaTypePrim(attrType)
-
-  def kaitaiType2JavaType(attrType: DataType, condSpec: ConditionalSpec): String =
-    if (condSpec.ifExpr.nonEmpty) {
-      kaitaiType2JavaTypeBoxed(attrType)
-    } else {
-      kaitaiType2JavaTypePrim(attrType)
-    }
-
   /**
-    * Determine Java data type corresponding to a KS data type. A "primitive" type (i.e. "int", "long", etc) will
-    * be returned if possible.
+    * Determine Go data type corresponding to a KS data type.
     *
     * @param attrType KS data type
-    * @return Java data type
+    * @return Go data type
     */
-  def kaitaiType2JavaTypePrim(attrType: DataType): String = {
+  def kaitaiType2NativeType(attrType: DataType): String = {
     attrType match {
-      case Int1Type(false) => "int"
-      case IntMultiType(false, Width2, _) => "int"
-      case IntMultiType(false, Width4, _) => "long"
-      case IntMultiType(false, Width8, _) => "long"
+      case Int1Type(false) => "uint8"
+      case IntMultiType(false, Width2, _) => "uint16"
+      case IntMultiType(false, Width4, _) => "uint32"
+      case IntMultiType(false, Width8, _) => "uint64"
 
-      case Int1Type(true) => "byte"
-      case IntMultiType(true, Width2, _) => "short"
-      case IntMultiType(true, Width4, _) => "int"
-      case IntMultiType(true, Width8, _) => "long"
+      case Int1Type(true) => "int8"
+      case IntMultiType(true, Width2, _) => "int16"
+      case IntMultiType(true, Width4, _) => "int32"
+      case IntMultiType(true, Width8, _) => "int64"
 
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
@@ -469,15 +469,15 @@ object GoCompiler extends LanguageCompilerStatic
       case _: BytesType => "byte[]"
 
       case AnyType => "Object"
-      case KaitaiStreamType => kstreamName
+      case KaitaiStreamType => "*" + kstreamName
       case KaitaiStructType => kstructName
 
-      case t: UserType => types2class(t.name)
+      case t: UserType => "*" + types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
       case ArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
 
-      case SwitchType(_, cases) => kaitaiType2JavaTypePrim(TypeDetector.combineTypes(cases.values))
+      case SwitchType(_, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
     }
   }
 
@@ -525,8 +525,8 @@ object GoCompiler extends LanguageCompilerStatic
     }
   }
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString("_")
 
-  override def kstreamName: String = "KaitaiStream"
-  override def kstructName: String = "KaitaiStruct"
+  override def kstreamName: String = "kaitai.Stream"
+  override def kstructName: String = "interface{}"
 }
