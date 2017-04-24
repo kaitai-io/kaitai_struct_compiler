@@ -79,7 +79,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String): Unit = {
     out.puts
     out.puts(s"public ${type2class(name)}($kstreamName _io) {")
     out.inc
@@ -92,7 +92,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
 
     out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent) {")
+    out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent) {")
     out.inc
     out.puts("super(_io);")
     out.puts("this._parent = _parent;")
@@ -104,7 +104,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
 
     out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName _io, ${type2class(parentClassName)} _parent, ${type2class(rootClassName)} _root) {")
+    out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root) {")
     out.inc
     out.puts("super(_io);")
     out.puts("this._parent = _parent;")

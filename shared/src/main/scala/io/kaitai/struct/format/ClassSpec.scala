@@ -42,11 +42,6 @@ case class ClassSpec(
     */
   var upClass: Option[ClassSpec] = None
 
-  def parentTypeName: List[String] = parentClass match {
-    case UnknownClassSpec | GenericStructClassSpec => List("kaitai_struct")
-    case t: ClassSpec => t.name
-  }
-
   def parentType: DataType = parentClass match {
     case UnknownClassSpec | GenericStructClassSpec => KaitaiStructType
     case t: ClassSpec => UserTypeInstream(t.name, None)

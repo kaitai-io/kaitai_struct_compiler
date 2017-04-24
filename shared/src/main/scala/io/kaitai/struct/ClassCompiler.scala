@@ -56,12 +56,12 @@ class ClassCompiler(
     if (lang.debug)
       lang.debugClassSequence(curClass.seq)
 
-    lang.classConstructorHeader(curClass.name, curClass.parentTypeName, topClassName)
+    lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     compileSeq(curClass.seq, extraAttrs)
     lang.classConstructorFooter
 
-    lang.classDestructorHeader(curClass.name, curClass.parentTypeName, topClassName)
+    lang.classDestructorHeader(curClass.name, curClass.parentType, topClassName)
     curClass.seq.foreach((attr) => lang.attrDestructor(attr, attr.id))
     curClass.instances.foreach { case (id, instSpec) =>
       instSpec match {

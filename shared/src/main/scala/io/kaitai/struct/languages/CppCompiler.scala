@@ -114,18 +114,18 @@ class CppCompiler(
     outHdr.puts(s"class ${types2class(name)};")
   }
 
-  override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String]): Unit = {
     outHdr.puts
     outHdr.puts(s"${types2class(List(name.last))}(" +
       s"$kstreamName* p_io, " +
-      s"${types2class(parentClassName)}* p_parent = 0, " +
+      s"${kaitaiType2NativeType(parentType)} p_parent = 0, " +
       s"${types2class(rootClassName)}* p_root = 0);"
     )
 
     outSrc.puts
     outSrc.puts(s"${types2class(name)}::${types2class(List(name.last))}(" +
       s"$kstreamName *p_io, " +
-      s"${types2class(parentClassName)} *p_parent, " +
+      s"${kaitaiType2NativeType(parentType)} p_parent, " +
       s"${types2class(rootClassName)} *p_root) : $kstructName(p_io) {"
     )
     outSrc.inc
@@ -142,7 +142,7 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {
+  override def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {
     outHdr.puts(s"~${types2class(List(name.last))}();")
 
     outSrc.puts

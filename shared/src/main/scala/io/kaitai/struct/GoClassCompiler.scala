@@ -31,7 +31,7 @@ class GoClassCompiler(
     lang.classFooter(curClass.name)
 
     // Read method
-    lang.classConstructorHeader(curClass.name, curClass.parentTypeName, topClassName)
+    lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     compileSeq(curClass.seq, extraAttrs)
     lang.classConstructorFooter

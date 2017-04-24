@@ -17,8 +17,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalFooter
     with UniversalDoc
     with AllocateIOLocalVar
-    with FixedContentsUsingArrayByteLiteral
-    with NoNeedForFullClassPath {
+    with FixedContentsUsingArrayByteLiteral {
   import GoCompiler._
 
   override def innerClasses = false
@@ -46,18 +45,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def classHeader(name: String): Unit = {
-    out.puts(s"type ${type2class(name)} struct {")
+  override def classHeader(name: List[String]): Unit = {
+    out.puts(s"type ${types2class(name)} struct {")
     out.inc
   }
 
-  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
+  override def classFooter(name: List[String]): Unit = universalFooter
+
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String]): Unit = {
     out.puts
-    out.puts(s"func (this *${type2class(name)}) Read(io *$kstreamName) (err error) {")
+    out.puts(
+      s"func (this *${types2class(name)}) Read(" +
+        s"io *$kstreamName, " +
+        s"parent *${kaitaiType2NativeType(parentType)}, " +
+        s"root *${types2class(rootClassName)}) (err error) {"
+    )
     out.inc
     out.puts(s"${privateMemberName(IoIdentifier)} = io")
-    out.puts(s"${privateMemberName(RootIdentifier)} = this")
-    out.puts(s"${privateMemberName(ParentIdentifier)} = this")
+    out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
+    out.puts(s"${privateMemberName(RootIdentifier)} = root")
     out.puts
   }
 
@@ -212,8 +218,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${idToStr(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
-    out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
+    out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))}, ${expression(repeatExpr)})")
+    out.puts(s"for i := range ${privateMemberName(id)} {")
     out.inc
   }
 
@@ -285,7 +291,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, _root"
         }
-        s"new ${types2class(t.name)}($io$addArgs)"
+        s"${types2class(t.name)}($io$addArgs)"
     }
   }
 
@@ -300,9 +306,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     expr2
   }
-
-  override def userTypeDebugRead(id: String): Unit =
-    out.puts(s"$id._read();")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
     out.puts(s"switch (${expression(on)}) {")
@@ -338,30 +341,31 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
-    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
+    out.puts(s"${calculatedFlagForName(attrName)} bool")
+    out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
   }
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${idToStr(instName)}() {")
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
+    out.puts(s"func (this *${types2class(className)}) ${publicMemberName(instName)}() ${kaitaiType2NativeType(dataType)} {")
     out.inc
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if (${privateMemberName(instName)} != null)")
+    out.puts(s"if (this.${calculatedFlagForName(instName)}) {")
     out.inc
     instanceReturn(instName)
-    out.dec
+    universalFooter
   }
 
   override def instanceReturn(instName: InstanceIdentifier): Unit = {
-    out.puts(s"return ${privateMemberName(instName)};")
+    out.puts(s"return ${privateMemberName(instName)}")
   }
 
   override def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr): Unit = {
-    out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
+    out.puts(s"${privateMemberName(instName)} = ${expression(value)}")
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
     val enumClass = type2class(enumName)
 
     out.puts
@@ -426,6 +430,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
     }
   }
+
+  def calculatedFlagForName(id: Identifier) = s"f_${idToStr(id)}"
 }
 
 object GoCompiler extends LanguageCompilerStatic
@@ -456,72 +462,31 @@ object GoCompiler extends LanguageCompilerStatic
       case IntMultiType(true, Width4, _) => "int32"
       case IntMultiType(true, Width8, _) => "int64"
 
-      case FloatMultiType(Width4, _) => "float"
-      case FloatMultiType(Width8, _) => "double"
+      case FloatMultiType(Width4, _) => "float32"
+      case FloatMultiType(Width8, _) => "float64"
 
       case BitsType(_) => "long"
 
       case _: BooleanType => "boolean"
       case CalcIntType => "int"
-      case CalcFloatType => "double"
+      case CalcFloatType => "float64"
 
-      case _: StrType => "String"
+      case _: StrType => "string"
       case _: BytesType => "byte[]"
 
       case AnyType => "Object"
       case KaitaiStreamType => "*" + kstreamName
       case KaitaiStructType => kstructName
 
-      case t: UserType => "*" + types2class(t.name)
+      case t: UserType => "*" + types2class(t.classSpec match {
+        case Some(cs) => cs.name
+        case None => t.name
+      })
       case EnumType(name, _) => types2class(name)
 
-      case ArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
+      case ArrayType(inType) => s"[]${kaitaiType2NativeType(inType)}"
 
       case SwitchType(_, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
-    }
-  }
-
-  /**
-    * Determine Java data type corresponding to a KS data type. A non-primitive type (i.e. "Integer", "Long", etc) will
-    * be returned, to be used when proper objects should be used.
-    *
-    * @param attrType KS data type
-    * @return Java data type
-    */
-  def kaitaiType2JavaTypeBoxed(attrType: DataType): String = {
-    attrType match {
-      case Int1Type(false) => "Integer"
-      case IntMultiType(false, Width2, _) => "Integer"
-      case IntMultiType(false, Width4, _) => "Long"
-      case IntMultiType(false, Width8, _) => "Long"
-
-      case Int1Type(true) => "Byte"
-      case IntMultiType(true, Width2, _) => "Short"
-      case IntMultiType(true, Width4, _) => "Integer"
-      case IntMultiType(true, Width8, _) => "Long"
-
-      case FloatMultiType(Width4, _) => "Float"
-      case FloatMultiType(Width8, _) => "Double"
-
-      case BitsType(_) => "Long"
-
-      case _: BooleanType => "Boolean"
-      case CalcIntType => "Integer"
-      case CalcFloatType => "Double"
-
-      case _: StrType => "String"
-      case _: BytesType => "byte[]"
-
-      case AnyType => "Object"
-      case KaitaiStreamType => kstreamName
-      case KaitaiStructType => kstructName
-
-      case t: UserType => type2class(t.name.last)
-      case EnumType(name, _) => types2class(name)
-
-      case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
-
-      case SwitchType(_, cases) => kaitaiType2JavaTypeBoxed(TypeDetector.combineTypes(cases.values))
     }
   }
 
