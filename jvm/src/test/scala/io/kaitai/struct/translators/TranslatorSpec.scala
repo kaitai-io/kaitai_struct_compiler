@@ -412,9 +412,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       RubyCompiler -> new RubyTranslator(tp)
     )
 
-    LanguageCompilerStatic.NAME_TO_CLASS.
-      filter { case (_, langObj) => langObj != GraphvizClassCompiler }.
-      foreach { case (langName, langObj) =>
+    langs.foreach { case (langObj, tr) =>
+      val langName = LanguageCompilerStatic.CLASS_TO_NAME(langObj)
       test(s"$langName:$src") {
         eo match {
           case Some(e) =>
