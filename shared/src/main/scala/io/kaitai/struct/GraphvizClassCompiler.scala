@@ -16,7 +16,7 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
   val out = new StringLanguageOutputWriter(indent)
 
   val provider = new ClassTypeProvider(topClass)
-  val translator = getTranslator(provider, RuntimeConfig())
+  val translator = new RubyTranslator(provider)
   val links = ListBuffer[(String, String, String)]()
   val extraClusterLines = new StringLanguageOutputWriter(indent)
 
@@ -388,8 +388,6 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
 }
 
 object GraphvizClassCompiler extends LanguageCompilerStatic {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig): BaseTranslator = new RubyTranslator(tp)
-
   // FIXME: Unused, should be probably separated from LanguageCompilerStatic
   override def getCompiler(
     tp: ClassTypeProvider,

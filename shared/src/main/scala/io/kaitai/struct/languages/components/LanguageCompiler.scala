@@ -12,7 +12,7 @@ abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) {
-  val translator: BaseTranslator = getStatic.getTranslator(typeProvider, config)
+  val translator: BaseTranslator
 
   /**
     * @return compilation results as a map: keys are file names, values are
@@ -38,8 +38,6 @@ abstract class LanguageCompiler(
     *         (false)
     */
   def innerEnums: Boolean = true
-
-  def getStatic: LanguageCompilerStatic
 
   def debug = config.debug
 

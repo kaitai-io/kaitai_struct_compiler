@@ -21,7 +21,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with NoNeedForFullClassPath {
   import CSharpCompiler._
 
-  override def getStatic = CSharpCompiler
+  val translator = new CSharpTranslator(typeProvider)
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
@@ -397,8 +397,6 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 object CSharpCompiler extends LanguageCompilerStatic
   with StreamStructNames
   with UpperCamelCaseClasses {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new CSharpTranslator(tp)
-
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
