@@ -6,7 +6,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{JavaTranslator, TypeDetector, TypeProvider}
+import io.kaitai.struct.translators.{GoTranslator, JavaTranslator, TypeDetector, TypeProvider}
 
 class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -346,7 +346,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"func (this *${types2class(className)}) ${publicMemberName(instName)}() ${kaitaiType2NativeType(dataType)} {")
+    out.puts(s"func (this *${types2class(className)}) ${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
     out.inc
   }
 
@@ -358,12 +358,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceReturn(instName: InstanceIdentifier): Unit = {
-    out.puts(s"return ${privateMemberName(instName)}")
+    out.puts(s"return ${privateMemberName(instName)}, nil")
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr): Unit = {
-    out.puts(s"${privateMemberName(instName)} = ${expression(value)}")
-  }
+  override def instanceSetCalculated(instName: InstanceIdentifier): Unit =
+    out.puts(s"${calculatedFlagForName(instName)} = true")
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
     val enumClass = type2class(enumName)
@@ -431,13 +430,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  def calculatedFlagForName(id: Identifier) = s"f_${idToStr(id)}"
+  def calculatedFlagForName(id: Identifier) = s"_f_${idToStr(id)}"
 }
 
 object GoCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaTranslator(tp)
+  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new GoTranslator(tp)
 
   override def getCompiler(
     tp: ClassTypeProvider,
