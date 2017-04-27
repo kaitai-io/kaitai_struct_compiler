@@ -22,7 +22,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   import PythonCompiler._
 
-  override def getStatic = PythonCompiler
+  override val translator = new PythonTranslator(typeProvider)
 
   override def universalFooter: Unit = {
     out.dec
@@ -308,7 +308,6 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 object PythonCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new PythonTranslator(tp)
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig

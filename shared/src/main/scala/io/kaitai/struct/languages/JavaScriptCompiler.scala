@@ -20,7 +20,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with FixedContentsUsingArrayByteLiteral {
   import JavaScriptCompiler._
 
-  override def getStatic = JavaScriptCompiler
+  override val translator = new JavaScriptTranslator(typeProvider)
 
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
@@ -436,7 +436,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 object JavaScriptCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaScriptTranslator(tp)
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig

@@ -23,7 +23,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   import RubyCompiler._
 
-  override def getStatic = RubyCompiler
+  val translator = new RubyTranslator(typeProvider)
 
   override def universalFooter: Unit = {
     out.dec
@@ -376,7 +376,6 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
 object RubyCompiler extends LanguageCompilerStatic
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new RubyTranslator(tp)
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig

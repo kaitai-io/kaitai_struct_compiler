@@ -22,7 +22,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with NoNeedForFullClassPath {
   import JavaCompiler._
 
-  override def getStatic = JavaCompiler
+  val translator = new JavaTranslator(typeProvider)
 
   override def universalFooter: Unit = {
     out.dec
@@ -489,8 +489,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 object JavaCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaTranslator(tp)
-
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig

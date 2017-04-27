@@ -20,6 +20,7 @@ class CppCompiler(
     with EveryReadIsExpression {
   import CppCompiler._
 
+  override val translator = new CppTranslator(typeProvider)
   val outSrc = new StringLanguageOutputWriter(indent)
   val outHdr = new StringLanguageOutputWriter(indent)
 
@@ -30,8 +31,6 @@ class CppCompiler(
       s"$fn.h" -> outHdr.result
     )
   }
-
-  override def getStatic = CppCompiler
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -688,7 +687,6 @@ class CppCompiler(
 }
 
 object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new CppTranslator(tp)
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig

@@ -6,7 +6,6 @@ import io.kaitai.struct.translators.{BaseTranslator, TypeProvider}
 
 trait LanguageCompilerStatic {
   def getCompiler(tp: ClassTypeProvider, config: RuntimeConfig): LanguageCompiler
-  def getTranslator(tp: TypeProvider, config: RuntimeConfig): BaseTranslator
 }
 
 object LanguageCompilerStatic {
@@ -22,6 +21,8 @@ object LanguageCompilerStatic {
     "python" -> PythonCompiler,
     "ruby" -> RubyCompiler
   )
+
+  val CLASS_TO_NAME: Map[LanguageCompilerStatic, String] = NAME_TO_CLASS.map(_.swap)
 
   def byString(langName: String): LanguageCompilerStatic = NAME_TO_CLASS(langName)
 }

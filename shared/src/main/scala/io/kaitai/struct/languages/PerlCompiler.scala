@@ -20,9 +20,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   import PerlCompiler._
 
-  override def innerClasses = false
+  override val translator = new PerlTranslator(typeProvider)
 
-  override def getStatic: LanguageCompilerStatic = PerlCompiler
+  override def innerClasses = false
 
   override def universalFooter: Unit = {
     out.dec
@@ -344,7 +344,6 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 object PerlCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new PerlTranslator(tp)
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
