@@ -184,8 +184,8 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         case _ =>
           val tempVarName = s"_t_${idToStr(id)}"
           handleAssignmentTempVar(dataType, tempVarName, expr)
-          handleAssignment(id, tempVarName, rep, false)
           userTypeDebugRead(tempVarName)
+          handleAssignment(id, tempVarName, rep, false)
       }
     }
   }

@@ -25,8 +25,6 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def innerEnums = false
 
-  override def getStatic = PHPCompiler
-
   override val translator: PHPTranslator = new PHPTranslator(typeProvider, config)
 
   override def universalFooter: Unit = {
@@ -361,7 +359,6 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 object PHPCompiler extends LanguageCompilerStatic
   with StreamStructNames
   with UpperCamelCaseClasses {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig): PHPTranslator = new PHPTranslator(tp, config)
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig

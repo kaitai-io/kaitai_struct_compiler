@@ -45,7 +45,7 @@ class ClassCompiler(
 
     val extraAttrs = ListBuffer[AttrSpec]()
     extraAttrs += AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None))
-    extraAttrs += AttrSpec(List(), ParentIdentifier, UserTypeInstream(curClass.parentTypeName, None))
+    extraAttrs += AttrSpec(List(), ParentIdentifier, curClass.parentType)
 
     // Forward declarations for recursive types
     curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(List(typeName)) }
@@ -91,7 +91,8 @@ class ClassCompiler(
     curClass.instances.foreach { case (instName, instSpec) => compileInstance(curClass.name, instName, instSpec, extraAttrs) }
 
     // Attributes declarations and readers
-    (curClass.seq ++ extraAttrs).foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
+    compileAttrDeclarations(curClass.seq ++ extraAttrs)
+
     (curClass.seq ++ extraAttrs).foreach { (attr) =>
       if (!attr.doc.isEmpty)
         lang.attributeDoc(attr.id, attr.doc)
@@ -106,6 +107,9 @@ class ClassCompiler(
     if (!lang.innerEnums)
       compileEnums(curClass)
   }
+
+  def compileAttrDeclarations(attrs: List[AttrSpec]): Unit =
+    attrs.foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
 
   def compileSeqRead(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec]) = {
     var wasUnaligned = false
