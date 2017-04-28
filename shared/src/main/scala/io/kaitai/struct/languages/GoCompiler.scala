@@ -5,7 +5,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{GoTranslator, TypeDetector}
+import io.kaitai.struct.translators.{GoTranslator, TranslatorResult, TypeDetector}
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
@@ -40,7 +40,19 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"package ${config.goPackage}")
     }
     out.puts
-    out.puts("import \"github.com/tarm/kaitai_struct_go_runtime/kaitai\"")
+    out.puts("import \"github.com/kaitai-io/kaitai_struct_go_runtime/kaitai\"")
+    out.puts("import \"io\"")
+    out.puts("import \"golang.org/x/text/encoding/charmap\"")
+    out.puts("import \"golang.org/x/text/encoding/traditionalchinese\"")
+    out.puts("import \"golang.org/x/text/encoding/japanese\"")
+
+    // Some workarounds for unused imports
+    // http://stackoverflow.com/a/19566513/487064
+    out.puts
+    out.puts("var _ = io.SeekStart")
+    out.puts("var _ = charmap.CodePage437")
+    out.puts("var _ = japanese.ShiftJIS")
+    out.puts("var _ = traditionalchinese.Big5")
 
     out.puts
   }
@@ -72,8 +84,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit =
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
+    translator.returnRes = None
+  }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
@@ -138,17 +152,23 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     "io"
   }
 
-  override def pushPos(io: String): Unit =
-    out.puts(s"long _pos = $io.pos();")
+  override def pushPos(io: String): Unit = {
+    out.puts(s"_pos, err := $io.Pos()")
+    translator.outAddErrCheck()
+  }
 
-  override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"$io.seek(${expression(pos)});")
+  override def seek(io: String, pos: Ast.expr): Unit = {
+    out.puts(s"_, err = $io.Seek(int64(${expression(pos)}), io.SeekStart)")
+    translator.outAddErrCheck()
+  }
 
-  override def popPos(io: String): Unit =
-    out.puts(s"$io.seek(_pos);")
+  override def popPos(io: String): Unit = {
+    out.puts(s"_, err = $io.Seek(_pos, io.SeekStart)")
+    translator.outAddErrCheck()
+  }
 
   override def alignToByte(io: String): Unit =
-    out.puts(s"$io.alignToByte();")
+    out.puts(s"$io.AlignToByte()")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
@@ -163,7 +183,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, r: TranslatorResult): Unit = {
+    val expr = translator.resToStr(r)
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
@@ -175,7 +196,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit = {
+    val expr = translator.resToStr(r)
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
@@ -190,7 +212,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+  override def handleAssignmentRepeatUntil(id: Identifier, r: TranslatorResult, isRaw: Boolean): Unit = {
+    val expr = translator.resToStr(r)
     val (typeDecl, tempVar) = if (isRaw) {
       ("byte[] ", translator.specialName(Identifier.ITERATOR2))
     } else {
@@ -208,11 +231,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    out.puts(s"if ${privateMemberName(id)}, err = $expr; err != nil {")
-    out.inc
-    out.puts("return err")
-    universalFooter
+  override def handleAssignmentSimple(id: Identifier, r: TranslatorResult): Unit = {
+    val expr = translator.resToStr(r)
+    out.puts(s"${privateMemberName(id)} = $expr")
   }
 
   override def parseExpr(dataType: DataType, io: String): String = {
@@ -220,7 +241,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: ReadableType =>
         s"$io.Read${Utils.capitalize(t.apiCall)}()"
       case blt: BytesLimitType =>
-        s"$io.ReadBytes(${expression(blt.size)})"
+        s"$io.ReadBytes(int(${expression(blt.size)}))"
       case _: BytesEosType =>
         s"$io.ReadBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
@@ -297,6 +318,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"func (this *${types2class(className)}) ${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
     out.inc
+    translator.returnRes = Some(dataType match {
+      case _: IntType => "0"
+      case _: BooleanType => "false"
+      case _: StrType => ""
+      case _: UserType => "nil"
+      case _ => "???"
+    })
   }
 
   override def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr): Unit = {

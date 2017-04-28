@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.languages.JavaCompiler
+import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.precompile.TypeMismatchError
 import io.kaitai.struct.{StringLanguageOutputWriter, Utils}
 
@@ -17,11 +17,13 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
   with CommonLiterals
   with CommonOps {
 
-  override def translate(v: Ast.expr): String = {
-    translateExpr(v) match {
-      case ResultString(s) => s
-      case ResultLocalVar(n) => localVarName(n)
-    }
+  var returnRes: Option[String] = None
+
+  override def translate(v: Ast.expr): String = resToStr(translateExpr(v))
+
+  def resToStr(r: TranslatorResult): String = r match {
+    case ResultString(s) => s
+    case ResultLocalVar(n) => localVarName(n)
   }
 
   def translateExpr(v: Ast.expr): TranslatorResult = {
@@ -83,7 +85,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${JavaCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
+        s"${GoCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
       case _ =>
         super.numericBinOp(left, op, right)
     }
@@ -99,10 +101,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
         ResultString(specialName(s))
       case _ =>
         if (provider.isLazy(s)) {
-          val v1 = allocateLocalVar()
-          out.puts(s"${localVarName(v1)}, err := this.${Utils.upperCamelCase(s)}()")
-          outAddErrCheck()
-          ResultLocalVar(v1)
+          outVarCheckRes(s"this.${Utils.upperCamelCase(s)}()")
         } else {
           ResultString(s"this.${Utils.upperCamelCase(s)}")
         }
@@ -145,7 +144,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
       case Ast.cmpop.NotEq =>
         s"!Arrays.equals(${translate(left)}, ${translate(right)})"
       case _ =>
-        s"(${JavaCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
+        s"(${GoCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
     }
   }
 
@@ -163,8 +162,31 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
 //    s"${translate(v)}.id()"
 //  override def intToStr(i: Ast.expr, base: Ast.expr): String =
 //    s"Long.toString(${translate(i)}, ${translate(base)})"
-//  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-//    s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
+  def bytesToStr(bytesExpr: String, encoding: Ast.expr): TranslatorResult = {
+    val enc = encoding match {
+      case Ast.expr.Str(s) => s
+      case _ => throw new RuntimeException("Variable encodings are not supported in Go yet")
+    }
+
+    enc.toLowerCase match {
+      case "ascii" | "utf-8" | "utf8" =>
+        // no conversion
+        // FIXME: may be add some checks for valid ASCII/UTF-8
+        ResultString(s"string($bytesExpr)")
+      case encStr =>
+        val decoderSrc = encStr match {
+          case "cp437" => "charmap.CodePage437"
+          case "iso8859-1" => "charmap.ISO8859_1"
+          case "iso8859-2" => "charmap.ISO8859_2"
+          case "iso8859-3" => "charmap.ISO8859_3"
+          case "iso8859-4" => "charmap.ISO8859_4"
+          case "sjis" => "japanese.ShiftJIS"
+          case "big5" => "traditionalchinese.Big5"
+        }
+        outVarCheckRes(s"kaitai.BytesToStr($bytesExpr, $decoderSrc.NewDecoder())")
+    }
+  }
+
 //  override def strLength(s: Ast.expr): String =
 //    s"${translate(s)}.length()"
 //  override def strReverse(s: Ast.expr): String =
@@ -185,6 +207,21 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
 //  override def arrayMax(a: Ast.expr): String =
 //    s"Collections.max(${translate(a)})"
 
+  def userType(dataType: UserType, io: String) = {
+    val v = allocateLocalVar()
+    out.puts(s"${localVarName(v)} := new(${GoCompiler.types2class(dataType.classSpec.get.name)})")
+    out.puts(s"err = ${localVarName(v)}.Read($io, this, this._root)")
+    outAddErrCheck()
+    ResultLocalVar(v)
+  }
+
+  def outVarCheckRes(expr: String): ResultLocalVar = {
+    val v1 = allocateLocalVar()
+    out.puts(s"${localVarName(v1)}, err := $expr")
+    outAddErrCheck()
+    ResultLocalVar(v1)
+  }
+
   private
   var localVarNum = 0
 
@@ -198,7 +235,13 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
   def outAddErrCheck() {
     out.puts("if err != nil {")
     out.inc
-    out.puts("return 0, err")
+
+    val noValueAndErr = returnRes match {
+      case None => "err"
+      case Some(r) => s"$r, err"
+    }
+
+    out.puts(s"return $noValueAndErr")
     out.dec
     out.puts("}")
   }
