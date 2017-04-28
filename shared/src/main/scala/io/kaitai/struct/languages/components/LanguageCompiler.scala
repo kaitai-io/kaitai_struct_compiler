@@ -3,7 +3,7 @@ package io.kaitai.struct.languages.components
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.BaseTranslator
+import io.kaitai.struct.translators.AbstractTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
 import scala.collection.mutable.ListBuffer
@@ -12,7 +12,7 @@ abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) {
-  val translator: BaseTranslator
+  val translator: AbstractTranslator
 
   /**
     * @return compilation results as a map: keys are file names, values are

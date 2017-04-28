@@ -5,6 +5,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
+import io.kaitai.struct.translators.BaseTranslator
 
 import scala.collection.mutable.ListBuffer
 
@@ -13,60 +14,12 @@ import scala.collection.mutable.ListBuffer
   * rvalue. In these languages, "attrStdTypeParse" is replaced with higher-level API: "stdTypeParseExpr" and
   * "handleAssignment".
   */
-trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage {
-  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit = {
-    attrParseIfHeader(id, attr.cond.ifExpr)
-
-    // Manage IO & seeking for ParseInstances
-    val io = attr match {
-      case pis: ParseInstanceSpec =>
-        val io = pis.io match {
-          case None => normalIO
-          case Some(ex) => useIO(ex)
-        }
-        pis.pos.foreach { pos =>
-          pushPos(io)
-          seek(io, pos)
-        }
-        io
-      case _ =>
-        // no seeking required for sequence attributes
-        normalIO
-    }
-
-    if (debug)
-      attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
-
-    attr.cond.repeat match {
-      case RepeatEos =>
-        condRepeatEosHeader(id, io, attr.dataType, needRaw(attr.dataType))
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
-        condRepeatEosFooter
-      case RepeatExpr(repeatExpr: Ast.expr) =>
-        condRepeatExprHeader(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
-        condRepeatExprFooter
-      case RepeatUntil(untilExpr: Ast.expr) =>
-        condRepeatUntilHeader(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
-        condRepeatUntilFooter(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
-      case NoRepeat =>
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
-    }
-
-    if (debug)
-      attrDebugEnd(id, attr.dataType, io, NoRepeat)
-
-    // More position management after parsing for ParseInstanceSpecs
-    attr match {
-      case pis: ParseInstanceSpec =>
-        if (pis.pos.isDefined)
-          popPos(io)
-      case _ => // no seeking required for sequence attributes
-    }
-
-    attrParseIfFooter(attr.cond.ifExpr)
-  }
+trait EveryReadIsExpression
+  extends LanguageCompiler
+  with ObjectOrientedLanguage
+  with CommonReads
+  with SwitchOps {
+  val translator: BaseTranslator
 
   def attrParse2(
     id: Identifier,
@@ -190,13 +143,6 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  def needRaw(dataType: DataType): Boolean = {
-    dataType match {
-      case t: UserTypeFromBytes => true
-      case _ => false
-    }
-  }
-
   def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, DataType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
     switchStart(id, on)
 
@@ -252,9 +198,6 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  def attrDebugStart(attrName: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
-  def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
-
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit
@@ -270,22 +213,4 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
       attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }
-
-  def switchStart(id: Identifier, on: Ast.expr): Unit
-  def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)
-  def switchCaseStart(condition: Ast.expr): Unit
-  def switchCaseEnd(): Unit
-  def switchElseStart(): Unit
-  def switchElseEnd(): Unit = switchCaseEnd()
-  def switchEnd(): Unit
-
-  /**
-    * Controls parsing of typeless (BytesType) alternative in switch case. If true,
-    * then target language does not support storing both bytes array and true object
-    * in the same variable, so we'll use workaround: bytes array will be read as
-    * _raw_ variable (which would be used anyway for all other cases as well). If
-    * false (which is default), we'll store *both* true objects and bytes array in
-    * the same variable.
-    */
-  def switchBytesOnlyAsRaw = false
 }

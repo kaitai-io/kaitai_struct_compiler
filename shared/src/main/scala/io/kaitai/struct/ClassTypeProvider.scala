@@ -95,4 +95,20 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
         }
     }
   }
+
+  override def isLazy(attrName: String): Boolean = isLazy(nowClass, attrName)
+
+  def isLazy(inClass: ClassSpec, attrName: String): Boolean = {
+    inClass.seq.foreach { el =>
+      if (el.id == NamedIdentifier(attrName))
+        return false
+    }
+    inClass.instances.get(InstanceIdentifier(attrName)) match {
+      case Some(i) =>
+        return true
+      case None =>
+        // do nothing
+    }
+    throw new FieldNotFoundError(attrName, inClass)
+  }
 }
