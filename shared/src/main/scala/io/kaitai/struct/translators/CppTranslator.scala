@@ -109,6 +109,8 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     translate(v)
   override def boolToInt(v: expr): String =
     translate(v)
+  override def floatToInt(v: expr): String =
+    s"static_cast<int>(${translate(v)})"
   override def intToStr(i: expr, base: expr): String = {
     val baseStr = translate(base)
     baseStr match {
