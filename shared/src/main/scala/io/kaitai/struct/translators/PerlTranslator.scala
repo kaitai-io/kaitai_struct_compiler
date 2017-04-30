@@ -112,6 +112,8 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     translate(v)
   override def boolToInt(v: Ast.expr): String =
     translate(v)
+  override def floatToInt(v: Ast.expr): String =
+    s"int(${translate(v)})"
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     val format = baseStr match {
