@@ -66,6 +66,20 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def boolToInt(v: expr): String =
     s"(${translate(v)} | 0)"
 
+  /**
+    * Converts a float to an integer in JavaScript. There are many methods to
+    * do so, here we use the fastest one, but it requires ES6+. OTOH, it is
+    * relatively easy to add compatibility polyfill for non-supporting environments
+    * (see MDN page).
+    *
+    * @see http://stackoverflow.com/a/596503/487064
+    * @see https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Math/trunc
+    * @param v float expression to convert
+    * @return string rendition of conversion
+    */
+  override def floatToInt(v: expr): String =
+    s"Math.trunc(${translate(v)})"
+
   override def intToStr(i: expr, base: expr): String =
     s"(${translate(i)}).toString(${translate(base)})"
 

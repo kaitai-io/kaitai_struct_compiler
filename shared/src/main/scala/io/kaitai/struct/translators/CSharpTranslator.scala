@@ -83,6 +83,8 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"Convert.ToInt64(${translate(s)}, ${translate(base)})"
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
+  override def floatToInt(v: expr): String =
+    s"(Int64) (${translate(v)})"
   override def intToStr(i: expr, base: expr): String =
     s"Convert.ToString(${translate(i)}, ${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
