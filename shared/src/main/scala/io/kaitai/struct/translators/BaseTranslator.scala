@@ -86,6 +86,10 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
             attr.name match {
               case "to_s" => intToStr(value, Ast.expr.IntNum(10))
             }
+          case _: FloatType =>
+            attr.name match {
+              case "to_i" => floatToInt(value)
+            }
           case ArrayType(inType) =>
             attr.name match {
               case "first" => arrayFirst(value)
@@ -301,6 +305,7 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
   def enumToInt(value: Ast.expr, et: EnumType): String
   def boolToInt(value: Ast.expr): String =
     doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0))
+  def floatToInt(value: Ast.expr): String = ???
   def intToStr(i: Ast.expr, base: Ast.expr): String
   def bytesToStr(bytesExpr: String, encoding: Ast.expr): String
   def strLength(s: Ast.expr): String

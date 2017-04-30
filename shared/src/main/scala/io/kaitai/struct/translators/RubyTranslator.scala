@@ -48,6 +48,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
     s"${RubyCompiler.inverseEnumName(et.name.last.toUpperCase)}[${translate(v)}]"
+  override def floatToInt(v: Ast.expr): String =
+    s"(${translate(v)}).to_i"
   override def intToStr(i: Ast.expr, base: Ast.expr): String =
     translate(i) + s".to_s(${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =

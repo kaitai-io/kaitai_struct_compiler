@@ -110,6 +110,11 @@ class TypeDetector(provider: TypeProvider) {
               case "to_s" => CalcStrType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
+          case _: FloatType =>
+            attr.name match {
+              case "to_i" => CalcIntType
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+            }
           case ArrayType(inType) =>
             attr.name match {
               case "first" | "last" | "min" | "max" => inType
