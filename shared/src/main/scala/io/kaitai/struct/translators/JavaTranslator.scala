@@ -1,6 +1,6 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
@@ -8,7 +8,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaCompiler
 
-class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
     val literal = n.toString
     val suffix = if (n > Int.MaxValue) "L" else ""
@@ -67,8 +67,10 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     op match {
       case Ast.cmpop.Eq =>
+        importList.add("java.util.Arrays")
         s"Arrays.equals(${translate(left)}, ${translate(right)})"
       case Ast.cmpop.NotEq =>
+        importList.add("java.util.Arrays")
         s"!Arrays.equals(${translate(left)}, ${translate(right)})"
       case _ =>
         s"(${JavaCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
@@ -91,8 +93,10 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"(int) (${translate(v)} + 0)"
   override def intToStr(i: expr, base: expr): String =
     s"Long.toString(${translate(i)}, ${translate(base)})"
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
+    importList.add("java.nio.charset.Charset")
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
+  }
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =
@@ -108,8 +112,12 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
   override def arraySize(a: expr): String =
     s"${translate(a)}.size()"
-  override def arrayMin(a: Ast.expr): String =
+  override def arrayMin(a: Ast.expr): String = {
+    importList.add("java.util.Collections")
     s"Collections.min(${translate(a)})"
-  override def arrayMax(a: Ast.expr): String =
+  }
+  override def arrayMax(a: Ast.expr): String = {
+    importList.add("java.util.Collections")
     s"Collections.max(${translate(a)})"
+  }
 }

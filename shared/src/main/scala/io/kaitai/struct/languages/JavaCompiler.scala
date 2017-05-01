@@ -22,7 +22,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with NoNeedForFullClassPath {
   import JavaCompiler._
 
-  val translator = new JavaTranslator(typeProvider)
+  val translator = new JavaTranslator(typeProvider, importList)
 
   override def universalFooter: Unit = {
     out.dec
@@ -33,23 +33,20 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String =
     s"src/${config.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
 
+  override def outImports =
+    "\n" + importList.toList.map((x) => s"import $x;").mkString("\n") + "\n"
+
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"// $headerComment")
+    outHeader.puts(s"// $headerComment")
     if (!config.javaPackage.isEmpty) {
-      out.puts
-      out.puts(s"package ${config.javaPackage};")
+      outHeader.puts
+      outHeader.puts(s"package ${config.javaPackage};")
     }
-    out.puts
-    out.puts(s"import io.kaitai.struct.$kstructName;")
-    out.puts(s"import io.kaitai.struct.$kstreamName;")
-    out.puts
-    out.puts("import java.io.IOException;")
-    out.puts("import java.util.Arrays;")
-    out.puts("import java.util.ArrayList;")
-    out.puts("import java.util.Collections;")
-    out.puts("import java.util.HashMap;")
-    out.puts("import java.util.Map;")
-    out.puts("import java.nio.charset.Charset;")
+
+    // Used in every class
+    importList.add(s"io.kaitai.struct.$kstructName")
+    importList.add(s"io.kaitai.struct.$kstreamName")
+    importList.add("java.io.IOException")
 
     out.puts
   }
@@ -70,6 +67,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("public Map<String, ArrayList<Integer>> _arrStart = new HashMap<String, ArrayList<Integer>>();")
       out.puts("public Map<String, ArrayList<Integer>> _arrEnd = new HashMap<String, ArrayList<Integer>>();")
       out.puts
+
+      importList.add("java.util.ArrayList")
+      importList.add("java.util.HashMap")
+      importList.add("java.util.Map")
     }
 
     out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
@@ -262,6 +263,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
+
+    importList.add("java.util.ArrayList")
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
@@ -274,6 +277,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
+
+    importList.add("java.util.ArrayList")
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
@@ -289,6 +294,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_")};")
     out.puts("do {")
     out.inc
+
+    importList.add("java.util.ArrayList")
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
@@ -462,6 +469,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public static $enumClass byId(long id) { return byId.get(id); }")
     out.dec
     out.puts("}")
+
+    importList.add("java.util.Map")
+    importList.add("java.util.HashMap")
   }
 
   override def debugClassSequence(seq: List[AttrSpec]) = {

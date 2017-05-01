@@ -1,6 +1,6 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{GraphvizClassCompiler, RuntimeConfig}
+import io.kaitai.struct.{GraphvizClassCompiler, ImportList, RuntimeConfig}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
@@ -404,7 +404,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
     val langs = Map[LanguageCompilerStatic, BaseTranslator](
       CppCompiler -> new CppTranslator(tp),
       CSharpCompiler -> new CSharpTranslator(tp),
-      JavaCompiler -> new JavaTranslator(tp),
+      JavaCompiler -> new JavaTranslator(tp, new ImportList()),
       JavaScriptCompiler -> new JavaScriptTranslator(tp),
       PerlCompiler -> new PerlTranslator(tp),
       PHPCompiler -> new PHPTranslator(tp, RuntimeConfig()),
