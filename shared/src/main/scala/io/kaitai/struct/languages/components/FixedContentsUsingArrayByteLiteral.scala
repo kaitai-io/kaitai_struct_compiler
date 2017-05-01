@@ -13,7 +13,7 @@ trait FixedContentsUsingArrayByteLiteral extends LanguageCompiler {
       attrName,
       translator.translate(
         Ast.expr.List(
-          contents.map(x => Ast.expr.IntNum(BigInt(x)))
+          contents.map(x => Ast.expr.IntNum(BigInt(x & 0xff)))
         )
       )
     )
