@@ -56,12 +56,12 @@ class ClassCompiler(
     if (lang.debug)
       lang.debugClassSequence(curClass.seq)
 
-    lang.classConstructorHeader(curClass.name, curClass.parentTypeName, topClassName)
+    lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     compileSeq(curClass.seq, extraAttrs)
     lang.classConstructorFooter
 
-    lang.classDestructorHeader(curClass.name, curClass.parentTypeName, topClassName)
+    lang.classDestructorHeader(curClass.name, curClass.parentType, topClassName)
     curClass.seq.foreach((attr) => lang.attrDestructor(attr, attr.id))
     curClass.instances.foreach { case (id, instSpec) =>
       instSpec match {
@@ -122,12 +122,7 @@ class ClassCompiler(
     // Determine datatype
     val dataType = instSpec.dataTypeComposite
 
-    // Declare caching variable
-    val condSpec = instSpec match {
-      case vis: ValueInstanceSpec => ConditionalSpec(vis.ifExpr, NoRepeat)
-      case pis: ParseInstanceSpec => pis.cond
-    }
-    lang.instanceDeclaration(instName, dataType, condSpec)
+    compileInstanceDeclaration(instName, instSpec)
 
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
@@ -146,6 +141,18 @@ class ClassCompiler(
     lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName)
     lang.instanceFooter
+  }
+
+  def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit = {
+    // Determine datatype
+    val dataType = instSpec.dataTypeComposite
+
+    // Declare caching variable
+    val condSpec = instSpec match {
+      case vis: ValueInstanceSpec => ConditionalSpec(vis.ifExpr, NoRepeat)
+      case pis: ParseInstanceSpec => pis.cond
+    }
+    lang.instanceDeclaration(instName, dataType, condSpec)
   }
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit = {

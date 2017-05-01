@@ -67,12 +67,12 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classFooter(name: List[String]): Unit = universalFooter
 
-  override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String]): Unit = {
     out.puts
     out.puts(
       "public function __construct(" +
       kstreamName + " $io, " +
-      translator.types2classAbs(parentClassName) + " $parent = null, " +
+      kaitaiType2NativeType(parentType) + " $parent = null, " +
       translator.types2classAbs(rootClassName) + " $root = null) {"
     )
     out.inc
@@ -352,6 +352,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: EnumType => "int"
 
       case ArrayType(_) => "array"
+
+      case KaitaiStructType => kstructName
+      case KaitaiStreamType => kstreamName
     }
   }
 }

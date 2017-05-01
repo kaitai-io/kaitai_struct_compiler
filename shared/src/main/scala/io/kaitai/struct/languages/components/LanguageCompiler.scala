@@ -3,7 +3,7 @@ package io.kaitai.struct.languages.components
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.BaseTranslator
+import io.kaitai.struct.translators.AbstractTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
 import scala.collection.mutable.ListBuffer
@@ -12,7 +12,7 @@ abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) {
-  val translator: BaseTranslator
+  val translator: AbstractTranslator
 
   /**
     * @return compilation results as a map: keys are file names, values are
@@ -61,10 +61,10 @@ abstract class LanguageCompiler(
   def classFooter(name: List[String]): Unit
   def classForwardDeclaration(name: List[String]): Unit = {}
 
-  def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit
+  def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String]): Unit
   def classConstructorFooter: Unit
 
-  def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {}
+  def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {}
   def classDestructorFooter: Unit = {}
 
   def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit

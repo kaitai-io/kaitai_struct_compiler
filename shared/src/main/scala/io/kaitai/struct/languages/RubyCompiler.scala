@@ -64,7 +64,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("attr_reader :_debug")
   }
 
-  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String): Unit = {
     out.puts("def initialize(_io, _parent = nil, _root = self)")
     out.inc
     out.puts("super(_io, _parent, _root)")

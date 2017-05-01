@@ -63,6 +63,10 @@ object JavaMain {
         c.copy(importPaths = c.importPaths ++ x.split(File.pathSeparatorChar))
       } text(".ksy library search path(s) for imports (see also KSPATH env variable)")
 
+      opt[String]("go-package") valueName("<package>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(goPackage = x))
+      } text("Go package (Go only, default: none)")
+
       opt[String]("java-package") valueName("<package>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(javaPackage = x))
       } text("Java package (Java only, default: root package)")

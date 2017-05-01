@@ -5,7 +5,11 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.precompile.TypeMismatchError
 
-abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(provider) {
+abstract class BaseTranslator(val provider: TypeProvider)
+  extends TypeDetector(provider)
+  with AbstractTranslator
+  with CommonLiterals
+  with CommonOps {
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.IntNum(n) =>
@@ -150,147 +154,12 @@ abstract class BaseTranslator(val provider: TypeProvider) extends TypeDetector(p
     }
   }
 
-  def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
-    s"(${translate(left)} ${binOp(op)} ${translate(right)})"
-  }
-
-  def binOp(op: Ast.operator): String = {
-    op match {
-      case Ast.operator.Add => "+"
-      case Ast.operator.Sub => "-"
-      case Ast.operator.Mult => "*"
-      case Ast.operator.Div => "/"
-      case Ast.operator.Mod => "%"
-      case Ast.operator.BitAnd => "&"
-      case Ast.operator.BitOr => "|"
-      case Ast.operator.BitXor => "^"
-      case Ast.operator.LShift => "<<"
-      case Ast.operator.RShift => ">>"
-    }
-  }
-
-  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-
-  def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-
-  def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-
-  def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-
-  def cmpOp(op: Ast.cmpop): String = {
-    op match {
-      case Ast.cmpop.Lt => "<"
-      case Ast.cmpop.LtE => "<="
-      case Ast.cmpop.Gt => ">"
-      case Ast.cmpop.GtE => ">="
-      case Ast.cmpop.Eq => "=="
-      case Ast.cmpop.NotEq => "!="
-    }
-  }
-
-  def doBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]): String = {
-    val opStr = s"${booleanOp(op)}"
-    val dividerStr = s") $opStr ("
-    val valuesStr = values.map(translate).mkString("(", dividerStr, ")")
-
-    // Improve compatibility for statements like: ( ... && ... || ... ) ? ... : ...
-    s" ($valuesStr) "
-  }
-
-  def booleanOp(op: Ast.boolop): String = op match {
-    case Ast.boolop.Or => "||"
-    case Ast.boolop.And => "&&"
-  }
-
-  def unaryOp(op: Ast.unaryop): String = op match {
-    case Ast.unaryop.Invert => "~"
-    case Ast.unaryop.Minus => "-"
-    case Ast.unaryop.Not => "!"
-  }
-
   def doSubscript(container: Ast.expr, idx: Ast.expr): String
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: String): String = translate(value)
 
-  // Literals
-  def doIntLiteral(n: BigInt): String = n.toString
-  def doFloatLiteral(n: Any): String = n.toString
-
-  def doStringLiteral(s: String): String = {
-    val encoded = s.toCharArray.map((code) =>
-      if (code <= 0xff) {
-        strLiteralAsciiChar(code)
-      } else {
-        strLiteralUnicode(code)
-      }
-    ).mkString
-    "\"" + encoded + "\""
-  }
-  def doBoolLiteral(n: Boolean): String = n.toString
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
-
-  /**
-    * Handle ASCII character conversion for inlining into string literals.
-    * Default implementation consults [[asciiCharQuoteMap]] first, then
-    * just dumps it as is if it's a printable ASCII charcter, or calls
-    * [[strLiteralGenericCC]] if it's a control character.
-    * @param code character code to convert into string for inclusion in
-    *             a string literal
-    */
-  def strLiteralAsciiChar(code: Char): String = {
-    asciiCharQuoteMap.get(code) match {
-      case Some(encoded) => encoded
-      case None =>
-        if (code >= 0x20 && code < 0x80) {
-          Character.toString(code)
-        } else {
-          strLiteralGenericCC(code)
-        }
-    }
-  }
-
-  /**
-    * Converts generic control character code into something that's allowed
-    * inside a string literal. Default implementation uses octal encoding,
-    * which is ok for most C-derived languages.
-    *
-    * Note that we use strictly 3 octal digits to work around potential
-    * problems with following decimal digits, i.e. "\0" + "2" that would be
-    * parsed as single character "\02" = "\x02", instead of two characters
-    * "\x00\x32".
-    * @param code character code to represent
-    * @return string literal representation of given code
-    */
-  def strLiteralGenericCC(code: Char): String =
-    "\\%03o".format(code.toInt)
-
-  /**
-    * Converts Unicode (typically, non-ASCII) character code into something
-    * that's allowed inside a string literal. Default implementation uses
-    * Unicode 4-digit hex encoding, which is ok for most C-derived languages.
-    * @param code character code to represent
-    * @return string literal representation of given code
-    */
-  def strLiteralUnicode(code: Char): String =
-    "\\u%04x".format(code.toInt)
-
-  /**
-    * Character quotation map for inclusion in string literals.
-    * Default implementation includes bare minimum that seems
-    * to be available in all languages.
-    */
-  val asciiCharQuoteMap: Map[Char, String] = Map(
-    '\t' -> "\\t",
-    '\n' -> "\\n",
-    '\r' -> "\\r",
-    '"' -> "\\\"",
-    '\\' -> "\\\\"
-  )
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String

@@ -443,6 +443,8 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     override def resolveType(typeName: String): DataType =
       throw new NotImplementedError
+
+    override def isLazy(attrName: String): Boolean = false
   }
 
   case class Always(t: DataType) extends FakeTypeProvider {

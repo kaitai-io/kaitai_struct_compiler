@@ -1,6 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec}
+import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile._
 
@@ -54,6 +55,8 @@ object Main {
     val cc = lang match {
       case GraphvizClassCompiler =>
         new GraphvizClassCompiler(spec)
+      case GoCompiler =>
+        new GoClassCompiler(spec, config)
       case _ =>
         new ClassCompiler(spec, config, lang)
     }
