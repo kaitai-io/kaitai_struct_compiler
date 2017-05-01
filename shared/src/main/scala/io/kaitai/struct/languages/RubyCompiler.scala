@@ -33,11 +33,15 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String = s"$topClassName.rb"
   override def indent: String = "  "
 
+  override def outImports: String =
+    importList.toList.map((x) => s"require '$x'").mkString("\n") + "\n"
+
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"# $headerComment")
-    out.puts
-    out.puts("require 'kaitai/struct/struct'")
-    out.puts("require 'zlib'") // TODO: add only if actually used
+    outHeader.puts(s"# $headerComment")
+    outHeader.puts
+
+    importList.add("kaitai/struct/struct")
+
     out.puts
 
     // API compatibility check
@@ -130,6 +134,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
+        importList.add("zlib")
         s"$destName = Zlib::Inflate.inflate($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
