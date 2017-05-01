@@ -348,7 +348,10 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case _: StrType | _: BytesType => "string"
 
-      case t: UserType => translator.types2classAbs(t.classSpec.get.name)
+      case t: UserType => translator.types2classAbs(t.classSpec match {
+        case Some(cs) => cs.name
+        case None => t.name
+      })
       case t: EnumType => "int"
 
       case ArrayType(_) => "array"
