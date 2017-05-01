@@ -22,7 +22,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   import PythonCompiler._
 
-  override val translator = new PythonTranslator(typeProvider)
+  override val translator = new PythonTranslator(typeProvider, importList)
 
   override def universalFooter: Unit = {
     out.dec
@@ -32,16 +32,16 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"$topClassName.py"
 
+  override def outImports: String =
+    importList.toList.mkString("", "\n", "\n")
+
   override def fileHeader(topClassName: String): Unit = {
     out.puts(s"# $headerComment")
     out.puts
-    out.puts("import array")
-    out.puts("import struct")
-    out.puts("import zlib")
-    out.puts("from enum import Enum")
-    out.puts("from pkg_resources import parse_version")
-    out.puts
-    out.puts(s"from kaitaistruct import __version__ as ks_version, $kstructName, $kstreamName, BytesIO")
+
+    importList.add("from pkg_resources import parse_version")
+    importList.add(s"from kaitaistruct import __version__ as ks_version, $kstructName, $kstreamName, BytesIO")
+
     out.puts
     out.puts
 
@@ -95,6 +95,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         out.puts(s"${privateMemberName(varDest)} = $kstreamName.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)})")
       case ProcessZlib =>
+        importList.add("import zlib")
         out.puts(s"${privateMemberName(varDest)} = zlib.decompress(${privateMemberName(varSrc)})")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
@@ -274,6 +275,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+    importList.add("from enum import Enum")
+
     out.puts
     out.puts(s"class ${type2class(enumName)}(Enum):")
     out.inc

@@ -1,10 +1,11 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.ImportList
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.languages.PythonCompiler
 
-class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class PythonTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
@@ -34,8 +35,10 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     '\b' -> "\\b"
   )
 
-  override def doByteArrayLiteral(arr: Seq[Byte]): String =
+  override def doByteArrayLiteral(arr: Seq[Byte]): String = {
+    importList.add("import struct")
     s"struct.pack('${arr.length}b', ${arr.mkString(", ")})"
+  }
 
   override def doLocalName(s: String) = {
     s match {

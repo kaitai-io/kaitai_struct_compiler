@@ -408,7 +408,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
       JavaScriptCompiler -> new JavaScriptTranslator(tp),
       PerlCompiler -> new PerlTranslator(tp),
       PHPCompiler -> new PHPTranslator(tp, RuntimeConfig()),
-      PythonCompiler -> new PythonTranslator(tp),
+      PythonCompiler -> new PythonTranslator(tp, new ImportList()),
       RubyCompiler -> new RubyTranslator(tp)
     )
 
