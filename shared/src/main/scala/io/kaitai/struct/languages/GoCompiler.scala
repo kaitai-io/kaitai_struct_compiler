@@ -104,7 +104,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case ref: UrlRef =>
         out.putsLines(" * ", s"@see ${ref.toAhref}")
       case NoRef =>
-      // no reference => output nothing
+        // no reference => output nothing
     }
 
     out.puts( " */")
