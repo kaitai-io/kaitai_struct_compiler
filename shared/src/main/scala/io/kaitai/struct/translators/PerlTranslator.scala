@@ -1,11 +1,12 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.ImportList
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
 
-class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class PerlTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   // http://perldoc.perl.org/perlrebackslash.html#Character-Escapes
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
@@ -128,8 +129,10 @@ class PerlTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
     s"sprintf('$format', ${translate(i)})"
   }
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
+    importList.add("Encode")
     s"Encode::decode(${translate(encoding)}, $bytesExpr)"
+  }
   override def strLength(value: Ast.expr): String =
     s"length(${translate(value)})"
   override def strReverse(value: Ast.expr): String =

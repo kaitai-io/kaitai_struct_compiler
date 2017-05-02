@@ -20,7 +20,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   import PerlCompiler._
 
-  override val translator = new PerlTranslator(typeProvider)
+  override val translator = new PerlTranslator(typeProvider, importList)
 
   override def innerClasses = false
 
@@ -32,15 +32,16 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
 
+  override def outImports: String =
+    importList.toList.map((x) => s"use $x;").mkString("", "\n", "\n")
+
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"# $headerComment")
-    out.puts
-    out.puts("use strict;")
-    out.puts("use warnings;")
-    out.puts(s"use $packageName ${KSVersion.minimalRuntime.toPerlVersion};")
-    out.puts("use Compress::Zlib;")
-    out.puts("use Encode;")
-    out.puts("use List::Util;")
+    outHeader.puts(s"# $headerComment")
+    outHeader.puts
+
+    importList.add("strict")
+    importList.add("warnings")
+    importList.add(s"$packageName ${KSVersion.minimalRuntime.toPerlVersion}")
   }
 
   override def fileFooter(topClassName: String): Unit = {
@@ -124,6 +125,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});"
       case ProcessZlib =>
+        importList.add("Compress::Zlib")
         s"$destName = Compress::Zlib::uncompress($srcName);"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
