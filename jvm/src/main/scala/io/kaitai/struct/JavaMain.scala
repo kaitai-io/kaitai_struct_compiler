@@ -211,9 +211,16 @@ class JavaMain(config: CLIConfig) {
       }
       srcFile.toString -> log
     }.toMap
+
     if (config.jsonOutput)
       Console.println(JSON.mapToJson(logs))
+
+    if (logsHaveErrors(logs))
+      System.exit(2)
   }
+
+  private def logsHaveErrors(logs: Map[String, InputEntry]): Boolean =
+    logs.values.map(_.hasErrors).max
 
   private def compileOneInput(srcFile: String) = {
     Log.fileOps.info(() => s"parsing $srcFile...")
