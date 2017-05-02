@@ -5,13 +5,13 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.precompile.TypeMismatchError
-import io.kaitai.struct.{StringLanguageOutputWriter, Utils}
+import io.kaitai.struct.{ImportList, StringLanguageOutputWriter, Utils}
 
 sealed trait TranslatorResult
 case class ResultString(s: String) extends TranslatorResult
 case class ResultLocalVar(n: Int) extends TranslatorResult
 
-class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
+class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, importList: ImportList)
   extends TypeDetector(provider)
   with AbstractTranslator
   with CommonLiterals
@@ -162,6 +162,19 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
 //    s"${translate(v)}.id()"
 //  override def intToStr(i: Ast.expr, base: Ast.expr): String =
 //    s"Long.toString(${translate(i)}, ${translate(base)})"
+
+  val IMPORT_CHARMAP = "golang.org/x/text/encoding/charmap"
+
+  val ENCODINGS = Map(
+    "cp437" -> ("charmap.CodePage437", IMPORT_CHARMAP),
+    "iso8859-1" -> ("charmap.ISO8859_1", IMPORT_CHARMAP),
+    "iso8859-2" -> ("charmap.ISO8859_2", IMPORT_CHARMAP),
+    "iso8859-3" -> ("charmap.ISO8859_3", IMPORT_CHARMAP),
+    "iso8859-4" -> ("charmap.ISO8859_4", IMPORT_CHARMAP),
+    "sjis" -> ("japanese.ShiftJIS", "golang.org/x/text/encoding/japanese"),
+    "big5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese")
+  )
+
   def bytesToStr(bytesExpr: String, encoding: Ast.expr): TranslatorResult = {
     val enc = encoding match {
       case Ast.expr.Str(s) => s
@@ -174,16 +187,13 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider)
         // FIXME: may be add some checks for valid ASCII/UTF-8
         ResultString(s"string($bytesExpr)")
       case encStr =>
-        val decoderSrc = encStr match {
-          case "cp437" => "charmap.CodePage437"
-          case "iso8859-1" => "charmap.ISO8859_1"
-          case "iso8859-2" => "charmap.ISO8859_2"
-          case "iso8859-3" => "charmap.ISO8859_3"
-          case "iso8859-4" => "charmap.ISO8859_4"
-          case "sjis" => "japanese.ShiftJIS"
-          case "big5" => "traditionalchinese.Big5"
+        ENCODINGS.get(encStr) match {
+          case Some((decoderSrc, importName)) =>
+            importList.add(importName)
+            outVarCheckRes(s"kaitai.BytesToStr($bytesExpr, $decoderSrc.NewDecoder())")
+          case None =>
+            throw new RuntimeException(s"encoding '$encStr' in not supported in Go")
         }
-        outVarCheckRes(s"kaitai.BytesToStr($bytesExpr, $decoderSrc.NewDecoder())")
     }
   }
 

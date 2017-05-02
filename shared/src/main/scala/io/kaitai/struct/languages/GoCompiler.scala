@@ -20,7 +20,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with FixedContentsUsingArrayByteLiteral {
   import GoCompiler._
 
-  override val translator = new GoTranslator(out, typeProvider)
+  override val translator = new GoTranslator(out, typeProvider, importList)
 
   override def innerClasses = false
 
@@ -33,26 +33,27 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String =
     s"src/${config.goPackage}/$topClassName.go"
 
-  override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"// $headerComment")
-    if (!config.goPackage.isEmpty) {
-      out.puts
-      out.puts(s"package ${config.goPackage}")
+  override def outImports: String = {
+    val imp = importList.toList
+    imp.size match {
+      case 0 => ""
+      case 1 => "import \"" + imp.head + "\""
+      case _ =>
+        "import (\n" +
+        imp.map((x) => indent + "\"" + x + "\"").mkString("", "\n", "\n") +
+        ")\n"
     }
-    out.puts
-    out.puts("import \"github.com/kaitai-io/kaitai_struct_go_runtime/kaitai\"")
-    out.puts("import \"io\"")
-    out.puts("import \"golang.org/x/text/encoding/charmap\"")
-    out.puts("import \"golang.org/x/text/encoding/traditionalchinese\"")
-    out.puts("import \"golang.org/x/text/encoding/japanese\"")
+  }
 
-    // Some workarounds for unused imports
-    // http://stackoverflow.com/a/19566513/487064
-    out.puts
-    out.puts("var _ = io.SeekStart")
-    out.puts("var _ = charmap.CodePage437")
-    out.puts("var _ = japanese.ShiftJIS")
-    out.puts("var _ = traditionalchinese.Big5")
+  override def fileHeader(topClassName: String): Unit = {
+    outHeader.puts(s"// $headerComment")
+    if (!config.goPackage.isEmpty) {
+      outHeader.puts
+      outHeader.puts(s"package ${config.goPackage}")
+    }
+    outHeader.puts
+
+    importList.add("github.com/kaitai-io/kaitai_struct_go_runtime/kaitai")
 
     out.puts
   }
@@ -158,11 +159,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def seek(io: String, pos: Ast.expr): Unit = {
+    importList.add("io")
+
     out.puts(s"_, err = $io.Seek(int64(${expression(pos)}), io.SeekStart)")
     translator.outAddErrCheck()
   }
 
   override def popPos(io: String): Unit = {
+    importList.add("io")
+
     out.puts(s"_, err = $io.Seek(_pos, io.SeekStart)")
     translator.outAddErrCheck()
   }
