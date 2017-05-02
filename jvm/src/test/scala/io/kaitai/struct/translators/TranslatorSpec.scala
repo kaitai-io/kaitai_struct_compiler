@@ -1,12 +1,12 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{GraphvizClassCompiler, ImportList, RuntimeConfig}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
+import io.kaitai.struct.{ImportList, RuntimeConfig}
 import org.scalatest.FunSuite
 import org.scalatest.Matchers._
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -403,7 +403,7 @@ class TranslatorSpec extends FunSuite with TableDrivenPropertyChecks {
 
     val langs = Map[LanguageCompilerStatic, BaseTranslator](
       CppCompiler -> new CppTranslator(tp),
-      CSharpCompiler -> new CSharpTranslator(tp),
+      CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
       JavaCompiler -> new JavaTranslator(tp, new ImportList()),
       JavaScriptCompiler -> new JavaScriptTranslator(tp),
       PerlCompiler -> new PerlTranslator(tp, new ImportList()),

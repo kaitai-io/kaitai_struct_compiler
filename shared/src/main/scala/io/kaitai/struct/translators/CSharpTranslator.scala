@@ -1,13 +1,13 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.languages.CSharpCompiler
 
-class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
@@ -79,14 +79,18 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
-  override def strToInt(s: expr, base: expr): String =
+  override def strToInt(s: expr, base: expr): String = {
+    importList.add("System")
     s"Convert.ToInt64(${translate(s)}, ${translate(base)})"
+  }
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
   override def floatToInt(v: expr): String =
-    s"(Int64) (${translate(v)})"
-  override def intToStr(i: expr, base: expr): String =
+    s"(long) (${translate(v)})"
+  override def intToStr(i: expr, base: expr): String = {
+    importList.add("System")
     s"Convert.ToString(${translate(i)}, ${translate(base)})"
+  }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"System.Text.Encoding.GetEncoding(${translate(encoding)}).GetString($bytesExpr)"
   override def strLength(s: expr): String =
@@ -108,8 +112,12 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   }
   override def arraySize(a: expr): String =
     s"${translate(a)}.Count"
-  override def arrayMin(a: Ast.expr): String =
+  override def arrayMin(a: Ast.expr): String = {
+    importList.add("System.Linq")
     s"${translate(a)}.Min()"
-  override def arrayMax(a: Ast.expr): String =
+  }
+  override def arrayMax(a: Ast.expr): String = {
+    importList.add("System.Linq")
     s"${translate(a)}.Max()"
+  }
 }

@@ -21,25 +21,26 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with NoNeedForFullClassPath {
   import CSharpCompiler._
 
-  val translator = new CSharpTranslator(typeProvider)
+  val translator = new CSharpTranslator(typeProvider, importList)
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.cs"
 
+  override def outImports: String =
+    importList.toList.map((x) => s"using $x;").mkString("", "\n", "\n")
+
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"// $headerComment")
+    outHeader.puts(s"// $headerComment")
+    outHeader.puts
 
     var ns = "Kaitai"
     if (!config.dotNetNamespace.isEmpty)
       ns = config.dotNetNamespace
 
-    out.puts
-    out.puts("using System;")
-    out.puts("using System.Collections.Generic;")
-    out.puts("using System.Linq;")
-    if (ns != "Kaitai") out.puts("using Kaitai;")
-    out.puts
+    if (ns != "Kaitai")
+      importList.add("Kaitai")
 
+    out.puts
     out.puts(s"namespace $ns")
     out.puts(s"{")
     out.inc
@@ -189,6 +190,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condIfFooter(expr: expr): Unit = fileFooter(null)
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
+    importList.add("System.Collections.Generic")
+
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
@@ -203,6 +206,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatEosFooter: Unit = fileFooter(null)
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
+    importList.add("System.Collections.Generic")
+
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
@@ -217,6 +222,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatExprFooter: Unit = fileFooter(null)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+    importList.add("System.Collections.Generic")
+
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
