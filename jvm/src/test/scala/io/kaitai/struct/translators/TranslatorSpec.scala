@@ -216,6 +216,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A[42]",
     JavaCompiler -> "a().get(42)",
     JavaScriptCompiler -> "this.a[42]",
+    PHPCompiler -> "$this->a()[42]",
     PythonCompiler -> "self.a[42]",
     RubyCompiler -> "a[42]"
   ))
@@ -225,6 +226,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A[(42 - 2)]",
     JavaCompiler -> "a().get((42 - 2))",
     JavaScriptCompiler -> "this.a[(42 - 2)]",
+    PHPCompiler -> "$this->a()[(42 - 2)]",
     PythonCompiler -> "self.a[(42 - 2)]",
     RubyCompiler -> "a[(42 - 2)]"
   ))
@@ -234,6 +236,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A[0]",
     JavaCompiler -> "a().get(0)",
     JavaScriptCompiler -> "this.a[0]",
+    PHPCompiler -> "$this->a()[0]",
     PythonCompiler -> "self.a[0]",
     RubyCompiler -> "a.first"
   ))
@@ -243,20 +246,21 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A[A.Length - 1]",
     JavaCompiler -> "a().get(a().size() - 1)",
     JavaScriptCompiler -> "this.a[this.a.length - 1]",
+    PHPCompiler -> "$this->a()[count($this->a()) - 1]",
     PythonCompiler -> "self.a[-1]",
     RubyCompiler -> "a.last"
   ))
 
   full("a.size", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
-      CppCompiler -> "a()->size()",
-      CSharpCompiler -> "A.Count",
-      JavaCompiler -> "a().size()",
-      JavaScriptCompiler -> "this.a.length",
-      PHPCompiler -> "count(a)",
-      PerlCompiler -> "scalar($self->a())",
-      PythonCompiler -> "len(self.a)",
-      RubyCompiler -> "a.length"
-    ))
+    CppCompiler -> "a()->size()",
+    CSharpCompiler -> "A.Count",
+    JavaCompiler -> "a().size()",
+    JavaScriptCompiler -> "this.a.length",
+    PHPCompiler -> "count($this->a())",
+    PerlCompiler -> "scalar($self->a())",
+    PythonCompiler -> "len(self.a)",
+    RubyCompiler -> "a.length"
+  ))
 
   // Strings
   full("\"str\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
