@@ -212,11 +212,12 @@ class JavaMain(config: CLIConfig) {
       srcFile.toString -> log
     }.toMap
 
-    if (config.jsonOutput)
+    if (config.jsonOutput) {
       Console.println(JSON.mapToJson(logs))
-
-    if (logsHaveErrors(logs))
-      System.exit(2)
+    } else {
+      if (logsHaveErrors(logs))
+        System.exit(2)
+    }
   }
 
   private def logsHaveErrors(logs: Map[String, InputEntry]): Boolean =
