@@ -2,6 +2,7 @@ package io.kaitai.struct.datatype
 
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
+import io.kaitai.struct.translators.TypeDetector
 
 sealed trait DataType
 
@@ -114,7 +115,9 @@ object DataType {
     var enumSpec: Option[EnumSpec] = None
   }
 
-  case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, DataType]) extends DataType
+  case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, DataType]) extends DataType {
+    def combinedType: DataType = TypeDetector.combineTypes(cases.values)
+  }
 
   object SwitchType {
     /**

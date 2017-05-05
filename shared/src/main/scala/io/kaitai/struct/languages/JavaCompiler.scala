@@ -553,7 +553,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
 
-      case SwitchType(_, cases) => kaitaiType2JavaTypePrim(TypeDetector.combineTypes(cases.values))
+      case st: SwitchType => kaitaiType2JavaTypePrim(st.combinedType)
     }
   }
 
