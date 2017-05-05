@@ -2,7 +2,7 @@ package io.kaitai.struct.translators
 
 import java.nio.charset.Charset
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.datatype.DataType
@@ -10,7 +10,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CppCompiler
 
-class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
 
   /**
@@ -137,10 +137,12 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def arraySize(a: expr): String =
     s"${translate(a)}->size()"
   override def arrayMin(a: expr): String = {
+    importListSrc.add("algorithm")
     val v = translate(a)
     s"*std::min_element($v->begin(), $v->end())"
   }
   override def arrayMax(a: expr): String = {
+    importListSrc.add("algorithm")
     val v = translate(a)
     s"*std::max_element($v->begin(), $v->end())"
   }

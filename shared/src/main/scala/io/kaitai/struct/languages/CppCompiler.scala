@@ -20,17 +20,25 @@ class CppCompiler(
     with EveryReadIsExpression {
   import CppCompiler._
 
-  override val translator = new CppTranslator(typeProvider)
+  val importListSrc = new ImportList
+  val importListHdr = new ImportList
+
+  override val translator = new CppTranslator(typeProvider, importListSrc)
+  val outSrcHeader = new StringLanguageOutputWriter(indent)
+  val outHdrHeader = new StringLanguageOutputWriter(indent)
   val outSrc = new StringLanguageOutputWriter(indent)
   val outHdr = new StringLanguageOutputWriter(indent)
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     val fn = topClass.nameAsStr
     Map(
-      s"$fn.cpp" -> outSrc.result,
-      s"$fn.h" -> outHdr.result
+      s"$fn.cpp" -> (outSrcHeader.result + importListToStr(importListSrc) + outSrc.result),
+      s"$fn.h" -> (outHdrHeader.result + importListToStr(importListHdr) + outHdr.result)
     )
   }
+
+  private def importListToStr(importList: ImportList): String =
+    importList.toList.map((x) => s"#include <$x>").mkString("", "\n", "\n")
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -42,25 +50,21 @@ class CppCompiler(
   override def outFileName(topClassName: String): String = topClassName
 
   override def fileHeader(topClassName: String): Unit = {
-    outSrc.puts(s"// $headerComment")
-    outSrc.puts
-    outSrc.puts("#include \"" + outFileName(topClassName) + ".h\"")
-    outSrc.puts
-    outSrc.puts("#include <iostream>")
-    outSrc.puts("#include <fstream>")
+    outSrcHeader.puts(s"// $headerComment")
+    outSrcHeader.puts
+    outSrcHeader.puts("#include \"" + outFileName(topClassName) + ".h\"")
+    outSrcHeader.puts
 
-    outHdr.puts(s"#ifndef ${defineName(topClassName)}")
-    outHdr.puts(s"#define ${defineName(topClassName)}")
-    outHdr.puts
-    outHdr.puts(s"// $headerComment")
-    outHdr.puts
-    outHdr.puts("#include <kaitai/kaitaistruct.h>")
-    outHdr.puts("#include <kaitai/kaitaistream.h>")
-    outHdr.puts
-    outHdr.puts("#include <stdint.h>")
-    outHdr.puts("#include <vector>") // TODO: add only if required
-    outHdr.puts("#include <sstream>") // TODO: add only if required
-    outHdr.puts("#include <algorithm>") // TODO: add only if required
+    outHdrHeader.puts(s"#ifndef ${defineName(topClassName)}")
+    outHdrHeader.puts(s"#define ${defineName(topClassName)}")
+    outHdrHeader.puts
+    outHdrHeader.puts(s"// $headerComment")
+    outHdrHeader.puts
+    outHdrHeader.puts("#include <kaitai/kaitaistruct.h>")
+    outHdrHeader.puts("#include <kaitai/kaitaistream.h>")
+    outHdrHeader.puts
+
+    importListHdr.add("stdint.h")
 
     // API compatibility check
     val minVer = KSVersion.minimalRuntime.toInt
@@ -351,6 +355,8 @@ class CppCompiler(
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
+    importListHdr.add("vector")
+
     if (needRaw)
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
@@ -368,6 +374,8 @@ class CppCompiler(
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+    importListHdr.add("vector")
+
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
     if (needRaw) {
@@ -390,6 +398,8 @@ class CppCompiler(
   }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+    importListHdr.add("vector")
+
     if (needRaw)
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")

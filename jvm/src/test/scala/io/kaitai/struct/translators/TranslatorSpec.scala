@@ -399,7 +399,7 @@ class TranslatorSpec extends FunSuite {
     }
 
     val langs = Map[LanguageCompilerStatic, BaseTranslator](
-      CppCompiler -> new CppTranslator(tp),
+      CppCompiler -> new CppTranslator(tp, new ImportList()),
       CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
       JavaCompiler -> new JavaTranslator(tp, new ImportList()),
       JavaScriptCompiler -> new JavaScriptTranslator(tp),
