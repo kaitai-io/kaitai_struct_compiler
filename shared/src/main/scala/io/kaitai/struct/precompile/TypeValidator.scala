@@ -134,11 +134,17 @@ class TypeValidator(topClass: ClassSpec) {
     try {
       detector.detectType(expr) match {
         case _: T => // good
+        case st: SwitchType =>
+          st.combinedType match {
+            case _: T => // good
+            case actual =>
+              throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
+          }
         case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
       }
     } catch {
       case err: ExpressionError =>
-        throw new YAMLParseException(err.getMessage, path ++ List(pathKey))
+        throw new ErrorInInput(err, path ++ List(pathKey))
     }
   }
 }

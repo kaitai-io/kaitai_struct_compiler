@@ -15,7 +15,26 @@ import io.kaitai.struct.precompile.{TypeMismatchError, TypeUndecidedError}
 class TypeDetector(provider: TypeProvider) {
   import TypeDetector._
 
+  /**
+    * Detects type of a given expression. If it returns a SwitchType, it
+    * effectively flattens it to a resulting combined type.
+    * @param v expression
+    * @return data type
+    */
   def detectType(v: Ast.expr): DataType = {
+    detectTypeRaw(v) match {
+      case st: SwitchType => st.combinedType
+      case other => other
+    }
+  }
+
+  /**
+    * Detects type of a given expression, raw, without any switch type
+    * flattening.
+    * @param v expression
+    * @return data type
+    */
+  def detectTypeRaw(v: Ast.expr): DataType = {
     v match {
       case Ast.expr.IntNum(x) =>
         if (x < 0 || x > 255) {
