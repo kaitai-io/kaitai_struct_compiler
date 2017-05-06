@@ -6,5 +6,6 @@ case class RuntimeConfig(
   goPackage: String = "",
   javaPackage: String = "",
   dotNetNamespace: String = "Kaitai",
-  phpNamespace: String = ""
+  phpNamespace: String = "",
+  pythonPackage: String = ""
 )

@@ -79,6 +79,10 @@ object JavaMain {
         c.copy(runtime = c.runtime.copy(phpNamespace = x))
       } text("PHP Namespace (PHP only, default: root package)")
 
+      opt[String]("python-package") valueName("<package>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(pythonPackage = x))
+      } text("Python package (Python only, default: root package)")
+
       opt[Boolean]("opaque-types") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
       } text("opaque types allowed, default: false")
