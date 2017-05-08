@@ -1,6 +1,6 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.datatype.Endianness
+import io.kaitai.struct.datatype.{CalcEndian, Endianness}
 
 case class MetaSpec(
   path: List[String],
@@ -39,6 +39,11 @@ object MetaSpec {
     "application"
   )
 
+  val LEGAL_KEYS_CALC_ENDIAN = Set(
+    "endian-is-le",
+    "endian-is-be"
+  )
+
   def fromYaml(src: Any, path: List[String]): MetaSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
 
@@ -48,17 +53,19 @@ object MetaSpec {
         throw YAMLParseException.incompatibleVersion(ver, KSVersion.current, path)
     }
 
-    ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
+    val endian: Option[Endianness] = Endianness.defaultFromMap(srcMap, path)
+    val calcEndianLegal = endian match {
+      case Some(_: CalcEndian) => LEGAL_KEYS_CALC_ENDIAN
+      case _ => Set()
+    }
+
+    ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS ++ calcEndianLegal, path)
 
     val id = ParseUtils.getOptValueStr(srcMap, "id", path)
     id.foreach((idStr) =>
       Identifier.checkIdentifierSource(idStr, "meta", path ++ List("id"))
     )
 
-    val endian: Option[Endianness] = Endianness.defaultFromString(
-      ParseUtils.getOptValueStr(srcMap, "endian", path),
-      path
-    )
     val encoding = ParseUtils.getOptValueStr(srcMap, "encoding", path)
 
     val forceDebug = ParseUtils.getOptValueBool(srcMap, "ks-debug", path).getOrElse(false)
