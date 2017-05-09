@@ -436,7 +436,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
 
   def dataTypeName(dataType: DataType): String = {
     dataType match {
-      case rt: ReadableType => rt.apiCall
+      case rt: ReadableType => rt.apiCall(None) // FIXME
       case ut: UserType => type2display(ut.name)
       case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>

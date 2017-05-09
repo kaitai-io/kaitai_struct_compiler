@@ -1,13 +1,13 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{RubyTranslator, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.translators.RubyTranslator
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
 class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -91,6 +91,49 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     universalFooter
   }
+
+  override def runRead(): Unit = {
+    out.puts("_read")
+  }
+
+  override def runReadCalcOne(isLittle: Ast.expr): Unit = {
+    out.puts(s"if ${expression(isLittle)}")
+    out.inc
+    out.puts("_read_le")
+    out.dec
+    out.puts("else")
+    out.inc
+    out.puts("_read_be")
+    out.dec
+    out.puts("end")
+  }
+
+  override def runReadCalcTwo(isLittle: Ast.expr, isBig: Ast.expr) {
+    out.puts(s"if ${expression(isLittle)}")
+    out.inc
+    out.puts("_read_le")
+    out.dec
+    out.puts(s"elsif ${expression(isBig)}")
+    out.inc
+    out.puts("_read_be")
+    out.dec
+    out.puts("else")
+    out.inc
+    out.puts("raise \"Unable to choose endianness\"")
+    out.dec
+    out.puts("end")
+  }
+
+  override def readHeader(endian: Option[FixedEndian]): Unit = {
+    val suffix = endian match {
+      case Some(e) => s"_${e.toSuffix}"
+      case None => ""
+    }
+    out.puts(s"def _read$suffix")
+    out.inc
+  }
+
+  override def readFooter() = universalFooter
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
@@ -264,10 +307,10 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"$id = $expr")
 
-  override def parseExpr(dataType: DataType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read_${t.apiCall}"
+        s"$io.read_${t.apiCall(defEndian)}"
       case blt: BytesLimitType =>
         s"$io.read_bytes(${expression(blt.size)})"
       case _: BytesEosType =>

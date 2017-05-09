@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.CompileLog.FileSuccess
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
@@ -58,18 +58,12 @@ class ClassCompiler(
 
     lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
-    compileSeq(curClass.seq, extraAttrs)
+    compileEagerReadCall(curClass.meta.endian)
     lang.classConstructorFooter
 
-    lang.classDestructorHeader(curClass.name, curClass.parentType, topClassName)
-    curClass.seq.foreach((attr) => lang.attrDestructor(attr, attr.id))
-    curClass.instances.foreach { case (id, instSpec) =>
-      instSpec match {
-        case pis: ParseInstanceSpec => lang.attrDestructor(pis, id)
-        case _: ValueInstanceSpec => // ignore for now
-      }
-    }
-    lang.classDestructorFooter
+    compileEagerRead(curClass.seq, extraAttrs, curClass.meta.endian)
+
+    compileDestructor(curClass)
 
     // Recursive types
     if (lang.innerClasses) {
@@ -78,7 +72,7 @@ class ClassCompiler(
       provider.nowClass = curClass
     }
 
-    curClass.instances.foreach { case (instName, instSpec) => compileInstance(curClass.name, instName, instSpec, extraAttrs) }
+    compileInstances(curClass, extraAttrs)
 
     // Attributes declarations and readers
     compileAttrDeclarations(curClass.seq ++ extraAttrs)
@@ -98,16 +92,58 @@ class ClassCompiler(
       compileEnums(curClass)
   }
 
+  def compileDestructor(curClass: ClassSpec) = {
+    lang.classDestructorHeader(curClass.name, curClass.parentType, topClassName)
+    curClass.seq.foreach((attr) => lang.attrDestructor(attr, attr.id))
+    curClass.instances.foreach { case (id, instSpec) =>
+      instSpec match {
+        case pis: ParseInstanceSpec => lang.attrDestructor(pis, id)
+        case _: ValueInstanceSpec => // ignore for now
+      }
+    }
+    lang.classDestructorFooter
+  }
+
   def compileAttrDeclarations(attrs: List[AttrSpec]): Unit =
     attrs.foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
 
-  def compileSeq(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec]) = {
+  def compileEagerReadCall(endian: Option[Endianness]): Unit = {
+    endian match {
+      case None | Some(_: FixedEndian) =>
+        lang.runRead()
+      case Some(ce: CalcEndian) =>
+        ce match {
+          case CalcEndianOne(isLittle) =>
+            lang.runReadCalcOne(isLittle)
+          case CalcEndianTwo(isLittle, isBig) =>
+            lang.runReadCalcTwo(isLittle, isBig)
+        }
+    }
+  }
+
+  def compileEagerRead(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
+    endian match {
+      case None | Some(_: FixedEndian) =>
+        compileSeqProc(seq, extraAttrs, None)
+      case Some(_: CalcEndian) =>
+        compileSeqProc(seq, extraAttrs, Some(LittleEndian))
+        compileSeqProc(seq, extraAttrs, Some(BigEndian))
+    }
+  }
+
+  def compileSeqProc(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]) = {
+    lang.readHeader(defEndian)
+    compileSeq(seq, extraAttrs, defEndian)
+    lang.readFooter()
+  }
+
+  def compileSeq(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]) = {
     var wasUnaligned = false
     seq.foreach { (attr) =>
       val nowUnaligned = isUnalignedBits(attr.dataType)
       if (wasUnaligned && !nowUnaligned)
         lang.alignToByte(lang.normalIO)
-      lang.attrParse(attr, attr.id, extraAttrs)
+      lang.attrParse(attr, attr.id, extraAttrs, defEndian)
       wasUnaligned = nowUnaligned
     }
   }
@@ -118,7 +154,17 @@ class ClassCompiler(
   def compileSubclasses(curClass: ClassSpec): Unit =
     curClass.types.foreach { case (_, intClass) => compileClass(intClass) }
 
-  def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+  def compileInstances(curClass: ClassSpec, extraAttrs: ListBuffer[AttrSpec]) = {
+    val hybridEndian = curClass.meta.endian match {
+      case Some(_: CalcEndian) => true
+      case _ => false
+    }
+    curClass.instances.foreach { case (instName, instSpec) =>
+      compileInstance(curClass.name, instName, instSpec, extraAttrs, hybridEndian)
+    }
+  }
+
+  def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec], hybridEndian: Boolean): Unit = {
     // Determine datatype
     val dataType = instSpec.dataTypeComposite
 
@@ -135,7 +181,7 @@ class ClassCompiler(
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
       case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, extraAttrs)
+        lang.attrParse(i, instName, extraAttrs, None) // FIXME
     }
 
     lang.instanceSetCalculated(instName)

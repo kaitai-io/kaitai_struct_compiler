@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.datatype.DataType.UserTypeFromBytes
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -8,7 +8,7 @@ import io.kaitai.struct.format._
 import scala.collection.mutable.ListBuffer
 
 trait CommonReads extends LanguageCompiler {
-  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]): Unit = {
     attrParseIfHeader(id, attr.cond.ifExpr)
 
     // Manage IO & seeking for ParseInstances
@@ -34,18 +34,18 @@ trait CommonReads extends LanguageCompiler {
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosHeader(id, io, attr.dataType, needRaw(attr.dataType))
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false, defEndian)
         condRepeatEosFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
         condRepeatExprHeader(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false, defEndian)
         condRepeatExprFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
         condRepeatUntilHeader(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false, defEndian)
         condRepeatUntilFooter(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
       case NoRepeat =>
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
+        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false, defEndian)
     }
 
     if (debug)
@@ -62,14 +62,7 @@ trait CommonReads extends LanguageCompiler {
     attrParseIfFooter(attr.cond.ifExpr)
   }
 
-  def attrParse2(
-    id: Identifier,
-    dataType: DataType,
-    io: String,
-    extraAttrs: ListBuffer[AttrSpec],
-    rep: RepeatSpec,
-    isRaw: Boolean
-  ): Unit
+  def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian]): Unit
 
   def needRaw(dataType: DataType): Boolean = {
     dataType match {

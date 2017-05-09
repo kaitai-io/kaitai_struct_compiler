@@ -33,10 +33,10 @@ class GoClassCompiler(
     // Read method
     lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
-    compileSeq(curClass.seq, extraAttrs)
+    compileSeq(curClass.seq, extraAttrs, None) // FIXME
     lang.classConstructorFooter
 
-    curClass.instances.foreach { case (instName, instSpec) => compileInstance(curClass.name, instName, instSpec, extraAttrs) }
+    compileInstances(curClass, extraAttrs)
 
     (curClass.seq ++ extraAttrs).foreach { (attr) =>
       if (!attr.doc.isEmpty)
@@ -49,7 +49,7 @@ class GoClassCompiler(
     // Recursive types
     compileSubclasses(curClass)
   }
-
+/*
   override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
     // Determine datatype
     val dataType = instSpec.dataTypeComposite
@@ -65,11 +65,12 @@ class GoClassCompiler(
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
       case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, extraAttrs)
+        lang.attrParse(i, instName, extraAttrs, None) // FIXME
     }
 
     lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName)
     lang.instanceFooter
   }
+  */
 }

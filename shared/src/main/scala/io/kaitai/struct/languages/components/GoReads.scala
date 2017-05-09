@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.Utils
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{BigEndian, DataType, FixedEndian}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -12,19 +12,12 @@ import scala.collection.mutable.ListBuffer
 trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
   val translator: GoTranslator
 
-  override def attrParse2(
-    id: Identifier,
-    dataType: DataType,
-    io: String,
-    extraAttrs: ListBuffer[AttrSpec],
-    rep: RepeatSpec,
-    isRaw: Boolean
-  ): Unit = {
+  override def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian]): Unit = {
     dataType match {
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
-        attrUserTypeParse(id, t, io, extraAttrs, rep)
+        attrUserTypeParse(id, t, io, extraAttrs, rep, defEndian)
 //      case t: BytesType =>
 //        attrBytesTypeParse(id, t, io, extraAttrs, rep, isRaw)
 //      case SwitchType(on, cases) =>
@@ -37,14 +30,14 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
 //        val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, io))
 //        handleAssignment(id, expr, rep, isRaw)
       case _ =>
-        val expr = parseExpr(dataType, io)
+        val expr = parseExpr(dataType, io, defEndian)
         val r = translator.outVarCheckRes(expr)
         handleAssignment(id, r, rep, isRaw)
     }
   }
 
   def parseExprBytes(dataType: BytesType, io: String): String = {
-    val expr = parseExpr(dataType, io)
+    val expr = parseExpr(dataType, io, None) // FIXME
 /*
     // apply pad stripping and termination
     dataType match {
@@ -58,14 +51,14 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
     expr
   }
 
-  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType.bytes
 
-        attrParse2(rawId, byteType, io, extraAttrs, rep, true)
+        attrParse2(rawId, byteType, io, extraAttrs, rep, true, defEndian)
 
         val extraType = rep match {
           case NoRepeat => byteType
@@ -105,5 +98,5 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
   def handleAssignmentRepeatUntil(id: Identifier, expr: TranslatorResult, isRaw: Boolean): Unit
   def handleAssignmentSimple(id: Identifier, expr: TranslatorResult): Unit
 
-  def parseExpr(dataType: DataType, io: String): String
+  def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String
 }

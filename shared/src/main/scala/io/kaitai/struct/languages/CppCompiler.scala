@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct._
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -432,10 +432,10 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)} = $expr;")
   }
 
-  override def parseExpr(dataType: DataType, io: String): String = {
+  override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io->read_${t.apiCall}()"
+        s"$io->read_${t.apiCall(defEndian)}()"
       case blt: BytesLimitType =>
         s"$io->read_bytes(${expression(blt.size)})"
       case _: BytesEosType =>

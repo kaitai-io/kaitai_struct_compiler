@@ -55,13 +55,15 @@ object Endianness {
     )
   }
 
-  def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String, path: List[String]) = s match {
-    case Some("le") => LittleEndian
-    case Some("be") => BigEndian
+  def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String, path: List[String]): Option[FixedEndian] = s match {
+    case Some("le") => Some(LittleEndian)
+    case Some("be") => Some(BigEndian)
     case None =>
       defaultEndian match {
-        case Some(e) => e
-        case None => throw new YAMLParseException(s"unable to use type '$dt' without default endianness", path ++ List("type"))
+        case Some(e: FixedEndian) => Some(e)
+        case Some(_: CalcEndian) => None // to be overridden during compile
+        case None =>
+          throw new YAMLParseException(s"unable to use type '$dt' without default endianness", path ++ List("type"))
       }
   }
 }

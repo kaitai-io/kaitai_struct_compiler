@@ -109,7 +109,7 @@ object AttrSpec {
     "enum"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults, idx: Int): AttrSpec = {
+  def fromYaml(src: Any, path: List[String], metaDef: MetaSpec, idx: Int): AttrSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     val id = ParseUtils.getOptValueStr(srcMap, "id", path) match {
       case Some(idStr) =>
@@ -124,7 +124,7 @@ object AttrSpec {
     fromYaml(srcMap, path, metaDef, id)
   }
 
-  def fromYaml(srcMap: Map[String, Any], path: List[String], metaDef: MetaDefaults, id: Identifier): AttrSpec = {
+  def fromYaml(srcMap: Map[String, Any], path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
     try {
       fromYaml2(srcMap, path, metaDef, id)
     } catch {
@@ -133,7 +133,7 @@ object AttrSpec {
     }
   }
 
-  def fromYaml2(srcMap: Map[String, Any], path: List[String], metaDef: MetaDefaults, id: Identifier): AttrSpec = {
+  def fromYaml2(srcMap: Map[String, Any], path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
     val doc = DocSpec.fromYaml(srcMap, path)
     val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path))
     // TODO: add proper path propagation
@@ -227,7 +227,7 @@ object AttrSpec {
   private def parseSwitch(
     switchSpec: Map[String, Any],
     path: List[String],
-    metaDef: MetaDefaults,
+    metaDef: MetaSpec,
     arg: YamlAttrArgs
   ): DataType = {
     val _on = ParseUtils.getValueStr(switchSpec, "switch-on", path)

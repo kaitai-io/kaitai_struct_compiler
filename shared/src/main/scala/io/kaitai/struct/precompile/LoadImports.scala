@@ -25,14 +25,10 @@ class LoadImports(specs: ClassSpecs) {
   def processClass(curClass: ClassSpec): Future[List[ClassSpec]] = {
     Log.importOps.info(() => s".. LoadImports: processing class ${curClass.nameAsStr}")
 
-    val thisMetaFuture: Future[List[ClassSpec]] = curClass.meta match {
-      case Some(meta) =>
-        Future.sequence(meta.imports.zipWithIndex.map { case (name, idx) =>
-          loadImport(name, meta.path ++ List("imports", idx.toString), Some(curClass.nameAsStr))
-        }).map((x) => x.flatten)
-      case None =>
-        Future { List() }
-    }
+    val thisMetaFuture: Future[List[ClassSpec]] =
+      Future.sequence(curClass.meta.imports.zipWithIndex.map { case (name, idx) =>
+        loadImport(name, curClass.meta.path ++ List("imports", idx.toString), Some(curClass.nameAsStr))
+      }).map((x) => x.flatten)
 
     val nestedFuture: Future[Iterable[ClassSpec]] = Future.sequence(curClass.types.map({
       case (_, nestedClass) => processClass(nestedClass)

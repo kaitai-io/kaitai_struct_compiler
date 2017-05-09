@@ -2,7 +2,7 @@ package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{BigEndian, DataType, Endianness, FixedEndian}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.BaseTranslator
@@ -21,14 +21,7 @@ trait EveryReadIsExpression
   with SwitchOps {
   val translator: BaseTranslator
 
-  def attrParse2(
-    id: Identifier,
-    dataType: DataType,
-    io: String,
-    extraAttrs: ListBuffer[AttrSpec],
-    rep: RepeatSpec,
-    isRaw: Boolean
-  ): Unit = {
+  def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian]): Unit = {
     if (debug && rep != NoRepeat)
       attrDebugStart(id, dataType, Some(io), rep)
 
@@ -36,19 +29,19 @@ trait EveryReadIsExpression
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
-        attrUserTypeParse(id, t, io, extraAttrs, rep)
+        attrUserTypeParse(id, t, io, extraAttrs, rep, defEndian)
       case t: BytesType =>
         attrBytesTypeParse(id, t, io, extraAttrs, rep, isRaw)
       case SwitchType(on, cases) =>
-        attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep)
+        attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep, defEndian)
       case t: StrFromBytesType =>
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), Ast.expr.Str(t.encoding))
         handleAssignment(id, expr, rep, isRaw)
       case t: EnumType =>
-        val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, io))
+        val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, io, defEndian))
         handleAssignment(id, expr, rep, isRaw)
       case _ =>
-        val expr = parseExpr(dataType, io)
+        val expr = parseExpr(dataType, io, defEndian)
         handleAssignment(id, expr, rep, isRaw)
     }
 
@@ -81,7 +74,7 @@ trait EveryReadIsExpression
   }
 
   def parseExprBytes(dataType: BytesType, io: String): String = {
-    val expr = parseExpr(dataType, io)
+    val expr = parseExpr(dataType, io, None)
 
     // apply pad stripping and termination
     dataType match {
@@ -94,14 +87,14 @@ trait EveryReadIsExpression
     }
   }
 
-  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType.bytes
 
-        attrParse2(rawId, byteType, io, extraAttrs, rep, true)
+        attrParse2(rawId, byteType, io, extraAttrs, rep, true, defEndian)
 
         val extraType = rep match {
           case NoRepeat => byteType
@@ -122,7 +115,7 @@ trait EveryReadIsExpression
         // no fixed buffer, just use regular IO
         io
     }
-    val expr = parseExpr(dataType, newIO)
+    val expr = parseExpr(dataType, newIO, defEndian)
     if (!debug) {
       handleAssignment(id, expr, rep, false)
     } else {
@@ -143,7 +136,15 @@ trait EveryReadIsExpression
     }
   }
 
-  def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, DataType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+  def attrSwitchTypeParse(
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, DataType],
+    io: String,
+    extraAttrs: ListBuffer[AttrSpec],
+    rep: RepeatSpec,
+    defEndian: Option[FixedEndian]
+  ): Unit = {
     switchStart(id, on)
 
     // Pass 1: only normal case clauses
@@ -160,7 +161,7 @@ trait EveryReadIsExpression
           } else {
             switchCaseStart(condition)
           }
-          attrParse2(id, dataType, io, extraAttrs, rep, false)
+          attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian)
           switchCaseEnd()
       }
     }
@@ -173,12 +174,12 @@ trait EveryReadIsExpression
           if (switchBytesOnlyAsRaw) {
             dataType match {
               case t: BytesType =>
-                attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep, false)
+                attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep, false, defEndian)
               case _ =>
-                attrParse2(id, dataType, io, extraAttrs, rep, false)
+                attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian)
             }
           } else {
-            attrParse2(id, dataType, io, extraAttrs, rep, false)
+            attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian)
           }
           switchElseEnd()
         case _ =>
@@ -204,7 +205,7 @@ trait EveryReadIsExpression
   def handleAssignmentSimple(id: Identifier, expr: String): Unit
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
 
-  def parseExpr(dataType: DataType, io: String): String
+  def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String
   def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String
   def userTypeDebugRead(id: String): Unit = {}
 

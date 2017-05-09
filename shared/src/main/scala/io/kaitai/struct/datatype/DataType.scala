@@ -22,7 +22,7 @@ object DataType {
     * parameterless KaitaiStream API call.
     */
   trait ReadableType extends DataType {
-    def apiCall: String
+    def apiCall(defEndian: Option[FixedEndian]): String
   }
 
   abstract class NumericType extends DataType
@@ -31,12 +31,13 @@ object DataType {
   abstract class IntType extends NumericType
   case object CalcIntType extends IntType
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
-    override def apiCall: String = if (signed) "s1" else "u1"
+    override def apiCall(defEndian: Option[FixedEndian]): String = if (signed) "s1" else "u1"
   }
-  case class IntMultiType(signed: Boolean, width: IntWidth, endian: Endianness) extends IntType with ReadableType {
-    override def apiCall: String = {
+  case class IntMultiType(signed: Boolean, width: IntWidth, endian: Option[FixedEndian]) extends IntType with ReadableType {
+    override def apiCall(defEndian: Option[FixedEndian]): String = {
       val ch1 = if (signed) 's' else 'u'
-      s"$ch1${width.width}${endian.toString}"
+      val finalEnd = endian.orElse(defEndian)
+      s"$ch1${width.width}${finalEnd.map(_.toSuffix).getOrElse("")}"
     }
   }
   case object BitsType1 extends BooleanType
@@ -44,9 +45,10 @@ object DataType {
 
   abstract class FloatType extends NumericType
   case object CalcFloatType extends FloatType
-  case class FloatMultiType(width: IntWidth, endian: Endianness) extends FloatType with ReadableType {
-    override def apiCall: String = {
-      s"f${width.width}${endian.toString}"
+  case class FloatMultiType(width: IntWidth, endian: Option[FixedEndian]) extends FloatType with ReadableType {
+    override def apiCall(defEndian: Option[FixedEndian]): String = {
+      val finalEnd = endian.orElse(defEndian)
+      s"f${width.width}${finalEnd.map(_.toSuffix).getOrElse("")}"
     }
   }
 
@@ -91,10 +93,7 @@ object DataType {
     var classSpec: Option[ClassSpec] = None
     def isOpaque = {
       val cs = classSpec.get
-      cs.isTopLevel || (cs.meta match {
-        case None => false
-        case Some(meta) => meta.isOpaque
-      })
+      cs.isTopLevel || cs.meta.isOpaque
     }
   }
   case class UserTypeInstream(_name: List[String], _forcedParent: Option[Ast.expr]) extends UserType(_name, _forcedParent)
@@ -133,7 +132,7 @@ object DataType {
   def fromYaml(
     dto: Option[String],
     path: List[String],
-    metaDef: MetaDefaults,
+    metaDef: MetaSpec,
     arg: YamlAttrArgs
   ): DataType = {
     val r = dto match {
@@ -212,7 +211,7 @@ object DataType {
     }
   }
 
-  def getEncoding(curEncoding: Option[String], metaDef: MetaDefaults, path: List[String]): String = {
+  def getEncoding(curEncoding: Option[String], metaDef: MetaSpec, path: List[String]): String = {
     curEncoding.orElse(metaDef.encoding) match {
       case Some(enc) => enc
       case None =>

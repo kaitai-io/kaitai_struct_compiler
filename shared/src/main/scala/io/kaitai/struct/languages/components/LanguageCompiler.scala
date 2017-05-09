@@ -1,7 +1,8 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.AbstractTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
@@ -12,6 +13,7 @@ abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) {
+
   val translator: AbstractTranslator
 
   /**
@@ -67,11 +69,17 @@ abstract class LanguageCompiler(
   def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {}
   def classDestructorFooter: Unit = {}
 
+  def runRead(): Unit = ???
+  def runReadCalcOne(isLittle: Ast.expr): Unit = ???
+  def runReadCalcTwo(isLittle: Ast.expr, isBig: Ast.expr): Unit = ???
+  def readHeader(endian: Option[FixedEndian]): Unit = ???
+  def readFooter(): Unit = ???
+
   def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
   def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
   def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
-  def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit
+  def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]): Unit
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit

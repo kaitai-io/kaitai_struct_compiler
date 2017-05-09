@@ -14,7 +14,7 @@ case object GenericStructClassSpec extends ClassSpecLike
 case class ClassSpec(
   path: List[String],
   isTopLevel: Boolean,
-  meta: Option[MetaSpec],
+  meta: MetaSpec,
   doc: DocSpec,
   seq: List[AttrSpec],
   types: Map[String, ClassSpec],
@@ -59,25 +59,26 @@ object ClassSpec {
     "enums"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults): ClassSpec = {
+  def fromYaml(src: Any, path: List[String], metaDef: MetaSpec): ClassSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
-    val meta = srcMap.get("meta").map(MetaSpec.fromYaml(_, path ++ List("meta")))
-    val curMetaDef = metaDef.updateWith(meta)
+    val metaPath = path ++ List("meta")
+    val explicitMeta = srcMap.get("meta").map(MetaSpec.fromYaml(_, metaPath)).getOrElse(MetaSpec.emptyWithPath(metaPath))
+    val meta = explicitMeta.fillInDefaults(metaDef)
 
     val doc = DocSpec.fromYaml(srcMap, path)
 
     val seq: List[AttrSpec] = srcMap.get("seq") match {
-      case Some(value) => seqFromYaml(value, path ++ List("seq"), curMetaDef)
+      case Some(value) => seqFromYaml(value, path ++ List("seq"), meta)
       case None => List()
     }
     val types: Map[String, ClassSpec] = srcMap.get("types") match {
-      case Some(value) => typesFromYaml(value, path ++ List("types"), curMetaDef)
+      case Some(value) => typesFromYaml(value, path ++ List("types"), meta)
       case None => Map()
     }
     val instances: Map[InstanceIdentifier, InstanceSpec] = srcMap.get("instances") match {
-      case Some(value) => instancesFromYaml(value, path ++ List("instances"), curMetaDef)
+      case Some(value) => instancesFromYaml(value, path ++ List("instances"), meta)
       case None => Map()
     }
     val enums: Map[String, EnumSpec] = srcMap.get("enums") match {
@@ -89,9 +90,7 @@ object ClassSpec {
 
     // If that's a top-level class, set its name from meta/id
     if (path.isEmpty) {
-      if (meta.isEmpty)
-        throw new YAMLParseException("no `meta` encountered in top-level class spec", path)
-      meta.get.id match {
+      explicitMeta.id match {
         case None =>
           throw new YAMLParseException("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
         case Some(id) =>
@@ -102,7 +101,7 @@ object ClassSpec {
     cs
   }
 
-  def seqFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): List[AttrSpec] = {
+  def seqFromYaml(src: Any, path: List[String], metaDef: MetaSpec): List[AttrSpec] = {
     src match {
       case srcList: List[Any] =>
         srcList.zipWithIndex.map { case (attrSrc, idx) =>
@@ -113,7 +112,7 @@ object ClassSpec {
     }
   }
 
-  def typesFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): Map[String, ClassSpec] = {
+  def typesFromYaml(src: Any, path: List[String], metaDef: MetaSpec): Map[String, ClassSpec] = {
     val srcMap = ParseUtils.asMapStr(src, path)
     srcMap.map { case (typeName, body) =>
       Identifier.checkIdentifierSource(typeName, "type", path ++ List(typeName))
@@ -121,7 +120,7 @@ object ClassSpec {
     }
   }
 
-  def instancesFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): Map[InstanceIdentifier, InstanceSpec] = {
+  def instancesFromYaml(src: Any, path: List[String], metaDef: MetaSpec): Map[InstanceIdentifier, InstanceSpec] = {
     val srcMap = ParseUtils.asMap(src, path)
     srcMap.map { case (key, body) =>
       val instName = ParseUtils.asStr(key, path)
@@ -140,13 +139,13 @@ object ClassSpec {
     }
   }
 
-  def fromYaml(src: Any): ClassSpec = fromYaml(src, List(), MetaDefaults(None, None))
+  def fromYaml(src: Any): ClassSpec = fromYaml(src, List(), MetaSpec.OPAQUE)
 
   def opaquePlaceholder(typeName: List[String]): ClassSpec = {
     val placeholder = ClassSpec(
       List(),
       true,
-      meta = Some(MetaSpec.OPAQUE),
+      meta = MetaSpec.OPAQUE,
       doc = DocSpec.EMPTY,
       seq = List(),
       types = Map(),

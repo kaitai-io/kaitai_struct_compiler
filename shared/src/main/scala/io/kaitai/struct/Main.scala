@@ -32,7 +32,7 @@ object Main {
 
   def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Unit = {
     classSpecs.foreach { case (_, curClass) => MarkupClassNames.markupClassNames(curClass) }
-    val opaqueTypes = topClass.meta.get.opaqueTypes.getOrElse(config.opaqueTypes)
+    val opaqueTypes = topClass.meta.opaqueTypes.getOrElse(config.opaqueTypes)
     new ResolveTypes(classSpecs, opaqueTypes).run()
     classSpecs.foreach { case (_, curClass) => ParentTypes.markup(curClass) }
     new SpecsValueTypeDerive(classSpecs).run()
@@ -71,7 +71,7 @@ object Main {
     * @return updated runtime configuration with applied enforcements
     */
   private def updateConfig(config: RuntimeConfig, topClass: ClassSpec): RuntimeConfig = {
-    if (topClass.meta.get.forceDebug) {
+    if (topClass.meta.forceDebug) {
       config.copy(debug = true)
     } else {
       config

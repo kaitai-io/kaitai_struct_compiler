@@ -33,7 +33,7 @@ object InstanceSpec {
     "if"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults, id: InstanceIdentifier): InstanceSpec = {
+  def fromYaml(src: Any, path: List[String], metaDef: MetaSpec, id: InstanceIdentifier): InstanceSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
 
     ParseUtils.getOptValueStr(srcMap, "value", path).map(Expressions.parse) match {

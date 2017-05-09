@@ -11,9 +11,35 @@ case class MetaSpec(
   forceDebug: Boolean,
   opaqueTypes: Option[Boolean],
   imports: List[String]
-) extends YAMLPath
+) extends YAMLPath {
+  def fillInDefaults(defSpec: MetaSpec): MetaSpec = {
+    fillInEncoding(defSpec.encoding).
+      fillInEndian(defSpec.endian)
+  }
+
+  private
+  def fillInEncoding(defEncoding: Option[String]): MetaSpec = {
+    (defEncoding, encoding) match {
+      case (None, _) => this
+      case (_, Some(_)) => this
+      case (Some(_), None) =>
+        this.copy(encoding = defEncoding)
+    }
+  }
+
+  def fillInEndian(defEndian: Option[Endianness]): MetaSpec = {
+    (defEndian, endian) match {
+      case (None, _) => this
+      case (_, Some(_)) => this
+      case (Some(_), None) =>
+        this.copy(endian = defEndian)
+    }
+  }
+}
 
 object MetaSpec {
+  def emptyWithPath(path: List[String]) = OPAQUE.copy(isOpaque = false, path = path)
+
   val OPAQUE = MetaSpec(
     path = List(),
     isOpaque = true,
