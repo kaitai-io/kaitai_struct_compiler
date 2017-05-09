@@ -29,7 +29,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case Ast.expr.Name(name: Ast.identifier) =>
         doLocalName(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
-        s"${unaryOp(op)}${translate(v)}"
+        s"${unaryOp(op)}(${translate(v)})"
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
