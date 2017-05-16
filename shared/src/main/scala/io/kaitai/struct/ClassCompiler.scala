@@ -142,7 +142,7 @@ class ClassCompiler(
   }
 
   def compileSeqProc(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]) = {
-    lang.readHeader(defEndian)
+    lang.readHeader(defEndian, seq.isEmpty)
     compileSeq(seq, extraAttrs, defEndian)
     lang.readFooter()
   }

@@ -77,12 +77,51 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
-    out.puts("def __init__(self, _io, _parent=None, _root=None):")
+    val endianAdd = if (isHybrid) ", _is_le=None" else ""
+
+    out.puts(s"def __init__(self, _io, _parent=None, _root=None$endianAdd):")
     out.inc
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
     out.puts("self._root = _root if _root else self")
+
+    if (isHybrid)
+      out.puts("self._is_le = _is_le")
   }
+
+  override def runRead(): Unit = {
+    out.puts("self._read()")
+  }
+
+  override def runReadCalc(): Unit = {
+    out.puts
+    out.puts(s"if self._is_le == True:")
+    out.inc
+    out.puts("self._read_le()")
+    out.dec
+    out.puts("elif self._is_le == False:")
+    out.inc
+    out.puts("self._read_be()")
+    out.dec
+    out.puts("else:")
+    out.inc
+    //out.puts(s"raise $kstreamName.UndecidedEndiannessError")
+    out.puts("raise Exception(\"Unable to decide endianness\")")
+    out.dec
+  }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    val suffix = endian match {
+      case Some(e) => s"_${e.toSuffix}"
+      case None => ""
+    }
+    out.puts(s"def _read$suffix(self):")
+    out.inc
+    if (isEmpty)
+      out.puts("pass")
+  }
+
+  override def readFooter() = universalFooter
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
@@ -90,6 +129,17 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents($contents)")
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts("if self._is_le:")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("else:")
+    out.inc
+    beProc()
+    out.dec
+  }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     proc match {
@@ -217,7 +267,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "self"
           }
-          s", $parent, self._root"
+          val addEndian = defEndian match {
+            case Some(_) => ", self._is_le"
+            case _ => ""
+          }
+          s", $parent, self._root$addEndian"
         }
         s"${types2class(t.classSpec.get.name)}($io$addArgs)"
     }

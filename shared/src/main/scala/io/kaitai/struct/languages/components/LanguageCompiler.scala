@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian}
+import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.AbstractTranslator
@@ -70,7 +70,7 @@ abstract class LanguageCompiler(
 
   def runRead(): Unit = ???
   def runReadCalc(): Unit = ???
-  def readHeader(endian: Option[FixedEndian]): Unit = ???
+  def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = ???
   def readFooter(): Unit = ???
 
   def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit

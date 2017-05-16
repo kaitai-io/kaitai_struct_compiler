@@ -123,7 +123,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def readHeader(endian: Option[FixedEndian]): Unit = {
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
     val suffix = endian match {
       case Some(e) => s"_${e.toSuffix}"
       case None => ""
@@ -340,7 +340,6 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "self"
           }
-          out.puts(s"# defEndian = $defEndian")
           val addEndian = defEndian match {
             case Some(_) => ", @_is_le"
             case _ => ""
