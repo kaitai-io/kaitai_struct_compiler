@@ -82,7 +82,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("})();")
   }
 
-  override def classConstructorHeader(name: List[String], parentClassName: DataType, rootClassName: List[String]): Unit = {
+  override def classConstructorHeader(name: List[String], parentClassName: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
     out.puts(s"function ${type2class(name.last)}(_io, _parent, _root) {")
     out.inc
     out.puts("this._io = _io;")

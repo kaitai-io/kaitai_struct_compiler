@@ -1,6 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.datatype.DataType.{KaitaiStreamType, UserTypeInstream}
+import io.kaitai.struct.datatype.InheritedEndian
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.GoCompiler
 
@@ -31,7 +32,7 @@ class GoClassCompiler(
     lang.classFooter(curClass.name)
 
     // Read method
-    lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName)
+    lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName, curClass.meta.endian == Some(InheritedEndian))
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     compileSeq(curClass.seq, extraAttrs, None) // FIXME
     lang.classConstructorFooter

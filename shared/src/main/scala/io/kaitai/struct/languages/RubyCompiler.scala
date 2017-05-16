@@ -68,10 +68,20 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("attr_reader :_debug")
   }
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String): Unit = {
-    out.puts("def initialize(_io, _parent = nil, _root = self)")
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
+    val endianSuffix = if (isHybrid) {
+      ", _is_le = nil"
+    } else {
+      ""
+    }
+    out.puts(s"def initialize(_io, _parent = nil, _root = self$endianSuffix)")
     out.inc
     out.puts("super(_io, _parent, _root)")
+
+    if (isHybrid) {
+      out.puts("@_is_le = _is_le")
+    }
+
     if (debug) {
       out.puts("@_debug = {}")
       out.dec
@@ -330,7 +340,12 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "self"
           }
-          s", $parent, @_root"
+          out.puts(s"# defEndian = $defEndian")
+          val addEndian = defEndian match {
+            case Some(_) => ", @_is_le"
+            case _ => ""
+          }
+          s", $parent, @_root$addEndian"
         }
         s"${type2class(t.name.last)}.new($io$addArgs)"
     }

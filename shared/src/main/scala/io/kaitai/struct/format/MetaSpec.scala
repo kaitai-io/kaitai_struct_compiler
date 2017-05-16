@@ -1,6 +1,6 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.datatype.{CalcEndian, Endianness}
+import io.kaitai.struct.datatype.{CalcEndian, Endianness, InheritedEndian}
 
 case class MetaSpec(
   path: List[String],
@@ -31,6 +31,8 @@ case class MetaSpec(
     (defEndian, endian) match {
       case (None, _) => this
       case (_, Some(_)) => this
+      case (Some(_: CalcEndian), None) =>
+        this.copy(endian = Some(InheritedEndian))
       case (Some(_), None) =>
         this.copy(endian = defEndian)
     }

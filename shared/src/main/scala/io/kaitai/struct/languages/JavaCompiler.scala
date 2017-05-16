@@ -80,7 +80,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String): Unit = {
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
     out.puts
     out.puts(s"public ${type2class(name)}($kstreamName _io) {")
     out.inc

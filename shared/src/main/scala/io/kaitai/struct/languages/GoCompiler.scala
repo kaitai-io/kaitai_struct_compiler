@@ -65,7 +65,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classFooter(name: List[String]): Unit = universalFooter
 
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String]): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
     out.puts
     out.puts(
       s"func (this *${types2class(name)}) Read(" +

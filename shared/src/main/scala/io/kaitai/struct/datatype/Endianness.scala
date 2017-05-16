@@ -18,6 +18,8 @@ case object BigEndian extends FixedEndian {
 
 case class CalcEndian(on: Ast.expr, cases: Map[Ast.expr, FixedEndian]) extends Endianness
 
+case object InheritedEndian extends Endianness
+
 object Endianness {
   def fromYaml(src: Option[Any], path: List[String]): Option[Endianness] = {
     src match {
@@ -57,7 +59,7 @@ object Endianness {
     case None =>
       defaultEndian match {
         case Some(e: FixedEndian) => Some(e)
-        case Some(_: CalcEndian) => None // to be overridden during compile
+        case Some(_: CalcEndian) | Some(InheritedEndian) => None // to be overridden during compile
         case None =>
           throw new YAMLParseException(s"unable to use type '$dt' without default endianness", path ++ List("type"))
       }

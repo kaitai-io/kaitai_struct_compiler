@@ -67,7 +67,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classFooter(name: String): Unit = fileFooter(name)
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String): Unit = {
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
     out.puts
     out.puts(s"public ${type2class(name)}($kstreamName io, ${kaitaiType2NativeType(parentType)} parent = null, ${type2class(rootClassName)} root = null) : base(io)")
     out.puts(s"{")

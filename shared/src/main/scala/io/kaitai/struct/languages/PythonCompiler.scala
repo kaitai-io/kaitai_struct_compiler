@@ -76,7 +76,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String): Unit = {
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
     out.puts("def __init__(self, _io, _parent=None, _root=None):")
     out.inc
     out.puts("self._io = _io")

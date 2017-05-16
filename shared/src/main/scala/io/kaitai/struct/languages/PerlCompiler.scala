@@ -72,7 +72,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classFooter(name: List[String]): Unit = {}
 
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String]): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
     out.puts
     out.puts("sub new {")
     out.inc

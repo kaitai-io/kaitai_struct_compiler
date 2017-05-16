@@ -57,7 +57,7 @@ class ClassCompiler(
     if (lang.debug)
       lang.debugClassSequence(curClass.seq)
 
-    lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName)
+    lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName, curClass.meta.endian.contains(InheritedEndian))
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     compileEagerReadCall(curClass.meta.endian)
     lang.classConstructorFooter
@@ -115,6 +115,8 @@ class ClassCompiler(
       case Some(ce: CalcEndian) =>
         compileCalcEndian(ce)
         lang.runReadCalc()
+      case Some(InheritedEndian) =>
+        lang.runReadCalc()
     }
   }
 
@@ -133,7 +135,7 @@ class ClassCompiler(
     endian match {
       case None | Some(_: FixedEndian) =>
         compileSeqProc(seq, extraAttrs, None)
-      case Some(_: CalcEndian) =>
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
         compileSeqProc(seq, extraAttrs, Some(LittleEndian))
         compileSeqProc(seq, extraAttrs, Some(BigEndian))
     }

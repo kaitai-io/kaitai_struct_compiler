@@ -117,7 +117,7 @@ class CppCompiler(
     outHdr.puts(s"class ${types2class(name)};")
   }
 
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String]): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
     outHdr.puts
     outHdr.puts(s"${types2class(List(name.last))}(" +
       s"$kstreamName* p_io, " +
