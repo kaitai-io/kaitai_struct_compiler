@@ -1,11 +1,11 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.CompileLog.FileSuccess
-import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic, SwitchOps}
+import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 
 import scala.collection.mutable.ListBuffer
 
