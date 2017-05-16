@@ -419,7 +419,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: expr): Unit = {
+  override def instanceCalculate(instName: Identifier, dataType: DataType, value: expr): Unit = {
     val primType = kaitaiType2JavaTypePrim(dataType)
     val boxedType = kaitaiType2JavaTypeBoxed(dataType)
 

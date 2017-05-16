@@ -1,8 +1,7 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.AbstractTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
@@ -12,7 +11,7 @@ import scala.collection.mutable.ListBuffer
 abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
   config: RuntimeConfig
-) {
+) extends SwitchOps {
 
   val translator: AbstractTranslator
 
@@ -70,8 +69,7 @@ abstract class LanguageCompiler(
   def classDestructorFooter: Unit = {}
 
   def runRead(): Unit = ???
-  def runReadCalcOne(isLittle: Ast.expr): Unit = ???
-  def runReadCalcTwo(isLittle: Ast.expr, isBig: Ast.expr): Unit = ???
+  def runReadCalc(): Unit = ???
   def readHeader(endian: Option[FixedEndian]): Unit = ???
   def readFooter(): Unit = ???
 
@@ -79,7 +77,8 @@ abstract class LanguageCompiler(
   def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
   def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
-  def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]): Unit
+  def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[Endianness]): Unit
+  def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = ???
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
@@ -114,7 +113,7 @@ abstract class LanguageCompiler(
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit
   def instanceReturn(instName: InstanceIdentifier): Unit
-  def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr)
+  def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr)
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit
 

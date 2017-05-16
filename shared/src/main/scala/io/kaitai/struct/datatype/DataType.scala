@@ -1,6 +1,6 @@
 package io.kaitai.struct.datatype
 
-import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
@@ -123,6 +123,59 @@ object DataType {
       * Constant that would be used for "else" case in SwitchType case class "cases" map.
       */
     val ELSE_CONST = Ast.expr.Name(Ast.identifier("_"))
+
+    val LEGAL_KEYS_SWITCH = Set(
+      "switch-on",
+      "cases"
+    )
+
+    def fromYaml1(switchSpec: Map[String, Any], path: List[String]): (String, Map[String, String]) = {
+      val _on = ParseUtils.getValueStr(switchSpec, "switch-on", path)
+      val _cases: Map[String, String] = switchSpec.get("cases") match {
+        case None => Map()
+        case Some(x) => ParseUtils.asMapStrStr(x, path ++ List("cases"))
+      }
+
+      ParseUtils.ensureLegalKeys(switchSpec, LEGAL_KEYS_SWITCH, path)
+      (_on, _cases)
+    }
+
+    def fromYaml(
+      switchSpec: Map[String, Any],
+      path: List[String],
+      metaDef: MetaSpec,
+      arg: YamlAttrArgs
+    ): SwitchType = {
+      val (_on, _cases) = fromYaml1(switchSpec, path)
+
+      val on = Expressions.parse(_on)
+      val cases: Map[Ast.expr, DataType] = _cases.map { case (condition, typeName) =>
+        Expressions.parse(condition) -> DataType.fromYaml(
+          Some(typeName), path ++ List("cases"), metaDef,
+          arg
+        )
+      }
+
+      // If we have size defined, and we don't have any "else" case already, add
+      // an implicit "else" case that will at least catch everything else as
+      // "untyped" byte array of given size
+      val addCases: Map[Ast.expr, DataType] = if (cases.contains(ELSE_CONST)) {
+        Map()
+      } else {
+        (arg.size, arg.sizeEos) match {
+          case (Some(sizeValue), false) =>
+            Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, None, false, None, arg.process))
+          case (None, true) =>
+            Map(SwitchType.ELSE_CONST -> BytesEosType(None, false, None, arg.process))
+          case (None, false) =>
+            Map()
+          case (Some(_), true) =>
+            throw new YAMLParseException("can't have both `size` and `size-eos` defined", path)
+        }
+      }
+
+      SwitchType(on, cases ++ addCases)
+    }
   }
 
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r

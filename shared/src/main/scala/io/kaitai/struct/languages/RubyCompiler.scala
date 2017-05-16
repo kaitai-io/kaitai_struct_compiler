@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -96,30 +96,19 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("_read")
   }
 
-  override def runReadCalcOne(isLittle: Ast.expr): Unit = {
-    out.puts(s"if ${expression(isLittle)}")
+  override def runReadCalc(): Unit = {
+    out.puts
+    out.puts(s"if @_is_le == true")
     out.inc
     out.puts("_read_le")
     out.dec
-    out.puts("else")
-    out.inc
-    out.puts("_read_be")
-    out.dec
-    out.puts("end")
-  }
-
-  override def runReadCalcTwo(isLittle: Ast.expr, isBig: Ast.expr) {
-    out.puts(s"if ${expression(isLittle)}")
-    out.inc
-    out.puts("_read_le")
-    out.dec
-    out.puts(s"elsif ${expression(isBig)}")
+    out.puts("elsif @_is_le == false")
     out.inc
     out.puts("_read_be")
     out.dec
     out.puts("else")
     out.inc
-    out.puts("raise \"Unable to choose endianness\"")
+    out.puts("raise Kaitai::Struct::Stream::UndecidedEndiannessError")
     out.dec
     out.puts("end")
   }
@@ -160,6 +149,18 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRef =>
         // do nothing
     }
+  }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts("if @_is_le")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("else")
+    out.inc
+    beProc()
+    out.dec
+    out.puts("end")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =

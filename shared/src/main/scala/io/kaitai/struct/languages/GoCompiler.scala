@@ -332,7 +332,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     })
   }
 
-  override def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr): Unit = {
+  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     val r = translator.translate(value)
     out.puts(s"${privateMemberName(instName)} = ${kaitaiType2NativeType(dataType)}($r)")
   }

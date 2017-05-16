@@ -3,8 +3,9 @@ package io.kaitai.struct
 import io.kaitai.struct.CompileLog.FileSuccess
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
+import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic, SwitchOps}
 
 import scala.collection.mutable.ListBuffer
 
@@ -112,13 +113,20 @@ class ClassCompiler(
       case None | Some(_: FixedEndian) =>
         lang.runRead()
       case Some(ce: CalcEndian) =>
-        ce match {
-          case CalcEndianOne(isLittle) =>
-            lang.runReadCalcOne(isLittle)
-          case CalcEndianTwo(isLittle, isBig) =>
-            lang.runReadCalcTwo(isLittle, isBig)
-        }
+        compileCalcEndian(ce)
+        lang.runReadCalc()
     }
+  }
+
+  val IS_LE_ID = SpecialIdentifier("_is_le")
+
+  def compileCalcEndian(ce: CalcEndian): Unit = {
+    def renderProc(result: FixedEndian): Unit = {
+      val v = Ast.expr.Bool(result == LittleEndian)
+      lang.instanceCalculate(IS_LE_ID, CalcBooleanType, v)
+    }
+
+    lang.switchCases[FixedEndian](IS_LE_ID, ce.on, ce.cases, renderProc, renderProc)
   }
 
   def compileEagerRead(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
@@ -155,16 +163,12 @@ class ClassCompiler(
     curClass.types.foreach { case (_, intClass) => compileClass(intClass) }
 
   def compileInstances(curClass: ClassSpec, extraAttrs: ListBuffer[AttrSpec]) = {
-    val hybridEndian = curClass.meta.endian match {
-      case Some(_: CalcEndian) => true
-      case _ => false
-    }
     curClass.instances.foreach { case (instName, instSpec) =>
-      compileInstance(curClass.name, instName, instSpec, extraAttrs, hybridEndian)
+      compileInstance(curClass.name, instName, instSpec, extraAttrs, curClass.meta.endian)
     }
   }
 
-  def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec], hybridEndian: Boolean): Unit = {
+  def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
     // Determine datatype
     val dataType = instSpec.dataTypeComposite
 
@@ -181,7 +185,7 @@ class ClassCompiler(
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
       case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, extraAttrs, None) // FIXME
+        lang.attrParse(i, instName, extraAttrs, endian)
     }
 
     lang.instanceSetCalculated(instName)

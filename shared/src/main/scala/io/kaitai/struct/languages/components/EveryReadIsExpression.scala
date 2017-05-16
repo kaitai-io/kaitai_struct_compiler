@@ -145,49 +145,19 @@ trait EveryReadIsExpression
     rep: RepeatSpec,
     defEndian: Option[FixedEndian]
   ): Unit = {
-    switchStart(id, on)
-
-    // Pass 1: only normal case clauses
-    var first = true
-
-    cases.foreach { case (condition, dataType) =>
-      condition match {
-        case SwitchType.ELSE_CONST =>
-          // skip for now
-        case _ =>
-          if (first) {
-            switchCaseFirstStart(condition)
-            first = false
-          } else {
-            switchCaseStart(condition)
-          }
-          attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian)
-          switchCaseEnd()
-      }
-    }
-
-    // Pass 2: else clause, if it is there
-    cases.foreach { case (condition, dataType) =>
-      condition match {
-        case SwitchType.ELSE_CONST =>
-          switchElseStart()
-          if (switchBytesOnlyAsRaw) {
-            dataType match {
-              case t: BytesType =>
-                attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep, false, defEndian)
-              case _ =>
-                attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian)
-            }
-          } else {
+    switchCases[DataType](id, on, cases,
+      (dataType) => attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian),
+      (dataType) => if (switchBytesOnlyAsRaw) {
+        dataType match {
+          case t: BytesType =>
+            attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep, false, defEndian)
+          case _ =>
             attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian)
-          }
-          switchElseEnd()
-        case _ =>
-          // ignore normal case clauses
+        }
+      } else {
+        attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian)
       }
-    }
-
-    switchEnd()
+    )
   }
 
   def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
@@ -209,7 +179,7 @@ trait EveryReadIsExpression
   def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String
   def userTypeDebugRead(id: String): Unit = {}
 
-  def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr): Unit = {
+  def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (debug)
       attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))

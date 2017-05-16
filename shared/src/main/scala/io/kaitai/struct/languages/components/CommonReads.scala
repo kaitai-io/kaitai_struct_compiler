@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType.UserTypeFromBytes
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -8,7 +8,7 @@ import io.kaitai.struct.format._
 import scala.collection.mutable.ListBuffer
 
 trait CommonReads extends LanguageCompiler {
-  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]): Unit = {
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[Endianness]): Unit = {
     attrParseIfHeader(id, attr.cond.ifExpr)
 
     // Manage IO & seeking for ParseInstances
@@ -31,6 +31,33 @@ trait CommonReads extends LanguageCompiler {
     if (debug)
       attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
 
+    defEndian match {
+      case Some(_: CalcEndian) =>
+        attrParseHybrid(
+          () => attrParse0(id, attr, io, extraAttrs, Some(LittleEndian)),
+          () => attrParse0(id, attr, io, extraAttrs, Some(BigEndian))
+        )
+      case None =>
+        attrParse0(id, attr, io, extraAttrs, None)
+      case Some(fe: FixedEndian) =>
+        attrParse0(id, attr, io, extraAttrs, Some(fe))
+    }
+
+    if (debug)
+      attrDebugEnd(id, attr.dataType, io, NoRepeat)
+
+    // More position management after parsing for ParseInstanceSpecs
+    attr match {
+      case pis: ParseInstanceSpec =>
+        if (pis.pos.isDefined)
+          popPos(io)
+      case _ => // no seeking required for sequence attributes
+    }
+
+    attrParseIfFooter(attr.cond.ifExpr)
+  }
+
+  def attrParse0(id: Identifier, attr: AttrLikeSpec, io: String, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]): Unit = {
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosHeader(id, io, attr.dataType, needRaw(attr.dataType))
@@ -47,19 +74,6 @@ trait CommonReads extends LanguageCompiler {
       case NoRepeat =>
         attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false, defEndian)
     }
-
-    if (debug)
-      attrDebugEnd(id, attr.dataType, io, NoRepeat)
-
-    // More position management after parsing for ParseInstanceSpecs
-    attr match {
-      case pis: ParseInstanceSpec =>
-        if (pis.pos.isDefined)
-          popPos(io)
-      case _ => // no seeking required for sequence attributes
-    }
-
-    attrParseIfFooter(attr.cond.ifExpr)
   }
 
   def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian]): Unit

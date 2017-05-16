@@ -1,5 +1,6 @@
 package io.kaitai.struct.languages.components
 
+import io.kaitai.struct.datatype.DataType.SwitchType
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
 
@@ -24,4 +25,42 @@ trait SwitchOps {
     * the same variable.
     */
   def switchBytesOnlyAsRaw = false
+
+  def switchCases[T](
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, T],
+    normalCaseProc: (T) => Unit,
+    elseCaseProc: (T) => Unit
+  ): Unit = {
+    switchStart(id, on)
+
+    // Pass 1: only normal case clauses
+    var first = true
+
+    cases.foreach { case (condition, result) =>
+      condition match {
+        case SwitchType.ELSE_CONST =>
+          // skip for now
+        case _ =>
+          if (first) {
+            switchCaseFirstStart(condition)
+            first = false
+          } else {
+            switchCaseStart(condition)
+          }
+          normalCaseProc(result)
+          switchCaseEnd()
+      }
+    }
+
+    // Pass 2: else clause, if it is there
+    cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
+      switchElseStart()
+      elseCaseProc(result)
+      switchElseEnd()
+    }
+
+    switchEnd()
+  }
 }
