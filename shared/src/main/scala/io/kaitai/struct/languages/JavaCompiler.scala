@@ -366,38 +366,98 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String): Unit =
     out.puts(s"$id._read();")
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
-    out.puts(s"switch (${expression(on)}) {")
+  /**
+    * Designates switch mode. If false, we're doing real switch-case for this
+    * attribute. If true, we're doing if-based emulation.
+    */
+  var switchIfs = false
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
-    // Java is very specific about what can be used as "condition" in "case
-    // condition:".
-    val condStr = condition match {
-      case Ast.expr.EnumByLabel(enumName, enumVal) =>
-        // If switch is over a enum, only literal enum values are supported,
-        // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
-        value2Const(enumVal.name)
-      case _ =>
-        expression(condition)
+  val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
+
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    val onType = translator.detectType(on)
+    typeProvider._currentSwitchType = Some(onType)
+
+    // Determine switching mode for this construct based on type
+    switchIfs = onType match {
+      case _: IntType | _: EnumType | _: StrType => false
+      case _ => true
     }
 
-    out.puts(s"case $condStr: {")
-    out.inc
+    if (switchIfs) {
+      out.puts("{")
+      out.inc
+      out.puts(s"${kaitaiType2JavaType(onType)} ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
+    } else {
+      out.puts(s"switch (${expression(on)}) {")
+    }
+  }
+
+  def switchCmpExpr(condition: Ast.expr): String =
+    expression(
+      Ast.expr.Compare(
+        NAME_SWITCH_ON,
+        Ast.cmpop.Eq,
+        condition
+      )
+    )
+
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
+    if (switchIfs) {
+      out.puts(s"if (${switchCmpExpr(condition)}) {")
+      out.inc
+    } else {
+      switchCaseStart(condition)
+    }
+  }
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    if (switchIfs) {
+      out.puts(s"else if (${switchCmpExpr(condition)}) {")
+      out.inc
+    } else {
+      // Java is very specific about what can be used as "condition" in "case
+      // condition:".
+      val condStr = condition match {
+        case Ast.expr.EnumByLabel(_, enumVal) =>
+          // If switch is over a enum, only literal enum values are supported,
+          // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
+          value2Const(enumVal.name)
+        case _ =>
+          expression(condition)
+      }
+
+      out.puts(s"case $condStr: {")
+      out.inc
+    }
   }
 
   override def switchCaseEnd(): Unit = {
-    out.puts("break;")
-    out.dec
-    out.puts("}")
+    if (switchIfs) {
+      out.dec
+      out.puts("}")
+    } else {
+      out.puts("break;")
+      out.dec
+      out.puts("}")
+    }
   }
 
   override def switchElseStart(): Unit = {
-    out.puts("default: {")
-    out.inc
+    if (switchIfs) {
+      out.puts("else {")
+      out.inc
+    } else {
+      out.puts("default: {")
+      out.inc
+    }
   }
 
-  override def switchEnd(): Unit =
+  override def switchEnd(): Unit = {
+    if (switchIfs)
+      out.dec
     out.puts("}")
+  }
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")

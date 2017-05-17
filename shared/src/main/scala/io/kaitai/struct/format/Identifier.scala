@@ -60,6 +60,7 @@ object Identifier {
   val IO = "_io"
   val ITERATOR = "_"
   val ITERATOR2 = "_buf"
+  val SWITCH_ON = "_on"
 }
 
 case class RawIdentifier(innerId: Identifier) extends Identifier
