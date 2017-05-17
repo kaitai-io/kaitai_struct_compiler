@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
@@ -68,22 +68,60 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classFooter(name: List[String]): Unit = universalFooter
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
-    out.puts
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        out.puts("protected $_m__is_le;")
+        out.puts
+      case None =>
+        // no _is_le variable
+    }
+
+    val endianAdd = if (isHybrid) ", $is_le = null" else ""
+
     out.puts(
       "public function __construct(" +
       kstreamName + " $io, " +
       kaitaiType2NativeType(parentType) + " $parent = null, " +
-      translator.types2classAbs(rootClassName) + " $root = null) {"
+      translator.types2classAbs(rootClassName) + " $root = null" + endianAdd + ") {"
     )
     out.inc
     out.puts("parent::__construct($io, $parent, $root);")
-    out.puts("$this->_parse();")
+
+    if (isHybrid)
+      handleAssignmentSimple(EndianIdentifier, "$is_le")
+  }
+
+  override def runRead(): Unit =
+    out.puts("$this->_read();")
+
+  override def runReadCalc(): Unit = {
+    out.puts
+    out.puts("if (is_null($this->_m__is_le)) {")
+    out.inc
+    out.puts("throw new \\RuntimeException(\"Unable to decide on endianness\");")
+    out.dec
+    out.puts("} else if ($this->_m__is_le) {")
+    out.inc
+    out.puts("$this->_readLE();")
+    out.dec
+    out.puts("} else {")
+    out.inc
+    out.puts("$this->_readBE();")
     out.dec
     out.puts("}")
+  }
 
-    out.puts("private function _parse() {")
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
+    val suffix = endian match {
+      case Some(e) => s"${e.toSuffix.toUpperCase}"
+      case None => ""
+    }
+    out.puts
+    out.puts(s"private function _read$suffix() {")
     out.inc
   }
+
+  override def readFooter(): Unit = universalFooter
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     attrName match {
@@ -108,6 +146,18 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts( "/**")
     doc.summary.foreach((summary) => out.putsLines(" * ", summary))
     out.puts( " */")
+  }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts("if ($this->_m__is_le) {")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("} else {")
+    out.inc
+    beProc()
+    out.dec
+    out.puts("}")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
@@ -243,7 +293,11 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "$this"
           }
-          s", $parent, ${privateMemberName(RootIdentifier)}"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
+            case _ => ""
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
         s"new ${translator.types2classAbs(t.classSpec.get.name)}($io$addArgs)"
     }
