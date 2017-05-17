@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -267,8 +267,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "self"
           }
-          val addEndian = defEndian match {
-            case Some(_) => ", self._is_le"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => ", self._is_le"
             case _ => ""
           }
           s", $parent, self._root$addEndian"

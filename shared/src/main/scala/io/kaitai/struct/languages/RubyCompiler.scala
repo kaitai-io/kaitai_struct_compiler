@@ -340,8 +340,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "self"
           }
-          val addEndian = defEndian match {
-            case Some(_) => ", @_is_le"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => ", @_is_le"
             case _ => ""
           }
           s", $parent, @_root$addEndian"
