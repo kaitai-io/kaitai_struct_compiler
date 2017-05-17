@@ -4,6 +4,7 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaScriptCompiler
 
 class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -21,6 +22,7 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def doLocalName(s: String) = {
     s match {
       case "_" => s
+      case Identifier.SWITCH_ON => "on"
       case _ => s"this.${doName(s)}"
     }
   }
