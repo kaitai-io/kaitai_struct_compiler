@@ -94,7 +94,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"(long) (${translate(v)})"
   override def intToStr(i: expr, base: expr): String = {
     importList.add("System")
-    s"Convert.ToString(${translate(i)}, ${translate(base)})"
+    s"Convert.ToString((long) (${translate(i)}), ${translate(base)})"
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"System.Text.Encoding.GetEncoding(${translate(encoding)}).GetString($bytesExpr)"
