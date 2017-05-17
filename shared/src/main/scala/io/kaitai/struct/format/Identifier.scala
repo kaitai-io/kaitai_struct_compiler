@@ -61,6 +61,7 @@ object Identifier {
   val ITERATOR = "_"
   val ITERATOR2 = "_buf"
   val SWITCH_ON = "_on"
+  val IS_LE = "_is_le"
 }
 
 case class RawIdentifier(innerId: Identifier) extends Identifier
@@ -76,3 +77,4 @@ case class SpecialIdentifier(name: String) extends Identifier
 object RootIdentifier extends SpecialIdentifier(Identifier.ROOT)
 object ParentIdentifier extends SpecialIdentifier(Identifier.PARENT)
 object IoIdentifier extends SpecialIdentifier(Identifier.IO)
+object EndianIdentifier extends SpecialIdentifier(Identifier.IS_LE)

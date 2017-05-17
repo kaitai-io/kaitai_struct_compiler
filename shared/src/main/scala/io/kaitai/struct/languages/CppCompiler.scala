@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct._
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -118,18 +118,24 @@ class CppCompiler(
   }
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
+    val (endianSuffixHdr, endianSuffixSrc)  = if (isHybrid) {
+      (", int p_is_le = -1", ", int p_is_le")
+    } else {
+      ("", "")
+    }
+
     outHdr.puts
     outHdr.puts(s"${types2class(List(name.last))}(" +
       s"$kstreamName* p_io, " +
       s"${kaitaiType2NativeType(parentType)} p_parent = 0, " +
-      s"${types2class(rootClassName)}* p_root = 0);"
+      s"${types2class(rootClassName)}* p_root = 0$endianSuffixHdr);"
     )
 
     outSrc.puts
     outSrc.puts(s"${types2class(name)}::${types2class(List(name.last))}(" +
       s"$kstreamName *p_io, " +
       s"${kaitaiType2NativeType(parentType)} p_parent, " +
-      s"${types2class(rootClassName)} *p_root) : $kstructName(p_io) {"
+      s"${types2class(rootClassName)} *p_root$endianSuffixSrc) : $kstructName(p_io) {"
     )
     outSrc.inc
     handleAssignmentSimple(ParentIdentifier, "p_parent")
@@ -138,6 +144,16 @@ class CppCompiler(
     } else {
       "p_root"
     })
+
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        ensureMode(PrivateAccess)
+        outHdr.puts("int m__is_le;")
+        handleAssignmentSimple(EndianIdentifier, if (isHybrid) "p_is_le" else "-1")
+        ensureMode(PublicAccess)
+      case None =>
+        // no _is_le variable
+    }
   }
 
   override def classConstructorFooter: Unit = {
@@ -154,6 +170,43 @@ class CppCompiler(
   }
 
   override def classDestructorFooter = classConstructorFooter
+
+  override def runRead(): Unit = {
+    outSrc.puts("_read();")
+  }
+
+  override def runReadCalc(): Unit = {
+    outSrc.puts
+    outSrc.puts("if (m__is_le == -1) {")
+    outSrc.inc
+    outSrc.puts("throw std::runtime_error(\"unable to decide on endianness\");")
+    outSrc.dec
+    outSrc.puts("} else if (m__is_le == 1) {")
+    outSrc.inc
+    outSrc.puts("_read_le();")
+    outSrc.dec
+    outSrc.puts("} else {")
+    outSrc.inc
+    outSrc.puts("_read_be();")
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    val suffix = endian match {
+      case Some(e) => s"_${e.toSuffix}"
+      case None => ""
+    }
+    outHdr.puts(s"void _read$suffix();")
+    outSrc.puts
+    outSrc.puts(s"void ${types2class(typeProvider.nowClass.name)}::_read$suffix() {")
+    outSrc.inc
+  }
+
+  override def readFooter(): Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     ensureMode(PrivateAccess)
@@ -272,6 +325,18 @@ class CppCompiler(
       outSrc.dec
       outSrc.puts("}")
     }
+  }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    outSrc.puts("if (m__is_le == 1) {")
+    outSrc.inc
+    leProc()
+    outSrc.dec
+    outSrc.puts("} else {")
+    outSrc.inc
+    beProc()
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
@@ -455,7 +520,11 @@ class CppCompiler(
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
-          s", $parent, ${privateMemberName(RootIdentifier)}"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => ", m__is_le"
+            case _ => ""
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
         s"new ${types2class(t.name)}($io$addArgs)"
     }
