@@ -329,26 +329,86 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$id._read();")
   }
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
-    out.puts(s"switch (${expression(on)}) {")
+  /**
+    * Designates switch mode. If false, we're doing real switch-case for this
+    * attribute. If true, we're doing if-based emulation.
+    */
+  var switchIfs = false
+
+  val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
+
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    val onType = translator.detectType(on)
+    typeProvider._currentSwitchType = Some(onType)
+
+    // Determine switching mode for this construct based on type
+    switchIfs = onType match {
+      case _: IntType | _: BooleanType | _: EnumType | _: StrType => false
+      case _ => true
+    }
+
+    if (switchIfs) {
+      out.puts("{")
+      out.inc
+      out.puts(s"var ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
+    } else {
+      out.puts(s"switch (${expression(on)}) {")
+    }
+  }
+
+  def switchCmpExpr(condition: Ast.expr): String =
+    expression(
+      Ast.expr.Compare(
+        NAME_SWITCH_ON,
+        Ast.cmpop.Eq,
+        condition
+      )
+    )
+
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
+    if (switchIfs) {
+      out.puts(s"if (${switchCmpExpr(condition)}) {")
+      out.inc
+    } else {
+      switchCaseStart(condition)
+    }
+  }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"case ${expression(condition)}:")
-    out.inc
+    if (switchIfs) {
+      out.puts(s"else if (${switchCmpExpr(condition)}) {")
+      out.inc
+    } else {
+      out.puts(s"case ${expression(condition)}:")
+      out.inc
+    }
   }
 
   override def switchCaseEnd(): Unit = {
-    out.puts("break;")
-    out.dec
+    if (switchIfs) {
+      out.dec
+      out.puts("}")
+    } else {
+      out.puts("break;")
+      out.dec
+    }
   }
 
   override def switchElseStart(): Unit = {
-    out.puts("default:")
-    out.inc
+    if (switchIfs) {
+      out.puts("else {")
+      out.inc
+    } else {
+      out.puts("default:")
+      out.inc
+    }
   }
 
-  override def switchEnd(): Unit =
+  override def switchEnd(): Unit = {
+    if (switchIfs)
+      out.dec
     out.puts("}")
+  }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"Object.defineProperty(${type2class(className.last)}.prototype, '${publicMemberName(instName)}', {")
