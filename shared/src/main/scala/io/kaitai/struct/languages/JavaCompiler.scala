@@ -1,13 +1,13 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{JavaTranslator, TypeDetector, TypeProvider}
-import io.kaitai.struct._
+import io.kaitai.struct.translators.{JavaTranslator, TypeDetector}
 
 class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -81,6 +81,13 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        out.puts("private Boolean _is_le;")
+      case None =>
+        // no _is_le variable
+    }
+
     out.puts
     out.puts(s"public ${type2class(name)}($kstreamName _io) {")
     out.inc
@@ -88,7 +95,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (name == rootClassName)
       out.puts("this._root = this;")
     if (!debug)
-      out.puts("_read();")
+      out.puts("_init();")
     out.dec
     out.puts("}")
 
@@ -100,7 +107,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (name == rootClassName)
       out.puts("this._root = this;")
     if (!debug)
-      out.puts("_read();")
+      out.puts("_init();")
     out.dec
     out.puts("}")
 
@@ -111,7 +118,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root;")
     if (!debug)
-      out.puts("_read();")
+      out.puts("_init();")
     out.dec
     out.puts("}")
 
@@ -120,13 +127,46 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       "private"
     }
-    out.puts(s"$readAccessAndType void _read() {")
+    out.puts
+    out.puts(s"$readAccessAndType void _init() {")
     out.inc
   }
 
-  override def classConstructorFooter: Unit = {
-    universalFooter
+  override def runRead(): Unit =
+    out.puts("_read();")
+
+  override def runReadCalc(): Unit = {
+    out.puts
+    out.puts(s"if (_is_le == true) {")
+    out.inc
+    out.puts("_readLE();")
+    out.dec
+    out.puts("} else if (_is_le == false) {")
+    out.inc
+    out.puts("_readBE();")
+    out.dec
+    out.puts("} else {")
+    out.inc
+    out.puts(s"throw new $kstreamName.UndecidedEndiannessError();")
+    out.dec
+    out.puts("}")
   }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
+    val readAccessAndType = if (debug) {
+      "public"
+    } else {
+      "private"
+    }
+    val suffix = endian match {
+      case Some(e) => s"${e.toSuffix.toUpperCase}"
+      case None => ""
+    }
+    out.puts(s"$readAccessAndType void _read$suffix() {")
+    out.inc
+  }
+
+  override def readFooter(): Unit = universalFooter
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2JavaType(attrType, condSpec)} ${idToStr(attrName)};")
