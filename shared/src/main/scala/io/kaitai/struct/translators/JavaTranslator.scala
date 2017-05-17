@@ -41,6 +41,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
       case Identifier.IO => "_io()"
       case Identifier.ITERATOR => "_it"
       case Identifier.ITERATOR2 => "_buf"
+      case Identifier.SWITCH_ON => "on"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 

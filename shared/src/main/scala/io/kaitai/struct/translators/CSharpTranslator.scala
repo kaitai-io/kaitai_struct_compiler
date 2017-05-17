@@ -5,6 +5,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CSharpCompiler
 
 class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
@@ -43,10 +44,14 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   }
 
   override def doName(s: String) =
-    if (s.startsWith("_"))
-      s"M${Utils.upperCamelCase(s)}"
-    else
+    if (s.startsWith("_")) {
+      s match {
+        case Identifier.SWITCH_ON => "on"
+        case _ => s"M${Utils.upperCamelCase(s)}"
+      }
+    } else {
       s"${Utils.upperCamelCase(s)}"
+    }
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${enumClass(enumTypeAbs)}.${Utils.upperCamelCase(label)}"
@@ -89,7 +94,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"(long) (${translate(v)})"
   override def intToStr(i: expr, base: expr): String = {
     importList.add("System")
-    s"Convert.ToString(${translate(i)}, ${translate(base)})"
+    s"Convert.ToString((long) (${translate(i)}), ${translate(base)})"
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"System.Text.Encoding.GetEncoding(${translate(encoding)}).GetString($bytesExpr)"
