@@ -2,7 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.{RepeatUntil, _}
@@ -68,8 +68,17 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classFooter(name: String): Unit = fileFooter(name)
 
   override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        out.puts(s"private bool? ${privateMemberName(EndianIdentifier)};")
+      case None =>
+        // no _is_le variable
+    }
+
+    val addEndian = if (isHybrid) ", bool? isLe = null" else ""
+
     out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName io, ${kaitaiType2NativeType(parentType)} parent = null, ${type2class(rootClassName)} root = null) : base(io)")
+    out.puts(s"public ${type2class(name)}($kstreamName io, ${kaitaiType2NativeType(parentType)} parent = null, ${type2class(rootClassName)} root = null$addEndian) : base(io)")
     out.puts(s"{")
     out.inc
     out.puts(s"${privateMemberName(ParentIdentifier)} = parent;")
@@ -79,17 +88,51 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     else
       out.puts(s"${privateMemberName(RootIdentifier)} = root;")
 
-    out.puts("_parse();")
-    out.dec
-    out.puts("}")
-    out.puts
-
-    out.puts("private void _parse()")
-    out.puts("{")
-    out.inc
+    if (isHybrid)
+      handleAssignmentSimple(EndianIdentifier, "isLe")
   }
 
   override def classConstructorFooter: Unit = fileFooter(null)
+
+  override def runRead(): Unit =
+    out.puts("_read();")
+
+  override def runReadCalc(): Unit = {
+    out.puts
+    out.puts(s"if (${privateMemberName(EndianIdentifier)} == null) {")
+    out.inc
+    out.puts("throw new Exception(\"Unable to decide on endianness\");")
+    importList.add("System")
+    out.dec
+    out.puts(s"} else if (${privateMemberName(EndianIdentifier)} == true) {")
+    out.inc
+    out.puts("_readLE();")
+    out.dec
+    out.puts("} else {")
+    out.inc
+    out.puts("_readBE();")
+    out.dec
+    out.puts("}")
+  }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
+    val readAccessAndType = if (debug) {
+      "public"
+    } else {
+      "private"
+    }
+    val suffix = endian match {
+      case Some(e) => s"${e.toSuffix.toUpperCase}"
+      case None => ""
+    }
+    out.puts(s"$readAccessAndType void _read$suffix() {")
+    out.inc
+  }
+
+  override def readFooter(): Unit = {
+    out.puts("}")
+    out.dec
+  }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
@@ -118,6 +161,18 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.putsLines("/// ", s"Reference: $refStr")
       out.puts("/// </remarks>")
     }
+  }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts(s"if (${privateMemberName(EndianIdentifier)} == true) {")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("} else {")
+    out.inc
+    beProc()
+    out.dec
+    out.puts("}")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
@@ -279,7 +334,11 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
-          s", $parent, ${privateMemberName(RootIdentifier)}"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
+            case _ => ""
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
         s"new ${types2class(t.name)}($io$addArgs)"
     }
