@@ -122,6 +122,20 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
 
+    if (isHybrid) {
+      out.puts
+      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root, boolean _is_le) {")
+      out.inc
+      out.puts("super(_io);")
+      out.puts("this._parent = _parent;")
+      out.puts("this._root = _root;")
+      out.puts("this._is_le = _is_le;")
+      if (!debug)
+        out.puts("_init();")
+      out.dec
+      out.puts("}")
+    }
+
     val readAccessAndType = if (debug) {
       "public"
     } else {
@@ -137,17 +151,17 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def runReadCalc(): Unit = {
     out.puts
-    out.puts(s"if (_is_le == true) {")
+    out.puts("if (_is_le == null) {")
+    out.inc
+    out.puts(s"throw new $kstreamName.UndecidedEndiannessError();")
+    out.dec
+    out.puts("} else if (_is_le) {")
     out.inc
     out.puts("_readLE();")
     out.dec
-    out.puts("} else if (_is_le == false) {")
-    out.inc
-    out.puts("_readBE();")
-    out.dec
     out.puts("} else {")
     out.inc
-    out.puts(s"throw new $kstreamName.UndecidedEndiannessError();")
+    out.puts("_readBE();")
     out.dec
     out.puts("}")
   }
@@ -192,6 +206,18 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     out.puts( " */")
+  }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts("if (_is_le) {")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("} else {")
+    out.inc
+    beProc()
+    out.dec
+    out.puts("}")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
@@ -385,7 +411,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
-          s", $parent, _root"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => ", _is_le"
+            case _ => ""
+          }
+          s", $parent, _root$addEndian"
         }
         s"new ${types2class(t.name)}($io$addArgs)"
     }
