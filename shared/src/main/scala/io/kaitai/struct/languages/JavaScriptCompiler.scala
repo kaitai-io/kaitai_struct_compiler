@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -83,11 +83,21 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classConstructorHeader(name: List[String], parentClassName: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
-    out.puts(s"function ${type2class(name.last)}(_io, _parent, _root) {")
+    val endianSuffix = if (isHybrid) {
+      ", _is_le"
+    } else {
+      ""
+    }
+
+    out.puts(s"function ${type2class(name.last)}(_io, _parent, _root$endianSuffix) {")
     out.inc
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root || this;")
+
+    if (isHybrid)
+      out.puts("this._is_le = _is_le;")
+
     if (debug) {
       out.puts("this._debug = {};")
       out.dec
@@ -164,7 +174,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
-    out.puts("if (this.is_le) {")
+    out.puts("if (this._is_le) {")
     out.inc
     leProc()
     out.dec
@@ -356,7 +366,11 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.readBitsInt($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) "" else ", this, this._root"
-        s"new ${type2class(t.name.last)}($io$addArgs)"
+        val addEndian = t.classSpec.get.meta.endian match {
+          case Some(InheritedEndian) => ", this._is_le"
+          case _ => ""
+        }
+        s"new ${type2class(t.name.last)}($io$addArgs$addEndian)"
     }
   }
 
