@@ -48,6 +48,34 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("0b1010_1_010") should be (IntNum(0xaa))
     }
 
+    it("parses simple float") {
+      Expressions.parse("1.2345") should be (FloatNum(1.2345))
+    }
+
+    it("parses float with positive exponent") {
+      Expressions.parse("123e4") should be (FloatNum(123e4))
+    }
+
+    it("parses float with positive exponent with plus sign") {
+      Expressions.parse("123e+4") should be (FloatNum(123e4))
+    }
+
+    it("parses float with negative exponent") {
+      Expressions.parse("123e-7") should be (FloatNum(123e-7))
+    }
+
+    it("parses float + non-integral part with positive exponent") {
+      Expressions.parse("1.2345e7") should be (FloatNum(1.2345e7))
+    }
+
+    it("parses float + non-integral part with positive exponent with plus sign") {
+      Expressions.parse("123.45e+7") should be (FloatNum(123.45e7))
+    }
+
+    it("parses float + non-integral part with negative exponent") {
+      Expressions.parse("123.45e-7") should be (FloatNum(123.45e-7))
+    }
+
     it("parses 1 + 2") {
       Expressions.parse("1 + 2") should be (BinOp(IntNum(1), Add, IntNum(2)))
     }
