@@ -80,9 +80,9 @@ object Lexical {
   val bindigit: P0 = P( "0" | "1" | "_" )
   val hexdigit: P0 = P( digit | CharIn('a' to 'f', 'A' to 'F') | "_" )
 
-  val floatnumber: P[BigDecimal] = P( pointfloat | exponentfloat )
+  val floatnumber: P[BigDecimal] = P( exponentfloat | pointfloat )
   val pointfloat: P[BigDecimal] = P( intpart.? ~ fraction | intpart ~ "." ).!.map(BigDecimal(_))
-  val exponentfloat: P[BigDecimal] = P( (intpart | pointfloat) ~ exponent ).!.map(BigDecimal(_))
+  val exponentfloat: P[BigDecimal] = P( (pointfloat | intpart) ~ exponent ).!.map(BigDecimal(_))
   val intpart: P[BigDecimal] = P( digit.rep(1) ).!.map(BigDecimal(_))
   val fraction: P0 = P( "." ~ digit.rep(1) )
   val exponent: P0 = P( ("e" | "E") ~ ("+" | "-").? ~ digit.rep(1) )
