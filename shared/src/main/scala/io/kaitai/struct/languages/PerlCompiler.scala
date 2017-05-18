@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -73,15 +73,21 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classFooter(name: List[String]): Unit = {}
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
+    val endianSuffix = if (isHybrid) ", $_is_le" else ""
+
     out.puts
     out.puts("sub new {")
     out.inc
-    out.puts("my ($class, $_io, $_parent, $_root) = @_;")
+    out.puts("my ($class, $_io, $_parent, $_root" + endianSuffix + ") = @_;")
     out.puts(s"my $$self = $kstructName->new($$_io);")
     out.puts
     out.puts("bless $self, $class;")
-    out.puts(s"${privateMemberName(ParentIdentifier)} = $$_parent;")
-    out.puts(s"${privateMemberName(RootIdentifier)} = $$_root || $$self;")
+    handleAssignmentSimple(ParentIdentifier, "$_parent")
+    handleAssignmentSimple(RootIdentifier, "$_root || $self;")
+
+    if (isHybrid)
+      handleAssignmentSimple(EndianIdentifier, "$_is_le")
+
     out.puts
   }
 
@@ -90,6 +96,41 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("return $self;")
     universalFooter
   }
+
+  override def runRead(): Unit =
+    out.puts("$self->_read();")
+
+  override def runReadCalc(): Unit = {
+    val isLe = privateMemberName(EndianIdentifier)
+
+    out.puts(s"if (!(defined $isLe)) {")
+    out.inc
+    out.puts("die \"Unable to decide on endianness\";")
+    out.dec
+    out.puts(s"} elsif ($isLe) {")
+    out.inc
+    out.puts("$self->_read_le();")
+    out.dec
+    out.puts("} else {")
+    out.inc
+    out.puts("$self->_read_be();")
+    out.dec
+    out.puts("}")
+  }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    val suffix = endian match {
+      case Some(e) => s"_${e.toSuffix}"
+      case None => ""
+    }
+    out.puts
+    out.puts(s"sub _read$suffix {")
+    out.inc
+    out.puts("my ($self) = @_;")
+    out.puts
+  }
+
+  override def readFooter(): Unit = universalFooter
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
@@ -107,6 +148,18 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
         universalFooter
     }
+  }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts(s"if (${privateMemberName(EndianIdentifier)}) {")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("} else {")
+    out.inc
+    beProc()
+    out.dec
+    out.puts("}")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
@@ -248,7 +301,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "$self"
           }
-          s", $parent, ${privateMemberName(RootIdentifier)}"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
+            case _ => ""
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
         s"${types2class(t.classSpec.get.name)}->new($io$addArgs)"
     }
