@@ -68,17 +68,17 @@ abstract class LanguageCompiler(
   def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {}
   def classDestructorFooter: Unit = {}
 
-  def runRead(): Unit = ???
-  def runReadCalc(): Unit = ???
-  def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = ???
-  def readFooter(): Unit = ???
+  def runRead(): Unit
+  def runReadCalc(): Unit
+  def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit
+  def readFooter(): Unit
 
   def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
   def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
   def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[Endianness]): Unit
-  def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = ???
+  def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit

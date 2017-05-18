@@ -85,6 +85,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
+  override def runRead(): Unit = ???
+  override def runReadCalc(): Unit = ???
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = ???
+  override def readFooter(): Unit = ???
+
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
     out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
     translator.returnRes = None
@@ -109,6 +114,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts( " */")
   }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = ???
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
     out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents($contents);")
