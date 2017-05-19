@@ -32,7 +32,7 @@ trait CommonReads extends LanguageCompiler {
       attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
 
     defEndian match {
-      case Some(_: CalcEndian) =>
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
         attrParseHybrid(
           () => attrParse0(id, attr, io, extraAttrs, Some(LittleEndian)),
           () => attrParse0(id, attr, io, extraAttrs, Some(BigEndian))
