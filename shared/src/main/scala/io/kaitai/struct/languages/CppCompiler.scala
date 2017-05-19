@@ -1,13 +1,13 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{CppTranslator, TypeDetector, TypeProvider}
+import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
 
 class CppCompiler(
   typeProvider: ClassTypeProvider,
