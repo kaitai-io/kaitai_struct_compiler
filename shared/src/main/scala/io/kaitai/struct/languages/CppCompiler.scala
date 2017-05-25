@@ -151,7 +151,7 @@ class CppCompiler(
         outHdr.puts("int m__is_le;")
         handleAssignmentSimple(EndianIdentifier, if (isHybrid) "p_is_le" else "-1")
         ensureMode(PublicAccess)
-      case None =>
+      case _ =>
         // no _is_le variable
     }
   }

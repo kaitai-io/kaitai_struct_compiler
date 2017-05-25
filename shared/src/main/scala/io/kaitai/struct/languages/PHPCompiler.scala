@@ -72,7 +72,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
         out.puts("protected $_m__is_le;")
         out.puts
-      case None =>
+      case _ =>
         // no _is_le variable
     }
 

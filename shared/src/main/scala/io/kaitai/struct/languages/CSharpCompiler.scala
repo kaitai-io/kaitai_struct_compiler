@@ -71,7 +71,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
         out.puts(s"private bool? ${privateMemberName(EndianIdentifier)};")
-      case None =>
+      case _ =>
         // no _is_le variable
     }
 
