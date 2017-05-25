@@ -28,8 +28,13 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         doLocalName(name.name)
-      case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
-        s"${unaryOp(op)}(${translate(v)})"
+      case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
+        unaryOp(op) + (inner match {
+          case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
+            translate(inner)
+          case _ =>
+            s"(${translate(inner)})"
+        })
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>

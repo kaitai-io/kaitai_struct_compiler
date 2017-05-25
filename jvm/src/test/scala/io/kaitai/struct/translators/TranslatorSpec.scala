@@ -64,7 +64,7 @@ class TranslatorSpec extends FunSuite {
   ))
 
   everybody("~777", "~777")
-  everybody("~(7+3)", "~(7 + 3)")
+  everybody("~(7+3)", "~((7 + 3))")
 
   // Simple float operations
   everybody("1.2 + 3.4", "(1.2 + 3.4)", CalcFloatType)
