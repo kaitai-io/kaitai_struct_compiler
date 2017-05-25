@@ -179,6 +179,7 @@ class CppCompiler(
     outSrc.puts
     outSrc.puts("if (m__is_le == -1) {")
     outSrc.inc
+    importListSrc.add("stdexcept")
     outSrc.puts("throw std::runtime_error(\"unable to decide on endianness\");")
     outSrc.dec
     outSrc.puts("} else if (m__is_le == 1) {")
