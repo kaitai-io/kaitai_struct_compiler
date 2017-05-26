@@ -36,8 +36,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.toList.mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"# $headerComment")
-    out.puts
+    outHeader.puts(s"# $headerComment")
+    outHeader.puts
 
     importList.add("from pkg_resources import parse_version")
     importList.add(s"from kaitaistruct import __version__ as ks_version, $kstructName, $kstreamName, BytesIO")
