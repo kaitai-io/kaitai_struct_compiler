@@ -40,6 +40,17 @@ abstract class LanguageCompiler(
     */
   def innerEnums: Boolean = true
 
+  /**
+    * Determines whether the language needs docstrings to be generated
+    * inside classes and methods (true, Python-style) or outside them
+    * (false, JavaDoc-style, majority of other languages). Affects calling
+    * sequence of rendering methods.
+    *
+    * @return true if language needs docstrings to be generated
+    * inside classes and methods, false otherwise
+    */
+  def innerDocstrings: Boolean = false
+
   def debug = config.debug
 
   def indent: String

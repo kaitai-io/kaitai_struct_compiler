@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.PythonTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter}
 
 class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -18,11 +18,14 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with EveryReadIsExpression
     with AllocateIOLocalVar
     with FixedContentsUsingArrayByteLiteral
+    with UniversalDoc
     with NoNeedForFullClassPath {
 
   import PythonCompiler._
 
   override val translator = new PythonTranslator(typeProvider, importList)
+
+  override def innerDocstrings = true
 
   override def universalFooter: Unit = {
     out.dec
@@ -126,6 +129,36 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 
   override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
+
+  override def universalDoc(doc: DocSpec): Unit = {
+    val docStr = doc.summary match {
+      case Some(summary) =>
+        val lastChar = summary.last
+        if (lastChar == '.' || lastChar == '\n') {
+          summary
+        } else {
+          summary + "."
+        }
+      case None =>
+        ""
+    }
+
+    val extraNewline = if (docStr.isEmpty || docStr.last == '\n') "" else "\n"
+    val refStr = doc.ref match {
+      case TextRef(text) =>
+        val seeAlso = new StringLanguageOutputWriter("")
+        seeAlso.putsLines("   ", text)
+        s"$extraNewline\n.. seealso::\n${seeAlso.result}"
+      case ref: UrlRef =>
+        val seeAlso = new StringLanguageOutputWriter("")
+        seeAlso.putsLines("   ", s"${ref.text} - ${ref.url}")
+        s"$extraNewline\n.. seealso::\n${seeAlso.result}"
+      case NoRef =>
+        ""
+    }
+
+    out.putsLines("", "\"\"\"" + docStr + refStr + "\"\"\"")
+  }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents($contents)")

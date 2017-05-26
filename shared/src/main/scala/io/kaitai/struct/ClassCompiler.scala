@@ -40,9 +40,11 @@ class ClassCompiler(
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
-    if (!curClass.doc.isEmpty)
-      lang.classDoc(curClass.name, curClass.doc)
+    if (!lang.innerDocstrings)
+      compileClassDoc(curClass)
     lang.classHeader(curClass.name)
+    if (lang.innerDocstrings)
+      compileClassDoc(curClass)
 
     val extraAttrs = ListBuffer[AttrSpec]()
     extraAttrs += AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None))
@@ -79,7 +81,8 @@ class ClassCompiler(
     compileAttrDeclarations(curClass.seq ++ extraAttrs)
 
     (curClass.seq ++ extraAttrs).foreach { (attr) =>
-      if (!attr.doc.isEmpty)
+      // FIXME: Python should have some form of attribute docs too
+      if (!attr.doc.isEmpty && !lang.innerDocstrings)
         lang.attributeDoc(attr.id, attr.doc)
       lang.attributeReader(attr.id, attr.dataTypeComposite, attr.cond)
     }
@@ -176,9 +179,11 @@ class ClassCompiler(
 
     compileInstanceDeclaration(instName, instSpec)
 
-    if (!instSpec.doc.isEmpty)
-      lang.attributeDoc(instName, instSpec.doc)
+    if (!lang.innerDocstrings)
+      compileInstanceDoc(instName, instSpec)
     lang.instanceHeader(className, instName, dataType)
+    if (lang.innerDocstrings)
+      compileInstanceDoc(instName, instSpec)
     lang.instanceCheckCacheAndReturn(instName)
 
     instSpec match {
@@ -217,4 +222,14 @@ class ClassCompiler(
       case et: EnumType => isUnalignedBits(et.basedOn)
       case _ => false
     }
+
+  def compileClassDoc(curClass: ClassSpec) = {
+    if (!curClass.doc.isEmpty)
+      lang.classDoc(curClass.name, curClass.doc)
+  }
+
+  def compileInstanceDoc(instName: Identifier, instSpec: InstanceSpec) {
+    if (!instSpec.doc.isEmpty)
+      lang.attributeDoc(instName, instSpec.doc)
+  }
 }
