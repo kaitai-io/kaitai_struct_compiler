@@ -18,7 +18,8 @@ object ErrorInInput {
       case Some(x) => x.replace('\\', '/')
       case None => "(main)"
     }
-    s"$fileStr: /${path.mkString("/")}: ${err.getMessage}"
+    val msg = Option(err.getMessage).getOrElse(err.getClass.getCanonicalName)
+    s"$fileStr: /${path.mkString("/")}: $msg"
   }
 }
 
