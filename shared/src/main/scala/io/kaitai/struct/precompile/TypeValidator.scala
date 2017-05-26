@@ -143,6 +143,8 @@ class TypeValidator(topClass: ClassSpec) {
         case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
       }
     } catch {
+      case err: InvalidIdentifier =>
+        throw new ErrorInInput(err, path ++ List(pathKey))
       case err: ExpressionError =>
         throw new ErrorInInput(err, path ++ List(pathKey))
     }

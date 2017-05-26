@@ -23,7 +23,9 @@ case class NamedIdentifier(name: String) extends Identifier {
   Identifier.checkIdentifier(name)
 }
 
-case class InvalidIdentifier(id: String) extends RuntimeException
+case class InvalidIdentifier(id: String) extends RuntimeException(
+  s"invalid ID: '$id', expected /${Identifier.ReIdentifier.toString}/"
+)
 
 object Identifier {
   val ReIdentifier = "^[a-z][a-z0-9_]*$".r
