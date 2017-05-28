@@ -2,6 +2,7 @@ package io.kaitai.struct.format
 
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType.{KaitaiStructType, UserTypeInstream}
+import scala.collection.mutable
 
 /**
   * Type that we use when we want to refer to a class specification or something
@@ -104,11 +105,30 @@ object ClassSpec {
   def seqFromYaml(src: Any, path: List[String], metaDef: MetaSpec): List[AttrSpec] = {
     src match {
       case srcList: List[Any] =>
-        srcList.zipWithIndex.map { case (attrSrc, idx) =>
+        val seq = srcList.zipWithIndex.map { case (attrSrc, idx) =>
           AttrSpec.fromYaml(attrSrc, path ++ List(idx.toString), metaDef, idx)
         }
+        checkDupSeqIds(seq)
+        seq
       case unknown =>
         throw new YAMLParseException(s"expected array, found $unknown", path)
+    }
+  }
+
+  def checkDupSeqIds(seq: List[AttrSpec]): Unit = {
+    val attrIds = mutable.Map[String, AttrSpec]()
+    seq.foreach { (attr) =>
+      attr.id match {
+        case NamedIdentifier(id) =>
+          attrIds.get(id) match {
+            case Some(prevAttr) =>
+              throw new YAMLParseException(s"duplicate seq attribute ID '$id', previously defined at /${prevAttr.pathStr}", attr.path)
+            case None =>
+              // no dups, ok
+              attrIds.put(id, attr)
+          }
+        case _ => // do nothing with non-named IDs
+      }
     }
   }
 
