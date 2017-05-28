@@ -3,7 +3,7 @@ package io.kaitai.struct.format
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 
-sealed abstract class InstanceSpec(val doc: DocSpec) {
+sealed abstract class InstanceSpec(val doc: DocSpec) extends YAMLPath {
   def dataTypeComposite: DataType
 }
 case class ValueInstanceSpec(
@@ -12,7 +12,7 @@ case class ValueInstanceSpec(
   value: Ast.expr,
   ifExpr: Option[Ast.expr],
   var dataType: Option[DataType]
-) extends InstanceSpec(_doc) with YAMLPath {
+) extends InstanceSpec(_doc) {
   override def dataTypeComposite = dataType.get
 }
 case class ParseInstanceSpec(
@@ -22,7 +22,7 @@ case class ParseInstanceSpec(
   cond: ConditionalSpec,
   pos: Option[Ast.expr],
   io: Option[Ast.expr]
-) extends InstanceSpec(_doc) with AttrLikeSpec with YAMLPath
+) extends InstanceSpec(_doc) with AttrLikeSpec
 
 object InstanceSpec {
   val LEGAL_KEYS_VALUE_INST = Set(
