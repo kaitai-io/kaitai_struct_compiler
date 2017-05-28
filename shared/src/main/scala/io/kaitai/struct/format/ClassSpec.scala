@@ -87,6 +87,8 @@ object ClassSpec {
       case None => Map()
     }
 
+    checkDupSeqInstIds(seq, instances)
+
     val cs = ClassSpec(path, path.isEmpty, meta, doc, seq, types, instances, enums)
 
     // If that's a top-level class, set its name from meta/id
@@ -120,15 +122,33 @@ object ClassSpec {
     seq.foreach { (attr) =>
       attr.id match {
         case NamedIdentifier(id) =>
-          attrIds.get(id) match {
-            case Some(prevAttr) =>
-              throw new YAMLParseException(s"duplicate seq attribute ID '$id', previously defined at /${prevAttr.pathStr}", attr.path)
-            case None =>
-              // no dups, ok
-              attrIds.put(id, attr)
-          }
+          checkDupId(attrIds.get(id), id, attr)
+          attrIds.put(id, attr)
         case _ => // do nothing with non-named IDs
       }
+    }
+  }
+
+  def checkDupSeqInstIds(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec]): Unit = {
+    val attrIds: Map[String, AttrSpec] = seq.flatMap((attr) => attr.id match {
+      case NamedIdentifier(id) => Some(id -> attr)
+      case _ => None
+    }).toMap
+
+    instances.foreach { case (id, instSpec) =>
+      checkDupId(attrIds.get(id.name), id.name, instSpec)
+    }
+  }
+
+  private def checkDupId(prevAttrOpt: Option[AttrSpec], id: String, nowAttr: YAMLPath) {
+    prevAttrOpt match {
+      case Some(prevAttr) =>
+        throw new YAMLParseException(
+          s"duplicate attribute ID '$id', previously defined at /${prevAttr.pathStr}",
+          nowAttr.path
+        )
+      case None =>
+        // no dups, ok
     }
   }
 
