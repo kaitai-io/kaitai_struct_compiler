@@ -8,6 +8,7 @@ import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
+import io.kaitai.struct.precompile.ErrorInInput
 
 object JavaMain {
   KSVersion.current = BuildInfo.version
@@ -296,6 +297,13 @@ class JavaMain(config: CLIConfig) {
     ex match {
       case ype: YAMLParseException =>
         CompileError("(main)", ype.path, ype.msg)
+      case e: ErrorInInput =>
+        val file = e.file.getOrElse(srcFile)
+        val msg = Option(e.getCause) match {
+          case Some(cause) => cause.getMessage
+          case None => e.getMessage
+        }
+        CompileError(file, e.path, msg)
       case _ =>
         CompileError(srcFile, List(), ex.getMessage)
     }

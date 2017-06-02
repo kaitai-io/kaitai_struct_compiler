@@ -9,7 +9,7 @@ import io.kaitai.struct.format.ClassSpec
   * @param path YAML path components in file
   * @param file file to report as erroneous, None means "main compilation unit"
   */
-class ErrorInInput(err: Throwable, path: List[String] = List(), file: Option[String] = None)
+class ErrorInInput(err: Throwable, val path: List[String] = List(), val file: Option[String] = None)
   extends RuntimeException(ErrorInInput.message(err, path, file), err)
 
 object ErrorInInput {
