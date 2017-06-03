@@ -23,7 +23,7 @@ lazy val compiler = crossProject.in(file(".")).
     name := "kaitai-struct-compiler",
     version := VERSION,
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.11.7",
+    scalaVersion := "2.11.11",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "io.kaitai.struct",
     buildInfoOptions += BuildInfoOption.BuildTime,
@@ -54,6 +54,7 @@ lazy val compiler = crossProject.in(file(".")).
     ,
 
     libraryDependencies ++= Seq(
+      "com.github.scopt" %%% "scopt" % "3.6.0",
       "com.lihaoyi" %%% "fastparse" % "0.4.1",
       "org.yaml" % "snakeyaml" % "1.16"
     )
@@ -61,8 +62,7 @@ lazy val compiler = crossProject.in(file(".")).
   jvmSettings(
     mainClass in Compile := Some("io.kaitai.struct.JavaMain"),
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "2.2.6" % "test",
-      "com.github.scopt" %% "scopt" % "3.4.0"
+      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
     ),
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
