@@ -51,7 +51,7 @@ object JavaMain {
         if (VALID_LANGS.contains(x)) {
           success
         } else {
-          failure(s"'${x}' is not a valid target language; valid ones are: ${VALID_LANGS.mkString(", ")}")
+          failure(s"'$x' is not a valid target language; valid ones are: ${VALID_LANGS.mkString(", ")}")
         }
       }
 
