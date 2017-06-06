@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.datatype.DataType.{KaitaiStreamType, UserTypeInstream}
-import io.kaitai.struct.datatype.InheritedEndian
+import io.kaitai.struct.datatype.{Endianness, InheritedEndian}
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.GoCompiler
 
@@ -50,8 +50,10 @@ class GoClassCompiler(
     // Recursive types
     compileSubclasses(curClass)
   }
-/*
-  override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+
+  override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
+    // FIXME: support calculated endianness
+
     // Determine datatype
     val dataType = instSpec.dataTypeComposite
 
@@ -73,5 +75,4 @@ class GoClassCompiler(
     lang.instanceReturn(instName)
     lang.instanceFooter
   }
-  */
 }
