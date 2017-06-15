@@ -42,4 +42,7 @@ object YAMLParseException {
 
   def exprType(expected: String, got: DataType, path: List[String]): YAMLParseException =
     new YAMLParseException(s"invalid type: expected $expected, got $got", path)
+
+  def badProcess(got: String, path: List[String]): YAMLParseException =
+    new YAMLParseException(s"incorrect process expression `$got`", path)
 }

@@ -135,7 +135,7 @@ object AttrSpec {
 
   def fromYaml2(srcMap: Map[String, Any], path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
     val doc = DocSpec.fromYaml(srcMap, path)
-    val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path))
+    val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path), path)
     // TODO: add proper path propagation
     val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))
     val size = ParseUtils.getOptValueStr(srcMap, "size", path).map(Expressions.parse)

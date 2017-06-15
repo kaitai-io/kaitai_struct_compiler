@@ -162,13 +162,18 @@ object Expressions {
 
   val topExpr: P[Ast.expr] = P( test ~ End )
 
+  val topExprList: P[Seq[Ast.expr]] = P(testlist1 ~ End)
+
   class ParseException(val src: String, val failure: Parsed.Failure)
     extends RuntimeException(failure.msg)
 
-  def parse(src: String): Ast.expr = {
-    val r = Expressions.topExpr.parse(src)
+  def parse(src: String): Ast.expr = realParse(src, topExpr)
+  def parseList(src: String): Seq[Ast.expr] = realParse(src, topExprList)
+
+  private def realParse[T](src: String, parser: P[T]): T = {
+    val r = parser.parse(src)
     r match {
-      case Parsed.Success(value, index) => value
+      case Parsed.Success(value, _) => value
       case f: Parsed.Failure =>
         throw new ParseException(src, f)
     }
