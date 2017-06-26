@@ -92,7 +92,7 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
         case NamedIdentifier(name) =>
           tableRow(className, seqPosToStr(seqPos), attr, name)
         case NumberedIdentifier(n) =>
-          tableRow(className, seqPosToStr(seqPos), attr, "")
+          tableRow(className, seqPosToStr(seqPos), attr, s"_${NumberedIdentifier.TEMPLATE}$n")
       }
       val size = dataTypeBitsSize(attr.dataType)
       seqPos = (seqPos, size) match {
@@ -368,14 +368,17 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
     s"${getGraphvizNode(className, cs, s)}:${s}_type"
 
   def getGraphvizNode(className: List[String], cs: ClassSpec, s: String): String = {
-    cs.seq.foreach((attr) =>
-      attr.id match {
+    cs.seq.foreach { (attr) =>
+      val name = attr.id match {
         case NamedIdentifier(attrName) =>
-          if (attrName == s) {
-            return s"${type2class(className)}__seq"
-          }
+          attrName
+        case NumberedIdentifier(n) =>
+          s"_${NumberedIdentifier.TEMPLATE}$n"
       }
-    )
+      if (name == s) {
+        return s"${type2class(className)}__seq"
+      }
+    }
 
     cs.instances.get(InstanceIdentifier(s)).foreach((inst) =>
       return s"${type2class(className)}__inst__$s"
