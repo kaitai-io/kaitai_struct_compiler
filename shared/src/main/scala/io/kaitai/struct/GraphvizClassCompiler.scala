@@ -91,12 +91,13 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
       attr.id match {
         case NamedIdentifier(name) =>
           tableRow(className, seqPosToStr(seqPos), attr, name)
-
-          val size = dataTypeBitsSize(attr.dataType)
-          seqPos = (seqPos, size) match {
-            case (Some(pos), Some(siz)) => Some(pos + siz)
-            case _ => None
-          }
+        case NumberedIdentifier(n) =>
+          tableRow(className, seqPosToStr(seqPos), attr, "")
+      }
+      val size = dataTypeBitsSize(attr.dataType)
+      seqPos = (seqPos, size) match {
+        case (Some(pos), Some(siz)) => Some(pos + siz)
+        case _ => None
       }
     }
     tableEnd
