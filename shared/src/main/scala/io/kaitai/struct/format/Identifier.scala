@@ -62,6 +62,7 @@ object Identifier {
   val IO = "_io"
   val ITERATOR = "_"
   val ITERATOR2 = "_buf"
+  val INDEX = "_index"
   val SWITCH_ON = "_on"
   val IS_LE = "_is_le"
 }

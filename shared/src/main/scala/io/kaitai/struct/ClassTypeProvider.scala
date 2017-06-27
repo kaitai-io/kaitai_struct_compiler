@@ -32,6 +32,8 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
         currentIteratorType
       case "_on" =>
         currentSwitchType
+      case Identifier.INDEX =>
+        CalcIntType
       case _ =>
         inClass.seq.foreach { el =>
           if (el.id == NamedIdentifier(attrName))
