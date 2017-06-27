@@ -504,7 +504,12 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     out.puts
     enumColl.foreach { case (id, label) =>
-      out.puts(s"""$id: "${enumValue(enumName, label)}",""")
+      val idStr = if (id < 0) {
+        "\"" + id.toString + "\""
+      } else {
+        id.toString
+      }
+      out.puts(s"""$idStr: "${enumValue(enumName, label)}",""")
     }
     out.dec
     out.puts("});")
