@@ -72,6 +72,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends B
   override def doName(s: String) = s match {
     case Identifier.ITERATOR => "_"
     case Identifier.ITERATOR2 => "_buf"
+    case Identifier.INDEX => "i"
     case _ => s"$s()"
   }
 

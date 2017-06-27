@@ -48,6 +48,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     s match {
       case Identifier.ITERATOR => "$_"
       case Identifier.ITERATOR2 => "$_buf"
+      case Identifier.INDEX => "$i"
       case _ => s"$$this->${doName(s)}"
     }
   }

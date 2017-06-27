@@ -23,6 +23,7 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     s match {
       case "_" => s
       case Identifier.SWITCH_ON => "on"
+      case Identifier.INDEX => "i"
       case _ => s"this.${doName(s)}"
     }
   }

@@ -3,6 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.ImportList
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.PythonCompiler
 
 class PythonTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
@@ -42,7 +43,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def doLocalName(s: String) = {
     s match {
-      case "_" => s
+      case Identifier.ITERATOR => "_"
+      case Identifier.INDEX => "i"
       case _ => s"self.${doName(s)}"
     }
   }

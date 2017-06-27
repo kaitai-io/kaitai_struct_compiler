@@ -64,6 +64,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s match {
       case Identifier.ITERATOR => "$_"
       case Identifier.ITERATOR2 => "$_buf"
+      case Identifier.INDEX => "$i"
       case _ => s"$s()"
     }
   }
