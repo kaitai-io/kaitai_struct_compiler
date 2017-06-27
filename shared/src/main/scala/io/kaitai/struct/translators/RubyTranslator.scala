@@ -3,6 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType.EnumType
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.RubyCompiler
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -26,7 +27,12 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     '\b' -> "\\b"
   )
 
-  override def doName(s: String) = s
+  override def doName(s: String) = {
+    s match {
+      case Identifier.INDEX => "i" // FIXME: probably would clash with attribute named "i"
+      case _ => s
+    }
+  }
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s":${enumTypeAbs.last}_$label"
