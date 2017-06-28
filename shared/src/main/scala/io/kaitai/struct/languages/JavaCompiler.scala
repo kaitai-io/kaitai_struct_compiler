@@ -73,11 +73,20 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       importList.add("java.util.Map")
     }
 
-    out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
-    out.inc
-    out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
-    out.dec
-    out.puts("}")
+    val isInheritedEndian = typeProvider.nowClass.meta.endian match {
+      case Some(InheritedEndian) => true
+      case _ => false
+    }
+
+    // fromFile helper makes no sense for inherited endianness structures:
+    // they require endianness to be parsed anyway
+    if (!isInheritedEndian) {
+      out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
+      out.inc
+      out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
+      out.dec
+      out.puts("}")
+    }
   }
 
   override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
@@ -88,41 +97,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // no _is_le variable
     }
 
-    out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName _io) {")
-    out.inc
-    out.puts("super(_io);")
-    if (name == rootClassName)
-      out.puts("this._root = this;")
-    if (!debug)
-      out.puts("_init();")
-    out.dec
-    out.puts("}")
-
-    out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent) {")
-    out.inc
-    out.puts("super(_io);")
-    out.puts("this._parent = _parent;")
-    if (name == rootClassName)
-      out.puts("this._root = this;")
-    if (!debug)
-      out.puts("_init();")
-    out.dec
-    out.puts("}")
-
-    out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root) {")
-    out.inc
-    out.puts("super(_io);")
-    out.puts("this._parent = _parent;")
-    out.puts("this._root = _root;")
-    if (!debug)
-      out.puts("_init();")
-    out.dec
-    out.puts("}")
-
     if (isHybrid) {
+      // Inherited endian classes can be only internal, so they have mandatory 4th argument
+      // and 1..3-argument constructors don't make sense
+
       out.puts
       out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root, boolean _is_le) {")
       out.inc
@@ -130,20 +108,34 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("this._parent = _parent;")
       out.puts("this._root = _root;")
       out.puts("this._is_le = _is_le;")
-      if (!debug)
-        out.puts("_init();")
+    } else {
+      // Normal 3 constructors, chained into the last
+
+      out.puts
+      out.puts(s"public ${type2class(name)}($kstreamName _io) {")
+      out.inc
+      out.puts("this(_io, null, null);")
       out.dec
       out.puts("}")
-    }
 
-    val readAccessAndType = if (debug) {
-      "public"
-    } else {
-      "private"
+      out.puts
+      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent) {")
+      out.inc
+      out.puts("this(_io, _parent, null);")
+      out.dec
+      out.puts("}")
+
+      out.puts
+      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root) {")
+      out.inc
+      out.puts("super(_io);")
+      out.puts("this._parent = _parent;")
+      if (name == rootClassName) {
+        out.puts("this._root = _root == null ? this : _root;")
+      } else {
+        out.puts("this._root = _root;")
+      }
     }
-    out.puts
-    out.puts(s"$readAccessAndType void _init() {")
-    out.inc
   }
 
   override def runRead(): Unit =

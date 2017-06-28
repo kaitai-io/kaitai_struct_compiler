@@ -84,22 +84,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     if (debug) {
       out.puts("@_debug = {}")
-      out.dec
-      out.puts("end")
-      out.puts
-      out.puts("def _read")
-      out.inc
     }
-  }
-
-  override def classConstructorFooter: Unit = {
-    if (debug) {
-      // Actually, it's not constructor in debug mode, but a "_read" method. Make sure it returns an instance of the
-      // class, just as normal Foo.new call does.
-      out.puts
-      out.puts("self")
-    }
-    universalFooter
   }
 
   override def runRead(): Unit = {
@@ -128,11 +113,23 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case Some(e) => s"_${e.toSuffix}"
       case None => ""
     }
+    out.puts
     out.puts(s"def _read$suffix")
     out.inc
   }
 
-  override def readFooter() = universalFooter
+  override def readFooter() = {
+    // This is required for debug mode to be able to do stuff like:
+    //
+    //     obj = Obj.new(...)._read
+    //
+    // i.e. drop-in replacement of non-debug mode invocation:
+    //
+    //     obj = Obj.new(...)
+    out.puts("self")
+
+    universalFooter
+  }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
 

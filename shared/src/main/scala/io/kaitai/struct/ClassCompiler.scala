@@ -59,13 +59,17 @@ class ClassCompiler(
     if (lang.debug)
       lang.debugClassSequence(curClass.seq)
 
+    // Constructor
     lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName, curClass.meta.endian.contains(InheritedEndian))
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
-    compileEagerReadCall(curClass.meta.endian)
+    if (!lang.debug)
+      lang.runRead()
     lang.classConstructorFooter
 
+    // Read method(s)
     compileEagerRead(curClass.seq, extraAttrs, curClass.meta.endian)
 
+    // Destructor
     compileDestructor(curClass)
 
     // Recursive types
@@ -111,15 +115,25 @@ class ClassCompiler(
   def compileAttrDeclarations(attrs: List[AttrSpec]): Unit =
     attrs.foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
 
-  def compileEagerReadCall(endian: Option[Endianness]): Unit = {
+  def compileEagerRead(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
     endian match {
       case None | Some(_: FixedEndian) =>
-        lang.runRead()
+        compileSeqProc(seq, extraAttrs, None)
       case Some(ce: CalcEndian) =>
+        lang.readHeader(None, false)
         compileCalcEndian(ce)
         lang.runReadCalc()
+        lang.readFooter()
+
+        compileSeqProc(seq, extraAttrs, Some(LittleEndian))
+        compileSeqProc(seq, extraAttrs, Some(BigEndian))
       case Some(InheritedEndian) =>
+        lang.readHeader(None, false)
         lang.runReadCalc()
+        lang.readFooter()
+
+        compileSeqProc(seq, extraAttrs, Some(LittleEndian))
+        compileSeqProc(seq, extraAttrs, Some(BigEndian))
     }
   }
 
@@ -132,16 +146,6 @@ class ClassCompiler(
     }
 
     lang.switchCases[FixedEndian](IS_LE_ID, ce.on, ce.cases, renderProc, renderProc)
-  }
-
-  def compileEagerRead(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
-    endian match {
-      case None | Some(_: FixedEndian) =>
-        compileSeqProc(seq, extraAttrs, None)
-      case Some(_: CalcEndian) | Some(InheritedEndian) =>
-        compileSeqProc(seq, extraAttrs, Some(LittleEndian))
-        compileSeqProc(seq, extraAttrs, Some(BigEndian))
-    }
   }
 
   def compileSeqProc(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]) = {
