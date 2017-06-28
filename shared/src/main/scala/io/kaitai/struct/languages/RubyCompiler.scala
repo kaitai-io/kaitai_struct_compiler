@@ -197,6 +197,10 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s"8 - (${expression(rotValue)})"
         }
         s"$destName = $kstreamName::process_rotate_left($srcName, $expr, 1)"
+      case ProcessCustom(name, args) =>
+        val procClass = name.map((x) => type2class(x)).mkString("::")
+        out.puts(s"_process = $procClass.new(${args.map(expression).mkString(", ")})")
+        s"$destName = _process.decode($srcName)"
     })
   }
 
