@@ -358,7 +358,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceSetCalculated(instName: InstanceIdentifier): Unit =
     out.puts(s"this.${calculatedFlagForName(instName)} = true")
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val enumClass = type2class(enumName)
 
     out.puts
@@ -367,12 +367,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     if (enumColl.size > 1) {
       enumColl.dropRight(1).foreach { case (id, label) =>
-        out.puts(s"${value2Const(label)}($id),")
+        out.puts(s"${value2Const(label.name)}($id),")
       }
     }
     enumColl.last match {
       case (id, label) =>
-        out.puts(s"${value2Const(label)}($id);")
+        out.puts(s"${value2Const(label.name)}($id);")
     }
 
     out.puts

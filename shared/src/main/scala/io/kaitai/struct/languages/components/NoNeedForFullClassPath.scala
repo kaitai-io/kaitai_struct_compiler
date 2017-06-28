@@ -20,7 +20,7 @@ trait NoNeedForFullClassPath {
     instanceHeader(className.last, instName, dataType)
   def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit
 
-  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit =
-    enumDeclaration(curClass.last, enumName, enumColl)
+  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit =
+    enumDeclaration(curClass.last, enumName, enumColl.map((x) => (x._1, x._2.name)))
   def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit
 }

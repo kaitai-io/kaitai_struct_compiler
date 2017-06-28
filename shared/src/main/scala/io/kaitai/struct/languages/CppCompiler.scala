@@ -649,7 +649,7 @@ class CppCompiler(
     outSrc.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val enumClass = types2class(List(enumName))
 
     outHdr.puts
@@ -658,12 +658,12 @@ class CppCompiler(
 
     if (enumColl.size > 1) {
       enumColl.dropRight(1).foreach { case (id, label) =>
-        outHdr.puts(s"${value2Const(enumName, label)} = $id,")
+        outHdr.puts(s"${value2Const(enumName, label.name)} = $id,")
       }
     }
     enumColl.last match {
       case (id, label) =>
-        outHdr.puts(s"${value2Const(enumName, label)} = $id")
+        outHdr.puts(s"${value2Const(enumName, label.name)} = $id")
     }
 
     outHdr.dec

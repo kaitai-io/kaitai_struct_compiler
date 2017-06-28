@@ -371,11 +371,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     out.puts
 
     enumColl.foreach { case (id, label) =>
-      out.puts(s"our ${enumValue(enumName, label)} = $id;")
+      out.puts(s"our ${enumValue(enumName, label.name)} = $id;")
     }
   }
 

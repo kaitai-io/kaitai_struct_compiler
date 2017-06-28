@@ -496,21 +496,26 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     out.puts(s"${type2class(curClass.last)}.${type2class(enumName)} = Object.freeze({")
     out.inc
+
+    // Name to ID mapping
     enumColl.foreach { case (id, label) =>
-      out.puts(s"${enumValue(enumName, label)}: $id,")
+      out.puts(s"${enumValue(enumName, label.name)}: $id,")
     }
     out.puts
+
+    // ID to name mapping
     enumColl.foreach { case (id, label) =>
       val idStr = if (id < 0) {
         "\"" + id.toString + "\""
       } else {
         id.toString
       }
-      out.puts(s"""$idStr: "${enumValue(enumName, label)}",""")
+      out.puts(s"""$idStr: "${enumValue(enumName, label.name)}",""")
     }
+
     out.dec
     out.puts("});")
     out.puts

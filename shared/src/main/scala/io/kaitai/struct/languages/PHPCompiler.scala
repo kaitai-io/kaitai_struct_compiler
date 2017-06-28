@@ -142,10 +142,12 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
-    out.puts
-    out.puts( "/**")
-    doc.summary.foreach((summary) => out.putsLines(" * ", summary))
-    out.puts( " */")
+    if (doc.summary.isDefined) {
+      out.puts
+      out.puts("/**")
+      doc.summary.foreach((summary) => out.putsLines(" * ", summary))
+      out.puts(" */")
+    }
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
@@ -355,10 +357,11 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     classHeader(curClass ::: List(enumName), None)
     enumColl.foreach { case (id, label) =>
-      out.puts(s"const ${value2Const(label)} = $id;")
+      universalDoc(label.doc)
+      out.puts(s"const ${value2Const(label.name)} = $id;")
     }
     universalFooter
   }
