@@ -100,14 +100,8 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     if (debug) {
       out.puts("this._debug = {};")
-      out.dec
-      out.puts("}")
-      out.puts
-      out.puts(s"${type2class(name.last)}.prototype._read = function() {")
-      out.inc
-    } else {
-      out.puts
     }
+    out.puts
   }
 
   override def classConstructorFooter: Unit = {
