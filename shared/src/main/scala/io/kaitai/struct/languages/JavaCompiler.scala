@@ -24,6 +24,17 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   val translator = new JavaTranslator(typeProvider, importList)
 
+  // Preprocess fromFileClass and make import
+  val fromFileClass = {
+    val pos = config.javaFromFileClass.lastIndexOf('.')
+    if (pos < 0) {
+      config.javaFromFileClass
+    } else {
+      importList.add(config.javaFromFileClass)
+      config.javaFromFileClass.substring(pos + 1)
+    }
+  }
+
   override def universalFooter: Unit = {
     out.dec
     out.puts("}")
@@ -80,10 +91,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // fromFile helper makes no sense for inherited endianness structures:
     // they require endianness to be parsed anyway
-    if (!isInheritedEndian) {
+    if (!isInheritedEndian && !config.javaFromFileClass.isEmpty) {
       out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
       out.inc
-      out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
+      out.puts(s"return new ${type2class(name)}(new $fromFileClass(fileName));")
       out.dec
       out.puts("}")
     }
@@ -246,7 +257,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => javaName
     }
 
-    out.puts(s"$kstreamName $ioName = new $kstreamName($args);")
+    importList.add("io.kaitai.struct.ByteBufferKaitaiStream")
+    out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args);")
     ioName
   }
 

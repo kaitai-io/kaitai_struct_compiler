@@ -72,6 +72,10 @@ object JavaMain {
         c.copy(runtime = c.runtime.copy(javaPackage = x))
       } text("Java package (Java only, default: root package)")
 
+      opt[String]("java-from-file-class") valueName("<class>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(javaFromFileClass = x))
+      } text(s"Java class to be invoked in fromFile() helper (default: ${RuntimeConfig().javaFromFileClass})")
+
       opt[String]("dotnet-namespace") valueName("<namespace>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(dotNetNamespace = x))
       } text(".NET Namespace (.NET only, default: Kaitai)")
