@@ -1,3 +1,5 @@
+import shutil
+
 moduleTemplate = '''
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
@@ -24,3 +26,5 @@ with open('target/scala-2.11/kaitai-struct-compiler-fastopt.js','rt') as f: comp
 moduleCode = moduleTemplate.replace('{{compilerCode}}', compilerCode)
 
 with open('npm/kaitai-struct-compiler.js','wt') as f: f.write(moduleCode)
+for fn in ['LICENSE', 'README.md']:
+    shutil.copy('../%s' % fn, 'npm/')
