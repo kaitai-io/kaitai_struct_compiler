@@ -12,7 +12,7 @@ moduleTemplate = '''
     root.KaitaiStructCompiler = factory();
   }
 }(this, function () {
-    
+
 var exports = {};
 var __ScalaJSEnv = { exportsNamespace: exports };
 
