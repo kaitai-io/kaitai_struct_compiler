@@ -4,7 +4,7 @@
     "url": "https://github.com/orgs/kaitai-io/people"
   },
   "bugs": {
-    "url": "https://github.com/kaitai-io/kaitai_struct_compiler/issues"
+    "url": "https://github.com/kaitai-io/kaitai_struct/issues"
   },
   "bundleDependencies": false,
   "deprecated": false,
