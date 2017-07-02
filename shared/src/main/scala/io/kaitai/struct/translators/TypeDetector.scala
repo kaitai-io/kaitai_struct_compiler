@@ -311,10 +311,15 @@ object TypeDetector {
     * @return type that can accommodate values of both source types without any data loss
     */
   def combineTypesAndFail(t1: DataType, t2: DataType): DataType = {
-    combineTypes(t1, t2) match {
-      case AnyType =>
-        throw new TypeMismatchError(s"can't combine output types: $t1 vs $t2")
-      case ct => ct
+    if (t1 == AnyType || t2 == AnyType) {
+      // combining existing AnyTypes is not a crime :)
+      AnyType
+    } else {
+      combineTypes(t1, t2) match {
+        case AnyType =>
+          throw new TypeMismatchError(s"can't combine output types: $t1 vs $t2")
+        case ct => ct
+      }
     }
   }
 }
