@@ -56,7 +56,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doLocalName(s: String) = {
     s match {
       case "_" | "_on" => "$" + s
-      case Identifier.INDEX => "$i"
+      case Identifier.INDEX => doName(s)
       case _ => s"$$self->${doName(s)}"
     }
   }
