@@ -1,3 +1,8 @@
+# 0.8 (TBD)
+
+* Runtime API changes:
+  * [JS] Error classes are now subclasses of `KaitaiStream` and were renamed in the following way: `KaitaiUnexpectedDataError` -> `KaitaiStream`.`UnexpectedDataError`
+
 # 0.7 (2017-03-22)
 
 * New ksy features:
