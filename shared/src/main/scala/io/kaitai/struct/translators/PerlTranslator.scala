@@ -153,6 +153,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
       case _: StrType => "minstr"
       case _ => "min"
     }
+    importList.add("List::Util")
     s"List::Util::$funcName(@{${translate(a)}})"
   }
   override def arrayMax(a: Ast.expr): String = {
@@ -160,6 +161,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
       case _: StrType => "maxstr"
       case _ => "max"
     }
+    importList.add("List::Util")
     s"List::Util::$funcName(@{${translate(a)}})"
   }
 
