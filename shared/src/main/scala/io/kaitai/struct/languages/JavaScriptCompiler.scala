@@ -541,6 +541,8 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
   private
   def attrDebugNeeded(attrId: Identifier) = attrId match {
     case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true

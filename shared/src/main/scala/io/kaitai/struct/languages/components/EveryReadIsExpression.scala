@@ -128,7 +128,7 @@ trait EveryReadIsExpression
           handleAssignmentSimple(id, expr)
           userTypeDebugRead(privateMemberName(id))
         case _ =>
-          val tempVarName = s"_t_${idToStr(id)}"
+          val tempVarName = localTemporaryName(id)
           handleAssignmentTempVar(dataType, tempVarName, expr)
           userTypeDebugRead(tempVarName)
           handleAssignment(id, tempVarName, rep, false)

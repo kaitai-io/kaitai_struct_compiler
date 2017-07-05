@@ -436,6 +436,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
 
   override def publicMemberName(id: Identifier): String = idToStr(id)
+
+  override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 }
 
 object RubyCompiler extends LanguageCompilerStatic
