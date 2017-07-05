@@ -64,6 +64,7 @@ object MetaSpec {
     "ks-opaque-types",
     "license",
     "file-extension",
+    "xref",
     "application"
   )
 
