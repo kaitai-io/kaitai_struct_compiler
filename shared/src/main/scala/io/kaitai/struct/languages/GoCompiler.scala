@@ -419,6 +419,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
   def calculatedFlagForName(id: Identifier) = s"_f_${idToStr(id)}"
 }
 

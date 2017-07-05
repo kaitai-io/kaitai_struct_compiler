@@ -521,6 +521,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => s"_${idToStr(id)}"
     }
   }
+
+  override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 }
 
 object CSharpCompiler extends LanguageCompilerStatic

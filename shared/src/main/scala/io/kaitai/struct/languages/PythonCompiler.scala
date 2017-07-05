@@ -398,6 +398,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case RawIdentifier(innerId) => s"_raw_${publicMemberName(innerId)}"
     }
   }
+
+  override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 }
 
 object PythonCompiler extends LanguageCompilerStatic

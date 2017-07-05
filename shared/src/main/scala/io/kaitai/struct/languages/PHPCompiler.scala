@@ -389,6 +389,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def publicMemberName(id: Identifier) = idToStr(id)
 
+  override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
+
   /**
     * Determine PHP data type corresponding to a KS data type. Currently unused due to
     * problems with nullable types (which were introduced only in PHP 7.1).

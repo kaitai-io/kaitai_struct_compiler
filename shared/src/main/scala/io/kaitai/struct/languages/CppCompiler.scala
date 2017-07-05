@@ -754,6 +754,8 @@ class CppCompiler(
 
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
+  override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
   def declareNullFlag(attrName: Identifier, condSpec: ConditionalSpec) = {
     if (condSpec.ifExpr.nonEmpty) {
       outHdr.puts(s"bool ${nullFlagForName(attrName)};")
