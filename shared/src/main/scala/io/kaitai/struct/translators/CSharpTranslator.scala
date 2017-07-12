@@ -47,6 +47,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     if (s.startsWith("_")) {
       s match {
         case Identifier.SWITCH_ON => "on"
+        case Identifier.INDEX => "i"
         case _ => s"M${Utils.upperCamelCase(s)}"
       }
     } else {
