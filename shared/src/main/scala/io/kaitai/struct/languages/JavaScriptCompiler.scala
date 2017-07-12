@@ -125,7 +125,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts("throw new KaitaiUndecidedEndiannessError();")
+    out.puts("throw new KaitaiStream.UndecidedEndiannessError();")
     out.dec
     out.puts("}")
   }
