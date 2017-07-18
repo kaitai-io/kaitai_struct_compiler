@@ -255,8 +255,6 @@ class CppCompiler(
   }
 
   override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
-    val t = attr.dataTypeComposite
-
     val checkFlags = attr match {
       case is: InstanceSpec =>
         val dataType = is.dataTypeComposite
@@ -289,6 +287,15 @@ class CppCompiler(
         }
     }
 
+    typeDestructor(attr.dataTypeComposite, id)
+
+    if (checkFlags) {
+      outSrc.dec
+      outSrc.puts("}")
+    }
+  }
+
+  def typeDestructor(t: DataType, id: Identifier): Unit = {
     t match {
       case ArrayType(_: UserTypeFromBytes) =>
         outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
@@ -320,11 +327,6 @@ class CppCompiler(
         outSrc.puts(s"delete ${privateMemberName(id)};")
       case _ =>
         // no cleanup needed
-    }
-
-    if (checkFlags) {
-      outSrc.dec
-      outSrc.puts("}")
     }
   }
 
@@ -729,9 +731,23 @@ class CppCompiler(
 
   def defineName(className: String) = className.toUpperCase + "_H_"
 
+  /**
+    * Returns name of a member that stores "calculated flag" for a given lazy
+    * attribute. That is, if it's true, then calculation have already taken
+    * place and we need to return already calculated member in a getter, or,
+    * if it's false, we need to calculate / parse it first.
+    * @param ksName attribute ID
+    * @return calculated flag member name associated with it
+    */
   def calculatedFlagForName(ksName: InstanceIdentifier) =
     s"f_${ksName.name}"
 
+  /**
+    * Returns name of a member that stores "null flag" for a given attribute,
+    * that is, if it's true, then associated attribute is null.
+    * @param ksName attribute ID
+    * @return null flag member name associated with it
+    */
   def nullFlagForName(ksName: Identifier) = {
     ksName match {
       case NamedIdentifier(name) => s"n_$name"
