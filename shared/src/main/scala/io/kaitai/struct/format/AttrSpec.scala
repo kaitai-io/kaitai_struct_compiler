@@ -32,6 +32,34 @@ trait AttrLikeSpec extends YAMLPath {
       dataType
     }
   }
+
+  /**
+    * Determines if this attribute can be "null" in some circumstances or not.
+    * In some target languages, it would affect data types used, init and
+    * cleanup procedures.
+    * @return True if this attribute can be "null", false if it's never "null"
+    */
+  def isNullable: Boolean = {
+    if (cond.ifExpr.isDefined) {
+      true
+    } else {
+      dataType match {
+        case st: SwitchType =>
+          // If switch type has no else statement, it will turn out to be null
+          // if every case would fail
+          !st.hasElseCase
+        case _ =>
+          false
+      }
+    }
+  }
+
+  /**
+    * Determines if this attribute is to be parsed lazily (i.e. on first use),
+    * or eagerly (during object construction, usually in a `_read` method)
+    * @return True if this attribute is lazy, false if it's eager
+    */
+  def isLazy: Boolean
 }
 
 case class AttrSpec(
@@ -40,7 +68,9 @@ case class AttrSpec(
   dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
   doc: DocSpec = DocSpec.EMPTY
-) extends AttrLikeSpec
+) extends AttrLikeSpec {
+  override def isLazy = false
+}
 
 case class YamlAttrArgs(
   size: Option[Ast.expr],

@@ -22,7 +22,9 @@ case class ParseInstanceSpec(
   cond: ConditionalSpec,
   pos: Option[Ast.expr],
   io: Option[Ast.expr]
-) extends InstanceSpec(_doc) with AttrLikeSpec
+) extends InstanceSpec(_doc) with AttrLikeSpec {
+  override def isLazy = true
+}
 
 object InstanceSpec {
   val LEGAL_KEYS_VALUE_INST = Set(
