@@ -116,6 +116,11 @@ object DataType {
 
   case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, DataType]) extends DataType {
     def combinedType: DataType = TypeDetector.combineTypes(cases.values)
+
+    /**
+      * @return True if this switch type includes an "else" case
+      */
+    def hasElseCase: Boolean = cases.contains(SwitchType.ELSE_CONST)
   }
 
   object SwitchType {
