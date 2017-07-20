@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module external.linked.project.id="compilerJVM" external.linked.project.path="$MODULE_DIR$/../../jvm" external.root.project.path="$MODULE_DIR$/../.." external.system.id="SBT" type="JAVA_MODULE" version="4">
-  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8" inherit-compiler-output="false">
+  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8">
     <output url="file://$MODULE_DIR$/../../jvm/target/scala-2.11/classes" />
     <output-test url="file://$MODULE_DIR$/../../jvm/target/scala-2.11/test-classes" />
     <exclude-output />
@@ -20,6 +20,9 @@
       <excludeFolder url="file://$MODULE_DIR$/../../jvm/target/kaitai-struct-compiler-0.1-SNAPSHOT" />
       <excludeFolder url="file://$MODULE_DIR$/../../jvm/target/kaitai-struct-compiler-0.4" />
       <excludeFolder url="file://$MODULE_DIR$/../../jvm/target/kaitai-struct-compiler-0.5" />
+      <excludeFolder url="file://$MODULE_DIR$/../../jvm/target/kaitai-struct-compiler-0.6" />
+      <excludeFolder url="file://$MODULE_DIR$/../../jvm/target/kaitai-struct-compiler-0.7" />
+      <excludeFolder url="file://$MODULE_DIR$/../../jvm/target/kaitai-struct-compiler-0.7-SNAPSHOT" />
       <excludeFolder url="file://$MODULE_DIR$/../../jvm/target/resolution-cache" />
       <excludeFolder url="file://$MODULE_DIR$/../../jvm/target/streams" />
       <excludeFolder url="file://$MODULE_DIR$/../../jvm/target/test-reports" />
@@ -28,14 +31,16 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="compiler-sources" exported="" />
-    <orderEntry type="library" name="SBT: com.github.scopt:scopt_2.11:3.4.0:jar" level="project" />
-    <orderEntry type="library" name="SBT: org.scala-lang:scala-library:2.11.7:jar" level="project" />
-    <orderEntry type="library" scope="TEST" name="SBT: org.scala-lang:scala-reflect:2.11.7:jar" level="project" />
-    <orderEntry type="library" scope="TEST" name="SBT: org.scala-lang.modules:scala-xml_2.11:1.0.2:jar" level="project" />
-    <orderEntry type="library" scope="TEST" name="SBT: org.scalatest:scalatest_2.11:2.2.6:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.scala-lang:scala-library:2.11.11:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.scopt:scopt_2.11:3.6.0:jar" level="project" />
     <orderEntry type="library" name="SBT: org.yaml:snakeyaml:1.16:jar" level="project" />
     <orderEntry type="library" name="SBT: com.lihaoyi:sourcecode_2.11:0.1.1:jar" level="project" />
     <orderEntry type="library" name="SBT: com.lihaoyi:fastparse-utils_2.11:0.4.1:jar" level="project" />
     <orderEntry type="library" name="SBT: com.lihaoyi:fastparse_2.11:0.4.1:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="SBT: org.scala-lang:scala-reflect:2.11.8:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="SBT: org.scala-lang.modules:scala-parser-combinators_2.11:1.0.4:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="SBT: org.scala-lang.modules:scala-xml_2.11:1.0.5:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="SBT: org.scalactic:scalactic_2.11:3.0.1:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="SBT: org.scalatest:scalatest_2.11:3.0.1:jar" level="project" />
   </component>
 </module>

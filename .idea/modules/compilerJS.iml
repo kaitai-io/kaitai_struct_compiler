@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module external.linked.project.id="compilerJS" external.linked.project.path="$MODULE_DIR$/../../js" external.root.project.path="$MODULE_DIR$/../.." external.system.id="SBT" type="JAVA_MODULE" version="4">
-  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8" inherit-compiler-output="false">
+  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8">
     <output url="file://$MODULE_DIR$/../../js/target/scala-2.11/classes" />
     <output-test url="file://$MODULE_DIR$/../../js/target/scala-2.11/test-classes" />
     <exclude-output />
@@ -24,9 +24,11 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="compiler-sources" exported="" />
+    <orderEntry type="library" scope="TEST" name="SBT: org.scala-js:scalajs-test-interface_2.11:0.6.16:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.scala-js:scalajs-library_2.11:0.6.16:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.scala-lang:scala-library:2.11.11:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.scopt:scopt_sjs0.6_2.11:3.6.0:jar" level="project" />
     <orderEntry type="library" name="SBT: com.lihaoyi:sourcecode_sjs0.6_2.11:0.1.1:jar" level="project" />
-    <orderEntry type="library" name="SBT: org.scala-js:scalajs-library_2.11:0.6.7:jar" level="project" />
-    <orderEntry type="library" name="SBT: org.scala-lang:scala-library:2.11.7:jar" level="project" />
     <orderEntry type="library" name="SBT: org.yaml:snakeyaml:1.16:jar" level="project" />
     <orderEntry type="library" name="SBT: com.lihaoyi:fastparse-utils_sjs0.6_2.11:0.4.1:jar" level="project" />
     <orderEntry type="library" name="SBT: com.lihaoyi:fastparse_sjs0.6_2.11:0.4.1:jar" level="project" />
