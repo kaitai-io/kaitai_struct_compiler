@@ -278,7 +278,15 @@ class CppCompiler(
 
     attr.dataTypeComposite match {
       case st: SwitchType =>
-        typeDestructor(st.combinedType, id)
+        st.combinedType match {
+          case KaitaiStructType | AnyType =>
+            // Passing KaitaiStructType or AnyType would lose the "size" property, if it
+            // was used. So, we just pass any of the used data types, as cleanup
+            // is the same for them anyway, just to retain that UserTypeFromBytes.
+            typeDestructor(st.cases.values.head, id)
+          case combined =>
+            typeDestructor(combined, id)
+        }
       case t =>
         typeDestructor(t, id)
     }
