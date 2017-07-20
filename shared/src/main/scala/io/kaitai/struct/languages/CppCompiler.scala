@@ -9,6 +9,8 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
 
+import scala.collection.mutable.ListBuffer
+
 class CppCompiler(
   typeProvider: ClassTypeProvider,
   config: RuntimeConfig
@@ -289,20 +291,26 @@ class CppCompiler(
 
   def typeDestructor(t: DataType, id: Identifier): Unit = {
     t match {
-      case ArrayType(_: UserTypeFromBytes) =>
-        outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
-      case _ =>
-        // no cleanup needed
-    }
-
-    t match {
       case ArrayType(el: UserType) =>
         val arrVar = privateMemberName(id)
-        outSrc.puts(s"for (std::vector<${kaitaiType2NativeType(el)}>::iterator it = $arrVar->begin(); it != $arrVar->end(); ++it) {")
-        outSrc.inc
-        outSrc.puts("delete *it;")
-        outSrc.dec
-        outSrc.puts("}")
+        destructVector(kaitaiType2NativeType(el), arrVar)
+
+        // Check if IO storage members cleanup is required
+        el match {
+          case _: UserTypeFromBytes =>
+            // delete byte array vector
+            outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
+
+            // delete IO vector contents
+            val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
+            destructVector(s"$kstreamName*", ioVar)
+
+            // delete IO vector
+            outSrc.puts(s"delete $ioVar;")
+          case _ =>
+            // no cleanup needed
+        }
+
       case _ =>
         // no cleanup needed
     }
@@ -320,6 +328,19 @@ class CppCompiler(
       case _ =>
         // no cleanup needed
     }
+  }
+
+  /**
+    * Generates std::vector contents destruction loop.
+    * @param elType element type, i.e. XXX in `std::vector&lt;XXX&gt;`
+    * @param arrVar variable name that holds pointer to std::vector
+    */
+  def destructVector(elType: String, arrVar: String): Unit = {
+    outSrc.puts(s"for (std::vector<$elType>::iterator it = $arrVar->begin(); it != $arrVar->end(); ++it) {")
+    outSrc.inc
+    outSrc.puts("delete *it;")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
@@ -360,10 +381,9 @@ class CppCompiler(
     }
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): IoStorageIdentifier = {
-    val memberName = privateMemberName(varName)
-
-    val ioName = IoStorageIdentifier(varName)
+  override def allocateIO(id: Identifier, rep: RepeatSpec, extraAttrs: ListBuffer[AttrSpec]): String = {
+    val memberName = privateMemberName(id)
+    val ioId = IoStorageIdentifier(id)
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
@@ -371,7 +391,20 @@ class CppCompiler(
       case NoRepeat => memberName
     }
 
-    outSrc.puts(s"${privateMemberName(ioName)} = new $kstreamName($args);")
+    val newStream = s"new $kstreamName($args)"
+
+    val (ioType, ioName) = rep match {
+      case NoRepeat =>
+        outSrc.puts(s"${privateMemberName(ioId)} = $newStream;")
+        (KaitaiStreamType, privateMemberName(ioId))
+      case _ =>
+        val localIO = s"io_${idToStr(id)}"
+        outSrc.puts(s"$kstreamName* $localIO = $newStream;")
+        outSrc.puts(s"${privateMemberName(ioId)}->push_back($localIO);")
+        (ArrayType(KaitaiStreamType), localIO)
+    }
+
+    Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ioId, ioType))
     ioName
   }
 
@@ -417,8 +450,10 @@ class CppCompiler(
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     importListHdr.add("vector")
 
-    if (needRaw)
+    if (needRaw) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
+      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = new std::vector<$kstreamName*>();")
+    }
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
@@ -439,8 +474,12 @@ class CppCompiler(
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
     if (needRaw) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
-      outSrc.puts(s"${privateMemberName(RawIdentifier(id))}->reserve($lenVar);")
+      val rawId = privateMemberName(RawIdentifier(id))
+      outSrc.puts(s"$rawId = new std::vector<std::string>();")
+      outSrc.puts(s"$rawId->reserve($lenVar);")
+      val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
+      outSrc.puts(s"$ioId = new std::vector<$kstreamName*>();")
+      outSrc.puts(s"$ioId->reserve($lenVar);")
     }
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
     outSrc.puts(s"${privateMemberName(id)}->reserve($lenVar);")
@@ -460,8 +499,10 @@ class CppCompiler(
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     importListHdr.add("vector")
 
-    if (needRaw)
+    if (needRaw) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
+      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = new std::vector<$kstreamName*>();")
+    }
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
     outSrc.puts("{")
     outSrc.inc

@@ -1,6 +1,8 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.format.{Identifier, IoStorageIdentifier, RepeatSpec}
+import io.kaitai.struct.format.{AttrSpec, Identifier, RepeatSpec}
+
+import scala.collection.mutable.ListBuffer
 
 /**
   * Allocates new IO and returns attribute identifier that it will be stored
@@ -8,5 +10,5 @@ import io.kaitai.struct.format.{Identifier, IoStorageIdentifier, RepeatSpec}
   * keep track of allocated IOs.
   */
 trait AllocateAndStoreIO {
-  def allocateIO(varName: Identifier, rep: RepeatSpec): IoStorageIdentifier
+  def allocateIO(id: Identifier, rep: RepeatSpec, extraAttrs: ListBuffer[AttrSpec]): String
 }

@@ -111,9 +111,7 @@ trait EveryReadIsExpression
 
         this match {
           case thisStore: AllocateAndStoreIO =>
-            val ourIO = thisStore.allocateIO(rawId, rep)
-            Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
-            privateMemberName(ourIO)
+            thisStore.allocateIO(rawId, rep, extraAttrs)
           case thisLocal: AllocateIOLocalVar =>
             thisLocal.allocateIO(rawId, rep)
         }
