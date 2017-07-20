@@ -84,8 +84,8 @@ abstract class LanguageCompiler(
   def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit
   def readFooter(): Unit
 
-  def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
-  def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
+  def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
+  def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
   def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[Endianness]): Unit
@@ -119,7 +119,7 @@ abstract class LanguageCompiler(
 
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
-  def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
+  def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = attributeDeclaration(attrName, attrType, isNullable)
   def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit

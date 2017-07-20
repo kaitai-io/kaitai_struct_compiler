@@ -90,12 +90,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = ???
   override def readFooter(): Unit = ???
 
-  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
     translator.returnRes = None
   }
 
-  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
   override def universalDoc(doc: DocSpec): Unit = {
     out.puts
@@ -322,7 +322,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchEnd(): Unit =
     out.puts("}")
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${calculatedFlagForName(attrName)} bool")
     out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
   }

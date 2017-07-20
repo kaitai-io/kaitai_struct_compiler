@@ -39,11 +39,7 @@ class GoClassCompiler(
 
     compileInstances(curClass, extraAttrs)
 
-    (curClass.seq ++ extraAttrs).foreach { (attr) =>
-      if (!attr.doc.isEmpty)
-        lang.attributeDoc(attr.id, attr.doc)
-      lang.attributeReader(attr.id, attr.dataTypeComposite, attr.cond)
-    }
+    compileAttrReaders(curClass.seq ++ extraAttrs)
 
     compileEnums(curClass)
 

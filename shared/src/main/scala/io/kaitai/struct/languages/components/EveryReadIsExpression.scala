@@ -32,8 +32,14 @@ trait EveryReadIsExpression
         attrUserTypeParse(id, t, io, extraAttrs, rep, defEndian)
       case t: BytesType =>
         attrBytesTypeParse(id, t, io, extraAttrs, rep, isRaw)
-      case SwitchType(on, cases) =>
-        attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep, defEndian)
+      case st: SwitchType =>
+        val isNullable = if (switchBytesOnlyAsRaw) {
+          st.isNullableSwitchRaw
+        } else {
+          st.isNullable
+        }
+
+        attrSwitchTypeParse(id, st.on, st.cases, io, extraAttrs, rep, defEndian, isNullable)
       case t: StrFromBytesType =>
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), Ast.expr.Str(t.encoding))
         handleAssignment(id, expr, rep, isRaw)
@@ -143,10 +149,17 @@ trait EveryReadIsExpression
     io: String,
     extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
-    defEndian: Option[FixedEndian]
+    defEndian: Option[FixedEndian],
+    isNullable: Boolean
   ): Unit = {
+    if (isNullable)
+      condIfSetNull(id)
     switchCases[DataType](id, on, cases,
-      (dataType) => attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian),
+      (dataType) => {
+        if (isNullable)
+          condIfSetNonNull(id)
+        attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian)
+      },
       (dataType) => if (switchBytesOnlyAsRaw) {
         dataType match {
           case t: BytesType =>

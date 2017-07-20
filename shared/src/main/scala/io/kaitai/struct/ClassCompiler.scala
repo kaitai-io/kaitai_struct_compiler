@@ -82,14 +82,9 @@ class ClassCompiler(
     compileInstances(curClass, extraAttrs)
 
     // Attributes declarations and readers
-    compileAttrDeclarations(curClass.seq ++ extraAttrs)
-
-    (curClass.seq ++ extraAttrs).foreach { (attr) =>
-      // FIXME: Python should have some form of attribute docs too
-      if (!attr.doc.isEmpty && !lang.innerDocstrings)
-        lang.attributeDoc(attr.id, attr.doc)
-      lang.attributeReader(attr.id, attr.dataTypeComposite, attr.cond)
-    }
+    val allAttrs = curClass.seq ++ extraAttrs
+    compileAttrDeclarations(allAttrs)
+    compileAttrReaders(allAttrs)
 
     lang.classFooter(curClass.name)
 
@@ -112,8 +107,29 @@ class ClassCompiler(
     lang.classDestructorFooter
   }
 
-  def compileAttrDeclarations(attrs: List[AttrSpec]): Unit =
-    attrs.foreach((attr) => lang.attributeDeclaration(attr.id, attr.dataTypeComposite, attr.cond))
+  def compileAttrDeclarations(attrs: List[AttrSpec]): Unit = {
+    attrs.foreach { (attr) =>
+      val isNullable = if (lang.switchBytesOnlyAsRaw) {
+        attr.isNullableSwitchRaw
+      } else {
+        attr.isNullable
+      }
+      lang.attributeDeclaration(attr.id, attr.dataTypeComposite, isNullable)
+    }
+  }
+
+  def compileAttrReaders(attrs: List[AttrSpec]): Unit =
+    attrs.foreach { (attr) =>
+      // FIXME: Python should have some form of attribute docs too
+      if (!attr.doc.isEmpty && !lang.innerDocstrings)
+        lang.attributeDoc(attr.id, attr.doc)
+      val isNullable = if (lang.switchBytesOnlyAsRaw) {
+        attr.isNullableSwitchRaw
+      } else {
+        attr.isNullable
+      }
+      lang.attributeReader(attr.id, attr.dataTypeComposite, isNullable)
+    }
 
   def compileEagerRead(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
     endian match {
@@ -204,21 +220,11 @@ class ClassCompiler(
     lang.instanceFooter
   }
 
-  def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit = {
-    // Determine datatype
-    val dataType = instSpec.dataTypeComposite
+  def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit =
+    lang.instanceDeclaration(instName, instSpec.dataTypeComposite, instSpec.isNullable)
 
-    // Declare caching variable
-    val condSpec = instSpec match {
-      case vis: ValueInstanceSpec => ConditionalSpec(vis.ifExpr, NoRepeat)
-      case pis: ParseInstanceSpec => pis.cond
-    }
-    lang.instanceDeclaration(instName, dataType, condSpec)
-  }
-
-  def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit = {
+  def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =
     lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
-  }
 
   def isUnalignedBits(dt: DataType): Boolean =
     dt match {

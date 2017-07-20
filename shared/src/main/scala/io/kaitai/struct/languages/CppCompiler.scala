@@ -209,10 +209,10 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
-    declareNullFlag(attrName, condSpec)
+    declareNullFlag(attrName, isNullable)
   }
 
   def ensureMode(newMode: AccessMode): Unit = {
@@ -228,7 +228,7 @@ class CppCompiler(
     }
   }
 
-  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
@@ -255,41 +255,33 @@ class CppCompiler(
   }
 
   override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
-    val checkFlags = attr match {
-      case is: InstanceSpec =>
-        val dataType = is.dataTypeComposite
-        dataType match {
-          case ut: UserType =>
-            val checkLazy = calculatedFlagForName(id.asInstanceOf[InstanceIdentifier])
-            val checkNull = if (is.cond.ifExpr.isDefined) {
-              s" && !${nullFlagForName(id)}"
-            } else {
-              ""
-            }
-            outSrc.puts(s"if ($checkLazy$checkNull) {")
-            outSrc.inc
-            true
-          case _ =>
-            false
-        }
-      case as: AttrSpec =>
-        as.dataType match {
-          case ut: UserType =>
-            if (as.cond.ifExpr.isDefined) {
-              outSrc.puts(s"if (!${nullFlagForName(id)}) {")
-              outSrc.inc
-              true
-            } else {
-              false
-            }
-          case _ =>
-            false
-        }
+    val checkLazy = if (attr.isLazy) {
+      Some(calculatedFlagForName(id))
+    } else {
+      None
     }
 
-    typeDestructor(attr.dataTypeComposite, id)
+    val checkNull = if (attr.isNullableSwitchRaw) {
+      Some(s"!${nullFlagForName(id)}")
+    } else {
+      None
+    }
 
-    if (checkFlags) {
+    val checks: List[String] = List(checkLazy, checkNull).flatten
+
+    if (checks.nonEmpty) {
+      outSrc.puts(s"if (${checks.mkString(" && ")}) {")
+      outSrc.inc
+    }
+
+    attr.dataTypeComposite match {
+      case st: SwitchType =>
+        typeDestructor(st.combinedType, id)
+      case t =>
+        typeDestructor(t, id)
+    }
+
+    if (checks.nonEmpty) {
       outSrc.dec
       outSrc.puts("}")
     }
@@ -323,7 +315,7 @@ class CppCompiler(
     }
 
     t match {
-      case _: UserType | _: ArrayType =>
+      case _: UserType | _: ArrayType | KaitaiStructType | AnyType =>
         outSrc.puts(s"delete ${privateMemberName(id)};")
       case _ =>
         // no cleanup needed
@@ -619,11 +611,11 @@ class CppCompiler(
 
   override def switchBytesOnlyAsRaw = true
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"bool ${calculatedFlagForName(attrName)};")
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
-    declareNullFlag(attrName, condSpec)
+    declareNullFlag(attrName, isNullable)
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
@@ -739,8 +731,8 @@ class CppCompiler(
     * @param ksName attribute ID
     * @return calculated flag member name associated with it
     */
-  def calculatedFlagForName(ksName: InstanceIdentifier) =
-    s"f_${ksName.name}"
+  def calculatedFlagForName(ksName: Identifier) =
+    s"f_${idToStr(ksName)}"
 
   /**
     * Returns name of a member that stores "null flag" for a given attribute,
@@ -748,12 +740,8 @@ class CppCompiler(
     * @param ksName attribute ID
     * @return null flag member name associated with it
     */
-  def nullFlagForName(ksName: Identifier) = {
-    ksName match {
-      case NamedIdentifier(name) => s"n_$name"
-      case InstanceIdentifier(name) => s"n_$name"
-    }
-  }
+  def nullFlagForName(ksName: Identifier) =
+    s"n_${idToStr(ksName)}"
 
   override def idToStr(id: Identifier): String = {
     id match {
@@ -772,8 +760,8 @@ class CppCompiler(
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
-  def declareNullFlag(attrName: Identifier, condSpec: ConditionalSpec) = {
-    if (condSpec.ifExpr.nonEmpty) {
+  def declareNullFlag(attrName: Identifier, isNullable: Boolean) = {
+    if (isNullable) {
       outHdr.puts(s"bool ${nullFlagForName(attrName)};")
       ensureMode(PublicAccess)
       outHdr.puts(s"bool _is_null_${idToStr(attrName)}() { ${publicMemberName(attrName)}(); return ${nullFlagForName(attrName)}; };")
