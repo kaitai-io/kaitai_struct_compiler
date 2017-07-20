@@ -5,6 +5,7 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 sealed abstract class InstanceSpec(val doc: DocSpec) extends YAMLPath {
   def dataTypeComposite: DataType
+  def isNullable: Boolean
 }
 case class ValueInstanceSpec(
   path: List[String],
@@ -14,6 +15,7 @@ case class ValueInstanceSpec(
   var dataType: Option[DataType]
 ) extends InstanceSpec(_doc) {
   override def dataTypeComposite = dataType.get
+  override def isNullable: Boolean = ifExpr.isDefined
 }
 case class ParseInstanceSpec(
   path: List[String],

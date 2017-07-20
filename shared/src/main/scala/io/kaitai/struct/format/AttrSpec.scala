@@ -45,9 +45,26 @@ trait AttrLikeSpec extends YAMLPath {
     } else {
       dataType match {
         case st: SwitchType =>
-          // If switch type has no else statement, it will turn out to be null
-          // if every case would fail
-          !st.hasElseCase
+          st.isNullable
+        case _ =>
+          false
+      }
+    }
+  }
+
+  /**
+    * Determines if this attribute can be "null" in some circumstances or not.
+    * This version is for languages like C++, which make a special exception
+    * for raw byte arrays placement for switch statements.
+    * @return True if this attribute can be "null", false if it's never "null"
+    */
+  def isNullableSwitchRaw: Boolean = {
+    if (cond.ifExpr.isDefined) {
+      true
+    } else {
+      dataType match {
+        case st: SwitchType =>
+          st.isNullableSwitchRaw
         case _ =>
           false
       }

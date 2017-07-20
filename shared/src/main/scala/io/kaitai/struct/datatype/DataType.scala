@@ -121,6 +121,31 @@ object DataType {
       * @return True if this switch type includes an "else" case
       */
     def hasElseCase: Boolean = cases.contains(SwitchType.ELSE_CONST)
+
+    /**
+      * If a switch type has no else statement, it will turn out to be null
+      * every case would fail, so it's nullable.
+      * @return True if this switch type is nullable for regular languages.
+      */
+    def isNullable: Boolean = !hasElseCase
+
+    /**
+      * @return True if this switch type is nullable in a raw switch bytes languages (C++).
+      */
+    def isNullableSwitchRaw: Boolean = {
+      val elseCase = cases.get(SwitchType.ELSE_CONST)
+      elseCase match {
+        case Some(_: BytesType) =>
+          // else case with bytes type, nullable for C++-like languages
+          true
+        case Some(x) =>
+          // else case with any user type, non-nullable
+          false
+        case None =>
+          // no else case, even raw bytes, definitely nullable
+          true
+      }
+    }
   }
 
   object SwitchType {
