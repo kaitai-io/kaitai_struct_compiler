@@ -66,10 +66,10 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = classSpec.name.head
-    val prefix = if (config.pythonPackage.isEmpty) {
-      ""
-    } else {
-      config.pythonPackage + "."
+    val prefix = config.pythonPackage match {
+      case "" => ""
+      case "." => "."
+      case pkg => s"$pkg."
     }
     out.puts(s"from $prefix$name import ${type2class(name)}")
   }
