@@ -129,10 +129,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def readFooter(): Unit = {
-    out.puts("}")
-    out.dec
-  }
+  override def readFooter(): Unit = fileFooter("")
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
