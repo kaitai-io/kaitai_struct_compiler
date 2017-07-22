@@ -386,6 +386,14 @@ class CppCompiler(
           s"8 - (${expression(rotValue)})"
         }
         outSrc.puts(s"$destName = $kstreamName::process_rotate_left($srcName, $expr);")
+      case ProcessCustom(name, args) =>
+        val procClass = name.map((x) => type2class(x)).mkString("::")
+        val procName = s"_process_${idToStr(varSrc)}"
+
+        importListSrc.add(name.last + ".h")
+
+        outSrc.puts(s"$procClass $procName(${args.map(expression).mkString(", ")});")
+        outSrc.puts(s"$destName = $procName.decode($srcName);")
     }
   }
 
