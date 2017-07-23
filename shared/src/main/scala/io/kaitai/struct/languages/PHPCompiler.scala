@@ -341,7 +341,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def switchEnd(): Unit = universalFooter
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"public function ${idToStr(instName)}() {")
     out.inc
   }

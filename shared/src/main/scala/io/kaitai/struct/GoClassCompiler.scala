@@ -55,7 +55,7 @@ class GoClassCompiler(
 
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
-    lang.instanceHeader(className, instName, dataType)
+    lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     lang.instanceCheckCacheAndReturn(instName)
 
     instSpec match {

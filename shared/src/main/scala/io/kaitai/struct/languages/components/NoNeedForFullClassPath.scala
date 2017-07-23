@@ -16,9 +16,9 @@ trait NoNeedForFullClassPath {
     classConstructorHeader(name.last, parentType, rootClassName.last, isHybrid)
   def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit
 
-  def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit =
-    instanceHeader(className.last, instName, dataType)
-  def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit
+  def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit =
+    instanceHeader(className.last, instName, dataType, isNullable)
+  def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit =
     enumDeclaration(curClass.last, enumName, enumColl.map((x) => (x._1, x._2.name)))

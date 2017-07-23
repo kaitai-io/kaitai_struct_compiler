@@ -132,11 +132,11 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def readFooter(): Unit = fileFooter("")
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+    out.puts(s"private ${kaitaiType2NativeTypeNullable(attrType, isNullable)} ${privateMemberName(attrName)};")
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"public ${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
+    out.puts(s"public ${kaitaiType2NativeTypeNullable(attrType, isNullable)} ${publicMemberName(attrName)} { get { return ${privateMemberName(attrName)}; } }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -440,11 +440,11 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"private bool ${flagForInstName(attrName)};")
-    out.puts(s"private ${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+    out.puts(s"private ${kaitaiType2NativeTypeNullable(attrType, isNullable)} ${privateMemberName(attrName)};")
   }
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"public ${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}")
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"public ${kaitaiType2NativeTypeNullable(dataType, isNullable)} ${publicMemberName(instName)}")
     out.puts("{")
     out.inc
     out.puts("get")
@@ -570,6 +570,18 @@ object CSharpCompiler extends LanguageCompilerStatic
       case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"
 
       case SwitchType(_, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
+    }
+  }
+
+  def kaitaiType2NativeTypeNullable(t: DataType, isNullable: Boolean): String = {
+    val r = kaitaiType2NativeType(t)
+    if (isNullable) {
+      t match {
+        case _: NumericType | _: BooleanType => s"$r?"
+        case _ => r
+      }
+    } else {
+      r
     }
   }
 

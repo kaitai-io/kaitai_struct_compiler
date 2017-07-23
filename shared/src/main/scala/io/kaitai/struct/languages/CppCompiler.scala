@@ -675,7 +675,7 @@ class CppCompiler(
     declareNullFlag(attrName, isNullable)
   }
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
     outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
 

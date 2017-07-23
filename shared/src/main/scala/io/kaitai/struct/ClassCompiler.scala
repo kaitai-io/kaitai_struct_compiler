@@ -201,7 +201,7 @@ class ClassCompiler(
 
     if (!lang.innerDocstrings)
       compileInstanceDoc(instName, instSpec)
-    lang.instanceHeader(className, instName, dataType)
+    lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     if (lang.innerDocstrings)
       compileInstanceDoc(instName, instSpec)
     lang.instanceCheckCacheAndReturn(instName)

@@ -356,7 +356,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   def onComparisonExpr(condition: Ast.expr) =
     Ast.expr.Compare(Ast.expr.Name(Ast.identifier("_on")), Ast.cmpop.Eq, condition)
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts
     out.puts(s"sub ${instName.name} {")
     out.inc
