@@ -8,14 +8,14 @@
 
 This project is an official reference compiler for [Kaitai Struct](https://github.com/kaitai-io/kaitai_struct) project.
 
-Kaitai Struct is a declarative language used for describe various
+Kaitai Struct is a declarative language used to describe various
 binary data structures, laid out in files or in memory: i.e. binary
 file formats, network stream packet formats, etc.
 
 The main idea is that a particular format is described in Kaitai
 Struct language (`.ksy` files) only once and then can be compiled with
 this compiler into source files in one of the supported programming
-languages. These modules will include a generated code for a parser
+languages. These modules will include the generated code for a parser
 that can read described data structure from a file / stream and give
 access to it in a nice, easy-to-comprehend API.
 
