@@ -276,20 +276,13 @@ class CppCompiler(
       outSrc.inc
     }
 
-    attr.dataTypeComposite match {
-      case st: SwitchType =>
-        st.combinedType match {
-          case KaitaiStructType | AnyType =>
-            // Passing KaitaiStructType or AnyType would lose the "size" property, if it
-            // was used. So, we just pass any of the used data types, as cleanup
-            // is the same for them anyway, just to retain that UserTypeFromBytes.
-            typeDestructor(st.cases.values.head, id)
-          case combined =>
-            typeDestructor(combined, id)
-        }
-      case t =>
-        typeDestructor(t, id)
+    val (innerType, hasRaw) = attr.dataType match {
+      case ut: UserTypeFromBytes => (ut, true)
+      case st: SwitchType => (st.combinedType, st.hasSize)
+      case t => (t, false)
     }
+
+    destructMember(id, innerType, attr.isArray, hasRaw, hasRaw)
 
     if (checks.nonEmpty) {
       outSrc.dec
@@ -297,45 +290,53 @@ class CppCompiler(
     }
   }
 
-  def typeDestructor(t: DataType, id: Identifier): Unit = {
-    t match {
-      case ArrayType(el: UserType) =>
+  def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, hasRaw: Boolean, hasIO: Boolean): Unit = {
+    outSrc.puts(s"// ${idToStr(id)}: $innerType, isArray=$isArray, hasRaw=$hasRaw, hasIO=$hasIO")
+    if (isArray) {
+      // raw is std::vector<string>*, no need to delete its contents, but we
+      // need to clean up the vector pointer itself
+      if (hasRaw)
+        outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
+
+      // IO is std::vector<kstream*>*, needs destruction of both members
+      // and the vector pointer itself
+      if (hasIO) {
+        val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
+        destructVector(s"$kstreamName*", ioVar)
+        outSrc.puts(s"delete $ioVar;")
+      }
+
+      // main member contents
+      if (needsDestruction(innerType)) {
         val arrVar = privateMemberName(id)
-        destructVector(kaitaiType2NativeType(el), arrVar)
 
-        // Check if IO storage members cleanup is required
-        el match {
-          case _: UserTypeFromBytes =>
-            // delete byte array vector
-            outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
-
-            // delete IO vector contents
-            val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-            destructVector(s"$kstreamName*", ioVar)
-
-            // delete IO vector
-            outSrc.puts(s"delete $ioVar;")
-          case _ =>
-            // no cleanup needed
+        // C++ specific substitution: AnyType results from generic struct + raw bytes
+        // so we would assume that only generic struct needs to be cleaned up
+        val realType = innerType match {
+          case AnyType => KaitaiStructType
+          case _ => innerType
         }
 
-      case _ =>
-        // no cleanup needed
-    }
+        destructVector(kaitaiType2NativeType(realType), arrVar)
+      }
 
-    t match {
-      case _: UserTypeFromBytes =>
+      // main member is a std::vector of something, always needs destruction
+      outSrc.puts(s"delete ${privateMemberName(id)};")
+    } else {
+      // raw is just a string, no need to cleanup => we ignore `hasRaw`
+
+      // but hasIO is important
+      if (hasIO)
         outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
-      case _ =>
-        // no cleanup needed
-    }
 
-    t match {
-      case _: UserType | _: ArrayType | KaitaiStructType | AnyType =>
+      if (needsDestruction(innerType))
         outSrc.puts(s"delete ${privateMemberName(id)};")
-      case _ =>
-        // no cleanup needed
     }
+  }
+
+  def needsDestruction(t: DataType): Boolean = t match {
+    case _: UserType | _: ArrayType | KaitaiStructType | AnyType => true
+    case _ => false
   }
 
   /**
