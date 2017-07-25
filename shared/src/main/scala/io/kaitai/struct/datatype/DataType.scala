@@ -146,6 +146,11 @@ object DataType {
           true
       }
     }
+
+    def hasSize: Boolean =
+      cases.values.exists((t) =>
+        t.isInstanceOf[UserTypeFromBytes] || t.isInstanceOf[BytesType]
+      )
   }
 
   object SwitchType {

@@ -623,7 +623,7 @@ class CppCompiler(
       outSrc.puts(s"if (on == ${expression(condition)}) {")
       outSrc.inc
     } else {
-      outSrc.puts(s"case ${expression(condition)}:")
+      outSrc.puts(s"case ${expression(condition)}: {")
       outSrc.inc
     }
   }
@@ -633,7 +633,7 @@ class CppCompiler(
       outSrc.puts(s"else if (on == ${expression(condition)}) {")
       outSrc.inc
     } else {
-      outSrc.puts(s"case ${expression(condition)}:")
+      outSrc.puts(s"case ${expression(condition)}: {")
       outSrc.inc
     }
   }
@@ -645,6 +645,7 @@ class CppCompiler(
     } else {
       outSrc.puts("break;")
       outSrc.dec
+      outSrc.puts("}")
     }
   }
 
@@ -653,7 +654,7 @@ class CppCompiler(
       outSrc.puts("else {")
       outSrc.inc
     } else {
-      outSrc.puts("default:")
+      outSrc.puts("default: {")
       outSrc.inc
     }
   }

@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.datatype._
-import io.kaitai.struct.datatype.DataType.UserTypeFromBytes
+import io.kaitai.struct.datatype.DataType.{SwitchType, UserTypeFromBytes}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
@@ -80,7 +80,8 @@ trait CommonReads extends LanguageCompiler {
 
   def needRaw(dataType: DataType): Boolean = {
     dataType match {
-      case t: UserTypeFromBytes => true
+      case _: UserTypeFromBytes => true
+      case st: SwitchType => st.hasSize
       case _ => false
     }
   }
