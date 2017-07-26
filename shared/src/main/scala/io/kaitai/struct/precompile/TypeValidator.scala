@@ -77,10 +77,19 @@ class TypeValidator(topClass: ClassSpec) {
   /**
     * Validates single non-composite data type, checking all expressions
     * inside data type definition.
+    *
     * @param dataType data type to check
     * @param path original .ksy path to make error messages more meaningful
     */
   def validateDataType(dataType: DataType, path: List[String]) {
+    // validate args vs params
+    dataType match {
+      case ut: UserType =>
+        validateArgsVsParams(ut.args, ut.classSpec.get.params, path ++ List("type"))
+      case _ =>
+        // no args or params in non-user types
+    }
+
     dataType match {
       case blt: BytesLimitType =>
         checkAssert[IntType](blt.size, "integer", path, "size")
@@ -108,6 +117,32 @@ class TypeValidator(topClass: ClassSpec) {
         }
       }
       validateDataType(caseType, casePath)
+    }
+  }
+
+  /**
+    * Validates that arguments given for a certain type match list of parameters
+    * declared for that type.
+    * @param args arguments given in invocation
+    * @param params parameters declared in a user type
+    * @param path path where invocation happens
+    * @return
+    */
+  def validateArgsVsParams(args: Seq[Ast.expr], params: List[ParamDefSpec], path: List[String]): Unit = {
+    if (args.size != params.size)
+      throw YAMLParseException.invalidParamCount(params.size, args.size, path)
+
+    args.indices.foreach { (i) =>
+      val arg = args(i)
+      val param = params(i)
+      val tArg = detector.detectType(arg)
+      val tParam = param.dataType
+      try {
+        TypeDetector.assertCompareTypes(tArg, tParam, Ast.cmpop.Eq)
+      } catch {
+        case _: TypeMismatchError =>
+          throw YAMLParseException.paramMismatch(i, tArg, param.id.humanReadable, tParam, path)
+      }
     }
   }
 
