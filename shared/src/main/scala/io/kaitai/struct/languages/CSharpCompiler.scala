@@ -57,12 +57,16 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"{")
     out.inc
 
-    out.puts(s"public static ${type2class(name)} FromFile(string fileName)")
-    out.puts(s"{")
-    out.inc
-    out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
-    out.dec
-    out.puts("}")
+    // `FromFile` is generated only for parameterless types
+    if (typeProvider.nowClass.params.isEmpty) {
+      out.puts(s"public static ${type2class(name)} FromFile(string fileName)")
+      out.puts(s"{")
+      out.inc
+      out.puts(s"return new ${type2class(name)}(new $kstreamName(fileName));")
+      out.dec
+      out.puts("}")
+      out.puts
+    }
   }
 
   override def classFooter(name: String): Unit = fileFooter(name)
@@ -77,19 +81,34 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val addEndian = if (isHybrid) ", bool? isLe = null" else ""
 
-    out.puts
-    out.puts(s"public ${type2class(name)}($kstreamName io, ${kaitaiType2NativeType(parentType)} parent = null, ${type2class(rootClassName)} root = null$addEndian) : base(io)")
+    val pIo = paramName(IoIdentifier)
+    val pParent = paramName(ParentIdentifier)
+    val pRoot = paramName(RootIdentifier)
+
+    val paramsArg = params.map((p) =>
+      s"${kaitaiType2NativeType(p.dataType)} ${paramName(p.id)}"
+    ).mkString("", ", ", ", ")
+
+    out.puts(
+      s"public ${type2class(name)}($paramsArg" +
+        s"$kstreamName $pIo, " +
+        s"${kaitaiType2NativeType(parentType)} $pParent = null, " +
+        s"${type2class(rootClassName)} $pRoot = null$addEndian) : base($pIo)"
+    )
     out.puts(s"{")
     out.inc
-    out.puts(s"${privateMemberName(ParentIdentifier)} = parent;")
+    handleAssignmentSimple(ParentIdentifier, pParent)
 
-    if (name == rootClassName)
-      out.puts(s"${privateMemberName(RootIdentifier)} = root ?? this;")
-    else
-      out.puts(s"${privateMemberName(RootIdentifier)} = root;")
+    handleAssignmentSimple(
+      RootIdentifier,
+      if (name == rootClassName) s"$pRoot ?? this" else pRoot
+    )
 
     if (isHybrid)
       handleAssignmentSimple(EndianIdentifier, "isLe")
+
+    // Store parameters passed to us
+    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
   }
 
   override def classConstructorFooter: Unit = fileFooter(null)
@@ -520,6 +539,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
 }
 
 object CSharpCompiler extends LanguageCompilerStatic
