@@ -835,7 +835,7 @@ class CppCompiler(
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
-  def paramName(id: Identifier): String = s"p_${idToStr(id)}"
+  override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
 
   def declareNullFlag(attrName: Identifier, isNullable: Boolean) = {
     if (isNullable) {
