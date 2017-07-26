@@ -85,9 +85,9 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val pParent = paramName(ParentIdentifier)
     val pRoot = paramName(RootIdentifier)
 
-    val paramsArg = params.map((p) =>
+    val paramsArg = Utils.join(params.map((p) =>
       s"${kaitaiType2NativeType(p.dataType)} ${paramName(p.id)}"
-    ).mkString("", ", ", ", ")
+    ), "", ", ", ", ")
 
     out.puts(
       s"public ${type2class(name)}($paramsArg" +
