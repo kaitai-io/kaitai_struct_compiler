@@ -126,9 +126,9 @@ class CppCompiler(
       ("", "")
     }
 
-    val paramsArg = params.map((p) =>
+    val paramsArg = Utils.join(params.map((p) =>
       s"${kaitaiType2NativeType(p.dataType)} ${paramName(p.id)}"
-    ).mkString("", ", ", ", ")
+    ), "", ", ", ", ")
 
     // Parameter names
     val pIo = paramName(IoIdentifier)
