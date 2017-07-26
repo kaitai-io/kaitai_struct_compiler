@@ -647,8 +647,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def publicMemberName(id: Identifier) = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
-
-  def paramName(id: Identifier) = idToStr(id)
 }
 
 object JavaCompiler extends LanguageCompilerStatic
