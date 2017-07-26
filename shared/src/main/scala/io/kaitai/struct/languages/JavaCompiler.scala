@@ -109,7 +109,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     val paramsArg = params.map((p) =>
-      s"${kaitaiType2JavaType(p.dataType)} ${idToStr(p.id)}"
+      s"${kaitaiType2JavaType(p.dataType)} ${paramName(p.id)}"
     ).mkString(", ", ", ", "")
 
     if (isHybrid) {
@@ -126,7 +126,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       // Normal 3 constructors, chained into the last
 
-      val paramsRelay = params.map((p) => idToStr(p.id)).mkString(", ", ", ", "")
+      val paramsRelay = params.map((p) => paramName(p.id)).mkString(", ", ", ", "")
 
       out.puts
       out.puts(s"public ${type2class(name)}($kstreamName _io$paramsArg) {")
@@ -155,9 +155,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     // Store parameters passed to us
-    params.foreach((p) =>
-      out.puts(s"this.${idToStr(p.id)} = ${idToStr(p.id)};")
-    )
+    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
   }
 
   override def runRead(): Unit =
@@ -649,6 +647,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def publicMemberName(id: Identifier) = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  def paramName(id: Identifier) = idToStr(id)
 }
 
 object JavaCompiler extends LanguageCompilerStatic
