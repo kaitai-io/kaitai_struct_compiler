@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RubyTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -75,7 +75,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       ""
     }
 
-    val paramsList = params.map((p) => paramName(p.id)).mkString(", ", ", ", "")
+    val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
 
     out.puts(s"def initialize(_io, _parent = nil, _root = self$endianSuffix$paramsList)")
     out.inc
@@ -351,7 +351,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(InheritedEndian) => ", @_is_le"
             case _ => ""
           }
-          s", $parent, @_root$addEndian"
+          val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
+          s", $parent, @_root$addEndian$addParams"
         }
         s"${type2class(t.name.last)}.new($io$addArgs)"
     }
