@@ -45,4 +45,13 @@ object YAMLParseException {
 
   def badProcess(got: String, path: List[String]): YAMLParseException =
     new YAMLParseException(s"incorrect process expression `$got`", path)
+
+  def invalidParamCount(paramSize: Int, argSize: Int, path: List[String]): YAMLParseException =
+    new YAMLParseException(s"parameter count mismatch: $paramSize declared, but $argSize used", path)
+
+  def paramMismatch(idx: Int, argType: DataType, paramName: String, paramType: DataType, path: List[String]): YAMLParseException =
+    new YAMLParseException(
+      s"can't pass argument #$idx of type $argType into parameter `$paramName` of type $paramType",
+      path
+    )
 }
