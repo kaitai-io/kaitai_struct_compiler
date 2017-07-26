@@ -264,7 +264,7 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
       case _: BytesTerminatedType => UNKNOWN
       case StrFromBytesType(basedOn, _) => dataTypeSizeAsString(basedOn, attrName)
       case utb: UserTypeFromBytes => dataTypeSizeAsString(utb.bytes, attrName)
-      case UserTypeInstream(_, _) => UNKNOWN
+      case _: UserTypeInstream => UNKNOWN
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
       case _: SwitchType => UNKNOWN
       case BitsType1 => "1b"
@@ -445,7 +445,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case _: BytesTerminatedType => None
       case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
       case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
-      case UserTypeInstream(_, _) => None
+      case _: UserTypeInstream => None
       case _: SwitchType => None
     }
   }
