@@ -279,11 +279,16 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
 
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts("i = 0")
     out.puts(s"while not $io.eof?")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} << $expr")
+  override def condRepeatEosFooter: Unit = {
+    out.puts("i += 1")
+    super.condRepeatEosFooter
+  }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
@@ -303,6 +308,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts("i = 0")
     out.puts("begin")
     out.inc
   }
@@ -315,6 +321,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("i += 1")
     out.dec
     out.puts(s"end until ${expression(untilExpr)}")
   }
