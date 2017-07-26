@@ -49,5 +49,13 @@ trait ObjectOrientedLanguage extends LanguageCompiler {
     */
   def localTemporaryName(id: Identifier): String
 
+  /**
+    * Renders identifier as a parameter (method argument) name.
+    * Default implementation just calls [[idToStr]].
+    * @param id
+    * @return
+    */
+  def paramName(id: Identifier): String = idToStr(id)
+
   override def normalIO: String = privateMemberName(IoIdentifier)
 }
