@@ -581,6 +581,7 @@ class CppCompiler(
       case BitsType(width: Int) =>
         s"$io->read_bits_int($width)"
       case t: UserType =>
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -595,7 +596,7 @@ class CppCompiler(
           }
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
-        s"new ${types2class(t.name)}($io$addArgs)"
+        s"new ${types2class(t.name)}($addParams$io$addArgs)"
     }
   }
 
