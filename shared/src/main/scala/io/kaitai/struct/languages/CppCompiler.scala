@@ -291,7 +291,6 @@ class CppCompiler(
   }
 
   def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, hasRaw: Boolean, hasIO: Boolean): Unit = {
-    outSrc.puts(s"// ${idToStr(id)}: $innerType, isArray=$isArray, hasRaw=$hasRaw, hasIO=$hasIO")
     if (isArray) {
       // raw is std::vector<string>*, no need to delete its contents, but we
       // need to clean up the vector pointer itself
