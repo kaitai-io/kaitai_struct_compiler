@@ -81,7 +81,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val endianAdd = if (isHybrid) ", _is_le=None" else ""
-    val paramsList = params.map((p) => idToStr(p.id)).mkString(", ", ", ", "")
+    val paramsList = params.map((p) => paramName(p.id)).mkString(", ", ", ", "")
 
     out.puts(s"def __init__(self$paramsList, _io, _parent=None, _root=None$endianAdd):")
     out.inc
@@ -92,9 +92,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (isHybrid)
       out.puts("self._is_le = _is_le")
 
-    params.foreach((p) =>
-      out.puts(s"${privateMemberName(p.id)} = ${idToStr(p.id)}")
-    )
+    // Store parameters passed to us
+    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
   }
 
   override def runRead(): Unit = {
