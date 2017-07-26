@@ -5,6 +5,7 @@ import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
+import io.kaitai.struct.languages.JavaCompiler.kaitaiType2JavaType
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RubyTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
@@ -68,19 +69,26 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("attr_reader :_debug")
   }
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val endianSuffix = if (isHybrid) {
       ", _is_le = nil"
     } else {
       ""
     }
-    out.puts(s"def initialize(_io, _parent = nil, _root = self$endianSuffix)")
+
+    val paramsList = params.map((p) => idToStr(p.id)).mkString(", ", ", ", "")
+
+    out.puts(s"def initialize(_io, _parent = nil, _root = self$endianSuffix$paramsList)")
     out.inc
     out.puts("super(_io, _parent, _root)")
 
     if (isHybrid) {
       out.puts("@_is_le = _is_le")
     }
+
+    params.foreach((p) =>
+      out.puts(s"${privateMemberName(p.id)} = ${idToStr(p.id)}")
+    )
 
     if (debug) {
       out.puts("@_debug = {}")

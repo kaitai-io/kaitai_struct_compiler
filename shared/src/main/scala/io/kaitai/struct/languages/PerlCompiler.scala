@@ -72,7 +72,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classFooter(name: List[String]): Unit = {}
 
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val endianSuffix = if (isHybrid) ", $_is_le" else ""
 
     out.puts

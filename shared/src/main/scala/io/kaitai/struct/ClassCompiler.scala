@@ -60,11 +60,7 @@ class ClassCompiler(
       lang.debugClassSequence(curClass.seq)
 
     // Constructor
-    lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName, curClass.meta.endian.contains(InheritedEndian))
-    curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
-    if (!lang.debug)
-      lang.runRead()
-    lang.classConstructorFooter
+    compileConstructor(curClass)
 
     // Read method(s)
     compileEagerRead(curClass.seq, extraAttrs, curClass.meta.endian)
@@ -93,6 +89,20 @@ class ClassCompiler(
 
     if (!lang.innerEnums)
       compileEnums(curClass)
+  }
+
+  def compileConstructor(curClass: ClassSpec) = {
+    lang.classConstructorHeader(
+      curClass.name,
+      curClass.parentType,
+      topClassName,
+      curClass.meta.endian.contains(InheritedEndian),
+      curClass.params
+    )
+    curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
+    if (!lang.debug)
+      lang.runRead()
+    lang.classConstructorFooter
   }
 
   def compileDestructor(curClass: ClassSpec) = {

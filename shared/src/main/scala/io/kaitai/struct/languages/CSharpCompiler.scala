@@ -67,7 +67,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classFooter(name: String): Unit = fileFooter(name)
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
         out.puts(s"private bool? ${privateMemberName(EndianIdentifier)};")

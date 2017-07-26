@@ -31,11 +31,11 @@ class GoClassCompiler(
     }
     lang.classFooter(curClass.name)
 
-    // Read method
-    lang.classConstructorHeader(curClass.name, curClass.parentType, topClassName, curClass.meta.endian == Some(InheritedEndian))
-    curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
-    compileSeq(curClass.seq, extraAttrs, None) // FIXME
-    lang.classConstructorFooter
+    // Constructor
+    compileConstructor(curClass)
+
+    // Read method(s)
+    compileEagerRead(curClass.seq, extraAttrs, curClass.meta.endian)
 
     compileInstances(curClass, extraAttrs)
 

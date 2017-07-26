@@ -119,7 +119,7 @@ class CppCompiler(
     outHdr.puts(s"class ${types2class(name)};")
   }
 
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val (endianSuffixHdr, endianSuffixSrc)  = if (isHybrid) {
       (", int p_is_le = -1", ", int p_is_le")
     } else {

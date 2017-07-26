@@ -91,7 +91,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // fromFile helper makes no sense for inherited endianness structures:
     // they require endianness to be parsed anyway
-    if (!isInheritedEndian && !config.javaFromFileClass.isEmpty) {
+    if (!isInheritedEndian && !config.javaFromFileClass.isEmpty && typeProvider.nowClass.params.isEmpty) {
       out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
       out.inc
       out.puts(s"return new ${type2class(name)}(new $fromFileClass(fileName));")
@@ -100,7 +100,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
         out.puts("private Boolean _is_le;")
@@ -108,12 +108,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // no _is_le variable
     }
 
+    val paramsArg = params.map((p) =>
+      s"${kaitaiType2JavaType(p.dataType)} ${idToStr(p.id)}"
+    ).mkString(", ", ", ", "")
+
     if (isHybrid) {
       // Inherited endian classes can be only internal, so they have mandatory 4th argument
       // and 1..3-argument constructors don't make sense
 
       out.puts
-      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root, boolean _is_le) {")
+      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root, boolean _is_le$paramsArg) {")
       out.inc
       out.puts("super(_io);")
       out.puts("this._parent = _parent;")
@@ -122,22 +126,24 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       // Normal 3 constructors, chained into the last
 
+      val paramsRelay = params.map((p) => idToStr(p.id)).mkString(", ", ", ", "")
+
       out.puts
-      out.puts(s"public ${type2class(name)}($kstreamName _io) {")
+      out.puts(s"public ${type2class(name)}($kstreamName _io$paramsArg) {")
       out.inc
-      out.puts("this(_io, null, null);")
+      out.puts(s"this(_io, null, null$paramsRelay);")
       out.dec
       out.puts("}")
 
       out.puts
-      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent) {")
+      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent$paramsArg) {")
       out.inc
-      out.puts("this(_io, _parent, null);")
+      out.puts(s"this(_io, _parent, null$paramsRelay);")
       out.dec
       out.puts("}")
 
       out.puts
-      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root) {")
+      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root$paramsArg) {")
       out.inc
       out.puts("super(_io);")
       out.puts("this._parent = _parent;")
@@ -147,6 +153,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts("this._root = _root;")
       }
     }
+
+    // Store parameters passed to us
+    params.foreach((p) =>
+      out.puts(s"this.${idToStr(p.id)} = ${idToStr(p.id)};")
+    )
   }
 
   override def runRead(): Unit =

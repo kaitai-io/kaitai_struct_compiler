@@ -12,9 +12,9 @@ trait NoNeedForFullClassPath {
     classFooter(name.last)
   def classFooter(name: String): Unit
 
-  def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit =
-    classConstructorHeader(name.last, parentType, rootClassName.last, isHybrid)
-  def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit
+  def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit =
+    classConstructorHeader(name.last, parentType, rootClassName.last, isHybrid, params)
+  def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit
 
   def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit =
     instanceHeader(className.last, instName, dataType, isNullable)

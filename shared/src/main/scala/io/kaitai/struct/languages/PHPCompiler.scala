@@ -67,7 +67,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classFooter(name: List[String]): Unit = universalFooter
 
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
         out.puts("protected $_m__is_le;")

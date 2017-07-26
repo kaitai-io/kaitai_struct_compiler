@@ -79,7 +79,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean): Unit = {
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val endianAdd = if (isHybrid) ", _is_le=None" else ""
 
     out.puts(s"def __init__(self, _io, _parent=None, _root=None$endianAdd):")
