@@ -108,9 +108,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // no _is_le variable
     }
 
-    val paramsArg = params.map((p) =>
+    val paramsArg = Utils.join(params.map((p) =>
       s"${kaitaiType2JavaType(p.dataType)} ${paramName(p.id)}"
-    ).mkString(", ", ", ", "")
+    ), ", ", ", ", "")
 
     if (isHybrid) {
       // Inherited endian classes can be only internal, so they have mandatory 4th argument
@@ -126,7 +126,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       // Normal 3 constructors, chained into the last
 
-      val paramsRelay = params.map((p) => paramName(p.id)).mkString(", ", ", ", "")
+      val paramsRelay = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
 
       out.puts
       out.puts(s"public ${type2class(name)}($kstreamName _io$paramsArg) {")
@@ -436,7 +436,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(InheritedEndian) => ", _is_le"
             case _ => ""
           }
-          s", $parent, _root$addEndian"
+          val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
+          s", $parent, _root$addEndian$addParams"
         }
         s"new ${types2class(t.name)}($io$addArgs)"
     }
