@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.PythonTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils}
 
 class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -81,7 +81,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val endianAdd = if (isHybrid) ", _is_le=None" else ""
-    val paramsList = params.map((p) => paramName(p.id)).mkString(", ", ", ", "")
+    val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
 
     out.puts(s"def __init__(self$paramsList, _io, _parent=None, _root=None$endianAdd):")
     out.inc
@@ -297,6 +297,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io.read_bits_int($width)"
       case t: UserType =>
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -310,7 +311,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, self._root$addEndian"
         }
-        s"${types2class(t.classSpec.get.name)}($io$addArgs)"
+        s"${types2class(t.classSpec.get.name)}($addParams$io$addArgs)"
     }
   }
 
