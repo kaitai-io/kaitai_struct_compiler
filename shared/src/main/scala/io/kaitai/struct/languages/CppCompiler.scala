@@ -126,25 +126,39 @@ class CppCompiler(
       ("", "")
     }
 
+    val paramsArg = params.map((p) =>
+      s"${kaitaiType2NativeType(p.dataType)} ${paramName(p.id)}"
+    ).mkString("", ", ", ", ")
+
+    // Parameter names
+    val pIo = paramName(IoIdentifier)
+    val pParent = paramName(ParentIdentifier)
+    val pRoot = paramName(RootIdentifier)
+
+    // Types
+    val tIo = s"$kstreamName*"
+    val tParent = kaitaiType2NativeType(parentType)
+    val tRoot = s"${types2class(rootClassName)}*"
+
     outHdr.puts
-    outHdr.puts(s"${types2class(List(name.last))}(" +
-      s"$kstreamName* p_io, " +
-      s"${kaitaiType2NativeType(parentType)} p_parent = 0, " +
-      s"${types2class(rootClassName)}* p_root = 0$endianSuffixHdr);"
+    outHdr.puts(s"${types2class(List(name.last))}($paramsArg" +
+      s"$tIo $pIo, " +
+      s"$tParent $pParent = 0, " +
+      s"$tRoot $pRoot = 0$endianSuffixHdr);"
     )
 
     outSrc.puts
-    outSrc.puts(s"${types2class(name)}::${types2class(List(name.last))}(" +
-      s"$kstreamName *p_io, " +
-      s"${kaitaiType2NativeType(parentType)} p_parent, " +
-      s"${types2class(rootClassName)} *p_root$endianSuffixSrc) : $kstructName(p_io) {"
+    outSrc.puts(s"${types2class(name)}::${types2class(List(name.last))}($paramsArg" +
+      s"$tIo $pIo, " +
+      s"$tParent $pParent, " +
+      s"$tRoot $pRoot$endianSuffixSrc) : $kstructName($pIo) {"
     )
     outSrc.inc
-    handleAssignmentSimple(ParentIdentifier, "p_parent")
+    handleAssignmentSimple(ParentIdentifier, pParent)
     handleAssignmentSimple(RootIdentifier, if (name == rootClassName) {
       "this"
     } else {
-      "p_root"
+      pRoot
     })
 
     typeProvider.nowClass.meta.endian match {
@@ -156,6 +170,9 @@ class CppCompiler(
       case _ =>
         // no _is_le variable
     }
+
+    // Store parameters passed to us
+    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
   }
 
   override def classConstructorFooter: Unit = {
@@ -817,6 +834,8 @@ class CppCompiler(
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  def paramName(id: Identifier): String = s"p_${idToStr(id)}"
 
   def declareNullFlag(attrName: Identifier, isNullable: Boolean) = {
     if (isNullable) {
