@@ -1,12 +1,12 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{PHPTranslator, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct.translators.PHPTranslator
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -78,17 +78,34 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val endianAdd = if (isHybrid) ", $is_le = null" else ""
 
+    val paramsArg = Utils.join(params.map((p) =>
+      s"${kaitaiType2NativeType(p.dataType)} ${paramName(p.id)}"
+    ), "", ", ", ", ")
+
+    // Parameter names
+    val pIo = paramName(IoIdentifier)
+    val pParent = paramName(ParentIdentifier)
+    val pRoot = paramName(RootIdentifier)
+
+    // Types
+    val tIo = kstreamName
+    val tParent = kaitaiType2NativeType(parentType)
+    val tRoot = translator.types2classAbs(rootClassName)
+
     out.puts(
-      "public function __construct(" +
-      kstreamName + " $io, " +
-      kaitaiType2NativeType(parentType) + " $parent = null, " +
-      translator.types2classAbs(rootClassName) + " $root = null" + endianAdd + ") {"
+      s"public function __construct($paramsArg" +
+      s"$tIo $pIo, " +
+      s"$tParent $pParent = null, " +
+      s"$tRoot $pRoot = null" + endianAdd + ") {"
     )
     out.inc
-    out.puts("parent::__construct($io, $parent, $root);")
+    out.puts(s"parent::__construct($pIo, $pParent, $pRoot);")
 
     if (isHybrid)
       handleAssignmentSimple(EndianIdentifier, "$is_le")
+
+    // Store parameters passed to us
+    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
   }
 
   override def runRead(): Unit =
@@ -287,6 +304,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io->readBitsInt($width)"
       case t: UserType =>
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -301,7 +319,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
-        s"new ${translator.types2classAbs(t.classSpec.get.name)}($io$addArgs)"
+        s"new ${translator.types2classAbs(t.classSpec.get.name)}($addParams$io$addArgs)"
     }
   }
 
@@ -390,6 +408,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def publicMemberName(id: Identifier) = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
+
+  override def paramName(id: Identifier): String = s"$$${idToStr(id)}"
 
   /**
     * Determine PHP data type corresponding to a KS data type. Currently unused due to
