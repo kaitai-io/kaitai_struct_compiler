@@ -5,7 +5,6 @@ import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.JavaCompiler.kaitaiType2JavaType
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RubyTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
@@ -76,7 +75,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       ""
     }
 
-    val paramsList = params.map((p) => idToStr(p.id)).mkString(", ", ", ", "")
+    val paramsList = params.map((p) => paramName(p.id)).mkString(", ", ", ", "")
 
     out.puts(s"def initialize(_io, _parent = nil, _root = self$endianSuffix$paramsList)")
     out.inc
@@ -86,9 +85,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("@_is_le = _is_le")
     }
 
-    params.foreach((p) =>
-      out.puts(s"${privateMemberName(p.id)} = ${idToStr(p.id)}")
-    )
+    // Store parameters passed to us
+    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
 
     if (debug) {
       out.puts("@_debug = {}")
