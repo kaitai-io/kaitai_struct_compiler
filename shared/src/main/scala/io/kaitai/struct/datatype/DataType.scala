@@ -89,20 +89,29 @@ object DataType {
   case object CalcBooleanType extends BooleanType
   case class ArrayType(elType: DataType) extends DataType
 
-  abstract class UserType(val name: List[String], val forcedParent: Option[Ast.expr]) extends DataType {
+  abstract class UserType(
+    val name: List[String],
+    val forcedParent: Option[Ast.expr],
+    var args: Seq[Ast.expr]
+  ) extends DataType {
     var classSpec: Option[ClassSpec] = None
     def isOpaque = {
       val cs = classSpec.get
       cs.isTopLevel || cs.meta.isOpaque
     }
   }
-  case class UserTypeInstream(_name: List[String], _forcedParent: Option[Ast.expr]) extends UserType(_name, _forcedParent)
+  case class UserTypeInstream(
+    _name: List[String],
+    _forcedParent: Option[Ast.expr],
+    _args: Seq[Ast.expr] = Seq()
+  ) extends UserType(_name, _forcedParent, _args)
   case class UserTypeFromBytes(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
+    _args: Seq[Ast.expr] = Seq(),
     bytes: BytesType,
     override val process: Option[ProcessExpr]
-  ) extends UserType(_name, _forcedParent) with Processing
+  ) extends UserType(_name, _forcedParent, _args) with Processing
 
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
 
@@ -215,7 +224,8 @@ object DataType {
 
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
   private val ReFloatType = """f(4|8)(le|be)?""".r
-  private val ReBitType= """b(\d+)""".r
+  private val ReBitType = """b(\d+)""".r
+  private val ReUserTypeWithArgs = """(.+)\((.*)\)""".r
 
   def fromYaml(
     dto: Option[String],
@@ -275,14 +285,18 @@ object DataType {
           val bat = arg2.getByteArrayType(path)
           StrFromBytesType(bat, enc)
         case _ =>
-          val dtl = classNameToList(dt)
+          val (arglessType, args) = dt match {
+            case ReUserTypeWithArgs(typeStr, argsStr) => (typeStr, Expressions.parseList(argsStr))
+            case _ => (dt, List())
+          }
+          val dtl = classNameToList(arglessType)
           if (arg.size.isEmpty && !arg.sizeEos && arg.terminator.isEmpty) {
             if (arg.process.isDefined)
               throw new YAMLParseException(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path)
-            UserTypeInstream(dtl, arg.parent)
+            UserTypeInstream(dtl, arg.parent, args)
           } else {
             val bat = arg.getByteArrayType(path)
-            UserTypeFromBytes(dtl, arg.parent, bat, arg.process)
+            UserTypeFromBytes(dtl, arg.parent, args, bat, arg.process)
           }
       }
     }
