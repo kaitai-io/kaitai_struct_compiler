@@ -369,7 +369,8 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case Some(InheritedEndian) => ", this._is_le"
           case _ => ""
         }
-        s"new ${type2class(t.name.last)}($io$addArgs$addEndian)"
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
+        s"new ${type2class(t.name.last)}($io$addArgs$addEndian$addParams)"
     }
   }
 
