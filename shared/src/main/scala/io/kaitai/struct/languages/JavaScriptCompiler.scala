@@ -89,7 +89,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       ""
     }
 
-    val paramsList = params.map((p) => paramName(p.id)).mkString(", ", ", ", "")
+    val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
 
     out.puts(s"function ${type2class(name.last)}(_io, _parent, _root$endianSuffix$paramsList) {")
     out.inc
