@@ -380,6 +380,18 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
       }
     }
 
+    cs.params.foreach { (attr) =>
+      val name = attr.id match {
+        case NamedIdentifier(attrName) =>
+          attrName
+        case NumberedIdentifier(n) =>
+          s"_${NumberedIdentifier.TEMPLATE}$n"
+      }
+      if (name == s) {
+        return s"${type2class(className)}__params"
+      }
+    }
+
     cs.instances.get(InstanceIdentifier(s)).foreach((inst) =>
       return s"${type2class(className)}__inst__$s"
     )

@@ -61,6 +61,19 @@ object ParseUtils {
     }
   }
 
+  def getValueIdentifier(src: Map[String, Any], idx: Int, entityName: String, path: List[String]): Identifier = {
+    getOptValueStr(src, "id", path) match {
+      case Some(idStr) =>
+        try {
+          NamedIdentifier(idStr)
+        } catch {
+          case _: InvalidIdentifier =>
+            throw YAMLParseException.invalidId(idStr, entityName, path ++ List("id"))
+        }
+      case None => NumberedIdentifier(idx)
+    }
+  }
+
   /**
     * Gets a list of T-typed values from a given YAML map's key "field",
     * reporting errors accurately and ensuring type safety.

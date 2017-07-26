@@ -39,6 +39,10 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
           if (el.id == NamedIdentifier(attrName))
             return el.dataTypeComposite
         }
+        inClass.params.foreach { el =>
+          if (el.id == NamedIdentifier(attrName))
+            return el.dataType
+        }
         inClass.instances.get(InstanceIdentifier(attrName)) match {
           case Some(i: ValueInstanceSpec) =>
             i.dataType match {
@@ -102,6 +106,10 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
 
   def isLazy(inClass: ClassSpec, attrName: String): Boolean = {
     inClass.seq.foreach { el =>
+      if (el.id == NamedIdentifier(attrName))
+        return false
+    }
+    inClass.params.foreach { el =>
       if (el.id == NamedIdentifier(attrName))
         return false
     }

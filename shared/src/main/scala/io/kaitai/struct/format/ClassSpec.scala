@@ -17,6 +17,7 @@ case class ClassSpec(
   isTopLevel: Boolean,
   meta: MetaSpec,
   doc: DocSpec,
+  params: List[ParamDefSpec],
   seq: List[AttrSpec],
   types: Map[String, ClassSpec],
   instances: Map[InstanceIdentifier, InstanceSpec],
@@ -54,6 +55,7 @@ object ClassSpec {
     "meta",
     "doc",
     "doc-ref",
+    "params",
     "seq",
     "types",
     "instances",
@@ -70,6 +72,10 @@ object ClassSpec {
 
     val doc = DocSpec.fromYaml(srcMap, path)
 
+    val params: List[ParamDefSpec] = srcMap.get("params") match {
+      case Some(value) => paramDefFromYaml(value, path ++ List("params"))
+      case None => List()
+    }
     val seq: List[AttrSpec] = srcMap.get("seq") match {
       case Some(value) => seqFromYaml(value, path ++ List("seq"), meta)
       case None => List()
@@ -89,7 +95,11 @@ object ClassSpec {
 
     checkDupSeqInstIds(seq, instances)
 
-    val cs = ClassSpec(path, path.isEmpty, meta, doc, seq, types, instances, enums)
+    val cs = ClassSpec(
+      path, path.isEmpty,
+      meta, doc,
+      params, seq, types, instances, enums
+    )
 
     // If that's a top-level class, set its name from meta/id
     if (path.isEmpty) {
@@ -102,6 +112,19 @@ object ClassSpec {
     }
 
     cs
+  }
+
+  def paramDefFromYaml(src: Any, path: List[String]): List[ParamDefSpec] = {
+    src match {
+      case srcList: List[Any] =>
+        val params = srcList.zipWithIndex.map { case (attrSrc, idx) =>
+          ParamDefSpec.fromYaml(attrSrc, path ++ List(idx.toString), idx)
+        }
+        // FIXME: checkDupSeqIds(params)
+        params
+      case unknown =>
+        throw new YAMLParseException(s"expected array, found $unknown", path)
+    }
   }
 
   def seqFromYaml(src: Any, path: List[String], metaDef: MetaSpec): List[AttrSpec] = {
@@ -187,6 +210,7 @@ object ClassSpec {
       true,
       meta = MetaSpec.OPAQUE,
       doc = DocSpec.EMPTY,
+      params = List(),
       seq = List(),
       types = Map(),
       instances = Map(),
