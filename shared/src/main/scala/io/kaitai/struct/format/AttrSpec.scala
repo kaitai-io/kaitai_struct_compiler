@@ -18,14 +18,14 @@ case object NoRepeat extends RepeatSpec
 
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 
-trait AttrLikeSpec extends YAMLPath {
+trait AttrLikeSpec extends MemberSpec {
   def dataType: DataType
   def cond: ConditionalSpec
   def doc: DocSpec
 
   def isArray: Boolean = cond.repeat != NoRepeat
 
-  def dataTypeComposite: DataType = {
+  override def dataTypeComposite: DataType = {
     if (isArray) {
       ArrayType(dataType)
     } else {
@@ -33,13 +33,7 @@ trait AttrLikeSpec extends YAMLPath {
     }
   }
 
-  /**
-    * Determines if this attribute can be "null" in some circumstances or not.
-    * In some target languages, it would affect data types used, init and
-    * cleanup procedures.
-    * @return True if this attribute can be "null", false if it's never "null"
-    */
-  def isNullable: Boolean = {
+  override def isNullable: Boolean = {
     if (cond.ifExpr.isDefined) {
       true
     } else {
@@ -52,12 +46,6 @@ trait AttrLikeSpec extends YAMLPath {
     }
   }
 
-  /**
-    * Determines if this attribute can be "null" in some circumstances or not.
-    * This version is for languages like C++, which make a special exception
-    * for raw byte arrays placement for switch statements.
-    * @return True if this attribute can be "null", false if it's never "null"
-    */
   def isNullableSwitchRaw: Boolean = {
     if (cond.ifExpr.isDefined) {
       true
@@ -85,7 +73,7 @@ case class AttrSpec(
   dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
   doc: DocSpec = DocSpec.EMPTY
-) extends AttrLikeSpec {
+) extends AttrLikeSpec with MemberSpec {
   override def isLazy = false
 }
 

@@ -7,7 +7,10 @@ case class ParamDefSpec(
   id: Identifier,
   dataType: DataType,
   doc: DocSpec = DocSpec.EMPTY
-) extends YAMLPath
+) extends MemberSpec {
+  override def isNullable: Boolean = false
+  override def isNullableSwitchRaw: Boolean = false
+}
 
 object ParamDefSpec {
   def fromYaml(src: Any, path: List[String], idx: Int): ParamDefSpec = {

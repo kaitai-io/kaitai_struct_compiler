@@ -82,7 +82,7 @@ class ClassCompiler(
     compileInstances(curClass, extraAttrs)
 
     // Attributes declarations and readers
-    val allAttrs = curClass.seq ++ extraAttrs
+    val allAttrs: List[MemberSpec] = curClass.seq ++ curClass.params ++ extraAttrs
     compileAttrDeclarations(allAttrs)
     compileAttrReaders(allAttrs)
 
@@ -107,7 +107,7 @@ class ClassCompiler(
     lang.classDestructorFooter
   }
 
-  def compileAttrDeclarations(attrs: List[AttrSpec]): Unit = {
+  def compileAttrDeclarations(attrs: List[MemberSpec]): Unit = {
     attrs.foreach { (attr) =>
       val isNullable = if (lang.switchBytesOnlyAsRaw) {
         attr.isNullableSwitchRaw
@@ -118,7 +118,7 @@ class ClassCompiler(
     }
   }
 
-  def compileAttrReaders(attrs: List[AttrSpec]): Unit =
+  def compileAttrReaders(attrs: List[MemberSpec]): Unit =
     attrs.foreach { (attr) =>
       // FIXME: Python should have some form of attribute docs too
       if (!attr.doc.isEmpty && !lang.innerDocstrings)

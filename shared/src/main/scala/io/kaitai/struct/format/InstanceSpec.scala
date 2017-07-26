@@ -18,6 +18,7 @@ case class ValueInstanceSpec(
   override def isNullable: Boolean = ifExpr.isDefined
 }
 case class ParseInstanceSpec(
+  id: Identifier,
   path: List[String],
   private val _doc: DocSpec,
   dataType: DataType,
@@ -69,7 +70,7 @@ object InstanceSpec {
 
         val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io")
         val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef, id)
-        ParseInstanceSpec(path, a.doc, a.dataType, a.cond, pos, io)
+        ParseInstanceSpec(id, path, a.doc, a.dataType, a.cond, pos, io)
     }
   }
 }
