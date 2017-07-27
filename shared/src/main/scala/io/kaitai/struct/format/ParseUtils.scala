@@ -24,7 +24,16 @@ object ParseUtils {
       case Some(value) =>
         asStr(value, path ++ List(field))
       case None =>
-        throw YAMLParseException.badType("string", None, path ++ List(field))
+        throw YAMLParseException.noKey(path ++ List(field))
+    }
+  }
+
+  def getValueMapStrStr(src: Map[String, Any], field: String, path: List[String]): Map[String, String] = {
+    src.get(field) match {
+      case Some(value) =>
+        asMapStrStr(value, path ++ List(field))
+      case None =>
+        throw YAMLParseException.noKey(path ++ List(field))
     }
   }
 
