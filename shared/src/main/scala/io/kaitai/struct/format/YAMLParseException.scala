@@ -38,7 +38,7 @@ object YAMLParseException {
     val f = epe.failure
     val pos = StringReprOps.prettyIndex(f.extra.input, f.index)
     new YAMLParseException(
-      s"parsing expression '${epe.src}' failed on $pos, expected ${f.extra.traced.expected}",
+      s"parsing expression '${epe.src}' failed on $pos, expected ${f.extra.traced.expected.replaceAll("\n", "\\n")}",
       path
     )
   }
