@@ -114,6 +114,8 @@ class TypeValidator(topClass: ClassSpec) {
         } catch {
           case tme: TypeMismatchError =>
             throw new YAMLParseException(tme.getMessage, casePath)
+          case err: Throwable =>
+            throw new ErrorInInput(err, casePath)
         }
       }
       validateDataType(caseType, casePath)
