@@ -278,10 +278,7 @@ object AttrSpec {
     arg: YamlAttrArgs
   ): DataType = {
     val _on = ParseUtils.getValueStr(switchSpec, "switch-on", path)
-    val _cases: Map[String, String] = switchSpec.get("cases") match {
-      case None => Map()
-      case Some(x) => ParseUtils.asMapStrStr(x, path ++ List("cases"))
-    }
+    val _cases = ParseUtils.getValueMapStrStr(switchSpec, "cases", path)
 
     ParseUtils.ensureLegalKeys(switchSpec, LEGAL_KEYS_SWITCH, path)
 
