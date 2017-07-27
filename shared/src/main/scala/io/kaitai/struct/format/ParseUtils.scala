@@ -21,10 +21,10 @@ object ParseUtils {
 
   def getValueStr(src: Map[String, Any], field: String, path: List[String]): String = {
     src.get(field) match {
-      case Some(value: String) =>
-        value
-      case unknown =>
-        throw YAMLParseException.badType("string", unknown, path ++ List(field))
+      case Some(value) =>
+        asStr(value, path ++ List(field))
+      case None =>
+        throw YAMLParseException.badType("string", None, path ++ List(field))
     }
   }
 
