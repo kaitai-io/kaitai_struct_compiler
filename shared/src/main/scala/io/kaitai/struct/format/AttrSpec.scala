@@ -282,12 +282,25 @@ object AttrSpec {
 
     ParseUtils.ensureLegalKeys(switchSpec, LEGAL_KEYS_SWITCH, path)
 
-    val on = Expressions.parse(_on)
+    val on = try {
+      Expressions.parse(_on)
+    } catch {
+      case epe: Expressions.ParseException =>
+        throw YAMLParseException.expression(epe, path ++ List("switch-on"))
+    }
+
     val cases = _cases.map { case (condition, typeName) =>
-      Expressions.parse(condition) -> DataType.fromYaml(
-        Some(typeName), path ++ List("cases"), metaDef,
+      val casePath = path ++ List("cases", condition)
+      val condType = DataType.fromYaml(
+        Some(typeName), casePath, metaDef,
         arg
       )
+      try {
+        Expressions.parse(condition) -> condType
+      } catch {
+        case epe: Expressions.ParseException =>
+          throw YAMLParseException.expression(epe, casePath)
+      }
     }
 
     // If we have size defined, and we don't have any "else" case already, add
