@@ -85,7 +85,7 @@ Common options:
 
 * `<file>...` — source files (.ksy)
 * `-t <language> | --target <language>` — target languages (`cpp_stl`,
-  `csharp`, `java`, `javascript`, `perl`, `php`, `python`, `ruby`, `all`)
+  `csharp`, `java`, `javascript`, `lua`, `perl`, `php`, `python`, `ruby`, `all`)
   * `all` is a special case: it compiles all possible target
     languages, creating language-specific directories (as per language
     identifiers) inside output directory, and then creating output

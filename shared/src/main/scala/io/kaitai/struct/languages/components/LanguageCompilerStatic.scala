@@ -16,6 +16,7 @@ object LanguageCompilerStatic {
     "go" -> GoCompiler,
     "java" -> JavaCompiler,
     "javascript" -> JavaScriptCompiler,
+    "lua" -> LuaCompiler,
     "perl" -> PerlCompiler,
     "php" -> PHPCompiler,
     "python" -> PythonCompiler,
