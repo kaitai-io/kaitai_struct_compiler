@@ -348,6 +348,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+    out.puts("{")
+    out.inc
+    out.puts("int i = 0;")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
 
@@ -356,6 +359,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.add($expr);")
+  }
+
+  override def condRepeatEosFooter: Unit = {
+    out.puts("i++;")
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
@@ -379,6 +390,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("{")
     out.inc
     out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_")};")
+    out.puts("int i = 0;")
     out.puts("do {")
     out.inc
 
@@ -397,6 +409,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("i++;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
     out.dec
