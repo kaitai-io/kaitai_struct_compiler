@@ -76,7 +76,7 @@ trait CommonReads extends LanguageCompiler {
     }
   }
 
-  def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian]): Unit
+  def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], assignType: Option[DataType] = None): Unit
 
   def needRaw(dataType: DataType): Boolean = {
     dataType match {

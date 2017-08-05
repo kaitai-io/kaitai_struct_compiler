@@ -12,7 +12,16 @@ import scala.collection.mutable.ListBuffer
 trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
   val translator: GoTranslator
 
-  override def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian]): Unit = {
+  override def attrParse2(
+    id: Identifier,
+    dataType: DataType,
+    io: String,
+    extraAttrs: ListBuffer[AttrSpec],
+    rep: RepeatSpec,
+    isRaw: Boolean,
+    defEndian: Option[FixedEndian],
+    assignType: Option[DataType] = None
+  ): Unit = {
     dataType match {
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)

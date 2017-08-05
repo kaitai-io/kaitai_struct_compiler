@@ -409,8 +409,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"${kaitaiType2JavaType(dataType)} $id = $expr;")
 
-  override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
-    dataType match {
+  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
+    val expr = dataType match {
       case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
       case blt: BytesLimitType =>
@@ -440,6 +440,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s", $parent, _root$addEndian$addParams"
         }
         s"new ${types2class(t.name)}($io$addArgs)"
+    }
+
+    if (assignType != dataType) {
+      s"(${kaitaiType2JavaType(assignType)}) ($expr)"
+    } else {
+      expr
     }
   }
 
