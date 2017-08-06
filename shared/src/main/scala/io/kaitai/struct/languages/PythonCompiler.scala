@@ -240,11 +240,16 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts("i = 0")
     out.puts(s"while not $io.is_eof():")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}.append($expr)")
+  override def condRepeatEosFooter: Unit = {
+    out.puts("i += 1")
+    universalFooter
+  }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
@@ -260,6 +265,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts("i = 0")
     out.puts("while True:")
     out.inc
   }
@@ -276,6 +282,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts("break")
     out.dec
+    out.puts("i += 1")
     out.dec
   }
 
