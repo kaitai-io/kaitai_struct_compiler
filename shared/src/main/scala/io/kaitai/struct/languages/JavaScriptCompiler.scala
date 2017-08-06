@@ -288,6 +288,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = [];")
     if (debug)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
+    out.puts("var i = 0;")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
@@ -297,6 +298,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatEosFooter: Unit = {
+    out.puts("i++;")
     out.dec
     out.puts("}")
   }
@@ -326,6 +328,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = []")
     if (debug)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
+    out.puts("var i = 0;")
     out.puts("do {")
     out.inc
   }
@@ -338,6 +341,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("i++;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
   }
