@@ -488,6 +488,9 @@ class CppCompiler(
       outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = new std::vector<$kstreamName*>();")
     }
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
+    outSrc.puts("{")
+    outSrc.inc
+    outSrc.puts("int i = 0;")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
   }
@@ -497,6 +500,9 @@ class CppCompiler(
   }
 
   override def condRepeatEosFooter: Unit = {
+    outSrc.puts("i++;")
+    outSrc.dec
+    outSrc.puts("}")
     outSrc.dec
     outSrc.puts("}")
   }
@@ -539,6 +545,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
     outSrc.puts("{")
     outSrc.inc
+    outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
     outSrc.puts("do {")
     outSrc.inc
@@ -556,6 +563,7 @@ class CppCompiler(
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    outSrc.puts("i++;")
     outSrc.dec
     outSrc.puts(s"} while (!(${expression(untilExpr)}));")
     outSrc.dec
