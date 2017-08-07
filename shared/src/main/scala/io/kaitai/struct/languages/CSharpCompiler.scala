@@ -266,6 +266,9 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
+    out.puts("{")
+    out.inc
+    out.puts("var i = 0;")
     out.puts(s"while (!$io.IsEof) {")
     out.inc
   }
@@ -274,7 +277,13 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.Add($expr);")
   }
 
-  override def condRepeatEosFooter: Unit = fileFooter(null)
+  override def condRepeatEosFooter: Unit = {
+    out.puts("i++;")
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+  }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     importList.add("System.Collections.Generic")
@@ -300,6 +309,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
     out.puts("{")
     out.inc
+    out.puts("var i = 0;")
     out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
     out.puts("do {")
     out.inc
@@ -317,6 +327,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("i++;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
     out.dec
