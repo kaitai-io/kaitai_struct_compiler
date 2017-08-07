@@ -244,12 +244,18 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
+    out.puts("$i = 0;")
     out.puts(s"while (!$io->isEof()) {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}[] = $expr;")
+  }
+
+  override def condRepeatEosFooter: Unit = {
+    out.puts("$i++;")
+    super.condRepeatEosFooter
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
@@ -269,6 +275,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
+    out.puts("$i = 0;")
     out.puts("do {")
     out.inc
   }
@@ -281,6 +288,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("$i++;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
   }
