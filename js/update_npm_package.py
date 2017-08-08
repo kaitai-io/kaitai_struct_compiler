@@ -1,6 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 
 import shutil
+import re
+import subprocess
+import datetime
 
 moduleTemplate = '''
 (function (root, factory) {
@@ -30,3 +33,12 @@ moduleCode = moduleTemplate.replace('{{compilerCode}}', compilerCode)
 with open('npm/kaitai-struct-compiler.js','wt') as f: f.write(moduleCode)
 for fn in ['LICENSE', 'README.md']:
     shutil.copy('../%s' % fn, 'npm/')
+
+gitInfo = subprocess.check_output(['git log -1 --format=%H,%ct'], shell=True).strip().split(',')
+commitId = gitInfo[0]
+commitTs = int(gitInfo[1])
+commitDate = datetime.datetime.fromtimestamp(commitTs).strftime('%Y%m%d.%H%M%S')
+
+with open('npm/package.json','rb') as f: packageJson = f.read()
+packageJson = re.sub(r'("version": "\d+\.\d+\.\d+-SNAPSHOT.)[^"]*"', r'\g<1>%s"' % commitDate, packageJson)
+with open('npm/package.json','wb') as f: f.write(packageJson)
