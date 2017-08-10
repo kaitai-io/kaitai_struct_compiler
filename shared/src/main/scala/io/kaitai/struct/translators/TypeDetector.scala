@@ -322,4 +322,37 @@ object TypeDetector {
       }
     }
   }
+
+  /**
+    * Returns true if one can assign value of type `src` into a variable / parameter of type `dst`.
+    * @param src data type of source value to be assigned
+    * @param dst destination data type to be assigned into
+    * @return true if assign if possible
+    */
+  def canAssign(src: DataType, dst: DataType): Boolean = {
+    if (src == dst) {
+      // Obviously, if types are equal, they'll fit into one another
+      true
+    } else {
+      (src, dst) match {
+        case (_, AnyType) => true
+        case (_: IntType, _: IntType) => true
+        case (_: BooleanType, _: BooleanType) => true
+        case (_: StrType, _: StrType) => true
+        case (_: UserType, KaitaiStructType) => true
+        case (t1: UserType, t2: UserType) =>
+          (t1.classSpec, t2.classSpec) match {
+            case (None, None) =>
+              // opaque classes are assignable if their names match
+              t1.name == t2.name
+            case (Some(cs1), Some(cs2)) =>
+              // normal user types are assignable if their class specs match
+              cs1 == cs2
+            case (_, _) =>
+              false
+          }
+        case (_, _) => false
+      }
+    }
+  }
 }

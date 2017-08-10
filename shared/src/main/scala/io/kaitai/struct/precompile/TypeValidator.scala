@@ -139,11 +139,9 @@ class TypeValidator(topClass: ClassSpec) {
       val param = params(i)
       val tArg = detector.detectType(arg)
       val tParam = param.dataType
-      try {
-        TypeDetector.assertCompareTypes(tArg, tParam, Ast.cmpop.Eq)
-      } catch {
-        case _: TypeMismatchError =>
-          throw YAMLParseException.paramMismatch(i, tArg, param.id.humanReadable, tParam, path)
+
+      if (!TypeDetector.canAssign(tArg, tParam)) {
+        throw YAMLParseException.paramMismatch(i, tArg, param.id.humanReadable, tParam, path)
       }
     }
   }
