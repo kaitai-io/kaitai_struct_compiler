@@ -151,7 +151,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => javaName
     }
 
-    out.puts(s"$kstreamName $ioName = new $kstreamName($args);")
+    out.puts(s"$ioName := $kstreamName($args)")
     ioName
   }
 
@@ -190,14 +190,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
-    out.puts(s"while (!$io.isEof()) {")
+    //out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))})")
+    out.puts(s"for !$io.EOF() {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, r: TranslatorResult): Unit = {
+    val name = privateMemberName(id)
     val expr = translator.resToStr(r)
-    out.puts(s"${privateMemberName(id)}.add($expr);")
+    out.puts(s"$name = append($name, $expr)")
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
@@ -209,8 +210,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit = {
+    val name = privateMemberName(id)
     val expr = translator.resToStr(r)
-    out.puts(s"${privateMemberName(id)}.add($expr);")
+    out.puts(s"$name = append($name, $expr)")
   }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
@@ -333,9 +335,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     translator.returnRes = Some(dataType match {
       case _: IntType => "0"
       case _: BooleanType => "false"
-      case _: StrType => ""
-      case _: UserType => "nil"
-      case _ => "???"
+      case _: StrType => "\"\""
+      case _ => "nil"
     })
   }
 
@@ -454,16 +455,16 @@ object GoCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float32"
       case FloatMultiType(Width8, _) => "float64"
 
-      case BitsType(_) => "long"
+      case BitsType(_) => "uint64"
 
-      case _: BooleanType => "boolean"
+      case _: BooleanType => "bool"
       case CalcIntType => "int"
       case CalcFloatType => "float64"
 
       case _: StrType => "string"
-      case _: BytesType => "byte[]"
+      case _: BytesType => "[]byte"
 
-      case AnyType => "Object"
+      case AnyType => "interface{}"
       case KaitaiStreamType => "*" + kstreamName
       case KaitaiStructType => kstructName
 
