@@ -212,7 +212,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit = {
     val name = privateMemberName(id)
     val expr = translator.resToStr(r)
-    out.puts(s"$name = append($name, $expr)")
+    out.puts(s"$name[i] = $expr")
   }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
