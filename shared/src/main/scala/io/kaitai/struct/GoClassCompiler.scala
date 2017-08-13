@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.datatype.DataType.{KaitaiStreamType, UserTypeInstream}
-import io.kaitai.struct.datatype.{Endianness, InheritedEndian}
+import io.kaitai.struct.datatype.{Endianness, FixedEndian, InheritedEndian}
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.GoCompiler
 
@@ -31,11 +31,8 @@ class GoClassCompiler(
     }
     lang.classFooter(curClass.name)
 
-    // Constructor
-    compileConstructor(curClass)
-
-    // Read method(s)
-    compileEagerRead(curClass.seq, extraAttrs, curClass.meta.endian)
+    // Constructor = Read() function
+    compileReadFunction(curClass, extraAttrs)
 
     compileInstances(curClass, extraAttrs)
 
@@ -45,6 +42,23 @@ class GoClassCompiler(
 
     // Recursive types
     compileSubclasses(curClass)
+  }
+
+  def compileReadFunction(curClass: ClassSpec, extraAttrs: ListBuffer[AttrSpec]) = {
+    lang.classConstructorHeader(
+      curClass.name,
+      curClass.parentType,
+      topClassName,
+      curClass.meta.endian.contains(InheritedEndian),
+      curClass.params
+    )
+    // FIXME
+    val defEndian = curClass.meta.endian match {
+      case Some(fe: FixedEndian) => Some(fe)
+      case _ => None
+    }
+    compileSeq(curClass.seq, extraAttrs, defEndian)
+    lang.classConstructorFooter
   }
 
   override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {

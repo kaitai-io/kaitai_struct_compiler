@@ -85,10 +85,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  override def runRead(): Unit = ???
+  override def runRead(): Unit = {}
   override def runReadCalc(): Unit = ???
-  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = ???
-  override def readFooter(): Unit = ???
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {}
+  override def readFooter(): Unit = {}
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
