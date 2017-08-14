@@ -5,11 +5,42 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.precompile.TypeMismatchError
 
+/**
+  * BaseTranslator is a common semi-abstract implementation of a translator
+  * API (i.e. [[AbstractTranslator]]), which fits target languages that
+  * follow "every KS expression is translatable into expression" paradigm.
+  * Main [[AbstractTranslator.translate]] method is implemented as a huge
+  * case matching, which usually just calls relevant abstract methods for
+  * every particular piece of KS expression, i.e. literals, operations,
+  * method calls, etc.
+  *
+  * Given that there are many of these abstract methods, to make it more
+  * maintainable, they are grouped into several abstract traits:
+  * [[CommonLiterals]], [[CommonOps]].
+  *
+  * This translator implementation also handles user-defined types and
+  * fields properly - it uses given [[TypeProvider]] to resolve these.
+  *
+  * @param provider TypeProvider that will answer queries on user types
+  */
 abstract class BaseTranslator(val provider: TypeProvider)
   extends TypeDetector(provider)
   with AbstractTranslator
   with CommonLiterals
   with CommonOps {
+
+  /**
+    * Translates KS expression into an expression in some target language.
+    * Note that this implementation may throw errors subclassed off the
+    * [[io.kaitai.struct.precompile.ExpressionError]] when encountering
+    * some sort of logical error in expression (i.e. invalid usage of
+    * operator, type mismatch, etc). Typically, one's supposed to catch
+    * and rethrow it, wrapped in [[io.kaitai.struct.precompile.ErrorInInput]]
+    * to assist error reporting in KSC.
+    *
+    * @param v KS expression to translate
+    * @return expression in target language as string
+    */
   def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.IntNum(n) =>
