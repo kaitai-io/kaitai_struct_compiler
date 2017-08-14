@@ -1,7 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.format.ClassSpec
-import io.kaitai.struct.translators.JavaScriptTranslator
+import io.kaitai.struct.translators.CommonLiterals
 
 trait Jsonable {
   def toJson: String
@@ -10,7 +9,7 @@ trait Jsonable {
 /**
   * Ultra-minimalistic JSON strings generator from arbitrary Scala objects.
   */
-object JSON {
+object JSON extends CommonLiterals {
   /**
     * Converts an arbitrary Scala object to JSON string representation.
     * @param obj object to convert
@@ -26,12 +25,8 @@ object JSON {
     }
   }
 
-  private lazy val translator = new JavaScriptTranslator(
-    new ClassTypeProvider(ClassSpec.opaquePlaceholder(List("foo")))
-  )
-
   def stringToJson(str: String): String =
-    translator.doStringLiteral(str)
+    doStringLiteral(str)
 
   def listToJson(obj: List[_]): String =
     "[" + obj.map((x) => stringify(x)).mkString(",") + "]"
