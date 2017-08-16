@@ -337,6 +337,7 @@ object TypeDetector {
       (src, dst) match {
         case (_, AnyType) => true
         case (_: IntType, _: IntType) => true
+        case (_: FloatType, _: FloatType) => true
         case (_: BooleanType, _: BooleanType) => true
         case (_: StrType, _: StrType) => true
         case (_: UserType, KaitaiStructType) => true
