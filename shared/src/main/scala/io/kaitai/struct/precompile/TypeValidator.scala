@@ -85,7 +85,9 @@ class TypeValidator(topClass: ClassSpec) {
     // validate args vs params
     dataType match {
       case ut: UserType =>
-        validateArgsVsParams(ut.args, ut.classSpec.get.params, path ++ List("type"))
+        // we only validate non-opaque types, opaque are unverifiable by definition
+        if (!ut.isOpaque)
+          validateArgsVsParams(ut.args, ut.classSpec.get.params, path ++ List("type"))
       case _ =>
         // no args or params in non-user types
     }
