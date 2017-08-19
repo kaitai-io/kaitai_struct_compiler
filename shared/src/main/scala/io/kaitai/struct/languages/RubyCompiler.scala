@@ -347,6 +347,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io.read_bits_int($width)"
       case t: UserType =>
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -358,10 +359,9 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(InheritedEndian) => ", @_is_le"
             case _ => ""
           }
-          val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-          s", $parent, @_root$addEndian$addParams"
+          s", $parent, @_root$addEndian"
         }
-        s"${type2class(t.name.last)}.new($io$addArgs)"
+        s"${type2class(t.name.last)}.new($io$addArgs$addParams)"
     }
   }
 
