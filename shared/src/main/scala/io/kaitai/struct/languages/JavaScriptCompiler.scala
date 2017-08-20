@@ -368,7 +368,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io.readBitsInt($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) "" else ", this, this._root"
+        val addArgs = if (t.isOpaque) ", null, null" else ", this, this._root"
         val addEndian = t.classSpec.get.meta.endian match {
           case Some(InheritedEndian) => ", this._is_le"
           case _ => ""
