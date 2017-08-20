@@ -449,10 +449,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(InheritedEndian) => ", _is_le"
             case _ => ""
           }
-          val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-          s", $parent, _root$addEndian$addParams"
+          s", $parent, _root$addEndian"
         }
-        s"new ${types2class(t.name)}($io$addArgs)"
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
+        s"new ${types2class(t.name)}($io$addArgs$addParams)"
     }
 
     if (assignType != dataType) {
