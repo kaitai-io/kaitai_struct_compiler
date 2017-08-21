@@ -144,7 +144,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case Some(e) => s"${e.toSuffix.toUpperCase}"
       case None => ""
     }
-    out.puts(s"$readAccessAndType void _read$suffix() {")
+    out.puts(s"$readAccessAndType void _read$suffix()")
+    out.puts("{")
     out.inc
   }
 
@@ -291,7 +292,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}((int) (${expression(repeatExpr)}));")
-    out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
+    out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++)")
+    out.puts("{")
     out.inc
   }
 
