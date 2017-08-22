@@ -87,11 +87,12 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
   override def resolveType(typeName: String): DataType = resolveType(nowClass, typeName)
 
   def resolveType(inClass: ClassSpec, typeName: String): DataType = {
+    if (inClass.name.last == typeName)
+      return makeUserType(inClass)
+
     inClass.types.get(typeName) match {
       case Some(spec) =>
-        val ut = UserTypeInstream(spec.name, None)
-        ut.classSpec = Some(spec)
-        ut
+        makeUserType(spec)
       case None =>
         // let's try upper levels of hierarchy
         inClass.upClass match {
