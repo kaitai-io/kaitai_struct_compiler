@@ -8,9 +8,10 @@ import io.kaitai.struct.languages.GoCompiler
 import scala.collection.mutable.ListBuffer
 
 class GoClassCompiler(
+  classSpecs: ClassSpecs,
   override val topClass: ClassSpec,
   config: RuntimeConfig
-) extends ClassCompiler(topClass, config, GoCompiler) {
+) extends ClassCompiler(classSpecs, topClass, config, GoCompiler) {
 
   override def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass

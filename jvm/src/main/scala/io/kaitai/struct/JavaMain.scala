@@ -262,7 +262,7 @@ class JavaMain(config: CLIConfig) {
     val lang = LanguageCompilerStatic.byString(langStr)
     specs.map { case (_, classSpec) =>
       val res = try {
-        compileSpecAndWriteToFile(classSpec, lang, outDir)
+        compileSpecAndWriteToFile(specs, classSpec, lang, outDir)
       } catch {
         case ex: Throwable =>
           if (config.throwExceptions)
@@ -274,11 +274,12 @@ class JavaMain(config: CLIConfig) {
   }
 
   def compileSpecAndWriteToFile(
+    specs: ClassSpecs,
     spec: ClassSpec,
     lang: LanguageCompilerStatic,
     outDir: String
   ): SpecSuccess = {
-    val res = Main.compile(spec, lang, config.runtime)
+    val res = Main.compile(specs, spec, lang, config.runtime)
     res.files.foreach { (file) =>
       Log.fileOps.info(() => s".... writing ${file.fileName}")
 

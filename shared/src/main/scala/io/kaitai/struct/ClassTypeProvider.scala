@@ -6,7 +6,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundError, TypeUndecidedError}
 import io.kaitai.struct.translators.TypeProvider
 
-class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
+class ClassTypeProvider(classSpecs: ClassSpecs, topClass: ClassSpec) extends TypeProvider {
   var nowClass = topClass
 
   var _currentIteratorType: Option[DataType] = None
@@ -98,7 +98,11 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
         inClass.upClass match {
           case Some(upClass) => resolveType(upClass, typeName)
           case None =>
-            throw new TypeNotFoundError(typeName, nowClass)
+            classSpecs.get(typeName) match {
+              case Some(spec) => makeUserType(spec)
+              case None =>
+                throw new TypeNotFoundError(typeName, nowClass)
+            }
         }
     }
   }

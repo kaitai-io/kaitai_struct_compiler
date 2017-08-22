@@ -10,12 +10,12 @@ import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvide
 
 import scala.collection.mutable.ListBuffer
 
-class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
+class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
   import GraphvizClassCompiler._
 
   val out = new StringLanguageOutputWriter(indent)
 
-  val provider = new ClassTypeProvider(topClass)
+  val provider = new ClassTypeProvider(classSpecs, topClass)
   val translator = new RubyTranslator(provider)
   val links = ListBuffer[(String, String, String)]()
   val extraClusterLines = new StringLanguageOutputWriter(indent)

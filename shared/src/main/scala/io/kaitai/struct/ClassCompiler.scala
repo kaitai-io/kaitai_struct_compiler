@@ -10,11 +10,12 @@ import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompiler
 import scala.collection.mutable.ListBuffer
 
 class ClassCompiler(
+  classSpecs: ClassSpecs,
   val topClass: ClassSpec,
   config: RuntimeConfig,
   langObj: LanguageCompilerStatic
 ) extends AbstractCompiler {
-  val provider = new ClassTypeProvider(topClass)
+  val provider = new ClassTypeProvider(classSpecs, topClass)
   val topClassName = topClass.name
   val lang: LanguageCompiler = langObj.getCompiler(provider, config)
 

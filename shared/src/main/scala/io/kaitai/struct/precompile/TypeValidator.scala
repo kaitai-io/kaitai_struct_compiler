@@ -11,10 +11,11 @@ import scala.reflect.ClassTag
 
 /**
   * Validates all expressions used inside the given ClassSpec to use expected types.
+  * @param specs bundle of class specifications (used only to find external references)
   * @param topClass class to start check with
   */
-class TypeValidator(topClass: ClassSpec) {
-  val provider = new ClassTypeProvider(topClass)
+class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
+  val provider = new ClassTypeProvider(specs, topClass)
   val detector = new TypeDetector(provider)
 
   /**
