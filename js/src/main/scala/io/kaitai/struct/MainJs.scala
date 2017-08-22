@@ -24,7 +24,7 @@ object MainJs {
       val specs = new JavaScriptClassSpecs(importer, firstSpec)
       Main.importAndPrecompile(specs, config).map { (_) =>
         specs.flatMap({ case (_, spec) =>
-          val files = Main.compile(spec, lang, config).files
+          val files = Main.compile(specs, spec, lang, config).files
           files.map((x) => x.fileName -> x.contents).toMap
         }).toJSDictionary
       }.toJSPromise
