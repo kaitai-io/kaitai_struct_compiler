@@ -37,6 +37,7 @@ object Main {
     new ParentTypes(classSpecs).run()
     new SpecsValueTypeDerive(classSpecs).run()
     new TypeValidator(classSpecs, topClass).run()
+    new CalculateSeqSizes(classSpecs).run()
 
     topClass.parentClass = GenericStructClassSpec
   }
