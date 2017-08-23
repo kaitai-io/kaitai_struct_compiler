@@ -19,6 +19,24 @@ class CalculateSeqSizes(specs: ClassSpecs) {
 }
 
 object CalculateSeqSizes {
+  def sizeMultiply(sizeElement: Sized, repeat: RepeatSpec) = {
+    sizeElement match {
+      case FixedSized(elementSize) =>
+        repeat match {
+          case NoRepeat =>
+            sizeElement
+          case RepeatExpr(expr) =>
+            evaluateIntLiteral(expr) match {
+              case Some(count) => FixedSized(elementSize * count)
+              case None => DynamicSized
+            }
+          case _: RepeatUntil | RepeatEos =>
+            DynamicSized
+        }
+      case _ => sizeElement
+    }
+  }
+
   def getSeqSize(curClass: ClassSpec): Sized = {
     curClass.seqSize match {
       case DynamicSized | _: FixedSized =>
@@ -29,15 +47,9 @@ object CalculateSeqSizes {
         curClass.seqSize = DynamicSized
       case NotCalculatedSized =>
         // launch the calculation
-        var seqPos: Option[Int] = Some(0)
-        curClass.seq.foreach { attr =>
-          val size = dataTypeBitsSize(attr.dataTypeComposite)
-          seqPos = (seqPos, size) match {
-            case (Some(pos), FixedSized(siz)) => Some(pos + siz)
-            case _ => None
-          }
-        }
-        curClass.seqSize = seqPos match {
+        curClass.seqSize = StartedCalculationSized
+        val seqSize = forEachSeqAttr(curClass, (attr, seqPos, sizeElement, sizeContainer) => {})
+        curClass.seqSize = seqSize match {
           case Some(size) => FixedSized(size)
           case None => DynamicSized
         }
@@ -45,6 +57,29 @@ object CalculateSeqSizes {
 
     Log.seqSizes.info(() => s"sizeof(${curClass.nameAsStr}) = ${curClass.seqSize}")
     curClass.seqSize
+  }
+
+  /**
+    * Traverses type's sequence of attributes, calling operation for every attribute.
+    * Operation is called with arguments (attr, seqPos, sizeElement, sizeContainer)
+    * @param curClass type specification to traverse
+    * @param op operation to apply to every sequence attribute
+    * @return total size of sequence, if possible (i.e. it's fixed size)
+    */
+  def forEachSeqAttr(curClass: ClassSpec, op: (AttrSpec, Option[Int], Sized, Sized) => Unit): Option[Int] = {
+    var seqPos: Option[Int] = Some(0)
+    curClass.seq.foreach { attr =>
+      val sizeElement = dataTypeBitsSize(attr.dataType)
+      val sizeContainer = sizeMultiply(sizeElement, attr.cond.repeat)
+
+      op(attr, seqPos, sizeElement, sizeContainer)
+
+      seqPos = (seqPos, sizeContainer) match {
+        case (Some(pos), FixedSized(siz)) => Some(pos + siz)
+        case _ => None
+      }
+    }
+    seqPos
   }
 
   /**
