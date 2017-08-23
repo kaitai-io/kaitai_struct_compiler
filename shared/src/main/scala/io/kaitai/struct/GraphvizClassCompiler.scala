@@ -1,12 +1,13 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
-import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
+import io.kaitai.struct.precompile.CalculateSeqSizes
+import io.kaitai.struct.translators.RubyTranslator
 
 import scala.collection.mutable.ListBuffer
 
@@ -86,20 +87,16 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
 
   def compileSeq(className: List[String], curClass: ClassSpec): Unit = {
     tableStart(className, "seq")
-    var seqPos: Option[Int] = Some(0)
-    curClass.seq.foreach { (attr) =>
+
+    CalculateSeqSizes.forEachSeqAttr(curClass, (attr, seqPos, _, _) => {
       attr.id match {
         case NamedIdentifier(name) =>
           tableRow(className, seqPosToStr(seqPos), attr, name)
         case NumberedIdentifier(n) =>
           tableRow(className, seqPosToStr(seqPos), attr, s"_${NumberedIdentifier.TEMPLATE}$n")
       }
-      val size = dataTypeBitsSize(attr.dataType)
-      seqPos = (seqPos, size) match {
-        case (Some(pos), Some(siz)) => Some(pos + siz)
-        case _ => None
-      }
-    }
+    })
+
     tableEnd
   }
 
@@ -255,20 +252,23 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
     */
   def dataTypeSizeAsString(dataType: DataType, attrName: String): String = {
     dataType match {
-      case _: Int1Type => "1"
-      case IntMultiType(_, width, _) => width.width.toString
-      case FloatMultiType(width, _) => width.width.toString
-      case FixedBytesType(contents, _) => contents.length.toString
       case _: BytesEosType => END_OF_STREAM
       case blt: BytesLimitType => expressionSize(blt.size, attrName)
-      case _: BytesTerminatedType => UNKNOWN
       case StrFromBytesType(basedOn, _) => dataTypeSizeAsString(basedOn, attrName)
       case utb: UserTypeFromBytes => dataTypeSizeAsString(utb.bytes, attrName)
-      case _: UserTypeInstream => UNKNOWN
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
-      case _: SwitchType => UNKNOWN
-      case BitsType1 => "1b"
-      case BitsType(width) => s"${width}b"
+      case _ =>
+        CalculateSeqSizes.dataTypeBitsSize(dataType) match {
+          case FixedSized(n) =>
+            if (n % 8 == 0) {
+              s"${n / 8}"
+            } else {
+              s"${n}b"
+            }
+          case DynamicSized => UNKNOWN
+          case NotCalculatedSized | StartedCalculationSized =>
+            throw new RuntimeException("Should never happen: problems with CalculateSeqSizes")
+        }
     }
   }
 
@@ -413,43 +413,6 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
   def type2class(name: List[String]) = name.last
   def type2display(name: List[String]) = name.map(Utils.upperCamelCase).mkString("::")
 
-  /**
-    * Determines how many bits occupies given data type.
-    *
-    * @param dataType data type to analyze
-    * @return number of bits or None, if it's impossible to determine a priori
-    */
-  def dataTypeBitsSize(dataType: DataType): Option[Int] = {
-    dataType match {
-      case BitsType1 => Some(1)
-      case BitsType(width) => Some(width)
-      case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
-      case _ => dataTypeByteSize(dataType).map((byteSize) => byteSize * 8)
-    }
-  }
-
-  /**
-    * Determines how many bytes occupies a given data type.
-    *
-    * @param dataType data type to analyze
-    * @return number of bytes or None, if it's impossible to determine a priori
-    */
-  def dataTypeByteSize(dataType: DataType): Option[Int] = {
-    dataType match {
-      case _: Int1Type => Some(1)
-      case IntMultiType(_, width, _) => Some(width.width)
-      case FixedBytesType(contents, _) => Some(contents.length)
-      case FloatMultiType(width, _) => Some(width.width)
-      case _: BytesEosType => None
-      case blt: BytesLimitType => evaluateIntLiteral(blt.size)
-      case _: BytesTerminatedType => None
-      case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
-      case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
-      case _: UserTypeInstream => None
-      case _: SwitchType => None
-    }
-  }
-
   def dataTypeName(dataType: DataType): String = {
     dataType match {
       case rt: ReadableType => rt.apiCall(None) // FIXME
@@ -475,20 +438,6 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
         s"${dataTypeName(basedOn)}→${type2display(name)}"
       case BitsType(width) => s"b$width"
       case _ => dataType.toString
-    }
-  }
-
-  /**
-    * Evaluates the expression, if possible to get the result without introduction
-    * of any variables or anything.
-    *
-    * @param expr expression to evaluate
-    * @return integer result or None
-    */
-  def evaluateIntLiteral(expr: Ast.expr): Option[Int] = {
-    expr match {
-      case Ast.expr.IntNum(x) => Some(x.toInt)
-      case _ => None
     }
   }
 
