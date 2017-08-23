@@ -58,6 +58,7 @@ object CalculateSeqSizes {
       case BitsType1 => FixedSized(1)
       case BitsType(width) => FixedSized(width)
       case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
+      case ut: UserTypeInstream => getSeqSize(ut.classSpec.get)
       case _ =>
         dataTypeByteSize(dataType) match {
           case FixedSized(x) => FixedSized(x * 8)
@@ -86,7 +87,6 @@ object CalculateSeqSizes {
       case _: BytesTerminatedType => DynamicSized
       case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
       case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
-      case ut: UserTypeInstream => getSeqSize(ut.classSpec.get)
       case st: SwitchType => DynamicSized // FIXME: it's really possible get size if st.hasSize
     }
   }
