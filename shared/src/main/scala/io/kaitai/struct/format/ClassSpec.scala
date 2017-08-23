@@ -12,6 +12,12 @@ sealed trait ClassSpecLike
 case object UnknownClassSpec extends ClassSpecLike
 case object GenericStructClassSpec extends ClassSpecLike
 
+sealed trait Sized
+case object DynamicSized extends Sized
+case object NotCalculatedSized extends Sized
+case object StartedCalculationSized extends Sized
+case class FixedSized(n: Int) extends Sized
+
 case class ClassSpec(
   path: List[String],
   isTopLevel: Boolean,
@@ -43,6 +49,8 @@ case class ClassSpec(
     * For top-level classes, it's None.
     */
   var upClass: Option[ClassSpec] = None
+
+  var seqSize: Sized = NotCalculatedSized
 
   def parentType: DataType = parentClass match {
     case UnknownClassSpec | GenericStructClassSpec => KaitaiStructType
