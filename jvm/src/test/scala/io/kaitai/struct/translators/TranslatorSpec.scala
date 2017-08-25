@@ -242,7 +242,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A[(42 - 2)]",
     JavaCompiler -> "a().get((42 - 2))",
     JavaScriptCompiler -> "this.a[(42 - 2)]",
-    LuaCompiler -> "self.a[(42 - 2)]",
+    LuaCompiler -> "self.a[(43 - 2)]",
     PHPCompiler -> "$this->a()[(42 - 2)]",
     PythonCompiler -> "self.a[(42 - 2)]",
     RubyCompiler -> "a[(42 - 2)]"
