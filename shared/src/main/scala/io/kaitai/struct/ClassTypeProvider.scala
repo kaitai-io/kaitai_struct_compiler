@@ -45,11 +45,10 @@ class ClassTypeProvider(classSpecs: ClassSpecs, topClass: ClassSpec) extends Typ
         }
         inClass.instances.get(InstanceIdentifier(attrName)) match {
           case Some(i: ValueInstanceSpec) =>
-            i.dataType match {
+            return i.dataType match {
               case Some(t) => t
               case None => throw new TypeUndecidedError(attrName)
             }
-            return i.dataType.get
           case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
           case None => // do nothing
         }
