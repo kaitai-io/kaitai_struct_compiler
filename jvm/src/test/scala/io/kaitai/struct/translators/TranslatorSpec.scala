@@ -34,6 +34,7 @@ class TranslatorSpec extends FunSuite {
 
   everybodyExcept("3 / 2", "(3 / 2)", Map(
     JavaScriptCompiler -> "Math.floor(3 / 2)",
+    LuaCompiler -> "3 / 2",
     PerlCompiler -> "int(3 / 2)",
     PHPCompiler -> "intval(3 / 2)",
     PythonCompiler -> "3 // 2"
@@ -43,6 +44,7 @@ class TranslatorSpec extends FunSuite {
 
   everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", Map(
     JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
+    LuaCompiler -> "(1 + 2) / (7 * 8)",
     PerlCompiler -> "int((1 + 2) / (7 * 8))",
     PHPCompiler -> "intval((1 + 2) / (7 * 8))",
     PythonCompiler -> "(1 + 2) // (7 * 8)"
@@ -57,6 +59,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
+    LuaCompiler -> "2 < 3 and \"foo\" or \"bar\"",
     PerlCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     PHPCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     PythonCompiler -> "u\"foo\" if 2 < 3 else u\"bar\"",
@@ -83,6 +86,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "true",
     JavaCompiler -> "true",
     JavaScriptCompiler -> "true",
+    LuaCompiler -> "true",
     PerlCompiler -> "1",
     PHPCompiler -> "true",
     PythonCompiler -> "True",
@@ -94,6 +98,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "false",
     JavaCompiler -> "false",
     JavaScriptCompiler -> "false",
+    LuaCompiler -> "false",
     PerlCompiler -> "0",
     PHPCompiler -> "false",
     PythonCompiler -> "False",
@@ -105,6 +110,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "(SomeBool ? 1 : 0)",
     JavaCompiler -> "(someBool() ? 1 : 0)",
     JavaScriptCompiler -> "(this.someBool | 0)",
+    LuaCompiler -> "self.some_bool and 1 or 0",
     PerlCompiler -> "$self->some_bool()",
     PHPCompiler -> "intval($this->someBool())",
     PythonCompiler -> "int(self.some_bool)",
@@ -117,6 +123,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "FooStr",
     JavaCompiler -> "fooStr()",
     JavaScriptCompiler -> "this.fooStr",
+    LuaCompiler -> "self.foo_str",
     PerlCompiler -> "$self->foo_str()",
     PHPCompiler -> "$this->fooStr()",
     PythonCompiler -> "self.foo_str",
@@ -128,6 +135,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "FooBlock",
     JavaCompiler -> "fooBlock()",
     JavaScriptCompiler -> "this.fooBlock",
+    LuaCompiler -> "self.foo_block",
     PerlCompiler -> "$self->foo_block()",
     PHPCompiler -> "$this->fooBlock()",
     PythonCompiler -> "self.foo_block",
@@ -139,6 +147,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "Foo.Bar",
     JavaCompiler -> "foo().bar()",
     JavaScriptCompiler -> "this.foo.bar",
+    LuaCompiler -> "self.foo.bar",
     PerlCompiler -> "$self->foo()->bar()",
     PHPCompiler -> "$this->foo()->bar()",
     PythonCompiler -> "self.foo.bar",
@@ -150,6 +159,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "Foo.Inner.Baz",
     JavaCompiler -> "foo().inner().baz()",
     JavaScriptCompiler -> "this.foo.inner.baz",
+    LuaCompiler -> "self.foo.inner.baz",
     PerlCompiler -> "$self->foo()->inner()->baz()",
     PHPCompiler -> "$this->foo()->inner()->baz()",
     PythonCompiler -> "self.foo.inner.baz",
@@ -161,6 +171,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "M_Root.Foo",
     JavaCompiler -> "_root.foo()",
     JavaScriptCompiler -> "this._root.foo",
+    LuaCompiler -> "self._root.foo",
     PerlCompiler -> "$self->_root()->foo()",
     PHPCompiler -> "$this->_root()->foo()",
     PythonCompiler -> "self._root.foo",
@@ -172,6 +183,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A != 2 && A != 5",
     JavaCompiler -> "a() != 2 && a() != 5",
     JavaScriptCompiler -> "this.a != 2 && this.a != 5",
+    LuaCompiler -> "self.a ~= 2 and self.a ~= 5",
     PerlCompiler -> "$self->a() != 2 && $self->a() != 5",
     PHPCompiler -> "$this->a() != 2 && $this->a() != 5",
     PythonCompiler -> "self.a != 2 and self.a != 5",
@@ -183,6 +195,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
     JavaScriptCompiler -> "[0, 1, 100500]",
+    LuaCompiler -> "{0, 1, 100500}",
     PerlCompiler -> "(0, 1, 100500)",
     PHPCompiler -> "[0, 1, 100500]",
     PythonCompiler -> "[0, 1, 100500]",
@@ -194,6 +207,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
     JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
     JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
+    LuaCompiler -> "\"\\034\\000\\010\\064\\065\\066\\092\"",
     PerlCompiler -> "pack('C*', (34, 0, 10, 64, 65, 66, 92))",
     PHPCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
     PythonCompiler -> "struct.pack('7b', 34, 0, 10, 64, 65, 66, 92)",
@@ -205,6 +219,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "new byte[] { 255, 0, 255 }",
     JavaCompiler -> "new byte[] { -1, 0, -1 }",
     JavaScriptCompiler -> "[255, 0, 255]",
+    LuaCompiler -> "\"\\255\\000\\255\"",
     PerlCompiler -> "pack('C*', (255, 0, 255))",
     PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
     PythonCompiler -> "struct.pack('3b', -1, 0, -1)",
@@ -216,6 +231,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A[42]",
     JavaCompiler -> "a().get(42)",
     JavaScriptCompiler -> "this.a[42]",
+    LuaCompiler -> "self.a[43]",
     PHPCompiler -> "$this->a()[42]",
     PythonCompiler -> "self.a[42]",
     RubyCompiler -> "a[42]"
@@ -226,6 +242,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A[(42 - 2)]",
     JavaCompiler -> "a().get((42 - 2))",
     JavaScriptCompiler -> "this.a[(42 - 2)]",
+    LuaCompiler -> "self.a[(42 - 2)]",
     PHPCompiler -> "$this->a()[(42 - 2)]",
     PythonCompiler -> "self.a[(42 - 2)]",
     RubyCompiler -> "a[(42 - 2)]"
@@ -236,6 +253,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A[0]",
     JavaCompiler -> "a().get(0)",
     JavaScriptCompiler -> "this.a[0]",
+    LuaCompiler -> "self.a[1]",
     PHPCompiler -> "$this->a()[0]",
     PythonCompiler -> "self.a[0]",
     RubyCompiler -> "a.first"
@@ -246,6 +264,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A[A.Length - 1]",
     JavaCompiler -> "a().get(a().size() - 1)",
     JavaScriptCompiler -> "this.a[this.a.length - 1]",
+    LuaCompiler -> "self.a[#self.a]",
     PHPCompiler -> "$this->a()[count($this->a()) - 1]",
     PythonCompiler -> "self.a[-1]",
     RubyCompiler -> "a.last"
@@ -256,6 +275,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "A.Count",
     JavaCompiler -> "a().size()",
     JavaScriptCompiler -> "this.a.length",
+    LuaCompiler -> "#self.a",
     PHPCompiler -> "count($this->a())",
     PerlCompiler -> "scalar($self->a())",
     PythonCompiler -> "len(self.a)",
@@ -268,6 +288,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "\"str\"",
     JavaCompiler -> "\"str\"",
     JavaScriptCompiler -> "\"str\"",
+    LuaCompiler -> "\"str\"",
     PerlCompiler -> "\"str\"",
     PHPCompiler -> "\"str\"",
     PythonCompiler -> "u\"str\"",
@@ -279,6 +300,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "\"str\\nnext\"",
     JavaCompiler -> "\"str\\nnext\"",
     JavaScriptCompiler -> "\"str\\nnext\"",
+    LuaCompiler -> "\"str\\nnext\"",
     PerlCompiler -> "\"str\\nnext\"",
     PHPCompiler -> "\"str\\nnext\"",
     PythonCompiler -> "u\"str\\nnext\"",
@@ -290,6 +312,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "\"str\\nnext\"",
     JavaCompiler -> "\"str\\nnext\"",
     JavaScriptCompiler -> "\"str\\nnext\"",
+    LuaCompiler -> "\"str\\nnext\"",
     PerlCompiler -> "\"str\\nnext\"",
     PHPCompiler -> "\"str\\nnext\"",
     PythonCompiler -> "u\"str\\nnext\"",
@@ -301,6 +324,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "\"str\\0next\"",
     JavaCompiler -> "\"str\\000next\"",
     JavaScriptCompiler -> "\"str\\000next\"",
+    LuaCompiler -> "\"str\\000next\"",
     PerlCompiler -> "\"str\\000next\"",
     PHPCompiler -> "\"str\\000next\"",
     PythonCompiler -> "u\"str\\000next\"",
@@ -309,6 +333,7 @@ class TranslatorSpec extends FunSuite {
 
   everybodyExcept("\"str1\" + \"str2\"", "\"str1\" + \"str2\"", Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str1\") + std::string(\"str2\")",
+    LuaCompiler -> "\"str1\" .. \"str2\"",
     PerlCompiler -> "\"str1\" . \"str2\"",
     PHPCompiler -> "\"str1\" . \"str2\"",
     PythonCompiler -> "u\"str1\" + u\"str2\""
@@ -317,6 +342,7 @@ class TranslatorSpec extends FunSuite {
   everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str1\") == (std::string(\"str2\"))",
     JavaCompiler -> "\"str1\".equals(\"str2\")",
+    LuaCompiler -> "\"str1\" == \"str2\"",
     PerlCompiler -> "\"str1\" eq \"str2\"",
     PythonCompiler -> "u\"str1\" == u\"str2\""
   ), CalcBooleanType)
@@ -324,6 +350,7 @@ class TranslatorSpec extends FunSuite {
   everybodyExcept("\"str1\" != \"str2\"", "\"str1\" != \"str2\"", Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str1\") != std::string(\"str2\")",
     JavaCompiler -> "!(\"str1\").equals(\"str2\")",
+    LuaCompiler -> "\"str1\" ~= \"str2\"",
     PerlCompiler -> "\"str1\" ne \"str2\"",
     PythonCompiler -> "u\"str1\" != u\"str2\""
   ), CalcBooleanType)
@@ -332,6 +359,7 @@ class TranslatorSpec extends FunSuite {
     CppCompiler -> "(std::string(\"str1\").compare(std::string(\"str2\")) < 0)",
     CSharpCompiler -> "(\"str1\".CompareTo(\"str2\") < 0)",
     JavaCompiler -> "(\"str1\".compareTo(\"str2\") < 0)",
+    LuaCompiler -> "\"str1\" < \"str2\"",
     PerlCompiler -> "\"str1\" lt \"str2\"",
     PythonCompiler -> "u\"str1\" < u\"str2\""
   ), CalcBooleanType)
@@ -340,7 +368,8 @@ class TranslatorSpec extends FunSuite {
     CppCompiler -> "std::string(\"str\").length()",
     CSharpCompiler -> "\"str\".Length",
     JavaCompiler -> "\"str\".length()",
-    JavaScriptCompiler -> "\"str\".length",
+    JavaScriptCompiler -> "#\"str\"",
+    LuaCompiler -> "string.len(\"str\")",
     PerlCompiler -> "length(\"str\")",
     PHPCompiler -> "strlen(\"str\")",
     PythonCompiler -> "len(u\"str\")",
@@ -352,6 +381,7 @@ class TranslatorSpec extends FunSuite {
       CSharpCompiler -> "new string(Array.Reverse(\"str\".ToCharArray()))",
       JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
       JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
+      LuaCompiler -> "string.reverse(\"str\")",
       PerlCompiler -> "scalar(reverse(\"str\"))",
       PHPCompiler -> "strrev(\"str\")",
       PythonCompiler -> "u\"str\"[::-1]",
@@ -375,6 +405,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "Convert.ToInt64(\"1234fe\", 16)",
     JavaCompiler -> "Long.parseLong(\"1234fe\", 16)",
     JavaScriptCompiler -> "Number.parseInt(\"1234fe\", 16)",
+    LuaCompiler -> "tonumber(\"1234fe\", 16)",
     PerlCompiler -> "hex(\"1234fe\")",
     PHPCompiler -> "intval(\"1234fe\", 16)",
     PythonCompiler -> "int(u\"1234fe\", 16)",
@@ -387,6 +418,7 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "((Block) (Other)).Bar",
     JavaCompiler -> "((Block) (other())).bar()",
     JavaScriptCompiler -> "this.other.bar",
+    LuaCompiler -> "self.other.bar",
     PerlCompiler -> "$self->other()->bar()",
     PHPCompiler -> "$this->other()->bar()",
     PythonCompiler -> "self.other.bar",
