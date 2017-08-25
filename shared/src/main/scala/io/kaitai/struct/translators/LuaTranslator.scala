@@ -96,11 +96,11 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"str_decode.decode($bytesExpr, ${translate(encoding)})"
   }
   override def strLength(s: Ast.expr): String =
-    s"#${translate(s)}"
+    s"string.len(${translate(s)})"
   override def strReverse(s: Ast.expr): String =
-    s"${translate(s)}:reverse()"
+    s"string.reverse(${translate(s)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s)}:sub(${translate(from)}, ${translate(to)})"
+    s"string.sub(${translate(s)}, ${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[1]"
