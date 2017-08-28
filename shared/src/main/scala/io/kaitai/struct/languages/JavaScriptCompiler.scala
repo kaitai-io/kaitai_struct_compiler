@@ -368,13 +368,18 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io.readBitsInt($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) ", null, null" else ", this, this._root"
+        val parent = t.forcedParent match {
+          case Some(USER_TYPE_NO_PARENT) => "null"
+          case Some(fp) => translator.translate(fp)
+          case None => "this"
+        }
+        val root = if (t.isOpaque) "null" else "this._root"
         val addEndian = t.classSpec.get.meta.endian match {
           case Some(InheritedEndian) => ", this._is_le"
           case _ => ""
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-        s"new ${type2class(t.name.last)}($io$addArgs$addEndian$addParams)"
+        s"new ${type2class(t.name.last)}($io, $parent, $root$addEndian$addParams)"
     }
   }
 
