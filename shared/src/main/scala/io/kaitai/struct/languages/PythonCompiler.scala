@@ -179,23 +179,40 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
     proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        out.puts(s"${privateMemberName(varDest)} = $kstreamName.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)})")
+        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)})")
       case ProcessZlib =>
         importList.add("import zlib")
-        out.puts(s"${privateMemberName(varDest)} = zlib.decompress(${privateMemberName(varSrc)})")
+        out.puts(s"$destName = zlib.decompress($srcName)")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"${privateMemberName(varDest)} = $kstreamName.process_rotate_left(${privateMemberName(varSrc)}, $expr, 1)")
+        out.puts(s"$destName = $kstreamName.process_rotate_left($srcName, $expr, 1)")
+      case ProcessCustom(name, args) =>
+        val procClass = if (name.length == 1) {
+          val onlyName = name.head
+          val className = type2class(onlyName)
+          importList.add(s"from $onlyName import $className")
+          className
+        } else {
+          val pkgName = name.init.mkString(".")
+          importList.add(s"import $pkgName")
+          s"$pkgName.${type2class(name.last)}"
+        }
+
+        out.puts(s"_process = $procClass(${args.map(expression).mkString(", ")})")
+        out.puts(s"$destName = _process.decode($srcName)")
     }
   }
 
