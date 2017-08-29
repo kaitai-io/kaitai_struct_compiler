@@ -253,7 +253,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
       case ProcessCustom(name, args) =>
-        val namespace = name.slice(0, name.size - 1).mkString(".")
+        val namespace = name.init.mkString(".")
         val procClass = namespace +
           (if (namespace.nonEmpty) "." else "") +
           type2class(name.last)
