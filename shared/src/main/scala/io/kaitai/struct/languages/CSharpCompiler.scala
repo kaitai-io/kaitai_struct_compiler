@@ -211,6 +211,11 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s"8 - (${expression(rotValue)})"
         }
         out.puts(s"$destName = $normalIO.ProcessRotateLeft($srcName, $expr, 1);")
+      case ProcessCustom(name, args) =>
+        val procClass = types2class(name)
+        val procName = s"_process_${idToStr(varSrc)}"
+        out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
+        out.puts(s"$destName = $procName.Decode($srcName);")
     }
   }
 
