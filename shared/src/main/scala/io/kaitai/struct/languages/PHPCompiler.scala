@@ -202,6 +202,13 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s"8 - (${expression(rotValue)})"
         }
         out.puts(s"$destName = $kstreamName::processRotateLeft($srcName, $expr, 1);")
+      case ProcessCustom(name, args) =>
+        val isAbsolute = name.length > 1
+        val procClass = name.map((x) => type2class(x)).mkString(
+          if (isAbsolute) "\\" else "", "\\", ""
+        )
+        out.puts(s"$$_process = new $procClass(${args.map(expression).mkString(", ")});")
+        out.puts(s"$destName = $$_process->decode($srcName);")
     }
   }
 
