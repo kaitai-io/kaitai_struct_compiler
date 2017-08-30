@@ -27,7 +27,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
   extends TypeDetector(provider)
   with AbstractTranslator
   with CommonLiterals
-  with CommonOps {
+  with CommonOps
+  with CommonMethods[String] {
 
   /**
     * Translates KS expression into an expression in some target language.
@@ -111,62 +112,10 @@ abstract class BaseTranslator(val provider: TypeProvider)
           case idxType =>
             throw new TypeMismatchError(s"can't use $idx as array index (need int, got $idxType)")
         }
-      case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
-        val valType = detectType(value)
-        valType match {
-          case _: UserType =>
-            userTypeField(value, attr.name)
-          case _: StrType =>
-            attr.name match {
-              case "length" => strLength(value)
-              case "reverse" => strReverse(value)
-              case "to_i" => strToInt(value, Ast.expr.IntNum(10))
-            }
-          case _: IntType =>
-            attr.name match {
-              case "to_s" => intToStr(value, Ast.expr.IntNum(10))
-            }
-          case _: FloatType =>
-            attr.name match {
-              case "to_i" => floatToInt(value)
-            }
-          case ArrayType(inType) =>
-            attr.name match {
-              case "first" => arrayFirst(value)
-              case "last" => arrayLast(value)
-              case "size" => arraySize(value)
-              case "min" => arrayMin(value)
-              case "max" => arrayMax(value)
-            }
-          case KaitaiStreamType =>
-            attr.name match {
-              case "size" => kaitaiStreamSize(value)
-              case "eof" => kaitaiStreamEof(value)
-              case "pos" => kaitaiStreamPos(value)
-            }
-          case et: EnumType =>
-            attr.name match {
-              case "to_i" => enumToInt(value, et)
-              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
-            }
-          case _: BooleanType =>
-            attr.name match {
-              case "to_i" => boolToInt(value)
-              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
-            }
-        }
-      case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
-        func match {
-          case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
-            val objType = detectType(obj)
-            (objType, methodName.name) match {
-              // TODO: check argument quantity
-              case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
-              case (_: StrType, "to_i") => strToInt(obj, args(0))
-              case (_: BytesType, "to_s") => bytesToStr(translate(obj), args(0))
-              case _ => throw new TypeMismatchError(s"don't know how to call method '$methodName' of object type '$objType'")
-            }
-        }
+      case call: Ast.expr.Attribute =>
+        translateAttribute(call)
+      case call: Ast.expr.Call =>
+        translateCall(call)
       case Ast.expr.List(values: Seq[Ast.expr]) =>
         val t = detectArrayType(values)
         t match {
@@ -206,24 +155,15 @@ abstract class BaseTranslator(val provider: TypeProvider)
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
-  def strToInt(s: Ast.expr, base: Ast.expr): String
-  def enumToInt(value: Ast.expr, et: EnumType): String
   def boolToInt(value: Ast.expr): String =
     doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0))
-  def floatToInt(value: Ast.expr): String = ???
-  def intToStr(i: Ast.expr, base: Ast.expr): String
-  def bytesToStr(bytesExpr: String, encoding: Ast.expr): String
-  def strLength(s: Ast.expr): String
-  def strReverse(s: Ast.expr): String
-  def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String
-
-  def arrayFirst(a: Ast.expr): String
-  def arrayLast(a: Ast.expr): String
-  def arraySize(a: Ast.expr): String
-  def arrayMin(a: Ast.expr): String
-  def arrayMax(a: Ast.expr): String
 
   def kaitaiStreamSize(value: Ast.expr): String = userTypeField(value, "size")
   def kaitaiStreamEof(value: Ast.expr): String = userTypeField(value, "is_eof")
   def kaitaiStreamPos(value: Ast.expr): String = userTypeField(value, "pos")
+
+  // Special convenience definition method + helper
+  override def bytesToStr(value: Ast.expr, expr: Ast.expr): String =
+    bytesToStr(translate(value), expr)
+  def bytesToStr(value: String, expr: Ast.expr): String
 }

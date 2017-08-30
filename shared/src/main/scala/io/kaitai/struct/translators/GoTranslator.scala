@@ -2,6 +2,7 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.precompile.TypeMismatchError
@@ -15,7 +16,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   extends TypeDetector(provider)
   with AbstractTranslator
   with CommonLiterals
-  with CommonOps {
+  with CommonOps
+  with CommonMethods[TranslatorResult] {
 
   var returnRes: Option[String] = None
 
@@ -50,15 +52,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //      case Ast.expr.UnaryOp(op, operand) =>
 //      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
 //      case Ast.expr.Compare(left, ops, right) =>
-//      case Ast.expr.Call(func, args) =>
 //      case Ast.expr.EnumByLabel(enumName, label) =>
 //      case Ast.expr.EnumById(enumName, id) =>
-//      case Ast.expr.Attribute(value, attr) =>
 //      case Ast.expr.CastToType(value, typeName) =>
 //      case Ast.expr.Subscript(value, idx) =>
       case Ast.expr.Name(name: Ast.identifier) =>
         trName(name.name)
 //      case Ast.expr.List(elts) =>
+      case call: Ast.expr.Attribute =>
+        translateAttribute(call)
+      case call: Ast.expr.Call =>
+        translateCall(call)
     }
   }
 
@@ -216,6 +220,45 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //    s"Collections.min(${translate(a)})"
 //  override def arrayMax(a: Ast.expr): String =
 //    s"Collections.max(${translate(a)})"
+
+  override def userTypeField(value: Ast.expr, name: String): TranslatorResult = ???
+
+  override def strLength(s: Ast.expr): TranslatorResult = {
+    importList.add("unicode/utf8")
+    ResultString(s"utf8.RuneCountInString(${translate(s)})")
+  }
+
+  override def strReverse(s: Ast.expr): TranslatorResult = ???
+
+  override def strToInt(s: Ast.expr, base: Ast.expr): TranslatorResult = ???
+
+  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): TranslatorResult = ???
+
+  override def bytesToStr(value: Ast.expr, expr: Ast.expr): TranslatorResult = ???
+
+  override def intToStr(value: Ast.expr, num: Ast.expr): TranslatorResult = ???
+
+  override def floatToInt(value: Ast.expr): TranslatorResult = ???
+
+  override def kaitaiStreamSize(value: Ast.expr): TranslatorResult = ???
+
+  override def kaitaiStreamEof(value: Ast.expr): TranslatorResult = ???
+
+  override def kaitaiStreamPos(value: Ast.expr): TranslatorResult = ???
+
+  override def arrayFirst(a: Ast.expr): TranslatorResult = ???
+
+  override def arrayLast(a: Ast.expr): TranslatorResult = ???
+
+  override def arraySize(a: Ast.expr): TranslatorResult = ???
+
+  override def arrayMin(a: Ast.expr): TranslatorResult = ???
+
+  override def arrayMax(a: Ast.expr): TranslatorResult = ???
+
+  override def enumToInt(value: Ast.expr, et: EnumType): TranslatorResult = ???
+
+  override def boolToInt(value: Ast.expr): TranslatorResult = ???
 
   def userType(dataType: UserType, io: String) = {
     val v = allocateLocalVar()
