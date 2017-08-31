@@ -115,21 +115,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  def trName(inClass: ClassSpec, s: String): TranslatorResult = {
-    s match {
-      case Identifier.ROOT |
-           Identifier.PARENT |
-           Identifier.IO =>
-        ResultString(specialName(s))
-      case _ =>
-        if (provider.isLazy(inClass, s)) {
-          outVarCheckRes(s"${Utils.upperCamelCase(s)}()")
-        } else {
-          ResultString(Utils.upperCamelCase(s))
-        }
-    }
-  }
-
   def specialName(id: String): String = id match {
     case Identifier.ROOT | Identifier.PARENT | Identifier.IO =>
       id
@@ -240,8 +225,22 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //    s"Collections.max(${translate(a)})"
 
   override def userTypeField(ut: UserType, value: Ast.expr, name: String): TranslatorResult = {
-    val res = outVarCheckRes(s"${translate(value)}.${resToStr(trName(ut.classSpec.get, name))}")
-    res
+    val valueStr = translate(value)
+
+    val (call, twoOuts) = name match {
+      case Identifier.ROOT |
+           Identifier.PARENT |
+           Identifier.IO =>
+        (specialName(name), false)
+      case _ =>
+        (Utils.upperCamelCase(name), provider.isLazy(ut.classSpec.get, name))
+    }
+
+    if (twoOuts) {
+      outVarCheckRes(s"$valueStr.$call()")
+    } else {
+      ResultString(s"$valueStr.$call")
+    }
   }
 
   override def strLength(s: Ast.expr): TranslatorResult = {
