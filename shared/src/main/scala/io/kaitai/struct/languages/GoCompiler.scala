@@ -342,7 +342,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     val r = translator.translate(value)
-    out.puts(s"${privateMemberName(instName)} = ${kaitaiType2NativeType(dataType)}($r)")
+    val converted = dataType match {
+      case _: UserType => r
+      case _ => s"${kaitaiType2NativeType(dataType)}($r)"
+    }
+    out.puts(s"${privateMemberName(instName)} = $converted")
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
