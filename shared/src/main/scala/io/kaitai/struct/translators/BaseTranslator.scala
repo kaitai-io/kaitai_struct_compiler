@@ -148,8 +148,9 @@ abstract class BaseTranslator(val provider: TypeProvider)
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String
-  def userTypeField(value: Ast.expr, attrName: String): String =
-    s"${translate(value)}.${doName(attrName)}"
+  def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String =
+    anyField(value, attrName)
+
   def doEnumByLabel(enumTypeAbs: List[String], label: String): String
   def doEnumById(enumTypeAbs: List[String], id: String): String
 
@@ -158,12 +159,17 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def boolToInt(value: Ast.expr): String =
     doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0))
 
-  def kaitaiStreamSize(value: Ast.expr): String = userTypeField(value, "size")
-  def kaitaiStreamEof(value: Ast.expr): String = userTypeField(value, "is_eof")
-  def kaitaiStreamPos(value: Ast.expr): String = userTypeField(value, "pos")
+  def kaitaiStreamSize(value: Ast.expr): String = anyField(value, "size")
+  def kaitaiStreamEof(value: Ast.expr): String = anyField(value, "is_eof")
+  def kaitaiStreamPos(value: Ast.expr): String = anyField(value, "pos")
 
   // Special convenience definition method + helper
   override def bytesToStr(value: Ast.expr, expr: Ast.expr): String =
     bytesToStr(translate(value), expr)
   def bytesToStr(value: String, expr: Ast.expr): String
+
+  // Helper that does simple "one size fits all" attribute calling, if it is useful
+  // for the language
+  def anyField(value: Ast.expr, attrName: String): String =
+    s"${translate(value)}.${doName(attrName)}"
 }

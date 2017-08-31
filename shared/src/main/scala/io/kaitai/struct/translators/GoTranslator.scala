@@ -2,8 +2,7 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{ClassSpec, Identifier}
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.precompile.TypeMismatchError
 import io.kaitai.struct.{ImportList, StringLanguageOutputWriter, Utils}
@@ -57,7 +56,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //      case Ast.expr.CastToType(value, typeName) =>
 //      case Ast.expr.Subscript(value, idx) =>
       case Ast.expr.Name(name: Ast.identifier) =>
-        trName(name.name)
+        trLocalName(name.name)
 //      case Ast.expr.List(elts) =>
       case call: Ast.expr.Attribute =>
         translateAttribute(call)
@@ -95,14 +94,18 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  def trName(s: String): TranslatorResult = {
+  def trLocalName(s: String): TranslatorResult = {
     s match {
       case Identifier.ROOT |
            Identifier.PARENT |
-           Identifier.IO |
-           Identifier.ITERATOR |
+           Identifier.IO =>
+        ResultString(s"this.${specialName(s)}")
+
+      // These can be local only
+      case Identifier.ITERATOR |
            Identifier.ITERATOR2 =>
         ResultString(specialName(s))
+
       case _ =>
         if (provider.isLazy(s)) {
           outVarCheckRes(s"this.${Utils.upperCamelCase(s)}()")
@@ -112,9 +115,24 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
+  def trName(inClass: ClassSpec, s: String): TranslatorResult = {
+    s match {
+      case Identifier.ROOT |
+           Identifier.PARENT |
+           Identifier.IO =>
+        ResultString(specialName(s))
+      case _ =>
+        if (provider.isLazy(inClass, s)) {
+          outVarCheckRes(s"${Utils.upperCamelCase(s)}()")
+        } else {
+          ResultString(Utils.upperCamelCase(s))
+        }
+    }
+  }
+
   def specialName(id: String): String = id match {
     case Identifier.ROOT | Identifier.PARENT | Identifier.IO =>
-      s"this.$id"
+      id
     case Identifier.ITERATOR =>
       "_it"
     case Identifier.ITERATOR2 =>
@@ -221,7 +239,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //  override def arrayMax(a: Ast.expr): String =
 //    s"Collections.max(${translate(a)})"
 
-  override def userTypeField(value: Ast.expr, name: String): TranslatorResult = ???
+  override def userTypeField(ut: UserType, value: Ast.expr, name: String): TranslatorResult = {
+    val res = outVarCheckRes(s"${translate(value)}.${resToStr(trName(ut.classSpec.get, name))}")
+    res
+  }
 
   override def strLength(s: Ast.expr): TranslatorResult = {
     importList.add("unicode/utf8")
@@ -238,7 +259,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def intToStr(value: Ast.expr, num: Ast.expr): TranslatorResult = ???
 
-  override def floatToInt(value: Ast.expr): TranslatorResult = ???
+  override def floatToInt(value: Ast.expr): TranslatorResult =
+    ResultString(s"int(${translate(value)})")
 
   override def kaitaiStreamSize(value: Ast.expr): TranslatorResult = ???
 

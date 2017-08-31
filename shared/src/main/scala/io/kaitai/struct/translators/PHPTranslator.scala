@@ -41,7 +41,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     }
   }
 
-  override def userTypeField(value: expr, attrName: String): String =
+  override def anyField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
 
   override def doLocalName(s: String) = {

@@ -10,8 +10,8 @@ abstract trait CommonMethods[T] extends TypeDetector {
     val value = call.value
     val valType = detectType(value)
     valType match {
-      case _: UserType =>
-        userTypeField(value, attr.name)
+      case ut: UserType =>
+        userTypeField(ut, value, attr.name)
       case _: StrType =>
         attr.name match {
           case "length" => strLength(value)
@@ -70,7 +70,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
     }
   }
 
-  def userTypeField(value: Ast.expr, name: String): T
+  def userTypeField(ut: UserType, value: Ast.expr, name: String): T
 
   def strLength(s: Ast.expr): T
   def strReverse(s: Ast.expr): T

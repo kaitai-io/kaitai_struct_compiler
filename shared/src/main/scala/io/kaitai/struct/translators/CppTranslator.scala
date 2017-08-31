@@ -66,7 +66,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends B
     }
   }
 
-  override def userTypeField(value: expr, attrName: String): String =
+  override def anyField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
 
   override def doName(s: String) = s match {

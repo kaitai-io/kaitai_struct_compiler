@@ -476,6 +476,8 @@ class TranslatorSpec extends FunSuite {
       throw new NotImplementedError
 
     override def isLazy(attrName: String): Boolean = false
+
+    override def isLazy(inClass: ClassSpec, attrName: String): Boolean = false
   }
 
   case class Always(t: DataType) extends FakeTypeProvider {

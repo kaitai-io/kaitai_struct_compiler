@@ -15,4 +15,5 @@ trait TypeProvider {
   def resolveEnum(enumName: String): EnumSpec
   def resolveType(typeName: String): DataType
   def isLazy(attrName: String): Boolean
+  def isLazy(inClass: ClassSpec, attrName: String): Boolean
 }
