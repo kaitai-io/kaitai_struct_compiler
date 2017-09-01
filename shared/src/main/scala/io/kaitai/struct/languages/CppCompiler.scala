@@ -62,8 +62,7 @@ class CppCompiler(
     outHdrHeader.puts
     outHdrHeader.puts(s"// $headerComment")
     outHdrHeader.puts
-    outHdrHeader.puts("#include <kaitai/kaitaistruct.h>")
-    outHdrHeader.puts("#include <kaitai/kaitaistream.h>")
+    outHdrHeader.puts("#include \"kaitai/kaitaistruct.h\"")
     outHdrHeader.puts
 
     importListHdr.add("stdint.h")
