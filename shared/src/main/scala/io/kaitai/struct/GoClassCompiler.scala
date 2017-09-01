@@ -4,6 +4,7 @@ import io.kaitai.struct.datatype.DataType.{KaitaiStreamType, UserTypeInstream}
 import io.kaitai.struct.datatype.{Endianness, FixedEndian, InheritedEndian}
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.GoCompiler
+import io.kaitai.struct.languages.components.ExtraAttrs
 
 import scala.collection.mutable.ListBuffer
 
@@ -20,6 +21,8 @@ class GoClassCompiler(
     extraAttrs += AttrSpec(List(), IoIdentifier, KaitaiStreamType)
     extraAttrs += AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None))
     extraAttrs += AttrSpec(List(), ParentIdentifier, curClass.parentType)
+
+    extraAttrs ++= getExtraAttrs(curClass)
 
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
@@ -85,5 +88,11 @@ class GoClassCompiler(
     lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName)
     lang.instanceFooter
+  }
+
+  def getExtraAttrs(curClass: ClassSpec): List[AttrSpec] = {
+    curClass.seq.foldLeft(List[AttrSpec]())(
+      (attrs, attr) => attrs ++ ExtraAttrs.forAttr(attr)
+    )
   }
 }

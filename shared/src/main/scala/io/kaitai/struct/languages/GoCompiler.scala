@@ -141,9 +141,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
-    val javaName = idToStr(varName)
+    val javaName = privateMemberName(varName)
 
-    val ioName = s"_io_$javaName"
+    val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
