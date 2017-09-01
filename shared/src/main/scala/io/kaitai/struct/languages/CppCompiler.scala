@@ -217,6 +217,7 @@ class CppCompiler(
       case Some(e) => s"_${e.toSuffix}"
       case None => ""
     }
+    ensureMode(PrivateAccess)
     outHdr.puts(s"void _read$suffix();")
     outSrc.puts
     outSrc.puts(s"void ${types2class(typeProvider.nowClass.name)}::_read$suffix() {")
@@ -226,6 +227,8 @@ class CppCompiler(
   override def readFooter(): Unit = {
     outSrc.dec
     outSrc.puts("}")
+
+    ensureMode(PublicAccess)
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
