@@ -38,6 +38,10 @@ class ClassCompiler(
     )
   }
 
+  /**
+    * Generates code for one full class using a given [[ClassSpec]].
+    * @param curClass current class to generate code for
+    */
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
@@ -92,6 +96,15 @@ class ClassCompiler(
       compileEnums(curClass)
   }
 
+  /**
+    * Compiles constructor for a given class. Generally, it should:
+    *
+    * * store passed parameters, io/root/parent/endianness if needed
+    * * initialize everything
+    * * invoke _read() method, if applicable
+    *
+    * @param curClass current class to generate code for
+    */
   def compileConstructor(curClass: ClassSpec) = {
     lang.classConstructorHeader(
       curClass.name,
@@ -106,6 +119,12 @@ class ClassCompiler(
     lang.classConstructorFooter
   }
 
+  /**
+    * Compiles destructor for a given class. It should clean up everything
+    * (i.e. every applicable allocated seq / instance attribute variables, and
+    * any extra attribute variables, if they were used).
+    * @param curClass current class to generate code for
+    */
   def compileDestructor(curClass: ClassSpec) = {
     lang.classDestructorHeader(curClass.name, curClass.parentType, topClassName)
     curClass.seq.foreach((attr) => lang.attrDestructor(attr, attr.id))
@@ -129,6 +148,11 @@ class ClassCompiler(
     }
   }
 
+  /**
+    * Iterates over a given list of attributes and generates attribute
+    * readers (AKA getters) for each of them.
+    * @param attrs attribute list to traverse
+    */
   def compileAttrReaders(attrs: List[MemberSpec]): Unit =
     attrs.foreach { (attr) =>
       // FIXME: Python should have some form of attribute docs too
@@ -175,12 +199,24 @@ class ClassCompiler(
     lang.switchCases[FixedEndian](IS_LE_ID, ce.on, ce.cases, renderProc, renderProc)
   }
 
+  /**
+    * Compiles seq reading method (complete with header and footer).
+    * @param seq sequence of attributes
+    * @param extraAttrs extra attributes to be allocated
+    * @param defEndian default endianness
+    */
   def compileSeqProc(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]) = {
     lang.readHeader(defEndian, seq.isEmpty)
     compileSeq(seq, extraAttrs, defEndian)
     lang.readFooter()
   }
 
+  /**
+    * Compiles seq reading method body (only reading statements).
+    * @param seq sequence of attributes
+    * @param extraAttrs extra attributes to be allocated
+    * @param defEndian default endianness
+    */
   def compileSeq(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]) = {
     var wasUnaligned = false
     seq.foreach { (attr) =>
@@ -195,6 +231,10 @@ class ClassCompiler(
   def compileEnums(curClass: ClassSpec): Unit =
     curClass.enums.foreach { case(_, enumColl) => compileEnum(curClass, enumColl) }
 
+  /**
+    * Compile subclasses for a given class.
+    * @param curClass current class to generate code for
+    */
   def compileSubclasses(curClass: ClassSpec): Unit =
     curClass.types.foreach { case (_, intClass) => compileClass(intClass) }
 
