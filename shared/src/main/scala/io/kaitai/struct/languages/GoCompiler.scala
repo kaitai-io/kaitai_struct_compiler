@@ -151,7 +151,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => javaName
     }
 
-    out.puts(s"$ioName := $kstreamName($args)")
+    importList.add("bytes")
+
+    out.puts(s"$ioName := kaitai.NewStream(bytes.NewReader($args))")
     ioName
   }
 
@@ -407,6 +409,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
+      case IoStorageIdentifier(innerId) => "_io_" + idToStr(innerId)
     }
   }
 
