@@ -109,7 +109,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends B
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
   override def boolToInt(v: expr): String =
-    s"((${translate(v)})?1:0)"
+    translate(v)
   override def floatToInt(v: expr): String =
     s"static_cast<int>(${translate(v)})"
   override def intToStr(i: expr, base: expr): String = {
