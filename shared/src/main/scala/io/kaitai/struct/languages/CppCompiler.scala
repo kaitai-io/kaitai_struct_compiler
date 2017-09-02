@@ -10,6 +10,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.Stack
 
 class CppCompiler(
   typeProvider: ClassTypeProvider,
@@ -23,18 +24,26 @@ class CppCompiler(
   import CppCompiler._
 
   // Collect imports
-  val importListSrc = new ImportList
-  val importListHdr = new ImportList
+  private val importListSrc = new ImportList
+  private val importListHdr = new ImportList
 
   override val translator = new CppTranslator(typeProvider, importListSrc)
-  val outSrcHeader = new StringLanguageOutputWriter(indent)
-  val outHdrHeader = new StringLanguageOutputWriter(indent)
-  val outSrc = new StringLanguageOutputWriter(indent)
-  val outHdr = new StringLanguageOutputWriter(indent)
+  private val outSrcHeader = new StringLanguageOutputWriter(indent)
+  private val outHdrHeader = new StringLanguageOutputWriter(indent)
+  private val outSrc = new StringLanguageOutputWriter(indent)
+  private val outHdr = new StringLanguageOutputWriter(indent)
+
+  private class StringList {
+    private val list = ListBuffer[String]()
+    def addUnique(s: String) = Utils.addUniqueAttr(list, s)
+    def add(s: String) = list += s
+    def toList: List[String] = list.toList
+  }
 
   // Collect public and private attributes:
-  var publicDecls = new ImportList // not the best class name - UniqueList would be better fitting
-  var privateDecls = new ImportList
+  private var publicDecls = new StringList
+  private var privateDecls = new StringList
+  private val declsStack = new Stack[StringList]
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     val fn = topClass.nameAsStr
@@ -48,6 +57,11 @@ class CppCompiler(
     importList.toList.map((x) => s"#include <$x>").mkString("", "\n", "\n")
 
   override def indent: String = "    "
+
+  private def halfIndent: String = {
+    indent.substring(indent.length()/2)
+  }
+
   override def outFileName(topClassName: String): String = topClassName
 
   override def fileHeader(topClassName: String): Unit = {
@@ -89,8 +103,15 @@ class CppCompiler(
   }
 
   override def classHeader(name: List[String]): Unit = {
+
+    declsStack.push(privateDecls)
+    declsStack.push(publicDecls)
+    privateDecls = new StringList
+    publicDecls = new StringList
+
     outHdr.puts
     outHdr.puts(s"class ${types2class(List(name.last))} : public $kstructName {")
+    outHdr.puts(halfIndent + "public:")
     outHdr.inc
 
     /*
@@ -112,14 +133,14 @@ class CppCompiler(
     publicDecls.toList.foreach((line) => outHdr.puts(line))
     outHdr.puts
     outHdr.dec
-    outHdr.puts("private:")
+    outHdr.puts(halfIndent + "private:")
     outHdr.inc
     privateDecls.toList.foreach((line) => outHdr.puts(line))
     outHdr.dec
     outHdr.puts("};")
 
-    publicDecls.clear();
-    privateDecls.clear();
+    publicDecls = declsStack.pop()
+    privateDecls = declsStack.pop()
   }
 
   override def classForwardDeclaration(name: List[String]): Unit = {
@@ -173,7 +194,7 @@ class CppCompiler(
     // Store endian flag
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
-        privateDecls.add("int m__is_le;")
+        privateDecls.addUnique("int m__is_le;")
         handleAssignmentSimple(EndianIdentifier, if (isHybrid) "p_is_le" else "-1")
       case _ =>
         // no _is_le variable
@@ -227,7 +248,7 @@ class CppCompiler(
       case Some(e) => s"_${e.toSuffix}"
       case None => ""
     }
-    privateDecls.add(s"void _read$suffix();")
+    privateDecls.addUnique(s"void _read$suffix();")
     outSrc.puts
     outSrc.puts(s"void ${types2class(typeProvider.nowClass.name)}::_read$suffix() {")
     outSrc.inc
@@ -239,12 +260,12 @@ class CppCompiler(
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    privateDecls.add(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+    privateDecls.addUnique(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
     declareNullFlag(attrName, isNullable)
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    publicDecls.add(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
+    publicDecls.addUnique(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -689,13 +710,13 @@ class CppCompiler(
   override def switchBytesOnlyAsRaw = true
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    privateDecls.add(s"bool ${calculatedFlagForName(attrName)};")
-    privateDecls.add(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+    privateDecls.addUnique(s"bool ${calculatedFlagForName(attrName)};")
+    privateDecls.addUnique(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
     declareNullFlag(attrName, isNullable)
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    publicDecls.add(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
+    publicDecls.addUnique(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
 
     outSrc.puts
     outSrc.puts(s"${kaitaiType2NativeType(dataType, true)} ${types2class(className)}::${publicMemberName(instName)}() {")
@@ -839,8 +860,8 @@ class CppCompiler(
 
   def declareNullFlag(attrName: Identifier, isNullable: Boolean) = {
     if (isNullable) {
-      privateDecls.add(s"bool ${nullFlagForName(attrName)};")
-      publicDecls.add(s"bool _is_null_${idToStr(attrName)}() { ${publicMemberName(attrName)}(); return ${nullFlagForName(attrName)}; };")
+      privateDecls.addUnique(s"bool ${nullFlagForName(attrName)};")
+      publicDecls.addUnique(s"bool _is_null_${idToStr(attrName)}() { ${publicMemberName(attrName)}(); return ${nullFlagForName(attrName)}; };")
     }
   }
 

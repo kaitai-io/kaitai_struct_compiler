@@ -10,5 +10,4 @@ class ImportList {
   private val list = ListBuffer[String]()
   def add(s: String) = Utils.addUniqueAttr(list, s)
   def toList: List[String] = list.toList
-  def clear() = list.clear()
 }
