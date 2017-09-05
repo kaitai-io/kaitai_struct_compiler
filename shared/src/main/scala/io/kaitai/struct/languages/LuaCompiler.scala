@@ -28,7 +28,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"$topClassName.lua"
-  override def outImports: String =
+  override def outImports(topClass: ClassSpec) =
     importList.toList.mkString("", "\n", "\n")
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =

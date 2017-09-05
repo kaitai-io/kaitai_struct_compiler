@@ -25,40 +25,40 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
 
+  override def outImports(topClass: ClassSpec) = {
+    val importClasses = importList.toList.map((x) => type2class(x))
+    val impModuleNames =
+      List("'kaitai-struct/KaitaiStream'") ++
+      importClasses.map((x) => "'./" + x + "'")
+    val defineArgs = impModuleNames.mkString(", ")
+    val moduleArgs = impModuleNames.map((x) => s"require($x)").mkString(", ")
+    val argClasses = List("KaitaiStream") ++ importClasses
+    val rootArgs = argClasses.map((x) => s"root.$x").mkString(", ")
+
+    "(function (root, factory) {\n" +
+      indent + "if (typeof define === 'function' && define.amd) {\n" +
+      indent * 2 + s"define([$defineArgs], factory);\n" +
+      indent + "} else if (typeof module === 'object' && module.exports) {\n" +
+      indent * 2 + s"module.exports = factory($moduleArgs);\n" +
+      indent + "} else {\n" +
+      indent * 2 + s"root.${types2class(topClass.name)} = factory($rootArgs);\n" +
+      indent + "}\n" +
+      s"}(this, function (${argClasses.mkString(", ")}) {"
+  }
+
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"// $headerComment")
+    outHeader.puts(s"// $headerComment")
+    outHeader.puts
   }
 
   override def fileFooter(name: String): Unit = {
-    out.puts
-    out.puts("// Export for amd environments")
-    out.puts("if (typeof define === 'function' && define.amd) {")
-    out.inc
-    out.puts(s"define('${type2class(name)}', [], function() {")
-    out.inc
     out.puts(s"return ${type2class(name)};")
-    out.dec
-    out.puts("});")
-    out.dec
-    out.puts("}")
-
-    out.puts
-
-    out.puts("// Export for CommonJS")
-    out.puts("if (typeof module === 'object' && module && module.exports) {")
-    out.inc
-    out.puts(s"module.exports = ${type2class(name)};")
-    out.dec
-    out.puts("}")
+    out.puts("}));")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val typeName = classSpec.name.head
-    out.puts
-    out.puts("if (typeof require === 'function')")
-    out.inc
-    out.puts(s"var ${type2class(typeName)} = require('./${outFileName(typeName)}');")
-    out.dec
+    importList.add(typeName)
   }
 
   override def classHeader(name: List[String]): Unit = {

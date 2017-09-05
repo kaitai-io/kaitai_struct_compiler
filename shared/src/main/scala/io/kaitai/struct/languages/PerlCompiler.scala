@@ -32,7 +32,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
 
-  override def outImports: String =
+  override def outImports(topClass: ClassSpec) =
     importList.toList.map((x) => s"use $x;").mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {

@@ -44,7 +44,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String =
     s"src/${config.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
 
-  override def outImports =
+  override def outImports(topClass: ClassSpec) =
     "\n" + importList.toList.map((x) => s"import $x;").mkString("\n") + "\n"
 
   override def fileHeader(topClassName: String): Unit = {

@@ -33,7 +33,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String =
     s"src/${config.goPackage}/$topClassName.go"
 
-  override def outImports: String = {
+  override def outImports(topClass: ClassSpec) = {
     val imp = importList.toList
     imp.size match {
       case 0 => ""

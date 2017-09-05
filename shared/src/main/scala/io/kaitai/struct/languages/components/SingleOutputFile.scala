@@ -19,7 +19,7 @@ trait SingleOutputFile extends LanguageCompiler {
 
   override def results(topClass: ClassSpec) =
     Map(outFileName(topClass.nameAsStr) ->
-      (outHeader.result + outImports + out.result)
+      (outHeader.result + outImports(topClass) + out.result)
     )
 
   val importList = new ImportList
@@ -28,5 +28,5 @@ trait SingleOutputFile extends LanguageCompiler {
     * Generates imports clauses in target language format
     * @return import
     */
-  def outImports: String = ""
+  def outImports(topClass: ClassSpec) = ""
 }
