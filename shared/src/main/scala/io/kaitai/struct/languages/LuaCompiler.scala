@@ -231,10 +231,12 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         out.puts(s"$destName = $kstreamName.process_rotate_left($srcName, $expr, 1)")
       case ProcessCustom(name, args) =>
+        val procName = s"_process_${idToStr(varSrc)}"
+
         importList.add("require(\"" + s"${name.last}" + "\")")
 
-        out.puts(s"_process = ${types2class(name)}(${args.map(expression).mkString(", ")})")
-        out.puts(s"$destName = _process.decode($srcName)")
+        out.puts(s"local $procName = ${types2class(name)}(${args.map(expression).mkString(", ")})")
+        out.puts(s"$destName = $procName:decode($srcName)")
     }
   }
 
