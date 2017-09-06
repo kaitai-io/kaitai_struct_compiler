@@ -26,13 +26,11 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
 
   override def outImports(topClass: ClassSpec) = {
-    val importClasses = importList.toList.map((x) => type2class(x))
-    val impModuleNames =
-      List("'kaitai-struct/KaitaiStream'") ++
-      importClasses.map((x) => "'./" + x + "'")
-    val defineArgs = impModuleNames.mkString(", ")
-    val moduleArgs = impModuleNames.map((x) => s"require($x)").mkString(", ")
-    val argClasses = List("KaitaiStream") ++ importClasses
+    val impList = importList.toList
+    val quotedImpList = impList.map((x) => s"'$x'")
+    val defineArgs = quotedImpList.mkString(", ")
+    val moduleArgs = quotedImpList.map((x) => s"require($x)").mkString(", ")
+    val argClasses = impList.map((x) => x.split('/').last)
     val rootArgs = argClasses.map((x) => s"root.$x").mkString(", ")
 
     "(function (root, factory) {\n" +
@@ -49,6 +47,8 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"// $headerComment")
     outHeader.puts
+
+    importList.add("kaitai-struct/KaitaiStream")
   }
 
   override def fileFooter(name: String): Unit = {
@@ -57,8 +57,8 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
-    val typeName = classSpec.name.head
-    importList.add(typeName)
+    val className = type2class(classSpec.name.head)
+    importList.add(s"./$className")
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -209,6 +209,15 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s"8 - (${expression(rotValue)})"
         }
         out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+      case ProcessCustom(name, args) =>
+        val nameInit = name.init
+        val pkgName = if (nameInit.isEmpty) "" else nameInit.mkString("-") + "/"
+        val procClass = type2class(name.last)
+
+        importList.add(s"$pkgName$procClass")
+
+        out.puts(s"var _process = new $procClass(${args.map(expression).mkString(", ")});")
+        out.puts(s"$destName = _process.decode($srcName);")
     }
   }
 
