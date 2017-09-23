@@ -61,7 +61,7 @@ case class ClassSpec(
     * Recursively traverses tree of types starting from this type, calling
     * certain function for every type, starting from this one.
     */
-  def forEachRec(proc: (ClassSpec) => ()): Unit = {
+  def forEachRec(proc: (ClassSpec) => Unit): Unit = {
     proc.apply(this)
     types.foreach { case (_, typeSpec) =>
       typeSpec.forEachRec(proc)
