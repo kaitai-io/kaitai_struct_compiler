@@ -7,15 +7,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
 class CalculateSeqSizes(specs: ClassSpecs) {
-  def run(): Unit = {
-    specs.foreach { case (_, curClass) => markup(curClass) }
-  }
-
-  def markup(curClass: ClassSpec) {
-    CalculateSeqSizes.getSeqSize(curClass)
-
-    curClass.types.foreach { case (_, subClass) => markup(subClass) }
-  }
+  def run(): Unit = specs.forEachRec(CalculateSeqSizes.getSeqSize)
 }
 
 object CalculateSeqSizes {

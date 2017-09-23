@@ -21,8 +21,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
   /**
     * Starts the check from top-level class.
     */
-  def run(): Unit =
-    validateClass(topClass)
+  def run(): Unit = specs.forEachRec(validateClass)
 
   /**
     * Performs validation of a single ClassSpec: would validate
@@ -43,10 +42,6 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
         case vis: ValueInstanceSpec =>
           // TODO
       }
-    }
-
-    curClass.types.foreach { case (_, nestedClass) =>
-      validateClass(nestedClass)
     }
   }
 
