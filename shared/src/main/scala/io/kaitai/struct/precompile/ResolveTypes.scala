@@ -10,11 +10,7 @@ import io.kaitai.struct.format._
   * converts names into ClassSpec / EnumSpec references.
   */
 class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
-  def run(): Unit =
-    specs.foreach { case (_, spec) =>
-      // FIXME: grab exception and rethrow more localized one, with a specName?
-      resolveUserTypes(spec)
-    }
+  def run(): Unit = specs.forEachRec(resolveUserTypes)
 
   /**
     * Resolves user types and enum types recursively starting from a certain
@@ -31,10 +27,6 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
         case _: ValueInstanceSpec =>
           // ignore all other types of instances
       }
-    }
-
-    curClass.types.foreach { case (_, nestedClass) =>
-      resolveUserTypes(nestedClass)
     }
   }
 
