@@ -56,6 +56,17 @@ case class ClassSpec(
     case UnknownClassSpec | GenericStructClassSpec => KaitaiStructType
     case t: ClassSpec => UserTypeInstream(t.name, None)
   }
+
+  /**
+    * Recursively traverses tree of types starting from this type, calling
+    * certain function for every type, starting from this one.
+    */
+  def forEachRec(proc: (ClassSpec) => ()): Unit = {
+    proc.apply(this)
+    types.foreach { case (_, typeSpec) =>
+      typeSpec.forEachRec(proc)
+    }
+  }
 }
 
 object ClassSpec {
