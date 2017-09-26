@@ -21,7 +21,7 @@ object Main {
     *         into it and modifying classes itself by precompilation step
     */
   def importAndPrecompile(specs: ClassSpecs, config: RuntimeConfig): Future[Unit] = {
-    new LoadImports(specs).processClass(specs.firstSpec).map { (allSpecs) =>
+    new LoadImports(specs).processClass(specs.firstSpec, LoadImports.BasePath).map { (allSpecs) =>
       Log.importOps.info(() => s"imports done, got: ${specs.keys} (async=$allSpecs)")
 
       specs.foreach { case (_, classSpec) =>
