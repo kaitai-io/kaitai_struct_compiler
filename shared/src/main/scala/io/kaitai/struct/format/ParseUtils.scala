@@ -135,6 +135,8 @@ object ParseUtils {
         str
       case n: Int =>
         n.toString
+      case n: Long =>
+        n.toString
       case n: Double =>
         n.toString
       case n: Boolean =>

@@ -55,6 +55,10 @@ object JavaKSYParser {
         src
       case javaInt: java.lang.Integer =>
         javaInt.intValue
+      case javaLong: java.lang.Long =>
+        javaLong.longValue
+      case _: java.math.BigInteger =>
+        src.toString
       case null =>
         // may be not the very best idea, but these nulls
         // should be handled by real parsing code, i.e. where
