@@ -71,7 +71,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         ""
     }
 
-    out.putsLines("", "--[[" + docStr + extraNewLine + refStr + "--]]")
+    out.putsLines("-- ", "\n" + docStr + extraNewLine + refStr)
   }
 
   override def classHeader(name: List[String]): Unit = {
