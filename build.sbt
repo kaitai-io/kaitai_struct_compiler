@@ -111,13 +111,10 @@ lazy val compiler = crossProject.in(file(".")).
       }
     },
 
-    // Hack: we need /usr/share/kaitai-struct (the format directory) to be
-    // created as empty dir and packaged in compiler package, to be filled in
-    // with actual repository contents by "kaitai-struct-formats" package.
-    // "jvm/src/main/resources" is guaranteed to be an empty directory.
-    linuxPackageMappings += LinuxPackageMapping(Map(
-      new File("jvm/src/main/resources") -> "/usr/share/kaitai-struct"
-    )),
+    // We need /usr/share/kaitai-struct (the format directory) to be created as
+    // empty dir and packaged in compiler package, to be filled in with actual
+    // repository contents by "kaitai-struct-formats" package.
+    linuxPackageMappings += packageTemplateMapping("/usr/share/kaitai-struct")(),
 
     // Remove all "maintainer scripts", such as prerm/postrm/preinst/postinst: default
     // implementations create per-package virtual user that we won't use anyway
