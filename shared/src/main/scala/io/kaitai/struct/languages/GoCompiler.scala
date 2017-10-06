@@ -37,7 +37,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val imp = importList.toList
     imp.size match {
       case 0 => ""
-      case 1 => "import \"" + imp.head + "\""
+      case 1 => "import \"" + imp.head + "\"\n"
       case _ =>
         "import (\n" +
         imp.map((x) => indent + "\"" + x + "\"").mkString("", "\n", "\n") +
