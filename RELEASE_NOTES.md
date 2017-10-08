@@ -48,7 +48,11 @@
     which now a build dependency of a
     [web IDE](https://ide.kaitai.io/)
 * Runtime API changes:
-  * Java: `KaitaiStream` is now an interface, and there are two distinct classes which implement it:
+  * C++: now requires `KS_STR_ENCODING_ICONV` or
+    `KS_STR_ENCODING_NONE` to be defined to how to handle string
+    encodings
+  * Java: `KaitaiStream` is now an interface, and there are two
+    distinct classes which implement it:
     * `ByteBufferKaitaiStream` provides KaitaiStream backed
       `ByteBuffer` (and thus using memory-mapped files)
     * `RandomAccessFileKaitaiStream` provides KaitaiStream backed by
@@ -56,6 +60,7 @@
       was done in older KaitaiStruct circa v0.5)
   * [JS] Error classes are now subclasses of `KaitaiStream` and were renamed in the following way: `KaitaiUnexpectedDataError` -> `KaitaiStream`.`UnexpectedDataError`
 * Major bugfixes:
+  * C++: adjusted to made compatible with OS X and Windows MSVC builds
   * Fixed broken generation of byte array literals with high 8-bit set
     in some targets
   * Fixed float literals parsing, fixed larger integer keys YAML parsing
