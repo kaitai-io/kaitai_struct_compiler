@@ -245,7 +245,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     "io"
   }
   override def pushPos(io:String): Unit =
-    out.puts(s"_pos = $io:pos()")
+    out.puts(s"local _pos = $io:pos()")
   override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io:seek(${expression(pos)})")
   override def popPos(io: String): Unit =
