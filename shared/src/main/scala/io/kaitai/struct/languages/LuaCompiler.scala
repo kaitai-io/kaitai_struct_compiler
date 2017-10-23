@@ -241,8 +241,8 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def useIO(ioEx: Ast.expr): String = {
-    out.puts(s"local io = ${expression(ioEx)}")
-    "io"
+    out.puts(s"local _io = ${expression(ioEx)}")
+    "_io"
   }
   override def pushPos(io:String): Unit =
     out.puts(s"local _pos = $io:pos()")
@@ -386,8 +386,8 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     importList.add("local stringstream = require(\"string_stream\")")
-    out.puts(s"local io = $kstreamName(stringstream($args))")
-    "io"
+    out.puts(s"local _io = $kstreamName(stringstream($args))")
+    "_io"
   }
 }
 
