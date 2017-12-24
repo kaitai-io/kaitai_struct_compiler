@@ -38,7 +38,7 @@ return exports.io.kaitai.struct.MainJs;
 }));
 '''.lstrip()
 
-with open('target/scala-2.11/kaitai-struct-compiler-fastopt.js','rt') as f: compilerCode = f.read()
+with open('target/scala-2.12/kaitai-struct-compiler-fastopt.js','rt') as f: compilerCode = f.read()
 
 moduleCode = moduleTemplate.replace('{{compilerCode}}', compilerCode)
 
