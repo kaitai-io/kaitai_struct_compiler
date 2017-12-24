@@ -23,19 +23,19 @@ lazy val compiler = crossProject.in(file(".")).
     name := "kaitai-struct-compiler",
     version := VERSION,
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.11.11",
+    scalaVersion := "2.12.4",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "io.kaitai.struct",
     buildInfoOptions += BuildInfoOption.BuildTime,
 
     // Repo publish options
-    publishTo <<= version { (v: String) =>
+    publishTo := version { (v: String) =>
       val nexus = "https://oss.sonatype.org/"
       if (v.trim.endsWith("SNAPSHOT"))
         Some("snapshots" at nexus + "content/repositories/snapshots")
       else
         Some("releases"  at nexus + "service/local/staging/deploy/maven2")
-    },
+    }.value,
     pomExtra :=
       <url>http://kaitai.io</url>
       <scm>
@@ -55,7 +55,7 @@ lazy val compiler = crossProject.in(file(".")).
 
     libraryDependencies ++= Seq(
       "com.github.scopt" %%% "scopt" % "3.6.0",
-      "com.lihaoyi" %%% "fastparse" % "0.4.1",
+      "com.lihaoyi" %%% "fastparse" % "1.0.0",
       "org.yaml" % "snakeyaml" % "1.16"
     )
   ).
