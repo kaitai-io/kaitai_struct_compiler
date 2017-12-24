@@ -7,8 +7,6 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/compilerJS-build.iml" filepath="$PROJECT_DIR$/.idea/modules/compilerJS-build.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/compilerJVM.iml" filepath="$PROJECT_DIR$/.idea/modules/compilerJVM.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/compilerJVM-build.iml" filepath="$PROJECT_DIR$/.idea/modules/compilerJVM-build.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../runtime/java/kaitai_struct_java_runtime.iml" filepath="$PROJECT_DIR$/../runtime/java/kaitai_struct_java_runtime.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../tests/spec/java/kaitai_struct_java_tests.iml" filepath="$PROJECT_DIR$/../tests/spec/java/kaitai_struct_java_tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/root.iml" filepath="$PROJECT_DIR$/.idea/modules/root.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/root-build.iml" filepath="$PROJECT_DIR$/.idea/modules/root-build.iml" />
     </modules>
