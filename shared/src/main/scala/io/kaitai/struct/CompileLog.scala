@@ -1,5 +1,8 @@
 package io.kaitai.struct
 
+/**
+  * Namespace for all the objects related to compilation results.
+  */
 object CompileLog {
   trait CanHasErrors {
     def hasErrors: Boolean

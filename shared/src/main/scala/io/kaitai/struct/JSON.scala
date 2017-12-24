@@ -2,7 +2,9 @@ package io.kaitai.struct
 
 import io.kaitai.struct.translators.CommonLiterals
 
+/** Common trait for all objects that can be serialized as JSON. */
 trait Jsonable {
+  /** Serialize current state of the object into JSON string. */
   def toJson: String
 }
 
