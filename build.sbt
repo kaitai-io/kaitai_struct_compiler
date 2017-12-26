@@ -21,7 +21,7 @@ lazy val compiler = crossProject.in(file(".")).
   settings(
     organization := "io.kaitai",
     name := "kaitai-struct-compiler",
-    version := VERSION,
+    version := sys.env.getOrElse("KAITAI_STRUCT_VERSION", VERSION),
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
     scalaVersion := "2.12.4",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
