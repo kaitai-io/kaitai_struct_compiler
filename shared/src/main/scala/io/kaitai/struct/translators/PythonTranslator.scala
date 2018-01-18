@@ -37,8 +37,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   )
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String = {
-    importList.add("import struct")
-    s"struct.pack('${arr.length}b', ${arr.mkString(", ")})"
+    "b\"" + Utils.hexEscapeByteArray(arr) + "\""
   }
 
   override def doLocalName(s: String) = {
