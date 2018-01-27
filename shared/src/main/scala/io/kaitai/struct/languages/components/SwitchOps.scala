@@ -26,6 +26,20 @@ trait SwitchOps {
     */
   def switchBytesOnlyAsRaw = false
 
+  /**
+    * Generate switch cases by calling case procedures. Suitable for a wide variety of
+    * target languages that something remotely resembling C-like `switch`-`case` statement.
+    * Thanks to customizable argument type for case procedures, can be used for switch type
+    * handling and a variety of other cases (i.e. switching between customizable endianness,
+    * etc).
+    * @param id attribute identifier
+    * @param on on expression to decide upon
+    * @param cases cases map: keys should be expressions, values are arbitrary typed objects
+    *              that will be passed to case procedures
+    * @param normalCaseProc procedure that would handle "normal" (i.e. non-else case)
+    * @param elseCaseProc procedure that would handle "else" case
+    * @tparam T type of object to pass to procedures
+    */
   def switchCases[T](
     id: Identifier,
     on: Ast.expr,
