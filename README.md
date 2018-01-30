@@ -84,8 +84,8 @@ just as full name.
 Common options:
 
 * `<file>...` — source files (.ksy)
-* `-t <language> | --target <language>` — target languages (`cpp_stl`,
-  `csharp`, `java`, `javascript`, `lua`, `perl`, `php`, `python`, `ruby`, `all`)
+* `-t <language> | --target <language>` — target languages (`graphviz`, `csharp`,
+    `all`, `perl`, `java`, `go`, `cpp_stl`, `php`, `lua`, `python`, `ruby`, `javascript`
   * `all` is a special case: it compiles all possible target
     languages, creating language-specific directories (as per language
     identifiers) inside output directory, and then creating output
