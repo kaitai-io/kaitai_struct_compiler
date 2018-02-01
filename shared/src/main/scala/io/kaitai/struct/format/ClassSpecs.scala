@@ -18,10 +18,17 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
     * Calls certain function on all [[ClassSpec]] elements stored in this ClassSpecs,
     * and all subtypes stored in these elements, recursively.
     */
-  def forEachRec(proc: (ClassSpec) => Unit): Unit = {
+  def forEachRec(proc: (ClassSpec) => Unit): Unit =
+    forEachTopLevel((_, typeSpec) => typeSpec.forEachRec(proc))
+
+  /**
+    * Calls certain function on all top-level [[ClassSpec]] elements stored in this
+    * ClassSpecs.
+    */
+  def forEachTopLevel(proc: (String, ClassSpec) => Unit): Unit = {
     foreach { case (specName, typeSpec) =>
       try {
-        typeSpec.forEachRec(proc)
+        proc(specName, typeSpec)
       } catch {
         case ErrorInInput(err, path, None) =>
           // Try to emit more specific error, with a reference to current file
