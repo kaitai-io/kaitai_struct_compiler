@@ -1,5 +1,7 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.precompile.ErrorInInput
+
 import scala.collection.mutable
 import scala.concurrent.Future
 
@@ -17,8 +19,15 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
     * and all subtypes stored in these elements, recursively.
     */
   def forEachRec(proc: (ClassSpec) => Unit): Unit = {
-    // FIXME: grab exception and rethrow more localized one, with a specName?
-    foreach { case (_, typeSpec) => typeSpec.forEachRec(proc) }
+    foreach { case (specName, typeSpec) =>
+      try {
+        typeSpec.forEachRec(proc)
+      } catch {
+        case ErrorInInput(err, path, None) =>
+          // Try to emit more specific error, with a reference to current file
+          throw ErrorInInput(err, path, Some(specName))
+      }
+    }
   }
 
   def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]]
