@@ -1,6 +1,6 @@
 package io.kaitai.struct.precompile
 
-import io.kaitai.struct.ClassTypeProvider
+import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
@@ -21,7 +21,11 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
   /**
     * Starts the check from top-level class.
     */
-  def run(): Unit = specs.forEachRec(validateClass)
+  def run(): Unit = specs.forEachTopLevel { (specName, curClass) =>
+    Log.typeValid.info(() => s"validating top level class '$specName'")
+    provider.topClass = curClass
+    curClass.forEachRec(validateClass)
+  }
 
   /**
     * Performs validation of a single ClassSpec: would validate
@@ -31,6 +35,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
     * @param curClass class to check
     */
   def validateClass(curClass: ClassSpec): Unit = {
+    Log.typeValid.info(() => s"validateClass(${curClass.nameAsStr})")
     provider.nowClass = curClass
 
     curClass.seq.foreach(validateAttr)
@@ -51,6 +56,8 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
     * @param attr attribute to check
     */
   def validateAttr(attr: AttrLikeSpec) {
+    Log.typeValid.info(() => s"validateAttr(${attr.id.humanReadable})")
+
     val path = attr.path
 
     attr.cond.ifExpr.foreach((ifExpr) =>

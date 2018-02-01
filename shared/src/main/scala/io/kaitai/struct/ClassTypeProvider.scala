@@ -6,7 +6,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundError, TypeUndecidedError}
 import io.kaitai.struct.translators.TypeProvider
 
-class ClassTypeProvider(classSpecs: ClassSpecs, topClass: ClassSpec) extends TypeProvider {
+class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends TypeProvider {
   var nowClass = topClass
 
   var _currentIteratorType: Option[DataType] = None
