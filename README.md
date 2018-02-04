@@ -127,7 +127,7 @@ and describes format with ID `foo`:
 
 ### Main code
 
-Kaitai Struct compiler itself is copyright (C) 2015-2017 Kaitai
+Kaitai Struct compiler itself is copyright (C) 2015-2018 Kaitai
 Project.
 
 This program is free software: you can redistribute it and/or modify
