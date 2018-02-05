@@ -120,6 +120,14 @@ lazy val compiler = crossProject.in(file(".")).
     // implementations create per-package virtual user that we won't use anyway
     maintainerScripts in Debian := Map(),
 
+    // Work around new Debian defaults and sbt-native-packager defaults, which
+    // build .deb packages that appear to be incompatible with older Debian/Ubuntu's
+    // dpkg and are not accepted by BinTray.
+    //
+    // For more information, see
+    // https://github.com/sbt/sbt-native-packager/issues/1067
+    debianNativeBuildOptions in Debian := Seq("-Zgzip", "-z3"),
+
     packageSummary in Linux := s"compiler to generate binary data parsers in $TARGET_LANGS",
     packageSummary in Windows := "Kaitai Struct compiler",
     packageDescription in Linux :=
