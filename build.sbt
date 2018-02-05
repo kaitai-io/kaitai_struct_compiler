@@ -5,7 +5,7 @@ import sbt.Keys._
 
 resolvers += Resolver.sonatypeRepo("public")
 
-val VERSION = "0.8-SNAPSHOT"
+val VERSION = "0.8"
 val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Lua, Perl, PHP, Python, Ruby"
 
 lazy val root = project.in(file(".")).
