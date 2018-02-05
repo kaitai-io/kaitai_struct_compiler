@@ -65,7 +65,7 @@ object KSVersion {
   def current: KSVersion = _current.get
 
   def fromStr(str: String): KSVersion =
-    KSVersion(str.replace("-SNAPSHOT", "").split('.').map(_.toInt).toList)
+    KSVersion(str.replaceAll("-SNAPSHOT.*$", "").split('.').map(_.toInt).toList)
 
   /**
     * Hardcoded minimal version of runtime API that this particular
