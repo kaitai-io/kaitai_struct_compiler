@@ -58,7 +58,9 @@
     * `RandomAccessFileKaitaiStream` provides KaitaiStream backed by
       `RandomAccessFile` (and thus uses normal OS read calls, as it
       was done in older KaitaiStruct circa v0.5)
-  * [JS] Error classes are now subclasses of `KaitaiStream` and were renamed in the following way: `KaitaiUnexpectedDataError` -> `KaitaiStream`.`UnexpectedDataError`
+  * JavaScript: Error classes are now subclasses of `KaitaiStream` and
+    were renamed in the following way: `KaitaiUnexpectedDataError` ->
+    `KaitaiStream`.`UnexpectedDataError`
 * Major bugfixes:
   * C++: adjusted to made compatible with OS X and Windows MSVC builds
   * Fixed broken generation of byte array literals with high 8-bit set
