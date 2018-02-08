@@ -27,7 +27,7 @@ is generally suited for developers of tools that use Kaitai Struct
 the compiler). If you:
 
 * just look for a way to try out Kaitai Struct => try
-  [Kaitai Struct Web IDE](https://ide.kaitai/io/), which uses this
+  [Kaitai Struct Web IDE](https://ide.kaitai.io/), which uses this
   compiler internally
 * want to load .ksy file transparently in your JavaScript code
   (compiling it on the fly) => use
