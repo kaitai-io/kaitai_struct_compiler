@@ -283,7 +283,7 @@ class CppCompiler(
     }
 
     val checkNull = if (attr.isNullableSwitchRaw) {
-      Some(s"!${nullFlagForName(id)}")
+      Some(s"not ${nullFlagForName(id)}")
     } else {
       None
     }
@@ -291,7 +291,7 @@ class CppCompiler(
     val checks: List[String] = List(checkLazy, checkNull).flatten
 
     if (checks.nonEmpty) {
-      outSrc.puts(s"if (${checks.mkString(" && ")}) {")
+      outSrc.puts(s"if (${checks.mkString(" and ")}) {")
       outSrc.inc
     }
 
@@ -493,7 +493,7 @@ class CppCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"while (!$io->is_eof()) {")
+    outSrc.puts(s"while (not $io->is_eof()) {")
     outSrc.inc
   }
 
@@ -567,7 +567,7 @@ class CppCompiler(
     typeProvider._currentIteratorType = Some(dataType)
     outSrc.puts("i++;")
     outSrc.dec
-    outSrc.puts(s"} while (!(${expression(untilExpr)}));")
+    outSrc.puts(s"} while (not (${expression(untilExpr)}));")
     outSrc.dec
     outSrc.puts("}")
   }
