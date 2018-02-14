@@ -3,11 +3,14 @@ package io.kaitai.struct.precompile
 import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType.{ArrayType, SwitchType, UserType}
-import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
-object ParentTypes {
+class ParentTypes(classSpecs: ClassSpecs) {
+  def run(): Unit = {
+    classSpecs.foreach { case (_, curClass) => markup(curClass) }
+  }
+
   def markup(curClass: ClassSpec): Unit = {
     Log.typeProcParent.info(() => s"markupParentTypes(${curClass.nameAsStr})")
 
@@ -40,7 +43,7 @@ object ParentTypes {
             Log.typeProcParent.info(() => s"..... no parent type added")
             None
           case Some(parent) =>
-            val provider = new ClassTypeProvider(curClass)
+            val provider = new ClassTypeProvider(classSpecs, curClass)
             val detector = new TypeDetector(provider)
             val parentType = detector.detectType(parent)
             Log.typeProcParent.info(() => s"..... enforced parent type = $parentType")

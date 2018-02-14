@@ -1,5 +1,9 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType.{KaitaiStructType, UserTypeInstream}
+import scala.collection.mutable
+
 /**
   * Type that we use when we want to refer to a class specification or something
   * close, but not (yet) that well defined.
@@ -8,11 +12,18 @@ sealed trait ClassSpecLike
 case object UnknownClassSpec extends ClassSpecLike
 case object GenericStructClassSpec extends ClassSpecLike
 
+sealed trait Sized
+case object DynamicSized extends Sized
+case object NotCalculatedSized extends Sized
+case object StartedCalculationSized extends Sized
+case class FixedSized(n: Int) extends Sized
+
 case class ClassSpec(
   path: List[String],
   isTopLevel: Boolean,
-  meta: Option[MetaSpec],
+  meta: MetaSpec,
   doc: DocSpec,
+  params: List[ParamDefSpec],
   seq: List[AttrSpec],
   types: Map[String, ClassSpec],
   instances: Map[InstanceIdentifier, InstanceSpec],
@@ -39,9 +50,22 @@ case class ClassSpec(
     */
   var upClass: Option[ClassSpec] = None
 
-  def parentTypeName: List[String] = parentClass match {
-    case UnknownClassSpec | GenericStructClassSpec => List("kaitai_struct")
-    case t: ClassSpec => t.name
+  var seqSize: Sized = NotCalculatedSized
+
+  def parentType: DataType = parentClass match {
+    case UnknownClassSpec | GenericStructClassSpec => KaitaiStructType
+    case t: ClassSpec => UserTypeInstream(t.name, None)
+  }
+
+  /**
+    * Recursively traverses tree of types starting from this type, calling
+    * certain function for every type, starting from this one.
+    */
+  def forEachRec(proc: (ClassSpec) => Unit): Unit = {
+    proc.apply(this)
+    types.foreach { case (_, typeSpec) =>
+      typeSpec.forEachRec(proc)
+    }
   }
 }
 
@@ -50,31 +74,37 @@ object ClassSpec {
     "meta",
     "doc",
     "doc-ref",
+    "params",
     "seq",
     "types",
     "instances",
     "enums"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults): ClassSpec = {
+  def fromYaml(src: Any, path: List[String], metaDef: MetaSpec): ClassSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
-    val meta = srcMap.get("meta").map(MetaSpec.fromYaml(_, path ++ List("meta")))
-    val curMetaDef = metaDef.updateWith(meta)
+    val metaPath = path ++ List("meta")
+    val explicitMeta = srcMap.get("meta").map(MetaSpec.fromYaml(_, metaPath)).getOrElse(MetaSpec.emptyWithPath(metaPath))
+    val meta = explicitMeta.fillInDefaults(metaDef)
 
     val doc = DocSpec.fromYaml(srcMap, path)
 
+    val params: List[ParamDefSpec] = srcMap.get("params") match {
+      case Some(value) => paramDefFromYaml(value, path ++ List("params"))
+      case None => List()
+    }
     val seq: List[AttrSpec] = srcMap.get("seq") match {
-      case Some(value) => seqFromYaml(value, path ++ List("seq"), curMetaDef)
+      case Some(value) => seqFromYaml(value, path ++ List("seq"), meta)
       case None => List()
     }
     val types: Map[String, ClassSpec] = srcMap.get("types") match {
-      case Some(value) => typesFromYaml(value, path ++ List("types"), curMetaDef)
+      case Some(value) => typesFromYaml(value, path ++ List("types"), meta)
       case None => Map()
     }
     val instances: Map[InstanceIdentifier, InstanceSpec] = srcMap.get("instances") match {
-      case Some(value) => instancesFromYaml(value, path ++ List("instances"), curMetaDef)
+      case Some(value) => instancesFromYaml(value, path ++ List("instances"), meta)
       case None => Map()
     }
     val enums: Map[String, EnumSpec] = srcMap.get("enums") match {
@@ -82,13 +112,17 @@ object ClassSpec {
       case None => Map()
     }
 
-    val cs = ClassSpec(path, path.isEmpty, meta, doc, seq, types, instances, enums)
+    checkDupSeqInstIds(seq, instances)
+
+    val cs = ClassSpec(
+      path, path.isEmpty,
+      meta, doc,
+      params, seq, types, instances, enums
+    )
 
     // If that's a top-level class, set its name from meta/id
     if (path.isEmpty) {
-      if (meta.isEmpty)
-        throw new YAMLParseException("no `meta` encountered in top-level class spec", path)
-      meta.get.id match {
+      explicitMeta.id match {
         case None =>
           throw new YAMLParseException("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
         case Some(id) =>
@@ -99,18 +133,68 @@ object ClassSpec {
     cs
   }
 
-  def seqFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): List[AttrSpec] = {
+  def paramDefFromYaml(src: Any, path: List[String]): List[ParamDefSpec] = {
     src match {
       case srcList: List[Any] =>
-        srcList.zipWithIndex.map { case (attrSrc, idx) =>
-          AttrSpec.fromYaml(attrSrc, path ++ List(idx.toString), metaDef, idx)
+        val params = srcList.zipWithIndex.map { case (attrSrc, idx) =>
+          ParamDefSpec.fromYaml(attrSrc, path ++ List(idx.toString), idx)
         }
+        // FIXME: checkDupSeqIds(params)
+        params
       case unknown =>
         throw new YAMLParseException(s"expected array, found $unknown", path)
     }
   }
 
-  def typesFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): Map[String, ClassSpec] = {
+  def seqFromYaml(src: Any, path: List[String], metaDef: MetaSpec): List[AttrSpec] = {
+    src match {
+      case srcList: List[Any] =>
+        val seq = srcList.zipWithIndex.map { case (attrSrc, idx) =>
+          AttrSpec.fromYaml(attrSrc, path ++ List(idx.toString), metaDef, idx)
+        }
+        checkDupSeqIds(seq)
+        seq
+      case unknown =>
+        throw new YAMLParseException(s"expected array, found $unknown", path)
+    }
+  }
+
+  def checkDupSeqIds(seq: List[AttrSpec]): Unit = {
+    val attrIds = mutable.Map[String, AttrSpec]()
+    seq.foreach { (attr) =>
+      attr.id match {
+        case NamedIdentifier(id) =>
+          checkDupId(attrIds.get(id), id, attr)
+          attrIds.put(id, attr)
+        case _ => // do nothing with non-named IDs
+      }
+    }
+  }
+
+  def checkDupSeqInstIds(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec]): Unit = {
+    val attrIds: Map[String, AttrSpec] = seq.flatMap((attr) => attr.id match {
+      case NamedIdentifier(id) => Some(id -> attr)
+      case _ => None
+    }).toMap
+
+    instances.foreach { case (id, instSpec) =>
+      checkDupId(attrIds.get(id.name), id.name, instSpec)
+    }
+  }
+
+  private def checkDupId(prevAttrOpt: Option[AttrSpec], id: String, nowAttr: YAMLPath) {
+    prevAttrOpt match {
+      case Some(prevAttr) =>
+        throw new YAMLParseException(
+          s"duplicate attribute ID '$id', previously defined at /${prevAttr.pathStr}",
+          nowAttr.path
+        )
+      case None =>
+        // no dups, ok
+    }
+  }
+
+  def typesFromYaml(src: Any, path: List[String], metaDef: MetaSpec): Map[String, ClassSpec] = {
     val srcMap = ParseUtils.asMapStr(src, path)
     srcMap.map { case (typeName, body) =>
       Identifier.checkIdentifierSource(typeName, "type", path ++ List(typeName))
@@ -118,7 +202,7 @@ object ClassSpec {
     }
   }
 
-  def instancesFromYaml(src: Any, path: List[String], metaDef: MetaDefaults): Map[InstanceIdentifier, InstanceSpec] = {
+  def instancesFromYaml(src: Any, path: List[String], metaDef: MetaSpec): Map[InstanceIdentifier, InstanceSpec] = {
     val srcMap = ParseUtils.asMap(src, path)
     srcMap.map { case (key, body) =>
       val instName = ParseUtils.asStr(key, path)
@@ -137,14 +221,15 @@ object ClassSpec {
     }
   }
 
-  def fromYaml(src: Any): ClassSpec = fromYaml(src, List(), MetaDefaults(None, None))
+  def fromYaml(src: Any): ClassSpec = fromYaml(src, List(), MetaSpec.OPAQUE)
 
   def opaquePlaceholder(typeName: List[String]): ClassSpec = {
     val placeholder = ClassSpec(
       List(),
       true,
-      meta = Some(MetaSpec.OPAQUE),
+      meta = MetaSpec.OPAQUE,
       doc = DocSpec.EMPTY,
+      params = List(),
       seq = List(),
       types = Map(),
       instances = Map(),

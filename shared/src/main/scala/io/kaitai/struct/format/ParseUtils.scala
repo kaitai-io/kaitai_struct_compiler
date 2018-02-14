@@ -21,10 +21,19 @@ object ParseUtils {
 
   def getValueStr(src: Map[String, Any], field: String, path: List[String]): String = {
     src.get(field) match {
-      case Some(value: String) =>
-        value
-      case unknown =>
-        throw YAMLParseException.badType("string", unknown, path ++ List(field))
+      case Some(value) =>
+        asStr(value, path ++ List(field))
+      case None =>
+        throw YAMLParseException.noKey(path ++ List(field))
+    }
+  }
+
+  def getValueMapStrStr(src: Map[String, Any], field: String, path: List[String]): Map[String, String] = {
+    src.get(field) match {
+      case Some(value) =>
+        asMapStrStr(value, path ++ List(field))
+      case None =>
+        throw YAMLParseException.noKey(path ++ List(field))
     }
   }
 
@@ -58,6 +67,19 @@ object ParseUtils {
         Some(value)
       case unknown =>
         throw YAMLParseException.badType("int", unknown, path ++ List(field))
+    }
+  }
+
+  def getValueIdentifier(src: Map[String, Any], idx: Int, entityName: String, path: List[String]): Identifier = {
+    getOptValueStr(src, "id", path) match {
+      case Some(idStr) =>
+        try {
+          NamedIdentifier(idStr)
+        } catch {
+          case _: InvalidIdentifier =>
+            throw YAMLParseException.invalidId(idStr, entityName, path ++ List("id"))
+        }
+      case None => NumberedIdentifier(idx)
     }
   }
 
@@ -112,6 +134,8 @@ object ParseUtils {
       case str: String =>
         str
       case n: Int =>
+        n.toString
+      case n: Long =>
         n.toString
       case n: Double =>
         n.toString

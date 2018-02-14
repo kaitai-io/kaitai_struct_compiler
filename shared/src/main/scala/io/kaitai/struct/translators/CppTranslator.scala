@@ -2,7 +2,7 @@ package io.kaitai.struct.translators
 
 import java.nio.charset.Charset
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.datatype.DataType
@@ -10,7 +10,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CppCompiler
 
-class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
 
   /**
@@ -66,12 +66,13 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     }
   }
 
-  override def userTypeField(value: expr, attrName: String): String =
+  override def anyField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
 
   override def doName(s: String) = s match {
     case Identifier.ITERATOR => "_"
     case Identifier.ITERATOR2 => "_buf"
+    case Identifier.INDEX => "i"
     case _ => s"$s()"
   }
 
@@ -108,7 +109,9 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
   override def boolToInt(v: expr): String =
-    translate(v)
+    s"((${translate(v)}) ? 1 : 0)"
+  override def floatToInt(v: expr): String =
+    s"static_cast<int>(${translate(v)})"
   override def intToStr(i: expr, base: expr): String = {
     val baseStr = translate(base)
     baseStr match {
@@ -134,4 +137,14 @@ class CppTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(a)}->back()"
   override def arraySize(a: expr): String =
     s"${translate(a)}->size()"
+  override def arrayMin(a: expr): String = {
+    importListSrc.add("algorithm")
+    val v = translate(a)
+    s"*std::min_element($v->begin(), $v->end())"
+  }
+  override def arrayMax(a: expr): String = {
+    importListSrc.add("algorithm")
+    val v = translate(a)
+    s"*std::max_element($v->begin(), $v->end())"
+  }
 }

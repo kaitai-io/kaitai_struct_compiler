@@ -2,10 +2,10 @@
 <project version="4">
   <component name="ScalaCompilerConfiguration">
     <option name="incrementalityType" value="SBT" />
-    <profile name="SBT 1" modules="kaitai_structures_scala,root,compilerJVM" />
-    <profile name="SBT 2" modules="compiler,compilerJS">
+    <profile name="sbt 1" modules="compiler,root,compilerJVM" />
+    <profile name="sbt 2" modules="compilerJS">
       <plugins>
-        <plugin path="$USER_HOME$/.ivy2/cache/org.scala-js/scalajs-compiler_2.11.7/jars/scalajs-compiler_2.11.7-0.6.7.jar" />
+        <plugin path="$USER_HOME$/.ivy2/cache/org.scala-js/scalajs-compiler_2.12.4/jars/scalajs-compiler_2.12.4-0.6.21.jar" />
       </plugins>
     </profile>
   </component>

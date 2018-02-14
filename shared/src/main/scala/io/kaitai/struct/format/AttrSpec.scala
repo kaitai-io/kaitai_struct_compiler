@@ -18,20 +18,53 @@ case object NoRepeat extends RepeatSpec
 
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 
-trait AttrLikeSpec extends YAMLPath {
+trait AttrLikeSpec extends MemberSpec {
   def dataType: DataType
   def cond: ConditionalSpec
   def doc: DocSpec
 
   def isArray: Boolean = cond.repeat != NoRepeat
 
-  def dataTypeComposite: DataType = {
+  override def dataTypeComposite: DataType = {
     if (isArray) {
       ArrayType(dataType)
     } else {
       dataType
     }
   }
+
+  override def isNullable: Boolean = {
+    if (cond.ifExpr.isDefined) {
+      true
+    } else {
+      dataType match {
+        case st: SwitchType =>
+          st.isNullable
+        case _ =>
+          false
+      }
+    }
+  }
+
+  def isNullableSwitchRaw: Boolean = {
+    if (cond.ifExpr.isDefined) {
+      true
+    } else {
+      dataType match {
+        case st: SwitchType =>
+          st.isNullableSwitchRaw
+        case _ =>
+          false
+      }
+    }
+  }
+
+  /**
+    * Determines if this attribute is to be parsed lazily (i.e. on first use),
+    * or eagerly (during object construction, usually in a `_read` method)
+    * @return True if this attribute is lazy, false if it's eager
+    */
+  def isLazy: Boolean
 }
 
 case class AttrSpec(
@@ -40,7 +73,9 @@ case class AttrSpec(
   dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
   doc: DocSpec = DocSpec.EMPTY
-) extends AttrLikeSpec
+) extends AttrLikeSpec with MemberSpec {
+  override def isLazy = false
+}
 
 case class YamlAttrArgs(
   size: Option[Ast.expr],
@@ -93,6 +128,7 @@ object AttrSpec {
     "contents",
     "size",
     "size-eos",
+    "pad-right",
     "parent",
     "process"
   )
@@ -108,7 +144,7 @@ object AttrSpec {
     "enum"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaDefaults, idx: Int): AttrSpec = {
+  def fromYaml(src: Any, path: List[String], metaDef: MetaSpec, idx: Int): AttrSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     val id = ParseUtils.getOptValueStr(srcMap, "id", path) match {
       case Some(idStr) =>
@@ -123,7 +159,7 @@ object AttrSpec {
     fromYaml(srcMap, path, metaDef, id)
   }
 
-  def fromYaml(srcMap: Map[String, Any], path: List[String], metaDef: MetaDefaults, id: Identifier): AttrSpec = {
+  def fromYaml(srcMap: Map[String, Any], path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
     try {
       fromYaml2(srcMap, path, metaDef, id)
     } catch {
@@ -132,9 +168,9 @@ object AttrSpec {
     }
   }
 
-  def fromYaml2(srcMap: Map[String, Any], path: List[String], metaDef: MetaDefaults, id: Identifier): AttrSpec = {
+  def fromYaml2(srcMap: Map[String, Any], path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
     val doc = DocSpec.fromYaml(srcMap, path)
-    val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path))
+    val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path), path)
     // TODO: add proper path propagation
     val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))
     val size = ParseUtils.getOptValueStr(srcMap, "size", path).map(Expressions.parse)
@@ -226,23 +262,33 @@ object AttrSpec {
   private def parseSwitch(
     switchSpec: Map[String, Any],
     path: List[String],
-    metaDef: MetaDefaults,
+    metaDef: MetaSpec,
     arg: YamlAttrArgs
   ): DataType = {
     val _on = ParseUtils.getValueStr(switchSpec, "switch-on", path)
-    val _cases: Map[String, String] = switchSpec.get("cases") match {
-      case None => Map()
-      case Some(x) => ParseUtils.asMapStrStr(x, path ++ List("cases"))
-    }
+    val _cases = ParseUtils.getValueMapStrStr(switchSpec, "cases", path)
 
     ParseUtils.ensureLegalKeys(switchSpec, LEGAL_KEYS_SWITCH, path)
 
-    val on = Expressions.parse(_on)
+    val on = try {
+      Expressions.parse(_on)
+    } catch {
+      case epe: Expressions.ParseException =>
+        throw YAMLParseException.expression(epe, path ++ List("switch-on"))
+    }
+
     val cases = _cases.map { case (condition, typeName) =>
-      Expressions.parse(condition) -> DataType.fromYaml(
-        Some(typeName), path ++ List("cases"), metaDef,
+      val casePath = path ++ List("cases", condition)
+      val condType = DataType.fromYaml(
+        Some(typeName), casePath, metaDef,
         arg
       )
+      try {
+        Expressions.parse(condition) -> condType
+      } catch {
+        case epe: Expressions.ParseException =>
+          throw YAMLParseException.expression(epe, casePath)
+      }
     }
 
     // If we have size defined, and we don't have any "else" case already, add

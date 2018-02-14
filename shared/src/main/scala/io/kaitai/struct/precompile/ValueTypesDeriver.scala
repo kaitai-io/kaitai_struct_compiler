@@ -1,11 +1,11 @@
 package io.kaitai.struct.precompile
 
-import io.kaitai.struct.format.{ClassSpec, ValueInstanceSpec, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs, ValueInstanceSpec, YAMLParseException}
 import io.kaitai.struct.translators.TypeDetector
 import io.kaitai.struct.{ClassTypeProvider, Log}
 
-class ValueTypesDeriver(topClass: ClassSpec) {
-  val provider = new ClassTypeProvider(topClass)
+class ValueTypesDeriver(specs: ClassSpecs, topClass: ClassSpec) {
+  val provider = new ClassTypeProvider(specs, topClass)
   val detector = new TypeDetector(provider)
 
   def run(): Boolean =
@@ -34,10 +34,7 @@ class ValueTypesDeriver(topClass: ClassSpec) {
                     hasUndecided = true
                     // just ignore, we're not there yet, probably we'll get it on next iteration
                   case err: ExpressionError =>
-                    throw new YAMLParseException(
-                      err.getMessage,
-                      vi.path ++ List("value")
-                    )
+                    throw new ErrorInInput(err, vi.path ++ List("value"))
                 }
               case Some(_) =>
                 // already derived, do nothing

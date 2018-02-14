@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -20,9 +20,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   import PerlCompiler._
 
-  override def innerClasses = false
+  override val translator = new PerlTranslator(typeProvider, importList)
 
-  override def getStatic: LanguageCompilerStatic = PerlCompiler
+  override def innerClasses = false
 
   override def universalFooter: Unit = {
     out.dec
@@ -32,14 +32,16 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.pm"
 
+  override def outImports(topClass: ClassSpec) =
+    importList.toList.map((x) => s"use $x;").mkString("", "\n", "\n")
+
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"# $headerComment")
-    out.puts
-    out.puts("use strict;")
-    out.puts("use warnings;")
-    out.puts(s"use $packageName ${KSVersion.minimalRuntime.toPerlVersion};")
-    out.puts("use Compress::Zlib;")
-    out.puts("use Encode;")
+    outHeader.puts(s"# $headerComment")
+    outHeader.puts
+
+    importList.add("strict")
+    importList.add("warnings")
+    importList.add(s"$packageName ${KSVersion.minimalRuntime.toPerlVersion}")
   }
 
   override def fileFooter(topClassName: String): Unit = {
@@ -70,16 +72,22 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classFooter(name: List[String]): Unit = {}
 
-  override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
+    val endianSuffix = if (isHybrid) ", $_is_le" else ""
+
     out.puts
     out.puts("sub new {")
     out.inc
-    out.puts("my ($class, $_io, $_parent, $_root) = @_;")
+    out.puts("my ($class, $_io, $_parent, $_root" + endianSuffix + ") = @_;")
     out.puts(s"my $$self = $kstructName->new($$_io);")
     out.puts
     out.puts("bless $self, $class;")
-    out.puts(s"${privateMemberName(ParentIdentifier)} = $$_parent;")
-    out.puts(s"${privateMemberName(RootIdentifier)} = $$_root || $$self;")
+    handleAssignmentSimple(ParentIdentifier, "$_parent")
+    handleAssignmentSimple(RootIdentifier, "$_root || $self;")
+
+    if (isHybrid)
+      handleAssignmentSimple(EndianIdentifier, "$_is_le")
+
     out.puts
   }
 
@@ -89,9 +97,44 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
+  override def runRead(): Unit =
+    out.puts("$self->_read();")
 
-  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
+  override def runReadCalc(): Unit = {
+    val isLe = privateMemberName(EndianIdentifier)
+
+    out.puts(s"if (!(defined $isLe)) {")
+    out.inc
+    out.puts("die \"Unable to decide on endianness\";")
+    out.dec
+    out.puts(s"} elsif ($isLe) {")
+    out.inc
+    out.puts("$self->_read_le();")
+    out.dec
+    out.puts("} else {")
+    out.inc
+    out.puts("$self->_read_be();")
+    out.dec
+    out.puts("}")
+  }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    val suffix = endian match {
+      case Some(e) => s"_${e.toSuffix}"
+      case None => ""
+    }
+    out.puts
+    out.puts(s"sub _read$suffix {")
+    out.inc
+    out.puts("my ($self) = @_;")
+    out.puts
+  }
+
+  override def readFooter(): Unit = universalFooter
+
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
+
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     attrName match {
       case RootIdentifier | ParentIdentifier =>
         // ignore, they are already defined in KaitaiStruct class
@@ -105,6 +148,18 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
         universalFooter
     }
+  }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts(s"if (${privateMemberName(EndianIdentifier)}) {")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("} else {")
+    out.inc
+    beProc()
+    out.dec
+    out.puts("}")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
@@ -123,6 +178,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});"
       case ProcessZlib =>
+        importList.add("Compress::Zlib")
         s"$destName = Compress::Zlib::uncompress($srcName);"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
@@ -223,10 +279,10 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
 
-  override def parseExpr(dataType: DataType, io: String): String = {
+  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io->read_${t.apiCall}()"
+        s"$io->read_${t.apiCall(defEndian)}()"
       case blt: BytesLimitType =>
         s"$io->read_bytes(${expression(blt.size)})"
       case _: BytesEosType =>
@@ -245,7 +301,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "$self"
           }
-          s", $parent, ${privateMemberName(RootIdentifier)}"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
+            case _ => ""
+          }
+          s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
         s"${types2class(t.classSpec.get.name)}->new($io$addArgs)"
     }
@@ -296,7 +356,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   def onComparisonExpr(condition: Ast.expr) =
     Ast.expr.Compare(Ast.expr.Name(Ast.identifier("_on")), Ast.cmpop.Eq, condition)
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts
     out.puts(s"sub ${instName.name} {")
     out.inc
@@ -311,11 +371,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     out.puts
 
     enumColl.foreach { case (id, label) =>
-      out.puts(s"our ${enumValue(enumName, label)} = $id;")
+      out.puts(s"our ${enumValue(enumName, label.name)} = $id;")
     }
   }
 
@@ -335,6 +395,8 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
+  override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
+
   def boolLiteral(b: Boolean): String = translator.doBoolLiteral(b)
 
   def types2class(t: List[String]) = t.map(type2class).mkString("::")
@@ -343,7 +405,6 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 object PerlCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new PerlTranslator(tp)
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig

@@ -1,13 +1,17 @@
 package io.kaitai.struct
 
+import io.kaitai.struct.translators.CommonLiterals
+
+/** Common trait for all objects that can be serialized as JSON. */
 trait Jsonable {
+  /** Serialize current state of the object into JSON string. */
   def toJson: String
 }
 
 /**
   * Ultra-minimalistic JSON strings generator from arbitrary Scala objects.
   */
-object JSON {
+object JSON extends CommonLiterals {
   /**
     * Converts an arbitrary Scala object to JSON string representation.
     * @param obj object to convert
@@ -23,9 +27,8 @@ object JSON {
     }
   }
 
-  // FIXME: do proper string handling
   def stringToJson(str: String): String =
-    "\"%s\"".format(str)
+    doStringLiteral(str)
 
   def listToJson(obj: List[_]): String =
     "[" + obj.map((x) => stringify(x)).mkString(",") + "]"

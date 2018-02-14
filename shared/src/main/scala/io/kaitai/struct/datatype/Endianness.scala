@@ -1,32 +1,67 @@
 package io.kaitai.struct.datatype
 
-import io.kaitai.struct.format.YAMLParseException
+import io.kaitai.struct.datatype.DataType.SwitchType
+import io.kaitai.struct.exprlang.{Ast, Expressions}
+import io.kaitai.struct.format.{ParseUtils, YAMLParseException}
 
 sealed trait Endianness
-case object LittleEndian extends Endianness {
-  override def toString = "le"
+
+abstract class FixedEndian extends Endianness {
+  def toSuffix: String
 }
-case object BigEndian extends Endianness {
-  override def toString = "be"
+case object LittleEndian extends FixedEndian {
+  override def toSuffix = "le"
 }
+case object BigEndian extends FixedEndian {
+  override def toSuffix = "be"
+}
+
+case class CalcEndian(on: Ast.expr, cases: Map[Ast.expr, FixedEndian]) extends Endianness
+
+case object InheritedEndian extends Endianness
 
 object Endianness {
-  def defaultFromString(s: Option[String], path: List[String]) = s match {
-    case None => None
-    case Some("be") => Some(BigEndian)
-    case Some("le") => Some(LittleEndian)
-    case Some(unknown) => throw YAMLParseException.badDictValue(
-      Set("be", "le"), unknown, path ++ List("endian")
-    )
+  def fromYaml(src: Option[Any], path: List[String]): Option[Endianness] = {
+    src match {
+      case None => None
+      case Some("be") => Some(BigEndian)
+      case Some("le") => Some(LittleEndian)
+      case Some(srcMap: Map[Any, Any]) =>
+        val endianMap = ParseUtils.asMapStr(srcMap, path)
+        Some(fromMap(endianMap, path))
+      case _ =>
+        throw new YAMLParseException(
+          s"unable to parse endianness: `le`, `be` or calculated endianness map is expected",
+          path ++ List("endian")
+        )
+    }
   }
 
-  def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String, path: List[String]) = s match {
-    case Some("le") => LittleEndian
-    case Some("be") => BigEndian
+  def fromMap(srcMap: Map[String, Any], path: List[String]): CalcEndian = {
+    val (_on, _cases) = SwitchType.fromYaml1(srcMap, path)
+
+    val on = Expressions.parse(_on)
+    val cases: Map[Ast.expr, FixedEndian] = _cases.map { case (condition, endStr) =>
+      Expressions.parse(condition) -> (endStr match {
+        case "be" => BigEndian
+        case "le" => LittleEndian
+        case _ =>
+          throw YAMLParseException.badDictValue(Set("be", "le"), endStr, path ++ List("cases", condition))
+      })
+    }
+
+    CalcEndian(on, cases)
+  }
+
+  def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String, path: List[String]): Option[FixedEndian] = s match {
+    case Some("le") => Some(LittleEndian)
+    case Some("be") => Some(BigEndian)
     case None =>
       defaultEndian match {
-        case Some(e) => e
-        case None => throw new YAMLParseException(s"unable to use type '$dt' without default endianness", path ++ List("type"))
+        case Some(e: FixedEndian) => Some(e)
+        case Some(_: CalcEndian) | Some(InheritedEndian) => None // to be overridden during compile
+        case None =>
+          throw new YAMLParseException(s"unable to use type '$dt' without default endianness", path ++ List("type"))
       }
   }
 }

@@ -1,34 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module external.linked.project.id="compilerJS" external.linked.project.path="$MODULE_DIR$/../../js" external.root.project.path="$MODULE_DIR$/../.." external.system.id="SBT" type="JAVA_MODULE" version="4">
-  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8" inherit-compiler-output="false">
-    <output url="file://$MODULE_DIR$/../../js/target/scala-2.11/classes" />
-    <output-test url="file://$MODULE_DIR$/../../js/target/scala-2.11/test-classes" />
+  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8">
+    <output url="file://$MODULE_DIR$/../../js/target/scala-2.12/classes" />
+    <output-test url="file://$MODULE_DIR$/../../js/target/scala-2.12/test-classes" />
     <exclude-output />
     <content url="file://$MODULE_DIR$/../../js">
       <sourceFolder url="file://$MODULE_DIR$/../../js/src/main/java" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../js/src/main/scala" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/../../js/src/main/scala-2.11" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.11/src_managed/main" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../../js/src/main/scala-2.12" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../js/src/test/java" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/../../js/src/test/scala" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/../../js/src/test/scala-2.11" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.11/src_managed/test" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../js/src/test/scala-2.12" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.12/src_managed/main" isTestSource="false" generated="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.12/src_managed/test" isTestSource="true" generated="true" />
       <sourceFolder url="file://$MODULE_DIR$/../../js/src/main/resources" type="java-resource" />
-      <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.11/resource_managed/main" type="java-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.12/resource_managed/main" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/../../js/src/test/resources" type="java-test-resource" />
-      <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.11/resource_managed/test" type="java-test-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.12/resource_managed/test" type="java-test-resource" />
       <excludeFolder url="file://$MODULE_DIR$/../../js/target/resolution-cache" />
+      <excludeFolder url="file://$MODULE_DIR$/../../js/target/scala-2.11" />
       <excludeFolder url="file://$MODULE_DIR$/../../js/target/streams" />
       <excludeFolder url="file://$MODULE_DIR$/../../js/target/universal" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="compiler-sources" exported="" />
-    <orderEntry type="library" name="SBT: com.lihaoyi:sourcecode_sjs0.6_2.11:0.1.1:jar" level="project" />
-    <orderEntry type="library" name="SBT: org.scala-js:scalajs-library_2.11:0.6.7:jar" level="project" />
-    <orderEntry type="library" name="SBT: org.scala-lang:scala-library:2.11.7:jar" level="project" />
-    <orderEntry type="library" name="SBT: org.yaml:snakeyaml:1.16:jar" level="project" />
-    <orderEntry type="library" name="SBT: com.lihaoyi:fastparse-utils_sjs0.6_2.11:0.4.1:jar" level="project" />
-    <orderEntry type="library" name="SBT: com.lihaoyi:fastparse_sjs0.6_2.11:0.4.1:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.yaml:snakeyaml:1.16:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.scala-lang:scala-library:2.12.4:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="sbt: org.scala-js:scalajs-test-interface_2.12:0.6.21:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.scala-js:scalajs-library_2.12:0.6.21:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.lihaoyi:sourcecode_sjs0.6_2.12:0.1.4:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.lihaoyi:fastparse_sjs0.6_2.12:1.0.0:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.lihaoyi:fastparse-utils_sjs0.6_2.12:1.0.0:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.github.scopt:scopt_sjs0.6_2.12:3.6.0:jar" level="project" />
   </component>
 </module>

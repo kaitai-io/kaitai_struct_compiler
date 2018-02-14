@@ -1,6 +1,6 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
@@ -8,7 +8,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaCompiler
 
-class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
     val literal = n.toString
     val suffix = if (n > Int.MaxValue) "L" else ""
@@ -67,6 +67,8 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
       case Identifier.IO => "_io()"
       case Identifier.ITERATOR => "_it"
       case Identifier.ITERATOR2 => "_buf"
+      case Identifier.SWITCH_ON => "on"
+      case Identifier.INDEX => "i"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 
@@ -90,6 +92,19 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     }
   }
 
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
+    op match {
+      case Ast.cmpop.Eq =>
+        importList.add("java.util.Arrays")
+        s"Arrays.equals(${translate(left)}, ${translate(right)})"
+      case Ast.cmpop.NotEq =>
+        importList.add("java.util.Arrays")
+        s"!Arrays.equals(${translate(left)}, ${translate(right)})"
+      case _ =>
+        s"(${JavaCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
+    }
+  }
+
   override def doSubscript(container: expr, idx: expr): String = {
     val idxStr = translate(idx);
     val contStr = translate(container);
@@ -100,6 +115,7 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
     s"${contStr}.get(${idxArgStr})"
   }
+
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: String): String =
@@ -110,10 +126,14 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"Long.parseLong(${translate(s)}, ${translate(base)})"
   override def enumToInt(v: expr, et: EnumType): String =
     s"${translate(v)}.id()"
+  override def floatToInt(v: expr): String =
+    s"(int) (${translate(v)} + 0)"
   override def intToStr(i: expr, base: expr): String =
     s"Long.toString(${translate(i)}, ${translate(base)})"
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
+    importList.add("java.nio.charset.Charset")
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
+  }
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =
@@ -129,4 +149,12 @@ class JavaTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
   override def arraySize(a: expr): String =
     s"${translate(a)}.size()"
+  override def arrayMin(a: Ast.expr): String = {
+    importList.add("java.util.Collections")
+    s"Collections.min(${translate(a)})"
+  }
+  override def arrayMax(a: Ast.expr): String = {
+    importList.add("java.util.Collections")
+    s"Collections.max(${translate(a)})"
+  }
 }

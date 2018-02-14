@@ -41,13 +41,14 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     }
   }
 
-  override def userTypeField(value: expr, attrName: String): String =
+  override def anyField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
 
   override def doLocalName(s: String) = {
     s match {
       case Identifier.ITERATOR => "$_"
       case Identifier.ITERATOR2 => "$_buf"
+      case Identifier.INDEX => "$i"
       case _ => s"$$this->${doName(s)}"
     }
   }
@@ -80,6 +81,9 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def boolToInt(v: expr): String =
     s"intval(${translate(v)})"
 
+  override def floatToInt(v: expr): String =
+    s"intval(${translate(v)})"
+
   override def intToStr(i: expr, base: expr): String = {
     val baseStr = translate(base)
     baseStr match {
@@ -101,11 +105,17 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String = {
+    // For huge debate on efficiency of PHP last element of array methods, see:
+    // http://stackoverflow.com/a/41795859/487064
     val v = translate(a)
-    s"$v[$v.length - 1]"
+    s"$v[count($v) - 1]"
   }
   override def arraySize(a: expr): String =
     s"count(${translate(a)})"
+  override def arrayMin(a: Ast.expr): String =
+    s"min(${translate(a)})"
+  override def arrayMax(a: Ast.expr): String =
+    s"max(${translate(a)})"
 
   val namespaceRef = if (config.phpNamespace.isEmpty) {
     ""

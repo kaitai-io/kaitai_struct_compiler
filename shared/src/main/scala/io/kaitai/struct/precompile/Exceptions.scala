@@ -9,12 +9,18 @@ import io.kaitai.struct.format.ClassSpec
   * @param path YAML path components in file
   * @param file file to report as erroneous, None means "main compilation unit"
   */
-class ErrorInInput(err: Throwable, path: List[String] = List(), file: Option[String] = None)
-  extends RuntimeException(ErrorInInput.message(err, path, file))
+case class ErrorInInput(err: Throwable, val path: List[String] = List(), val file: Option[String] = None)
+  extends RuntimeException(ErrorInInput.message(err, path, file), err)
 
 object ErrorInInput {
-  private def message(err: Throwable, path: List[String], file: Option[String]) =
-    s"${file.getOrElse("(main)")}: /${path.mkString("/")}: ${err.getMessage}"
+  private def message(err: Throwable, path: List[String], file: Option[String]) = {
+    val fileStr = file match {
+      case Some(x) => x.replace('\\', '/')
+      case None => "(main)"
+    }
+    val msg = Option(err.getMessage).getOrElse(err.toString)
+    s"$fileStr: /${path.mkString("/")}: $msg"
+  }
 }
 
 /**

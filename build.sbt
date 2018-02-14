@@ -5,8 +5,8 @@ import sbt.Keys._
 
 resolvers += Resolver.sonatypeRepo("public")
 
-val VERSION = "0.7"
-val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Perl, PHP, Python, Ruby"
+val VERSION = "0.8"
+val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Lua, Perl, PHP, Python, Ruby"
 
 lazy val root = project.in(file(".")).
   aggregate(compilerJS, compilerJVM).
@@ -21,21 +21,21 @@ lazy val compiler = crossProject.in(file(".")).
   settings(
     organization := "io.kaitai",
     name := "kaitai-struct-compiler",
-    version := VERSION,
+    version := sys.env.getOrElse("KAITAI_STRUCT_VERSION", VERSION),
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.11.7",
+    scalaVersion := "2.12.4",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "io.kaitai.struct",
     buildInfoOptions += BuildInfoOption.BuildTime,
 
     // Repo publish options
-    publishTo <<= version { (v: String) =>
+    publishTo := version { (v: String) =>
       val nexus = "https://oss.sonatype.org/"
       if (v.trim.endsWith("SNAPSHOT"))
         Some("snapshots" at nexus + "content/repositories/snapshots")
       else
         Some("releases"  at nexus + "service/local/staging/deploy/maven2")
-    },
+    }.value,
     pomExtra :=
       <url>http://kaitai.io</url>
       <scm>
@@ -54,15 +54,15 @@ lazy val compiler = crossProject.in(file(".")).
     ,
 
     libraryDependencies ++= Seq(
-      "com.lihaoyi" %%% "fastparse" % "0.4.1",
+      "com.github.scopt" %%% "scopt" % "3.6.0",
+      "com.lihaoyi" %%% "fastparse" % "1.0.0",
       "org.yaml" % "snakeyaml" % "1.16"
     )
   ).
   jvmSettings(
     mainClass in Compile := Some("io.kaitai.struct.JavaMain"),
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "2.2.6" % "test",
-      "com.github.scopt" %% "scopt" % "3.4.0"
+      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
     ),
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
@@ -111,17 +111,22 @@ lazy val compiler = crossProject.in(file(".")).
       }
     },
 
-    // Hack: we need /usr/share/kaitai-struct (the format directory) to be
-    // created as empty dir and packaged in compiler package, to be filled in
-    // with actual repository contents by "kaitai-struct-formats" package.
-    // "jvm/src/main/resources" is guaranteed to be an empty directory.
-    linuxPackageMappings += LinuxPackageMapping(Map(
-      new File("jvm/src/main/resources") -> "/usr/share/kaitai-struct"
-    )),
+    // We need /usr/share/kaitai-struct (the format directory) to be created as
+    // empty dir and packaged in compiler package, to be filled in with actual
+    // repository contents by "kaitai-struct-formats" package.
+    linuxPackageMappings += packageTemplateMapping("/usr/share/kaitai-struct")(),
 
     // Remove all "maintainer scripts", such as prerm/postrm/preinst/postinst: default
     // implementations create per-package virtual user that we won't use anyway
     maintainerScripts in Debian := Map(),
+
+    // Work around new Debian defaults and sbt-native-packager defaults, which
+    // build .deb packages that appear to be incompatible with older Debian/Ubuntu's
+    // dpkg and are not accepted by BinTray.
+    //
+    // For more information, see
+    // https://github.com/sbt/sbt-native-packager/issues/1067
+    debianNativeBuildOptions in Debian := Seq("-Zgzip", "-z3"),
 
     packageSummary in Linux := s"compiler to generate binary data parsers in $TARGET_LANGS",
     packageSummary in Windows := "Kaitai Struct compiler",

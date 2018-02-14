@@ -1,6 +1,6 @@
 package io.kaitai.struct.precompile
 
-import io.kaitai.struct.ClassTypeProvider
+import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
@@ -11,17 +11,21 @@ import scala.reflect.ClassTag
 
 /**
   * Validates all expressions used inside the given ClassSpec to use expected types.
+  * @param specs bundle of class specifications (used only to find external references)
   * @param topClass class to start check with
   */
-class TypeValidator(topClass: ClassSpec) {
-  val provider = new ClassTypeProvider(topClass)
+class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
+  val provider = new ClassTypeProvider(specs, topClass)
   val detector = new TypeDetector(provider)
 
   /**
     * Starts the check from top-level class.
     */
-  def run(): Unit =
-    validateClass(topClass)
+  def run(): Unit = specs.forEachTopLevel { (specName, curClass) =>
+    Log.typeValid.info(() => s"validating top level class '$specName'")
+    provider.topClass = curClass
+    curClass.forEachRec(validateClass)
+  }
 
   /**
     * Performs validation of a single ClassSpec: would validate
@@ -31,6 +35,7 @@ class TypeValidator(topClass: ClassSpec) {
     * @param curClass class to check
     */
   def validateClass(curClass: ClassSpec): Unit = {
+    Log.typeValid.info(() => s"validateClass(${curClass.nameAsStr})")
     provider.nowClass = curClass
 
     curClass.seq.foreach(validateAttr)
@@ -43,10 +48,6 @@ class TypeValidator(topClass: ClassSpec) {
           // TODO
       }
     }
-
-    curClass.types.foreach { case (_, nestedClass) =>
-      validateClass(nestedClass)
-    }
   }
 
   /**
@@ -55,6 +56,8 @@ class TypeValidator(topClass: ClassSpec) {
     * @param attr attribute to check
     */
   def validateAttr(attr: AttrLikeSpec) {
+    Log.typeValid.info(() => s"validateAttr(${attr.id.humanReadable})")
+
     val path = attr.path
 
     attr.cond.ifExpr.foreach((ifExpr) =>
@@ -77,10 +80,21 @@ class TypeValidator(topClass: ClassSpec) {
   /**
     * Validates single non-composite data type, checking all expressions
     * inside data type definition.
+    *
     * @param dataType data type to check
     * @param path original .ksy path to make error messages more meaningful
     */
   def validateDataType(dataType: DataType, path: List[String]) {
+    // validate args vs params
+    dataType match {
+      case ut: UserType =>
+        // we only validate non-opaque types, opaque are unverifiable by definition
+        if (!ut.isOpaque)
+          validateArgsVsParams(ut.args, ut.classSpec.get.params, path ++ List("type"))
+      case _ =>
+        // no args or params in non-user types
+    }
+
     dataType match {
       case blt: BytesLimitType =>
         checkAssert[IntType](blt.size, "integer", path, "size")
@@ -105,9 +119,35 @@ class TypeValidator(topClass: ClassSpec) {
         } catch {
           case tme: TypeMismatchError =>
             throw new YAMLParseException(tme.getMessage, casePath)
+          case err: Throwable =>
+            throw new ErrorInInput(err, casePath)
         }
       }
       validateDataType(caseType, casePath)
+    }
+  }
+
+  /**
+    * Validates that arguments given for a certain type match list of parameters
+    * declared for that type.
+    * @param args arguments given in invocation
+    * @param params parameters declared in a user type
+    * @param path path where invocation happens
+    * @return
+    */
+  def validateArgsVsParams(args: Seq[Ast.expr], params: List[ParamDefSpec], path: List[String]): Unit = {
+    if (args.size != params.size)
+      throw YAMLParseException.invalidParamCount(params.size, args.size, path)
+
+    args.indices.foreach { (i) =>
+      val arg = args(i)
+      val param = params(i)
+      val tArg = detector.detectType(arg)
+      val tParam = param.dataType
+
+      if (!TypeDetector.canAssign(tArg, tParam)) {
+        throw YAMLParseException.paramMismatch(i, tArg, param.id.humanReadable, tParam, path)
+      }
     }
   }
 
@@ -134,11 +174,19 @@ class TypeValidator(topClass: ClassSpec) {
     try {
       detector.detectType(expr) match {
         case _: T => // good
+        case st: SwitchType =>
+          st.combinedType match {
+            case _: T => // good
+            case actual =>
+              throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
+          }
         case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
       }
     } catch {
+      case err: InvalidIdentifier =>
+        throw new ErrorInInput(err, path ++ List(pathKey))
       case err: ExpressionError =>
-        throw new YAMLParseException(err.getMessage, path ++ List(pathKey))
+        throw new ErrorInInput(err, path ++ List(pathKey))
     }
   }
 }

@@ -1,13 +1,14 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CSharpCompiler
 
-class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
@@ -43,10 +44,15 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   }
 
   override def doName(s: String) =
-    if (s.startsWith("_"))
-      s"M${Utils.upperCamelCase(s)}"
-    else
+    if (s.startsWith("_")) {
+      s match {
+        case Identifier.SWITCH_ON => "on"
+        case Identifier.INDEX => "i"
+        case _ => s"M${Utils.upperCamelCase(s)}"
+      }
+    } else {
       s"${Utils.upperCamelCase(s)}"
+    }
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${enumClass(enumTypeAbs)}.${Utils.upperCamelCase(label)}"
@@ -68,6 +74,9 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     }
   }
 
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+    s"(${CSharpCompiler.kstreamName}.ByteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
+
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
@@ -76,12 +85,18 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
-  override def strToInt(s: expr, base: expr): String =
+  override def strToInt(s: expr, base: expr): String = {
+    importList.add("System")
     s"Convert.ToInt64(${translate(s)}, ${translate(base)})"
+  }
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
-  override def intToStr(i: expr, base: expr): String =
-    s"Convert.ToString(${translate(i)}, ${translate(base)})"
+  override def floatToInt(v: expr): String =
+    s"(long) (${translate(v)})"
+  override def intToStr(i: expr, base: expr): String = {
+    importList.add("System")
+    s"Convert.ToString((long) (${translate(i)}), ${translate(base)})"
+  }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"System.Text.Encoding.GetEncoding(${translate(encoding)}).GetString($bytesExpr)"
   override def strLength(s: expr): String =
@@ -99,8 +114,16 @@ class CSharpTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String = {
     val v = translate(a)
-    s"$v[$v.Length - 1]"
+    s"$v[$v.Count - 1]"
   }
   override def arraySize(a: expr): String =
     s"${translate(a)}.Count"
+  override def arrayMin(a: Ast.expr): String = {
+    importList.add("System.Linq")
+    s"${translate(a)}.Min()"
+  }
+  override def arrayMax(a: Ast.expr): String = {
+    importList.add("System.Linq")
+    s"${translate(a)}.Max()"
+  }
 }

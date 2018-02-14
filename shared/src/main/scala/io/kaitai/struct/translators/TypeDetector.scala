@@ -15,7 +15,26 @@ import io.kaitai.struct.precompile.{TypeMismatchError, TypeUndecidedError}
 class TypeDetector(provider: TypeProvider) {
   import TypeDetector._
 
+  /**
+    * Detects type of a given expression. If it returns a SwitchType, it
+    * effectively flattens it to a resulting combined type.
+    * @param v expression
+    * @return data type
+    */
   def detectType(v: Ast.expr): DataType = {
+    detectTypeRaw(v) match {
+      case st: SwitchType => st.combinedType
+      case other => other
+    }
+  }
+
+  /**
+    * Detects type of a given expression, raw, without any switch type
+    * flattening.
+    * @param v expression
+    * @return data type
+    */
+  def detectTypeRaw(v: Ast.expr): DataType = {
     v match {
       case Ast.expr.IntNum(x) =>
         if (x < 0 || x > 255) {
@@ -110,9 +129,14 @@ class TypeDetector(provider: TypeProvider) {
               case "to_s" => CalcStrType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
+          case _: FloatType =>
+            attr.name match {
+              case "to_i" => CalcIntType
+              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+            }
           case ArrayType(inType) =>
             attr.name match {
-              case "first" | "last" => inType
+              case "first" | "last" | "min" | "max" => inType
               case "size" => CalcIntType
               case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
             }
@@ -195,6 +219,7 @@ object TypeDetector {
       case (_: StrType, _: StrType) => // ok
       case (_: NumericType, _: NumericType) => // ok
       case (_: BooleanType, _: BooleanType) => // ok
+      case (_: BytesType, _: BytesType) => // ok
       case (EnumType(name1, _), EnumType(name2, _)) =>
         if (name1 != name2) {
           throw new TypeMismatchError(s"can't compare different enums '$name1' and '$name2'")
@@ -242,6 +267,7 @@ object TypeDetector {
           }
         case (_: IntType, _: IntType) => CalcIntType
         case (_: NumericType, _: NumericType) => CalcFloatType
+        case (_: BytesType, _: BytesType) => CalcBytesType
         case (t1: UserType, t2: UserType) =>
           // Two user types can differ in reserved size and/or processing, but that doesn't matter in case of
           // type combining - we treat them the same as long as they result in same class spec or have same
@@ -285,10 +311,49 @@ object TypeDetector {
     * @return type that can accommodate values of both source types without any data loss
     */
   def combineTypesAndFail(t1: DataType, t2: DataType): DataType = {
-    combineTypes(t1, t2) match {
-      case AnyType =>
-        throw new TypeMismatchError(s"can't combine output types: $t1 vs $t2")
-      case ct => ct
+    if (t1 == AnyType || t2 == AnyType) {
+      // combining existing AnyTypes is not a crime :)
+      AnyType
+    } else {
+      combineTypes(t1, t2) match {
+        case AnyType =>
+          throw new TypeMismatchError(s"can't combine output types: $t1 vs $t2")
+        case ct => ct
+      }
+    }
+  }
+
+  /**
+    * Returns true if one can assign value of type `src` into a variable / parameter of type `dst`.
+    * @param src data type of source value to be assigned
+    * @param dst destination data type to be assigned into
+    * @return true if assign if possible
+    */
+  def canAssign(src: DataType, dst: DataType): Boolean = {
+    if (src == dst) {
+      // Obviously, if types are equal, they'll fit into one another
+      true
+    } else {
+      (src, dst) match {
+        case (_, AnyType) => true
+        case (_: IntType, _: IntType) => true
+        case (_: FloatType, _: FloatType) => true
+        case (_: BooleanType, _: BooleanType) => true
+        case (_: StrType, _: StrType) => true
+        case (_: UserType, KaitaiStructType) => true
+        case (t1: UserType, t2: UserType) =>
+          (t1.classSpec, t2.classSpec) match {
+            case (None, None) =>
+              // opaque classes are assignable if their names match
+              t1.name == t2.name
+            case (Some(cs1), Some(cs2)) =>
+              // normal user types are assignable if their class specs match
+              cs1 == cs2
+            case (_, _) =>
+              false
+          }
+        case (_, _) => false
+      }
     }
   }
 }

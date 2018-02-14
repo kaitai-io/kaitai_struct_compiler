@@ -13,6 +13,8 @@ import scala.concurrent.Future
   * @param specs collection of [[ClassSpec]] entries to work on
   */
 class LoadImports(specs: ClassSpecs) {
+  import LoadImports._
+
   /**
     * Recursively loads and processes all .ksy files referenced in
     * `meta/import` section of given class spec and all nested classes.
@@ -22,30 +24,37 @@ class LoadImports(specs: ClassSpecs) {
     *
     * @param curClass class spec to start recursive import from
     */
-  def processClass(curClass: ClassSpec): Future[List[ClassSpec]] = {
-    Log.importOps.info(() => s".. LoadImports: processing class ${curClass.nameAsStr}")
+  def processClass(curClass: ClassSpec, workDir: ImportPath): Future[List[ClassSpec]] = {
+    Log.importOps.info(() => s".. LoadImports: processing class ${curClass.nameAsStr} (workDir = $workDir)")
 
-    val thisMetaFuture: Future[List[ClassSpec]] = curClass.meta match {
-      case Some(meta) =>
-        Future.sequence(meta.imports.zipWithIndex.map { case (name, idx) =>
-          loadImport(name, meta.path ++ List("imports", idx.toString), Some(curClass.nameAsStr))
-        }).map((x) => x.flatten)
-      case None =>
-        Future { List() }
-    }
+    val thisMetaFuture: Future[List[ClassSpec]] =
+      Future.sequence(curClass.meta.imports.zipWithIndex.map { case (name, idx) =>
+        loadImport(
+          name,
+          curClass.meta.path ++ List("imports", idx.toString),
+          Some(curClass.nameAsStr),
+          workDir
+        )
+      }).map((x) => x.flatten)
 
     val nestedFuture: Future[Iterable[ClassSpec]] = Future.sequence(curClass.types.map({
-      case (_, nestedClass) => processClass(nestedClass)
+      case (_, nestedClass) => processClass(nestedClass, workDir)
     })).map((listOfLists) => listOfLists.flatten)
 
     Future.sequence(List(thisMetaFuture, nestedFuture)).map((x) => x.flatten)
   }
 
-  private def loadImport(name: String, path: List[String], inFile: Option[String]): Future[List[ClassSpec]] = {
-    val futureSpec = if (name.startsWith("/")) {
-      specs.importAbsolute(name.substring(1), path, inFile)
-    } else {
-      specs.importRelative(name, path, inFile)
+  private def loadImport(name: String, path: List[String], inFile: Option[String], workDir: ImportPath): Future[List[ClassSpec]] = {
+    Log.importOps.info(() => s".. LoadImports: loadImport($name, workDir = $workDir)")
+
+    val impPath = ImportPath.fromString(name)
+    val fullPath = ImportPath.add(workDir, impPath)
+
+    val futureSpec = fullPath match {
+      case RelativeImportPath(p) =>
+        specs.importRelative(p.mkString("/"), path, inFile)
+      case AbsoluteImportPath(p) =>
+        specs.importAbsolute(p.mkString("/"), path, inFile)
     }
 
     futureSpec.flatMap { case optSpec =>
@@ -60,7 +69,7 @@ class LoadImports(specs: ClassSpecs) {
           // import* methods due to caching, but we won't rely on it here.
           if (!specs.contains(specName)) {
             specs(specName) = spec
-            processClass(spec)
+            processClass(spec, ImportPath.updateWorkDir(workDir, impPath))
           } else {
             Future { List() }
           }
@@ -68,5 +77,40 @@ class LoadImports(specs: ClassSpecs) {
           Future { List() }
       }
     }
+  }
+}
+
+object LoadImports {
+  sealed trait ImportPath {
+    def baseDir: ImportPath
+  }
+  case class RelativeImportPath(path: List[String]) extends ImportPath {
+    override def baseDir: ImportPath = RelativeImportPath(path.init)
+  }
+  case class AbsoluteImportPath(path: List[String]) extends ImportPath {
+    override def baseDir: ImportPath = AbsoluteImportPath(path.init)
+  }
+  val BasePath = RelativeImportPath(List())
+
+  object ImportPath {
+    def fromString(s: String): ImportPath = if (s.startsWith("/")) {
+      AbsoluteImportPath(s.substring(1).split("/", -1).toList)
+    } else {
+      RelativeImportPath(s.split("/", -1).toList)
+    }
+
+    def add(curWorkDir: ImportPath, newPath: ImportPath): ImportPath = {
+      (curWorkDir, newPath) match {
+        case (_, AbsoluteImportPath(newPathAbs)) =>
+          AbsoluteImportPath(newPathAbs)
+        case (RelativeImportPath(curDir), RelativeImportPath(newPathRel)) =>
+          RelativeImportPath(curDir ++ newPathRel)
+        case (AbsoluteImportPath(curDir), RelativeImportPath(newPathRel)) =>
+          AbsoluteImportPath(curDir ++ newPathRel)
+      }
+    }
+
+    def updateWorkDir(curWorkDir: ImportPath, newPath: ImportPath): ImportPath =
+      add(curWorkDir, newPath).baseDir
   }
 }

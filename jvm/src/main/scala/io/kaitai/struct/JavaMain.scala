@@ -8,6 +8,7 @@ import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
+import io.kaitai.struct.precompile.ErrorInInput
 
 object JavaMain {
   KSVersion.current = BuildInfo.version
@@ -50,7 +51,7 @@ object JavaMain {
         if (VALID_LANGS.contains(x)) {
           success
         } else {
-          failure(s"'${x}' is not a valid target language; valid ones are: ${VALID_LANGS.mkString(", ")}")
+          failure(s"'$x' is not a valid target language; valid ones are: ${VALID_LANGS.mkString(", ")}")
         }
       }
 
@@ -63,9 +64,17 @@ object JavaMain {
         c.copy(importPaths = c.importPaths ++ x.split(File.pathSeparatorChar))
       } text(".ksy library search path(s) for imports (see also KSPATH env variable)")
 
+      opt[String]("go-package") valueName("<package>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(goPackage = x))
+      } text("Go package (Go only, default: none)")
+
       opt[String]("java-package") valueName("<package>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(javaPackage = x))
       } text("Java package (Java only, default: root package)")
+
+      opt[String]("java-from-file-class") valueName("<class>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(javaFromFileClass = x))
+      } text(s"Java class to be invoked in fromFile() helper (default: ${RuntimeConfig().javaFromFileClass})")
 
       opt[String]("dotnet-namespace") valueName("<namespace>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(dotNetNamespace = x))
@@ -74,6 +83,10 @@ object JavaMain {
       opt[String]("php-namespace") valueName("<namespace>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(phpNamespace = x))
       } text("PHP Namespace (PHP only, default: root package)")
+
+      opt[String]("python-package") valueName("<package>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(pythonPackage = x))
+      } text("Python package (Python only, default: root package)")
 
       opt[Boolean]("opaque-types") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
@@ -207,9 +220,17 @@ class JavaMain(config: CLIConfig) {
       }
       srcFile.toString -> log
     }.toMap
-    if (config.jsonOutput)
+
+    if (config.jsonOutput) {
       Console.println(JSON.mapToJson(logs))
+    } else {
+      if (logsHaveErrors(logs))
+        System.exit(2)
+    }
   }
+
+  private def logsHaveErrors(logs: Map[String, InputEntry]): Boolean =
+    logs.values.map(_.hasErrors).max
 
   private def compileOneInput(srcFile: String) = {
     Log.fileOps.info(() => s"parsing $srcFile...")
@@ -241,9 +262,11 @@ class JavaMain(config: CLIConfig) {
     val lang = LanguageCompilerStatic.byString(langStr)
     specs.map { case (_, classSpec) =>
       val res = try {
-        compileSpecAndWriteToFile(classSpec, lang, outDir)
+        compileSpecAndWriteToFile(specs, classSpec, lang, outDir)
       } catch {
         case ex: Throwable =>
+          if (config.throwExceptions)
+            ex.printStackTrace()
           SpecFailure(List(exceptionToCompileError(ex, classSpec.nameAsStr)))
       }
       classSpec.nameAsStr -> res
@@ -251,11 +274,12 @@ class JavaMain(config: CLIConfig) {
   }
 
   def compileSpecAndWriteToFile(
+    specs: ClassSpecs,
     spec: ClassSpec,
     lang: LanguageCompilerStatic,
     outDir: String
   ): SpecSuccess = {
-    val res = Main.compile(spec, lang, config.runtime)
+    val res = Main.compile(specs, spec, lang, config.runtime)
     res.files.foreach { (file) =>
       Log.fileOps.info(() => s".... writing ${file.fileName}")
 
@@ -278,6 +302,13 @@ class JavaMain(config: CLIConfig) {
     ex match {
       case ype: YAMLParseException =>
         CompileError("(main)", ype.path, ype.msg)
+      case e: ErrorInInput =>
+        val file = e.file.getOrElse(srcFile)
+        val msg = Option(e.getCause) match {
+          case Some(cause) => cause.getMessage
+          case None => e.getMessage
+        }
+        CompileError(file, e.path, msg)
       case _ =>
         CompileError(srcFile, List(), ex.getMessage)
     }

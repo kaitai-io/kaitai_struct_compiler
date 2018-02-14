@@ -1,10 +1,12 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.PythonCompiler
 
-class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class PythonTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
@@ -34,12 +36,14 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     '\b' -> "\\b"
   )
 
-  override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"struct.pack('${arr.length}b', ${arr.mkString(", ")})"
+  override def doByteArrayLiteral(arr: Seq[Byte]): String = {
+    "b\"" + Utils.hexEscapeByteArray(arr) + "\""
+  }
 
   override def doLocalName(s: String) = {
     s match {
-      case "_" => s
+      case Identifier.ITERATOR => "_"
+      case Identifier.INDEX => "i"
       case _ => s"self.${doName(s)}"
     }
   }
@@ -78,6 +82,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"${translate(v)}.value"
   override def boolToInt(v: Ast.expr): String =
     s"int(${translate(v)})"
+  override def floatToInt(v: Ast.expr): String =
+    s"int(${translate(v)})"
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     val func = baseStr match {
@@ -105,6 +111,10 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"${translate(a)}[-1]"
   override def arraySize(a: Ast.expr): String =
     s"len(${translate(a)})"
+  override def arrayMin(a: Ast.expr): String =
+    s"min(${translate(a)})"
+  override def arrayMax(a: Ast.expr): String =
+    s"max(${translate(a)})"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"${translate(value)}.size()"

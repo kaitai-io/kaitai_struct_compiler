@@ -1,13 +1,13 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{JavaScriptTranslator, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig, Utils}
+import io.kaitai.struct.translators.JavaScriptTranslator
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -20,45 +20,45 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with FixedContentsUsingArrayByteLiteral {
   import JavaScriptCompiler._
 
-  override def getStatic = JavaScriptCompiler
+  override val translator = new JavaScriptTranslator(typeProvider)
 
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
 
+  override def outImports(topClass: ClassSpec) = {
+    val impList = importList.toList
+    val quotedImpList = impList.map((x) => s"'$x'")
+    val defineArgs = quotedImpList.mkString(", ")
+    val moduleArgs = quotedImpList.map((x) => s"require($x)").mkString(", ")
+    val argClasses = impList.map((x) => x.split('/').last)
+    val rootArgs = argClasses.map((x) => s"root.$x").mkString(", ")
+
+    "(function (root, factory) {\n" +
+      indent + "if (typeof define === 'function' && define.amd) {\n" +
+      indent * 2 + s"define([$defineArgs], factory);\n" +
+      indent + "} else if (typeof module === 'object' && module.exports) {\n" +
+      indent * 2 + s"module.exports = factory($moduleArgs);\n" +
+      indent + "} else {\n" +
+      indent * 2 + s"root.${types2class(topClass.name)} = factory($rootArgs);\n" +
+      indent + "}\n" +
+      s"}(this, function (${argClasses.mkString(", ")}) {"
+  }
+
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"// $headerComment")
+    outHeader.puts(s"// $headerComment")
+    outHeader.puts
+
+    importList.add("kaitai-struct/KaitaiStream")
   }
 
   override def fileFooter(name: String): Unit = {
-    out.puts
-    out.puts("// Export for amd environments")
-    out.puts("if (typeof define === 'function' && define.amd) {")
-    out.inc
-    out.puts(s"define('${type2class(name)}', [], function() {")
-    out.inc
     out.puts(s"return ${type2class(name)};")
-    out.dec
-    out.puts("});")
-    out.dec
-    out.puts("}")
-
-    out.puts
-
-    out.puts("// Export for CommonJS")
-    out.puts("if (typeof module === 'object' && module && module.exports) {")
-    out.inc
-    out.puts(s"module.exports = ${type2class(name)};")
-    out.dec
-    out.puts("}")
+    out.puts("}));")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
-    val typeName = classSpec.name.head
-    out.puts
-    out.puts("if (typeof require === 'function')")
-    out.inc
-    out.puts(s"var ${type2class(typeName)} = require('./${outFileName(typeName)}');")
-    out.dec
+    val className = type2class(classSpec.name.head)
+    importList.add(s"./$className")
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -82,22 +82,31 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("})();")
   }
 
-  override def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit = {
-    out.puts(s"function ${type2class(name.last)}(_io, _parent, _root) {")
+  override def classConstructorHeader(name: List[String], parentClassName: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
+    val endianSuffix = if (isHybrid) {
+      ", _is_le"
+    } else {
+      ""
+    }
+
+    val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
+
+    out.puts(s"function ${type2class(name.last)}(_io, _parent, _root$endianSuffix$paramsList) {")
     out.inc
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root || this;")
+
+    if (isHybrid)
+      out.puts("this._is_le = _is_le;")
+
+    // Store parameters passed to us
+    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+
     if (debug) {
       out.puts("this._debug = {};")
-      out.dec
-      out.puts("}")
-      out.puts
-      out.puts(s"${type2class(name.last)}.prototype._read = function() {")
-      out.inc
-    } else {
-      out.puts
     }
+    out.puts
   }
 
   override def classConstructorFooter: Unit = {
@@ -105,9 +114,44 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
+  override def runRead(): Unit = {
+    out.puts("this._read();")
+  }
 
-  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
+  override def runReadCalc(): Unit = {
+    out.puts
+    out.puts(s"if (this._is_le === true) {")
+    out.inc
+    out.puts("this._readLE();")
+    out.dec
+    out.puts("} else if (this._is_le === false) {")
+    out.inc
+    out.puts("this._readBE();")
+    out.dec
+    out.puts("} else {")
+    out.inc
+    out.puts("throw new KaitaiStream.UndecidedEndiannessError();")
+    out.dec
+    out.puts("}")
+  }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
+    val suffix = endian match {
+      case Some(e) => e.toSuffix.toUpperCase
+      case None => ""
+    }
+    out.puts(s"${type2class(typeProvider.nowClass.name.last)}.prototype._read$suffix = function() {")
+    out.inc
+  }
+
+  override def readFooter() = {
+    out.dec
+    out.puts("}")
+  }
+
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
+
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
   override def universalDoc(doc: DocSpec): Unit = {
     // JSDoc docstring style: http://usejsdoc.org/about-getting-started.html
@@ -126,6 +170,18 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     out.puts( " */")
+  }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts("if (this._is_le) {")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("} else {")
+    out.inc
+    beProc()
+    out.dec
+    out.puts("}")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
@@ -153,6 +209,15 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s"8 - (${expression(rotValue)})"
         }
         out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+      case ProcessCustom(name, args) =>
+        val nameInit = name.init
+        val pkgName = if (nameInit.isEmpty) "" else nameInit.mkString("-") + "/"
+        val procClass = type2class(name.last)
+
+        importList.add(s"$pkgName$procClass")
+
+        out.puts(s"var _process = new $procClass(${args.map(expression).mkString(", ")});")
+        out.puts(s"$destName = _process.decode($srcName);")
     }
   }
 
@@ -232,6 +297,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = [];")
     if (debug)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
+    out.puts("var i = 0;")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
@@ -241,6 +307,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatEosFooter: Unit = {
+    out.puts("i++;")
     out.dec
     out.puts("}")
   }
@@ -270,6 +337,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = []")
     if (debug)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
+    out.puts("var i = 0;")
     out.puts("do {")
     out.inc
   }
@@ -282,6 +350,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("i++;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
   }
@@ -293,10 +362,10 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"var $id = $expr;")
 
-  override def parseExpr(dataType: DataType, io: String): String = {
+  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read${Utils.capitalize(t.apiCall)}()"
+        s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
       case blt: BytesLimitType =>
         s"$io.readBytes(${expression(blt.size)})"
       case _: BytesEosType =>
@@ -308,8 +377,18 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io.readBitsInt($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) "" else ", this, this._root"
-        s"new ${type2class(t.name.last)}($io$addArgs)"
+        val parent = t.forcedParent match {
+          case Some(USER_TYPE_NO_PARENT) => "null"
+          case Some(fp) => translator.translate(fp)
+          case None => "this"
+        }
+        val root = if (t.isOpaque) "null" else "this._root"
+        val addEndian = t.classSpec.get.meta.endian match {
+          case Some(InheritedEndian) => ", this._is_le"
+          case _ => ""
+        }
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
+        s"new ${type2class(t.name.last)}($io, $parent, $root$addEndian$addParams)"
     }
   }
 
@@ -329,28 +408,88 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$id._read();")
   }
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
-    out.puts(s"switch (${expression(on)}) {")
+  /**
+    * Designates switch mode. If false, we're doing real switch-case for this
+    * attribute. If true, we're doing if-based emulation.
+    */
+  var switchIfs = false
+
+  val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
+
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    val onType = translator.detectType(on)
+    typeProvider._currentSwitchType = Some(onType)
+
+    // Determine switching mode for this construct based on type
+    switchIfs = onType match {
+      case _: IntType | _: BooleanType | _: EnumType | _: StrType => false
+      case _ => true
+    }
+
+    if (switchIfs) {
+      out.puts("{")
+      out.inc
+      out.puts(s"var ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
+    } else {
+      out.puts(s"switch (${expression(on)}) {")
+    }
+  }
+
+  def switchCmpExpr(condition: Ast.expr): String =
+    expression(
+      Ast.expr.Compare(
+        NAME_SWITCH_ON,
+        Ast.cmpop.Eq,
+        condition
+      )
+    )
+
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
+    if (switchIfs) {
+      out.puts(s"if (${switchCmpExpr(condition)}) {")
+      out.inc
+    } else {
+      switchCaseStart(condition)
+    }
+  }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"case ${expression(condition)}:")
-    out.inc
+    if (switchIfs) {
+      out.puts(s"else if (${switchCmpExpr(condition)}) {")
+      out.inc
+    } else {
+      out.puts(s"case ${expression(condition)}:")
+      out.inc
+    }
   }
 
   override def switchCaseEnd(): Unit = {
-    out.puts("break;")
-    out.dec
+    if (switchIfs) {
+      out.dec
+      out.puts("}")
+    } else {
+      out.puts("break;")
+      out.dec
+    }
   }
 
   override def switchElseStart(): Unit = {
-    out.puts("default:")
-    out.inc
+    if (switchIfs) {
+      out.puts("else {")
+      out.inc
+    } else {
+      out.puts("default:")
+      out.inc
+    }
   }
 
-  override def switchEnd(): Unit =
+  override def switchEnd(): Unit = {
+    if (switchIfs)
+      out.dec
     out.puts("}")
+  }
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"Object.defineProperty(${type2class(className.last)}.prototype, '${publicMemberName(instName)}', {")
     out.inc
     out.puts("get: function() {")
@@ -375,16 +514,26 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     out.puts(s"${type2class(curClass.last)}.${type2class(enumName)} = Object.freeze({")
     out.inc
+
+    // Name to ID mapping
     enumColl.foreach { case (id, label) =>
-      out.puts(s"${enumValue(enumName, label)}: $id,")
+      out.puts(s"${enumValue(enumName, label.name)}: $id,")
     }
     out.puts
+
+    // ID to name mapping
     enumColl.foreach { case (id, label) =>
-      out.puts(s"""$id: "${enumValue(enumName, label)}",""")
+      val idStr = if (id < 0) {
+        "\"" + id.toString + "\""
+      } else {
+        id.toString
+      }
+      out.puts(s"""$idStr: "${enumValue(enumName, label.name)}",""")
     }
+
     out.dec
     out.puts("});")
     out.puts
@@ -416,6 +565,8 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
   private
   def attrDebugNeeded(attrId: Identifier) = attrId match {
     case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
@@ -436,7 +587,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 object JavaScriptCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames {
-  override def getTranslator(tp: TypeProvider, config: RuntimeConfig) = new JavaScriptTranslator(tp)
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig

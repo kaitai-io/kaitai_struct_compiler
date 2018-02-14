@@ -6,7 +6,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundError, TypeUndecidedError}
 import io.kaitai.struct.translators.TypeProvider
 
-class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
+class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends TypeProvider {
   var nowClass = topClass
 
   var _currentIteratorType: Option[DataType] = None
@@ -20,30 +20,36 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
 
   override def determineType(inClass: ClassSpec, attrName: String): DataType = {
     attrName match {
-      case "_root" =>
+      case Identifier.ROOT =>
         makeUserType(topClass)
-      case "_parent" =>
+      case Identifier.PARENT =>
         if (inClass.parentClass == UnknownClassSpec)
-          throw new RuntimeException(s"Unable to derive _parent type in ${inClass.name.mkString("::")}")
+          throw new RuntimeException(s"Unable to derive ${Identifier.PARENT} type in ${inClass.name.mkString("::")}")
         makeUserType(inClass.parentClass)
-      case "_io" =>
+      case Identifier.IO =>
         KaitaiStreamType
-      case "_" =>
+      case Identifier.ITERATOR =>
         currentIteratorType
-      case "_on" =>
+      case Identifier.SWITCH_ON =>
         currentSwitchType
+      case Identifier.INDEX =>
+        CalcIntType
       case _ =>
         inClass.seq.foreach { el =>
           if (el.id == NamedIdentifier(attrName))
             return el.dataTypeComposite
         }
+        inClass.params.foreach { el =>
+          if (el.id == NamedIdentifier(attrName))
+            return el.dataType
+        }
         inClass.instances.get(InstanceIdentifier(attrName)) match {
           case Some(i: ValueInstanceSpec) =>
-            i.dataType match {
+            val dt = i.dataType match {
               case Some(t) => t
               case None => throw new TypeUndecidedError(attrName)
             }
-            return i.dataType.get
+            return dt
           case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
           case None => // do nothing
         }
@@ -81,18 +87,43 @@ class ClassTypeProvider(topClass: ClassSpec) extends TypeProvider {
   override def resolveType(typeName: String): DataType = resolveType(nowClass, typeName)
 
   def resolveType(inClass: ClassSpec, typeName: String): DataType = {
+    if (inClass.name.last == typeName)
+      return makeUserType(inClass)
+
     inClass.types.get(typeName) match {
       case Some(spec) =>
-        val ut = UserTypeInstream(spec.name, None)
-        ut.classSpec = Some(spec)
-        ut
+        makeUserType(spec)
       case None =>
         // let's try upper levels of hierarchy
         inClass.upClass match {
           case Some(upClass) => resolveType(upClass, typeName)
           case None =>
-            throw new TypeNotFoundError(typeName, nowClass)
+            classSpecs.get(typeName) match {
+              case Some(spec) => makeUserType(spec)
+              case None =>
+                throw new TypeNotFoundError(typeName, nowClass)
+            }
         }
     }
+  }
+
+  override def isLazy(attrName: String): Boolean = isLazy(nowClass, attrName)
+
+  def isLazy(inClass: ClassSpec, attrName: String): Boolean = {
+    inClass.seq.foreach { el =>
+      if (el.id == NamedIdentifier(attrName))
+        return false
+    }
+    inClass.params.foreach { el =>
+      if (el.id == NamedIdentifier(attrName))
+        return false
+    }
+    inClass.instances.get(InstanceIdentifier(attrName)) match {
+      case Some(i) =>
+        return true
+      case None =>
+        // do nothing
+    }
+    throw new FieldNotFoundError(attrName, inClass)
   }
 }

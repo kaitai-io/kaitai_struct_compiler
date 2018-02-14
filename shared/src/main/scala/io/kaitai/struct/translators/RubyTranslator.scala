@@ -2,6 +2,8 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.datatype.DataType.EnumType
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.RubyCompiler
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -25,7 +27,12 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     '\b' -> "\\b"
   )
 
-  override def doName(s: String) = s
+  override def doName(s: String) = {
+    s match {
+      case Identifier.INDEX => "i" // FIXME: probably would clash with attribute named "i"
+      case _ => s
+    }
+  }
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s":${enumTypeAbs.last}_$label"
@@ -47,6 +54,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
     s"${RubyCompiler.inverseEnumName(et.name.last.toUpperCase)}[${translate(v)}]"
+  override def floatToInt(v: Ast.expr): String =
+    s"(${translate(v)}).to_i"
   override def intToStr(i: Ast.expr, base: Ast.expr): String =
     translate(i) + s".to_s(${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
@@ -64,6 +73,10 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     s"${translate(a)}.last"
   override def arraySize(a: Ast.expr): String =
     s"${translate(a)}.length"
+  override def arrayMin(a: expr): String =
+    s"${translate(a)}.min"
+  override def arrayMax(a: expr): String =
+    s"${translate(a)}.max"
 
   override def kaitaiStreamEof(value: Ast.expr): String =
     s"${translate(value)}.eof?"
