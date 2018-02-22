@@ -18,19 +18,21 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
     * @param curClass class to start from, might be top-level class
     */
   def resolveUserTypes(curClass: ClassSpec): Unit = {
-    curClass.seq.foreach((attr) => resolveUserTypeForAttr(curClass, attr))
+    curClass.seq.foreach((attr) => resolveUserTypeForMember(curClass, attr))
 
     curClass.instances.foreach { case (_, instSpec) =>
       instSpec match {
         case pis: ParseInstanceSpec =>
-          resolveUserTypeForAttr(curClass, pis)
+          resolveUserTypeForMember(curClass, pis)
         case _: ValueInstanceSpec =>
           // ignore all other types of instances
       }
     }
+
+    curClass.params.foreach((paramDef) => resolveUserTypeForMember(curClass, paramDef))
   }
 
-  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec): Unit =
+  def resolveUserTypeForMember(curClass: ClassSpec, attr: MemberSpec): Unit =
     resolveUserType(curClass, attr.dataType, attr.path)
 
   def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Unit = {

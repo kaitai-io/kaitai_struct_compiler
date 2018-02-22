@@ -348,6 +348,7 @@ object DataType {
         case "struct" => KaitaiStructType
         case "io" => KaitaiStreamType
         case "any" => AnyType
+        case _ => UserTypeInstream(classNameToList(dt), None)
       }
     }
   }
