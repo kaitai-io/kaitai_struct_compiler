@@ -10,10 +10,14 @@ import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
-    val literal = n.toString
+    val literal = if (n > Long.MaxValue) {
+      "0x" + n.toString(16)
+    } else {
+      n.toString
+    }
     val suffix = if (n > Int.MaxValue) "L" else ""
 
-    s"${literal}${suffix}"
+    s"$literal$suffix"
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
