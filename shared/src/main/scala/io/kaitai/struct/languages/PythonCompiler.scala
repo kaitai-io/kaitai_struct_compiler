@@ -392,7 +392,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceReturn(instName: InstanceIdentifier): Unit = {
     // not very efficient, probably should be some other way to do that, but for now it will do:
     // workaround to avoid Python generating an "AttributeError: instance has no attribute"
-    out.puts(s"return ${privateMemberName(instName)} if hasattr(self, '${idToStr(instName)}') else None")
+    out.puts(s"return ${privateMemberName(instName)}")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
