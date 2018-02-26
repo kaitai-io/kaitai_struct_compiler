@@ -765,7 +765,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case KaitaiStreamType => kstreamName
       case KaitaiStructType => kstructName
 
-      case t: UserType => type2class(t.name.last)
+      case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
