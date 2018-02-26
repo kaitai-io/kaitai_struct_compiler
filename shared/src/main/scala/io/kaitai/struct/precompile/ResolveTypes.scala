@@ -107,7 +107,15 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
             } else {
               // Check if top-level specs has this name
               // If there's None => no luck at all
-              specs.get(firstName)
+              val resolvedTop = specs.get(firstName)
+              resolvedTop match {
+                case None => None
+                case Some(classSpec) => restNames match {
+                  case null => resolvedTop
+                  case List() => resolvedTop
+                  case _ => resolveUserType(classSpec, restNames, path)
+                }
+              }
             }
         }
     }
