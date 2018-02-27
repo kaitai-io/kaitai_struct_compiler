@@ -110,10 +110,10 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
               val resolvedTop = specs.get(firstName)
               resolvedTop match {
                 case None => None
-                case Some(classSpec) => restNames match {
-                  case null => resolvedTop
-                  case List() => resolvedTop
-                  case _ => resolveUserType(classSpec, restNames, path)
+                case Some(classSpec) => if (restNames.isEmpty) {
+                  resolvedTop
+                } else {
+                  resolveUserType(classSpec, restNames, path)
                 }
               }
             }
