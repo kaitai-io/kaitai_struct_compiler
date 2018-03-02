@@ -6,7 +6,7 @@
 
 # Kaitai Struct: compiler
 
-This project is an official reference compiler for [Kaitai Struct](https://github.com/kaitai-io/kaitai_struct) project.
+This project is an official reference compiler for [Kaitai Struct](http://kaitai.io) project.
 
 Kaitai Struct is a declarative language used to describe various
 binary data structures, laid out in files or in memory: i.e. binary
@@ -19,109 +19,16 @@ languages. These modules will include the generated code for a parser
 that can read described data structure from a file / stream and give
 access to it in a nice, easy-to-comprehend API.
 
-Please refer to [documentation in Kaitai Struct project](https://github.com/kaitai-io/kaitai_struct)
-for details on `.ksy` files and general usage patterns.
+## Further information
 
-## Trying without install
+If you're looking for information on:
 
-Kaitai Struct compiler can be tried instantly, without any downloads
-and installation, at
-
-http://kaitai.io/repl
-
-Note that this implementation uses the same reference code as in this
-repository and executes totally on a client side, without any queries
-to server backend.
-
-## Downloading and installing
-
-### Linux .deb builds (Debian/Ubuntu)
-
-There is an official .deb repository available. The repository is hosted
-at BinTray and signed with BinTray GPG key (`379CE192D401AB61`), so it's
-necessary to import that key first if your box haven't used any BinTray
-repositories beforehand:
-
-```shell
-echo "deb https://dl.bintray.com/kaitai-io/debian jessie main" | sudo tee /etc/apt/sources.list.d/kaitai.list
-sudo apt-key adv --keyserver hkp://pool.sks-keyservers.net --recv 379CE192D401AB61
-sudo apt-get update
-sudo apt-get install kaitai-struct-compiler
-```
-
-### Windows builds
-
-An official `.msi` installer build is available to download at
-
-https://bintray.com/kaitai-io/universal/kaitai-struct-compiler/_latestVersion
-
-### Universal builds
-
-Basically, everything that can run Java can use so called "universal"
-builds: a .zip file that includes all the required .jar files bundled
-and launcher scripts for UNIX/Windows systems. No installation
-required, one can just unpack and run it. Available at download also at
-
-https://bintray.com/kaitai-io/universal/kaitai-struct-compiler/_latestVersion
-
-### Source code
-
-If you're interested in developing compiler itself, you can check out
-source code in repository:
-
-    git clone https://github.com/kaitai-io/kaitai_struct_compiler
-
-See the [developer documentation](http://doc.kaitai.io/developers.html) for 
-general pointers on how to proceed with the source code then.
-
-## Usage
-
-`kaitai-struct-compiler [options] <file>...`
-
-Alternatively, a symlink `ksc` is provided and can be used everywhere
-just as full name.
-
-Common options:
-
-* `<file>...` — source files (.ksy)
-* `-t <language> | --target <language>` — target languages (`graphviz`, `csharp`,
-    `all`, `perl`, `java`, `go`, `cpp_stl`, `php`, `lua`, `python`, `ruby`, `javascript`
-  * `all` is a special case: it compiles all possible target
-    languages, creating language-specific directories (as per language
-    identifiers) inside output directory, and then creating output
-    module(s) for each language starting from there
-* `-d <directory> | --outdir <directory>` — output directory
-  (filenames will be auto-generated)
-
-Language-specific options:
-
-* `--dot-net-namespace <namespace>` — .NET namespace (C# only, default: Kaitai)
-* `--java-package <package>` — Java package (Java only, default: root package)
-* `--php-namespace <namespace>` — PHP namespace (PHP only, default: root package)
-
-Misc options:
-
-* `--verbose` — verbose output
-* `--help` — display usage information and exit
-* `--version` — output version information and exit
-
-A few examples, given that file `foo.ksy` exists in current directory
-and describes format with ID `foo`:
-
-* `kaitai-struct-compiler -t python foo.ksy` — compile format in
-  `foo.ksy`, write output in current directory to file `foo.py`
-* `kaitai-struct-compiler -t java foo.ksy` — compile format in
-  `foo.ksy`, create "src" subdir in current one and write output in
-  `src/Foo.java`
-* `kaitai-struct-compiler -t java --java-package org.example foo.ksy`
-  — compile format in `foo.ksy`, create "src/org/example" subdir tree
-  in current one and write output in `src/org/example/Foo.java`;
-  resulting file will bear correct Java package clause.
-* `kaitai-struct-compiler -t all -d /tmp/out --java-package org.example foo.ksy`
-  — compile format in `foo.ksy`, creating a hierarchy of files:
-  * `/tmp/out/java/src/org/example/Foo.java`
-  * `/tmp/out/python/foo.py`
-  * `/tmp/out/ruby/foo.rb`
+* Kaitai Struct language itself (`.ksy` files, general usage patterns)
+  — refer to the [user guide](http://doc.kaitai.io/user_guide.html).
+* How to download and install Kaitai Struct — see the
+  [downloads](http://kaitai.io/#download).
+* How to build the compiler, run the test suite, and join the
+  development — see the [developer memo](http://doc.kaitai.io/developers.html).
 
 ## Licensing
 
