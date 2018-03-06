@@ -128,6 +128,8 @@ lazy val compiler = crossProject.in(file(".")).
     // https://github.com/sbt/sbt-native-packager/issues/1067
     debianNativeBuildOptions in Debian := Seq("-Zgzip", "-z3"),
 
+    debianPackageDependencies := Seq("java8-runtime-headless"),
+
     packageSummary in Linux := s"compiler to generate binary data parsers in $TARGET_LANGS",
     packageSummary in Windows := "Kaitai Struct compiler",
     packageDescription in Linux :=
