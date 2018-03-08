@@ -23,6 +23,9 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
+
+    importList.add("java.util.ArrayList")
+    importList.add("java.util.Arrays")
     s"new ArrayList<$javaType>(Arrays.asList($commaStr))"
   }
 
