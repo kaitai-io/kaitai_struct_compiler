@@ -388,7 +388,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _ => ""
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-        s"new ${type2class(t.name.last)}($io, $parent, $root$addEndian$addParams)"
+        s"new ${types2class(t.name)}($io, $parent, $root$addEndian$addParams)"
     }
   }
 
@@ -597,6 +597,5 @@ object JavaScriptCompiler extends LanguageCompilerStatic
   // FIXME: probably KaitaiStruct will emerge some day in JavaScript runtime, but for now it is unused
   override def kstructName: String = ???
 
-  def types2class(types: List[String]): String =
-    types.map(JavaScriptCompiler.type2class).mkString(".")
+  def types2class(types: List[String]): String = types.map(type2class).mkString(".")
 }
