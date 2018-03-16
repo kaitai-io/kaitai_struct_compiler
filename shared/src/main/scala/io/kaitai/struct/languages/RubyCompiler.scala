@@ -453,7 +453,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString("::")
+  def types2class(names: List[String]) = names.map(type2class).mkString("::")
 }
 
 object RubyCompiler extends LanguageCompilerStatic
