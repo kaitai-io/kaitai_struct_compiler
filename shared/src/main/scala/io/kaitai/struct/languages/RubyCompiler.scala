@@ -361,7 +361,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, @_root$addEndian"
         }
-        s"${type2class(t.name.last)}.new($io$addArgs$addParams)"
+        s"${types2class(t.name)}.new($io$addArgs$addParams)"
     }
   }
 
@@ -452,6 +452,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString("::")
 }
 
 object RubyCompiler extends LanguageCompilerStatic
