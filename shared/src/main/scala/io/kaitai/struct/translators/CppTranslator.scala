@@ -95,8 +95,8 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends B
     s"${translate(container)}->at(${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
-  override def doCast(value: Ast.expr, typeName: String): String =
-    s"static_cast<${CppCompiler.types2class(List(typeName))}*>(${translate(value)})"
+  override def doCast(value: Ast.expr, typeName: Ast.typeId): String =
+    s"static_cast<${CppCompiler.types2class(typeName)}*>(${translate(value)})"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {

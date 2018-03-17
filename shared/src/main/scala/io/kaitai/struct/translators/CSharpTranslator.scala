@@ -81,8 +81,8 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: String): String =
-    s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
+  override def doCast(value: Ast.expr, typeName: Ast.typeId): String =
+    s"((${CSharpCompiler.types2class(typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {

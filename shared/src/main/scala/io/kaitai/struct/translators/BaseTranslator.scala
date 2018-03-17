@@ -135,13 +135,13 @@ abstract class BaseTranslator(val provider: TypeProvider)
             doArrayLiteral(t, values)
         }
       case Ast.expr.CastToType(value, typeName) =>
-        doCast(value, typeName.name)
+        doCast(value, typeName)
     }
   }
 
   def doSubscript(container: Ast.expr, idx: Ast.expr): String
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
-  def doCast(value: Ast.expr, typeName: String): String = translate(value)
+  def doCast(value: Ast.expr, typeName: Ast.typeId): String = translate(value)
 
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"

@@ -625,7 +625,10 @@ object CSharpCompiler extends LanguageCompilerStatic
     }
   }
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+  def types2class(typeName: Ast.typeId): String =
+    // FIXME: handle absolute
+    types2class(typeName.names)
+  def types2class(names: Iterable[String]) = names.map(type2class).mkString(".")
 
   override def kstructName = "KaitaiStruct"
   override def kstreamName = "KaitaiStream"

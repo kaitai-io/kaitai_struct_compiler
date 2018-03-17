@@ -472,7 +472,7 @@ class TranslatorSpec extends FunSuite {
     override def resolveEnum(enumName: String) =
       throw new NotImplementedError
 
-    override def resolveType(typeName: String): DataType =
+    override def resolveType(typeName: Ast.typeId): DataType =
       throw new NotImplementedError
 
     override def isLazy(attrName: String): Boolean = false
@@ -500,9 +500,9 @@ class TranslatorSpec extends FunSuite {
       }
     }
 
-    override def resolveType(typeName: String): DataType = {
-      typeName match {
-        case "top_class" | "block" | "innerblock" => userType(typeName)
+    override def resolveType(typeName: Ast.typeId): DataType = {
+      typeName.names.head match {
+        case "top_class" | "block" | "innerblock" => userType(typeName.names.head)
       }
     }
   }

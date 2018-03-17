@@ -176,7 +176,7 @@ class TypeDetector(provider: TypeProvider) {
           case t => ArrayType(t)
         }
       case Ast.expr.CastToType(value, typeName) =>
-        provider.resolveType(typeName.name)
+        provider.resolveType(typeName)
     }
   }
 

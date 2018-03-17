@@ -2,6 +2,7 @@ package io.kaitai.struct
 
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundError, TypeUndecidedError}
 import io.kaitai.struct.translators.TypeProvider
@@ -84,22 +85,36 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     }
   }
 
-  override def resolveType(typeName: String): DataType = resolveType(nowClass, typeName)
+  override def resolveType(typeName: Ast.typeId): DataType =
+    resolveType(if (typeName.absolute) topClass else nowClass, typeName.names)
 
-  def resolveType(inClass: ClassSpec, typeName: String): DataType = {
+  def resolveType(inClass: ClassSpec, typeName: Seq[String]): DataType =
+    makeUserType(resolveClassSpec(inClass, typeName))
+
+  def resolveClassSpec(inClass: ClassSpec, typeName: Seq[String]): ClassSpec = {
+    val headTypeName :: restTypesNames = typeName
+    val nextClass = resolveClassSpec(inClass, headTypeName)
+    if (restTypesNames.isEmpty) {
+      nextClass
+    } else {
+      resolveClassSpec(nextClass, restTypesNames)
+    }
+  }
+
+  def resolveClassSpec(inClass: ClassSpec, typeName: String): ClassSpec = {
     if (inClass.name.last == typeName)
-      return makeUserType(inClass)
+      return inClass
 
     inClass.types.get(typeName) match {
       case Some(spec) =>
-        makeUserType(spec)
+        spec
       case None =>
         // let's try upper levels of hierarchy
         inClass.upClass match {
-          case Some(upClass) => resolveType(upClass, typeName)
+          case Some(upClass) => resolveClassSpec(upClass, typeName)
           case None =>
             classSpecs.get(typeName) match {
-              case Some(spec) => makeUserType(spec)
+              case Some(spec) => spec
               case None =>
                 throw new TypeNotFoundError(typeName, nowClass)
             }

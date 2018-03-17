@@ -869,6 +869,14 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
 
+  def types2class(typeName: Ast.typeId) = {
+    typeName.names.mkString(
+      if (typeName.absolute) "::" else "",
+      "::",
+      ""
+    )
+  }
+
   def types2class(components: List[String]) = {
     components.map {
       case "kaitai_struct" => "kaitai::kstruct"

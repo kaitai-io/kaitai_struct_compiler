@@ -1,6 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{ClassSpec, EnumSpec}
 
 /**
@@ -13,7 +14,7 @@ trait TypeProvider {
   def determineType(attrName: String): DataType
   def determineType(inClass: ClassSpec, attrName: String): DataType
   def resolveEnum(enumName: String): EnumSpec
-  def resolveType(typeName: String): DataType
+  def resolveType(typeName: Ast.typeId): DataType
   def isLazy(attrName: String): Boolean
   def isLazy(inClass: ClassSpec, attrName: String): Boolean
 }

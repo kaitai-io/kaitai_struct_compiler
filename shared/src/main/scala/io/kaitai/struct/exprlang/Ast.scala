@@ -21,6 +21,7 @@ package io.kaitai.struct.exprlang
   */
 object Ast {
   case class identifier(name: String)
+  case class typeId(absolute: Boolean, names: Seq[String])
 
   // BoolOp() can use left & right?
   sealed trait expr
@@ -40,7 +41,7 @@ object Ast {
     case class EnumById(enumName: identifier, id: expr) extends expr
 
     case class Attribute(value: expr, attr: identifier) extends expr
-    case class CastToType(value: expr, typeName: identifier) extends expr
+    case class CastToType(value: expr, typeName: typeId) extends expr
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
