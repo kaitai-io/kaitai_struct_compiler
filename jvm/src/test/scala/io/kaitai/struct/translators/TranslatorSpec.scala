@@ -130,7 +130,7 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "foo_str"
   ))
 
-  full("foo_block", userType("block"), userType("block"), Map[LanguageCompilerStatic, String](
+  full("foo_block", userType(List("block")), userType(List("block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo_block()",
     CSharpCompiler -> "FooBlock",
     JavaCompiler -> "fooBlock()",
@@ -166,7 +166,7 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "foo.inner.baz"
   ))
 
-  full("_root.foo", userType("block"), userType("block"), Map[LanguageCompilerStatic, String](
+  full("_root.foo", userType(List("top_class", "block")), userType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "_root()->foo()",
     CSharpCompiler -> "M_Root.Foo",
     JavaCompiler -> "_root.foo()",
@@ -425,6 +425,18 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "other.bar"
   ))
 
+  full("other.as<block::innerblock>.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "static_cast<block::innerblock*>(other())->baz()",
+    CSharpCompiler -> "((Block.Innerblock) (Other)).Baz",
+    JavaCompiler -> "((Block.Innerblock) (other())).baz()",
+    JavaScriptCompiler -> "this.other.baz",
+    LuaCompiler -> "self.other.baz",
+    PerlCompiler -> "$self->other()->baz()",
+    PHPCompiler -> "$this->other()->baz()",
+    PythonCompiler -> "self.other.baz",
+    RubyCompiler -> "other.baz"
+  ))
+
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
     var eo: Option[Ast.expr] = None
     test(s"_expr:$src") {
@@ -485,30 +497,57 @@ class TranslatorSpec extends FunSuite {
     override def determineType(inClass: ClassSpec, name: String): DataType = t
   }
 
+  /**
+    * Emulates the following system of types:
+    *
+    * <pre>
+    *   meta:
+    *     id: top_class
+    *   types:
+    *     block:
+    *       seq:
+    *         - id: bar
+    *           type: str
+    *         - id: inner
+    *           type: innerblock
+    *       types:
+    *         innerblock:
+    *           instances:
+    *             baz:
+    *               value: 123
+    * </pre>
+    */
   case object FooBarProvider extends FakeTypeProvider {
     override def determineType(name: String): DataType = {
       name match {
-        case "foo" => userType("block")
+        case "foo" => userType(List("top_class", "block"))
       }
     }
 
     override def determineType(inClass: ClassSpec, name: String): DataType = {
-      (inClass.name, name) match {
-        case (List("block"), "bar") => CalcStrType
-        case (List("block"), "inner") => userType("innerblock")
-        case (List("innerblock"), "baz") => CalcIntType
+      (inClass.name.last, name) match {
+        case ("block", "bar") => CalcStrType
+        case ("block", "inner") => userType(List("top_class", "block", "innerblock"))
+        case ("innerblock", "baz") => CalcIntType
       }
     }
 
     override def resolveType(typeName: Ast.typeId): DataType = {
-      typeName.names.head match {
-        case "top_class" | "block" | "innerblock" => userType(typeName.names.head)
+      typeName.names match {
+        case Seq("top_class") =>
+          userType(List("top_class"))
+        case Seq("block") |
+             Seq("top_class", "block") =>
+          userType(List("top_class", "block"))
+        case Seq("innerblock") |
+             Seq("block", "innerblock") |
+             Seq("top_class", "block", "innerblock") =>
+          userType(List("top_class", "block", "innerblock"))
       }
     }
   }
 
-  def userType(name: String) = {
-    val lname = List(name)
+  def userType(lname: List[String]) = {
     val cs = ClassSpec.opaquePlaceholder(lname)
     val ut = UserTypeInstream(lname, None)
     ut.classSpec = Some(cs)
