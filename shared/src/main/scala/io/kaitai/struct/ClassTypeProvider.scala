@@ -92,7 +92,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     makeUserType(resolveClassSpec(inClass, typeName))
 
   def resolveClassSpec(inClass: ClassSpec, typeName: Seq[String]): ClassSpec = {
-    val headTypeName :: restTypesNames = typeName
+    val headTypeName :: restTypesNames = typeName.toList
     val nextClass = resolveClassSpec(inClass, headTypeName)
     if (restTypesNames.isEmpty) {
       nextClass
