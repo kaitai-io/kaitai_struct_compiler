@@ -426,7 +426,7 @@ class TranslatorSpec extends FunSuite {
   ))
 
   full("other.as<block::innerblock>.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
-    CppCompiler -> "static_cast<block::innerblock*>(other())->baz()",
+    CppCompiler -> "static_cast<block_t::innerblock_t*>(other())->baz()",
     CSharpCompiler -> "((Block.Innerblock) (Other)).Baz",
     JavaCompiler -> "((Block.Innerblock) (other())).baz()",
     JavaScriptCompiler -> "this.other.baz",
