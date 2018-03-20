@@ -175,7 +175,7 @@ object Expressions {
   def parseList(src: String): Seq[Ast.expr] = realParse(src, topExprList)
 
   private def realParse[T](src: String, parser: P[T]): T = {
-    val r = parser.parse(src)
+    val r = parser.parse(src.trim)
     r match {
       case Parsed.Success(value, _) => value
       case f: Parsed.Failure =>
