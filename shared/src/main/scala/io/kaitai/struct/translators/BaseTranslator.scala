@@ -55,7 +55,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case Ast.expr.EnumById(enumType, id) =>
         val enumSpec = provider.resolveEnum(enumType.name)
         doEnumById(enumSpec.name, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label) =>
+      case Ast.expr.EnumByLabel(enumType, label, inType) =>
         val enumSpec = provider.resolveEnum(enumType.name)
         doEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>

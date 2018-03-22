@@ -300,10 +300,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Java is very specific about what can be used as "condition" in "case
     // condition:".
     val condStr = condition match {
-      case Ast.expr.EnumByLabel(enumName, enumVal) =>
+      case enumByLabel: Ast.expr.EnumByLabel =>
         // If switch is over a enum, only literal enum values are supported,
         // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
-        value2Const(enumVal.name)
+        value2Const(enumByLabel.label.name)
       case _ =>
         expression(condition)
     }

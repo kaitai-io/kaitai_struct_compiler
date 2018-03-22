@@ -307,7 +307,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       //      case expr.Call(func, args) =>
       case expr.IntNum(_) | expr.FloatNum(_) | expr.Str(_) | expr.Bool(_) =>
         List()
-      case expr.EnumByLabel(enumName, label) =>
+      case _: expr.EnumByLabel =>
         List()
       case expr.EnumById(enumName, id) =>
         affectedVars(id)
