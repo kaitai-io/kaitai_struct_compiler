@@ -59,6 +59,8 @@ object Main {
         new GraphvizClassCompiler(specs, spec)
       case GoCompiler =>
         new GoClassCompiler(specs, spec, config)
+      case ConstructClassCompiler =>
+        new ConstructClassCompiler(specs, spec)
       case _ =>
         new ClassCompiler(specs, spec, config, lang)
     }
