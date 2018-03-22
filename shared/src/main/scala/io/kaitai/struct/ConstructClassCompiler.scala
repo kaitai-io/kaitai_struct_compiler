@@ -20,7 +20,6 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
 
     compileClass(topClass)
 
-    out.puts
     out.puts(s"_schema = ${type2class(topClass)}")
 
     CompileLog.SpecSuccess(
@@ -33,6 +32,10 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def compileClass(cs: ClassSpec): Unit = {
+    cs.types.foreach { case (_, typeSpec) => compileClass(typeSpec) }
+
+    cs.enums.foreach { case (_, enumSpec) => compileEnum(enumSpec) }
+
     out.puts(s"${type2class(cs)} = Struct(")
     out.inc
 
@@ -40,10 +43,25 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
 
     out.dec
     out.puts(")")
+    out.puts
   }
 
   def compileAttr(attr: AttrSpec): Unit = {
     out.puts(s"'${idToStr(attr.id)}' / ${typeToStr(attr.dataType)},")
+  }
+
+  def compileEnum(enumSpec: EnumSpec): Unit = {
+    out.puts(s"def ${enumToStr(enumSpec)}(subcon):")
+    out.inc
+    out.puts("return Enum(subcon,")
+    out.inc
+    enumSpec.sortedSeq.foreach { case (number, valueSpec) =>
+      out.puts(s"${valueSpec.name}=$number,")
+    }
+    out.dec
+    out.puts(")")
+    out.dec
+    out.puts
   }
 
   def idToStr(id: Identifier): String = {
@@ -55,7 +73,9 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     }
   }
 
-  def type2class(cs: ClassSpec) = cs.name.last
+  def type2class(cs: ClassSpec) = cs.name.mkString("__")
+
+  def enumToStr(enumSpec: EnumSpec) = enumSpec.name.mkString("__")
 
   def typeToStr(dataType: DataType): String = dataType match {
     case Int1Type(signed) =>
@@ -75,6 +95,18 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
             s"include=${translator.doBoolLiteral(include)}, " +
             s"consume=${translator.doBoolLiteral(consume)})"
       }
+    case ut: UserTypeInstream =>
+      type2class(ut.classSpec.get)
+    case utb: UserTypeFromBytes =>
+      utb.bytes match {
+        //case BytesEosType(terminator, include, padRight, process) =>
+        case BytesLimitType(size, terminator, include, padRight, process) =>
+          s"FixedSized(${translator.translate(size)}, ${type2class(utb.classSpec.get)})"
+        //case BytesTerminatedType(terminator, include, consume, eosError, process) =>
+        case _ => "???"
+      }
+    case et: EnumType =>
+      s"${enumToStr(et.enumSpec.get)}(${typeToStr(et.basedOn)})"
     case _ => "???"
   }
 
