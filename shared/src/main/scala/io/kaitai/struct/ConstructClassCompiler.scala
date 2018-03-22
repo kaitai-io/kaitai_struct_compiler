@@ -62,6 +62,19 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       s"Int8${if (signed) "s" else "u"}b"
     case IntMultiType(signed, width, endianOpt) =>
       s"Int${width.width * 8}${if (signed) "s" else "u"}${fixedEndianToStr(endianOpt.get)}"
+    case StrFromBytesType(bytes, encoding) =>
+      bytes match {
+        case BytesEosType(terminator, include, padRight, process) =>
+          s"GreedyString(encoding='$encoding')"
+        case BytesLimitType(size, terminator, include, padRight, process) =>
+          s"FixedSized(${translator.translate(size)}, GreedyString(encoding='$encoding'))"
+        case BytesTerminatedType(terminator, include, consume, eosError, process) =>
+          val termStr = "\\x%02X".format(terminator & 0xff)
+          s"NullTerminated(GreedyString(encoding='$encoding'), " +
+            s"term=b'$termStr', " +
+            s"include=${translator.doBoolLiteral(include)}, " +
+            s"consume=${translator.doBoolLiteral(consume)})"
+      }
     case _ => "???"
   }
 
