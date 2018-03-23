@@ -55,7 +55,18 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def compileAttr(attr: AttrLikeSpec): Unit = {
-    out.puts(s"'${idToStr(attr.id)}' / ${typeToStr(attr.dataType)},")
+    val typeStr1 = typeToStr(attr.dataType)
+    val typeStr2 = attr.cond.repeat match {
+      case RepeatExpr(expr) =>
+        s"Array(${translator.translate(expr)}, $typeStr1)"
+      case RepeatUntil(expr) =>
+        "???"
+      case RepeatEos =>
+        s"GreedyRange($typeStr1)"
+      case NoRepeat =>
+        typeStr1
+    }
+    out.puts(s"'${idToStr(attr.id)}' / $typeStr2,")
   }
 
   def compileValueInstance(id: Identifier, vis: ValueInstanceSpec): Unit = {
@@ -98,18 +109,20 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       s"Int${width.width * 8}${signToStr(signed)}${fixedEndianToStr(endianOpt.get)}"
     case FloatMultiType(width, endianOpt) =>
       s"Float${width.width * 8}${fixedEndianToStr(endianOpt.get)}"
+    case BytesEosType(terminator, include, padRight, process) =>
+      "GreedyBytes"
+    case BytesLimitType(size, terminator, include, padRight, process) =>
+      s"Bytes(${translator.translate(size)})"
+    case btt: BytesTerminatedType =>
+      attrBytesTerminatedType(btt, "GreedyBytes")
     case StrFromBytesType(bytes, encoding) =>
       bytes match {
         case BytesEosType(terminator, include, padRight, process) =>
           s"GreedyString(encoding='$encoding')"
         case BytesLimitType(size, terminator, include, padRight, process) =>
           s"FixedSized(${translator.translate(size)}, GreedyString(encoding='$encoding'))"
-        case BytesTerminatedType(terminator, include, consume, eosError, process) =>
-          val termStr = "\\x%02X".format(terminator & 0xff)
-          s"NullTerminated(GreedyString(encoding='$encoding'), " +
-            s"term=b'$termStr', " +
-            s"include=${translator.doBoolLiteral(include)}, " +
-            s"consume=${translator.doBoolLiteral(consume)})"
+        case btt: BytesTerminatedType =>
+          attrBytesTerminatedType(btt, s"GreedyString(encoding='$encoding')")
       }
     case ut: UserTypeInstream =>
       type2class(ut.classSpec.get)
@@ -124,6 +137,14 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     case et: EnumType =>
       s"${enumToStr(et.enumSpec.get)}(${typeToStr(et.basedOn)})"
     case _ => "???"
+  }
+
+  def attrBytesTerminatedType(btt: BytesTerminatedType, subcon: String): String = {
+    val termStr = "\\x%02X".format(btt.terminator & 0xff)
+    s"NullTerminated($subcon, " +
+      s"term=b'$termStr', " +
+      s"include=${translator.doBoolLiteral(btt.include)}, " +
+      s"consume=${translator.doBoolLiteral(btt.consume)})"
   }
 
   def signToStr(signed: Boolean) = if (signed) "s" else "u"
