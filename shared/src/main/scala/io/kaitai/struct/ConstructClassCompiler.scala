@@ -1,17 +1,17 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
-import io.kaitai.struct.translators.PythonTranslator
+import io.kaitai.struct.translators.ConstructTranslator
 
 class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
   val out = new StringLanguageOutputWriter(indent)
   val importList = new ImportList
 
   val provider = new ClassTypeProvider(classSpecs, topClass)
-  val translator = new PythonTranslator(provider, importList)
+  val translator = new ConstructTranslator(provider, importList)
 
   override def compile: CompileLog.SpecSuccess = {
     out.puts("from construct import *")
