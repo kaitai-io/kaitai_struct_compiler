@@ -40,14 +40,26 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     out.inc
 
     cs.seq.foreach((seqAttr) => compileAttr(seqAttr))
+    cs.instances.foreach { case (id, instSpec) =>
+      instSpec match {
+        case vis: ValueInstanceSpec =>
+          compileValueInstance(id, vis)
+        case pis: ParseInstanceSpec =>
+          compileAttr(pis)
+      }
+    }
 
     out.dec
     out.puts(")")
     out.puts
   }
 
-  def compileAttr(attr: AttrSpec): Unit = {
+  def compileAttr(attr: AttrLikeSpec): Unit = {
     out.puts(s"'${idToStr(attr.id)}' / ${typeToStr(attr.dataType)},")
+  }
+
+  def compileValueInstance(id: Identifier, vis: ValueInstanceSpec): Unit = {
+    out.puts(s"'${idToStr(id)}' / Computed(${translator.translate(vis.value)}),")
   }
 
   def compileEnum(enumSpec: EnumSpec): Unit = {
@@ -78,10 +90,14 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   def enumToStr(enumSpec: EnumSpec) = enumSpec.name.mkString("__")
 
   def typeToStr(dataType: DataType): String = dataType match {
+    case fbt: FixedBytesType =>
+      s"Const(${translator.doByteArrayLiteral(fbt.contents)})"
     case Int1Type(signed) =>
-      s"Int8${if (signed) "s" else "u"}b"
+      s"Int8${signToStr(signed)}b"
     case IntMultiType(signed, width, endianOpt) =>
-      s"Int${width.width * 8}${if (signed) "s" else "u"}${fixedEndianToStr(endianOpt.get)}"
+      s"Int${width.width * 8}${signToStr(signed)}${fixedEndianToStr(endianOpt.get)}"
+    case FloatMultiType(width, endianOpt) =>
+      s"Float${width.width * 8}${fixedEndianToStr(endianOpt.get)}"
     case StrFromBytesType(bytes, encoding) =>
       bytes match {
         case BytesEosType(terminator, include, padRight, process) =>
@@ -109,6 +125,8 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       s"${enumToStr(et.enumSpec.get)}(${typeToStr(et.basedOn)})"
     case _ => "???"
   }
+
+  def signToStr(signed: Boolean) = if (signed) "s" else "u"
 
   def fixedEndianToStr(e: FixedEndian) = e match {
     case LittleEndian => "l"
