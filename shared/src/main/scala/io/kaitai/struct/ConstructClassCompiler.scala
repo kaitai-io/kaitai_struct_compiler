@@ -2,6 +2,7 @@ package io.kaitai.struct
 
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype._
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 import io.kaitai.struct.translators.ConstructTranslator
@@ -39,13 +40,15 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     out.puts(s"${type2class(cs)} = Struct(")
     out.inc
 
+    provider.nowClass = cs
+
     cs.seq.foreach((seqAttr) => compileAttr(seqAttr))
     cs.instances.foreach { case (id, instSpec) =>
       instSpec match {
         case vis: ValueInstanceSpec =>
           compileValueInstance(id, vis)
         case pis: ParseInstanceSpec =>
-          compileAttr(pis)
+          compileParseInstance(pis)
       }
     }
 
@@ -55,22 +58,45 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def compileAttr(attr: AttrLikeSpec): Unit = {
-    val typeStr1 = typeToStr(attr.dataType)
-    val typeStr2 = attr.cond.repeat match {
-      case RepeatExpr(expr) =>
-        s"Array(${translator.translate(expr)}, $typeStr1)"
-      case RepeatUntil(expr) =>
-        "???"
-      case RepeatEos =>
-        s"GreedyRange($typeStr1)"
-      case NoRepeat =>
-        typeStr1
-    }
-    out.puts(s"'${idToStr(attr.id)}' / $typeStr2,")
+    out.puts(s"'${idToStr(attr.id)}' / ${compileAttrBody(attr)},")
   }
 
   def compileValueInstance(id: Identifier, vis: ValueInstanceSpec): Unit = {
-    out.puts(s"'${idToStr(id)}' / Computed(${translator.translate(vis.value)}),")
+    val typeStr = s"Computed(${translator.translate(vis.value)})"
+    val typeStr2 = wrapWithIf(typeStr, vis.ifExpr)
+    out.puts(s"'${idToStr(id)}' / $typeStr2,")
+  }
+
+  def compileParseInstance(attr: ParseInstanceSpec): Unit = {
+    attr.pos match {
+      case None =>
+        compileAttr(attr)
+      case Some(pos) =>
+        out.puts(s"'${idToStr(attr.id)}' / " +
+          s"Pointer(${translator.translate(pos)}, ${compileAttrBody(attr)}),")
+    }
+  }
+
+  def compileAttrBody(attr: AttrLikeSpec): String = {
+    val typeStr1 = typeToStr(attr.dataType)
+    val typeStr2 = wrapWithRepeat(typeStr1, attr.cond.repeat)
+    wrapWithIf(typeStr2, attr.cond.ifExpr)
+  }
+
+  def wrapWithRepeat(typeStr: String, repeat: RepeatSpec) = repeat match {
+    case RepeatExpr(expr) =>
+      s"Array(${translator.translate(expr)}, $typeStr)"
+    case RepeatUntil(expr) =>
+      "???"
+    case RepeatEos =>
+      s"GreedyRange($typeStr)"
+    case NoRepeat =>
+      typeStr
+  }
+
+  def wrapWithIf(typeStr: String, ifExpr: Option[Ast.expr]) = ifExpr match {
+    case Some(expr) => s"If(${translator.translate(expr)}, $typeStr)"
+    case None => typeStr
   }
 
   def compileEnum(enumSpec: EnumSpec): Unit = {
@@ -125,12 +151,12 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
           attrBytesTerminatedType(btt, s"GreedyString(encoding='$encoding')")
       }
     case ut: UserTypeInstream =>
-      type2class(ut.classSpec.get)
+      s"LazyBound(lambda: ${type2class(ut.classSpec.get)})"
     case utb: UserTypeFromBytes =>
       utb.bytes match {
         //case BytesEosType(terminator, include, padRight, process) =>
         case BytesLimitType(size, terminator, include, padRight, process) =>
-          s"FixedSized(${translator.translate(size)}, ${type2class(utb.classSpec.get)})"
+          s"FixedSized(${translator.translate(size)}, LazyBound(lambda: ${type2class(utb.classSpec.get)}))"
         //case BytesTerminatedType(terminator, include, consume, eosError, process) =>
         case _ => "???"
       }
