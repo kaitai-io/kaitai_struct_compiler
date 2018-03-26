@@ -6,7 +6,7 @@ import io.kaitai.struct.format.Identifier
 class ConstructTranslator(provider: TypeProvider, importList: ImportList) extends PythonTranslator(provider, importList) {
   override def doLocalName(s: String) = {
     s match {
-      case Identifier.ITERATOR => "_"
+      case Identifier.ITERATOR => "obj_"
       case Identifier.INDEX => "i"
       case Identifier.ROOT => "_root"
       case Identifier.IO => "_stream"

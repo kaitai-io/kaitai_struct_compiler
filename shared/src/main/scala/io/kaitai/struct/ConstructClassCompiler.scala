@@ -79,15 +79,16 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
 
   def compileAttrBody(attr: AttrLikeSpec): String = {
     val typeStr1 = typeToStr(attr.dataType)
-    val typeStr2 = wrapWithRepeat(typeStr1, attr.cond.repeat)
+    val typeStr2 = wrapWithRepeat(typeStr1, attr.cond.repeat, attr.dataType)
     wrapWithIf(typeStr2, attr.cond.ifExpr)
   }
 
-  def wrapWithRepeat(typeStr: String, repeat: RepeatSpec) = repeat match {
+  def wrapWithRepeat(typeStr: String, repeat: RepeatSpec, dataType: DataType) = repeat match {
     case RepeatExpr(expr) =>
       s"Array(${translator.translate(expr)}, $typeStr)"
     case RepeatUntil(expr) =>
-      "???"
+      provider._currentIteratorType = Some(dataType)
+      s"RepeatUntil(lambda obj_, list_, this: ${translator.translate(expr)}, $typeStr)"
     case RepeatEos =>
       s"GreedyRange($typeStr)"
     case NoRepeat =>
