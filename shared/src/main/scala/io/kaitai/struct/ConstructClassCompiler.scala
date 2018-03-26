@@ -137,16 +137,16 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       s"Float${width.width * 8}${fixedEndianToStr(endianOpt.get)}"
     case BytesEosType(terminator, include, padRight, process) =>
       "GreedyBytes"
-    case BytesLimitType(size, terminator, include, padRight, process) =>
-      s"Bytes(${translator.translate(size)})"
+    case blt: BytesLimitType =>
+      attrBytesLimitType(blt)
     case btt: BytesTerminatedType =>
       attrBytesTerminatedType(btt, "GreedyBytes")
     case StrFromBytesType(bytes, encoding) =>
       bytes match {
         case BytesEosType(terminator, include, padRight, process) =>
           s"GreedyString(encoding='$encoding')"
-        case BytesLimitType(size, terminator, include, padRight, process) =>
-          s"FixedSized(${translator.translate(size)}, GreedyString(encoding='$encoding'))"
+        case blt: BytesLimitType =>
+          attrBytesLimitType(blt, s"GreedyString(encoding='$encoding')")
         case btt: BytesTerminatedType =>
           attrBytesTerminatedType(btt, s"GreedyString(encoding='$encoding')")
       }
@@ -163,6 +163,22 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     case et: EnumType =>
       s"${enumToStr(et.enumSpec.get)}(${typeToStr(et.basedOn)})"
     case _ => "???"
+  }
+
+  def attrBytesLimitType(blt: BytesLimitType, subcon: String = "GreedyBytes"): String = {
+    val subcon2 = blt.terminator match {
+      case None => subcon
+      case Some(term) =>
+        val termStr = "\\x%02X".format(term & 0xff)
+        s"NullTerminated($subcon, term=b'$termStr', include=${translator.doBoolLiteral(blt.include)})"
+    }
+    val subcon3 = blt.padRight match {
+      case None => subcon2
+      case Some(padRight) =>
+        val padStr = "\\x%02X".format(padRight & 0xff)
+        s"NullStripped($subcon2, pad=b'$padStr')"
+    }
+    s"FixedSized(${translator.translate(blt.size)}, $subcon3)"
   }
 
   def attrBytesTerminatedType(btt: BytesTerminatedType, subcon: String): String = {
