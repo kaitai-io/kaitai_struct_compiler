@@ -8,7 +8,16 @@ class ConstructTranslator(provider: TypeProvider, importList: ImportList) extend
     s match {
       case Identifier.ITERATOR => "_"
       case Identifier.INDEX => "i"
+      case Identifier.ROOT => "_root"
+      case Identifier.IO => "_stream"
       case _ => s"this.${doName(s)}"
+    }
+  }
+
+  override def doName(s: String) = {
+    s match {
+      case Identifier.PARENT => "_"
+      case _ => s
     }
   }
 }
