@@ -62,7 +62,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def compileValueInstance(id: Identifier, vis: ValueInstanceSpec): Unit = {
-    val typeStr = s"Computed(${translator.translate(vis.value)})"
+    val typeStr = s"Computed(lambda this: ${translator.translate(vis.value)})"
     val typeStr2 = wrapWithIf(typeStr, vis.ifExpr)
     out.puts(s"'${idToStr(id)}' / $typeStr2,")
   }
@@ -163,6 +163,8 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       }
     case et: EnumType =>
       s"${enumToStr(et.enumSpec.get)}(${typeToStr(et.basedOn)})"
+    case st: SwitchType =>
+      attrSwitchType(st)
     case _ => "???"
   }
 
@@ -188,6 +190,13 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       s"term=b'$termStr', " +
       s"include=${translator.doBoolLiteral(btt.include)}, " +
       s"consume=${translator.doBoolLiteral(btt.consume)})"
+  }
+
+  def attrSwitchType(st: SwitchType): String = {
+    s"Switch(${translator.translate(st.on)}, {" +
+      st.cases.map { case (caseExpr, caseType) =>
+          s"${translator.translate(caseExpr)}: ${typeToStr(caseType)}, "
+      }.mkString + "})"
   }
 
   def signToStr(signed: Boolean) = if (signed) "s" else "u"
