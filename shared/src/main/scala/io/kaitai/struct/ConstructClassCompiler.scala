@@ -193,10 +193,17 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def attrSwitchType(st: SwitchType): String = {
-    s"Switch(${translator.translate(st.on)}, {" +
-      st.cases.map { case (caseExpr, caseType) =>
-          s"${translator.translate(caseExpr)}: ${typeToStr(caseType)}, "
-      }.mkString + "})"
+    val cases = st.cases.filter { case (caseExpr, _) =>
+      caseExpr != SwitchType.ELSE_CONST
+    }.map { case (caseExpr, caseType) =>
+      s"${translator.translate(caseExpr)}: ${typeToStr(caseType)}, "
+    }
+
+    val defaultSuffix = st.cases.get(SwitchType.ELSE_CONST).map((t) =>
+      s", default=${typeToStr(t)}"
+    ).getOrElse("")
+
+    s"Switch(${translator.translate(st.on)}, {${cases.mkString}}$defaultSuffix)"
   }
 
   def signToStr(signed: Boolean) = if (signed) "s" else "u"
