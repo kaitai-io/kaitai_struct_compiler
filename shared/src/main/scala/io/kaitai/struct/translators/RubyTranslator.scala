@@ -29,6 +29,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
   override def doName(s: String) = {
     s match {
+      case Identifier.ITERATOR => "_it"
       case Identifier.INDEX => "i" // FIXME: probably would clash with attribute named "i"
       case _ => s
     }

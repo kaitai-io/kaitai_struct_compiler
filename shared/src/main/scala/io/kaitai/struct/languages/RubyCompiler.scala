@@ -308,6 +308,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts(s"${translator.doName(Identifier.ITERATOR)} = nil")
     out.puts("i = 0")
     out.puts("begin")
     out.inc
