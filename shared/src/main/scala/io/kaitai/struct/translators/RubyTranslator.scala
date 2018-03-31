@@ -60,6 +60,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     translate(i) + s".to_s(${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"($bytesExpr).force_encoding(${translate(encoding)})"
+  override def bytesLength(b: Ast.expr): String =
+    s"${translate(b)}.size"
   override def strLength(s: Ast.expr): String =
     s"${translate(s)}.size"
   override def strReverse(s: Ast.expr): String =

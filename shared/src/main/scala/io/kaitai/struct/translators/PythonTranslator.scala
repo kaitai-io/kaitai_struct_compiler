@@ -98,6 +98,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"($bytesExpr).decode(${translate(encoding)})"
+  override def bytesLength(value: Ast.expr): String =
+    s"len(${translate(value)})"
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
   override def strReverse(value: Ast.expr): String =

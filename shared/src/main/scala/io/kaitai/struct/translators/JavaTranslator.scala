@@ -108,6 +108,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     importList.add("java.nio.charset.Charset")
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
   }
+  override def bytesLength(b: Ast.expr): String =
+    s"${translate(b)}.length"
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =
