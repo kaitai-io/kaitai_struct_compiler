@@ -115,8 +115,21 @@ class TypeDetector(provider: TypeProvider) {
           case Int1Type(_) => CalcBytesType
           case t => ArrayType(t)
         }
-      case Ast.expr.CastToType(value, typeName) =>
-        provider.resolveType(typeName)
+      case Ast.expr.CastToType(_, typeName) =>
+        if ((!typeName.absolute) && typeName.names.size == 1) {
+          // May be it's a reserved pure data type name?
+          DataType.pureFromString(Some(typeName.names(0))) match {
+            case _: UserType =>
+              // No, it's a user type, let's try to resolve it through provider
+              provider.resolveType(typeName)
+            case other =>
+              // Yes, it is!
+              other
+          }
+        } else {
+          // It's a complex type name, it can be only resolved through provider
+          provider.resolveType(typeName)
+        }
     }
   }
 

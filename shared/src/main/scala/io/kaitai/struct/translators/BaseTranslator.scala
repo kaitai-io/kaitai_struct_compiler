@@ -118,24 +118,21 @@ abstract class BaseTranslator(val provider: TypeProvider)
         translateCall(call)
       case Ast.expr.List(values: Seq[Ast.expr]) =>
         val t = detectArrayType(values)
-        t match {
-          case Int1Type(_) =>
-            val literalBytes: Seq[Byte] = values.map {
-              case Ast.expr.IntNum(x) =>
-                if (x < 0 || x > 0xff) {
-                  throw new TypeMismatchError(s"got a weird byte value in byte array: $x")
-                } else {
-                  x.toByte
-                }
-              case n =>
-                throw new TypeMismatchError(s"got $n in byte array, unable to put it literally")
-            }
-            doByteArrayLiteral(literalBytes)
-          case _ =>
-            doArrayLiteral(t, values)
-        }
+        doGuessArrayLiteral(t, values)
       case Ast.expr.CastToType(value, typeName) =>
-        doCast(value, typeName)
+        value match {
+          case array: Ast.expr.List =>
+            // Special handling for literal arrays: if cast is present,
+            // then we don't need to guess the data type
+            detectType(v) match {
+              case _: BytesType =>
+                doByteArray(array.elts)
+              case ArrayType(elType) =>
+                doArrayLiteral(elType, array.elts)
+            }
+          case _ =>
+            doCast(value, typeName)
+        }
     }
   }
 
@@ -143,8 +140,47 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: Ast.typeId): String = translate(value)
 
+  def doGuessArrayLiteral(elementType: DataType, values: Seq[Ast.expr]): String = elementType match {
+    case Int1Type(_) =>
+      val literalBytes: Seq[Byte] = values.map {
+        case Ast.expr.IntNum(x) =>
+          if (x < 0 || x > 0xff) {
+            throw new TypeMismatchError(s"got a weird byte value in byte array: $x")
+          } else {
+            x.toByte
+          }
+        case n =>
+          throw new TypeMismatchError(s"got $n in byte array, unable to put it literally")
+      }
+      doByteArrayLiteral(literalBytes)
+    case _ =>
+      doArrayLiteral(elementType, values)
+  }
+
+  def valuesAsByteArrayLiteral(elts: Seq[Ast.expr]): Option[Seq[Byte]] = {
+    Some(elts.map {
+      case Ast.expr.IntNum(x) =>
+        if (x < 0 || x > 0xff) {
+          return None
+        } else {
+          x.toByte
+        }
+      case _ =>
+        return None
+    })
+  }
+
+  def doByteArray(elts: Seq[Ast.expr]): String = {
+    valuesAsByteArrayLiteral(elts) match {
+      case Some(arr) =>
+        doByteArrayLiteral(arr)
+      case None =>
+        doByteArrayNonLiteral(elts)
+    }
+  }
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
+  def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = ???
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String

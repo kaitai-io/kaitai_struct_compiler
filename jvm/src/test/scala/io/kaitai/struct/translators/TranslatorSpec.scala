@@ -447,6 +447,55 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "other.baz"
   ))
 
+  // empty array casting
+  full("[].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\", 0)",
+    CSharpCompiler -> "new byte[] {  }",
+    JavaCompiler -> "new byte[] {  }",
+    JavaScriptCompiler -> "[]",
+    LuaCompiler -> "\"\"",
+    PerlCompiler -> "pack('C*', ())",
+    PHPCompiler -> "\"\"",
+    PythonCompiler -> "b\"\"",
+    RubyCompiler -> "[].pack('C*')"
+  ))
+
+  full("[].as<u1[]>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\")",
+    CSharpCompiler -> "new byte[] { }",
+    JavaCompiler -> "new byte[] { }",
+    JavaScriptCompiler -> "[]",
+    LuaCompiler -> "\"\"",
+    PerlCompiler -> "pack('C*', ())",
+    PHPCompiler -> "\"\"",
+    PythonCompiler -> "b\"\"",
+    RubyCompiler -> "[].pack('C*')"
+  ))
+
+  full("[].as<u4[]>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\")",
+    CSharpCompiler -> "new byte[] {  }",
+    JavaCompiler -> "new byte[] {  }",
+    JavaScriptCompiler -> "[]",
+    LuaCompiler -> "\"\"",
+    PerlCompiler -> "pack('C*', ())",
+    PHPCompiler -> "\"\"",
+    PythonCompiler -> "b\"\"",
+    RubyCompiler -> "[].pack('C*')"
+  ))
+
+  full("[].as<f8[]>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\", 0)",
+    CSharpCompiler -> "new double[] { }",
+    JavaCompiler -> "new double[] { }",
+    JavaScriptCompiler -> "[]",
+    LuaCompiler -> "[]",
+    PerlCompiler -> "()",
+    PHPCompiler -> "[]",
+    PythonCompiler -> "[]",
+    RubyCompiler -> "[]"
+  ))
+
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
     var eo: Option[Ast.expr] = None
     test(s"_expr:$src") {
