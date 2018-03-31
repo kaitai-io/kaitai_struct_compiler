@@ -1,6 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.ImportList
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
 
 class ConstructTranslator(provider: TypeProvider, importList: ImportList) extends PythonTranslator(provider, importList) {
@@ -9,7 +10,7 @@ class ConstructTranslator(provider: TypeProvider, importList: ImportList) extend
       case Identifier.ITERATOR => "obj_"
       case Identifier.INDEX => "i"
       case Identifier.ROOT => "_root"
-      case Identifier.IO => "_stream"
+      case Identifier.IO => "_io"
       case _ => s"this.${doName(s)}"
     }
   }
@@ -20,4 +21,11 @@ class ConstructTranslator(provider: TypeProvider, importList: ImportList) extend
       case _ => s
     }
   }
+
+  override def kaitaiStreamSize(value: Ast.expr): String =
+    s"stream_size(${translate(value)})"
+  override def kaitaiStreamEof(value: Ast.expr): String =
+    s"stream_iseof(${translate(value)})"
+  override def kaitaiStreamPos(value: Ast.expr): String =
+    s"stream_tell(${translate(value)})"
 }
