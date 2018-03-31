@@ -137,6 +137,11 @@ class TypeDetector(provider: TypeProvider) {
           case Some(tt) => provider.determineType(tt, attr.name)
           case None => throw new TypeUndecidedError(s"expression '$value' has undecided type '${t.name}' (while asking for attribute '${attr.name}')")
         }
+      case _: BytesType =>
+        attr.name match {
+          case "length" => CalcIntType
+          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+        }
       case _: StrType =>
         attr.name match {
           case "length" => CalcIntType
