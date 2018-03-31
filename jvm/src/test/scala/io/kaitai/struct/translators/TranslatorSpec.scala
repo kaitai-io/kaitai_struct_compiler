@@ -7,7 +7,7 @@ import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.{ImportList, RuntimeConfig}
-import org.scalatest.FunSuite
+import org.scalatest.{FunSuite, Tag}
 import org.scalatest.Matchers._
 
 class TranslatorSpec extends FunSuite {
@@ -224,6 +224,16 @@ class TranslatorSpec extends FunSuite {
     PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
     PythonCompiler -> "struct.pack('3b', -1, 0, -1)",
     RubyCompiler -> "[255, 0, 255].pack('C*')"
+  ))
+
+  full("[0, 1, 2].length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\\x00\\x01\\x02\", 3).length()",
+    JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
+    LuaCompiler -> "string.len(\"str\")",
+    PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
+    PHPCompiler -> "strlen(\"\\x00\\x01\\x02\")",
+    PythonCompiler -> "len(b\"\\x00\\x01\\x02\")",
+    RubyCompiler -> "[0, 1, 2].pack('C*').size"
   ))
 
   full("a[42]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
@@ -457,7 +467,7 @@ class TranslatorSpec extends FunSuite {
 
     langs.foreach { case (langObj, tr) =>
       val langName = LanguageCompilerStatic.CLASS_TO_NAME(langObj)
-      test(s"$langName:$src") {
+      test(s"$langName:$src", Tag(langName), Tag(src)) {
         eo match {
           case Some(e) =>
             val tr: BaseTranslator = langs(langObj)
