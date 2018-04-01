@@ -34,7 +34,6 @@ class TranslatorSpec extends FunSuite {
 
   everybodyExcept("3 / 2", "(3 / 2)", Map(
     JavaScriptCompiler -> "Math.floor(3 / 2)",
-    LuaCompiler -> "3 / 2",
     PerlCompiler -> "int(3 / 2)",
     PHPCompiler -> "intval(3 / 2)",
     PythonCompiler -> "3 // 2"
@@ -44,7 +43,6 @@ class TranslatorSpec extends FunSuite {
 
   everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", Map(
     JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
-    LuaCompiler -> "(1 + 2) / (7 * 8)",
     PerlCompiler -> "int((1 + 2) / (7 * 8))",
     PHPCompiler -> "intval((1 + 2) / (7 * 8))",
     PythonCompiler -> "(1 + 2) // (7 * 8)"
@@ -460,40 +458,40 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "[].pack('C*')"
   ))
 
-  full("[].as<u1[]>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
+  full("[].as<u1[]>", CalcIntType, ArrayType(Int1Type(false)), Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\")",
-    CSharpCompiler -> "new byte[] { }",
-    JavaCompiler -> "new byte[] { }",
+    CSharpCompiler -> "new List<byte> {  }",
+    JavaCompiler -> "new ArrayList<Integer>(Arrays.asList())",
     JavaScriptCompiler -> "[]",
-    LuaCompiler -> "\"\"",
-    PerlCompiler -> "pack('C*', ())",
-    PHPCompiler -> "\"\"",
-    PythonCompiler -> "b\"\"",
-    RubyCompiler -> "[].pack('C*')"
-  ))
-
-  full("[].as<u4[]>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
-    CppCompiler -> "std::string(\"\")",
-    CSharpCompiler -> "new byte[] {  }",
-    JavaCompiler -> "new byte[] {  }",
-    JavaScriptCompiler -> "[]",
-    LuaCompiler -> "\"\"",
-    PerlCompiler -> "pack('C*', ())",
-    PHPCompiler -> "\"\"",
-    PythonCompiler -> "b\"\"",
-    RubyCompiler -> "[].pack('C*')"
-  ))
-
-  full("[].as<f8[]>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
-    CppCompiler -> "std::string(\"\", 0)",
-    CSharpCompiler -> "new double[] { }",
-    JavaCompiler -> "new double[] { }",
-    JavaScriptCompiler -> "[]",
-    LuaCompiler -> "[]",
+    LuaCompiler -> "{}",
     PerlCompiler -> "()",
     PHPCompiler -> "[]",
     PythonCompiler -> "[]",
     RubyCompiler -> "[]"
+  ))
+
+  full("[].as<f8[]>", CalcIntType, ArrayType(FloatMultiType(Width8, None)), Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\", 0)",
+    CSharpCompiler -> "new List<double> {  }",
+    JavaCompiler -> "new ArrayList<Double>(Arrays.asList())",
+    JavaScriptCompiler -> "[]",
+    LuaCompiler -> "{}",
+    PerlCompiler -> "()",
+    PHPCompiler -> "[]",
+    PythonCompiler -> "[]",
+    RubyCompiler -> "[]"
+  ))
+
+  full("[0 + 1, 5].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "???",
+    CSharpCompiler -> "new byte[] { 0 + 1, 2 }",
+    JavaCompiler -> "new byte[] { 0 + 1, 2 }",
+    JavaScriptCompiler -> "[0 + 1, 2]",
+    LuaCompiler -> "???",
+    PerlCompiler -> "pack('C*', (0 + 1, 2))",
+    PHPCompiler -> "???",
+    PythonCompiler -> "struct.pack('2b', 0 + 1, 2)",
+    RubyCompiler -> "[0 + 1, 2].pack('C*')"
   ))
 
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
