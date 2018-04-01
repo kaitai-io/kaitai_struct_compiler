@@ -31,6 +31,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new byte[] { ${arr.mkString(", ")} }"
+  override def doByteArrayNonLiteral(elts: Seq[expr]): String =
+    s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {

@@ -484,14 +484,14 @@ class TranslatorSpec extends FunSuite {
 
   full("[0 + 1, 5].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "???",
-    CSharpCompiler -> "new byte[] { 0 + 1, 2 }",
-    JavaCompiler -> "new byte[] { 0 + 1, 2 }",
-    JavaScriptCompiler -> "[0 + 1, 2]",
+    CSharpCompiler -> "new byte[] { (0 + 1), 5 }",
+    JavaCompiler -> "new byte[] { (0 + 1), 5 }",
+    JavaScriptCompiler -> "[(0 + 1), 5]",
     LuaCompiler -> "???",
-    PerlCompiler -> "pack('C*', (0 + 1, 2))",
+    PerlCompiler -> "pack('C*', ((0 + 1), 5))",
     PHPCompiler -> "???",
-    PythonCompiler -> "struct.pack('2b', 0 + 1, 2)",
-    RubyCompiler -> "[0 + 1, 2].pack('C*')"
+    PythonCompiler -> "struct.pack('2b', (0 + 1), 5)",
+    RubyCompiler -> "[(0 + 1), 5].pack('C*')"
   ))
 
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
