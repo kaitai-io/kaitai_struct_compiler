@@ -21,7 +21,7 @@ package io.kaitai.struct.exprlang
   */
 object Ast {
   case class identifier(name: String)
-  case class typeId(absolute: Boolean, names: Seq[String])
+  case class typeId(absolute: Boolean, names: Seq[String], isArray: Boolean = false)
 
   // BoolOp() can use left & right?
   sealed trait expr

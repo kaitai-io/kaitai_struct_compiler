@@ -27,9 +27,9 @@ import fastparse.StringReprOps
 object Expressions {
 
   val NAME: P[Ast.identifier] = Lexical.identifier
-  val TYPE_NAME: P[Ast.typeId] = P("::".!.? ~ NAME.rep(1, "::")).map {
-    case (first, names: Seq[Ast.identifier]) =>
-      Ast.typeId(first.nonEmpty, names.map((el) => el.name))
+  val TYPE_NAME: P[Ast.typeId] = P("::".!.? ~ NAME.rep(1, "::") ~ ("[" ~ "]").!.?).map {
+    case (first, names: Seq[Ast.identifier], arrayStr) =>
+      Ast.typeId(first.nonEmpty, names.map((el) => el.name), arrayStr.nonEmpty)
   }
   val INT_NUMBER = Lexical.integer
   val FLOAT_NUMBER = Lexical.floatnumber
