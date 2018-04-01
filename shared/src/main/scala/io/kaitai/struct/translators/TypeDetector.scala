@@ -116,19 +116,26 @@ class TypeDetector(provider: TypeProvider) {
           case t => ArrayType(t)
         }
       case Ast.expr.CastToType(_, typeName) =>
-        if ((!typeName.absolute) && typeName.names.size == 1) {
+        val singleType = if ((!typeName.absolute) && typeName.names.size == 1) {
           // May be it's a reserved pure data type name?
           DataType.pureFromString(Some(typeName.names(0))) match {
             case _: UserType =>
               // No, it's a user type, let's try to resolve it through provider
               provider.resolveType(typeName)
-            case other =>
+            case primitiveType =>
               // Yes, it is!
-              other
+              primitiveType
           }
         } else {
           // It's a complex type name, it can be only resolved through provider
           provider.resolveType(typeName)
+        }
+
+        // Wrap it in array type, if needed
+        if (typeName.isArray) {
+          ArrayType(singleType)
+        } else {
+          singleType
         }
     }
   }
