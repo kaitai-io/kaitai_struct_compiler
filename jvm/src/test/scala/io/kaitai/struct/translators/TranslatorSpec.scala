@@ -482,16 +482,29 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "[]"
   ))
 
+  // type enforcement: casting to non-literal byte array
   full("[0 + 1, 5].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "???",
     CSharpCompiler -> "new byte[] { (0 + 1), 5 }",
     JavaCompiler -> "new byte[] { (0 + 1), 5 }",
-    JavaScriptCompiler -> "[(0 + 1), 5]",
+    JavaScriptCompiler -> "new Uint8Array([(0 + 1), 5])",
     LuaCompiler -> "???",
     PerlCompiler -> "pack('C*', ((0 + 1), 5))",
     PHPCompiler -> "???",
     PythonCompiler -> "struct.pack('2b', (0 + 1), 5)",
     RubyCompiler -> "[(0 + 1), 5].pack('C*')"
+  ))
+
+  // type enforcement: casting to array of integers
+  full("[0, 1, 2].as<u1[]>", CalcIntType, ArrayType(Int1Type(false)), Map[LanguageCompilerStatic, String](
+    CSharpCompiler -> "new List<byte> { 0, 1, 2 }",
+    JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 2))",
+    JavaScriptCompiler -> "[0, 1, 2]",
+    LuaCompiler -> "{0, 1, 2}",
+    PerlCompiler -> "(0, 1, 2)",
+    PHPCompiler -> "[0, 1, 2]",
+    PythonCompiler -> "[0, 1, 2]",
+    RubyCompiler -> "[0, 1, 2]"
   ))
 
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {

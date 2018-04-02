@@ -17,6 +17,8 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new byte[] { ${arr.map(_ & 0xff).mkString(", ")} }"
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
+    s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",

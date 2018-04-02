@@ -36,8 +36,11 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     '\b' -> "\\b"
   )
 
-  override def doByteArrayLiteral(arr: Seq[Byte]): String = {
+  override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "b\"" + Utils.hexEscapeByteArray(arr) + "\""
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = {
+    importList.add("import struct")
+    s"struct.pack('${elts.length}b', ${elts.map(translate).mkString(", ")})"
   }
 
   override def doLocalName(s: String) = {

@@ -49,6 +49,8 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"pack('C*', (${arr.map(_ & 0xff).mkString(", ")}))"
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
+    s"pack('C*', (${elts.map(translate).mkString(", ")}))"
 
   override def anyField(value: Ast.expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
