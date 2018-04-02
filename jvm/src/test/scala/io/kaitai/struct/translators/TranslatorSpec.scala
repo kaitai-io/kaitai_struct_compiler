@@ -208,7 +208,7 @@ class TranslatorSpec extends FunSuite {
     LuaCompiler -> "\"\\034\\000\\010\\064\\065\\066\\092\"",
     PerlCompiler -> "pack('C*', (34, 0, 10, 64, 65, 66, 92))",
     PHPCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
-    PythonCompiler -> "struct.pack('7b', 34, 0, 10, 64, 65, 66, 92)",
+    PythonCompiler -> "b\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
     RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')"
   ))
 
@@ -220,7 +220,7 @@ class TranslatorSpec extends FunSuite {
     LuaCompiler -> "\"\\255\\000\\255\"",
     PerlCompiler -> "pack('C*', (255, 0, 255))",
     PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
-    PythonCompiler -> "struct.pack('3b', -1, 0, -1)",
+    PythonCompiler -> "b\"\\255\\000\\255\"",
     RubyCompiler -> "[255, 0, 255].pack('C*')"
   ))
 
@@ -376,7 +376,7 @@ class TranslatorSpec extends FunSuite {
     CppCompiler -> "std::string(\"str\").length()",
     CSharpCompiler -> "\"str\".Length",
     JavaCompiler -> "\"str\".length()",
-    JavaScriptCompiler -> "#\"str\"",
+    JavaScriptCompiler -> "\"str\".length",
     LuaCompiler -> "string.len(\"str\")",
     PerlCompiler -> "length(\"str\")",
     PHPCompiler -> "strlen(\"str\")",
@@ -490,7 +490,7 @@ class TranslatorSpec extends FunSuite {
     JavaScriptCompiler -> "new Uint8Array([(0 + 1), 5])",
     LuaCompiler -> "???",
     PerlCompiler -> "pack('C*', ((0 + 1), 5))",
-    PHPCompiler -> "???",
+    PHPCompiler -> "pack('C*', (0 + 1), 5)",
     PythonCompiler -> "struct.pack('2b', (0 + 1), 5)",
     RubyCompiler -> "[(0 + 1), 5].pack('C*')"
   ))
