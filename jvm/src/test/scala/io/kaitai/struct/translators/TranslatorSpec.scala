@@ -468,6 +468,7 @@ class TranslatorSpec extends FunSuite {
   full("[].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\", 0)",
     CSharpCompiler -> "new byte[] {  }",
+    GoCompiler -> "\"\"",
     JavaCompiler -> "new byte[] {  }",
     JavaScriptCompiler -> "[]",
     LuaCompiler -> "\"\"",
@@ -480,6 +481,7 @@ class TranslatorSpec extends FunSuite {
   full("[].as<u1[]>", CalcIntType, ArrayType(Int1Type(false)), Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\")",
     CSharpCompiler -> "new List<byte> {  }",
+    GoCompiler -> "[]uint8{}",
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList())",
     JavaScriptCompiler -> "[]",
     LuaCompiler -> "{}",
@@ -492,6 +494,7 @@ class TranslatorSpec extends FunSuite {
   full("[].as<f8[]>", CalcIntType, ArrayType(FloatMultiType(Width8, None)), Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\", 0)",
     CSharpCompiler -> "new List<double> {  }",
+    GoCompiler -> "[]float64{}",
     JavaCompiler -> "new ArrayList<Double>(Arrays.asList())",
     JavaScriptCompiler -> "[]",
     LuaCompiler -> "{}",
@@ -505,6 +508,7 @@ class TranslatorSpec extends FunSuite {
   full("[0 + 1, 5].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "???",
     CSharpCompiler -> "new byte[] { (0 + 1), 5 }",
+    GoCompiler -> "string([]byte{(0 + 1), 5})",
     JavaCompiler -> "new byte[] { (0 + 1), 5 }",
     JavaScriptCompiler -> "new Uint8Array([(0 + 1), 5])",
     LuaCompiler -> "???",
@@ -517,6 +521,7 @@ class TranslatorSpec extends FunSuite {
   // type enforcement: casting to array of integers
   full("[0, 1, 2].as<u1[]>", CalcIntType, ArrayType(Int1Type(false)), Map[LanguageCompilerStatic, String](
     CSharpCompiler -> "new List<byte> { 0, 1, 2 }",
+    GoCompiler -> "[]uint8{0, 1, 2}",
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 2))",
     JavaScriptCompiler -> "[0, 1, 2]",
     LuaCompiler -> "{0, 1, 2}",
