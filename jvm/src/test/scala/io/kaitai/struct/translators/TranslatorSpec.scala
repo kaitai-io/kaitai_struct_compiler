@@ -55,6 +55,13 @@ class TranslatorSpec extends FunSuite {
   full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "(2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\"))",
     CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
+    GoCompiler -> """var tmp1 string;
+                    |if (2 < 3) {
+                    |  tmp1 = "foo"
+                    |} else {
+                    |  tmp1 = "bar"
+                    |}
+                    |tmp1""".stripMargin,
     JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     LuaCompiler -> "2 < 3 and \"foo\" or \"bar\"",
@@ -515,7 +522,7 @@ class TranslatorSpec extends FunSuite {
       eo = Some(Expressions.parse(src))
     }
 
-    val goOutput = new StringLanguageOutputWriter("\t")
+    val goOutput = new StringLanguageOutputWriter("  ")
 
     val langs = Map[LanguageCompilerStatic, AbstractTranslator with TypeDetector](
       CppCompiler -> new CppTranslator(tp, new ImportList()),
@@ -541,13 +548,7 @@ class TranslatorSpec extends FunSuite {
                 tr.detectType(e) should be(expType)
                 val actResult1 = tr.translate(e)
                 val actResult2 = langObj match {
-                  case GoCompiler =>
-                    val preExpr = goOutput.result
-                    if (preExpr.isEmpty) {
-                      actResult1
-                    } else {
-                      preExpr + "\n" + actResult1
-                    }
+                  case GoCompiler => goOutput.result + actResult1
                   case _ => actResult1
                 }
                 actResult2 should be(expResult)
