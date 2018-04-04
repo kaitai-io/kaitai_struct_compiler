@@ -252,21 +252,20 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-//  override def strLength(s: Ast.expr): String =
-//    s"${translate(s)}.length()"
 //  override def strReverse(s: Ast.expr): String =
 //    s"new StringBuilder(${translate(s)}).reverse().toString()"
 //  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
 //    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
-//  override def arrayFirst(a: Ast.expr): String =
-//    s"${translate(a)}.get(0)"
-//  override def arrayLast(a: Ast.expr): String = {
-//    val v = translate(a)
-//    s"$v.get($v.size() - 1)"
-//  }
-//  override def arraySize(a: Ast.expr): String =
-//    s"${translate(a)}.size()"
+  override def arrayFirst(a: Ast.expr): TranslatorResult = {
+    ResultString(s"${translate(a)}[0]")
+  }
+  override def arrayLast(a: Ast.expr): TranslatorResult = {
+    ResultString(s"${translate(a)}[len(a)-1]")
+  }
+  override def arraySize(a: Ast.expr): TranslatorResult = {
+    ResultString(s"len(${translate(a)})")
+  }
 //  override def arrayMin(a: Ast.expr): String =
 //    s"Collections.min(${translate(a)})"
 //  override def arrayMax(a: Ast.expr): String =
@@ -314,12 +313,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def kaitaiStreamEof(value: Ast.expr): TranslatorResult = ???
 
   override def kaitaiStreamPos(value: Ast.expr): TranslatorResult = ???
-
-  override def arrayFirst(a: Ast.expr): TranslatorResult = ???
-
-  override def arrayLast(a: Ast.expr): TranslatorResult = ???
-
-  override def arraySize(a: Ast.expr): TranslatorResult = ???
 
   override def arrayMin(a: Ast.expr): TranslatorResult = ???
 
