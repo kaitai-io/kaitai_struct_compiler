@@ -8,6 +8,9 @@ import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaScriptCompiler
 
 class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
+    s"new Uint8Array([${elts.map(translate).mkString(", ")}])"
+
   /**
     * JavaScript rendition of common control character that would use hex form,
     * not octal. "Octal" control character string literals might be accepted

@@ -6,8 +6,8 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
-import io.kaitai.struct.{ImportList, RuntimeConfig}
-import org.scalatest.FunSuite
+import io.kaitai.struct.{ImportList, RuntimeConfig, StringLanguageOutputWriter}
+import org.scalatest.{FunSuite, Tag}
 import org.scalatest.Matchers._
 
 class TranslatorSpec extends FunSuite {
@@ -34,7 +34,6 @@ class TranslatorSpec extends FunSuite {
 
   everybodyExcept("3 / 2", "(3 / 2)", Map(
     JavaScriptCompiler -> "Math.floor(3 / 2)",
-    LuaCompiler -> "3 / 2",
     PerlCompiler -> "int(3 / 2)",
     PHPCompiler -> "intval(3 / 2)",
     PythonCompiler -> "3 // 2"
@@ -44,7 +43,6 @@ class TranslatorSpec extends FunSuite {
 
   everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", Map(
     JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
-    LuaCompiler -> "(1 + 2) / (7 * 8)",
     PerlCompiler -> "int((1 + 2) / (7 * 8))",
     PHPCompiler -> "intval((1 + 2) / (7 * 8))",
     PythonCompiler -> "(1 + 2) // (7 * 8)"
@@ -57,6 +55,13 @@ class TranslatorSpec extends FunSuite {
   full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "(2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\"))",
     CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
+    GoCompiler -> """var tmp1 string;
+                    |if (2 < 3) {
+                    |  tmp1 = "foo"
+                    |} else {
+                    |  tmp1 = "bar"
+                    |}
+                    |tmp1""".stripMargin,
     JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     LuaCompiler -> "2 < 3 and \"foo\" or \"bar\"",
@@ -66,8 +71,12 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "2 < 3 ? \"foo\" : \"bar\""
   ))
 
-  everybody("~777", "~777")
-  everybody("~(7+3)", "~((7 + 3))")
+  everybodyExcept("~777", "~777", Map[LanguageCompilerStatic, String](
+    GoCompiler -> "^777"
+  ))
+  everybodyExcept("~(7+3)", "~((7 + 3))", Map[LanguageCompilerStatic, String](
+    GoCompiler -> "^((7 + 3))"
+  ))
 
   // Simple float operations
   everybody("1.2 + 3.4", "(1.2 + 3.4)", CalcFloatType)
@@ -84,6 +93,7 @@ class TranslatorSpec extends FunSuite {
   full("true", CalcBooleanType, CalcBooleanType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "true",
     CSharpCompiler -> "true",
+    GoCompiler -> "true",
     JavaCompiler -> "true",
     JavaScriptCompiler -> "true",
     LuaCompiler -> "true",
@@ -96,6 +106,7 @@ class TranslatorSpec extends FunSuite {
   full("false", CalcBooleanType, CalcBooleanType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "false",
     CSharpCompiler -> "false",
+    GoCompiler -> "false",
     JavaCompiler -> "false",
     JavaScriptCompiler -> "false",
     LuaCompiler -> "false",
@@ -205,25 +216,38 @@ class TranslatorSpec extends FunSuite {
   full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\", 7)",
     CSharpCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
+    GoCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
     JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
     JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
     LuaCompiler -> "\"\\034\\000\\010\\064\\065\\066\\092\"",
     PerlCompiler -> "pack('C*', (34, 0, 10, 64, 65, 66, 92))",
     PHPCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
-    PythonCompiler -> "struct.pack('7b', 34, 0, 10, 64, 65, 66, 92)",
+    PythonCompiler -> "b\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
     RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')"
   ))
 
   full("[255, 0, 255]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\xFF\\x00\\xFF\", 3)",
     CSharpCompiler -> "new byte[] { 255, 0, 255 }",
+    GoCompiler -> "\"\\xFF\\x00\\xFF\"",
     JavaCompiler -> "new byte[] { -1, 0, -1 }",
     JavaScriptCompiler -> "[255, 0, 255]",
     LuaCompiler -> "\"\\255\\000\\255\"",
     PerlCompiler -> "pack('C*', (255, 0, 255))",
     PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
-    PythonCompiler -> "struct.pack('3b', -1, 0, -1)",
+    PythonCompiler -> "b\"\\255\\000\\255\"",
     RubyCompiler -> "[255, 0, 255].pack('C*')"
+  ))
+
+  full("[0, 1, 2].length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\\x00\\x01\\x02\", 3).length()",
+    GoCompiler -> "len(\"\\x00\\x01\\x02\")",
+    JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
+    LuaCompiler -> "string.len(\"str\")",
+    PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
+    PHPCompiler -> "strlen(\"\\x00\\x01\\x02\")",
+    PythonCompiler -> "len(b\"\\x00\\x01\\x02\")",
+    RubyCompiler -> "[0, 1, 2].pack('C*').size"
   ))
 
   full("a[42]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
@@ -286,6 +310,7 @@ class TranslatorSpec extends FunSuite {
   full("\"str\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str\")",
     CSharpCompiler -> "\"str\"",
+    GoCompiler -> "\"str\"",
     JavaCompiler -> "\"str\"",
     JavaScriptCompiler -> "\"str\"",
     LuaCompiler -> "\"str\"",
@@ -298,6 +323,7 @@ class TranslatorSpec extends FunSuite {
   full("\"str\\nnext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str\\nnext\")",
     CSharpCompiler -> "\"str\\nnext\"",
+    GoCompiler -> "\"str\\nnext\"",
     JavaCompiler -> "\"str\\nnext\"",
     JavaScriptCompiler -> "\"str\\nnext\"",
     LuaCompiler -> "\"str\\nnext\"",
@@ -367,8 +393,9 @@ class TranslatorSpec extends FunSuite {
   full("\"str\".length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str\").length()",
     CSharpCompiler -> "\"str\".Length",
+    GoCompiler -> "utf8.RuneCountInString(\"str\")",
     JavaCompiler -> "\"str\".length()",
-    JavaScriptCompiler -> "#\"str\"",
+    JavaScriptCompiler -> "\"str\".length",
     LuaCompiler -> "string.len(\"str\")",
     PerlCompiler -> "length(\"str\")",
     PHPCompiler -> "strlen(\"str\")",
@@ -437,15 +464,85 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "other.baz"
   ))
 
+  // empty array casting
+  full("[].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\", 0)",
+    CSharpCompiler -> "new byte[] {  }",
+    GoCompiler -> "\"\"",
+    JavaCompiler -> "new byte[] {  }",
+    JavaScriptCompiler -> "[]",
+    LuaCompiler -> "\"\"",
+    PerlCompiler -> "pack('C*', ())",
+    PHPCompiler -> "\"\"",
+    PythonCompiler -> "b\"\"",
+    RubyCompiler -> "[].pack('C*')"
+  ))
+
+  full("[].as<u1[]>", CalcIntType, ArrayType(Int1Type(false)), Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\")",
+    CSharpCompiler -> "new List<byte> {  }",
+    GoCompiler -> "[]uint8{}",
+    JavaCompiler -> "new ArrayList<Integer>(Arrays.asList())",
+    JavaScriptCompiler -> "[]",
+    LuaCompiler -> "{}",
+    PerlCompiler -> "()",
+    PHPCompiler -> "[]",
+    PythonCompiler -> "[]",
+    RubyCompiler -> "[]"
+  ))
+
+  full("[].as<f8[]>", CalcIntType, ArrayType(FloatMultiType(Width8, None)), Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"\", 0)",
+    CSharpCompiler -> "new List<double> {  }",
+    GoCompiler -> "[]float64{}",
+    JavaCompiler -> "new ArrayList<Double>(Arrays.asList())",
+    JavaScriptCompiler -> "[]",
+    LuaCompiler -> "{}",
+    PerlCompiler -> "()",
+    PHPCompiler -> "[]",
+    PythonCompiler -> "[]",
+    RubyCompiler -> "[]"
+  ))
+
+  // type enforcement: casting to non-literal byte array
+  full("[0 + 1, 5].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "???",
+    CSharpCompiler -> "new byte[] { (0 + 1), 5 }",
+    GoCompiler -> "string([]byte{(0 + 1), 5})",
+    JavaCompiler -> "new byte[] { (0 + 1), 5 }",
+    JavaScriptCompiler -> "new Uint8Array([(0 + 1), 5])",
+    LuaCompiler -> "???",
+    PerlCompiler -> "pack('C*', ((0 + 1), 5))",
+    PHPCompiler -> "pack('C*', (0 + 1), 5)",
+    PythonCompiler -> "struct.pack('2b', (0 + 1), 5)",
+    RubyCompiler -> "[(0 + 1), 5].pack('C*')"
+  ))
+
+  // type enforcement: casting to array of integers
+  full("[0, 1, 2].as<u1[]>", CalcIntType, ArrayType(Int1Type(false)), Map[LanguageCompilerStatic, String](
+    CSharpCompiler -> "new List<byte> { 0, 1, 2 }",
+    GoCompiler -> "[]uint8{0, 1, 2}",
+    JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 2))",
+    JavaScriptCompiler -> "[0, 1, 2]",
+    LuaCompiler -> "{0, 1, 2}",
+    PerlCompiler -> "(0, 1, 2)",
+    PHPCompiler -> "[0, 1, 2]",
+    PythonCompiler -> "[0, 1, 2]",
+    RubyCompiler -> "[0, 1, 2]"
+  ))
+
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
     var eo: Option[Ast.expr] = None
     test(s"_expr:$src") {
       eo = Some(Expressions.parse(src))
     }
 
-    val langs = Map[LanguageCompilerStatic, BaseTranslator](
+    val goOutput = new StringLanguageOutputWriter("  ")
+
+    val langs = Map[LanguageCompilerStatic, AbstractTranslator with TypeDetector](
       CppCompiler -> new CppTranslator(tp, new ImportList()),
       CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
+      GoCompiler -> new GoTranslator(goOutput, tp, new ImportList()),
       JavaCompiler -> new JavaTranslator(tp, new ImportList()),
       JavaScriptCompiler -> new JavaScriptTranslator(tp),
       LuaCompiler -> new LuaTranslator(tp, new ImportList()),
@@ -457,14 +554,19 @@ class TranslatorSpec extends FunSuite {
 
     langs.foreach { case (langObj, tr) =>
       val langName = LanguageCompilerStatic.CLASS_TO_NAME(langObj)
-      test(s"$langName:$src") {
+      test(s"$langName:$src", Tag(langName), Tag(src)) {
         eo match {
           case Some(e) =>
-            val tr: BaseTranslator = langs(langObj)
+            val tr: AbstractTranslator with TypeDetector = langs(langObj)
             expOut.get(langObj) match {
               case Some(expResult) =>
                 tr.detectType(e) should be(expType)
-                tr.translate(e) should be(expResult)
+                val actResult1 = tr.translate(e)
+                val actResult2 = langObj match {
+                  case GoCompiler => goOutput.result + actResult1
+                  case _ => actResult1
+                }
+                actResult2 should be(expResult)
               case None =>
                 fail("no expected result")
             }

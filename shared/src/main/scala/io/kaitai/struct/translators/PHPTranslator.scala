@@ -10,6 +10,8 @@ import io.kaitai.struct.{RuntimeConfig, Utils}
 class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + Utils.hexEscapeByteArray(arr) + "\""
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
+    s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
   // http://php.net/manual/en/language.types.string.php#language.types.string.syntax.double
   override val asciiCharQuoteMap: Map[Char, String] = Map(
@@ -95,6 +97,8 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"${PHPCompiler.kstreamName}::bytesToStr($bytesExpr, ${translate(encoding)})"
+  override def bytesLength(b: Ast.expr): String =
+    s"strlen(${translate(b)})"
   override def strLength(s: expr): String =
     s"strlen(${translate(s)})"
   override def strReverse(s: expr): String =

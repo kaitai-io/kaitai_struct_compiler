@@ -316,41 +316,42 @@ object DataType {
   private val RePureIntType = """([us])(2|4|8)""".r
   private val RePureFloatType = """f(4|8)""".r
 
-  def pureFromString(dto: Option[String]): DataType = {
-    dto match {
-      case None => CalcBytesType
-      case Some(dt) => dt match {
-        case "u1" => Int1Type(false)
-        case "s1" => Int1Type(true)
-        case RePureIntType(signStr, widthStr) =>
-          IntMultiType(
-            signStr match {
-              case "s" => true
-              case "u" => false
-            },
-            widthStr match {
-              case "2" => Width2
-              case "4" => Width4
-              case "8" => Width8
-            },
-            None
-          )
-        case RePureFloatType(widthStr) =>
-          FloatMultiType(
-            widthStr match {
-              case "4" => Width4
-              case "8" => Width8
-            },
-            None
-          )
-        case "str" => CalcStrType
-        case "bool" => CalcBooleanType
-        case "struct" => KaitaiStructType
-        case "io" => KaitaiStreamType
-        case "any" => AnyType
-        case _ => UserTypeInstream(classNameToList(dt), None)
-      }
-    }
+  def pureFromString(dto: Option[String]): DataType = dto match {
+    case None => CalcBytesType
+    case Some(dt) => pureFromString(dt)
+  }
+
+  def pureFromString(dt: String): DataType = dt match {
+    case "bytes" => CalcBytesType
+    case "u1" => Int1Type(false)
+    case "s1" => Int1Type(true)
+    case RePureIntType(signStr, widthStr) =>
+      IntMultiType(
+        signStr match {
+          case "s" => true
+          case "u" => false
+        },
+        widthStr match {
+          case "2" => Width2
+          case "4" => Width4
+          case "8" => Width8
+        },
+        None
+      )
+    case RePureFloatType(widthStr) =>
+      FloatMultiType(
+        widthStr match {
+          case "4" => Width4
+          case "8" => Width8
+        },
+        None
+      )
+    case "str" => CalcStrType
+    case "bool" => CalcBooleanType
+    case "struct" => KaitaiStructType
+    case "io" => KaitaiStreamType
+    case "any" => AnyType
+    case _ => UserTypeInstream(classNameToList(dt), None)
   }
 
   def getEncoding(curEncoding: Option[String], metaDef: MetaSpec, path: List[String]): String = {

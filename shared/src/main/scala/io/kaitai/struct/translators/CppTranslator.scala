@@ -124,6 +124,8 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends B
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"${CppCompiler.kstreamName}::bytes_to_str($bytesExpr, ${translate(encoding)})"
+  override def bytesLength(b: Ast.expr): String =
+    s"${translate(b)}.length()"
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =

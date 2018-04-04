@@ -31,6 +31,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new byte[] { ${arr.mkString(", ")} }"
+  override def doByteArrayNonLiteral(elts: Seq[expr]): String =
+    s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
@@ -108,6 +110,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     importList.add("java.nio.charset.Charset")
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
   }
+  override def bytesLength(b: Ast.expr): String =
+    s"${translate(b)}.length"
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =

@@ -16,7 +16,8 @@ import io.kaitai.struct.precompile.TypeMismatchError
   *
   * Given that there are many of these abstract methods, to make it more
   * maintainable, they are grouped into several abstract traits:
-  * [[CommonLiterals]], [[CommonOps]].
+  * [[CommonLiterals]], [[CommonOps]], [[CommonMethods]],
+  * [[CommonArraysAndCast]].
   *
   * This translator implementation also handles user-defined types and
   * fields properly - it uses given [[TypeProvider]] to resolve these.
@@ -28,6 +29,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
   with AbstractTranslator
   with CommonLiterals
   with CommonOps
+  with CommonArraysAndCast[String]
   with CommonMethods[String] {
 
   /**
@@ -117,25 +119,9 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case call: Ast.expr.Call =>
         translateCall(call)
       case Ast.expr.List(values: Seq[Ast.expr]) =>
-        val t = detectArrayType(values)
-        t match {
-          case Int1Type(_) =>
-            val literalBytes: Seq[Byte] = values.map {
-              case Ast.expr.IntNum(x) =>
-                if (x < 0 || x > 0xff) {
-                  throw new TypeMismatchError(s"got a weird byte value in byte array: $x")
-                } else {
-                  x.toByte
-                }
-              case n =>
-                throw new TypeMismatchError(s"got $n in byte array, unable to put it literally")
-            }
-            doByteArrayLiteral(literalBytes)
-          case _ =>
-            doArrayLiteral(t, values)
-        }
-      case Ast.expr.CastToType(value, typeName) =>
-        doCast(value, typeName)
+        doGuessArrayLiteral(values)
+      case ctt: Ast.expr.CastToType =>
+        doCastOrArray(ctt)
     }
   }
 
@@ -145,6 +131,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
 
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
+  def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = ???
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String

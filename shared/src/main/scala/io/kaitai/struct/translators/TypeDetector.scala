@@ -3,7 +3,6 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.precompile.{TypeMismatchError, TypeUndecidedError}
 
 /**
@@ -90,7 +89,7 @@ class TypeDetector(provider: TypeProvider) {
           }
         })
         CalcBooleanType
-      case Ast.expr.IfExp(condition: expr, ifTrue: expr, ifFalse: expr) =>
+      case Ast.expr.IfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr) =>
         detectType(condition) match {
           case _: BooleanType =>
             val trueType = detectType(ifTrue)
@@ -108,75 +107,105 @@ class TypeDetector(provider: TypeProvider) {
           case cntType => throw new TypeMismatchError(s"unable to apply operation [] to $cntType")
         }
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
-        val valType = detectType(value)
-        valType match {
-          case KaitaiStructType =>
-            throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '$value'")
-          case t: UserType =>
-            t.classSpec match {
-              case Some(tt) => provider.determineType(tt, attr.name)
-              case None => throw new TypeUndecidedError(s"expression '$value' has undecided type '${t.name}' (while asking for attribute '${attr.name}')")
-            }
-          case _: StrType =>
-            attr.name match {
-              case "length" => CalcIntType
-              case "reverse" => CalcStrType
-              case "to_i" => CalcIntType
-              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
-            }
-          case _: IntType =>
-            attr.name match {
-              case "to_s" => CalcStrType
-              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
-            }
-          case _: FloatType =>
-            attr.name match {
-              case "to_i" => CalcIntType
-              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
-            }
-          case ArrayType(inType) =>
-            attr.name match {
-              case "first" | "last" | "min" | "max" => inType
-              case "size" => CalcIntType
-              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
-            }
-          case KaitaiStreamType =>
-            attr.name match {
-              case "size" => CalcIntType
-              case "pos" => CalcIntType
-              case "eof" => CalcBooleanType
-              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
-            }
-          case et: EnumType =>
-            attr.name match {
-              case "to_i" => CalcIntType
-              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
-            }
-          case _: BooleanType =>
-            attr.name match {
-              case "to_i" => CalcIntType
-              case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
-            }
-          case _ =>
-            throw new TypeMismatchError(s"don't know how to call anything on $valType")
-        }
-      case Ast.expr.Call(func: Ast.expr, args: Seq[Ast.expr]) =>
-        func match {
-          case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
-            val objType = detectType(obj)
-            (objType, methodName.name) match {
-              case (_: StrType, "substring") => CalcStrType
-              case (_: StrType, "to_i") => CalcIntType
-              case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
-            }
-        }
+        detectAttributeType(value, attr)
+      case call: Ast.expr.Call =>
+        detectCallType(call)
       case Ast.expr.List(values: Seq[Ast.expr]) =>
         detectArrayType(values) match {
           case Int1Type(_) => CalcBytesType
           case t => ArrayType(t)
         }
-      case Ast.expr.CastToType(value, typeName) =>
-        provider.resolveType(typeName)
+      case Ast.expr.CastToType(_, typeName) =>
+        detectCastType(typeName)
+    }
+  }
+
+  /**
+    * Detects resulting data type of a given attribute expression.
+    *
+    * @note Must be kept in sync with [[CommonMethods.translateAttribute]]
+    * @param value value part of attribute expression
+    * @param attr attribute identifier part of attribute expression
+    * @return data type
+    */
+  def detectAttributeType(value: Ast.expr, attr: Ast.identifier) = {
+    val valType = detectType(value)
+    valType match {
+      case KaitaiStructType =>
+        throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '$value'")
+      case t: UserType =>
+        t.classSpec match {
+          case Some(tt) => provider.determineType(tt, attr.name)
+          case None => throw new TypeUndecidedError(s"expression '$value' has undecided type '${t.name}' (while asking for attribute '${attr.name}')")
+        }
+      case _: BytesType =>
+        attr.name match {
+          case "length" => CalcIntType
+          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+        }
+      case _: StrType =>
+        attr.name match {
+          case "length" => CalcIntType
+          case "reverse" => CalcStrType
+          case "to_i" => CalcIntType
+          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+        }
+      case _: IntType =>
+        attr.name match {
+          case "to_s" => CalcStrType
+          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+        }
+      case _: FloatType =>
+        attr.name match {
+          case "to_i" => CalcIntType
+          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+        }
+      case ArrayType(inType) =>
+        attr.name match {
+          case "first" | "last" | "min" | "max" => inType
+          case "size" => CalcIntType
+          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+        }
+      case KaitaiStreamType =>
+        attr.name match {
+          case "size" => CalcIntType
+          case "pos" => CalcIntType
+          case "eof" => CalcBooleanType
+          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+        }
+      case et: EnumType =>
+        attr.name match {
+          case "to_i" => CalcIntType
+          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+        }
+      case _: BooleanType =>
+        attr.name match {
+          case "to_i" => CalcIntType
+          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+        }
+      case _ =>
+        throw new TypeMismatchError(s"don't know how to call anything on $valType")
+    }
+  }
+
+  /**
+    * Detects resulting data type of a given function call expression. Typical function
+    * call expression in KSY is `foo.bar(arg1, arg2)`, which is represented in AST as
+    * `Call(Attribute(foo, bar), Seq(arg1, arg2))`.
+    * @note Must be kept in sync with [[CommonMethods.translateCall]]
+    * @param call function call expression
+    * @return data type
+    */
+  def detectCallType(call: Ast.expr.Call): DataType = {
+    call.func match {
+      case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
+        val objType = detectType(obj)
+        // TODO: check number and type of arguments in `call.args`
+        (objType, methodName.name) match {
+          case (_: StrType, "substring") => CalcStrType
+          case (_: StrType, "to_i") => CalcIntType
+          case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
+        }
     }
   }
 
@@ -188,7 +217,7 @@ class TypeDetector(provider: TypeProvider) {
     * @param values
     * @return
     */
-  def detectArrayType(values: Seq[expr]): DataType = {
+  def detectArrayType(values: Seq[Ast.expr]): DataType = {
     var t1o: Option[DataType] = None
 
     values.foreach { v =>
@@ -202,6 +231,35 @@ class TypeDetector(provider: TypeProvider) {
     t1o match {
       case None => throw new RuntimeException("empty array literals are not allowed - can't detect array type")
       case Some(t) => t
+    }
+  }
+
+  /**
+    * Detects cast type determined by a typeId definition.
+    * @param typeName typeId definition to use
+    * @return data type
+    */
+  def detectCastType(typeName: Ast.typeId): DataType = {
+    val singleType = if ((!typeName.absolute) && typeName.names.size == 1) {
+      // May be it's a reserved pure data type name?
+      DataType.pureFromString(Some(typeName.names(0))) match {
+        case _: UserType =>
+          // No, it's a user type, let's try to resolve it through provider
+          provider.resolveType(typeName)
+        case primitiveType =>
+          // Yes, it is!
+          primitiveType
+      }
+    } else {
+      // It's a complex type name, it can be only resolved through provider
+      provider.resolveType(typeName)
+    }
+
+    // Wrap it in array type, if needed
+    if (typeName.isArray) {
+      ArrayType(singleType)
+    } else {
+      singleType
     }
   }
 }

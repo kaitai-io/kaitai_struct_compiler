@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{ClassSpec, Identifier}
@@ -16,6 +17,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   with AbstractTranslator
   with CommonLiterals
   with CommonOps
+  with CommonArraysAndCast[TranslatorResult]
   with CommonMethods[TranslatorResult] {
 
   var returnRes: Option[String] = None
@@ -48,16 +50,33 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case (ltype, rtype, _) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
-//      case Ast.expr.UnaryOp(op, operand) =>
-//      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
-//      case Ast.expr.Compare(left, ops, right) =>
+      case Ast.expr.UnaryOp(op, operand) =>
+        ResultString(unaryOp(op) + (operand match {
+          case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
+            translate(operand)
+          case _ =>
+            s"(${translate(operand)})"
+        }))
+      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
+        trIfExp(condition, ifTrue, ifFalse)
+      case Ast.expr.Compare(left, op, right) =>
+        (detectType(left), detectType(right)) match {
+          case (_: NumericType, _: NumericType) =>
+            trNumericCompareOp(left, op, right)
+          case (_: StrType, _: StrType) =>
+            trStrCompareOp(left, op, right)
+          case (ltype, rtype) =>
+            throw new TypeMismatchError(s"can't do $ltype $op $rtype")
+        }
 //      case Ast.expr.EnumByLabel(enumName, label) =>
 //      case Ast.expr.EnumById(enumName, id) =>
-//      case Ast.expr.CastToType(value, typeName) =>
+      case ctt: Ast.expr.CastToType =>
+        doCastOrArray(ctt)
 //      case Ast.expr.Subscript(value, idx) =>
       case Ast.expr.Name(name: Ast.identifier) =>
         trLocalName(name.name)
-//      case Ast.expr.List(elts) =>
+      case Ast.expr.List(elts) =>
+        doGuessArrayLiteral(elts)
       case call: Ast.expr.Attribute =>
         translateAttribute(call)
       case call: Ast.expr.Call =>
@@ -76,6 +95,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trStrConcat(left: Ast.expr, right: Ast.expr): TranslatorResult =
     ResultString(translate(left) + " + " + translate(right))
 
+  def trNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
+    ResultString(doNumericCompareOp(left, op, right))
+
+  def trStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
+    ResultString(doStrCompareOp(left, op, right))
+
 //  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = {
 //    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
 //    val commaStr = value.map((v) => translate(v)).mkString(", ")
@@ -84,6 +109,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //
 //  override def doByteArrayLiteral(arr: Seq[Byte]): String =
 //    s"new byte[] { ${arr.mkString(", ")} }"
+
+  override def unaryOp(op: Ast.unaryop): String = op match {
+    case Ast.unaryop.Invert => "^"
+    case Ast.unaryop.Minus => "-"
+    case Ast.unaryop.Not => "!"
+  }
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
@@ -124,6 +155,22 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       "_buf"
   }
 
+  def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
+    val v1 = allocateLocalVar()
+    val typ = detectType(ifTrue)
+    out.puts(s"var ${localVarName(v1)} ${GoCompiler.kaitaiType2NativeType(typ)};")
+    out.puts(s"if (${translate(condition)}) {")
+    out.inc
+    out.puts(s"${localVarName(v1)} = ${translate(ifTrue)}")
+    out.dec
+    out.puts("} else {")
+    out.inc
+    out.puts(s"${localVarName(v1)} = ${translate(ifFalse)}")
+    out.dec
+    out.puts("}")
+    ResultLocalVar(v1)
+  }
+
 //  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
 //    s"${enumClass(enumTypeAbs)}.${label.toUpperCase}"
 //  override def doEnumById(enumTypeAbs: List[String], id: String): String =
@@ -132,16 +179,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def enumClass(enumTypeAbs: List[String]): String = {
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
     enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
-  }
-
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    if (op == Ast.cmpop.Eq) {
-      s"${translate(left)}.equals(${translate(right)})"
-    } else if (op == Ast.cmpop.NotEq) {
-      s"!(${translate(left)}).equals(${translate(right)})"
-    } else {
-      s"(${translate(left)}.compareTo(${translate(right)}) ${cmpOp(op)} 0)"
-    }
   }
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
@@ -161,6 +198,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 //  override def doCast(value: Ast.expr, typeName: String): String =
 //    s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
+
+  override def doCast(value: Ast.expr, typeName: Ast.typeId): TranslatorResult = ???
+
+  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) =
+    ResultString(s"[]${GoCompiler.kaitaiType2NativeType(t)}{${value.map(translate).mkString(", ")}}")
+
+  override def doByteArrayLiteral(arr: Seq[Byte]): TranslatorResult =
+    ResultString("\"" + Utils.hexEscapeByteArray(arr) + "\"")
+
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): TranslatorResult =
+    ResultString("string([]byte{" + elts.map(translate).mkString(", ") + "})")
 
   // Predefined methods of various types
 //  override def strToInt(s: Ast.expr, base: Ast.expr): String =

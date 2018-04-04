@@ -274,6 +274,18 @@ class ExpressionsSpec extends FunSpec {
       )
     }
 
+    it("parses foo.as<bar[]>") {
+      Expressions.parse("foo.as<bar[]>") should be (
+        CastToType(Name(identifier("foo")), typeId(false, Seq("bar"), true))
+      )
+    }
+
+    it("parses foo.as<::bar::baz[]>") {
+      Expressions.parse("foo.as<::bar::baz[]>") should be (
+        CastToType(Name(identifier("foo")), typeId(true, Seq("bar", "baz"), true))
+      )
+    }
+
     it("parses foo.as") {
       Expressions.parse("foo.as") should be (Attribute(Name(identifier("foo")),identifier("as")))
     }
