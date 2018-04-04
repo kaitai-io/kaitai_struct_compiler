@@ -116,32 +116,13 @@ class TypeDetector(provider: TypeProvider) {
           case t => ArrayType(t)
         }
       case Ast.expr.CastToType(_, typeName) =>
-        val singleType = if ((!typeName.absolute) && typeName.names.size == 1) {
-          // May be it's a reserved pure data type name?
-          DataType.pureFromString(Some(typeName.names(0))) match {
-            case _: UserType =>
-              // No, it's a user type, let's try to resolve it through provider
-              provider.resolveType(typeName)
-            case primitiveType =>
-              // Yes, it is!
-              primitiveType
-          }
-        } else {
-          // It's a complex type name, it can be only resolved through provider
-          provider.resolveType(typeName)
-        }
-
-        // Wrap it in array type, if needed
-        if (typeName.isArray) {
-          ArrayType(singleType)
-        } else {
-          singleType
-        }
+        detectCastType(typeName)
     }
   }
 
   /**
     * Detects resulting data type of a given attribute expression.
+    *
     * @note Must be kept in sync with [[CommonMethods.translateAttribute]]
     * @param value value part of attribute expression
     * @param attr attribute identifier part of attribute expression
@@ -250,6 +231,35 @@ class TypeDetector(provider: TypeProvider) {
     t1o match {
       case None => throw new RuntimeException("empty array literals are not allowed - can't detect array type")
       case Some(t) => t
+    }
+  }
+
+  /**
+    * Detects cast type determined by a typeId definition.
+    * @param typeName typeId definition to use
+    * @return data type
+    */
+  def detectCastType(typeName: Ast.typeId): DataType = {
+    val singleType = if ((!typeName.absolute) && typeName.names.size == 1) {
+      // May be it's a reserved pure data type name?
+      DataType.pureFromString(Some(typeName.names(0))) match {
+        case _: UserType =>
+          // No, it's a user type, let's try to resolve it through provider
+          provider.resolveType(typeName)
+        case primitiveType =>
+          // Yes, it is!
+          primitiveType
+      }
+    } else {
+      // It's a complex type name, it can be only resolved through provider
+      provider.resolveType(typeName)
+    }
+
+    // Wrap it in array type, if needed
+    if (typeName.isArray) {
+      ArrayType(singleType)
+    } else {
+      singleType
     }
   }
 }
