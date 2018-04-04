@@ -48,9 +48,24 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case (ltype, rtype, _) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
-//      case Ast.expr.UnaryOp(op, operand) =>
-//      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
-//      case Ast.expr.Compare(left, ops, right) =>
+      case Ast.expr.UnaryOp(op, operand) =>
+        ResultString(unaryOp(op) + (operand match {
+          case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
+            translate(operand)
+          case _ =>
+            s"(${translate(operand)})"
+        }))
+      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
+        trIfExp(condition, ifTrue, ifFalse)
+      case Ast.expr.Compare(left, op, right) =>
+        (detectType(left), detectType(right)) match {
+          case (_: NumericType, _: NumericType) =>
+            trNumericCompareOp(left, op, right)
+          case (_: StrType, _: StrType) =>
+            trStrCompareOp(left, op, right)
+          case (ltype, rtype) =>
+            throw new TypeMismatchError(s"can't do $ltype $op $rtype")
+        }
 //      case Ast.expr.EnumByLabel(enumName, label) =>
 //      case Ast.expr.EnumById(enumName, id) =>
 //      case Ast.expr.CastToType(value, typeName) =>
@@ -76,6 +91,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trStrConcat(left: Ast.expr, right: Ast.expr): TranslatorResult =
     ResultString(translate(left) + " + " + translate(right))
 
+  def trNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
+    ResultString(doNumericCompareOp(left, op, right))
+
+  def trStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
+    ResultString(doStrCompareOp(left, op, right))
+
 //  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = {
 //    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
 //    val commaStr = value.map((v) => translate(v)).mkString(", ")
@@ -84,6 +105,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //
 //  override def doByteArrayLiteral(arr: Seq[Byte]): String =
 //    s"new byte[] { ${arr.mkString(", ")} }"
+
+  override def unaryOp(op: Ast.unaryop): String = op match {
+    case Ast.unaryop.Invert => "^"
+    case Ast.unaryop.Minus => "-"
+    case Ast.unaryop.Not => "!"
+  }
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
@@ -122,6 +149,22 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       "_it"
     case Identifier.ITERATOR2 =>
       "_buf"
+  }
+
+  def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
+    val v1 = allocateLocalVar()
+    val typ = detectType(ifTrue)
+    out.puts(s"var ${localVarName(v1)} ${GoCompiler.kaitaiType2NativeType(typ)};")
+    out.puts(s"if (${translate(condition)}) {")
+    out.inc
+    out.puts(s"${localVarName(v1)} = ${translate(ifTrue)}")
+    out.dec
+    out.puts("} else {")
+    out.inc
+    out.puts(s"${localVarName(v1)} = ${translate(ifFalse)}")
+    out.dec
+    out.puts("}")
+    ResultLocalVar(v1)
   }
 
 //  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
