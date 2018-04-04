@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.ClassSpec
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
-import io.kaitai.struct.{ImportList, RuntimeConfig}
+import io.kaitai.struct.{ImportList, RuntimeConfig, StringLanguageOutputWriter}
 import org.scalatest.{FunSuite, Tag}
 import org.scalatest.Matchers._
 
@@ -82,6 +82,7 @@ class TranslatorSpec extends FunSuite {
   full("true", CalcBooleanType, CalcBooleanType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "true",
     CSharpCompiler -> "true",
+    GoCompiler -> "true",
     JavaCompiler -> "true",
     JavaScriptCompiler -> "true",
     LuaCompiler -> "true",
@@ -94,6 +95,7 @@ class TranslatorSpec extends FunSuite {
   full("false", CalcBooleanType, CalcBooleanType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "false",
     CSharpCompiler -> "false",
+    GoCompiler -> "false",
     JavaCompiler -> "false",
     JavaScriptCompiler -> "false",
     LuaCompiler -> "false",
@@ -513,9 +515,12 @@ class TranslatorSpec extends FunSuite {
       eo = Some(Expressions.parse(src))
     }
 
-    val langs = Map[LanguageCompilerStatic, BaseTranslator](
+    val goOutput = new StringLanguageOutputWriter("\t")
+
+    val langs = Map[LanguageCompilerStatic, AbstractTranslator with TypeDetector](
       CppCompiler -> new CppTranslator(tp, new ImportList()),
       CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
+      GoCompiler -> new GoTranslator(goOutput, tp, new ImportList()),
       JavaCompiler -> new JavaTranslator(tp, new ImportList()),
       JavaScriptCompiler -> new JavaScriptTranslator(tp),
       LuaCompiler -> new LuaTranslator(tp, new ImportList()),
@@ -530,11 +535,22 @@ class TranslatorSpec extends FunSuite {
       test(s"$langName:$src", Tag(langName), Tag(src)) {
         eo match {
           case Some(e) =>
-            val tr: BaseTranslator = langs(langObj)
+            val tr: AbstractTranslator with TypeDetector = langs(langObj)
             expOut.get(langObj) match {
               case Some(expResult) =>
                 tr.detectType(e) should be(expType)
-                tr.translate(e) should be(expResult)
+                val actResult1 = tr.translate(e)
+                val actResult2 = langObj match {
+                  case GoCompiler =>
+                    val preExpr = goOutput.result
+                    if (preExpr.isEmpty) {
+                      actResult1
+                    } else {
+                      preExpr + "\n" + actResult1
+                    }
+                  case _ => actResult1
+                }
+                actResult2 should be(expResult)
               case None =>
                 fail("no expected result")
             }
