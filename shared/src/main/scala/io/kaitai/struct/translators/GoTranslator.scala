@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{ClassSpec, Identifier}
@@ -16,6 +17,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   with AbstractTranslator
   with CommonLiterals
   with CommonOps
+  with CommonArraysAndCast[TranslatorResult]
   with CommonMethods[TranslatorResult] {
 
   var returnRes: Option[String] = None
@@ -68,11 +70,13 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         }
 //      case Ast.expr.EnumByLabel(enumName, label) =>
 //      case Ast.expr.EnumById(enumName, id) =>
-//      case Ast.expr.CastToType(value, typeName) =>
+      case ctt: Ast.expr.CastToType =>
+        doCastOrArray(ctt)
 //      case Ast.expr.Subscript(value, idx) =>
       case Ast.expr.Name(name: Ast.identifier) =>
         trLocalName(name.name)
-//      case Ast.expr.List(elts) =>
+      case Ast.expr.List(elts) =>
+        doGuessArrayLiteral(elts)
       case call: Ast.expr.Attribute =>
         translateAttribute(call)
       case call: Ast.expr.Call =>
@@ -194,6 +198,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 //  override def doCast(value: Ast.expr, typeName: String): String =
 //    s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
+
+  override def doCast(value: Ast.expr, typeName: Ast.typeId): TranslatorResult = ???
+
+  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) =
+    ResultString(s"[]${GoCompiler.kaitaiType2NativeType(t)}{${value.map(translate).mkString(", ")}}")
+
+  override def doByteArrayLiteral(arr: Seq[Byte]): TranslatorResult =
+    ResultString("\"" + Utils.hexEscapeByteArray(arr) + "\"")
+
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): TranslatorResult =
+    ResultString("string([]byte{" + elts.map(translate).mkString(", ") + "})")
 
   // Predefined methods of various types
 //  override def strToInt(s: Ast.expr, base: Ast.expr): String =
