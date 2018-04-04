@@ -71,8 +71,12 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "2 < 3 ? \"foo\" : \"bar\""
   ))
 
-  everybody("~777", "~777")
-  everybody("~(7+3)", "~((7 + 3))")
+  everybodyExcept("~777", "~777", Map[LanguageCompilerStatic, String](
+    GoCompiler -> "^777"
+  ))
+  everybodyExcept("~(7+3)", "~((7 + 3))", Map[LanguageCompilerStatic, String](
+    GoCompiler -> "^((7 + 3))"
+  ))
 
   // Simple float operations
   everybody("1.2 + 3.4", "(1.2 + 3.4)", CalcFloatType)
@@ -212,6 +216,7 @@ class TranslatorSpec extends FunSuite {
   full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\", 7)",
     CSharpCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
+    GoCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
     JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
     JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
     LuaCompiler -> "\"\\034\\000\\010\\064\\065\\066\\092\"",
@@ -224,6 +229,7 @@ class TranslatorSpec extends FunSuite {
   full("[255, 0, 255]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\xFF\\x00\\xFF\", 3)",
     CSharpCompiler -> "new byte[] { 255, 0, 255 }",
+    GoCompiler -> "\"\\xFF\\x00\\xFF\"",
     JavaCompiler -> "new byte[] { -1, 0, -1 }",
     JavaScriptCompiler -> "[255, 0, 255]",
     LuaCompiler -> "\"\\255\\000\\255\"",
@@ -235,6 +241,7 @@ class TranslatorSpec extends FunSuite {
 
   full("[0, 1, 2].length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\x00\\x01\\x02\", 3).length()",
+    GoCompiler -> "len(\"\\x00\\x01\\x02\")",
     JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
     LuaCompiler -> "string.len(\"str\")",
     PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
@@ -303,6 +310,7 @@ class TranslatorSpec extends FunSuite {
   full("\"str\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str\")",
     CSharpCompiler -> "\"str\"",
+    GoCompiler -> "\"str\"",
     JavaCompiler -> "\"str\"",
     JavaScriptCompiler -> "\"str\"",
     LuaCompiler -> "\"str\"",
@@ -315,6 +323,7 @@ class TranslatorSpec extends FunSuite {
   full("\"str\\nnext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str\\nnext\")",
     CSharpCompiler -> "\"str\\nnext\"",
+    GoCompiler -> "\"str\\nnext\"",
     JavaCompiler -> "\"str\\nnext\"",
     JavaScriptCompiler -> "\"str\\nnext\"",
     LuaCompiler -> "\"str\\nnext\"",
@@ -384,6 +393,7 @@ class TranslatorSpec extends FunSuite {
   full("\"str\".length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str\").length()",
     CSharpCompiler -> "\"str\".Length",
+    GoCompiler -> "utf8.RuneCountInString(\"str\")",
     JavaCompiler -> "\"str\".length()",
     JavaScriptCompiler -> "\"str\".length",
     LuaCompiler -> "string.len(\"str\")",
