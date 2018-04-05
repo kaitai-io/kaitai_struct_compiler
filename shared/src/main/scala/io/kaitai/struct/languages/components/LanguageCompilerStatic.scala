@@ -21,7 +21,8 @@ object LanguageCompilerStatic {
     "perl" -> PerlCompiler,
     "php" -> PHPCompiler,
     "python" -> PythonCompiler,
-    "ruby" -> RubyCompiler
+    "ruby" -> RubyCompiler,
+    "rust" -> RustCompiler
   )
 
   val CLASS_TO_NAME: Map[LanguageCompilerStatic, String] = NAME_TO_CLASS.map(_.swap)
