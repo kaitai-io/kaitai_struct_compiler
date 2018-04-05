@@ -159,7 +159,7 @@ class TranslatorSpec extends FunSuite {
   full("foo.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo()->bar()",
     CSharpCompiler -> "Foo.Bar",
-    GoCompiler -> "this.foo.bar",
+    GoCompiler -> "this.Foo.Bar",
     JavaCompiler -> "foo().bar()",
     JavaScriptCompiler -> "this.foo.bar",
     LuaCompiler -> "self.foo.bar",
