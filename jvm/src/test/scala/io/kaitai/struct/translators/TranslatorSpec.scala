@@ -119,7 +119,11 @@ class TranslatorSpec extends FunSuite {
   full("some_bool.to_i", CalcBooleanType, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "some_bool()",
     CSharpCompiler -> "(SomeBool ? 1 : 0)",
-    GoCompiler -> "func()(int) { if ( this.SomeBool ) { return 1 }; return 0 }()",
+    GoCompiler -> """tmp1 := 0
+                    |if this.SomeBool {
+                    |  tmp1 = 1
+                    |}
+                    |tmp1""".stripMargin,
     JavaCompiler -> "(someBool() ? 1 : 0)",
     JavaScriptCompiler -> "(this.someBool | 0)",
     LuaCompiler -> "self.some_bool and 1 or 0",
@@ -172,7 +176,7 @@ class TranslatorSpec extends FunSuite {
   full("foo.inner.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo()->inner()->baz()",
     CSharpCompiler -> "Foo.Inner.Baz",
-    GoCompiler -> "Foo.Inner.Baz",
+    GoCompiler -> "this.Foo.Inner.Baz",
     JavaCompiler -> "foo().inner().baz()",
     JavaScriptCompiler -> "this.foo.inner.baz",
     LuaCompiler -> "self.foo.inner.baz",
@@ -185,7 +189,7 @@ class TranslatorSpec extends FunSuite {
   full("_root.foo", userType(List("top_class", "block")), userType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "_root()->foo()",
     CSharpCompiler -> "M_Root.Foo",
-    GoCompiler -> "this._root.foo",
+    GoCompiler -> "this._root.Foo",
     JavaCompiler -> "_root.foo()",
     JavaScriptCompiler -> "this._root.foo",
     LuaCompiler -> "self._root.foo",
@@ -211,7 +215,7 @@ class TranslatorSpec extends FunSuite {
   // Arrays
   full("[0, 1, 100500]", CalcIntType, ArrayType(CalcIntType), Map[LanguageCompilerStatic, String](
     CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
-    GoCompiler -> "int[]{0, 1, 100500}",
+    GoCompiler -> "[]int{0, 1, 100500}",
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
     JavaScriptCompiler -> "[0, 1, 100500]",
     LuaCompiler -> "{0, 1, 100500}",
@@ -261,8 +265,8 @@ class TranslatorSpec extends FunSuite {
   full("a[42]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->at(42)",
     CSharpCompiler -> "A[42]",
-    GoCompiler -> "a[42]",
-    JavaCompiler -> "a().get(42)",
+    GoCompiler -> "this.A[42]",
+    JavaCompiler -> "a().get((int) 42)",
     JavaScriptCompiler -> "this.a[42]",
     LuaCompiler -> "self.a[43]",
     PHPCompiler -> "$this->a()[42]",
@@ -273,7 +277,7 @@ class TranslatorSpec extends FunSuite {
   full("a[42 - 2]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->at((42 - 2))",
     CSharpCompiler -> "A[(42 - 2)]",
-    GoCompiler -> "a[(42 - 2)]",
+    GoCompiler -> "this.A[(42 - 2)]",
     JavaCompiler -> "a().get((42 - 2))",
     JavaScriptCompiler -> "this.a[(42 - 2)]",
     LuaCompiler -> "self.a[(43 - 2)]",
@@ -285,7 +289,7 @@ class TranslatorSpec extends FunSuite {
   full("a.first", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->front()",
     CSharpCompiler -> "A[0]",
-    GoCompiler -> "this.a[0]",
+    GoCompiler -> "this.A[0]",
     JavaCompiler -> "a().get(0)",
     JavaScriptCompiler -> "this.a[0]",
     LuaCompiler -> "self.a[1]",
@@ -296,8 +300,8 @@ class TranslatorSpec extends FunSuite {
 
   full("a.last", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->back()",
-    CSharpCompiler -> "A[A.Length - 1]",
-    GoCompiler -> "this.a[len(this.a)-1]",
+    CSharpCompiler -> "A[A.Count - 1]",
+    GoCompiler -> "this.A[len(this.A)-1]",
     JavaCompiler -> "a().get(a().size() - 1)",
     JavaScriptCompiler -> "this.a[this.a.length - 1]",
     LuaCompiler -> "self.a[#self.a]",
@@ -309,7 +313,7 @@ class TranslatorSpec extends FunSuite {
   full("a.size", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->size()",
     CSharpCompiler -> "A.Count",
-    GoCompiler -> "len(this.a)",
+    GoCompiler -> "len(this.A)",
     JavaCompiler -> "a().size()",
     JavaScriptCompiler -> "this.a.length",
     LuaCompiler -> "#self.a",
