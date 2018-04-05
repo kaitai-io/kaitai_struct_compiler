@@ -39,8 +39,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         trStringLiteral(s)
       case Ast.expr.Bool(n) =>
         trBoolLiteral(n)
-
-//      case Ast.expr.BoolOp(op, values) =>
+      case Ast.expr.BoolOp(op, values) =>
+        trBooleanOp(op, values)
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
           case (_: NumericType, _: NumericType, _) =>
@@ -72,7 +72,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //      case Ast.expr.EnumById(enumName, id) =>
       case ctt: Ast.expr.CastToType =>
         doCastOrArray(ctt)
-//      case Ast.expr.Subscript(value, idx) =>
+      case Ast.expr.Subscript(container, idx) =>
+        trSubscript(container, idx)
       case Ast.expr.Name(name: Ast.identifier) =>
         trLocalName(name.name)
       case Ast.expr.List(elts) =>
@@ -88,6 +89,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trFloatLiteral(n: BigDecimal): TranslatorResult = ResultString(doFloatLiteral(n))
   def trStringLiteral(s: String): TranslatorResult = ResultString(doStringLiteral(s))
   def trBoolLiteral(n: Boolean): TranslatorResult = ResultString(doBoolLiteral(n))
+
+  def trBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]) =
+    ResultString(doBooleanOp(op, values))
 
   def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =
     ResultString(numericBinOp(left, op, right))
@@ -154,6 +158,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     case Identifier.ITERATOR2 =>
       "_buf"
   }
+
+  def trSubscript(container: Ast.expr, idx: Ast.expr) =
+    ResultString(s"${translate(container)}[${translate(idx)}]")
 
   def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
     val v1 = allocateLocalVar()
@@ -260,8 +267,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def arrayFirst(a: Ast.expr): TranslatorResult = {
     ResultString(s"${translate(a)}[0]")
   }
-  override def arrayLast(a: Ast.expr): TranslatorResult = {
-    ResultString(s"${translate(a)}[len(a)-1]")
+  override def arrayLast(a: Ast.expr): ResultString = {
+    val v = allocateLocalVar()
+    out.puts(s"${localVarName(v)} := ${translate(a)}")
+    ResultString(s"${localVarName(v)}[len(${localVarName(v)}) - 1]")
   }
   override def arraySize(a: Ast.expr): TranslatorResult = {
     ResultString(s"len(${translate(a)})")
@@ -320,7 +329,16 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def enumToInt(value: Ast.expr, et: EnumType): TranslatorResult = ???
 
-  override def boolToInt(value: Ast.expr): TranslatorResult = ???
+  override def boolToInt(value: Ast.expr): ResultLocalVar = {
+    val v = allocateLocalVar()
+    out.puts(s"${localVarName(v)} := 0")
+    out.puts(s"if ${translate(value)} {")
+    out.inc
+    out.puts(s"${localVarName(v)} = 1")
+    out.dec
+    out.puts("}")
+    ResultLocalVar(v)
+  }
 
   def userType(dataType: UserType, io: String) = {
     val v = allocateLocalVar()
