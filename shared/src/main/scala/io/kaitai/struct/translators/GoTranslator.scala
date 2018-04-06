@@ -237,6 +237,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     "big5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese")
   )
 
+  override def bytesToStr(value: Ast.expr, expr: Ast.expr): TranslatorResult =
+    bytesToStr(translate(value), expr)
+
   def bytesToStr(bytesExpr: String, encoding: Ast.expr): TranslatorResult = {
     val enc = encoding match {
       case Ast.expr.Str(s) => s
@@ -304,28 +307,77 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString(s"utf8.RuneCountInString(${translate(s)})")
   }
 
-  override def strReverse(s: Ast.expr): TranslatorResult = ???
+  override def strReverse(s: Ast.expr): ResultLocalVar = {
+    val r = allocateLocalVar()
+    out.puts(s"${localVarName(r)} := []rune(${translate(s)})")
+    out.puts(s"for i, j := 0, len(${localVarName(r)})-1; i < len(${localVarName(r)})/2; i, j = i+1, j-1 {")
+    out.inc
+    out.puts(s"${localVarName(r)}[i], ${localVarName(r)}[j] = ${localVarName(r)}[j], ${localVarName(r)}[i]")
+    out.dec
+    out.puts("}")
+    ResultLocalVar(r)
+  }
 
-  override def strToInt(s: Ast.expr, base: Ast.expr): TranslatorResult = ???
+  override def strToInt(s: Ast.expr, base: Ast.expr): TranslatorResult = {
+    importList.add("strconv")
+    ResultString(s"strconv.ParseInt(${translate(s)}, ${translate(base)}, 0)")
+  }
 
-  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): TranslatorResult = ???
+  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): TranslatorResult = {
+    ResultString(s"${translate(s)}[${translate(from)}:${translate(to)}]")
+  }
 
-  override def bytesToStr(value: Ast.expr, expr: Ast.expr): TranslatorResult = ???
-
-  override def intToStr(value: Ast.expr, num: Ast.expr): TranslatorResult = ???
+  override def intToStr(value: Ast.expr, base: Ast.expr): TranslatorResult = {
+    importList.add("strconv")
+    ResultString(s"strconv.FormatInt(int64(${translate(value)}), ${translate(base)})")
+  }
 
   override def floatToInt(value: Ast.expr): TranslatorResult =
     ResultString(s"int(${translate(value)})")
 
-  override def kaitaiStreamSize(value: Ast.expr): TranslatorResult = ???
+  override def kaitaiStreamSize(value: Ast.expr): TranslatorResult = {
+    ResultString(s"${translate(value)}.Size()")
+  }
 
-  override def kaitaiStreamEof(value: Ast.expr): TranslatorResult = ???
+  override def kaitaiStreamEof(value: Ast.expr): TranslatorResult = {
+    ResultString(s"${translate(value)}.EOF()")
+  }
 
-  override def kaitaiStreamPos(value: Ast.expr): TranslatorResult = ???
+  override def kaitaiStreamPos(value: Ast.expr): TranslatorResult = {
+    ResultString(s"${translate(value)}.Pos()")
+  }
 
-  override def arrayMin(a: Ast.expr): TranslatorResult = ???
+  override def arrayMin(a: Ast.expr): ResultLocalVar = {
+    val min = allocateLocalVar()
+    val value = allocateLocalVar()
+    out.puts(s"${localVarName(min)} := ${translate(a)}[0]")
+    out.puts(s"for _, ${localVarName(value)} := range ${translate(a)} {")
+    out.inc
+    out.puts(s"if ${localVarName(min)} > ${localVarName(value)} {")
+    out.inc
+    out.puts(s"${localVarName(min)} = ${localVarName(value)}")
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+    ResultLocalVar(min)
+  }
 
-  override def arrayMax(a: Ast.expr): TranslatorResult = ???
+  override def arrayMax(a: Ast.expr): ResultLocalVar = {
+    val max = allocateLocalVar()
+    val value = allocateLocalVar()
+    out.puts(s"${localVarName(max)} := ${translate(a)}[0]")
+    out.puts(s"for _, ${localVarName(value)} := range ${translate(a)} {")
+    out.inc
+    out.puts(s"if ${localVarName(max)} < ${localVarName(value)} {")
+    out.inc
+    out.puts(s"${localVarName(max)} = ${localVarName(value)}")
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+    ResultLocalVar(max)
+  }
 
   override def enumToInt(value: Ast.expr, et: EnumType): TranslatorResult = ???
 
