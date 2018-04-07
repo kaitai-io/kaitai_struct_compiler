@@ -425,7 +425,7 @@ class TranslatorSpec extends FunSuite {
   full("\"str\".reverse", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "kaitai::kstream::reverse(std::string(\"str\"))",
       CSharpCompiler -> "new string(Array.Reverse(\"str\".ToCharArray()))",
-      GoCompiler -> "func(s string)(string){r := []rune(s); for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 { r[i], r[j] = r[j], r[i] }; return string(r)}(\"str\")",
+      GoCompiler -> "kaitai.StringReverse(\"str\")",
       JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
       JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
       LuaCompiler -> "string.reverse(\"str\")",

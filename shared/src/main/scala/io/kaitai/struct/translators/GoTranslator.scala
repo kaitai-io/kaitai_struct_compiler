@@ -308,14 +308,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   override def strReverse(s: Ast.expr): ResultLocalVar = {
-    val r = allocateLocalVar()
-    out.puts(s"${localVarName(r)} := []rune(${translate(s)})")
-    out.puts(s"for i, j := 0, len(${localVarName(r)})-1; i < len(${localVarName(r)})/2; i, j = i+1, j-1 {")
-    out.inc
-    out.puts(s"${localVarName(r)}[i], ${localVarName(r)}[j] = ${localVarName(r)}[j], ${localVarName(r)}[i]")
-    out.dec
-    out.puts("}")
-    ResultLocalVar(r)
+    ResultString(s"kaitai.StringReverse(${translate(s)})")
   }
 
   override def strToInt(s: Ast.expr, base: Ast.expr): TranslatorResult = {
@@ -336,7 +329,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString(s"int(${translate(value)})")
 
   override def kaitaiStreamSize(value: Ast.expr): TranslatorResult = {
-    ResultString(s"${translate(value)}.Size()")
+    outVarCheckRes(s"${translate(value)}.Size()")
   }
 
   override def kaitaiStreamEof(value: Ast.expr): TranslatorResult = {
@@ -344,7 +337,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   override def kaitaiStreamPos(value: Ast.expr): TranslatorResult = {
-    ResultString(s"${translate(value)}.Pos()")
+    outVarCheckRes(s"${translate(value)}.Pos()")
   }
 
   override def arrayMin(a: Ast.expr): ResultLocalVar = {
