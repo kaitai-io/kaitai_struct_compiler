@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{ClassSpec, Identifier}
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.precompile.TypeMismatchError
 import io.kaitai.struct.{ImportList, StringLanguageOutputWriter, Utils}
@@ -105,15 +105,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
     ResultString(doStrCompareOp(left, op, right))
 
-//  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = {
-//    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
-//    val commaStr = value.map((v) => translate(v)).mkString(", ")
-//    s"new ArrayList<$javaType>(Arrays.asList($commaStr))"
-//  }
-//
-//  override def doByteArrayLiteral(arr: Seq[Byte]): String =
-//    s"new byte[] { ${arr.mkString(", ")} }"
-
   override def unaryOp(op: Ast.unaryop): String = op match {
     case Ast.unaryop.Invert => "^"
     case Ast.unaryop.Minus => "-"
@@ -199,31 +190,18 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-//  override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
-//    s"${translate(container)}.get((int) ${translate(idx)})"
-//  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
-//    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-//  override def doCast(value: Ast.expr, typeName: String): String =
-//    s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
-
   override def doCast(value: Ast.expr, typeName: Ast.typeId): TranslatorResult = ???
 
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) =
     ResultString(s"[]${GoCompiler.kaitaiType2NativeType(t)}{${value.map(translate).mkString(", ")}}")
 
   override def doByteArrayLiteral(arr: Seq[Byte]): TranslatorResult =
-    ResultString("\"" + Utils.hexEscapeByteArray(arr) + "\"")
+    ResultString("[]uint8{" + arr.map(_ & 0xff).mkString(", ") + "}")
 
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): TranslatorResult =
-    ResultString("string([]byte{" + elts.map(translate).mkString(", ") + "})")
+    ResultString("[]uint8{" + elts.map(translate).mkString(", ") + "}")
 
   // Predefined methods of various types
-//  override def strToInt(s: Ast.expr, base: Ast.expr): String =
-//    s"Long.parseLong(${translate(s)}, ${translate(base)})"
-//  override def enumToInt(v: Ast.expr, et: EnumType): String =
-//    s"${translate(v)}.id()"
-//  override def intToStr(i: Ast.expr, base: Ast.expr): String =
-//    s"Long.toString(${translate(i)}, ${translate(base)})"
 
   val IMPORT_CHARMAP = "golang.org/x/text/encoding/charmap"
 
@@ -267,17 +245,15 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 //  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
 //    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
-  override def arrayFirst(a: Ast.expr): TranslatorResult = {
+  override def arrayFirst(a: Ast.expr): TranslatorResult =
     ResultString(s"${translate(a)}[0]")
-  }
   override def arrayLast(a: Ast.expr): ResultString = {
     val v = allocateLocalVar()
     out.puts(s"${localVarName(v)} := ${translate(a)}")
     ResultString(s"${localVarName(v)}[len(${localVarName(v)}) - 1]")
   }
-  override def arraySize(a: Ast.expr): TranslatorResult = {
+  override def arraySize(a: Ast.expr): TranslatorResult =
     ResultString(s"len(${translate(a)})")
-  }
 //  override def arrayMin(a: Ast.expr): String =
 //    s"Collections.min(${translate(a)})"
 //  override def arrayMax(a: Ast.expr): String =
