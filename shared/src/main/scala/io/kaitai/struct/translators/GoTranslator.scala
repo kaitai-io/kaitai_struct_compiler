@@ -307,7 +307,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString(s"utf8.RuneCountInString(${translate(s)})")
   }
 
-  override def strReverse(s: Ast.expr): ResultLocalVar = {
+  override def strReverse(s: Ast.expr): TranslatorResult = {
     ResultString(s"kaitai.StringReverse(${translate(s)})")
   }
 
