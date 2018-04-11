@@ -266,24 +266,27 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
-    out.puts(s"${privateMemberName(id)} = [];")
-    out.puts("$i = 0;")
-    out.puts("do {")
+      out.puts(s"${privateMemberName(RawIdentifier(id))}: Vector<${kaitaiType2NativeType(dataType)}> = vec!();")
+    out.puts(s"${privateMemberName(id)}: Vector<${kaitaiType2NativeType(dataType)}> = vec!();")
+    out.puts("while {")
     out.inc
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val tmpName = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
-    out.puts(s"$tmpName = $expr;")
-    out.puts(s"${privateMemberName(id)}[] = $tmpName;")
+    val tempVar = if (isRaw) {
+      translator.doName(Identifier.ITERATOR2)
+    } else {
+      translator.doName(Identifier.ITERATOR)
+    }
+    out.puts(s"$tempVar = $expr;")
+    out.puts(s"${privateMemberName(id)}.append($expr);")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts("$i++;")
+    out.puts(s"!(${expression(untilExpr)})")
     out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts("} { }")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {

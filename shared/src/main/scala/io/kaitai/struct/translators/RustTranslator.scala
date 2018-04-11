@@ -33,9 +33,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"intval(${translate(left)} / ${translate(right)})"
+        s"${translate(left)} / ${translate(right)}"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${RustCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
+        s"${translate(left)} % ${translate(right)}"
       case _ =>
         super.numericBinOp(left, op, right)
     }
@@ -43,7 +43,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
 
   override def doLocalName(s: String) = {
     s match {
-      case Identifier.ITERATOR => "_"
+      case Identifier.ITERATOR => "tmpa"
+      case Identifier.ITERATOR2 => "tmpb"
       case Identifier.INDEX => "i"
       case _ => s"self.${doName(s)}"
     }
