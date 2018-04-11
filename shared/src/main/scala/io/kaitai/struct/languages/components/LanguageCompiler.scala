@@ -116,7 +116,8 @@ abstract class LanguageCompiler(
   def seek(io: String, pos: Ast.expr): Unit
   def popPos(io: String): Unit
   def alignToByte(io: String): Unit
-
+  
+  def instanceDeclHeader(className: List[String]): Unit = {}
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
   def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = attributeDeclaration(attrName, attrType, isNullable)

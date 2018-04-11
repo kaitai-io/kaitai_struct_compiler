@@ -367,6 +367,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"    pub ${idToStr(attrName)}: Option<${kaitaiType2NativeType(attrType)}>,")
   }
 
+  override def instanceDeclHeader(className: List[String]): Unit = {
+    out.dec
+    out.puts("}")
+    out.puts
+
+    out.puts(s"impl ${type2class(className)} {")
+  }
+
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"fn ${idToStr(instName)}() -> ${kaitaiType2NativeType(dataType)} {")
     out.inc

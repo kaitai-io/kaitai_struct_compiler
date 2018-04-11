@@ -71,6 +71,13 @@ class RustClassCompiler(
     lang.classConstructorFooter
   }
 
+  override def compileInstances(curClass: ClassSpec, extraAttrs: ListBuffer[AttrSpec]) = {
+    lang.instanceDeclHeader(curClass.name)
+    curClass.instances.foreach { case (instName, instSpec) =>
+      compileInstance(curClass.name, instName, instSpec, extraAttrs, curClass.meta.endian)
+    }
+  }
+
   override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
     // FIXME: support calculated endianness
 
