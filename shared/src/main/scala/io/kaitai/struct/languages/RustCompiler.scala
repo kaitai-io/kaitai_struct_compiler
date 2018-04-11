@@ -274,11 +274,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val tempVar = if (isRaw) {
-      translator.doName(Identifier.ITERATOR2)
+      translator.doLocalName(Identifier.ITERATOR2)
     } else {
-      translator.doName(Identifier.ITERATOR)
+      translator.doLocalName(Identifier.ITERATOR)
     }
-    out.puts(s"$tempVar = $expr;")
+    out.puts(s"let $tempVar = $expr;")
     out.puts(s"${privateMemberName(id)}.append($expr);")
   }
 
