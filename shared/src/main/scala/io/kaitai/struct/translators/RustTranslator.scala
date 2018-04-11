@@ -9,20 +9,18 @@ import io.kaitai.struct.{RuntimeConfig, Utils}
 
 class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "\"" + Utils.hexEscapeByteArray(arr) + "\""
+    "vec!([" + arr.map((x) =>
+    	     "0x%0.2X".format(x & 0xff)
+    ).mkString(", ") + "])"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
-  // http://php.net/manual/en/language.types.string.php#language.types.string.syntax.double
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",
     '\r' -> "\\r",
     '"' -> "\\\"",
     '\\' -> "\\\\",
-
-    // allowed and required to not trigger variable interpolation
-    '$' -> "\\$",
 
     '\f' -> "\\f",
     '\13' -> "\\v",
@@ -43,19 +41,15 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     }
   }
 
-  override def anyField(value: expr, attrName: String): String =
-    s"${translate(value)}->${doName(attrName)}"
-
   override def doLocalName(s: String) = {
     s match {
-      case Identifier.ITERATOR => "$_"
-      case Identifier.ITERATOR2 => "$_buf"
-      case Identifier.INDEX => "$i"
-      case _ => s"$$this->${doName(s)}"
+      case Identifier.ITERATOR => "_"
+      case Identifier.INDEX => "i"
+      case _ => s"self.${doName(s)}"
     }
   }
 
-  override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
+  override def doName(s: String) = s
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)
@@ -72,7 +66,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr): String =
-    s"${translate(left)} . ${translate(right)}"
+    "format!(\"{}{}\", " + translate(left) + ", " + translate(right) + ")"
 
   override def strToInt(s: expr, base: expr): String =
     s"intval(${translate(s)}, ${translate(base)})"
@@ -107,25 +101,15 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}[0]"
-  override def arrayLast(a: expr): String = {
-    // For huge debate on efficiency of PHP last element of array methods, see:
-    // http://stackoverflow.com/a/41795859/487064
-    val v = translate(a)
-    s"$v[count($v) - 1]"
-  }
+    s"${translate(a)}.first()"
+  override def arrayLast(a: expr): String =
+    s"${translate(a)}.last()"
   override def arraySize(a: expr): String =
-    s"count(${translate(a)})"
+    s"${translate(a)}.len()"
   override def arrayMin(a: Ast.expr): String =
-    s"min(${translate(a)})"
+    s"${translate(a)}.iter().min()"
   override def arrayMax(a: Ast.expr): String =
-    s"max(${translate(a)})"
-
-  val namespaceRef = if (config.phpNamespace.isEmpty) {
-    ""
-  } else {
-    "\\" + config.phpNamespace
-  }
+    s"${translate(a)}.iter().max()"
 
   def types2classAbs(names: List[String]) =
     names match {
