@@ -20,11 +20,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     '\n' -> "\\n",
     '\r' -> "\\r",
     '"' -> "\\\"",
-    '\\' -> "\\\\",
-
-    '\f' -> "\\f",
-    '\13' -> "\\v",
-    '\33' -> "\\e"
+    '\\' -> "\\\\"
   )
 
   override def strLiteralUnicode(code: Char): String =
