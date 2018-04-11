@@ -29,38 +29,38 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override val translator: RustTranslator = new RustTranslator(typeProvider, config)
 
-  override def results(topClass: ClassSpec): Map[String, String] = {
-    val fn = topClass.nameAsStr
-    Map(
-      s"$fn.rs" -> out.result
-    )
-  }
-
   override def universalFooter: Unit = {
     out.dec
     out.puts("}")
   }
 
+  override def outImports(topClass: ClassSpec) =
+    importList.toList.map((x) => s"use $x;").mkString("", "\n", "\n")
+    
+
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"$topClassName.rs"
 
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"// $headerComment")
-    out.puts
-    
-    out.puts("use std::{")
-    out.puts("    option::Option,")
-    out.puts("    boxed::Box,")
-    out.puts("    io::{Result, Cursor},")
-    out.puts("    default::Default")
-    out.puts("};")
-    out.puts
+    outHeader.puts(s"// $headerComment")
+    outHeader.puts
 
-    out.puts("use kaitai_struct::{")
-    out.puts("    KaitaiStream,")
-    out.puts("    KaitaiStruct")
-    out.puts("};")
+    importList.add("std::option::Option")
+    importList.add("std::boxed::Box")
+    importList.add("std::io::Result")
+    importList.add("std::io::Cursor")
+    importList.add("std::default::Default")
+    importList.add("kaitai_struct::KaitaiStream")
+    importList.add("kaitai_struct::KaitaiStruct")
+
     out.puts
+  }
+
+  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+    val name = type2class(classSpec.name.last)
+    val pkg = type2classAbs(classSpec.name)
+    
+    importList.add(s"$pkg::$name")
   }
 
   override def classHeader(name: List[String]): Unit =
@@ -192,12 +192,19 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         out.puts(s"$destName = $kstreamName::processRotateLeft($srcName, $expr, 1);")
       case ProcessCustom(name, args) =>
-        val isAbsolute = name.length > 1
-        val procClass = name.map((x) => type2class(x)).mkString(
-          if (isAbsolute) "\\" else "", "\\", ""
-        )
-        out.puts(s"let _process = $procClass::new(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = _process.decode($srcName);")
+        val procClass = if (name.length == 1) {
+          val onlyName = name.head
+          val className = type2class(onlyName)
+          importList.add(s"$onlyName::$className")
+          className
+        } else {
+          val pkgName = name.init.mkString(".")
+          importList.add(s"$pkgName")
+          s"$pkgName.${type2class(name.last)}"
+        }
+
+        out.puts(s"let _process = $procClass::new(${args.map(expression).mkString(", ")})")
+        out.puts(s"$destName = _process.decode($srcName)")
     }
   }
 
@@ -323,6 +330,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
+	
         s"${translator.types2classAbs(t.classSpec.get.name)}::new(stream, self, _root)"
     }
   }
@@ -373,6 +381,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
 
     out.puts(s"impl ${type2class(className)} {")
+    out.inc
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
@@ -510,6 +519,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   
   def type2class(names: List[String]) = types2classRel(names)
+
+  def type2classAbs(names: List[String]) =
+    names.mkString("::")
 }
 
 object RustCompiler extends LanguageCompilerStatic
