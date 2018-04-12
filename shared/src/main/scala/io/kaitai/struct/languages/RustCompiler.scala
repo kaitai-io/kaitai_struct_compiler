@@ -332,7 +332,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
 	
-        s"${translator.types2classAbs(t.classSpec.get.name)}::new(stream, self, _root)?"
+        s"Box::new(${translator.types2classAbs(t.classSpec.get.name)}::new(stream, self, _root)?)"
     }
   }
 
