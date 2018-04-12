@@ -469,13 +469,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: StrType => "String"
       case _: BytesType => "Vec<u8>"
 
-      case t: UserType => types2classRel(t.name)
-      case t: EnumType => types2classRel(t.name)
+      case t: UserType => s"Box<${types2classRel(t.name)}>"
+      case t: EnumType => s"Box<${types2classRel(t.name)}"
 
       case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}>"
 
-      case KaitaiStreamType => s"$kstreamName"
-      case KaitaiStructType => s"$kstructName"
+      case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
+      case KaitaiStructType => s"Option<Box<KaitaiStruct>>"
       
       case SwitchType(on, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
     }
@@ -505,14 +505,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: StrType => "\"\""
       case _: BytesType => "vec!()"
 
-      case t: UserType => ""
-      case t: EnumType => ""
+      case t: UserType => "Default::default()"
+      case t: EnumType => "Default::default()"
       // TODO: figure this out
 
-      case ArrayType(inType) => s"vec!()"
+      case ArrayType(inType) => "vec!()"
 
-      case KaitaiStreamType => s"$kstreamName"
-      case KaitaiStructType => s"$kstructName"
+      case KaitaiStreamType => "None"
+      case KaitaiStructType => "None"
       
       case SwitchType(on, cases) => ""
       // TODO
