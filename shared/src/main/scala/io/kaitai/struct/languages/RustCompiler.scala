@@ -306,15 +306,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: ReadableType =>
         s"$io.read_${t.apiCall(defEndian)}()?"
       case blt: BytesLimitType =>
-        s"$io.read_bytes(${expression(blt.size)})"
+        s"$io.read_bytes(${expression(blt.size)})?"
       case _: BytesEosType =>
-        s"$io.read_bytes_full()"
+        s"$io.read_bytes_full()?"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.read_bytes_term($terminator, $include, $consume, $eosError)"
+        s"$io.read_bytes_term($terminator, $include, $consume, $eosError)?"
       case BitsType1 =>
-        s"$io.read_bits_int(1) != 0"
+        s"$io.read_bits_int(1)? != 0"
       case BitsType(width: Int) =>
-        s"$io.read_bits_int($width)"
+        s"$io.read_bits_int($width)?"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
@@ -332,7 +332,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
 	
-        s"${translator.types2classAbs(t.classSpec.get.name)}::new(stream, self, _root)"
+        s"${translator.types2classAbs(t.classSpec.get.name)}::new(stream, self, _root)?"
     }
   }
 
@@ -470,7 +470,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesType => "Vec<u8>"
 
       case t: UserType => s"Box<${types2classRel(t.name)}>"
-      case t: EnumType => s"Box<${types2classRel(t.name)}"
+      case t: EnumType => s"Box<${types2classRel(t.name)}>"
 
       case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}>"
 
