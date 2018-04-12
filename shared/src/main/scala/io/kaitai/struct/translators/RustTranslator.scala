@@ -68,16 +68,21 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     "format!(\"{}{}\", " + translate(left) + ", " + translate(right) + ")"
 
   override def strToInt(s: expr, base: expr): String =
-    s"intval(${translate(s)}, ${translate(base)})"
+    translate(base) match {
+      case "10" =>
+        s"${translate(s)}.parse().unwrap()"
+      case _ =>
+        "panic!(\"Converting from string to int in base {} is unimplemented\"" + translate(base) + ")"
+    }
 
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
 
   override def boolToInt(v: expr): String =
-    s"intval(${translate(v)})"
+    s"${translate(v)} as i32"
 
   override def floatToInt(v: expr): String =
-    s"intval(${translate(v)})"
+    s"${translate(v)} as i32"
 
   override def intToStr(i: expr, base: expr): String = {
     val baseStr = translate(base)
