@@ -83,7 +83,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     val baseStr = translate(base)
     baseStr match {
       case "10" =>
-        s"strval(${translate(i)})"
+        s"${translate(i)}.to_string()"
       case _ =>
         s"base_convert(strval(${translate(i)}), 10, $baseStr)"
     }
