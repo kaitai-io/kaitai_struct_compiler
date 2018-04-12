@@ -223,7 +223,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def useIO(ioEx: Ast.expr): String = {
-    out.puts(s"io = ${expression(ioEx)};")
+    out.puts(s"let mut io = ${expression(ioEx)};")
     "io"
   }
 
@@ -262,8 +262,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))}: Vec<${kaitaiType2NativeType(dataType)}> = vec!();")
-    out.puts(s"${privateMemberName(id)}: Vec<${kaitaiType2NativeType(dataType)}> = vec!();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = vec!();")
+    out.puts(s"${privateMemberName(id)} = vec!();")
     out.puts(s"for i in 0..${expression(repeatExpr)} {")
     out.inc
   }
@@ -274,8 +274,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))}: Vec<${kaitaiType2NativeType(dataType)}> = vec!();")
-    out.puts(s"${privateMemberName(id)}: Vec<${kaitaiType2NativeType(dataType)}> = vec!();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = vec!();")
+    out.puts(s"${privateMemberName(id)} = vec!();")
     out.puts("while {")
     out.inc
   }
