@@ -105,6 +105,24 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
     ResultString(doStrCompareOp(left, op, right))
 
+  override def doIntLiteral(n: BigInt): String = {
+    if (n < -9223372036854775808L) {
+      s"$n" // too low, no type conversion would help anyway
+    } else if (n <= -2147483649L) {
+      s"int64($n)" // -9223372036854775808..–2147483649
+    } else if (n <= 2147483647L) {
+      s"$n" // -2147483648..2147483647
+    } else if (n <= 4294967295L) {
+      s"uint32($n)" // 2147483648..4294967295
+    } else if (n <= 9223372036854775807L) {
+      s"int64($n)" // 4294967296..9223372036854775807
+    } else if (n <= Utils.MAX_UINT64) {
+      s"uint64($n)" // 9223372036854775808..18446744073709551615
+    } else {
+      s"$n" // too high, no type conversion would help anyway
+    }
+  }
+
   override def unaryOp(op: Ast.unaryop): String = op match {
     case Ast.unaryop.Invert => "^"
     case Ast.unaryop.Minus => "-"
