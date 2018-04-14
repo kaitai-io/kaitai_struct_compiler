@@ -2,18 +2,16 @@ package io.kaitai.struct.translators
 
 import java.nio.charset.Charset
 
-import io.kaitai.struct.{ImportList, Utils}
-import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CppCompiler
+import io.kaitai.struct.{ImportList, Utils}
 
 class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
-
-  val MAX_UINT64 = BigInt("18446744073709551615")
 
   /**
     * Handles integer literals for C++ by appending relevant suffix to
@@ -56,7 +54,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends B
       "UL" // 2147483648..4294967295
     } else if (n <= 9223372036854775807L) {
       "LL" // 4294967296..9223372036854775807
-    } else if (n <= MAX_UINT64) {
+    } else if (n <= Utils.MAX_UINT64) {
       "ULL" // 9223372036854775808..18446744073709551615
     } else {
       "" // too high, no suffix would help anyway
