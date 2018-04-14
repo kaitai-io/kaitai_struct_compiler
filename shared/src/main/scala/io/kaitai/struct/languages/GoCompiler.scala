@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
@@ -16,8 +16,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalFooter
     with UniversalDoc
     with AllocateIOLocalVar
-    with GoReads
-    with FixedContentsUsingArrayByteLiteral {
+    with GoReads {
   import GoCompiler._
 
   override val translator = new GoTranslator(out, typeProvider, importList)
@@ -117,8 +116,23 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = ???
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents($contents);")
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
+    out.puts(s"${privateMemberName(attrName)}, err = $normalIO.ReadBytes(${contents.length})")
+
+    out.puts(s"if err != nil {")
+    out.inc
+    out.puts("return err")
+    out.dec
+    out.puts("}")
+
+    importList.add("bytes")
+    importList.add("errors")
+    val expected = translator.resToStr(translator.doByteArrayLiteral(contents))
+    out.puts(s"if !bytes.Equal(${privateMemberName(attrName)}, $expected) {")
+    out.inc
+    out.puts("return errors.New(\"Unexpected fixed contents\")")
+    out.dec
+    out.puts("}")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
