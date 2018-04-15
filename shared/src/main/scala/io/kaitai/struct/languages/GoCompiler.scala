@@ -234,29 +234,24 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
-    out.puts("{")
-    out.inc
-    out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.specialName(Identifier.ITERATOR)};")
-    out.puts("do {")
+    out.puts("for {")
     out.inc
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, r: TranslatorResult, isRaw: Boolean): Unit = {
     val expr = translator.resToStr(r)
-    val (typeDecl, tempVar) = if (isRaw) {
-      ("byte[] ", translator.specialName(Identifier.ITERATOR2))
-    } else {
-      ("", translator.specialName(Identifier.ITERATOR))
-    }
-    out.puts(s"$typeDecl$tempVar = $expr;")
-    out.puts(s"${privateMemberName(id)}.add($tempVar);")
+    val tempVar = translator.specialName(Identifier.ITERATOR)
+    out.puts(s"$tempVar := $expr")
+    out.puts(s"${privateMemberName(id)} = append(${privateMemberName(id)}, $tempVar)")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts(s"if ${expression(untilExpr)} {")
+    out.inc
+    out.puts("break")
     out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts("}")
     out.dec
     out.puts("}")
   }
