@@ -93,8 +93,21 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]) =
     ResultString(doBooleanOp(op, values))
 
-  def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =
-    ResultString(numericBinOp(left, op, right))
+  def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): TranslatorResult = {
+    (detectType(left), detectType(right), op) match {
+      case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
+        val v1 = allocateLocalVar()
+        out.puts(s"${localVarName(v1)} := ${translate(left)} % ${translate(right)}")
+        out.puts(s"if ${localVarName(v1)} < 0 {")
+        out.inc
+        out.puts(s"${localVarName(v1)} += ${translate(right)}")
+        out.dec
+        out.puts("}")
+        ResultLocalVar(v1)
+      case _ =>
+        ResultString(numericBinOp(left, op, right))
+    }
+  }
 
   def trStrConcat(left: Ast.expr, right: Ast.expr): TranslatorResult =
     ResultString(translate(left) + " + " + translate(right))
@@ -127,15 +140,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     case Ast.unaryop.Invert => "^"
     case Ast.unaryop.Minus => "-"
     case Ast.unaryop.Not => "!"
-  }
-
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
-    (detectType(left), detectType(right), op) match {
-      case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${GoCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
-      case _ =>
-        super.numericBinOp(left, op, right)
-    }
   }
 
   def trLocalName(s: String): TranslatorResult = {
