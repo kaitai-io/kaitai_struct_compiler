@@ -323,20 +323,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString(s"strconv.FormatInt(int64(${translate(value)}), ${translate(base)})")
   }
 
-  override def floatToInt(value: Ast.expr): TranslatorResult =
+  override def floatToInt(value: Ast.expr) =
     ResultString(s"int(${translate(value)})")
 
-  override def kaitaiStreamSize(value: Ast.expr): TranslatorResult = {
+  override def kaitaiStreamSize(value: Ast.expr) =
     outVarCheckRes(s"${translate(value)}.Size()")
-  }
 
-  override def kaitaiStreamEof(value: Ast.expr): TranslatorResult = {
-    ResultString(s"${translate(value)}.EOF()")
-  }
+  override def kaitaiStreamEof(value: Ast.expr) =
+    outVarCheckRes(s"${translate(value)}.EOF()")
 
-  override def kaitaiStreamPos(value: Ast.expr): TranslatorResult = {
+  override def kaitaiStreamPos(value: Ast.expr) =
     outVarCheckRes(s"${translate(value)}.Pos()")
-  }
 
   override def arrayMin(a: Ast.expr): ResultLocalVar = {
     val min = allocateLocalVar()

@@ -1,8 +1,8 @@
 package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.Utils
-import io.kaitai.struct.datatype.{BigEndian, DataType, FixedEndian}
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{GoTranslator, TranslatorResult}

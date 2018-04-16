@@ -207,8 +207,17 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
     //out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))})")
-    out.puts(s"for !$io.EOF() {")
+    out.puts(s"for {")
     out.inc
+
+    val eofVar = translator.allocateLocalVar()
+    out.puts(s"${translator.localVarName(eofVar)}, err := this._io.EOF()")
+    translator.outAddErrCheck()
+    out.puts(s"if ${translator.localVarName(eofVar)} {")
+    out.inc
+    out.puts("break")
+    out.dec
+    out.puts("}")
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, r: TranslatorResult): Unit = {
