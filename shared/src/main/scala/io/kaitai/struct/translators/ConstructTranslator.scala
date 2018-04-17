@@ -9,7 +9,7 @@ class ConstructTranslator(provider: TypeProvider, importList: ImportList) extend
     s match {
       case Identifier.ITERATOR => "obj_"
       case Identifier.INDEX => "i"
-      case Identifier.ROOT => "_root"
+      case Identifier.ROOT => "this._root"
       case Identifier.IO => "_io"
       case _ => s"this.${doName(s)}"
     }

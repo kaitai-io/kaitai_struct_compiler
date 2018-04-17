@@ -27,6 +27,9 @@ class GoClassCompiler(
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
 
+    // Enums declaration defines types, so they need to go first
+    compileEnums(curClass)
+
     // Basic struct declaration
     lang.classHeader(curClass.name)
     compileAttrDeclarations(curClass.seq ++ extraAttrs)
@@ -41,8 +44,6 @@ class GoClassCompiler(
     compileInstances(curClass, extraAttrs)
 
     compileAttrReaders(curClass.seq ++ extraAttrs)
-
-    compileEnums(curClass)
 
     // Recursive types
     compileSubclasses(curClass)
