@@ -315,18 +315,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"switch (${expression(on)}) {")
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    // Java is very specific about what can be used as "condition" in "case
-    // condition:".
-    val condStr = condition match {
-      case Ast.expr.EnumByLabel(enumName, enumVal) =>
-        // If switch is over a enum, only literal enum values are supported,
-        // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
-        value2Const(enumVal.name)
-      case _ =>
-        expression(condition)
-    }
-
-    out.puts(s"case $condStr: {")
+    out.puts(s"case ${expression(condition)}: {")
     out.inc
   }
 
@@ -384,41 +373,21 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"this.${calculatedFlagForName(instName)} = true")
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
-    val enumClass = type2class(enumName)
+    val fullEnumName: List[String] = curClass ++ List(enumName)
+    val fullEnumNameStr = types2class(fullEnumName)
 
     out.puts
-    out.puts(s"public enum $enumClass {")
+    out.puts(s"type $fullEnumNameStr int")
+    out.puts("const (")
     out.inc
 
-    if (enumColl.size > 1) {
-      enumColl.dropRight(1).foreach { case (id, label) =>
-        out.puts(s"${value2Const(label.name)}($id),")
-      }
-    }
-    enumColl.last match {
-      case (id, label) =>
-        out.puts(s"${value2Const(label.name)}($id);")
+    enumColl.foreach { case (id, label) =>
+      out.puts(s"${enumToStr(fullEnumName, label.name)} $fullEnumNameStr = $id")
     }
 
-    out.puts
-    out.puts("private final long id;")
-    out.puts(s"$enumClass(long id) { this.id = id; }")
-    out.puts("public long id() { return id; }")
-    out.puts(s"private static final Map<Long, $enumClass> byId = new HashMap<Long, $enumClass>(${enumColl.size});")
-    out.puts("static {")
-    out.inc
-    out.puts(s"for ($enumClass e : $enumClass.values())")
-    out.inc
-    out.puts(s"byId.put(e.id(), e);")
     out.dec
-    out.dec
-    out.puts("}")
-    out.puts(s"public static $enumClass byId(long id) { return byId.get(id); }")
-    out.dec
-    out.puts("}")
+    out.puts(")")
   }
-
-  def value2Const(s: String) = s.toUpperCase
 
   def idToStr(id: Identifier): String = {
     id match {
@@ -497,7 +466,7 @@ object GoCompiler extends LanguageCompilerStatic
         case Some(cs) => cs.name
         case None => t.name
       })
-      case EnumType(name, _) => types2class(name)
+      case t: EnumType => types2class(t.enumSpec.get.name)
 
       case ArrayType(inType) => s"[]${kaitaiType2NativeType(inType)}"
 
@@ -506,6 +475,15 @@ object GoCompiler extends LanguageCompilerStatic
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString("_")
+
+  def enumToStr(enumTypeAbs: List[String]): String = {
+    val enumName = enumTypeAbs.last
+    val enumClass: List[String] = enumTypeAbs.dropRight(1)
+    enumToStr(enumClass, enumName)
+  }
+
+  def enumToStr(typeName: List[String], enumName: String): String =
+    types2class(typeName) + "__" + type2class(enumName)
 
   override def kstreamName: String = "kaitai.Stream"
   override def kstructName: String = "interface{}"

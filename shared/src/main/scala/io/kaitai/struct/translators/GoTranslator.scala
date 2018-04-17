@@ -20,6 +20,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   with CommonArraysAndCast[TranslatorResult]
   with CommonMethods[TranslatorResult] {
 
+  import io.kaitai.struct.languages.GoCompiler._
+
   var returnRes: Option[String] = None
 
   override def translate(v: Ast.expr): String = resToStr(translateExpr(v))
@@ -193,13 +195,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
 //  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
 //    s"${enumClass(enumTypeAbs)}.${label.toUpperCase}"
-//  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-//    s"${enumClass(enumTypeAbs)}.byId($id)"
-
-  def enumClass(enumTypeAbs: List[String]): String = {
-    val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
-    enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
-  }
+  def trEnumById(enumTypeAbs: List[String], id: String) =
+    ResultString(s"${types2class(enumTypeAbs)}($id)")
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     op match {

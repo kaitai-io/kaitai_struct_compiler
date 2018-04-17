@@ -35,9 +35,11 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
         val r1 = translator.outVarCheckRes(parseExprBytes(t.bytes, io))
         val expr = translator.bytesToStr(translator.resToStr(r1), Ast.expr.Str(t.encoding))
         handleAssignment(id, expr, rep, isRaw)
-//      case t: EnumType =>
-//        val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, io))
-//        handleAssignment(id, expr, rep, isRaw)
+      case t: EnumType =>
+        val r1 = translator.outVarCheckRes(parseExpr(t.basedOn, io, defEndian))
+        val enumSpec = t.enumSpec.get
+        val expr = translator.trEnumById(enumSpec.name, translator.resToStr(r1))
+        handleAssignment(id, expr, rep, isRaw)
       case _ =>
         val expr = parseExpr(dataType, io, defEndian)
         val r = translator.outVarCheckRes(expr)
