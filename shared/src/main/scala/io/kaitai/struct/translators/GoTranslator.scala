@@ -67,6 +67,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
             trNumericCompareOp(left, op, right)
           case (_: StrType, _: StrType) =>
             trStrCompareOp(left, op, right)
+          case (_: BytesType, _: BytesType) =>
+            trBytesCompareOp(left, op, right)
           case (ltype, rtype) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
@@ -119,6 +121,16 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   def trStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
     ResultString(doStrCompareOp(left, op, right))
+
+  def trBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult = {
+    importList.add("bytes")
+    op match {
+      case Ast.cmpop.Eq =>
+        ResultString(s"bytes.Equal(${translate(left)}, ${translate(right)})")
+      case _ =>
+        ResultString(s"(bytes.Compare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)")
+    }
+  }
 
   override def doIntLiteral(n: BigInt): String = {
     if (n < -9223372036854775808L) {
