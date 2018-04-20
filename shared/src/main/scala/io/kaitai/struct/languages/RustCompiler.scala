@@ -36,7 +36,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def outImports(topClass: ClassSpec) =
     importList.toList.map((x) => s"use $x;").mkString("", "\n", "\n")
-    
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"$topClassName.rs"
@@ -100,6 +99,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let mut s: Self = Default::default();")
     out.puts
 
+    out.puts(s"s.stream = stream;")
+
     out.puts(s"s.read(stream, _parent, _root)?;")
     out.puts
 
@@ -139,6 +140,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attrName match {
       case ParentIdentifier | RootIdentifier | IoIdentifier =>
         // just ignore it for now
+      case IoIdentifier =>
+        out.puts(s"     stream: ${kaitaiType2NativeType(attrType)},")
       case _ =>
         out.puts(s"    pub ${idToStr(attrName)}: ${kaitaiType2NativeType(attrType)},")
     }
@@ -332,7 +335,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
 	
-        s"Box::new(${translator.types2classAbs(t.classSpec.get.name)}::new(stream, self, _root)?)"
+        s"Box::new(${translator.types2classAbs(t.classSpec.get.name)}::new(self.stream, self, _root)?)"
     }
   }
 
@@ -432,7 +435,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def privateMemberName(id: Identifier): String = {
     id match {
-      case IoIdentifier => s"stream"
+      case IoIdentifier => s"self.stream"
       case RootIdentifier => s"_root"
       case ParentIdentifier => s"_parent"
       case _ => s"self.${idToStr(id)}"
@@ -469,8 +472,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: StrType => "String"
       case _: BytesType => "Vec<u8>"
 
-      case t: UserType => s"Box<${types2classRel(t.name)}>"
-      case t: EnumType => s"Box<${types2classRel(t.name)}>"
+      case t: UserType => t.classSpec match {
+        case Some(cs) => s"Box<${type2class(cs.name)}>"
+	case None => s"Box<${type2class(t.name)}>"
+      }
+      
+      case t: EnumType => t.enumSpec match {
+        case Some(cs) => s"Box<${type2class(cs.name)}>"
+	case None => s"Box<${type2class(t.name)}>"
+      }
 
       case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}>"
 
@@ -507,7 +517,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case t: UserType => "Default::default()"
       case t: EnumType => "Default::default()"
-      // TODO: figure this out
 
       case ArrayType(inType) => "vec!()"
 

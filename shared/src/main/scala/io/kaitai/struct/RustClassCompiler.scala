@@ -38,7 +38,6 @@ class RustClassCompiler(
     // Constructor = Read() function
     compileReadFunction(curClass, extraAttrs)
     
-
     compileInstances(curClass, extraAttrs)
 
     compileAttrReaders(curClass.seq ++ extraAttrs)
