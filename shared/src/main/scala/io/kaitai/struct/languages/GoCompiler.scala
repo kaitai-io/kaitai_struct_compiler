@@ -172,8 +172,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def useIO(ioEx: Ast.expr): String = {
-    out.puts(s"$kstreamName io = ${expression(ioEx)};")
-    "io"
+    out.puts(s"thisIo := ${expression(ioEx)}")
+    "thisIo"
   }
 
   override def pushPos(io: String): Unit = {
@@ -281,7 +281,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1 =>
-        s"$io.ReadBitsInt(1) != 0"
+        s"$io.ReadBitsInt(1)"
       case BitsType(width: Int) =>
         s"$io.ReadBitsInt($width)"
       case t: UserType =>

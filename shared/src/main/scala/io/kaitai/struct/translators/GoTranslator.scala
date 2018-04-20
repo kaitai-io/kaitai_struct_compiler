@@ -69,6 +69,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
             trStrCompareOp(left, op, right)
           case (_: BytesType, _: BytesType) =>
             trBytesCompareOp(left, op, right)
+          case (_: BooleanType, _: BooleanType) =>
+            trNumericCompareOp(left, op, right)
           case (ltype, rtype) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
