@@ -50,11 +50,11 @@ class TypeDetector(provider: TypeProvider) {
       case Ast.expr.Bool(_) => CalcBooleanType
       case Ast.expr.EnumByLabel(enumType, _, inType) =>
         val t = EnumType(List(enumType.name), CalcIntType)
-        t.enumSpec = Some(provider.resolveEnum(enumType.name))
+        t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
-      case Ast.expr.EnumById(enumType, _) =>
+      case Ast.expr.EnumById(enumType, _, inType) =>
         val t = EnumType(List(enumType.name), CalcIntType)
-        t.enumSpec = Some(provider.resolveEnum(enumType.name))
+        t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
@@ -278,9 +278,11 @@ object TypeDetector {
       case (_: NumericType, _: NumericType) => // ok
       case (_: BooleanType, _: BooleanType) => // ok
       case (_: BytesType, _: BytesType) => // ok
-      case (EnumType(name1, _), EnumType(name2, _)) =>
-        if (name1 != name2) {
-          throw new TypeMismatchError(s"can't compare different enums '$name1' and '$name2'")
+      case (et1: EnumType, et2: EnumType) =>
+        val et1Spec = et1.enumSpec.get
+        val et2Spec = et2.enumSpec.get
+        if (et1Spec != et2Spec) {
+          throw new TypeMismatchError(s"can't compare different enums '${et1Spec.nameAsStr}' and '${et2Spec.nameAsStr}'")
         }
         op match {
           case Ast.cmpop.Eq | Ast.cmpop.NotEq => // ok

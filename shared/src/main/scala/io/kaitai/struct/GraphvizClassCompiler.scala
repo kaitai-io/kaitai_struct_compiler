@@ -309,7 +309,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         List()
       case _: expr.EnumByLabel =>
         List()
-      case expr.EnumById(enumName, id) =>
+      case expr.EnumById(_, id, _) =>
         affectedVars(id)
       case expr.Attribute(value, attr) =>
         val targetClass = translator.detectType(value)

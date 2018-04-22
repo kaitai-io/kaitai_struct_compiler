@@ -54,11 +54,11 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doStringLiteral(s)
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
-      case Ast.expr.EnumById(enumType, id) =>
-        val enumSpec = provider.resolveEnum(enumType.name)
+      case Ast.expr.EnumById(enumType, id, inType) =>
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
         doEnumById(enumSpec.name, translate(id))
       case Ast.expr.EnumByLabel(enumType, label, inType) =>
-        val enumSpec = provider.resolveEnum(enumType.name)
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
         doEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         doLocalName(name.name)
@@ -85,9 +85,11 @@ abstract class BaseTranslator(val provider: TypeProvider)
             doStrCompareOp(left, op, right)
           case (_: BytesType, _: BytesType) =>
             doBytesCompareOp(left, op, right)
-          case (EnumType(ltype, _), EnumType(rtype, _)) =>
-            if (ltype != rtype) {
-              throw new TypeMismatchError(s"can't compare enums type $ltype and $rtype")
+          case (et1: EnumType, et2: EnumType) =>
+            val et1Spec = et1.enumSpec.get
+            val et2Spec = et2.enumSpec.get
+            if (et1Spec != et2Spec) {
+              throw new TypeMismatchError(s"can't compare enums type ${et1Spec.nameAsStr} and ${et2Spec.nameAsStr}")
             } else {
               doEnumCompareOp(left, op, right)
             }

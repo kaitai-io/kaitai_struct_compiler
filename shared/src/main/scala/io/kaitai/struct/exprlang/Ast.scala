@@ -40,7 +40,7 @@ object Ast {
     case class Str(s: String) extends expr
     case class Bool(n: Boolean) extends expr
     case class EnumByLabel(enumName: identifier, label: identifier, inType: typeId = EmptyTypeId) extends expr
-    case class EnumById(enumName: identifier, id: expr) extends expr
+    case class EnumById(enumName: identifier, id: expr, inType: typeId = EmptyTypeId) extends expr
 
     case class Attribute(value: expr, attr: identifier) extends expr
     case class CastToType(value: expr, typeName: typeId) extends expr
