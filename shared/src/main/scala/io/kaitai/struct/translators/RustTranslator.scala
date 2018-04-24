@@ -10,7 +10,7 @@ import io.kaitai.struct.{RuntimeConfig, Utils}
 class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "vec!([" + arr.map((x) =>
-    	     "0x%0.2X".format(x & 0xff)
+    	     "%0#2x".format(x & 0xff)
     ).mkString(", ") + "])"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"pack('C*', ${elts.map(translate).mkString(", ")})"
@@ -102,11 +102,11 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
 	translate(encoding) + ")"
     }
   override def bytesLength(b: Ast.expr): String =
-    s"strlen(${translate(b)})"
+    s"${translate(b)}.len()"
   override def strLength(s: expr): String =
-    s"strlen(${translate(s)})"
+    s"${translate(s)}.len()"
   override def strReverse(s: expr): String =
-    s"strrev(${translate(s)})"
+    s"${translate(s)}.graphemes(true).rev().flat_map(|g| g.chars()).collect()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 

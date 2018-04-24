@@ -173,7 +173,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents($contents);")
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
@@ -202,13 +202,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           importList.add(s"$onlyName::$className")
           className
         } else {
-          val pkgName = name.init.mkString(".")
+          val pkgName = type2classAbs(name.init)
           importList.add(s"$pkgName")
-          s"$pkgName.${type2class(name.last)}"
+          s"$pkgName::${type2class(name.last)}"
         }
 
-        out.puts(s"let _process = $procClass::new(${args.map(expression).mkString(", ")})")
-        out.puts(s"$destName = _process.decode($srcName)")
+        out.puts(s"let _process = $procClass::new(${args.map(expression).mkString(", ")});")
+        out.puts(s"$destName = _process.decode($srcName);")
     }
   }
 
