@@ -71,11 +71,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
             trBytesCompareOp(left, op, right)
           case (_: BooleanType, _: BooleanType) =>
             trNumericCompareOp(left, op, right)
+          case (_: EnumType, _: EnumType) =>
+            trNumericCompareOp(left, op, right)
           case (ltype, rtype) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
-//      case Ast.expr.EnumByLabel(enumName, label) =>
-//      case Ast.expr.EnumById(enumName, id) =>
+      case Ast.expr.EnumById(enumType, id, inType) =>
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
+        trEnumById(enumSpec.name, translate(id))
+      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
+        trEnumByLabel(enumSpec.name, label.name)
       case ctt: Ast.expr.CastToType =>
         doCastOrArray(ctt)
       case Ast.expr.Subscript(container, idx) =>
@@ -207,8 +213,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultLocalVar(v1)
   }
 
-//  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-//    s"${enumClass(enumTypeAbs)}.${label.toUpperCase}"
+  def trEnumByLabel(enumTypeAbs: List[String], label: String) =
+    ResultString(GoCompiler.enumToStr(enumTypeAbs, label))
   def trEnumById(enumTypeAbs: List[String], id: String) =
     ResultString(s"${types2class(enumTypeAbs)}($id)")
 
