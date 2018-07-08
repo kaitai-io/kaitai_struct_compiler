@@ -384,7 +384,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultLocalVar(max)
   }
 
-  override def enumToInt(value: Ast.expr, et: EnumType): TranslatorResult = ???
+  override def enumToInt(value: Ast.expr, et: EnumType) =
+    translateExpr(value)
 
   override def boolToInt(value: Ast.expr): ResultLocalVar = {
     val v = allocateLocalVar()
