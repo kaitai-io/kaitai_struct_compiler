@@ -94,6 +94,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+
+    if (debug) {
+      importList.add("import collections")
+      out.puts("self._debug = collections.defaultdict(dict)")
+    }
   }
 
   override def runRead(): Unit = {
@@ -247,6 +252,40 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def alignToByte(io: String): Unit =
     out.puts(s"$io.align_to_byte()")
+
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
+    ios.foreach { (io) =>
+      val name = attrId match {
+        case _: RawIdentifier | _: SpecialIdentifier => return
+        case _ => idToStr(attrId)
+      }
+      rep match {
+        case NoRepeat =>
+          out.puts(s"self._debug['$name']['start'] = $io.pos()")
+        case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
+          out.puts(s"if not 'arr' in self._debug['$name']:")
+          out.inc
+          out.puts(s"self._debug['$name']['arr'] = []")
+          out.dec
+          out.puts(s"self._debug['$name']['arr'].append({'start': $io.pos()})")
+      }
+    }
+  }
+
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId match {
+      case _: RawIdentifier | _: SpecialIdentifier => return
+      case _ => idToStr(attrId)
+    }
+    rep match {
+      case NoRepeat =>
+        out.puts(s"self._debug['$name']['end'] = $io.pos()")
+      case _: RepeatExpr =>
+        out.puts(s"self._debug['$name']['arr'][i]['end'] = $io.pos()")
+      case RepeatEos | _: RepeatUntil =>
+        out.puts(s"self._debug['$name']['arr'][len(${privateMemberName(attrId)}) - 1]['end'] = $io.pos()")
+    }
+  }
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)}:")
