@@ -351,26 +351,74 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
+  var switchIfs = false
+  val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     val onType = translator.detectType(on)
 
-    out.puts(s"match ${expression(on)} {")
-    out.inc
+    switchIfs = onType match {
+      case _: ArrayType | _: BytesType => true
+      case _ => false
+    }
+
+    if (!switchIfs) {
+      out.puts(s"match ${expression(on)} {")
+      out.inc
+    }
+  }
+
+  def switchCmpExpr(condition: Ast.expr): String =
+    expression(
+      Ast.expr.Compare(
+        NAME_SWITCH_ON,
+	Ast.cmpop.Eq,
+	condition
+      )
+    )
+
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
+    if (switchIfs) {
+      out.puts(s"if ${switchCmpExpr(condition)} {")
+      out.inc
+    } else {
+      switchCaseStart(condition)
+    }
   }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"${expression(condition)} => {")
-    out.inc
+    if (switchIfs) {
+      out.puts(s"elss if ${switchCmpExpr(condition)} {")
+      out.inc
+    } else {
+      out.puts(s"${expression(condition)} => {")
+      out.inc
+    }
   }
 
   override def switchCaseEnd(): Unit = {
-    out.dec
-    out.puts("},")
+    if (switchIfs) {
+      out.dec
+      out.puts("}")
+    } else {
+      out.dec
+      out.puts("},")
+    }
   }
 
   override def switchElseStart(): Unit = {
-    out.puts("_ => {")
-    out.inc
+    if (switchIfs) {
+      out.puts("else {")
+      out.inc
+    } else {
+      out.puts("_ => {")
+      out.inc
+    }
+  }
+
+  override def switchElseEnd(): Unit = {
+    out.dec
+    out.puts("}")
   }
 
   override def switchEnd(): Unit = universalFooter
