@@ -118,8 +118,11 @@ lazy val compiler = crossProject.in(file(".")).
 
     // Remove all "maintainer scripts", such as prerm/postrm/preinst/postinst: default
     // implementations create per-package virtual user that we won't use anyway
-    maintainerScripts in Debian := Map(),
-
+    maintainerScripts in Debian := Map(
+      Postinst -> "echo \"KAITAI_STRUCT_ROOT=/usr/share/kaitai-struct-compiler\" >> /etc/environment",
+      Postrm -> "sed -ir -e \"/^KAITAI_STRUCT_ROOT=.\\+$/d\" /etc/environment"
+    ),
+    
     // Work around new Debian defaults and sbt-native-packager defaults, which
     // build .deb packages that appear to be incompatible with older Debian/Ubuntu's
     // dpkg and are not accepted by BinTray.
