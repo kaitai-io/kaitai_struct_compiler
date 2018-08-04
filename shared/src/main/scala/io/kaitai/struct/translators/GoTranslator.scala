@@ -229,7 +229,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  override def doCast(value: Ast.expr, typeName: Ast.typeId): TranslatorResult = ???
+  override def doCast(value: Ast.expr, typeName: DataType): TranslatorResult = ???
 
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) =
     ResultString(s"[]${GoCompiler.kaitaiType2NativeType(t)}{${value.map(translate).mkString(", ")}}")

@@ -488,6 +488,20 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "other.baz"
   ))
 
+  // primitive pure types
+  full("(1 + 2).as<s2>", CalcIntType, IntMultiType(true, Width2, None), Map[LanguageCompilerStatic, String](
+    CppCompiler -> "static_cast<int16_t>((1 + 2))",
+    CSharpCompiler -> "((short) ((1 + 2)))",
+    GoCompiler -> "int16((1 + 2))",
+    JavaCompiler -> "((short) ((1 + 2)))",
+    JavaScriptCompiler -> "(1 + 2)",
+    LuaCompiler -> "(1 + 2)",
+    PerlCompiler -> "(1 + 2)",
+    PHPCompiler -> "(1 + 2)",
+    PythonCompiler -> "(1 + 2)",
+    RubyCompiler -> "(1 + 2)"
+  ))
+
   // empty array casting
   full("[].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\", 0)",
