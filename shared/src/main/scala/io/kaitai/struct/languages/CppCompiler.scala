@@ -752,61 +752,6 @@ class CppCompiler(
 
   def value2Const(enumName: String, label: String) = (enumName + "_" + label).toUpperCase
 
-  def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
-    attrType match {
-      case Int1Type(false) => "uint8_t"
-      case IntMultiType(false, Width2, _) => "uint16_t"
-      case IntMultiType(false, Width4, _) => "uint32_t"
-      case IntMultiType(false, Width8, _) => "uint64_t"
-
-      case Int1Type(true) => "int8_t"
-      case IntMultiType(true, Width2, _) => "int16_t"
-      case IntMultiType(true, Width4, _) => "int32_t"
-      case IntMultiType(true, Width8, _) => "int64_t"
-
-      case FloatMultiType(Width4, _) => "float"
-      case FloatMultiType(Width8, _) => "double"
-
-      case BitsType(_) => "uint64_t"
-
-      case _: BooleanType => "bool"
-      case CalcIntType => "int32_t"
-      case CalcFloatType => "double"
-
-      case _: StrType => "std::string"
-      case _: BytesType => "std::string"
-
-      case t: UserType =>
-        val typeStr = types2class(if (absolute) {
-          t.classSpec.get.name
-        } else {
-          t.name
-        })
-        s"$typeStr*"
-
-      case t: EnumType =>
-        types2class(if (absolute) {
-          t.enumSpec.get.name
-        } else {
-          t.name
-        })
-
-      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType, absolute)}>*"
-
-      case KaitaiStreamType => s"$kstreamName*"
-      case KaitaiStructType => s"$kstructName*"
-
-      case SwitchType(on, cases) =>
-        kaitaiType2NativeType(TypeDetector.combineTypes(
-          // C++ does not have a concept of AnyType, and common use case "lots of incompatible UserTypes
-          // for cases + 1 BytesType for else" combined would result in exactly AnyType - so we try extra
-          // hard to avoid that here with this pre-filtering. In C++, "else" case with raw byte array would
-          // be available through _raw_* attribute anyway.
-          cases.filterNot { case (caseExpr, caseValue) => caseExpr == SwitchType.ELSE_CONST }.values
-        ), absolute)
-    }
-  }
-
   def defineName(className: String) = className.toUpperCase + "_H_"
 
   /**
@@ -868,6 +813,61 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
+
+  def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
+    attrType match {
+      case Int1Type(false) => "uint8_t"
+      case IntMultiType(false, Width2, _) => "uint16_t"
+      case IntMultiType(false, Width4, _) => "uint32_t"
+      case IntMultiType(false, Width8, _) => "uint64_t"
+
+      case Int1Type(true) => "int8_t"
+      case IntMultiType(true, Width2, _) => "int16_t"
+      case IntMultiType(true, Width4, _) => "int32_t"
+      case IntMultiType(true, Width8, _) => "int64_t"
+
+      case FloatMultiType(Width4, _) => "float"
+      case FloatMultiType(Width8, _) => "double"
+
+      case BitsType(_) => "uint64_t"
+
+      case _: BooleanType => "bool"
+      case CalcIntType => "int32_t"
+      case CalcFloatType => "double"
+
+      case _: StrType => "std::string"
+      case _: BytesType => "std::string"
+
+      case t: UserType =>
+        val typeStr = types2class(if (absolute) {
+          t.classSpec.get.name
+        } else {
+          t.name
+        })
+        s"$typeStr*"
+
+      case t: EnumType =>
+        types2class(if (absolute) {
+          t.enumSpec.get.name
+        } else {
+          t.name
+        })
+
+      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType, absolute)}>*"
+
+      case KaitaiStreamType => s"$kstreamName*"
+      case KaitaiStructType => s"$kstructName*"
+
+      case SwitchType(on, cases) =>
+        kaitaiType2NativeType(TypeDetector.combineTypes(
+          // C++ does not have a concept of AnyType, and common use case "lots of incompatible UserTypes
+          // for cases + 1 BytesType for else" combined would result in exactly AnyType - so we try extra
+          // hard to avoid that here with this pre-filtering. In C++, "else" case with raw byte array would
+          // be available through _raw_* attribute anyway.
+          cases.filterNot { case (caseExpr, caseValue) => caseExpr == SwitchType.ELSE_CONST }.values
+        ), absolute)
+    }
+  }
 
   def types2class(typeName: Ast.typeId) = {
     typeName.names.map(type2class).mkString(
