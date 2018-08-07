@@ -301,7 +301,11 @@ object DataType {
       }
     }
 
-    arg.enumRef match {
+    applyEnumType(r, arg.enumRef, path)
+  }
+
+  private def applyEnumType(r: DataType, enumRef: Option[String], path: List[String]) = {
+    enumRef match {
       case Some(enumName) =>
         r match {
           case numType: IntType => EnumType(classNameToList(enumName), numType)
@@ -315,6 +319,9 @@ object DataType {
 
   private val RePureIntType = """([us])(2|4|8)""".r
   private val RePureFloatType = """f(4|8)""".r
+
+  def pureFromString(dto: Option[String], enumRef: Option[String], path: List[String]): DataType =
+    applyEnumType(pureFromString(dto), enumRef, path)
 
   def pureFromString(dto: Option[String]): DataType = dto match {
     case None => CalcBytesType
