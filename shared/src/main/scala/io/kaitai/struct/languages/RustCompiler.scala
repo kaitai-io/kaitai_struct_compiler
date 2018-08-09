@@ -203,8 +203,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           className
         } else {
           val pkgName = type2classAbs(name.init)
-          importList.add(s"$pkgName")
-          s"$pkgName::${type2class(name.last)}"
+	  val className = type2class(name.last)
+          importList.add(s"$pkgName::$className")
+          s"$pkgName::$className"
         }
 
         out.puts(s"let _process = $procClass::new(${args.map(expression).mkString(", ")});")
@@ -216,7 +217,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"end($memberName)"
+      case RepeatEos | RepeatExpr(_) => s"$memberName.last()"
       case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
       case NoRepeat => memberName
     }
