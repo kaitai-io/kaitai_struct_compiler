@@ -10,6 +10,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.Stack
 
 class CppCompiler(
   typeProvider: ClassTypeProvider,
@@ -22,14 +23,27 @@ class CppCompiler(
     with EveryReadIsExpression {
   import CppCompiler._
 
-  val importListSrc = new ImportList
-  val importListHdr = new ImportList
+  // Collect imports
+  private val importListSrc = new ImportList
+  private val importListHdr = new ImportList
 
   override val translator = new CppTranslator(typeProvider, importListSrc)
-  val outSrcHeader = new StringLanguageOutputWriter(indent)
-  val outHdrHeader = new StringLanguageOutputWriter(indent)
-  val outSrc = new StringLanguageOutputWriter(indent)
-  val outHdr = new StringLanguageOutputWriter(indent)
+  private val outSrcHeader = new StringLanguageOutputWriter(indent)
+  private val outHdrHeader = new StringLanguageOutputWriter(indent)
+  private val outSrc = new StringLanguageOutputWriter(indent)
+  private val outHdr = new StringLanguageOutputWriter(indent)
+
+  private class StringList {
+    private val list = ListBuffer[String]()
+    def addUnique(s: String) = Utils.addUniqueAttr(list, s)
+    def add(s: String) = list += s
+    def toList: List[String] = list.toList
+  }
+
+  // Collect public and private attributes:
+  private var publicDecls = new StringList
+  private var privateDecls = new StringList
+  private val declsStack = new Stack[StringList]
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     val fn = topClass.nameAsStr
@@ -42,13 +56,12 @@ class CppCompiler(
   private def importListToStr(importList: ImportList): String =
     importList.toList.map((x) => s"#include <$x>").mkString("", "\n", "\n")
 
-  sealed trait AccessMode
-  case object PrivateAccess extends AccessMode
-  case object PublicAccess extends AccessMode
-
-  var accessMode: AccessMode = PublicAccess
-
   override def indent: String = "    "
+
+  private def halfIndent: String = {
+    indent.substring(indent.length()/2)
+  }
+
   override def outFileName(topClassName: String): String = topClassName
 
   override def fileHeader(topClassName: String): Unit = {
@@ -89,11 +102,16 @@ class CppCompiler(
   }
 
   override def classHeader(name: List[String]): Unit = {
+
+    declsStack.push(privateDecls)
+    declsStack.push(publicDecls)
+    privateDecls = new StringList
+    publicDecls = new StringList
+
     outHdr.puts
     outHdr.puts(s"class ${types2class(List(name.last))} : public $kstructName {")
+    outHdr.puts(halfIndent + "public:")
     outHdr.inc
-    accessMode = PrivateAccess
-    ensureMode(PublicAccess)
 
     /*
     outHdr.puts(s"static ${type2class(name)} from_file(std::string ${attrReaderName("file_name")});")
@@ -110,8 +128,18 @@ class CppCompiler(
   }
 
   override def classFooter(name: List[String]): Unit = {
+    outHdr.puts
+    publicDecls.toList.foreach((line) => outHdr.puts(line))
+    outHdr.puts
+    outHdr.dec
+    outHdr.puts(halfIndent + "private:")
+    outHdr.inc
+    privateDecls.toList.foreach((line) => outHdr.puts(line))
     outHdr.dec
     outHdr.puts("};")
+
+    publicDecls = declsStack.pop()
+    privateDecls = declsStack.pop()
   }
 
   override def classForwardDeclaration(name: List[String]): Unit = {
@@ -139,6 +167,7 @@ class CppCompiler(
     val tParent = kaitaiType2NativeType(parentType)
     val tRoot = s"${types2class(rootClassName)}*"
 
+    // Constructor (header)
     outHdr.puts
     outHdr.puts(s"${types2class(List(name.last))}($paramsArg" +
       s"$tIo $pIo, " +
@@ -146,6 +175,7 @@ class CppCompiler(
       s"$tRoot $pRoot = 0$endianSuffixHdr);"
     )
 
+    // prepare Constructor (.cpp)
     outSrc.puts
     outSrc.puts(s"${types2class(name)}::${types2class(List(name.last))}($paramsArg" +
       s"$tIo $pIo, " +
@@ -160,12 +190,11 @@ class CppCompiler(
       pRoot
     })
 
+    // Store endian flag
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
-        ensureMode(PrivateAccess)
-        outHdr.puts("int m__is_le;")
+        privateDecls.addUnique("int m__is_le;")
         handleAssignmentSimple(EndianIdentifier, if (isHybrid) "p_is_le" else "-1")
-        ensureMode(PublicAccess)
       case _ =>
         // no _is_le variable
     }
@@ -180,8 +209,10 @@ class CppCompiler(
   }
 
   override def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {
+    // Destructor (header)
     outHdr.puts(s"~${types2class(List(name.last))}();")
 
+    // Destructor (.cpp)
     outSrc.puts
     outSrc.puts(s"${types2class(name)}::~${types2class(List(name.last))}() {")
     outSrc.inc
@@ -216,8 +247,7 @@ class CppCompiler(
       case Some(e) => s"_${e.toSuffix}"
       case None => ""
     }
-    ensureMode(PrivateAccess)
-    outHdr.puts(s"void _read$suffix();")
+    privateDecls.addUnique(s"void _read$suffix();")
     outSrc.puts
     outSrc.puts(s"void ${types2class(typeProvider.nowClass.name)}::_read$suffix() {")
     outSrc.inc
@@ -226,53 +256,34 @@ class CppCompiler(
   override def readFooter(): Unit = {
     outSrc.dec
     outSrc.puts("}")
-
-    ensureMode(PublicAccess)
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    ensureMode(PrivateAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+    privateDecls.addUnique(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
     declareNullFlag(attrName, isNullable)
   }
 
-  def ensureMode(newMode: AccessMode): Unit = {
-    if (accessMode != newMode) {
-      outHdr.dec
-      outHdr.puts
-      outHdr.puts(newMode match {
-        case PrivateAccess => "private:"
-        case PublicAccess => "public:"
-      })
-      outHdr.inc
-      accessMode = newMode
-    }
-  }
-
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
+    publicDecls.addUnique(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
     // All docstrings would be for public stuff, so it's safe to start it here
-    ensureMode(PublicAccess)
+    publicDecls.add("")
+    publicDecls.add("/**")
 
-    outHdr.puts
-    outHdr.puts( "/**")
-
-    doc.summary.foreach((docStr) => outHdr.putsLines(" * ", docStr))
+    doc.summary.foreach((docStr) => publicDecls.add(" * " + docStr))
 
     doc.ref match {
       case TextRef(text) =>
-        outHdr.putsLines(" * ", s"\\sa $text")
+        publicDecls.add(" * " + s"\\sa $text")
       case UrlRef(url, text) =>
-        outHdr.putsLines(" * ", s"\\sa $text")
+        publicDecls.add(" * " + s"\\sa $text")
       case NoRef =>
         // nothing to output
     }
 
-    outHdr.puts( " */")
+    publicDecls.add(" */")
   }
 
   override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
@@ -301,7 +312,7 @@ class CppCompiler(
       case t => (t, false)
     }
 
-    destructMember(id, innerType, attr.isArray, hasRaw, hasRaw)
+    destructMember(id, innerType, attr.isArray, hasRaw)
 
     if (checks.nonEmpty) {
       outSrc.dec
@@ -309,16 +320,15 @@ class CppCompiler(
     }
   }
 
-  def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, hasRaw: Boolean, hasIO: Boolean): Unit = {
+  def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, hasRaw: Boolean): Unit = {
     if (isArray) {
       // raw is std::vector<string>*, no need to delete its contents, but we
       // need to clean up the vector pointer itself
-      if (hasRaw)
+      if (hasRaw) {
         outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
 
-      // IO is std::vector<kstream*>*, needs destruction of both members
-      // and the vector pointer itself
-      if (hasIO) {
+        // IO is std::vector<kstream*>*, needs destruction of both members
+        // and the vector pointer itself
         val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
         destructVector(s"$kstreamName*", ioVar)
         outSrc.puts(s"delete $ioVar;")
@@ -341,11 +351,12 @@ class CppCompiler(
       // main member is a std::vector of something, always needs destruction
       outSrc.puts(s"delete ${privateMemberName(id)};")
     } else {
-      // raw is just a string, no need to cleanup => we ignore `hasRaw`
 
-      // but hasIO is important
-      if (hasIO)
+      if (hasRaw) {
+        // raw is just a string, no need to cleanup
+        // IO is kstream*, needs destruction
         outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
+      }
 
       if (needsDestruction(innerType))
         outSrc.puts(s"delete ${privateMemberName(id)};")
@@ -698,15 +709,13 @@ class CppCompiler(
   override def switchBytesOnlyAsRaw = true
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    ensureMode(PrivateAccess)
-    outHdr.puts(s"bool ${calculatedFlagForName(attrName)};")
-    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
+    privateDecls.addUnique(s"bool ${calculatedFlagForName(attrName)};")
+    privateDecls.addUnique(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
     declareNullFlag(attrName, isNullable)
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
+    publicDecls.addUnique(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
 
     outSrc.puts
     outSrc.puts(s"${kaitaiType2NativeType(dataType, true)} ${types2class(className)}::${publicMemberName(instName)}() {")
@@ -795,10 +804,8 @@ class CppCompiler(
 
   def declareNullFlag(attrName: Identifier, isNullable: Boolean) = {
     if (isNullable) {
-      outHdr.puts(s"bool ${nullFlagForName(attrName)};")
-      ensureMode(PublicAccess)
-      outHdr.puts(s"bool _is_null_${idToStr(attrName)}() { ${publicMemberName(attrName)}(); return ${nullFlagForName(attrName)}; };")
-      ensureMode(PrivateAccess)
+      privateDecls.addUnique(s"bool ${nullFlagForName(attrName)};")
+      publicDecls.addUnique(s"bool _is_null_${idToStr(attrName)}() { ${publicMemberName(attrName)}(); return ${nullFlagForName(attrName)}; };")
     }
   }
 
