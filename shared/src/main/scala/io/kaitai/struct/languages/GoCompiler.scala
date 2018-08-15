@@ -160,7 +160,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
+      case RepeatEos | RepeatExpr(_) => s"$javaName[len($javaName) - 1]"
       case RepeatUntil(_) => translator.specialName(Identifier.ITERATOR2)
       case NoRepeat => javaName
     }
@@ -205,7 +205,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, 0);")
     //out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))})")
     out.puts(s"for {")
     out.inc
@@ -228,7 +228,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, ${expression(repeatExpr)})")
     out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))}, ${expression(repeatExpr)})")
     out.puts(s"for i := range ${privateMemberName(id)} {")
     out.inc
@@ -242,7 +242,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, 0);")
     out.puts("for {")
     out.inc
   }
