@@ -39,7 +39,7 @@ class GoClassCompiler(
     lang.classFooter(curClass.name)
 
     // Constructor = Read() function
-    compileReadFunction(curClass, extraAttrs)
+    compileReadFunction(curClass)
 
     compileInstances(curClass, extraAttrs)
 
@@ -49,7 +49,7 @@ class GoClassCompiler(
     compileSubclasses(curClass)
   }
 
-  def compileReadFunction(curClass: ClassSpec, extraAttrs: ListBuffer[AttrSpec]) = {
+  def compileReadFunction(curClass: ClassSpec) = {
     lang.classConstructorHeader(
       curClass.name,
       curClass.parentType,
@@ -62,7 +62,7 @@ class GoClassCompiler(
       case Some(fe: FixedEndian) => Some(fe)
       case _ => None
     }
-    compileSeq(curClass.seq, extraAttrs, defEndian)
+    compileSeq(curClass.seq, new ListBuffer[AttrSpec], defEndian)
     lang.classConstructorFooter
   }
 
@@ -92,7 +92,7 @@ class GoClassCompiler(
   }
 
   def getExtraAttrs(curClass: ClassSpec): List[AttrSpec] = {
-    curClass.seq.foldLeft(List[AttrSpec]())(
+    (curClass.seq ++ curClass.instances.values.asInstanceOf[Iterable[AttrLikeSpec]]).foldLeft(List[AttrSpec]())(
       (attrs, attr) => attrs ++ ExtraAttrs.forAttr(attr)
     )
   }
