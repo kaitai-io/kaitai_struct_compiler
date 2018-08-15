@@ -14,20 +14,21 @@ import io.kaitai.struct.format._
   */
 object ExtraAttrs {
   def forAttr(attr: AttrLikeSpec): List[AttrSpec] =
-    forAttr(attr.id, attr.dataType)
+    forAttr(attr.id, attr.dataType, attr.cond)
 
-  def forAttr(id: Identifier, dataType: DataType): List[AttrSpec] = {
+  private
+  def forAttr(id: Identifier, dataType: DataType, condSpec: ConditionalSpec): List[AttrSpec] = {
     dataType match {
       case bt: BytesType =>
         bt.process match {
           case None => List()
           case Some(_) =>
             val rawId = RawIdentifier(id)
-            List(AttrSpec(List(), rawId, bt))
+            List(AttrSpec(List(), rawId, bt, condSpec))
         }
       case utb: UserTypeFromBytes =>
         val rawId = RawIdentifier(id)
-        List(AttrSpec(List(), rawId, utb.bytes)) ++ forAttr(rawId, utb.bytes)
+        List(AttrSpec(List(), rawId, utb.bytes, condSpec)) ++ forAttr(rawId, utb.bytes, condSpec)
       case _ =>
         List()
     }
