@@ -1,14 +1,12 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct._
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, _}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
-import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{RustTranslator, TypeDetector}
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)

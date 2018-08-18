@@ -116,7 +116,7 @@ abstract class LanguageCompiler(
   def seek(io: String, pos: Ast.expr): Unit
   def popPos(io: String): Unit
   def alignToByte(io: String): Unit
-  
+
   def instanceDeclHeader(className: List[String]): Unit = {}
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
