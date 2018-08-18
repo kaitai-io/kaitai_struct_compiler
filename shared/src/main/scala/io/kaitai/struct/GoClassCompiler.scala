@@ -92,7 +92,14 @@ class GoClassCompiler(
   }
 
   def getExtraAttrs(curClass: ClassSpec): List[AttrSpec] = {
-    (curClass.seq ++ curClass.instances.values.asInstanceOf[Iterable[AttrLikeSpec]]).foldLeft(List[AttrSpec]())(
+    // We want only values of ParseInstances, which are AttrSpecLike.
+    // ValueInstances are ignored, as they can't currently generate
+    // any extra attributes (i.e. no `size`, no `process`, etc)
+    val parseInstances = curClass.instances.values.collect {
+      case inst: AttrLikeSpec => inst
+    }
+
+    (curClass.seq ++ parseInstances).foldLeft(List[AttrSpec]())(
       (attrs, attr) => attrs ++ ExtraAttrs.forAttr(attr)
     )
   }
