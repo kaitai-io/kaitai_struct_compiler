@@ -42,11 +42,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts(s"// $headerComment")
     outHeader.puts
 
+    outHeader.puts("#![allow(unused_parens)]")
+    
     importList.add("std::option::Option")
     importList.add("std::boxed::Box")
     importList.add("std::io::Result")
-    importList.add("std::io::Cursor")
-    importList.add("std::vec::Vec")
     importList.add("std::default::Default")
     importList.add("kaitai_struct::KaitaiStream")
     importList.add("kaitai_struct::KaitaiStruct")
@@ -220,6 +220,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => memberName
     }
 
+    importList.add("std::io::Cursor")
+    
     out.puts(s"let mut io = Cursor::new($args);")
     "io"
   }
@@ -263,6 +265,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+    importList.add("std::vec::Vec")
+
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = vec!();")
     out.puts(s"${privateMemberName(id)} = vec!();")
@@ -275,6 +279,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+    importList.add("std::vec::Vec")
+
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = vec!();")
     out.puts(s"${privateMemberName(id)} = vec!();")
