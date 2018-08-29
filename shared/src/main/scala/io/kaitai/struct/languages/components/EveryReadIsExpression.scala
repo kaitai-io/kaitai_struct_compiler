@@ -174,7 +174,9 @@ trait EveryReadIsExpression
       (dataType) => if (switchBytesOnlyAsRaw) {
         dataType match {
           case t: BytesType =>
-            attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
+            val rawId = RawIdentifier(id)
+            Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, dataType))
+            attrParse2(rawId, dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
           case _ =>
             attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
         }
