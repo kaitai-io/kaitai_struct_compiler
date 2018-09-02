@@ -201,7 +201,7 @@ trait EveryReadIsExpression
 
   def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
   def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String
-  def userTypeDebugRead(id: String): Unit = {}
+  def userTypeDebugRead(id: String): Unit = ???
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (config.readStoresPos)
