@@ -133,8 +133,10 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case Some(e) => s"${e.toSuffix.toUpperCase}"
       case None => ""
     }
+    val access = if (config.autoRead) "private" else "public"
+
     out.puts
-    out.puts(s"private function _read$suffix() {")
+    out.puts(s"$access function _read$suffix() {")
     out.inc
   }
 
@@ -304,6 +306,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"$id = $expr;")
+
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
@@ -349,6 +354,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     expr2
   }
+
+  override def userTypeDebugRead(id: String): Unit =
+    out.puts(s"$id->_read();")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     val onType = translator.detectType(on)
