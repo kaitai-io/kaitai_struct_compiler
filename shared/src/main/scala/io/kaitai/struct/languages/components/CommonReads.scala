@@ -28,7 +28,7 @@ trait CommonReads extends LanguageCompiler {
         normalIO
     }
 
-    if (debug)
+    if (config.readStoresPos)
       attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
 
     defEndian match {
@@ -43,7 +43,7 @@ trait CommonReads extends LanguageCompiler {
         attrParse0(id, attr, io, extraAttrs, Some(fe))
     }
 
-    if (debug)
+    if (config.readStoresPos)
       attrDebugEnd(id, attr.dataType, io, NoRepeat)
 
     // More position management after parsing for ParseInstanceSpecs

@@ -115,9 +115,18 @@ object JavaMain {
         }
       }
 
+      opt[Unit]("no-auto-read") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(autoRead = false))
+      } text("disable auto-running `_read` in constructor")
+
+      opt[Unit]("read-pos") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(readStoresPos = true))
+      } text("`_read` remembers attribute positions in stream")
+
       opt[Unit]("debug") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(debug = true))
-      } text("enable debugging helpers (mostly used by visualization tools)")
+        c.copy(runtime = c.runtime.copy(autoRead = false, readStoresPos = true))
+      } text("same as --no-auto-read --read-pos (useful for visualization tools)")
+
       help("help") text("display this help and exit")
       version("version") text("output version information and exit")
     }

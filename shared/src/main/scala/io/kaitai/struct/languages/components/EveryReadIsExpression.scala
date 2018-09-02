@@ -33,7 +33,7 @@ trait EveryReadIsExpression
   ): Unit = {
     val assignType = assignTypeOpt.getOrElse(dataType)
 
-    if (debug && rep != NoRepeat)
+    if (config.readStoresPos && rep != NoRepeat)
       attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
@@ -62,7 +62,7 @@ trait EveryReadIsExpression
         handleAssignment(id, expr, rep, isRaw)
     }
 
-    if (debug && rep != NoRepeat)
+    if (config.readStoresPos && rep != NoRepeat)
       attrDebugEnd(id, dataType, io, rep)
   }
 
@@ -131,13 +131,13 @@ trait EveryReadIsExpression
         io
     }
     val expr = parseExpr(dataType, dataType, newIO, defEndian)
-    if (!debug) {
+    if (config.autoRead) {
       handleAssignment(id, expr, rep, false)
     } else {
-      // Debug mode requires one to actually call "_read" method on constructed user type,
-      // and this must be done as a separate statement - or else exception handler would
-      // blast the whole structure, not only this element. This, in turn, makes us assign
-      // constructed element to a temporary variable in case on repetitions
+      // Disabled autoRead requires one to actually call `_read` method on constructed
+      // user type, and this must be done as a separate statement - or else exception
+      // handler would blast the whole structure, not only this element. This, in turn,
+      // makes us assign constructed element to a temporary variable in case of arrays.
       rep match {
         case NoRepeat =>
           handleAssignmentSimple(id, expr)
@@ -204,7 +204,7 @@ trait EveryReadIsExpression
   def userTypeDebugRead(id: String): Unit = {}
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
-    if (debug)
+    if (config.readStoresPos)
       attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }

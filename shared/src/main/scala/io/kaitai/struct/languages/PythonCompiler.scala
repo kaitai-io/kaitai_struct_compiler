@@ -95,7 +95,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
 
-    if (debug) {
+    if (config.readStoresPos) {
       importList.add("import collections")
       out.puts("self._debug = collections.defaultdict(dict)")
     }

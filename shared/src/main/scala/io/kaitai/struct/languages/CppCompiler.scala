@@ -216,7 +216,9 @@ class CppCompiler(
       case Some(e) => s"_${e.toSuffix}"
       case None => ""
     }
-    ensureMode(PrivateAccess)
+
+    ensureMode(if (config.autoRead) PrivateAccess else PublicAccess)
+
     outHdr.puts(s"void _read$suffix();")
     outSrc.puts
     outSrc.puts(s"void ${types2class(typeProvider.nowClass.name)}::_read$suffix() {")

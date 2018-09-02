@@ -61,7 +61,7 @@ class ClassCompiler(
     if (lang.innerEnums)
       compileEnums(curClass)
 
-    if (lang.debug)
+    if (lang.config.readStoresPos)
       lang.debugClassSequence(curClass.seq)
 
     // Constructor
@@ -114,7 +114,7 @@ class ClassCompiler(
       curClass.params
     )
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
-    if (!lang.debug)
+    if (lang.config.autoRead)
       lang.runRead()
     lang.classConstructorFooter
   }

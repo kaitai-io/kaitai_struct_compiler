@@ -72,7 +72,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public ${staticStr}class ${type2class(name)} extends $kstructName {")
     out.inc
 
-    if (debug) {
+    if (config.readStoresPos) {
       out.puts("public Map<String, Integer> _attrStart = new HashMap<String, Integer>();")
       out.puts("public Map<String, Integer> _attrEnd = new HashMap<String, Integer>();")
       out.puts("public Map<String, ArrayList<Integer>> _arrStart = new HashMap<String, ArrayList<Integer>>();")
@@ -179,7 +179,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
-    val readAccessAndType = if (debug) {
+    val readAccessAndType = if (!config.autoRead) {
       "public"
     } else {
       "private"

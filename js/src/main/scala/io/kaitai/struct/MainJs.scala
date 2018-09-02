@@ -16,7 +16,7 @@ object MainJs {
   @JSExport
   def compile(langStr: String, yaml: js.Object, importer: JavaScriptImporter, debug: Boolean = false): js.Promise[js.Dictionary[String]] = {
     try {
-      val config = new RuntimeConfig(debug = debug)
+      val config = new RuntimeConfig(autoRead = !debug, readStoresPos = debug)
       val lang = LanguageCompilerStatic.byString(langStr)
 
       val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)

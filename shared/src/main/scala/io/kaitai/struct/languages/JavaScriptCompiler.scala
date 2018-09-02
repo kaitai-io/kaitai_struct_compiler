@@ -103,7 +103,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
 
-    if (debug) {
+    if (config.readStoresPos) {
       out.puts("this._debug = {};")
     }
     out.puts
@@ -295,7 +295,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
-    if (debug)
+    if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
     out.puts("var i = 0;")
     out.puts(s"while (!$io.isEof()) {")
@@ -316,7 +316,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
     out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
-    if (debug)
+    if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = new Array(${expression(repeatExpr)});")
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
@@ -335,7 +335,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
-    if (debug)
+    if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
     out.puts("var i = 0;")
     out.puts("do {")

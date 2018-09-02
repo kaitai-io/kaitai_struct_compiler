@@ -78,7 +78,7 @@ object Main {
     */
   private def updateConfig(config: RuntimeConfig, topClass: ClassSpec): RuntimeConfig = {
     if (topClass.meta.forceDebug) {
-      config.copy(debug = true)
+      config.copy(autoRead = false, readStoresPos = true)
     } else {
       config
     }

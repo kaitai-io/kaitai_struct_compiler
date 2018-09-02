@@ -10,7 +10,7 @@ import scala.collection.mutable.ListBuffer
 
 abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
-  config: RuntimeConfig
+  val config: RuntimeConfig
 ) extends SwitchOps {
 
   val translator: AbstractTranslator
@@ -51,7 +51,7 @@ abstract class LanguageCompiler(
     */
   def innerDocstrings: Boolean = false
 
-  def debug = config.debug
+  def debug: Boolean = !config.autoRead && config.readStoresPos
 
   def indent: String
   def outFileName(topClassName: String): String

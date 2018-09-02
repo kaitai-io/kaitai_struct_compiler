@@ -135,7 +135,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
-    val readAccessAndType = if (debug) {
+    val readAccessAndType = if (!config.autoRead) {
       "public"
     } else {
       "private"
