@@ -578,6 +578,9 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)} = $expr;")
   }
 
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    outSrc.puts(s"${kaitaiType2NativeType(dataType)} $id = $expr;")
+
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
@@ -623,6 +626,9 @@ class CppCompiler(
     }
     expr2
   }
+
+  override def userTypeDebugRead(id: String): Unit =
+    outSrc.puts(s"$id->_read();")
 
   /**
     * Designates switch mode. If false, we're doing real switch-case for this
