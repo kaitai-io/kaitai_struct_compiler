@@ -393,6 +393,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
+  override def userTypeDebugRead(id: String): Unit =
+    out.puts(s"$id._read()")
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"_on = ${expression(on)}")
   }
