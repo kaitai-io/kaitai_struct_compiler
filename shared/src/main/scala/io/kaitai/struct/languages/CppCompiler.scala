@@ -76,11 +76,25 @@ class CppCompiler(
         KSVersion.minimalRuntime + " or later is required\""
     )
     outHdr.puts("#endif")
+
+    config.cppNamespace.foreach { (namespace) =>
+      outSrc.puts(s"namespace $namespace {")
+      outSrc.inc
+      outHdr.puts(s"namespace $namespace {")
+      outHdr.inc
+    }
   }
 
   override def fileFooter(topClassName: String): Unit = {
     outHdr.puts
     outHdr.puts(s"#endif  // ${defineName(topClassName)}")
+
+    config.cppNamespace.foreach { (_) =>
+      outSrc.dec
+      outSrc.puts("}")
+      outHdr.dec
+      outHdr.puts("}")
+    }
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {

@@ -17,6 +17,7 @@ package io.kaitai.struct
   *                    "opaque" type, i.e. an external KaitaiStruct-compatible type
   *                    defined somewhere else. If false, it will be reported as
   *                    precompile error.
+  * @param cppNamespace C++ namespace
   * @param goPackage Go package name
   * @param javaPackage Java package name
   * @param javaFromFileClass Java class to be invoked in `fromFile` helper methods
@@ -28,6 +29,7 @@ case class RuntimeConfig(
   autoRead: Boolean = true,
   readStoresPos: Boolean = false,
   opaqueTypes: Boolean = false,
+  cppNamespace: List[String] = List(),
   goPackage: String = "",
   javaPackage: String = "",
   javaFromFileClass: String = "io.kaitai.struct.ByteBufferKaitaiStream",

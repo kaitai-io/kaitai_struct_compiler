@@ -64,6 +64,10 @@ object JavaMain {
         c.copy(importPaths = c.importPaths ++ x.split(File.pathSeparatorChar))
       } text(".ksy library search path(s) for imports (see also KSPATH env variable)")
 
+      opt[String]("cpp-namespace") valueName("<namespace>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(cppNamespace = x.split("::").toList))
+      } text("C++ namespace (C++ only, default: none)")
+
       opt[String]("go-package") valueName("<package>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(goPackage = x))
       } text("Go package (Go only, default: none)")
