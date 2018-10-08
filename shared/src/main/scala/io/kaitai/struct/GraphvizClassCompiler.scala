@@ -333,11 +333,14 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       case SwitchType.ELSE_CONST =>
         // "_" is a special const for
         List()
-      case expr.Name(Ast.identifier("_io")) =>
-        // "_io" is a special const too
-        List()
       case expr.Name(id) =>
-        List(resolveLocalNode(id.name))
+        if (id.name.charAt(0) == '_') {
+          // other special consts like "_io", "_index", etc
+          List()
+        } else {
+          // this must be local name, resolve it
+          List(resolveLocalNode(id.name))
+        }
       case expr.List(elts) =>
         elts.flatMap(affectedVars).toList
     }
