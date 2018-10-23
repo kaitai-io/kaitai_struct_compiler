@@ -120,10 +120,10 @@ class ClassCompiler(
   }
 
   /**
-    * Compiles destructor for a given class. It should clean up everything
+    * Compiles destructor for a given type. It should clean up everything
     * (i.e. every applicable allocated seq / instance attribute variables, and
     * any extra attribute variables, if they were used).
-    * @param curClass current class to generate code for
+    * @param curClass current type to generate code for
     */
   def compileDestructor(curClass: ClassSpec) = {
     lang.classDestructorHeader(curClass.name, curClass.parentType, topClassName)
@@ -137,6 +137,11 @@ class ClassCompiler(
     lang.classDestructorFooter
   }
 
+  /**
+    * Iterates over a given list of attributes and generates attribute
+    * declarations for each of them.
+    * @param attrs attribute list to traverse
+    */
   def compileAttrDeclarations(attrs: List[MemberSpec]): Unit = {
     attrs.foreach { (attr) =>
       val isNullable = if (lang.switchBytesOnlyAsRaw) {
@@ -153,7 +158,7 @@ class ClassCompiler(
     * readers (AKA getters) for each of them.
     * @param attrs attribute list to traverse
     */
-  def compileAttrReaders(attrs: List[MemberSpec]): Unit =
+  def compileAttrReaders(attrs: List[MemberSpec]): Unit = {
     attrs.foreach { (attr) =>
       // FIXME: Python should have some form of attribute docs too
       if (!attr.doc.isEmpty && !lang.innerDocstrings)
@@ -165,7 +170,22 @@ class ClassCompiler(
       }
       lang.attributeReader(attr.id, attr.dataTypeComposite, isNullable)
     }
+  }
 
+  /**
+    * Compiles everything related to "eager reading" for a given list of
+    * sequence attributes and endianness. Depending on endianness:
+    *
+    * * For types known to have fixed endianness, we do just "_read" method.
+    * * For types with ambiguous endianness, we'll do `_read` + "_read_le" +
+    *   "_read_be" methods. If endianness needs to be calculated, we'll perform
+    *   that calculation in "_read". If it's inherited, then we'll just make
+    *   decision based on that inherited setting.
+    *
+    * @param seq list of sequence attributes
+    * @param extraAttrs
+    * @param endian endianness setting
+    */
   def compileEagerRead(seq: List[AttrSpec], extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
     endian match {
       case None | Some(_: FixedEndian) =>
@@ -190,6 +210,11 @@ class ClassCompiler(
 
   val IS_LE_ID = SpecialIdentifier("_is_le")
 
+  /**
+    * Compiles endianness calculation procedure and stores result in a special
+    * attribute [[IS_LE_ID]]. Typically occurs as part of "_read" method.
+    * @param ce calculated endianness specification
+    */
   def compileCalcEndian(ce: CalcEndian): Unit = {
     def renderProc(result: FixedEndian): Unit = {
       val v = Ast.expr.Bool(result == LittleEndian)
@@ -228,12 +253,16 @@ class ClassCompiler(
     }
   }
 
+  /**
+    * Compiles all enums specifications for a given type.
+    * @param curClass current type to generate code for
+    */
   def compileEnums(curClass: ClassSpec): Unit =
     curClass.enums.foreach { case(_, enumColl) => compileEnum(curClass, enumColl) }
 
   /**
     * Compile subclasses for a given class.
-    * @param curClass current class to generate code for
+    * @param curClass current type to generate code for
     */
   def compileSubclasses(curClass: ClassSpec): Unit =
     curClass.types.foreach { case (_, intClass) => compileClass(intClass) }
