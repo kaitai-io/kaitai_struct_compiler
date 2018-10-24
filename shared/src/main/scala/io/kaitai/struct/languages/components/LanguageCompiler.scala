@@ -89,7 +89,7 @@ abstract class LanguageCompiler(
   def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
   def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
-  def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[Endianness]): Unit
+  def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit
   def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 

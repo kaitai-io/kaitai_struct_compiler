@@ -16,7 +16,6 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
     id: Identifier,
     dataType: DataType,
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
     isRaw: Boolean,
     defEndian: Option[FixedEndian],
@@ -26,7 +25,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
-        attrUserTypeParse(id, t, io, extraAttrs, rep, defEndian)
+        attrUserTypeParse(id, t, io, rep, defEndian)
 //      case t: BytesType =>
 //        attrBytesTypeParse(id, t, io, extraAttrs, rep, isRaw)
 //      case SwitchType(on, cases) =>
@@ -67,25 +66,23 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
     expr
   }
 
-  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
+  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType.bytes
 
-        attrParse2(rawId, byteType, io, extraAttrs, rep, true, defEndian)
+        attrParse2(rawId, byteType, io, rep, true, defEndian)
 
         val extraType = rep match {
           case NoRepeat => byteType
           case _ => ArrayType(byteType)
         }
 
-        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, extraType))
-
         this match {
           case thisStore: AllocateAndStoreIO =>
-            thisStore.allocateIO(rawId, rep, extraAttrs)
+            thisStore.allocateIO(rawId, rep)
           case thisLocal: AllocateIOLocalVar =>
             thisLocal.allocateIO(rawId, rep)
         }

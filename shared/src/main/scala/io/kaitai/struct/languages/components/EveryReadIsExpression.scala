@@ -25,7 +25,6 @@ trait EveryReadIsExpression
     id: Identifier,
     dataType: DataType,
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
     isRaw: Boolean,
     defEndian: Option[FixedEndian],
@@ -40,9 +39,9 @@ trait EveryReadIsExpression
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
-        attrUserTypeParse(id, t, io, extraAttrs, rep, defEndian)
+        attrUserTypeParse(id, t, io, rep, defEndian)
       case t: BytesType =>
-        attrBytesTypeParse(id, t, io, extraAttrs, rep, isRaw)
+        attrBytesTypeParse(id, t, io, rep, isRaw)
       case st: SwitchType =>
         val isNullable = if (switchBytesOnlyAsRaw) {
           st.isNullableSwitchRaw
@@ -50,7 +49,7 @@ trait EveryReadIsExpression
           st.isNullable
         }
 
-        attrSwitchTypeParse(id, st.on, st.cases, io, extraAttrs, rep, defEndian, isNullable, st.combinedType)
+        attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, isNullable, st.combinedType)
       case t: StrFromBytesType =>
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), Ast.expr.Str(t.encoding))
         handleAssignment(id, expr, rep, isRaw)
@@ -70,17 +69,13 @@ trait EveryReadIsExpression
     id: Identifier,
     dataType: BytesType,
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
     isRaw: Boolean
   ): Unit = {
     // use intermediate variable name, if we'll be doing post-processing
     val rawId = dataType.process match {
       case None => id
-      case Some(_) =>
-        val rawId = RawIdentifier(id)
-        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, dataType))
-        rawId
+      case Some(_) => RawIdentifier(id)
     }
 
     val expr = parseExprBytes(dataType, io)
@@ -104,25 +99,23 @@ trait EveryReadIsExpression
     }
   }
 
-  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
+  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType.bytes
 
-        attrParse2(rawId, byteType, io, extraAttrs, rep, true, defEndian)
+        attrParse2(rawId, byteType, io, rep, true, defEndian)
 
         val extraType = rep match {
           case NoRepeat => byteType
           case _ => ArrayType(byteType)
         }
 
-        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, extraType))
-
         this match {
           case thisStore: AllocateAndStoreIO =>
-            thisStore.allocateIO(rawId, rep, extraAttrs)
+            thisStore.allocateIO(rawId, rep)
           case thisLocal: AllocateIOLocalVar =>
             thisLocal.allocateIO(rawId, rep)
         }
@@ -156,7 +149,6 @@ trait EveryReadIsExpression
     on: Ast.expr,
     cases: Map[Ast.expr, DataType],
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
     defEndian: Option[FixedEndian],
     isNullable: Boolean,
@@ -169,17 +161,17 @@ trait EveryReadIsExpression
       (dataType) => {
         if (isNullable)
           condIfSetNonNull(id)
-        attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
+        attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
       },
       (dataType) => if (switchBytesOnlyAsRaw) {
         dataType match {
           case t: BytesType =>
-            attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
+            attrParse2(RawIdentifier(id), dataType, io, rep, false, defEndian, Some(assignType))
           case _ =>
-            attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
+            attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
         }
       } else {
-        attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
+        attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
       }
     )
   }

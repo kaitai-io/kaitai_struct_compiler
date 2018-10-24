@@ -17,12 +17,11 @@ class GoClassCompiler(
   override def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
-    val extraAttrs = ListBuffer[AttrSpec]()
-    extraAttrs += AttrSpec(List(), IoIdentifier, KaitaiStreamType)
-    extraAttrs += AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None))
-    extraAttrs += AttrSpec(List(), ParentIdentifier, curClass.parentType)
-
-    extraAttrs ++= ExtraAttrs.forClassSpec(curClass, lang)
+    val extraAttrs = List(
+      AttrSpec(List(), IoIdentifier, KaitaiStreamType),
+      AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None)),
+      AttrSpec(List(), ParentIdentifier, curClass.parentType)
+    ) ++ ExtraAttrs.forClassSpec(curClass, lang)
 
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
@@ -41,7 +40,7 @@ class GoClassCompiler(
     // Constructor = Read() function
     compileReadFunction(curClass)
 
-    compileInstances(curClass, extraAttrs)
+    compileInstances(curClass)
 
     compileAttrReaders(curClass.seq ++ extraAttrs)
 
@@ -62,11 +61,11 @@ class GoClassCompiler(
       case Some(fe: FixedEndian) => Some(fe)
       case _ => None
     }
-    compileSeq(curClass.seq, new ListBuffer[AttrSpec], defEndian)
+    compileSeq(curClass.seq, defEndian)
     lang.classConstructorFooter
   }
 
-  override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
+  override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, endian: Option[Endianness]): Unit = {
     // FIXME: support calculated endianness
 
     // Determine datatype
@@ -83,7 +82,7 @@ class GoClassCompiler(
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
       case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, extraAttrs, None) // FIXME
+        lang.attrParse(i, instName, None) // FIXME
     }
 
     lang.instanceSetCalculated(instName)

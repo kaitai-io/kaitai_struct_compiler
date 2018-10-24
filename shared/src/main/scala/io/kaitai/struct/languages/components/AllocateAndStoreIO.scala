@@ -11,7 +11,7 @@ import scala.collection.mutable.ListBuffer
   * keep track of allocated IOs.
   */
 trait AllocateAndStoreIO extends ExtraAttrs {
-  def allocateIO(id: Identifier, rep: RepeatSpec, extraAttrs: ListBuffer[AttrSpec]): String
+  def allocateIO(id: Identifier, rep: RepeatSpec): String
 
   override def extraAttrForIO(id: Identifier, rep: RepeatSpec): List[AttrSpec] = {
     val ioId = IoStorageIdentifier(id)

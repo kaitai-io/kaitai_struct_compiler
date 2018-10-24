@@ -432,7 +432,7 @@ class CppCompiler(
     }
   }
 
-  override def allocateIO(id: Identifier, rep: RepeatSpec, extraAttrs: ListBuffer[AttrSpec]): String = {
+  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
     val ioId = IoStorageIdentifier(id)
 
@@ -444,18 +444,17 @@ class CppCompiler(
 
     val newStream = s"new $kstreamName($args)"
 
-    val (ioType, ioName) = rep match {
+    val ioName = rep match {
       case NoRepeat =>
         outSrc.puts(s"${privateMemberName(ioId)} = $newStream;")
-        (KaitaiStreamType, privateMemberName(ioId))
+        privateMemberName(ioId)
       case _ =>
         val localIO = s"io_${idToStr(id)}"
         outSrc.puts(s"$kstreamName* $localIO = $newStream;")
         outSrc.puts(s"${privateMemberName(ioId)}->push_back($localIO);")
-        (ArrayType(KaitaiStreamType), localIO)
+        localIO
     }
 
-    Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ioId, ioType))
     ioName
   }
 
