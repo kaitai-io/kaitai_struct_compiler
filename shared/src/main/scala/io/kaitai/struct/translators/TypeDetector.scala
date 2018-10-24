@@ -412,6 +412,9 @@ object TypeDetector {
             case (_, _) =>
               false
           }
+        case (t1: EnumType, t2: EnumType) =>
+          // enums are assignable if their enumSpecs match
+          t1.enumSpec.get == t2.enumSpec.get
         case (_, _) => false
       }
     }
