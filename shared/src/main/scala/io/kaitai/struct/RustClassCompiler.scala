@@ -22,7 +22,7 @@ class RustClassCompiler(
     extraAttrs += AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None))
     extraAttrs += AttrSpec(List(), ParentIdentifier, curClass.parentType)
 
-    extraAttrs ++= getExtraAttrs(curClass)
+    extraAttrs ++= ExtraAttrs.forClassSpec(curClass, lang)
 
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
@@ -100,11 +100,5 @@ class RustClassCompiler(
     lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName)
     lang.instanceFooter
-  }
-
-  def getExtraAttrs(curClass: ClassSpec): List[AttrSpec] = {
-    curClass.seq.foldLeft(List[AttrSpec]())(
-      (attrs, attr) => attrs ++ ExtraAttrs.forAttr(attr)
-    )
   }
 }

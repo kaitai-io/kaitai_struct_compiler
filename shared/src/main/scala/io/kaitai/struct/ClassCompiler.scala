@@ -4,8 +4,8 @@ import io.kaitai.struct.CompileLog.FileSuccess
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format._
-import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
+import io.kaitai.struct.format.{AttrSpec, _}
+import io.kaitai.struct.languages.components.{ExtraAttrs, LanguageCompiler, LanguageCompilerStatic}
 
 import scala.collection.mutable.ListBuffer
 
@@ -83,7 +83,14 @@ class ClassCompiler(
     compileInstances(curClass, extraAttrs)
 
     // Attributes declarations and readers
-    val allAttrs: List[MemberSpec] = curClass.seq ++ curClass.params ++ extraAttrs
+    val allAttrs: List[MemberSpec] =
+      curClass.seq ++
+      curClass.params ++
+      List(
+        AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None)),
+        AttrSpec(List(), ParentIdentifier, curClass.parentType)
+      ) ++
+      ExtraAttrs.forClassSpec(curClass, lang)
     compileAttrDeclarations(allAttrs)
     compileAttrReaders(allAttrs)
 

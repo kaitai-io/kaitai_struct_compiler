@@ -1,6 +1,7 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.format.{AttrSpec, Identifier, RepeatSpec}
+import io.kaitai.struct.datatype.DataType.{ArrayType, KaitaiStreamType}
+import io.kaitai.struct.format._
 
 import scala.collection.mutable.ListBuffer
 
@@ -9,6 +10,15 @@ import scala.collection.mutable.ListBuffer
   * at. This is used for languages without garbage collection that need to
   * keep track of allocated IOs.
   */
-trait AllocateAndStoreIO {
+trait AllocateAndStoreIO extends ExtraAttrs {
   def allocateIO(id: Identifier, rep: RepeatSpec, extraAttrs: ListBuffer[AttrSpec]): String
+
+  override def extraAttrForIO(id: Identifier, rep: RepeatSpec): List[AttrSpec] = {
+    val ioId = IoStorageIdentifier(id)
+    val ioType = rep match {
+      case NoRepeat => KaitaiStreamType
+      case _ => ArrayType(KaitaiStreamType)
+    }
+    List(AttrSpec(List(), ioId, ioType))
+  }
 }

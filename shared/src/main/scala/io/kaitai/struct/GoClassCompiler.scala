@@ -22,7 +22,7 @@ class GoClassCompiler(
     extraAttrs += AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None))
     extraAttrs += AttrSpec(List(), ParentIdentifier, curClass.parentType)
 
-    extraAttrs ++= ExtraAttrs.forClassSpec(curClass)
+    extraAttrs ++= ExtraAttrs.forClassSpec(curClass, lang)
 
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
