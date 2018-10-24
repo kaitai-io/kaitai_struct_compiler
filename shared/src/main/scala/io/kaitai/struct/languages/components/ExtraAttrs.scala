@@ -13,6 +13,19 @@ import io.kaitai.struct.format._
   * * unprocessed / postprocessed byte arrays
   */
 object ExtraAttrs {
+  def forClassSpec(curClass: ClassSpec): List[AttrSpec] = {
+    // We want only values of ParseInstances, which are AttrSpecLike.
+    // ValueInstances are ignored, as they can't currently generate
+    // any extra attributes (i.e. no `size`, no `process`, etc)
+    val parseInstances = curClass.instances.values.collect {
+      case inst: AttrLikeSpec => inst
+    }
+
+    (curClass.seq ++ parseInstances).foldLeft(List[AttrSpec]())(
+      (attrs, attr) => attrs ++ ExtraAttrs.forAttr(attr)
+    )
+  }
+
   def forAttr(attr: AttrLikeSpec): List[AttrSpec] =
     forAttr(attr.id, attr.dataType, attr.cond)
 
