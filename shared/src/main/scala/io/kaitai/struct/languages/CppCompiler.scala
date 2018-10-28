@@ -9,8 +9,6 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
 
-import scala.collection.mutable.ListBuffer
-
 class CppCompiler(
   typeProvider: ClassTypeProvider,
   config: RuntimeConfig
