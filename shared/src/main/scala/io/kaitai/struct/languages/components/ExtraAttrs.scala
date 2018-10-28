@@ -41,17 +41,20 @@ object ExtraAttrs {
   def forAttr(id: Identifier, dataType: DataType, condSpec: ConditionalSpec, compiler: ExtraAttrs): Iterable[AttrSpec] = {
     dataType match {
       case bt: BytesType =>
-        val rawIdAttrs = bt.process match {
+        // Byte array: only need extra attrs if `process` is used
+        bt.process match {
           case None => List()
           case Some(_) =>
             val rawId = RawIdentifier(id)
-            List(AttrSpec(List(), rawId, bt, condSpec))
+            List(AttrSpec(List(), rawId, bt, condSpec)) ++
+              compiler.extraAttrForIO(id, condSpec.repeat)
         }
-        val ioIdAttrs = compiler.extraAttrForIO(id, condSpec.repeat)
-        rawIdAttrs ++ ioIdAttrs
       case utb: UserTypeFromBytes =>
+        // User type in a substream
         val rawId = RawIdentifier(id)
-        List(AttrSpec(List(), rawId, utb.bytes, condSpec)) ++ forAttr(rawId, utb.bytes, condSpec, compiler)
+        (List(AttrSpec(List(), rawId, utb.bytes, condSpec)) ++
+          compiler.extraAttrForIO(rawId, condSpec.repeat) ++
+          forAttr(rawId, utb.bytes, condSpec, compiler)).toList.distinct
       case st: SwitchType =>
         st.cases.flatMap { case (_, caseType) =>
           forAttr(id, caseType, condSpec, compiler)
