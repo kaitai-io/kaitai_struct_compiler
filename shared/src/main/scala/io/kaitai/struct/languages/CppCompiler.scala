@@ -84,15 +84,15 @@ class CppCompiler(
   }
 
   override def fileFooter(topClassName: String): Unit = {
-    outHdr.puts
-    outHdr.puts(s"#endif  // ${defineName(topClassName)}")
-
     config.cppNamespace.foreach { (_) =>
       outSrc.dec
       outSrc.puts("}")
       outHdr.dec
       outHdr.puts("}")
     }
+
+    outHdr.puts
+    outHdr.puts(s"#endif  // ${defineName(topClassName)}")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
