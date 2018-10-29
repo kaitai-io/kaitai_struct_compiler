@@ -91,6 +91,7 @@ abstract class LanguageCompiler(
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit
   def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit
+  def attrInit(attr: AttrLikeSpec): Unit = {}
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit

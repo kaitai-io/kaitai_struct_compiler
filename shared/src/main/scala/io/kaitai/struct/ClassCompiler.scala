@@ -114,10 +114,41 @@ class ClassCompiler(
       curClass.meta.endian.contains(InheritedEndian),
       curClass.params
     )
+    compileInit(curClass)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     if (lang.config.autoRead)
       lang.runRead()
     lang.classConstructorFooter
+  }
+
+  /**
+    * Compile initialization of class members for a given type. Typically
+    * this is only required for languages which both:
+    *
+    * * don't perform auto-initialization of object with some default
+    *   values (like 0s) on object creation,
+    * * require these members to be initialized because any other
+    *   procedures with object (e.g. destruction) will require that
+    *
+    * Currently, this is only applicable to C++ without smart pointers,
+    * as destructors we'll generate will rely on pointers being set to
+    * null.
+    * @param curClass current type to generate code for
+    */
+  def compileInit(curClass: ClassSpec) = {
+    curClass.seq.foreach((attr) => compileAttrInit(attr))
+    curClass.instances.foreach { case (_, instSpec) =>
+      instSpec match {
+        case pis: ParseInstanceSpec => compileAttrInit(pis)
+        case _: ValueInstanceSpec => // ignore for now
+      }
+    }
+  }
+
+  def compileAttrInit(originalAttr: AttrLikeSpec): Unit = {
+    val extraAttrs = ExtraAttrs.forAttr(originalAttr, lang)
+    val allAttrs = List(originalAttr) ++ extraAttrs
+    allAttrs.foreach((attr) => lang.attrInit(attr))
   }
 
   /**

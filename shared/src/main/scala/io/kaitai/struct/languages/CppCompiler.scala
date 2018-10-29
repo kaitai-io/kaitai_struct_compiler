@@ -289,6 +289,16 @@ class CppCompiler(
     outHdr.puts( " */")
   }
 
+  override def attrInit(attr: AttrLikeSpec): Unit = {
+    attr.dataTypeComposite match {
+      case _: UserType | _: ArrayType | KaitaiStreamType =>
+        // data type will be pointer to user type, std::vector or stream, so we need to init it
+        outSrc.puts(s"${privateMemberName(attr.id)} = 0;")
+      case _ =>
+        // no init required for value types
+    }
+  }
+
   override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
     val checkLazy = if (attr.isLazy) {
       Some(calculatedFlagForName(id))
