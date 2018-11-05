@@ -173,20 +173,20 @@ object AttrSpec {
     val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path), path)
     // TODO: add proper path propagation
     val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))
-    val size = ParseUtils.getOptValueStr(srcMap, "size", path).map(Expressions.parse)
+    val size = ParseUtils.getOptValueExpression(srcMap, "size", path)
     val sizeEos = ParseUtils.getOptValueBool(srcMap, "size-eos", path).getOrElse(false)
-    val ifExpr = ParseUtils.getOptValueStr(srcMap, "if", path).map(Expressions.parse)
+    val ifExpr = ParseUtils.getOptValueExpression(srcMap, "if", path)
     val encoding = ParseUtils.getOptValueStr(srcMap, "encoding", path)
     val repeat = ParseUtils.getOptValueStr(srcMap, "repeat", path)
-    val repeatExpr = ParseUtils.getOptValueStr(srcMap, "repeat-expr", path).map(Expressions.parse)
-    val repeatUntil = ParseUtils.getOptValueStr(srcMap, "repeat-until", path).map(Expressions.parse)
+    val repeatExpr = ParseUtils.getOptValueExpression(srcMap, "repeat-expr", path)
+    val repeatUntil = ParseUtils.getOptValueExpression(srcMap, "repeat-until", path)
     val terminator = ParseUtils.getOptValueInt(srcMap, "terminator", path)
     val consume = ParseUtils.getOptValueBool(srcMap, "consume", path).getOrElse(true)
     val include = ParseUtils.getOptValueBool(srcMap, "include", path).getOrElse(false)
     val eosError = ParseUtils.getOptValueBool(srcMap, "eos-error", path).getOrElse(true)
     val padRight = ParseUtils.getOptValueInt(srcMap, "pad-right", path)
     val enum = ParseUtils.getOptValueStr(srcMap, "enum", path)
-    val parent = ParseUtils.getOptValueStr(srcMap, "parent", path).map(Expressions.parse)
+    val parent = ParseUtils.getOptValueExpression(srcMap, "parent", path)
 
     val typObj = srcMap.get("type")
 
@@ -265,17 +265,10 @@ object AttrSpec {
     metaDef: MetaSpec,
     arg: YamlAttrArgs
   ): DataType = {
-    val _on = ParseUtils.getValueStr(switchSpec, "switch-on", path)
+    val on = ParseUtils.getValueExpression(switchSpec, "switch-on", path)
     val _cases = ParseUtils.getValueMapStrStr(switchSpec, "cases", path)
 
     ParseUtils.ensureLegalKeys(switchSpec, LEGAL_KEYS_SWITCH, path)
-
-    val on = try {
-      Expressions.parse(_on)
-    } catch {
-      case epe: Expressions.ParseException =>
-        throw YAMLParseException.expression(epe, path ++ List("switch-on"))
-    }
 
     val cases = _cases.map { case (condition, typeName) =>
       val casePath = path ++ List("cases", condition)
