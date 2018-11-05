@@ -1,6 +1,7 @@
 package io.kaitai.struct.format
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 object ParseUtils {
   def ensureLegalKeys(src: Map[String, Any], legalKeys: Set[String], path: List[String], where: Option[String] = None) = {
@@ -80,6 +81,24 @@ object ParseUtils {
             throw YAMLParseException.invalidId(idStr, entityName, path ++ List("id"))
         }
       case None => NumberedIdentifier(idx)
+    }
+  }
+
+  def getValueExpression(src: Map[String, Any], field: String, path: List[String]): Ast.expr = {
+    try {
+      Expressions.parse(getValueStr(src, field, path))
+    } catch {
+      case epe: Expressions.ParseException =>
+        throw YAMLParseException.expression(epe, path)
+    }
+  }
+
+  def getOptValueExpression(src: Map[String, Any], field: String, path: List[String]): Option[Ast.expr] = {
+    try {
+      getOptValueStr(src, field, path).map(Expressions.parse)
+    } catch {
+      case epe: Expressions.ParseException =>
+        throw YAMLParseException.expression(epe, path)
     }
   }
 
