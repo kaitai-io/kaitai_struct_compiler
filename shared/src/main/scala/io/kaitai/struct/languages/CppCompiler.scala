@@ -75,7 +75,7 @@ class CppCompiler(
     )
     outHdr.puts("#endif")
 
-    config.cppNamespace.foreach { (namespace) =>
+    config.cppConfig.namespace.foreach { (namespace) =>
       outSrc.puts(s"namespace $namespace {")
       outSrc.inc
       outHdr.puts(s"namespace $namespace {")
@@ -84,7 +84,7 @@ class CppCompiler(
   }
 
   override def fileFooter(topClassName: String): Unit = {
-    config.cppNamespace.foreach { (_) =>
+    config.cppConfig.namespace.foreach { (_) =>
       outSrc.dec
       outSrc.puts("}")
       outHdr.dec
