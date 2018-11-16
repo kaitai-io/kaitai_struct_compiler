@@ -55,8 +55,12 @@ class CppCompiler(
     outSrcHeader.puts("#include \"" + outFileName(topClassName) + ".h\"")
     outSrcHeader.puts
 
-    outHdrHeader.puts(s"#ifndef ${defineName(topClassName)}")
-    outHdrHeader.puts(s"#define ${defineName(topClassName)}")
+    if (config.cppConfig.usePragmaOnce) {
+      outHdrHeader.puts("#pragma once")
+    } else {
+      outHdrHeader.puts(s"#ifndef ${defineName(topClassName)}")
+      outHdrHeader.puts(s"#define ${defineName(topClassName)}")
+    }
     outHdrHeader.puts
     outHdrHeader.puts(s"// $headerComment")
     outHdrHeader.puts
@@ -91,8 +95,10 @@ class CppCompiler(
       outHdr.puts("}")
     }
 
-    outHdr.puts
-    outHdr.puts(s"#endif  // ${defineName(topClassName)}")
+    if (!config.cppConfig.usePragmaOnce) {
+      outHdr.puts
+      outHdr.puts(s"#endif  // ${defineName(topClassName)}")
+    }
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
