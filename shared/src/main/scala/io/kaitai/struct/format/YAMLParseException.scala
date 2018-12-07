@@ -41,7 +41,7 @@ object YAMLParseException {
 
     // Try to diagnose most common errors and provide a friendly suggestion
     val lookup2 = Utils.safeLookup(epe.src, f.index, 2)
-    val suggesion: String = (if (lookup2 == "&&") {
+    val suggestion: String = (if (lookup2 == "&&") {
       Some("and")
     } else if (lookup2 == "||") {
       Some("or")
@@ -53,7 +53,7 @@ object YAMLParseException {
 
     new YAMLParseException(
       s"parsing expression '${epe.src}' failed on $pos, " +
-        s"expected ${f.extra.traced.expected.replaceAll("\n", "\\n")}$suggesion",
+        s"expected ${f.extra.traced.expected.replaceAll("\n", "\\n")}$suggestion",
       path
     )
   }
