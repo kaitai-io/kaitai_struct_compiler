@@ -1,6 +1,7 @@
 package io.kaitai.struct.formats
 
-import java.io.{File, FileReader}
+import java.io._
+import java.nio.charset.Charset
 import java.util.{List => JList, Map => JMap}
 
 import io.kaitai.struct.JavaMain.CLIConfig
@@ -25,11 +26,19 @@ object JavaKSYParser {
 
   def fileNameToSpec(yamlFilename: String): ClassSpec = {
     Log.fileOps.info(() => s"reading $yamlFilename...")
-    val scalaSrc = readerToYaml(new FileReader(yamlFilename))
+
+    // This complex string of classes is due to the fact that Java's
+    // default "FileReader" implementation always uses system locale,
+    // which screws up encoding on some systems and screws up reading
+    // UTF-8 files with BOM
+    val fis = new FileInputStream(yamlFilename)
+    val isr = new InputStreamReader(fis, Charset.forName("UTF-8"))
+    val br = new BufferedReader(isr)
+    val scalaSrc = readerToYaml(br)
     ClassSpec.fromYaml(scalaSrc)
   }
 
-  def readerToYaml(reader: FileReader): Any = {
+  def readerToYaml(reader: Reader): Any = {
     val yamlLoader = new Yaml(new SafeConstructor)
     val javaSrc = yamlLoader.load(reader)
     yamlJavaToScala(javaSrc)
