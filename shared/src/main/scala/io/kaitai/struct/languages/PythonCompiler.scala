@@ -426,15 +426,15 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if hasattr(self, '${idToStr(instName)}'):")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     out.dec
     out.puts
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     // not very efficient, probably should be some other way to do that, but for now it will do:
     // workaround to avoid Python generating an "AttributeError: instance has no attribute"
     out.puts(s"return ${privateMemberName(instName)} if hasattr(self, '${idToStr(instName)}') else None")

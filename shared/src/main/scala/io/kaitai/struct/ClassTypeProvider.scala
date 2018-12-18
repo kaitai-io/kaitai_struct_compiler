@@ -63,7 +63,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       case GenericStructClassSpec =>
         KaitaiStructType
       case cs: ClassSpec =>
-        val ut = UserTypeInstream(cs.name, None)
+        val ut = CalcUserType(cs.name, None)
         ut.classSpec = Some(cs)
         ut
     }

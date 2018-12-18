@@ -578,7 +578,7 @@ class TranslatorSpec extends FunSuite {
     val goOutput = new StringLanguageOutputWriter("  ")
 
     val langs = Map[LanguageCompilerStatic, AbstractTranslator with TypeDetector](
-      CppCompiler -> new CppTranslator(tp, new ImportList()),
+      CppCompiler -> new CppTranslator(tp, new ImportList(), RuntimeConfig()),
       CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
       GoCompiler -> new GoTranslator(goOutput, tp, new ImportList()),
       JavaCompiler -> new JavaTranslator(tp, new ImportList()),

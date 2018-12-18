@@ -1,7 +1,8 @@
 package io.kaitai.struct.format
 
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType.{KaitaiStructType, UserTypeInstream}
+import io.kaitai.struct.datatype.DataType._
+
 import scala.collection.mutable
 
 /**
@@ -53,8 +54,8 @@ case class ClassSpec(
   var seqSize: Sized = NotCalculatedSized
 
   def parentType: DataType = parentClass match {
-    case UnknownClassSpec | GenericStructClassSpec => KaitaiStructType
-    case t: ClassSpec => UserTypeInstream(t.name, None)
+    case UnknownClassSpec | GenericStructClassSpec => CalcKaitaiStructType
+    case t: ClassSpec => CalcUserType(t.name, None)
   }
 
   /**

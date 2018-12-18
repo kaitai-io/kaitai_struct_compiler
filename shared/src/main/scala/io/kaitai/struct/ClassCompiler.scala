@@ -81,7 +81,7 @@ class ClassCompiler(
       curClass.seq ++
       curClass.params ++
       List(
-        AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None)),
+        AttrSpec(List(), RootIdentifier, CalcUserType(topClassName, None)),
         AttrSpec(List(), ParentIdentifier, curClass.parentType)
       ) ++
       ExtraAttrs.forClassSpec(curClass, lang)
@@ -313,7 +313,7 @@ class ClassCompiler(
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     if (lang.innerDocstrings)
       compileInstanceDoc(instName, instSpec)
-    lang.instanceCheckCacheAndReturn(instName)
+    lang.instanceCheckCacheAndReturn(instName, dataType)
 
     instSpec match {
       case vi: ValueInstanceSpec =>
@@ -325,7 +325,7 @@ class ClassCompiler(
     }
 
     lang.instanceSetCalculated(instName)
-    lang.instanceReturn(instName)
+    lang.instanceReturn(instName, dataType)
     lang.instanceFooter
   }
 

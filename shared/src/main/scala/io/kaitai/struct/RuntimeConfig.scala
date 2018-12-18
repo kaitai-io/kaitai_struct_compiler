@@ -26,14 +26,15 @@ case class CppRuntimeConfig(
     */
   def copyAsCpp11() = copy(
     usePragmaOnce = true,
-    pointers = CppRuntimeConfig.SharedPointers
+    pointers = CppRuntimeConfig.UniqueAndRawPointers
   )
 }
 
 object CppRuntimeConfig {
-  trait Pointers
+  sealed trait Pointers
   case object RawPointers extends Pointers
   case object SharedPointers extends Pointers
+  case object UniqueAndRawPointers extends Pointers
 }
 
 /**

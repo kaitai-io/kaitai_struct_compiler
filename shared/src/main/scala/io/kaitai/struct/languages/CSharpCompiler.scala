@@ -502,14 +502,14 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if (${flagForInstName(instName)})")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     out.dec
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
@@ -606,7 +606,7 @@ object CSharpCompiler extends LanguageCompilerStatic
       case _: BytesType => "byte[]"
 
       case AnyType => "object"
-      case KaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType => kstructName
       case KaitaiStreamType => kstreamName
 
       case t: UserType => types2class(t.name)

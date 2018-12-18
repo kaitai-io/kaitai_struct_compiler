@@ -358,14 +358,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(instName)} = $converted")
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if (this.${calculatedFlagForName(instName)}) {")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     universalFooter
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)}, nil")
   }
 
@@ -460,7 +460,7 @@ object GoCompiler extends LanguageCompilerStatic
 
       case AnyType => "interface{}"
       case KaitaiStreamType => "*" + kstreamName
-      case KaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType => kstructName
 
       case t: UserType => "*" + types2class(t.classSpec match {
         case Some(cs) => cs.name

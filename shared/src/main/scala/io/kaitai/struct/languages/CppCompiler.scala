@@ -1,5 +1,6 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.CppRuntimeConfig._
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
@@ -23,7 +24,7 @@ class CppCompiler(
   val importListSrc = new ImportList
   val importListHdr = new ImportList
 
-  override val translator = new CppTranslator(typeProvider, importListSrc)
+  override val translator = new CppTranslator(typeProvider, importListSrc, config)
   val outSrcHeader = new StringLanguageOutputWriter(indent)
   val outHdrHeader = new StringLanguageOutputWriter(indent)
   val outSrc = new StringLanguageOutputWriter(indent)
@@ -52,6 +53,7 @@ class CppCompiler(
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")
     outSrcHeader.puts
+    outSrcHeader.puts("#include <memory>")
     outSrcHeader.puts("#include \"" + outFileName(topClassName) + ".h\"")
     outSrcHeader.puts
 
@@ -68,6 +70,13 @@ class CppCompiler(
     outHdrHeader.puts
 
     importListHdr.add("stdint.h")
+
+    config.cppConfig.pointers match {
+      case SharedPointers | UniqueAndRawPointers =>
+        importListHdr.add("memory")
+      case RawPointers =>
+        // no extra includes
+    }
 
     // API compatibility check
     val minVer = KSVersion.minimalRuntime.toInt
@@ -107,8 +116,15 @@ class CppCompiler(
   }
 
   override def classHeader(name: List[String]): Unit = {
+    val className = types2class(List(name.last))
+
+    val extraInherits = config.cppConfig.pointers match {
+      case RawPointers | UniqueAndRawPointers => ""
+      case SharedPointers => s", std::enable_shared_from_this<$className>"
+    }
+
     outHdr.puts
-    outHdr.puts(s"class ${types2class(List(name.last))} : public $kstructName {")
+    outHdr.puts(s"class $className : public $kstructName$extraInherits {")
     outHdr.inc
     accessMode = PrivateAccess
     ensureMode(PublicAccess)
@@ -147,33 +163,46 @@ class CppCompiler(
       s"${kaitaiType2NativeType(p.dataType)} ${paramName(p.id)}"
     ), "", ", ", ", ")
 
+    val classNameBrief = types2class(List(name.last))
+
     // Parameter names
     val pIo = paramName(IoIdentifier)
     val pParent = paramName(ParentIdentifier)
     val pRoot = paramName(RootIdentifier)
 
     // Types
-    val tIo = s"$kstreamName*"
+    val tIo = kaitaiType2NativeType(KaitaiStreamType)
     val tParent = kaitaiType2NativeType(parentType)
-    val tRoot = s"${types2class(rootClassName)}*"
+    val tRoot = kaitaiType2NativeType(CalcUserType(rootClassName, None))
 
     outHdr.puts
-    outHdr.puts(s"${types2class(List(name.last))}($paramsArg" +
+    outHdr.puts(s"$classNameBrief($paramsArg" +
       s"$tIo $pIo, " +
-      s"$tParent $pParent = 0, " +
-      s"$tRoot $pRoot = 0$endianSuffixHdr);"
+      s"$tParent $pParent = $nullPtr, " +
+      s"$tRoot $pRoot = $nullPtr$endianSuffixHdr);"
     )
 
     outSrc.puts
-    outSrc.puts(s"${types2class(name)}::${types2class(List(name.last))}($paramsArg" +
+    outSrc.puts(s"${types2class(name)}::$classNameBrief($paramsArg" +
       s"$tIo $pIo, " +
       s"$tParent $pParent, " +
       s"$tRoot $pRoot$endianSuffixSrc) : $kstructName($pIo) {"
     )
     outSrc.inc
+
+    // In shared pointers mode, this is required to be able to work with shared pointers to this
+    // in a constructor. This is obviously a hack and not a good practice.
+    // https://forum.libcinder.org/topic/solution-calling-shared-from-this-in-the-constructor
+    if (config.cppConfig.pointers == CppRuntimeConfig.SharedPointers) {
+      outSrc.puts(s"const auto weakPtrTrick = std::shared_ptr<$classNameBrief>(this, []($classNameBrief*){});")
+    }
+
     handleAssignmentSimple(ParentIdentifier, pParent)
     handleAssignmentSimple(RootIdentifier, if (name == rootClassName) {
-      "this"
+      config.cppConfig.pointers match {
+        case RawPointers | UniqueAndRawPointers => "this"
+        case SharedPointers => "shared_from_this()"
+      }
     } else {
       pRoot
     })
@@ -271,7 +300,7 @@ class CppCompiler(
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${publicMemberName(attrName)}() const { return ${privateMemberName(attrName)}; }")
+    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning)} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -299,7 +328,7 @@ class CppCompiler(
     attr.dataTypeComposite match {
       case _: UserType | _: ArrayType | KaitaiStreamType =>
         // data type will be pointer to user type, std::vector or stream, so we need to init it
-        outSrc.puts(s"${privateMemberName(attr.id)} = 0;")
+        outSrc.puts(s"${privateMemberName(attr.id)} = $nullPtr;")
       case _ =>
         // no init required for value types
     }
@@ -354,22 +383,24 @@ class CppCompiler(
         outSrc.puts(s"delete $ioVar;")
       }
 
-      // main member contents
-      if (needsDestruction(innerType)) {
-        val arrVar = privateMemberName(id)
+      if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
+        // main member contents
+        if (needsDestruction(innerType)) {
+          val arrVar = privateMemberName(id)
 
-        // C++ specific substitution: AnyType results from generic struct + raw bytes
-        // so we would assume that only generic struct needs to be cleaned up
-        val realType = innerType match {
-          case AnyType => KaitaiStructType
-          case _ => innerType
+          // C++ specific substitution: AnyType results from generic struct + raw bytes
+          // so we would assume that only generic struct needs to be cleaned up
+          val realType = innerType match {
+            case AnyType => KaitaiStructType
+            case _ => innerType
+          }
+
+          destructVector(kaitaiType2NativeType(realType), arrVar)
         }
 
-        destructVector(kaitaiType2NativeType(realType), arrVar)
+        // main member is a std::vector of something, always needs destruction
+        outSrc.puts(s"delete ${privateMemberName(id)};")
       }
-
-      // main member is a std::vector of something, always needs destruction
-      outSrc.puts(s"delete ${privateMemberName(id)};")
     } else {
       // raw is just a string, no need to cleanup => we ignore `hasRaw`
 
@@ -377,7 +408,7 @@ class CppCompiler(
       if (hasIO)
         outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
 
-      if (needsDestruction(innerType))
+      if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers && needsDestruction(innerType))
         outSrc.puts(s"delete ${privateMemberName(id)};")
     }
   }
@@ -628,9 +659,13 @@ class CppCompiler(
           ""
         } else {
           val parent = t.forcedParent match {
-            case Some(USER_TYPE_NO_PARENT) => "0"
+            case Some(USER_TYPE_NO_PARENT) => nullPtr
             case Some(fp) => translator.translate(fp)
-            case None => "this"
+            case None =>
+              config.cppConfig.pointers match {
+                case RawPointers | UniqueAndRawPointers => "this"
+                case SharedPointers => s"shared_from_this()"
+              }
           }
           val addEndian = t.classSpec.get.meta.endian match {
             case Some(InheritedEndian) => ", m__is_le"
@@ -638,7 +673,15 @@ class CppCompiler(
           }
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
-        s"new ${types2class(t.name)}($addParams$io$addArgs)"
+        config.cppConfig.pointers match {
+          case RawPointers =>
+            s"new ${types2class(t.name)}($addParams$io$addArgs)"
+          case SharedPointers =>
+            s"std::make_shared<${types2class(t.name)}>($addParams$io$addArgs)"
+          case UniqueAndRawPointers =>
+            importListSrc.add("memory")
+            s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
+        }
     }
   }
 
@@ -741,10 +784,10 @@ class CppCompiler(
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(dataType)} ${publicMemberName(instName)}();")
+    outHdr.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${publicMemberName(instName)}();")
 
     outSrc.puts
-    outSrc.puts(s"${kaitaiType2NativeType(dataType, true)} ${types2class(className)}::${publicMemberName(instName)}() {")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning, true)} ${types2class(className)}::${publicMemberName(instName)}() {")
     outSrc.inc
   }
 
@@ -753,16 +796,15 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     outSrc.puts(s"if (${calculatedFlagForName(instName)})")
     outSrc.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     outSrc.dec
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
-    outSrc.puts(s"return ${privateMemberName(instName)};")
-  }
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit =
+    outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val enumClass = types2class(List(enumName))
@@ -838,6 +880,32 @@ class CppCompiler(
   }
 
   override def type2class(className: String): String = CppCompiler.type2class(className)
+
+  def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String =
+    CppCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
+
+  def nullPtr: String = config.cppConfig.pointers match {
+    case RawPointers => "0"
+    case SharedPointers | UniqueAndRawPointers => "nullptr"
+  }
+
+  def nonOwningPointer(attrName: Identifier, attrType: DataType): String = {
+    config.cppConfig.pointers match {
+      case RawPointers =>
+        privateMemberName(attrName)
+      case UniqueAndRawPointers =>
+        attrType match {
+          case ut: UserType =>
+            if (ut.isOwning) {
+              s"${privateMemberName(attrName)}.get()"
+            } else {
+              privateMemberName(attrName)
+            }
+          case _ =>
+            privateMemberName(attrName)
+        }
+    }
+  }
 }
 
 object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
@@ -849,7 +917,7 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
 
-  def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
+  def kaitaiType2NativeType(config: CppRuntimeConfig, attrType: DataType, absolute: Boolean = false): String = {
     attrType match {
       case Int1Type(false) => "uint8_t"
       case IntMultiType(false, Width2, _) => "uint16_t"
@@ -879,7 +947,12 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
         } else {
           t.name
         })
-        s"$typeStr*"
+        config.pointers match {
+          case RawPointers => s"$typeStr*"
+          case SharedPointers => s"std::shared_ptr<$typeStr>"
+          case UniqueAndRawPointers =>
+            if (t.isOwning) s"std::unique_ptr<$typeStr>" else s"$typeStr*"
+        }
 
       case t: EnumType =>
         types2class(if (absolute) {
@@ -888,13 +961,22 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
           t.name
         })
 
-      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(inType, absolute)}>*"
+      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
 
       case KaitaiStreamType => s"$kstreamName*"
-      case KaitaiStructType => s"$kstructName*"
+      case KaitaiStructType => config.pointers match {
+        case RawPointers => s"$kstructName*"
+        case SharedPointers => s"std::shared_ptr<$kstructName>"
+        case UniqueAndRawPointers => s"std::unique_ptr<$kstructName>"
+      }
+      case CalcKaitaiStructType => config.pointers match {
+        case RawPointers => s"$kstructName*"
+        case SharedPointers => s"std::shared_ptr<$kstructName>"
+        case UniqueAndRawPointers => s"$kstructName*"
+      }
 
       case SwitchType(on, cases) =>
-        kaitaiType2NativeType(TypeDetector.combineTypes(
+        kaitaiType2NativeType(config, TypeDetector.combineTypes(
           // C++ does not have a concept of AnyType, and common use case "lots of incompatible UserTypes
           // for cases + 1 BytesType for else" combined would result in exactly AnyType - so we try extra
           // hard to avoid that here with this pre-filtering. In C++, "else" case with raw byte array would

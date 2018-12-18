@@ -86,7 +86,7 @@ class RustClassCompiler(
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
-    lang.instanceCheckCacheAndReturn(instName)
+    lang.instanceCheckCacheAndReturn(instName, dataType)
 
     instSpec match {
       case vi: ValueInstanceSpec =>
@@ -98,7 +98,7 @@ class RustClassCompiler(
     }
 
     lang.instanceSetCalculated(instName)
-    lang.instanceReturn(instName)
+    lang.instanceReturn(instName, dataType)
     lang.instanceFooter
   }
 }

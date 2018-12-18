@@ -2,15 +2,16 @@ package io.kaitai.struct.translators
 
 import java.nio.charset.Charset
 
+import io.kaitai.struct.CppRuntimeConfig.{RawPointers, SharedPointers}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CppCompiler
-import io.kaitai.struct.{ImportList, Utils}
+import io.kaitai.struct.{ImportList, RuntimeConfig, Utils}
 
-class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends BaseTranslator(provider) {
+class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
 
   /**
@@ -147,7 +148,19 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends B
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
   override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"static_cast<${CppCompiler.kaitaiType2NativeType(typeName)}>(${translate(value)})"
+    config.cppConfig.pointers match {
+      case RawPointers =>
+        cppStaticCast(value, typeName)
+      case SharedPointers =>
+        typeName match {
+          case ut: UserType =>
+            s"std::static_pointer_cast<${CppCompiler.types2class(ut.classSpec.get.name)}>(${translate(value)})"
+          case _ => cppStaticCast(value, typeName)
+        }
+    }
+
+  def cppStaticCast(value: Ast.expr, typeName: DataType): String =
+    s"static_cast<${CppCompiler.kaitaiType2NativeType(config.cppConfig, typeName)}>(${translate(value)})"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {

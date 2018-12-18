@@ -4,7 +4,13 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
-sealed trait DataType
+sealed trait DataType {
+  /**
+    * @return Data type as non-owning data type. Default implementation
+    *         always returns itself, complex types
+    */
+  def asNonOwning: DataType = this
+}
 
 /**
   * A collection of case objects and classes that are used to represent internal
@@ -89,34 +95,86 @@ object DataType {
   case object CalcBooleanType extends BooleanType
   case class ArrayType(elType: DataType) extends DataType
 
+  /**
+    * Complex data type is a data type which creation and destruction is
+    * not an atomic, built-in operation, but rather a sequence of new/delete
+    * operations. The main common trait for all complex data types is a flag
+    * that determines whether they're "owning" or "borrowed". Owning objects
+    * manage their own creation/destruction, borrowed rely on other doing
+    * that.
+    */
+  abstract class ComplexDataType extends DataType {
+    /**
+      * @return If true, this is "owning" type: for languages where data ownership
+      *         matters, this one represents primary owner of the data block, who
+      *         will be responsible for whole life cycle: creation of the object
+      *         and its destruction.
+      */
+    def isOwning: Boolean
+  }
+
+  /**
+    * Common abstract ancestor for all types which can treated as "user types".
+    * Namely, this typically means that this type has a name, may have some
+    * parameters, and forced parent expression.
+    * @param name name of the type, might include several components
+    * @param forcedParent optional parent enforcement expression
+    * @param args parameters passed into this type as extra arguments
+    */
   abstract class UserType(
     val name: List[String],
     val forcedParent: Option[Ast.expr],
     var args: Seq[Ast.expr]
-  ) extends DataType {
+  ) extends ComplexDataType {
     var classSpec: Option[ClassSpec] = None
     def isOpaque = {
       val cs = classSpec.get
       cs.isTopLevel || cs.meta.isOpaque
+    }
+
+    override def asNonOwning: UserType = {
+      if (!isOwning) {
+        this
+      } else {
+        val r = CalcUserType(name, forcedParent, args)
+        r.classSpec = classSpec
+        r
+      }
     }
   }
   case class UserTypeInstream(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
     _args: Seq[Ast.expr] = Seq()
-  ) extends UserType(_name, _forcedParent, _args)
+  ) extends UserType(_name, _forcedParent, _args) {
+    def isOwning = true
+  }
   case class UserTypeFromBytes(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
     _args: Seq[Ast.expr] = Seq(),
     bytes: BytesType,
     override val process: Option[ProcessExpr]
-  ) extends UserType(_name, _forcedParent, _args) with Processing
+  ) extends UserType(_name, _forcedParent, _args) with Processing {
+    def isOwning = true
+  }
+  case class CalcUserType(
+    _name: List[String],
+    _forcedParent: Option[Ast.expr],
+    _args: Seq[Ast.expr] = Seq()
+  ) extends UserType(_name, _forcedParent, _args) {
+    def isOwning = false
+  }
 
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
 
   case object AnyType extends DataType
-  case object KaitaiStructType extends DataType
+  case object KaitaiStructType extends ComplexDataType {
+    def isOwning = true
+  }
+  case object CalcKaitaiStructType extends ComplexDataType {
+    def isOwning = false
+  }
   case object KaitaiStreamType extends DataType
 
   case class EnumType(name: List[String], basedOn: IntType) extends DataType {
