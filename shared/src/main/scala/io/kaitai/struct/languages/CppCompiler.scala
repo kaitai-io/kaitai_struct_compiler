@@ -558,7 +558,7 @@ class CppCompiler(
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    outSrc.puts(s"${privateMemberName(id)}->push_back($expr);")
+    outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(expr)});")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -589,7 +589,7 @@ class CppCompiler(
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    outSrc.puts(s"${privateMemberName(id)}->push_back($expr);")
+    outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(expr)});")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -620,6 +620,7 @@ class CppCompiler(
       ("", translator.doName(Identifier.ITERATOR))
     }
     outSrc.puts(s"$typeDecl$tempVar = $expr;")
+
     outSrc.puts(s"${privateMemberName(id)}->push_back($tempVar);")
   }
 
@@ -905,6 +906,11 @@ class CppCompiler(
             privateMemberName(attrName)
         }
     }
+  }
+
+  def stdMoveWrap(expr: String): String = config.cppConfig.pointers match {
+    case UniqueAndRawPointers => s"std::move($expr)"
+    case _ => expr
   }
 }
 
