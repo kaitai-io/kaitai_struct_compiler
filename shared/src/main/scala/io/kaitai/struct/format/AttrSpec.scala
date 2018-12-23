@@ -10,12 +10,6 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 import scala.collection.JavaConversions._
 
-sealed trait RepeatSpec
-case class RepeatExpr(expr: Ast.expr) extends RepeatSpec
-case class RepeatUntil(expr: Ast.expr) extends RepeatSpec
-case object RepeatEos extends RepeatSpec
-case object NoRepeat extends RepeatSpec
-
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 
 trait AttrLikeSpec extends MemberSpec {
@@ -177,9 +171,6 @@ object AttrSpec {
     val sizeEos = ParseUtils.getOptValueBool(srcMap, "size-eos", path).getOrElse(false)
     val ifExpr = ParseUtils.getOptValueExpression(srcMap, "if", path)
     val encoding = ParseUtils.getOptValueStr(srcMap, "encoding", path)
-    val repeat = ParseUtils.getOptValueStr(srcMap, "repeat", path)
-    val repeatExpr = ParseUtils.getOptValueExpression(srcMap, "repeat-expr", path)
-    val repeatUntil = ParseUtils.getOptValueExpression(srcMap, "repeat-until", path)
     val terminator = ParseUtils.getOptValueInt(srcMap, "terminator", path)
     val consume = ParseUtils.getOptValueBool(srcMap, "consume", path).getOrElse(true)
     val include = ParseUtils.getOptValueBool(srcMap, "include", path).getOrElse(false)
@@ -216,7 +207,7 @@ object AttrSpec {
         }
     }
 
-    val (repeatSpec, legalRepeatKeys) = parseRepeat(repeat, repeatExpr, repeatUntil, path)
+    val (repeatSpec, legalRepeatKeys) = RepeatSpec.fromYaml(srcMap, path)
 
     val legalKeys = LEGAL_KEYS ++ legalRepeatKeys ++ (dataType match {
       case _: BytesType => LEGAL_KEYS_BYTES
@@ -303,43 +294,5 @@ object AttrSpec {
     }
 
     SwitchType(on, cases ++ addCases)
-  }
-
-  private def parseRepeat(
-    repeat: Option[String],
-    rExpr: Option[Ast.expr],
-    rUntil: Option[Ast.expr],
-    path: List[String]
-  ): (RepeatSpec, Set[String]) = {
-    repeat match {
-      case None =>
-        (NoRepeat, Set())
-      case Some("until") =>
-        val spec = rUntil match {
-          case Some(expr) => RepeatUntil(expr)
-          case None =>
-            throw new YAMLParseException(
-              "`repeat: until` requires a `repeat-until` expression",
-              path ++ List("repeat")
-            )
-        }
-        (spec, Set("repeat-until"))
-      case Some("expr") =>
-        val spec = rExpr match {
-          case Some(expr) => RepeatExpr(expr)
-          case None =>
-            throw new YAMLParseException(
-              "`repeat: expr` requires a `repeat-expr` expression",
-              path ++ List("repeat")
-            )
-        }
-        (spec, Set("repeat-expr"))
-      case Some("eos") =>
-        (RepeatEos, Set())
-      case Some(other) =>
-        throw YAMLParseException.badDictValue(
-          Set("until", "expr", "eos"), other, path ++ List("repeat")
-        )
-    }
   }
 }
