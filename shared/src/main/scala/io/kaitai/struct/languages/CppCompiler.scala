@@ -896,8 +896,8 @@ class CppCompiler(
         privateMemberName(attrName)
       case UniqueAndRawPointers =>
         attrType match {
-          case ut: UserType =>
-            if (ut.isOwning) {
+          case t: ComplexDataType =>
+            if (t.isOwning) {
               s"${privateMemberName(attrName)}.get()"
             } else {
               privateMemberName(attrName)
