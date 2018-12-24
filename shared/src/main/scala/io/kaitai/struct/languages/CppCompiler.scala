@@ -981,14 +981,20 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
         case UniqueAndRawPointers => s"$kstructName*"
       }
 
-      case SwitchType(on, cases) =>
-        kaitaiType2NativeType(config, TypeDetector.combineTypes(
+      case st: SwitchType =>
+        val ct1 = TypeDetector.combineTypes(
           // C++ does not have a concept of AnyType, and common use case "lots of incompatible UserTypes
           // for cases + 1 BytesType for else" combined would result in exactly AnyType - so we try extra
           // hard to avoid that here with this pre-filtering. In C++, "else" case with raw byte array would
           // be available through _raw_* attribute anyway.
-          cases.filterNot { case (caseExpr, caseValue) => caseExpr == SwitchType.ELSE_CONST }.values
-        ), absolute)
+          st.cases.filterNot { case (caseExpr, caseValue) => caseExpr == SwitchType.ELSE_CONST }.values
+        )
+        val ct2 = if (st.isOwning) {
+          ct1
+        } else {
+          ct1.asNonOwning
+        }
+        kaitaiType2NativeType(config, ct2, absolute)
     }
   }
 

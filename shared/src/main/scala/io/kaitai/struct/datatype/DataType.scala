@@ -171,6 +171,7 @@ object DataType {
   case object AnyType extends DataType
   case object KaitaiStructType extends ComplexDataType {
     def isOwning = true
+    override def asNonOwning: DataType = CalcKaitaiStructType
   }
   case object CalcKaitaiStructType extends ComplexDataType {
     def isOwning = false
@@ -181,7 +182,7 @@ object DataType {
     var enumSpec: Option[EnumSpec] = None
   }
 
-  case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, DataType]) extends DataType {
+  case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, DataType], isOwning: Boolean = true) extends ComplexDataType {
     def combinedType: DataType = TypeDetector.combineTypes(cases.values)
 
     /**
@@ -218,6 +219,8 @@ object DataType {
       cases.values.exists((t) =>
         t.isInstanceOf[UserTypeFromBytes] || t.isInstanceOf[BytesType]
       )
+
+    override def asNonOwning: DataType = SwitchType(on, cases, false)
   }
 
   object SwitchType {

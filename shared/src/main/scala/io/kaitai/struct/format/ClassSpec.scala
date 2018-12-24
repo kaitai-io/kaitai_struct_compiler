@@ -68,6 +68,21 @@ case class ClassSpec(
       typeSpec.forEachRec(proc)
     }
   }
+
+  override def equals(obj: Any): Boolean = obj match {
+    case other: ClassSpec =>
+      path == other.path &&
+      isTopLevel == other.isTopLevel &&
+      meta == other.meta &&
+      doc == other.doc &&
+      params == other.params &&
+      seq == other.seq &&
+      types == other.types &&
+      instances == other.instances &&
+      enums == other.enums &&
+      name == other.name
+    case _ => false
+  }
 }
 
 object ClassSpec {

@@ -534,7 +534,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
       case KaitaiStructType | CalcKaitaiStructType => s"Option<Box<KaitaiStruct>>"
       
-      case SwitchType(on, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
+      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
   }
   
@@ -570,7 +570,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case KaitaiStreamType => "None"
       case KaitaiStructType => "None"
       
-      case SwitchType(on, cases) => ""
+      case _: SwitchType => ""
       // TODO
     }
   }

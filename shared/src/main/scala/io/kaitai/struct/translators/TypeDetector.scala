@@ -131,7 +131,7 @@ class TypeDetector(provider: TypeProvider) {
   def detectAttributeType(value: Ast.expr, attr: Ast.identifier) = {
     val valType = detectType(value)
     valType match {
-      case KaitaiStructType =>
+      case KaitaiStructType | CalcKaitaiStructType =>
         throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '$value'")
       case t: UserType =>
         t.classSpec match {
@@ -338,19 +338,31 @@ object TypeDetector {
               if (t1.name == t2.name) {
                 t1
               } else {
-                KaitaiStructType
+                if (t1.isOwning || t2.isOwning) {
+                  KaitaiStructType
+                } else {
+                  CalcKaitaiStructType
+                }
               }
             case (Some(cs1), Some(cs2)) =>
               if (cs1 == cs2) {
                 t1
               } else {
-                KaitaiStructType
+                if (t1.isOwning || t2.isOwning) {
+                  KaitaiStructType
+                } else {
+                  CalcKaitaiStructType
+                }
               }
             case (_, _) =>
-              KaitaiStructType
+              if (t1.isOwning || t2.isOwning) {
+                KaitaiStructType
+              } else {
+                CalcKaitaiStructType
+              }
           }
-        case (_: UserType, KaitaiStructType) => KaitaiStructType
-        case (KaitaiStructType, _: UserType) => KaitaiStructType
+        case (_: UserType, _: ComplexDataType) => CalcKaitaiStructType
+        case (_: ComplexDataType, _: UserType) => CalcKaitaiStructType
         case _ => AnyType
       }
     }
@@ -401,6 +413,7 @@ object TypeDetector {
         case (_: BooleanType, _: BooleanType) => true
         case (_: StrType, _: StrType) => true
         case (_: UserType, KaitaiStructType) => true
+        case (_: UserType, CalcKaitaiStructType) => true
         case (t1: UserType, t2: UserType) =>
           (t1.classSpec, t2.classSpec) match {
             case (None, None) =>

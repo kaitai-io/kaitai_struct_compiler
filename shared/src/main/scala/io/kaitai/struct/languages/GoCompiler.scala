@@ -470,7 +470,7 @@ object GoCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => s"[]${kaitaiType2NativeType(inType)}"
 
-      case SwitchType(_, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
+      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
   }
 

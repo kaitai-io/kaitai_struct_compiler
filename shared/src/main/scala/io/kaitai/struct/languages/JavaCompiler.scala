@@ -770,7 +770,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
-      case SwitchType(_, cases) => kaitaiType2JavaTypeBoxed(TypeDetector.combineTypes(cases.values))
+      case st: SwitchType => kaitaiType2JavaTypeBoxed(st.combinedType)
     }
   }
 

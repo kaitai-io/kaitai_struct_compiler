@@ -45,8 +45,8 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
           val err = new EnumNotFoundError(et.name.mkString("::"), curClass)
           throw new YAMLParseException(err.getMessage, path)
         }
-      case SwitchType(_, cases) =>
-        cases.foreach { case (caseName, ut) =>
+      case st: SwitchType =>
+        st.cases.foreach { case (caseName, ut) =>
           resolveUserType(curClass, ut, path ++ List("type", "cases", caseName.toString))
         }
       case _ =>
