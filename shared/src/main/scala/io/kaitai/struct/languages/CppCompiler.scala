@@ -681,7 +681,9 @@ class CppCompiler(
             s"std::make_shared<${types2class(t.name)}>($addParams$io$addArgs)"
           case UniqueAndRawPointers =>
             importListSrc.add("memory")
-            s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
+            // C++14
+            //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
+            s"std::unique_ptr(new ${types2class(t.name)}($addParams$io$addArgs))"
         }
     }
   }
