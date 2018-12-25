@@ -416,7 +416,7 @@ object DataType {
       )
     case "str" => CalcStrType
     case "bool" => CalcBooleanType
-    case "struct" => KaitaiStructType
+    case "struct" => CalcKaitaiStructType
     case "io" => KaitaiStreamType
     case "any" => AnyType
     case _ => UserTypeInstream(classNameToList(dt), None)
