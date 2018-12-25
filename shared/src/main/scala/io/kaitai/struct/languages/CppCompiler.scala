@@ -683,7 +683,7 @@ class CppCompiler(
             importListSrc.add("memory")
             // C++14
             //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
-            s"std::unique_ptr(new ${types2class(t.name)}($addParams$io$addArgs))"
+            s"std::unique_ptr<${types2class(t.name)}>(new ${types2class(t.name)}($addParams$io$addArgs))"
         }
     }
   }
