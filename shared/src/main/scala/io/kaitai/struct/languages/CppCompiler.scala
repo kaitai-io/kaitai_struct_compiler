@@ -898,6 +898,8 @@ class CppCompiler(
         privateMemberName(attrName)
       case UniqueAndRawPointers =>
         attrType match {
+          case st: SwitchType =>
+            nonOwningPointer(attrName, st.combinedType)
           case t: ComplexDataType =>
             if (t.isOwning) {
               s"${privateMemberName(attrName)}.get()"
