@@ -419,7 +419,7 @@ object DataType {
     case "struct" => CalcKaitaiStructType
     case "io" => KaitaiStreamType
     case "any" => AnyType
-    case _ => UserTypeInstream(classNameToList(dt), None)
+    case _ => CalcUserType(classNameToList(dt), None)
   }
 
   def getEncoding(curEncoding: Option[String], metaDef: MetaSpec, path: List[String]): String = {
