@@ -621,7 +621,7 @@ class CppCompiler(
     }
     outSrc.puts(s"$typeDecl$tempVar = $expr;")
 
-    outSrc.puts(s"${privateMemberName(id)}->push_back($tempVar);")
+    outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(tempVar)});")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
