@@ -2,7 +2,6 @@ package io.kaitai.struct.languages.components
 
 import io.kaitai.struct._
 import io.kaitai.struct.languages._
-import io.kaitai.struct.translators.{BaseTranslator, TypeProvider}
 
 trait LanguageCompilerStatic {
   def getCompiler(tp: ClassTypeProvider, config: RuntimeConfig): LanguageCompiler
@@ -15,6 +14,7 @@ object LanguageCompilerStatic {
     "csharp" -> CSharpCompiler,
     "graphviz" -> GraphvizClassCompiler,
     "go" -> GoCompiler,
+    "html" -> HtmlClassCompiler,
     "java" -> JavaCompiler,
     "javascript" -> JavaScriptCompiler,
     "lua" -> LuaCompiler,

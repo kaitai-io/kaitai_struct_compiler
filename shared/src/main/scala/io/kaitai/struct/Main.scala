@@ -63,6 +63,8 @@ object Main {
         new RustClassCompiler(specs, spec, config)
       case ConstructClassCompiler =>
         new ConstructClassCompiler(specs, spec)
+      case HtmlClassCompiler =>
+        new HtmlClassCompiler(specs, spec)
       case _ =>
         new ClassCompiler(specs, spec, config, lang)
     }
