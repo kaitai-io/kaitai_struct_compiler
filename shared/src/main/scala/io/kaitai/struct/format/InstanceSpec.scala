@@ -18,7 +18,7 @@ case class ValueInstanceSpec(
   override def isNullable: Boolean = ifExpr.isDefined
 }
 case class ParseInstanceSpec(
-  id: Identifier,
+  id: InstanceIdentifier,
   path: List[String],
   private val _doc: DocSpec,
   dataType: DataType,
