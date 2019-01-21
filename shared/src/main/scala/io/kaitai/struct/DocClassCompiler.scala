@@ -33,26 +33,27 @@ abstract class DocClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) ext
 
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
-    val className = curClass.name
 
     classHeader(curClass)
 
     // Sequence
     compileSeq(curClass)
 
-    curClass.instances.foreach { case (instName, instSpec) =>
+    // Instances
+    curClass.instances.foreach { case (_, instSpec) =>
       instSpec match {
         case pis: ParseInstanceSpec =>
-          compileParseInstance(pis)
+          compileParseInstance(curClass, pis)
         case vis: ValueInstanceSpec =>
           compileValueInstance(vis)
       }
     }
 
+    // Enums
     curClass.enums.foreach { case(enumName, enumColl) => compileEnum(enumName, enumColl) }
 
     // Recursive types
-    curClass.types.foreach { case (typeName, intClass) => compileClass(intClass) }
+    curClass.types.foreach { case (_, intClass) => compileClass(intClass) }
 
     classFooter(curClass)
   }
@@ -61,7 +62,7 @@ abstract class DocClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) ext
     seqHeader(curClass)
 
     CalculateSeqSizes.forEachSeqAttr(curClass, (attr, seqPos, sizeElement, sizeContainer) => {
-      compileSeqAttr(attr, seqPos, sizeElement, sizeContainer)
+      compileSeqAttr(curClass, attr, seqPos, sizeElement, sizeContainer)
     })
 
     seqFooter(curClass)
@@ -76,8 +77,8 @@ abstract class DocClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) ext
   def seqHeader(classSpec: ClassSpec): Unit
   def seqFooter(classSpec: ClassSpec): Unit
 
-  def compileSeqAttr(attr: AttrSpec, seqPos: Option[Int], sizeElement: Sized, sizeContainer: Sized): Unit
-  def compileParseInstance(inst: ParseInstanceSpec): Unit
+  def compileSeqAttr(classSpec: ClassSpec, attr: AttrSpec, seqPos: Option[Int], sizeElement: Sized, sizeContainer: Sized): Unit
+  def compileParseInstance(classSpec: ClassSpec, inst: ParseInstanceSpec): Unit
   def compileValueInstance(vis: ValueInstanceSpec): Unit
   def compileEnum(enumName: String, enumColl: EnumSpec): Unit
 }
