@@ -450,6 +450,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
+  override def debugClassSequence(seq: List[AttrSpec]) = {
+    val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
+    out.puts(s"SEQ_FIELDS = [$seqStr]")
+  }
+
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 
   def idToStr(id: Identifier): String = {
