@@ -346,7 +346,7 @@ class JavaMain(config: CLIConfig) {
 
   private def exceptionToCompileError(ex: Throwable, srcFile: String): CompileError = {
     if (!config.jsonOutput)
-      Console.println(ex.getMessage)
+      Console.err.println(ex.getMessage)
     ex match {
       case ype: YAMLParseException =>
         CompileError("(main)", ype.path, ype.msg)
