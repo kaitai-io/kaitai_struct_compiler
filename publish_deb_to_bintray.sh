@@ -19,4 +19,4 @@ BINTRAY_DEB_COMPONENT=main
 bintray_create_version
 bintray_upload_deb "jvm/target/kaitai-struct-compiler_${KAITAI_STRUCT_VERSION}_all.deb"
 bintray_publish_version
-if [ ! -z "$KAITAI_IMAGE_BUILD_HOOK_TOKEN" ]; then curl -F "token=${KAITAI_IMAGE_BUILD_HOOK_TOKEN}" -F ref=master" https://gitlab.com/api/v4/projects/10444125/trigger/pipeline || true; fi;
+if [ ! -z "$KAITAI_IMAGE_BUILD_HOOK_TOKEN" ]; then curl -F "token=${KAITAI_IMAGE_BUILD_HOOK_TOKEN}" -F "ref=master" https://gitlab.com/api/v4/projects/10444125/trigger/pipeline || true; fi;
