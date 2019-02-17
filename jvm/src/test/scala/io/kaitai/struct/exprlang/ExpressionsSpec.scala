@@ -232,7 +232,7 @@ class ExpressionsSpec extends FunSpec {
     }
 
     // Casts
-    it("parses 123.as<u4>") {
+    ignore("parses 123.as<u4>") {
       Expressions.parse("123.as<u4>") should be (
         CastToType(IntNum(123), typeId(false, Seq("u4")))
       )
@@ -301,7 +301,7 @@ class ExpressionsSpec extends FunSpec {
     }
 
     // Attribute / method call
-    it("parses 123.to_s") {
+    ignore("parses 123.to_s") {
       Expressions.parse("123.to_s") should be (Attribute(IntNum(123),identifier("to_s")))
     }
 
