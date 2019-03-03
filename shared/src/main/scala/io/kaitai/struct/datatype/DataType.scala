@@ -27,14 +27,14 @@ object DataType {
     * A common trait for all types that can be read with a simple,
     * parameterless KaitaiStream API call.
     */
-  trait ReadableType extends DataType {
+  sealed trait ReadableType extends DataType {
     def apiCall(defEndian: Option[FixedEndian]): String
   }
 
-  abstract class NumericType extends DataType
-  abstract class BooleanType extends DataType
+  abstract sealed class NumericType extends DataType
+  abstract sealed class BooleanType extends DataType
 
-  abstract class IntType extends NumericType
+  abstract sealed class IntType extends NumericType
   case object CalcIntType extends IntType
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
     override def apiCall(defEndian: Option[FixedEndian]): String = if (signed) "s1" else "u1"
@@ -103,7 +103,7 @@ object DataType {
     * manage their own creation/destruction, borrowed rely on other doing
     * that.
     */
-  abstract class ComplexDataType extends DataType {
+  abstract sealed class ComplexDataType extends DataType {
     /**
       * @return If true, this is "owning" type: for languages where data ownership
       *         matters, this one represents primary owner of the data block, who
