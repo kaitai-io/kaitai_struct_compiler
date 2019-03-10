@@ -357,6 +357,9 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
+  override def userTypeDebugRead(id: String): Unit =
+    out.puts(s"$id:_read()")
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
     out.puts(s"local _on = ${expression(on)}")
   override def switchCaseFirstStart(condition: Ast.expr): Unit = {
