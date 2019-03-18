@@ -93,7 +93,6 @@ object DataType {
   case class StrFromBytesType(bytes: BytesType, encoding: String) extends StrType
 
   case object CalcBooleanType extends BooleanType
-  case class ArrayType(elType: DataType) extends DataType
 
   /**
     * Complex data type is a data type which creation and destruction is
@@ -156,14 +155,22 @@ object DataType {
     bytes: BytesType,
     override val process: Option[ProcessExpr]
   ) extends UserType(_name, _forcedParent, _args) with Processing {
-    def isOwning = true
+    override def isOwning = true
   }
   case class CalcUserType(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
     _args: Seq[Ast.expr] = Seq()
   ) extends UserType(_name, _forcedParent, _args) {
-    def isOwning = false
+    override def isOwning = false
+  }
+
+  case class ArrayType(elType: DataType) extends ComplexDataType {
+    override def isOwning: Boolean = true
+    override def asNonOwning: CalcArrayType = CalcArrayType(elType)
+  }
+  case class CalcArrayType(elType: DataType) extends ComplexDataType {
+    override def isOwning: Boolean = false
   }
 
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)

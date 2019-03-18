@@ -370,20 +370,20 @@ class CppCompiler(
 
   def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, hasRaw: Boolean, hasIO: Boolean): Unit = {
     if (isArray) {
-      // raw is std::vector<string>*, no need to delete its contents, but we
-      // need to clean up the vector pointer itself
-      if (hasRaw)
-        outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
-
-      // IO is std::vector<kstream*>*, needs destruction of both members
-      // and the vector pointer itself
-      if (hasIO) {
-        val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-        destructVector(s"$kstreamName*", ioVar)
-        outSrc.puts(s"delete $ioVar;")
-      }
-
       if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
+        // raw is std::vector<string>*, no need to delete its contents, but we
+        // need to clean up the vector pointer itself
+        if (hasRaw)
+          outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
+
+        // IO is std::vector<kstream*>*, needs destruction of both members
+        // and the vector pointer itself
+        if (hasIO) {
+          val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
+          destructVector(s"$kstreamName*", ioVar)
+          outSrc.puts(s"delete $ioVar;")
+        }
+
         // main member contents
         if (needsDestruction(innerType)) {
           val arrVar = privateMemberName(id)
@@ -546,10 +546,10 @@ class CppCompiler(
     importListHdr.add("vector")
 
     if (needRaw) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
-      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = new std::vector<$kstreamName*>();")
+      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
+      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
     }
-    outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
+    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
@@ -576,13 +576,13 @@ class CppCompiler(
     outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
     if (needRaw) {
       val rawId = privateMemberName(RawIdentifier(id))
-      outSrc.puts(s"$rawId = new std::vector<std::string>();")
+      outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
       outSrc.puts(s"$rawId->reserve($lenVar);")
       val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-      outSrc.puts(s"$ioId = new std::vector<$kstreamName*>();")
+      outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType)};")
       outSrc.puts(s"$ioId->reserve($lenVar);")
     }
-    outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
+    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts(s"${privateMemberName(id)}->reserve($lenVar);")
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
@@ -601,10 +601,10 @@ class CppCompiler(
     importListHdr.add("vector")
 
     if (needRaw) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = new std::vector<std::string>();")
-      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = new std::vector<$kstreamName*>();")
+      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
+      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
     }
-    outSrc.puts(s"${privateMemberName(id)} = new std::vector<${kaitaiType2NativeType(dataType)}>();")
+    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
@@ -685,6 +685,17 @@ class CppCompiler(
             //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
             s"std::unique_ptr<${types2class(t.name)}>(new ${types2class(t.name)}($addParams$io$addArgs))"
         }
+    }
+  }
+
+  def newVector(elType: DataType): String = {
+    val cppElType = kaitaiType2NativeType(elType)
+    config.cppConfig.pointers match {
+      case RawPointers =>
+        s"new std::vector<$cppElType>()"
+      case UniqueAndRawPointers =>
+        s"std::unique_ptr<std::vector<$cppElType>>(new std::vector<$cppElType>())"
+        // TODO: C++14 with std::make_unique
     }
   }
 
@@ -971,7 +982,11 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
           t.name
         })
 
-      case ArrayType(inType) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
+      case ArrayType(inType) => config.pointers match {
+        case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
+        case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
+      }
+      case CalcArrayType(inType) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
 
       case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {

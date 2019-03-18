@@ -2,7 +2,7 @@ package io.kaitai.struct.translators
 
 import java.nio.charset.Charset
 
-import io.kaitai.struct.CppRuntimeConfig.{RawPointers, SharedPointers}
+import io.kaitai.struct.CppRuntimeConfig.{RawPointers, SharedPointers, UniqueAndRawPointers}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
@@ -149,7 +149,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
   override def doCast(value: Ast.expr, typeName: DataType): String =
     config.cppConfig.pointers match {
-      case RawPointers =>
+      case RawPointers | UniqueAndRawPointers =>
         cppStaticCast(value, typeName)
       case SharedPointers =>
         typeName match {
