@@ -608,10 +608,12 @@ class CppCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${translator.doName("_")};")
     outSrc.puts("do {")
     outSrc.inc
   }
+
+  private val ReStdUniquePtr = "^std::unique_ptr<(.*?)>\\((.*?)\\)$".r
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val (typeDecl, tempVar) = if (isRaw) {
@@ -619,9 +621,21 @@ class CppCompiler(
     } else {
       ("", translator.doName(Identifier.ITERATOR))
     }
-    outSrc.puts(s"$typeDecl$tempVar = $expr;")
 
-    outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(tempVar)});")
+    val (wrappedTempVar, rawPtrExpr) = if (config.cppConfig.pointers == UniqueAndRawPointers) {
+      expr match {
+        case ReStdUniquePtr(cppClass, innerExpr) =>
+          (s"std::move(std::unique_ptr<$cppClass>($tempVar))", innerExpr)
+        case _ =>
+          (tempVar, expr)
+      }
+    } else {
+      (tempVar, expr)
+    }
+
+    outSrc.puts(s"$typeDecl$tempVar = $rawPtrExpr;")
+
+    outSrc.puts(s"${privateMemberName(id)}->push_back($wrappedTempVar);")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
