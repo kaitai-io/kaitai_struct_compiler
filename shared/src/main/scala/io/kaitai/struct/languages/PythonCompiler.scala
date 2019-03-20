@@ -66,12 +66,13 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = classSpec.name.head
-    val prefix = config.pythonPackage match {
-      case "" => ""
-      case "." => "."
-      case pkg => s"$pkg."
-    }
-    out.puts(s"from $prefix$name import ${type2class(name)}")
+    out.puts(s"import $opaquePrefix$name")
+  }
+
+  private def opaquePrefix = config.pythonPackage match {
+    case "" => ""
+    case "." => "."
+    case pkg => s"$pkg."
   }
 
   override def classHeader(name: String): Unit = {
@@ -377,7 +378,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, self._root$addEndian"
         }
-        s"${types2class(t.classSpec.get.name)}($addParams$io$addArgs)"
+        s"${userType2class(t)}($addParams$io$addArgs)"
     }
   }
 
@@ -479,6 +480,17 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  def userType2class(t: UserType): String = {
+    val name = t.classSpec.get.name
+    val firstName = name.head
+    val prefix = if (t.isOpaque && firstName != translator.provider.nowClass.name.head) {
+      s"$opaquePrefix$firstName."
+    } else {
+      ""
+    }
+    s"$prefix${types2class(name)}"
+  }
 }
 
 object PythonCompiler extends LanguageCompilerStatic
