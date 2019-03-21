@@ -66,13 +66,13 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = classSpec.name.head
-    out.puts(s"import $opaquePrefix$name")
-  }
-
-  private def opaquePrefix = config.pythonPackage match {
-    case "" => ""
-    case "." => "."
-    case pkg => s"$pkg."
+    out.puts(
+      if (config.pythonPackage.nonEmpty) {
+        s"from ${config.pythonPackage} import $name"
+      } else {
+        s"import $name"
+      }
+    )
   }
 
   override def classHeader(name: String): Unit = {
@@ -485,7 +485,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val name = t.classSpec.get.name
     val firstName = name.head
     val prefix = if (t.isOpaque && firstName != translator.provider.nowClass.name.head) {
-      s"$opaquePrefix$firstName."
+      s"$firstName."
     } else {
       ""
     }
