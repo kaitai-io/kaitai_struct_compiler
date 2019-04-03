@@ -47,7 +47,7 @@ object Expressions {
     case Seq(x) => x
     case xs => Ast.expr.BoolOp(Ast.boolop.And, xs)
   }
-  val not_test: P[Ast.expr] = P( ("not" ~ not_test).map(Ast.expr.UnaryOp(Ast.unaryop.Not, _)) | comparison )
+  val not_test: P[Ast.expr] = P( (kw("not") ~ not_test).map(Ast.expr.UnaryOp(Ast.unaryop.Not, _)) | comparison )
   val comparison: P[Ast.expr] = P( expr ~ (comp_op ~ expr).? ).map{
     case (lhs, None) => lhs
     case (lhs, Some(chunks)) =>

@@ -216,6 +216,22 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("note_len") should be (Name(identifier("note_len")))
     }
 
+    it("parses notnot") {
+      Expressions.parse("notnot") should be (Name(identifier("notnot")))
+    }
+
+    it("parses not not true") {
+      Expressions.parse("not not true") should be (
+        UnaryOp(
+          Ast.unaryop.Not,
+          UnaryOp(
+            Ast.unaryop.Not,
+            Bool(true)
+          )
+        )
+      )
+    }
+
     // String literals
     it("parses simple string") {
       Expressions.parse("\"abc\"") should be (Str("abc"))
