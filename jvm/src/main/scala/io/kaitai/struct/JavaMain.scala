@@ -62,7 +62,7 @@ object JavaMain {
       } text("output directory (filenames will be auto-generated)")
 
       val importPathExample = List("<directory>", "<directory>", "...").mkString(File.pathSeparator)
-      opt[String]('I', "import-path") valueName(importPathExample) action { (x, c) =>
+      opt[String]('I', "import-path") optional() unbounded() valueName(importPathExample) action { (x, c) =>
         c.copy(importPaths = c.importPaths ++ x.split(File.pathSeparatorChar))
       } text(".ksy library search path(s) for imports (see also KSPATH env variable)")
 
