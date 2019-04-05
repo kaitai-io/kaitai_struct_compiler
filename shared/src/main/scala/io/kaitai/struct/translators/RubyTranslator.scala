@@ -55,6 +55,15 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     }
   }
 
+  def enumInverseMap(et: EnumType): String = {
+    val enumTypeAndName = et.enumSpec.get.name
+    val enumDirectMap = this.enumDirectMap(enumTypeAndName)
+    val enumNameDirect = enumTypeAndName.last.toUpperCase
+    val enumNameInverse = RubyCompiler.inverseEnumName(enumNameDirect)
+
+    enumDirectMap.replace(enumNameDirect, enumNameInverse)
+  }
+
   override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
@@ -69,7 +78,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     })
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
-    s"${RubyCompiler.inverseEnumName(et.name.last.toUpperCase)}[${translate(v)}]"
+    s"${enumInverseMap(et)}[${translate(v)}]"
   override def floatToInt(v: Ast.expr): String =
     s"(${translate(v)}).to_i"
   override def intToStr(i: Ast.expr, base: Ast.expr): String =
