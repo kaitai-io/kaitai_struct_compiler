@@ -160,7 +160,13 @@ class TypeDetector(provider: TypeProvider) {
           case "to_i" => CalcIntType
           case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
         }
-      case ArrayType(inType) =>
+      case ArrayType(_) | CalcArrayType(_) =>
+        val inType = valType match {
+          case ArrayType(inType) => inType
+          case CalcArrayType(inType) => inType
+          case _ => throw new TypeMismatchError(s"Unexpected type for arrays ${valType}.");
+        }
+
         attr.name match {
           case "first" | "last" | "min" | "max" => inType
           case "size" => CalcIntType
