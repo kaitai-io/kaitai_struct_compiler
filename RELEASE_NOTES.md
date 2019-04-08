@@ -1,4 +1,12 @@
-# 0.8 (TBD)
+# 0.9 (TBD)
+
+* New targets support:
+  * Python with [Construct library](https://construct.readthedocs.io)
+* Expression language:
+  * New methods:
+    * byte arrays: `length`
+
+# 0.8 (2018-02-05)
 
 * New target languages:
   * Lua (96% tests pass score)

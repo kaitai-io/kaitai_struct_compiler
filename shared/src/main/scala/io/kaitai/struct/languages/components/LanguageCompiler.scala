@@ -10,8 +10,9 @@ import scala.collection.mutable.ListBuffer
 
 abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
-  config: RuntimeConfig
-) extends SwitchOps {
+  val config: RuntimeConfig
+) extends SwitchOps
+  with ExtraAttrs {
 
   val translator: AbstractTranslator
 
@@ -51,7 +52,7 @@ abstract class LanguageCompiler(
     */
   def innerDocstrings: Boolean = false
 
-  def debug = config.debug
+  def debug: Boolean = !config.autoRead && config.readStoresPos
 
   def indent: String
   def outFileName(topClassName: String): String
@@ -88,8 +89,9 @@ abstract class LanguageCompiler(
   def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
   def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
-  def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[Endianness]): Unit
+  def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit
   def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit
+  def attrInit(attr: AttrLikeSpec): Unit = {}
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
@@ -117,13 +119,14 @@ abstract class LanguageCompiler(
   def popPos(io: String): Unit
   def alignToByte(io: String): Unit
 
+  def instanceDeclHeader(className: List[String]): Unit = {}
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
   def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = attributeDeclaration(attrName, attrType, isNullable)
   def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit
   def instanceFooter: Unit
-  def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit
-  def instanceReturn(instName: InstanceIdentifier): Unit
+  def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit
+  def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr)
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit

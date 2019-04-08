@@ -4,6 +4,12 @@ case class EnumSpec(map: Map[Long, EnumValueSpec]) {
   var name = List[String]()
 
   /**
+    * @return Absolute name of enum as string, components separated by
+    *         double colon operator `::`
+    */
+  def nameAsStr = name.mkString("::")
+
+  /**
     * Stabilize order of generated enums by sorting it by integer ID - it
     * both looks nicer and doesn't screw diffs in generated code.
     */

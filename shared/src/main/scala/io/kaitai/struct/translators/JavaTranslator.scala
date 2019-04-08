@@ -10,10 +10,14 @@ import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
-    val literal = n.toString
+    val literal = if (n > Long.MaxValue) {
+      "0x" + n.toString(16)
+    } else {
+      n.toString
+    }
     val suffix = if (n > Int.MaxValue) "L" else ""
 
-    s"${literal}${suffix}"
+    s"$literal$suffix"
   }
 
   /**
@@ -45,11 +49,16 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
     val commaStr = values.mkString(", ")
 
+
+    importList.add("java.util.ArrayList")
+    importList.add("java.util.Arrays")
     s"new ArrayList<$javaType>(Arrays.asList($commaStr))"
   }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new byte[] { ${arr.mkString(", ")} }"
+  override def doByteArrayNonLiteral(elts: Seq[expr]): String =
+    s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
@@ -118,8 +127,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: String): String =
-    s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
+  override def doCast(value: Ast.expr, typeName: DataType): String =
+    s"((${JavaCompiler.kaitaiType2JavaType(typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
@@ -134,6 +143,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     importList.add("java.nio.charset.Charset")
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
   }
+  override def bytesLength(b: Ast.expr): String =
+    s"${translate(b)}.length"
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =

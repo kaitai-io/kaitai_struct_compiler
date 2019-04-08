@@ -66,12 +66,13 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = classSpec.name.head
-    val prefix = config.pythonPackage match {
-      case "" => ""
-      case "." => "."
-      case pkg => s"$pkg."
-    }
-    out.puts(s"from $prefix$name import ${type2class(name)}")
+    out.puts(
+      if (config.pythonPackage.nonEmpty) {
+        s"from ${config.pythonPackage} import $name"
+      } else {
+        s"import $name"
+      }
+    )
   }
 
   override def classHeader(name: String): Unit = {
@@ -94,6 +95,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+
+    if (config.readStoresPos) {
+      importList.add("import collections")
+      out.puts("self._debug = collections.defaultdict(dict)")
+    }
   }
 
   override def runRead(): Unit = {
@@ -248,6 +254,40 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def alignToByte(io: String): Unit =
     out.puts(s"$io.align_to_byte()")
 
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
+    ios.foreach { (io) =>
+      val name = attrId match {
+        case _: RawIdentifier | _: SpecialIdentifier => return
+        case _ => idToStr(attrId)
+      }
+      rep match {
+        case NoRepeat =>
+          out.puts(s"self._debug['$name']['start'] = $io.pos()")
+        case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
+          out.puts(s"if not 'arr' in self._debug['$name']:")
+          out.inc
+          out.puts(s"self._debug['$name']['arr'] = []")
+          out.dec
+          out.puts(s"self._debug['$name']['arr'].append({'start': $io.pos()})")
+      }
+    }
+  }
+
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId match {
+      case _: RawIdentifier | _: SpecialIdentifier => return
+      case _ => idToStr(attrId)
+    }
+    rep match {
+      case NoRepeat =>
+        out.puts(s"self._debug['$name']['end'] = $io.pos()")
+      case _: RepeatExpr =>
+        out.puts(s"self._debug['$name']['arr'][i]['end'] = $io.pos()")
+      case RepeatEos | _: RepeatUntil =>
+        out.puts(s"self._debug['$name']['arr'][len(${privateMemberName(attrId)}) - 1]['end'] = $io.pos()")
+    }
+  }
+
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)}:")
     out.inc
@@ -306,6 +346,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"$id = $expr")
+
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
@@ -335,7 +378,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, self._root$addEndian"
         }
-        s"${types2class(t.classSpec.get.name)}($addParams$io$addArgs)"
+        s"${userType2class(t)}($addParams$io$addArgs)"
     }
   }
 
@@ -350,6 +393,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     expr2
   }
+
+  override def userTypeDebugRead(id: String): Unit =
+    out.puts(s"$id._read()")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"_on = ${expression(on)}")
@@ -381,15 +427,15 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if hasattr(self, '${idToStr(instName)}'):")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     out.dec
     out.puts
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     // not very efficient, probably should be some other way to do that, but for now it will do:
     // workaround to avoid Python generating an "AttributeError: instance has no attribute"
     out.puts(s"return ${privateMemberName(instName)} if hasattr(self, '${idToStr(instName)}') else None")
@@ -403,6 +449,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = $id") }
     out.dec
+  }
+
+  override def debugClassSequence(seq: List[AttrSpec]) = {
+    val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
+    out.puts(s"SEQ_FIELDS = [$seqStr]")
   }
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
@@ -429,6 +480,17 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  def userType2class(t: UserType): String = {
+    val name = t.classSpec.get.name
+    val firstName = name.head
+    val prefix = if (t.isOpaque && firstName != translator.provider.nowClass.name.head) {
+      s"$firstName."
+    } else {
+      ""
+    }
+    s"$prefix${types2class(name)}"
+  }
 }
 
 object PythonCompiler extends LanguageCompilerStatic

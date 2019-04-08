@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec}
-import io.kaitai.struct.languages.GoCompiler
+import io.kaitai.struct.languages.{GoCompiler, RustCompiler}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile._
 
@@ -59,6 +59,12 @@ object Main {
         new GraphvizClassCompiler(specs, spec)
       case GoCompiler =>
         new GoClassCompiler(specs, spec, config)
+      case RustCompiler =>
+        new RustClassCompiler(specs, spec, config)
+      case ConstructClassCompiler =>
+        new ConstructClassCompiler(specs, spec)
+      case HtmlClassCompiler =>
+        new HtmlClassCompiler(specs, spec)
       case _ =>
         new ClassCompiler(specs, spec, config, lang)
     }
@@ -74,7 +80,7 @@ object Main {
     */
   private def updateConfig(config: RuntimeConfig, topClass: ClassSpec): RuntimeConfig = {
     if (topClass.meta.forceDebug) {
-      config.copy(debug = true)
+      config.copy(autoRead = false, readStoresPos = true)
     } else {
       config
     }

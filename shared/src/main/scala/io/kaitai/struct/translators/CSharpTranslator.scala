@@ -17,6 +17,8 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new byte[] { ${arr.map(_ & 0xff).mkString(", ")} }"
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
+    s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
@@ -81,8 +83,8 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: String): String =
-    s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
+  override def doCast(value: Ast.expr, typeName: DataType): String =
+    s"((${CSharpCompiler.kaitaiType2NativeType(typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {

@@ -43,7 +43,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
     curClass.instances.foreach { case (_, inst) =>
       inst match {
         case pis: ParseInstanceSpec =>
-          validateAttr(pis)
+          validateParseInstance(pis)
         case vis: ValueInstanceSpec =>
           // TODO
       }
@@ -75,6 +75,22 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
     }
 
     validateDataType(attr.dataType, path)
+  }
+
+  def validateParseInstance(pis: ParseInstanceSpec): Unit = {
+    validateAttr(pis)
+
+    Log.typeValid.info(() => s"validateParseInstance(${pis.id.humanReadable})")
+
+    pis.io match {
+      case Some(io) => checkAssertObject(io, KaitaiStreamType, "IO stream", pis.path, "io")
+      case None => // all good
+    }
+
+    pis.pos match {
+      case Some(pos) => checkAssert[IntType](pos, "integer", pis.path, "pos")
+      case None => // all good
+    }
   }
 
   /**
@@ -181,6 +197,49 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
               throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
           }
         case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
+      }
+    } catch {
+      case err: InvalidIdentifier =>
+        throw new ErrorInInput(err, path ++ List(pathKey))
+      case err: ExpressionError =>
+        throw new ErrorInInput(err, path ++ List(pathKey))
+    }
+  }
+
+  /**
+    * Checks that expression's type conforms to a given datatype, otherwise
+    * throw a human-readable exception, with some pointers that would help
+    * finding the expression in source .ksy.
+    *
+    * This version works with case objects.
+    *
+    * @param expr expression to check
+    * @param expectStr string to include
+    * @param path path to expression base
+    * @param pathKey key that contains expression in given path
+    */
+  def checkAssertObject(
+    expr: Ast.expr,
+    expected: Object,
+    expectStr: String,
+    path: List[String],
+    pathKey: String
+  ): Unit = {
+    try {
+      val detected = detector.detectType(expr)
+      if (detected == expected) {
+        // good
+      } else {
+        detected match {
+          case st: SwitchType =>
+            val combinedType = st.combinedType
+            if (combinedType == expected) {
+              // good
+            } else {
+              throw YAMLParseException.exprType(expectStr, combinedType, path ++ List(pathKey))
+            }
+          case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
+        }
       }
     } catch {
       case err: InvalidIdentifier =>

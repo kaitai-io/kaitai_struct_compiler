@@ -36,8 +36,8 @@ object TypeProcessor {
         } else {
           List()
         }
-      case SwitchType(_, cases) =>
-        cases.flatMap { case (_, ut) =>
+      case st: SwitchType =>
+        st.cases.flatMap { case (_, ut) =>
           getOpaqueDataTypes(ut)
         }
       case _ =>

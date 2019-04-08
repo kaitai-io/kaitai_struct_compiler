@@ -2,10 +2,10 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.{RepeatUntil, _}
+import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CSharpTranslator, TypeDetector}
 
@@ -135,7 +135,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
-    val readAccessAndType = if (debug) {
+    val readAccessAndType = if (!config.autoRead) {
       "public"
     } else {
       "private"
@@ -341,9 +341,11 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
-  }
+
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"${kaitaiType2NativeType(dataType)} $id = $expr;")
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
@@ -390,6 +392,9 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     expr2
   }
+
+  override def userTypeDebugRead(id: String): Unit =
+    out.puts(s"$id._read();")
 
   /**
     * Designates switch mode. If false, we're doing real switch-case for this
@@ -497,14 +502,14 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if (${flagForInstName(instName)})")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     out.dec
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
@@ -601,7 +606,7 @@ object CSharpCompiler extends LanguageCompilerStatic
       case _: BytesType => "byte[]"
 
       case AnyType => "object"
-      case KaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType => kstructName
       case KaitaiStreamType => kstreamName
 
       case t: UserType => types2class(t.name)
@@ -609,7 +614,7 @@ object CSharpCompiler extends LanguageCompilerStatic
 
       case ArrayType(inType) => s"List<${kaitaiType2NativeType(inType)}>"
 
-      case SwitchType(_, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
+      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
   }
 
@@ -625,7 +630,10 @@ object CSharpCompiler extends LanguageCompilerStatic
     }
   }
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+  def types2class(typeName: Ast.typeId): String =
+    // FIXME: handle absolute
+    types2class(typeName.names)
+  def types2class(names: Iterable[String]) = names.map(type2class).mkString(".")
 
   override def kstructName = "KaitaiStruct"
   override def kstreamName = "KaitaiStream"

@@ -5,7 +5,7 @@ import sbt.Keys._
 
 resolvers += Resolver.sonatypeRepo("public")
 
-val VERSION = "0.8"
+val VERSION = "0.9-SNAPSHOT"
 val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Lua, Perl, PHP, Python, Ruby"
 
 lazy val root = project.in(file(".")).
@@ -127,6 +127,8 @@ lazy val compiler = crossProject.in(file(".")).
     // For more information, see
     // https://github.com/sbt/sbt-native-packager/issues/1067
     debianNativeBuildOptions in Debian := Seq("-Zgzip", "-z3"),
+
+    debianPackageDependencies := Seq("java8-runtime-headless"),
 
     packageSummary in Linux := s"compiler to generate binary data parsers in $TARGET_LANGS",
     packageSummary in Windows := "Kaitai Struct compiler",

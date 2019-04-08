@@ -6,7 +6,7 @@ import io.kaitai.struct.format.{ParseUtils, YAMLParseException}
 
 sealed trait Endianness
 
-abstract class FixedEndian extends Endianness {
+sealed abstract class FixedEndian extends Endianness {
   def toSuffix: String
 }
 case object LittleEndian extends FixedEndian {

@@ -18,19 +18,21 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
     * @param curClass class to start from, might be top-level class
     */
   def resolveUserTypes(curClass: ClassSpec): Unit = {
-    curClass.seq.foreach((attr) => resolveUserTypeForAttr(curClass, attr))
+    curClass.seq.foreach((attr) => resolveUserTypeForMember(curClass, attr))
 
     curClass.instances.foreach { case (_, instSpec) =>
       instSpec match {
         case pis: ParseInstanceSpec =>
-          resolveUserTypeForAttr(curClass, pis)
+          resolveUserTypeForMember(curClass, pis)
         case _: ValueInstanceSpec =>
           // ignore all other types of instances
       }
     }
+
+    curClass.params.foreach((paramDef) => resolveUserTypeForMember(curClass, paramDef))
   }
 
-  def resolveUserTypeForAttr(curClass: ClassSpec, attr: AttrLikeSpec): Unit =
+  def resolveUserTypeForMember(curClass: ClassSpec, attr: MemberSpec): Unit =
     resolveUserType(curClass, attr.dataType, attr.path)
 
   def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Unit = {
@@ -43,8 +45,8 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
           val err = new EnumNotFoundError(et.name.mkString("::"), curClass)
           throw new YAMLParseException(err.getMessage, path)
         }
-      case SwitchType(_, cases) =>
-        cases.foreach { case (caseName, ut) =>
+      case st: SwitchType =>
+        st.cases.foreach { case (caseName, ut) =>
           resolveUserType(curClass, ut, path ++ List("type", "cases", caseName.toString))
         }
       case _ =>
@@ -105,7 +107,15 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
             } else {
               // Check if top-level specs has this name
               // If there's None => no luck at all
-              specs.get(firstName)
+              val resolvedTop = specs.get(firstName)
+              resolvedTop match {
+                case None => None
+                case Some(classSpec) => if (restNames.isEmpty) {
+                  resolvedTop
+                } else {
+                  resolveUserType(classSpec, restNames, path)
+                }
+              }
             }
         }
     }

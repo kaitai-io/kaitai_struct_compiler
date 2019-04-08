@@ -64,7 +64,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classHeader(name: String): Unit = {
     out.puts(s"class ${type2class(name)} < $kstructName")
     out.inc
-    if (debug)
+    if (config.readStoresPos)
       out.puts("attr_reader :_debug")
   }
 
@@ -88,7 +88,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
 
-    if (debug) {
+    if (config.readStoresPos) {
       out.puts("@_debug = {}")
     }
   }
@@ -361,7 +361,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, @_root$addEndian"
         }
-        s"${type2class(t.name.last)}.new($io$addArgs$addParams)"
+        s"${types2class(t.name)}.new($io$addArgs$addParams)"
     }
   }
 
@@ -404,11 +404,11 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)} unless ${privateMemberName(instName)}.nil?")
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(privateMemberName(instName))
   }
 
@@ -452,6 +452,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  def types2class(names: List[String]) = names.map(type2class).mkString("::")
 }
 
 object RubyCompiler extends LanguageCompilerStatic

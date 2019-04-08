@@ -16,7 +16,8 @@ import io.kaitai.struct.precompile.TypeMismatchError
   *
   * Given that there are many of these abstract methods, to make it more
   * maintainable, they are grouped into several abstract traits:
-  * [[CommonLiterals]], [[CommonOps]].
+  * [[CommonLiterals]], [[CommonOps]], [[CommonMethods]],
+  * [[CommonArraysAndCast]].
   *
   * This translator implementation also handles user-defined types and
   * fields properly - it uses given [[TypeProvider]] to resolve these.
@@ -28,6 +29,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
   with AbstractTranslator
   with CommonLiterals
   with CommonOps
+  with CommonArraysAndCast[String]
   with CommonMethods[String] {
 
   /**
@@ -52,11 +54,11 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doStringLiteral(s)
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
-      case Ast.expr.EnumById(enumType, id) =>
-        val enumSpec = provider.resolveEnum(enumType.name)
+      case Ast.expr.EnumById(enumType, id, inType) =>
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
         doEnumById(enumSpec.name, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label) =>
-        val enumSpec = provider.resolveEnum(enumType.name)
+      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
         doEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         doLocalName(name.name)
@@ -83,9 +85,11 @@ abstract class BaseTranslator(val provider: TypeProvider)
             doStrCompareOp(left, op, right)
           case (_: BytesType, _: BytesType) =>
             doBytesCompareOp(left, op, right)
-          case (EnumType(ltype, _), EnumType(rtype, _)) =>
-            if (ltype != rtype) {
-              throw new TypeMismatchError(s"can't compare enums type $ltype and $rtype")
+          case (et1: EnumType, et2: EnumType) =>
+            val et1Spec = et1.enumSpec.get
+            val et2Spec = et2.enumSpec.get
+            if (et1Spec != et2Spec) {
+              throw new TypeMismatchError(s"can't compare enums type ${et1Spec.nameAsStr} and ${et2Spec.nameAsStr}")
             } else {
               doEnumCompareOp(left, op, right)
             }
@@ -117,34 +121,19 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case call: Ast.expr.Call =>
         translateCall(call)
       case Ast.expr.List(values: Seq[Ast.expr]) =>
-        val t = detectArrayType(values)
-        t match {
-          case Int1Type(_) =>
-            val literalBytes: Seq[Byte] = values.map {
-              case Ast.expr.IntNum(x) =>
-                if (x < 0 || x > 0xff) {
-                  throw new TypeMismatchError(s"got a weird byte value in byte array: $x")
-                } else {
-                  x.toByte
-                }
-              case n =>
-                throw new TypeMismatchError(s"got $n in byte array, unable to put it literally")
-            }
-            doByteArrayLiteral(literalBytes)
-          case _ =>
-            doArrayLiteral(t, values)
-        }
-      case Ast.expr.CastToType(value, typeName) =>
-        doCast(value, typeName.name)
+        doGuessArrayLiteral(values)
+      case ctt: Ast.expr.CastToType =>
+        doCastOrArray(ctt)
     }
   }
 
   def doSubscript(container: Ast.expr, idx: Ast.expr): String
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
-  def doCast(value: Ast.expr, typeName: String): String = translate(value)
+  def doCast(value: Ast.expr, typeName: DataType): String = translate(value)
 
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
+  def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = ???
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String

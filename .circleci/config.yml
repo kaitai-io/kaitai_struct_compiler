@@ -26,7 +26,7 @@ jobs:
   test:
     <<: *defaults
     steps:
-      - run: cat /dev/null | sbt compilerJVM/test
+      - run: cat /dev/null | sbt test
 workflows:
   version: 2
   build_test_deploy:

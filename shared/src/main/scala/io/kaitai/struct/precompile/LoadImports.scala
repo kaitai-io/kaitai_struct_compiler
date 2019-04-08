@@ -58,9 +58,18 @@ class LoadImports(specs: ClassSpecs) {
     }
 
     futureSpec.flatMap { case optSpec =>
+      Log.importOps.info(() => {
+        val specNameAsStr = optSpec.map(_.nameAsStr).getOrElse("<none>")
+        s".. LoadImports: loadImport($name, workDir = $workDir), got spec=$specNameAsStr"
+      })
       optSpec match {
         case Some(spec) =>
           val specName = spec.name.head
+          // Check if spec name does not match file name. If it doesn't match,
+          // it is probably already a serious error.
+          if (name != specName)
+            Log.importOps.warn(() => s"... expected to have type name $name, but got $specName")
+
           // Check if we've already had this spec in our ClassSpecs. If we do,
           // don't do anything: we've already processed it and reprocessing it
           // might lead to infinite recursion.
@@ -71,6 +80,7 @@ class LoadImports(specs: ClassSpecs) {
             specs(specName) = spec
             processClass(spec, ImportPath.updateWorkDir(workDir, impPath))
           } else {
+            Log.importOps.warn(() => s"... we have that already, ignoring")
             Future { List() }
           }
         case None =>

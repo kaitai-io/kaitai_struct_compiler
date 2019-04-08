@@ -5,6 +5,13 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.precompile.TypeMismatchError
 
 abstract trait CommonMethods[T] extends TypeDetector {
+  /**
+    * Translates a certain attribute call (as in `foo.bar`) into a rendition
+    * of expression in certain target language.
+    * @note Must be kept in sync with [[TypeDetector.detectAttributeType]]
+    * @param call attribute call expression to translate
+    * @return result of translation as [[T]]
+    */
   def translateAttribute(call: Ast.expr.Attribute): T = {
     val attr = call.attr
     val value = call.value
@@ -12,6 +19,10 @@ abstract trait CommonMethods[T] extends TypeDetector {
     valType match {
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
+      case _: BytesType =>
+        attr.name match {
+          case "length" => bytesLength(value)
+        }
       case _: StrType =>
         attr.name match {
           case "length" => strLength(value)
@@ -53,6 +64,13 @@ abstract trait CommonMethods[T] extends TypeDetector {
     }
   }
 
+  /**
+    * Translates a certain function call (as in `foo.bar(arg1, arg2)`) into a
+    * rendition of expression in certain target language.
+    * @note Must be kept in sync with [[TypeDetector.detectCallType]]
+    * @param call function call expression to translate
+    * @return result of translation as [[T]]
+    */
   def translateCall(call: Ast.expr.Call): T = {
     val func = call.func
     val args = call.args
@@ -71,6 +89,8 @@ abstract trait CommonMethods[T] extends TypeDetector {
   }
 
   def userTypeField(ut: UserType, value: Ast.expr, name: String): T
+
+  def bytesLength(b: Ast.expr): T = ???
 
   def strLength(s: Ast.expr): T
   def strReverse(s: Ast.expr): T

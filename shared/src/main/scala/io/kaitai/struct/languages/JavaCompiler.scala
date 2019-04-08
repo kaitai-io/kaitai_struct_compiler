@@ -72,7 +72,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public ${staticStr}class ${type2class(name)} extends $kstructName {")
     out.inc
 
-    if (debug) {
+    if (config.readStoresPos) {
       out.puts("public Map<String, Integer> _attrStart = new HashMap<String, Integer>();")
       out.puts("public Map<String, Integer> _attrEnd = new HashMap<String, Integer>();")
       out.puts("public Map<String, ArrayList<Integer>> _arrStart = new HashMap<String, ArrayList<Integer>>();")
@@ -179,7 +179,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
-    val readAccessAndType = if (debug) {
+    val readAccessAndType = if (!config.autoRead) {
       "public"
     } else {
       "private"
@@ -530,10 +530,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       // Java is very specific about what can be used as "condition" in "case
       // condition:".
       val condStr = condition match {
-        case Ast.expr.EnumByLabel(_, enumVal) =>
+        case enumByLabel: Ast.expr.EnumByLabel =>
           // If switch is over a enum, only literal enum values are supported,
           // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
-          value2Const(enumVal.name)
+          value2Const(enumByLabel.label.name)
         case _ =>
           expression(condition)
       }
@@ -579,14 +579,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if (${privateMemberName(instName)} != null)")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     out.dec
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
@@ -719,7 +719,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case AnyType => "Object"
       case KaitaiStreamType => kstreamName
-      case KaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType => kstructName
 
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
@@ -763,14 +763,14 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case AnyType => "Object"
       case KaitaiStreamType => kstreamName
-      case KaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType => kstructName
 
-      case t: UserType => type2class(t.name.last)
+      case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
       case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
-      case SwitchType(_, cases) => kaitaiType2JavaTypeBoxed(TypeDetector.combineTypes(cases.values))
+      case st: SwitchType => kaitaiType2JavaTypeBoxed(st.combinedType)
     }
   }
 

@@ -7,6 +7,7 @@ import io.kaitai.struct.CompileLog._
 import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
+import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile.ErrorInInput
 
@@ -24,8 +25,9 @@ object JavaMain {
     runtime: RuntimeConfig = RuntimeConfig()
   )
 
-  val ALL_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.keySet
-  val VALID_LANGS = ALL_LANGS + "all"
+  val ALL_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.keySet - "cpp_stl" + "cpp_stl_98" + "cpp_stl_11"
+  val VALID_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.keySet + "all"
+  val CPP_STANDARDS = Set("98", "11")
 
   def parseCommandLine(args: Array[String]): Option[CLIConfig] = {
     val parser = new scopt.OptionParser[CLIConfig](BuildInfo.name) {
@@ -60,9 +62,36 @@ object JavaMain {
       } text("output directory (filenames will be auto-generated)")
 
       val importPathExample = List("<directory>", "<directory>", "...").mkString(File.pathSeparator)
-      opt[String]('I', "import-path") valueName(importPathExample) action { (x, c) =>
+      opt[String]('I', "import-path") optional() unbounded() valueName(importPathExample) action { (x, c) =>
         c.copy(importPaths = c.importPaths ++ x.split(File.pathSeparatorChar))
       } text(".ksy library search path(s) for imports (see also KSPATH env variable)")
+
+      opt[String]("cpp-namespace") valueName("<namespace>") action { (x, c) =>
+        c.copy(
+          runtime = c.runtime.copy(
+            cppConfig = c.runtime.cppConfig.copy(
+              namespace = x.split("::").toList
+            )
+          )
+        )
+      } text("C++ namespace (C++ only, default: none)")
+
+      opt[String]("cpp-standard") valueName("<standard>") action { (x, c) =>
+        c.copy(
+          runtime = c.runtime.copy(
+            cppConfig = x match {
+              case "98" => c.runtime.cppConfig.copyAsCpp98()
+              case "11" => c.runtime.cppConfig.copyAsCpp11()
+            }
+          )
+        )
+      } text("C++ standard to target (C++ only, supported: 98, 11, default: 98)") validate { x =>
+        if (CPP_STANDARDS.contains(x)) {
+          success
+        } else {
+          failure(s"'$x' is not a valid C++ standard to target; valid ones are: ${CPP_STANDARDS.mkString(", ")}")
+        }
+      }
 
       opt[String]("go-package") valueName("<package>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(goPackage = x))
@@ -115,9 +144,18 @@ object JavaMain {
         }
       }
 
+      opt[Unit]("no-auto-read") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(autoRead = false))
+      } text("disable auto-running `_read` in constructor")
+
+      opt[Unit]("read-pos") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(readStoresPos = true))
+      } text("`_read` remembers attribute positions in stream")
+
       opt[Unit]("debug") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(debug = true))
-      } text("enable debugging helpers (mostly used by visualization tools)")
+        c.copy(runtime = c.runtime.copy(autoRead = false, readStoresPos = true))
+      } text("same as --no-auto-read --read-pos (useful for visualization tools)")
+
       help("help") text("display this help and exit")
       version("version") text("output version information and exit")
     }
@@ -259,10 +297,19 @@ class JavaMain(config: CLIConfig) {
 
   def compileOneLang(specs: ClassSpecs, langStr: String, outDir: String): Map[String, SpecEntry] = {
     Log.fileOps.info(() => s"... compiling it for $langStr... ")
-    val lang = LanguageCompilerStatic.byString(langStr)
+
+    val (lang, fixedRuntime) = langStr match {
+      case "cpp_stl_98" =>
+        (CppCompiler, config.runtime.copy(cppConfig = config.runtime.cppConfig.copyAsCpp98()))
+      case "cpp_stl_11" =>
+        (CppCompiler, config.runtime.copy(cppConfig = config.runtime.cppConfig.copyAsCpp11()))
+      case _ =>
+        (LanguageCompilerStatic.byString(langStr), config.runtime)
+    }
+
     specs.map { case (_, classSpec) =>
       val res = try {
-        compileSpecAndWriteToFile(specs, classSpec, lang, outDir)
+        compileSpecAndWriteToFile(specs, classSpec, lang, fixedRuntime, outDir)
       } catch {
         case ex: Throwable =>
           if (config.throwExceptions)
@@ -277,9 +324,10 @@ class JavaMain(config: CLIConfig) {
     specs: ClassSpecs,
     spec: ClassSpec,
     lang: LanguageCompilerStatic,
+    runtime: RuntimeConfig,
     outDir: String
   ): SpecSuccess = {
-    val res = Main.compile(specs, spec, lang, config.runtime)
+    val res = Main.compile(specs, spec, lang, runtime)
     res.files.foreach { (file) =>
       Log.fileOps.info(() => s".... writing ${file.fileName}")
 
@@ -298,7 +346,7 @@ class JavaMain(config: CLIConfig) {
 
   private def exceptionToCompileError(ex: Throwable, srcFile: String): CompileError = {
     if (!config.jsonOutput)
-      Console.println(ex.getMessage)
+      Console.err.println(ex.getMessage)
     ex match {
       case ype: YAMLParseException =>
         CompileError("(main)", ype.path, ype.msg)

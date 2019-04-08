@@ -133,8 +133,10 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case Some(e) => s"${e.toSuffix.toUpperCase}"
       case None => ""
     }
+    val access = if (config.autoRead) "private" else "public"
+
     out.puts
-    out.puts(s"private function _read$suffix() {")
+    out.puts(s"$access function _read$suffix() {")
     out.inc
   }
 
@@ -304,6 +306,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"$id = $expr;")
+
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
@@ -350,6 +355,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
+  override def userTypeDebugRead(id: String): Unit =
+    out.puts(s"$id->_read();")
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     val onType = translator.detectType(on)
 
@@ -379,14 +387,14 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if (${privateMemberName(instName)} !== null)")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     out.dec
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
@@ -450,7 +458,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case ArrayType(_) => "array"
 
-      case KaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType => kstructName
       case KaitaiStreamType => kstreamName
     }
   }
