@@ -749,6 +749,7 @@ class CppCompiler(
       outSrc.puts(s"${kaitaiType2NativeType(onType)} on = ${expression(on)};")
     } else {
       outSrc.puts(s"switch (${expression(on)}) {")
+      outSrc.inc
     }
   }
 
@@ -798,6 +799,7 @@ class CppCompiler(
       outSrc.dec
       outSrc.puts("}")
     } else {
+      outSrc.dec
       outSrc.puts("}")
     }
 
