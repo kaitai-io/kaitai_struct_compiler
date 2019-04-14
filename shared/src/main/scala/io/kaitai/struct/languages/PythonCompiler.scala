@@ -226,6 +226,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val varStr = privateMemberName(varName)
+    val ioName = s"_io_${idToStr(varName)}"
 
     val args = rep match {
       case RepeatEos | RepeatUntil(_) => s"$varStr[-1]"
@@ -233,8 +234,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => varStr
     }
 
-    out.puts(s"io = $kstreamName(BytesIO($args))")
-    "io"
+    out.puts(s"$ioName = $kstreamName(BytesIO($args))")
+    ioName
   }
 
   override def useIO(ioEx: expr): String = {
