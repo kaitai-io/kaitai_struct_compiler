@@ -30,6 +30,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def universalFooter: Unit = {
     out.dec
     out.puts("}")
+    out.puts(s"*/")
   }
 
   override def outImports(topClass: ClassSpec) =
@@ -42,14 +43,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts(s"// $headerComment")
     outHeader.puts
 
-    importList.add("std::option::Option")
-    importList.add("std::boxed::Box")
-    importList.add("std::io::Result")
-    importList.add("std::io::Cursor")
+    importList.add("kaitai_runtime")
+    importList.add("kaitai_runtime::KaitaiError")
+    importList.add("kaitai_runtime::KaitaiStream")
+    importList.add("kaitai_runtime::KaitaiStruct")
+    importList.add("std::io")
     importList.add("std::vec::Vec")
     importList.add("std::default::Default")
-    importList.add("kaitai_struct::KaitaiStream")
-    importList.add("kaitai_struct::KaitaiStruct")
 
     out.puts
   }
@@ -66,18 +66,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def classHeader(name: List[String], parentClass: Option[String]): Unit = {
     out.puts("#[derive(Default)]")
-    out.puts(s"pub struct ${type2class(name)} {")
+    out.puts(s"pub struct ${type2class(name)}<'a> {")
   }
 
   override def classFooter(name: List[String]): Unit = universalFooter
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
-    out.puts("}")
-    out.puts
-
-    out.puts(s"impl KaitaiStruct for ${type2class(name)} {")
-    out.inc
-    
     // Parameter names
     val pIo = paramName(IoIdentifier)
     val pParent = paramName(ParentIdentifier)
@@ -86,7 +80,46 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Types
     val tIo = kstreamName
     val tParent = kaitaiType2NativeType(parentType)
+    val tRoot = kaitaiType2NativeType(CalcUserType(rootClassName, None))
 
+    val isRoot = name == rootClassName
+
+    if (isRoot) {
+      out.puts(s"    _parent: Option<&'a Self>,")
+    } else {
+      out.puts(s"    _parent: Option<&'a $tParent<'a>>,")
+    }
+    out.puts(s"    _root: Option<&'a $tRoot<'a>>,")
+    out.puts("}")
+    out.puts
+
+    out.puts(s"impl<'a> KaitaiStruct<'a> for ${type2class(name)}<'a> {")
+    out.inc
+
+    if (name == rootClassName) {
+      out.puts(s"type Parent = Self;")
+      out.puts(s"type Root = Self;")
+    } else {
+      out.puts(s"type Parent = $tParent<'a>;")
+      out.puts(s"type Root = $tRoot<'a>;")
+    }
+    out.puts
+
+    out.puts(s"fn new(")
+    out.puts(s"    _parent: Option<&'a Self::Parent>,")
+    out.puts(s"    _root: Option<&'a Self::Root>")
+    out.puts(s") -> kaitai_runtime::Result<'a, Self>")
+    out.puts(s"where")
+    out.puts(s"    Self: Sized,")
+    out.puts(s"{")
+    out.inc
+
+    out.puts(s"let mut s: Self = Default::default();")
+    out.puts(s"Ok(s)")
+
+    out.dec
+    out.puts(s"}")
+    /*
     out.puts(s"fn new<S: KaitaiStream>(stream: &mut S,")
     out.puts(s"                        _parent: &Option<Box<KaitaiStruct>>,")
     out.puts(s"                        _root: &Option<Box<KaitaiStruct>>)")
@@ -105,7 +138,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("Ok(s)")
     out.dec
     out.puts("}")
-    out.puts
+    */
   }
 
   override def runRead(): Unit = {
@@ -118,6 +151,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
     out.puts
+    out.puts(s"/*")
     out.puts(s"fn read<S: KaitaiStream>(&mut self,")
     out.puts(s"                         stream: &mut S,")
     out.puts(s"                         _parent: &Option<Box<KaitaiStruct>>,")
@@ -132,6 +166,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("Ok(())")
     out.dec
     out.puts("}")
+    out.puts(s"*/")
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
@@ -152,9 +187,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def universalDoc(doc: DocSpec): Unit = {
     if (doc.summary.isDefined) {
       out.puts
-      out.puts("/*")
-      doc.summary.foreach((summary) => out.putsLines(" * ", summary))
-      out.puts(" */")
+      doc.summary.foreach(summary => out.putsLines("/// ", summary))
     }
   }
 
@@ -431,7 +464,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
     out.puts
 
-    out.puts(s"impl ${type2class(className)} {")
+    out.puts(s"impl<'a> ${type2class(className)}<'a> {")
     out.inc
   }
 
@@ -473,9 +506,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   def idToStr(id: Identifier): String = {
     id match {
       case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NamedIdentifier(name) => name
+      case InstanceIdentifier(name) => name
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
     }
   }
@@ -520,8 +553,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesType => "Vec<u8>"
 
       case t: UserType => t.classSpec match {
-        case Some(cs) => s"Box<${type2class(cs.name)}>"
-	case None => s"Box<${type2class(t.name)}>"
+        case Some(cs) => s"${type2class(cs.name)}"
+        case None => s"${type2class(t.name)}"
       }
       
       case t: EnumType => t.enumSpec match {
@@ -529,10 +562,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 	case None => s"Box<${type2class(t.name)}>"
       }
 
-      case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}>"
+      case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}<'a>>"
 
-      case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
-      case KaitaiStructType | CalcKaitaiStructType => s"Option<Box<KaitaiStruct>>"
+      case KaitaiStreamType => s"KaitaiStream"
+      case KaitaiStructType | CalcKaitaiStructType => s"KaitaiStruct"
       
       case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
@@ -601,5 +634,5 @@ object RustCompiler extends LanguageCompilerStatic
   }
 
   def types2classRel(names: List[String]) =
-    names.map(type2class).mkString("__")
+    names.map(type2class).mkString("")
 }
