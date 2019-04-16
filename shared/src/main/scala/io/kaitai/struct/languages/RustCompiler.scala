@@ -335,6 +335,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           ""
         } else {
           val parent = t.forcedParent match {
+            // TODO: Maybe `None` instead?
             case Some(USER_TYPE_NO_PARENT) => "null"
             case Some(fp) => translator.translate(fp)
             case None => "self"
