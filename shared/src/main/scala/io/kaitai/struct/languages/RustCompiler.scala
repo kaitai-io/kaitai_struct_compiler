@@ -30,11 +30,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def universalFooter: Unit = {
     out.dec
     out.puts("}")
-    out.puts(s"*/")
   }
 
   override def outImports(topClass: ClassSpec): String =
-    importList.toList.map((x) => s"use $x;").mkString("", "\n", "\n")
+    importList.toList.map(x => s"use $x;").mkString("", "\n", "\n")
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"$topClassName.rs"
@@ -44,10 +43,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
 
     importList.add("kaitai_runtime")
-    importList.add("kaitai_runtime::KaitaiError")
     importList.add("kaitai_runtime::KaitaiStream")
     importList.add("kaitai_runtime::KaitaiStruct")
-    importList.add("std::io")
     importList.add("std::vec::Vec")
     importList.add("std::default::Default")
 
@@ -119,26 +116,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.dec
     out.puts(s"}")
-    /*
-    out.puts(s"fn new<S: KaitaiStream>(stream: &mut S,")
-    out.puts(s"                        _parent: &Option<Box<KaitaiStruct>>,")
-    out.puts(s"                        _root: &Option<Box<KaitaiStruct>>)")
-    out.puts(s"                        -> Result<Self>")
-    out.inc
-    out.puts(s"where Self: Sized {")
-
-    out.puts(s"let mut s: Self = Default::default();")
-    out.puts
-
-    out.puts(s"s.stream = stream;")
-
-    out.puts(s"s.read(stream, _parent, _root)?;")
-    out.puts
-
-    out.puts("Ok(s)")
-    out.dec
-    out.puts("}")
-    */
   }
 
   override def runRead(): Unit = {
@@ -151,14 +128,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
     out.puts
-    out.puts(s"/*")
-    out.puts(s"fn read<S: KaitaiStream>(&mut self,")
-    out.puts(s"                         stream: &mut S,")
-    out.puts(s"                         _parent: &Option<Box<KaitaiStruct>>,")
-    out.puts(s"                         _root: &Option<Box<KaitaiStruct>>)")
-    out.puts(s"                         -> Result<()>")
+    out.puts(s"fn read<S: KaitaiStream>(")
+    out.puts(s"    &mut self,")
+    out.puts(s"    stream: &mut S,")
+    out.puts(s") -> kaitai_runtime::Result<'a, ()>")
+    out.puts(s"where")
+    out.puts(s"    Self: Sized")
+    out.puts(s"{")
     out.inc
-    out.puts(s"where Self: Sized {")
   }
 
   override def readFooter(): Unit = {
@@ -166,7 +143,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("Ok(())")
     out.dec
     out.puts("}")
-    out.puts(s"*/")
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
@@ -174,7 +150,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case ParentIdentifier | RootIdentifier | IoIdentifier =>
         // just ignore it for now
       case IoIdentifier =>
-        out.puts(s"     stream: ${kaitaiType2NativeType(attrType)},")
+        out.puts(s"    stream: ${kaitaiType2NativeType(attrType)},")
       case _ =>
         out.puts(s"    pub ${idToStr(attrName)}: ${kaitaiType2NativeType(attrType)},")
     }
@@ -204,7 +180,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents($contents);")
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensure_fixed_cntents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
@@ -213,19 +189,19 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
-          case _: IntType => "processXorOne"
-          case _: BytesType => "processXorMany"
+          case _: IntType => "process_xor_one"
+          case _: BytesType => "process_xor_many"
         }
         out.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName::processZlib($srcName);")
+        out.puts(s"$destName = $kstreamName::process_zlib($srcName);")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName::processRotateLeft($srcName, $expr, 1);")
+        out.puts(s"$destName = $kstreamName::process_rotate_left($srcName, $expr, 1);")
       case ProcessCustom(name, args) =>
         val procClass = if (name.length == 1) {
           val onlyName = name.head
@@ -272,7 +248,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$io.seek(_pos);")
 
   override def alignToByte(io: String): Unit =
-    out.puts(s"$io.alignToByte();")
+    out.puts(s"$io.align_to_byte();")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)} {")
@@ -283,7 +259,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
-    out.puts(s"while !$io.isEof() {")
+    out.puts(s"while !$io.is_eof() {")
     out.inc
   }
 
@@ -308,6 +284,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+    // TODO: We've already initialized this as part of the class, is it really necessary to call `vec!()` again?
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = vec!();")
     out.puts(s"${privateMemberName(id)} = vec!();")
@@ -321,11 +298,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       translator.doLocalName(Identifier.ITERATOR)
     }
-    out.puts(s"let $tempVar = $expr;")
-    out.puts(s"${privateMemberName(id)}.append($expr);")
+    out.puts(s"let mut $tempVar = $expr;")
+    out.puts(s"${privateMemberName(id)}.push($tempVar);")
+    out.puts(s"$tempVar.read(stream);")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+    // TODO: I don't think this is OK? Looks like `while` loops will just spin indefinitely
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"!(${expression(untilExpr)})")
     out.dec
@@ -351,7 +330,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io.read_bits_int($width)?"
       case t: UserType =>
-        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
+        val addParams = Utils.join(t.args.map(a => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -367,17 +346,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
 	
-        s"Box::new(${translator.types2classAbs(t.classSpec.get.name)}::new(self.stream, self, _root)?)"
+        s"${translator.types2classAbs(t.classSpec.get.name)}::new(Some(self), self.${privateMemberName(RootIdentifier)})?"
     }
   }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
     val expr1 = padRight match {
-      case Some(padByte) => s"$kstreamName::bytesStripRight($expr0, $padByte)"
+      case Some(padByte) => s"$kstreamName::bytes_strip_right($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName::bytesTerminate($expr1, $term, $include)"
+      case Some(term) => s"$kstreamName::bytes_terminate($expr1, $term, $include)"
       case None => expr1
     }
     expr2
@@ -404,8 +383,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expression(
       Ast.expr.Compare(
         NAME_SWITCH_ON,
-	Ast.cmpop.Eq,
-	condition
+        Ast.cmpop.Eq,
+        condition
       )
     )
 
@@ -420,7 +399,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
     if (switchIfs) {
-      out.puts(s"elss if ${switchCmpExpr(condition)} {")
+      out.puts(s"else if ${switchCmpExpr(condition)} {")
       out.inc
     } else {
       out.puts(s"${expression(condition)} => {")
@@ -475,9 +454,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if let Some(x) = ${privateMemberName(instName)} {")
-    out.inc
-    out.puts("return x;")
-    out.dec
+    out.puts("    return x;")
     out.puts("}")
     out.puts
   }
@@ -494,14 +471,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     
     enumColl.foreach { case (id, label) =>
       universalDoc(label.doc)
-      out.puts(s"${value2Const(label.name)},")
+      out.puts(s"${Utils.upperCamelCase(label.name)},")
     }
 
     out.dec
     out.puts("}")
   }
-
-  def value2Const(label: String): String = label.toUpperCase
 
   def idToStr(id: Identifier): String = {
     id match {
@@ -515,7 +490,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def privateMemberName(id: Identifier): String = {
     id match {
-      case IoIdentifier => s"self.stream"
+      case IoIdentifier => s"stream"
       case RootIdentifier => s"_root"
       case ParentIdentifier => s"_parent"
       case _ => s"self.${idToStr(id)}"
@@ -558,8 +533,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
       
       case t: EnumType => t.enumSpec match {
-        case Some(cs) => s"Box<${type2class(cs.name)}>"
-	case None => s"Box<${type2class(t.name)}>"
+        case Some(cs) => s"${type2class(cs.name)}"
+        case None => s"${type2class(t.name)}"
       }
 
       case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}<'a>>"
@@ -596,6 +571,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesType => "vec!()"
 
       case t: UserType => "Default::default()"
+      // TODO: Default enum types aren't really a thing, may hvae to figure out what's the "first" value
       case t: EnumType => "Default::default()"
 
       case ArrayType(inType) => "vec!()"
