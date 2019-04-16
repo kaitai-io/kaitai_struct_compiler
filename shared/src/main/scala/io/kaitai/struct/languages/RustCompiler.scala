@@ -33,7 +33,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"*/")
   }
 
-  override def outImports(topClass: ClassSpec) =
+  override def outImports(topClass: ClassSpec): String =
     importList.toList.map((x) => s"use $x;").mkString("", "\n", "\n")
 
   override def indent: String = "    "
@@ -149,7 +149,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   
   }
 
-  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
     out.puts
     out.puts(s"/*")
     out.puts(s"fn read<S: KaitaiStream>(&mut self,")
@@ -501,7 +501,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  def value2Const(label: String) = label.toUpperCase
+  def value2Const(label: String): String = label.toUpperCase
 
   def idToStr(id: Identifier): String = {
     id match {
@@ -522,7 +522,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def publicMemberName(id: Identifier) = idToStr(id)
+  override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
@@ -608,9 +608,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
   
-  def type2class(names: List[String]) = types2classRel(names)
+  def type2class(names: List[String]): String = types2classRel(names)
 
-  def type2classAbs(names: List[String]) =
+  def type2classAbs(names: List[String]): String =
     names.mkString("::")
 }
 
@@ -625,7 +625,7 @@ object RustCompiler extends LanguageCompilerStatic
   override def kstructName = "&Option<Box<KaitaiStruct>>"
   override def kstreamName = "&mut S"
 
-  def types2class(typeName: Ast.typeId) = {
+  def types2class(typeName: Ast.typeId): String = {
     typeName.names.map(type2class).mkString(
       if (typeName.absolute) "__" else "",
       "__",
@@ -633,6 +633,6 @@ object RustCompiler extends LanguageCompilerStatic
     )
   }
 
-  def types2classRel(names: List[String]) =
+  def types2classRel(names: List[String]): String =
     names.map(type2class).mkString("")
 }
