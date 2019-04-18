@@ -113,7 +113,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"let mut s: Self = Default::default();")
     out.puts(s"s._parent = _parent;")
-    out.puts(s"s._root = _root;")
+    if (isRoot) {
+      out.puts(s"s._root = _root.or(Some(&s));")
+    } else {
+      out.puts(s"s._root = _root;")
+    }
     out.puts(s"Ok(s)")
 
     out.dec
