@@ -43,10 +43,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
 
     importList.add("kaitai_runtime")
+    importList.add("kaitai_runtime::KaitaiError")
     importList.add("kaitai_runtime::KaitaiStream")
     importList.add("kaitai_runtime::KaitaiStruct")
-    importList.add("std::vec::Vec")
+    importList.add("std::convert::TryFrom")
     importList.add("std::default::Default")
+    importList.add("std::vec::Vec")
 
     out.puts
   }
@@ -322,9 +324,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
+    // TODO: assignType to indicate we're assigning to an Enum?
+    // Right now we use `.into()` everywhere
     dataType match {
       case t: ReadableType =>
-        s"$io.read_${t.apiCall(defEndian)}()?"
+        s"$io.read_${t.apiCall(defEndian)}()?.into()?"
       case blt: BytesLimitType =>
         s"$io.read_bytes(${expression(blt.size)})?"
       case _: BytesEosType =>
@@ -334,7 +338,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1 =>
         s"$io.read_bits_int(1)? != 0"
       case BitsType(width: Int) =>
-        s"$io.read_bits_int($width)?"
+        s"$io.read_bits_int($width)?.into()?"
       case t: UserType =>
         val addParams = Utils.join(t.args.map(a => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
@@ -467,7 +471,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    out.puts(s"return ${privateMemberName(instName)};")
+    out.puts(s"return ${privateMemberName(instName)}.unwrap();")
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
@@ -476,13 +480,37 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"enum $enumClass {")
     out.inc
     
-    enumColl.foreach { case (id, label) =>
+    enumColl.foreach { case (_, label) =>
       universalDoc(label.doc)
       out.puts(s"${Utils.upperCamelCase(label.name)},")
     }
 
     out.dec
     out.puts("}")
+
+    out.puts
+    out.puts(s"impl TryFrom<u64> for $enumClass {")
+
+    out.inc
+    out.puts(s"type Error = KaitaiError<'static>;")
+    out.puts(s"fn try_from(flag: u64) -> kaitai_runtime::Result<'static, $enumClass> {")
+
+    out.inc
+    out.puts(s"match flag {")
+
+    out.inc
+    enumColl.foreach { case (value, label) =>
+        out.puts(s"$value => Ok($enumClass::${Utils.upperCamelCase(label.name)}),")
+    }
+    out.puts("_ => Err(KaitaiError::UnknownEnum(flag)),")
+    out.dec
+
+    out.puts(s"}")
+    out.dec
+    out.puts(s"}")
+    out.dec
+    out.puts(s"}")
+    out.puts
   }
 
   def idToStr(id: Identifier): String = {
@@ -578,7 +606,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesType => "vec!()"
 
       case t: UserType => "Default::default()"
-      // TODO: Default enum types aren't really a thing, may hvae to figure out what's the "first" value
       case t: EnumType => "Default::default()"
 
       case ArrayType(inType) => "vec!()"
