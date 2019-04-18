@@ -216,6 +216,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
+    val ioName = s"$$_io_${idToStr(id)}"
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"end($memberName)"
@@ -223,8 +224,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => memberName
     }
 
-    out.puts(s"$$io = new $kstreamName($args);")
-    "$io"
+    out.puts(s"$ioName = new $kstreamName($args);")
+    ioName
   }
 
   override def useIO(ioEx: Ast.expr): String = {
