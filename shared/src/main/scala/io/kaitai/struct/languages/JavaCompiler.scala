@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{JavaTranslator, TypeDetector}
+import io.kaitai.struct.translators.JavaTranslator
 
 class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -477,6 +477,52 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def userTypeDebugRead(id: String): Unit =
     out.puts(s"$id._read();")
+
+  override def switchCasesRender[T](
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, T],
+    normalCaseProc: T => Unit,
+    elseCaseProc: T => Unit
+  ): Unit = {
+    // Java has a stupid limitation of being unable to match nulls in switch.
+    // If our type is nullable, we'll do an extra check. For now, we're only
+    // doing this workaround for enums.
+
+    val onType = typeProvider._currentSwitchType.get
+    val isNullable = onType match {
+      case _: EnumType => true
+      case _ => false
+    }
+
+    if (isNullable) {
+      val nameSwitchStr = expression(NAME_SWITCH_ON)
+      out.puts("{")
+      out.inc
+      out.puts(s"${kaitaiType2JavaType(onType)} $nameSwitchStr = ${expression(on)};")
+      out.puts(s"if ($nameSwitchStr != null) {")
+      out.inc
+
+      super.switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
+
+      out.dec
+      cases.get(SwitchType.ELSE_CONST) match {
+        case Some(result) =>
+          out.puts("} else {")
+          out.inc
+          elseCaseProc(result)
+          out.dec
+          out.puts("}")
+        case None =>
+          out.puts("}")
+      }
+
+      out.dec
+      out.puts("}")
+    } else {
+      super.switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
+    }
+  }
 
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
     case _: IntType | _: EnumType | _: StrType => false
