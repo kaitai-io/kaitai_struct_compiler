@@ -14,11 +14,8 @@
             <option value="$PROJECT_DIR$/shared" />
           </set>
         </option>
-        <option name="resolveSbtClassifiers" value="true" />
         <option name="sbtVersion" value="1.2.7" />
-        <option name="useAutoImport" value="true" />
-        <option name="useSbtShellForBuild" value="true" />
-        <option name="useSbtShellForImport" value="true" />
+        <option name="useSbtShell" value="true" />
       </SbtProjectSettings>
     </option>
   </component>

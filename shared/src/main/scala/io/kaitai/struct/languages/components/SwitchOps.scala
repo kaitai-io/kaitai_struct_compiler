@@ -47,6 +47,16 @@ trait SwitchOps {
     normalCaseProc: (T) => Unit,
     elseCaseProc: (T) => Unit
   ): Unit = {
+    switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
+  }
+
+  protected def switchCasesRender[T](
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, T],
+    normalCaseProc: (T) => Unit,
+    elseCaseProc: (T) => Unit
+  ): Unit = {
     switchStart(id, on)
 
     // Pass 1: only normal case clauses
@@ -55,7 +65,7 @@ trait SwitchOps {
     cases.foreach { case (condition, result) =>
       condition match {
         case SwitchType.ELSE_CONST =>
-          // skip for now
+        // skip for now
         case _ =>
           if (first) {
             switchCaseFirstStart(condition)

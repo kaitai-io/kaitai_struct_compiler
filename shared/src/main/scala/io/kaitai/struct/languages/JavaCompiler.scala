@@ -7,9 +7,9 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{JavaTranslator, TypeDetector}
+import io.kaitai.struct.translators.JavaTranslator
 
-class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
     with UpperCamelCaseClasses
@@ -19,6 +19,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalDoc
     with AllocateIOLocalVar
     with FixedContentsUsingArrayByteLiteral
+    with SwitchIfOps
     with NoNeedForFullClassPath {
   import JavaCompiler._
 
@@ -477,31 +478,105 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String): Unit =
     out.puts(s"$id._read();")
 
-  /**
-    * Designates switch mode. If false, we're doing real switch-case for this
-    * attribute. If true, we're doing if-based emulation.
-    */
-  var switchIfs = false
+  override def switchCasesRender[T](
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, T],
+    normalCaseProc: T => Unit,
+    elseCaseProc: T => Unit
+  ): Unit = {
+    // Java has a stupid limitation of being unable to match nulls in switch.
+    // If our type is nullable, we'll do an extra check. For now, we're only
+    // doing this workaround for enums.
+
+    val onType = typeProvider._currentSwitchType.get
+    val isNullable = onType match {
+      case _: EnumType => true
+      case _ => false
+    }
+
+    if (isNullable) {
+      val nameSwitchStr = expression(NAME_SWITCH_ON)
+      out.puts("{")
+      out.inc
+      out.puts(s"${kaitaiType2JavaType(onType)} $nameSwitchStr = ${expression(on)};")
+      out.puts(s"if ($nameSwitchStr != null) {")
+      out.inc
+
+      super.switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
+
+      out.dec
+      cases.get(SwitchType.ELSE_CONST) match {
+        case Some(result) =>
+          out.puts("} else {")
+          out.inc
+          elseCaseProc(result)
+          out.dec
+          out.puts("}")
+        case None =>
+          out.puts("}")
+      }
+
+      out.dec
+      out.puts("}")
+    } else {
+      super.switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
+    }
+  }
+
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: EnumType | _: StrType => false
+    case _ => true
+  }
+
+  //<editor-fold desc="switching: true version">
 
   val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    val onType = translator.detectType(on)
-    typeProvider._currentSwitchType = Some(onType)
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    out.puts(s"switch (${expression(on)}) {")
 
-    // Determine switching mode for this construct based on type
-    switchIfs = onType match {
-      case _: IntType | _: EnumType | _: StrType => false
-      case _ => true
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    // Java is very specific about what can be used as "condition" in "case
+    // condition:".
+    val condStr = condition match {
+      case enumByLabel: Ast.expr.EnumByLabel =>
+        // If switch is over a enum, only literal enum values are supported,
+        // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
+        value2Const(enumByLabel.label.name)
+      case _ =>
+        expression(condition)
     }
 
-    if (switchIfs) {
-      out.puts("{")
-      out.inc
-      out.puts(s"${kaitaiType2JavaType(onType)} ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
-    } else {
-      out.puts(s"switch (${expression(on)}) {")
-    }
+    out.puts(s"case $condStr: {")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+    out.puts("break;")
+    out.dec
+    out.puts("}")
+  }
+
+  override def switchElseStart(): Unit = {
+    out.puts("default: {")
+    out.inc
+  }
+
+  override def switchEnd(): Unit = {
+    out.puts("}")
+  }
+
+  //</editor-fold>
+
+  //<editor-fold desc="switching: emulation with ifs">
+
+  override def switchIfStart(id: Identifier, on: expr, onType: DataType): Unit = {
+    out.puts("{")
+    out.inc
+    out.puts(s"${kaitaiType2JavaType(onType)} ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
   }
 
   def switchCmpExpr(condition: Ast.expr): String =
@@ -513,62 +588,32 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       )
     )
 
-  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"if (${switchCmpExpr(condition)}) {")
-      out.inc
-    } else {
-      switchCaseStart(condition)
-    }
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    out.puts(s"if (${switchCmpExpr(condition)}) {")
+    out.inc
   }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"else if (${switchCmpExpr(condition)}) {")
-      out.inc
-    } else {
-      // Java is very specific about what can be used as "condition" in "case
-      // condition:".
-      val condStr = condition match {
-        case enumByLabel: Ast.expr.EnumByLabel =>
-          // If switch is over a enum, only literal enum values are supported,
-          // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
-          value2Const(enumByLabel.label.name)
-        case _ =>
-          expression(condition)
-      }
-
-      out.puts(s"case $condStr: {")
-      out.inc
-    }
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"else if (${switchCmpExpr(condition)}) {")
+    out.inc
   }
 
-  override def switchCaseEnd(): Unit = {
-    if (switchIfs) {
-      out.dec
-      out.puts("}")
-    } else {
-      out.puts("break;")
-      out.dec
-      out.puts("}")
-    }
-  }
-
-  override def switchElseStart(): Unit = {
-    if (switchIfs) {
-      out.puts("else {")
-      out.inc
-    } else {
-      out.puts("default: {")
-      out.inc
-    }
-  }
-
-  override def switchEnd(): Unit = {
-    if (switchIfs)
-      out.dec
+  override def switchIfCaseEnd(): Unit = {
+    out.dec
     out.puts("}")
   }
+
+  override def switchIfElseStart(): Unit = {
+    out.puts("else {")
+    out.inc
+  }
+
+  override def switchIfEnd(): Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  //</editor-fold>
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")

@@ -209,6 +209,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
+    val ioName = s"_io_${idToStr(id)}"
 
     val args = rep match {
       case RepeatEos | RepeatUntil(_) => s"$memberName.last"
@@ -216,8 +217,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => s"$memberName"
     }
 
-    out.puts(s"io = $kstreamName.new($args)")
-    "io"
+    out.puts(s"$ioName = $kstreamName.new($args)")
+    ioName
   }
 
   override def useIO(ioEx: expr): String = {

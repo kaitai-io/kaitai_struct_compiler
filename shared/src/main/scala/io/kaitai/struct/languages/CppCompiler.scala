@@ -11,13 +11,14 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
 
 class CppCompiler(
-  typeProvider: ClassTypeProvider,
+  val typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
+    with SwitchIfOps
     with EveryReadIsExpression {
   import CppCompiler._
 
@@ -728,78 +729,76 @@ class CppCompiler(
   override def userTypeDebugRead(id: String): Unit =
     outSrc.puts(s"$id->_read();")
 
-  /**
-    * Designates switch mode. If false, we're doing real switch-case for this
-    * attribute. If true, we're doing if-based emulation.
-    */
-  var switchIfs = false
-
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    val onType = translator.detectType(on)
-
-    // Determine switching mode for this construct based on type
-    switchIfs = onType match {
-      case _: IntType | _: EnumType => false
-      case _ => true
-    }
-
-    if (switchIfs) {
-      outSrc.puts("{")
-      outSrc.inc
-      outSrc.puts(s"${kaitaiType2NativeType(onType)} on = ${expression(on)};")
-    } else {
-      outSrc.puts(s"switch (${expression(on)}) {")
-    }
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: EnumType => false
+    case _ => true
   }
 
+  //<editor-fold desc="switching: true version">
+
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    outSrc.puts(s"switch (${expression(on)}) {")
+
   override def switchCaseFirstStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      outSrc.puts(s"if (on == ${expression(condition)}) {")
-      outSrc.inc
-    } else {
-      outSrc.puts(s"case ${expression(condition)}: {")
-      outSrc.inc
-    }
+    outSrc.puts(s"case ${expression(condition)}: {")
+    outSrc.inc
   }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      outSrc.puts(s"else if (on == ${expression(condition)}) {")
-      outSrc.inc
-    } else {
-      outSrc.puts(s"case ${expression(condition)}: {")
-      outSrc.inc
-    }
+    outSrc.puts(s"case ${expression(condition)}: {")
+    outSrc.inc
   }
 
   override def switchCaseEnd(): Unit = {
-    if (switchIfs) {
-      outSrc.dec
-      outSrc.puts("}")
-    } else {
-      outSrc.puts("break;")
-      outSrc.dec
-      outSrc.puts("}")
-    }
+    outSrc.puts("break;")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   override def switchElseStart(): Unit = {
-    if (switchIfs) {
-      outSrc.puts("else {")
-      outSrc.inc
-    } else {
-      outSrc.puts("default: {")
-      outSrc.inc
-    }
+    outSrc.puts("default: {")
+    outSrc.inc
   }
 
   override def switchEnd(): Unit =
-    if (switchIfs) {
-      outSrc.dec
-      outSrc.puts("}")
-    } else {
-      outSrc.puts("}")
-    }
+    outSrc.puts("}")
+
+  //</editor-fold>
+
+  //<editor-fold desc="switching: emulation with ifs">
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    outSrc.puts("{")
+    outSrc.inc
+    outSrc.puts(s"${kaitaiType2NativeType(onType)} on = ${expression(on)};")
+  }
+
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    outSrc.puts(s"if (on == ${expression(condition)}) {")
+    outSrc.inc
+  }
+
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    outSrc.puts(s"else if (on == ${expression(condition)}) {")
+    outSrc.inc
+  }
+
+  override def switchIfCaseEnd(): Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
+  override def switchIfElseStart(): Unit = {
+    outSrc.puts("else {")
+    outSrc.inc
+  }
+
+  override def switchIfEnd(): Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
+  //</editor-fold>
 
   override def switchBytesOnlyAsRaw = true
 
