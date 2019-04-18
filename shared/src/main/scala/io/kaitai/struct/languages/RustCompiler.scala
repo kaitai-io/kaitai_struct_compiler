@@ -534,8 +534,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
       
       case t: EnumType => t.enumSpec match {
-        case Some(cs) => s"${type2class(cs.name)}"
-        case None => s"${type2class(t.name)}"
+        case Some(cs) => s"Option<${type2class(cs.name)}>"
+        case None => s"Option<${type2class(t.name)}>"
       }
 
       case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}<'a>>"

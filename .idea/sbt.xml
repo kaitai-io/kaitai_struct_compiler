@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ScalaSbtSettings">
+    <option name="customVMPath" />
     <option name="linkedExternalProjectsSettings">
       <SbtProjectSettings>
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
@@ -8,15 +9,16 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/js" />
-            <option value="$PROJECT_DIR$/js/project" />
             <option value="$PROJECT_DIR$/jvm" />
-            <option value="$PROJECT_DIR$/jvm/project" />
             <option value="$PROJECT_DIR$/project" />
             <option value="$PROJECT_DIR$/shared" />
           </set>
         </option>
-        <option name="sbtVersion" value="1.1.0-RC4" />
-        <option name="useSbtShell" value="true" />
+        <option name="resolveSbtClassifiers" value="true" />
+        <option name="sbtVersion" value="1.2.7" />
+        <option name="useAutoImport" value="true" />
+        <option name="useSbtShellForBuild" value="true" />
+        <option name="useSbtShellForImport" value="true" />
       </SbtProjectSettings>
     </option>
   </component>
