@@ -84,7 +84,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val pRoot = paramName(RootIdentifier)
 
     // Types
-    val tIo = kstreamName
     val tParent = kaitaiType2NativeType(parentType)
 
     out.puts(s"fn new<S: KaitaiStream>(stream: &mut S,")
@@ -96,8 +95,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"let mut s: Self = Default::default();")
     out.puts
-
-    out.puts(s"s.stream = stream;")
 
     out.puts(s"s.read(stream, _parent, _root)?;")
     out.puts
@@ -138,8 +135,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attrName match {
       case ParentIdentifier | RootIdentifier | IoIdentifier =>
         // just ignore it for now
-      case IoIdentifier =>
-        out.puts(s"     stream: ${kaitaiType2NativeType(attrType)},")
       case _ =>
         out.puts(s"    pub ${idToStr(attrName)}: ${kaitaiType2NativeType(attrType)},")
     }
@@ -183,16 +178,16 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        out.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
+        out.puts(s"$destName = stream.$procName($srcName, ${expression(xorValue)});")
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName::processZlib($srcName);")
+        out.puts(s"$destName = stream.process_zlib($srcName)?;")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName::processRotateLeft($srcName, $expr, 1);")
+        out.puts(s"$destName = stream.processRotateLeft($srcName, $expr, 1);")
       case ProcessCustom(name, args) =>
         val procClass = if (name.length == 1) {
           val onlyName = name.head
@@ -306,7 +301,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)} = $expr;")
+    id match {
+      case _: InstanceIdentifier =>
+        out.puts(s"${privateMemberName(id)} = Some($expr);")
+      case _ =>
+        out.puts(s"${privateMemberName(id)} = $expr;")
+    }
   }
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
@@ -340,17 +340,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
 	
-        s"Box::new(${translator.types2classAbs(t.classSpec.get.name)}::new(self.stream, self, _root)?)"
+        s"Box::new(${translator.types2classAbs(t.classSpec.get.name)}::new(stream, self, _root)?)"
     }
   }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
     val expr1 = padRight match {
-      case Some(padByte) => s"$kstreamName::bytesStripRight($expr0, $padByte)"
+      case Some(padByte) => s"KaitaiStream::bytesStripRight($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName::bytesTerminate($expr1, $term, $include)"
+      case Some(term) => s"KaitaiStream::bytesTerminate($expr1, $term, $include)"
       case None => expr1
     }
     expr2
@@ -456,7 +456,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    out.puts(s"return ${privateMemberName(instName)};")
+    out.puts(s"return ${privateMemberName(instName)}.expect(" + "\"Something went very wrong\");")
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
@@ -488,7 +488,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def privateMemberName(id: Identifier): String = {
     id match {
-      case IoIdentifier => s"self.stream"
+      case IoIdentifier => s"stream"
       case RootIdentifier => s"_root"
       case ParentIdentifier => s"_parent"
       case _ => s"self.${idToStr(id)}"
@@ -537,7 +537,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}>"
 
-      case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
+      case KaitaiStreamType => s"Box<KaitaiStream>"
       case KaitaiStructType | CalcKaitaiStructType => s"Option<Box<KaitaiStruct>>"
       
       case st: SwitchType => kaitaiType2NativeType(st.combinedType)
@@ -596,7 +596,7 @@ object RustCompiler extends LanguageCompilerStatic
   ): LanguageCompiler = new RustCompiler(tp, config)
 
   override def kstructName = "&Option<Box<KaitaiStruct>>"
-  override def kstreamName = "&mut S"
+  override def kstreamName = "stream"
 
   def types2class(typeName: Ast.typeId) = {
     typeName.names.map(type2class).mkString(
