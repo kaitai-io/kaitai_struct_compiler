@@ -154,7 +154,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     val extraNewline = if (docStr.isEmpty || docStr.last == '\n') "" else "\n"
-    val refStr = doc.ref match {
+    val refStr = doc.ref.map {
       case TextRef(text) =>
         val seeAlso = new StringLanguageOutputWriter("")
         seeAlso.putsLines("   ", text)
@@ -163,9 +163,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val seeAlso = new StringLanguageOutputWriter("")
         seeAlso.putsLines("   ", s"${ref.text} - ${ref.url}")
         s"$extraNewline\n.. seealso::\n${seeAlso.result}"
-      case NoRef =>
-        ""
-    }
+    }.mkString("\n")
 
     out.putsLines("", "\"\"\"" + docStr + refStr + "\"\"\"")
   }

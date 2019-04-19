@@ -311,15 +311,13 @@ class CppCompiler(
     outHdr.puts
     outHdr.puts( "/**")
 
-    doc.summary.foreach((docStr) => outHdr.putsLines(" * ", docStr))
+    doc.summary.foreach(docStr => outHdr.putsLines(" * ", docStr))
 
-    doc.ref match {
+    doc.ref.foreach {
       case TextRef(text) =>
         outHdr.putsLines(" * ", s"\\sa $text")
       case UrlRef(url, text) =>
-        outHdr.putsLines(" * ", s"\\sa $text")
-      case NoRef =>
-        // nothing to output
+        outHdr.putsLines(" * ", s"\\sa $url $text")
     }
 
     outHdr.puts( " */")
