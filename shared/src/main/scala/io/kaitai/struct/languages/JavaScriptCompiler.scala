@@ -9,7 +9,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.JavaScriptTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
-class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with UpperCamelCaseClasses
@@ -17,6 +17,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalDoc
     with AllocateIOLocalVar
     with EveryReadIsExpression
+    with SwitchIfOps
     with FixedContentsUsingArrayByteLiteral {
   import JavaScriptCompiler._
 
@@ -103,7 +104,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
 
-    if (debug) {
+    if (config.readStoresPos) {
       out.puts("this._debug = {};")
     }
     out.puts
@@ -295,7 +296,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
-    if (debug)
+    if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
     out.puts("var i = 0;")
     out.puts(s"while (!$io.isEof()) {")
@@ -316,7 +317,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
     out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
-    if (debug)
+    if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = new Array(${expression(repeatExpr)});")
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
@@ -335,7 +336,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
-    if (debug)
+    if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
     out.puts("var i = 0;")
     out.puts("do {")
@@ -408,34 +409,50 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$id._read();")
   }
 
-  /**
-    * Designates switch mode. If false, we're doing real switch-case for this
-    * attribute. If true, we're doing if-based emulation.
-    */
-  var switchIfs = false
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: BooleanType | _: EnumType | _: StrType => false
+    case _ => true
+  }
+
+  //<editor-fold desc="switching: true version">
+
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    out.puts(s"switch (${expression(on)}) {")
+
+  override def switchCaseFirstStart(condition: Ast.expr): Unit =
+    switchCaseStart(condition)
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"case ${expression(condition)}:")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+    out.puts("break;")
+    out.dec
+  }
+
+  override def switchElseStart(): Unit = {
+    out.puts("default:")
+    out.inc
+  }
+
+  override def switchEnd(): Unit =
+    out.puts("}")
+
+  //</editor-fold>
+
+  //<editor-fold desc="switching: emulation with ifs">
 
   val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    val onType = translator.detectType(on)
-    typeProvider._currentSwitchType = Some(onType)
-
-    // Determine switching mode for this construct based on type
-    switchIfs = onType match {
-      case _: IntType | _: BooleanType | _: EnumType | _: StrType => false
-      case _ => true
-    }
-
-    if (switchIfs) {
-      out.puts("{")
-      out.inc
-      out.puts(s"var ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
-    } else {
-      out.puts(s"switch (${expression(on)}) {")
-    }
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    out.puts("{")
+    out.inc
+    out.puts(s"var ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
   }
 
-  def switchCmpExpr(condition: Ast.expr): String =
+  private def switchCmpExpr(condition: Ast.expr): String =
     expression(
       Ast.expr.Compare(
         NAME_SWITCH_ON,
@@ -444,50 +461,32 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       )
     )
 
-  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"if (${switchCmpExpr(condition)}) {")
-      out.inc
-    } else {
-      switchCaseStart(condition)
-    }
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    out.puts(s"if (${switchCmpExpr(condition)}) {")
+    out.inc
   }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"else if (${switchCmpExpr(condition)}) {")
-      out.inc
-    } else {
-      out.puts(s"case ${expression(condition)}:")
-      out.inc
-    }
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"else if (${switchCmpExpr(condition)}) {")
+    out.inc
   }
 
-  override def switchCaseEnd(): Unit = {
-    if (switchIfs) {
-      out.dec
-      out.puts("}")
-    } else {
-      out.puts("break;")
-      out.dec
-    }
-  }
-
-  override def switchElseStart(): Unit = {
-    if (switchIfs) {
-      out.puts("else {")
-      out.inc
-    } else {
-      out.puts("default:")
-      out.inc
-    }
-  }
-
-  override def switchEnd(): Unit = {
-    if (switchIfs)
-      out.dec
+  override def switchIfCaseEnd(): Unit = {
+    out.dec
     out.puts("}")
   }
+
+  override def switchIfElseStart(): Unit = {
+    out.puts("else {")
+    out.inc
+  }
+
+  override def switchIfEnd(): Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  //</editor-fold>
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"Object.defineProperty(${type2class(className.last)}.prototype, '${publicMemberName(instName)}', {")
@@ -503,14 +502,14 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("});")
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if (${privateMemberName(instName)} !== undefined)")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     out.dec
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 

@@ -92,10 +92,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"${translate(container)}.get((int) ${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: Ast.typeId): String = {
-    // FIXME: assuming relative type name
-    s"((${JavaCompiler.types2class(typeName.names.toList)}) (${translate(value)}))"
-  }
+  override def doCast(value: Ast.expr, typeName: DataType): String =
+    s"((${JavaCompiler.kaitaiType2JavaType(typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =

@@ -5,10 +5,8 @@ import io.kaitai.struct.datatype.DataType.{SwitchType, UserTypeFromBytes}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
-import scala.collection.mutable.ListBuffer
-
 trait CommonReads extends LanguageCompiler {
-  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[Endianness]): Unit = {
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
     attrParseIfHeader(id, attr.cond.ifExpr)
 
     // Manage IO & seeking for ParseInstances
@@ -28,22 +26,22 @@ trait CommonReads extends LanguageCompiler {
         normalIO
     }
 
-    if (debug)
+    if (config.readStoresPos)
       attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
 
     defEndian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
         attrParseHybrid(
-          () => attrParse0(id, attr, io, extraAttrs, Some(LittleEndian)),
-          () => attrParse0(id, attr, io, extraAttrs, Some(BigEndian))
+          () => attrParse0(id, attr, io, Some(LittleEndian)),
+          () => attrParse0(id, attr, io, Some(BigEndian))
         )
       case None =>
-        attrParse0(id, attr, io, extraAttrs, None)
+        attrParse0(id, attr, io, None)
       case Some(fe: FixedEndian) =>
-        attrParse0(id, attr, io, extraAttrs, Some(fe))
+        attrParse0(id, attr, io, Some(fe))
     }
 
-    if (debug)
+    if (config.readStoresPos)
       attrDebugEnd(id, attr.dataType, io, NoRepeat)
 
     // More position management after parsing for ParseInstanceSpecs
@@ -57,26 +55,26 @@ trait CommonReads extends LanguageCompiler {
     attrParseIfFooter(attr.cond.ifExpr)
   }
 
-  def attrParse0(id: Identifier, attr: AttrLikeSpec, io: String, extraAttrs: ListBuffer[AttrSpec], defEndian: Option[FixedEndian]): Unit = {
+  def attrParse0(id: Identifier, attr: AttrLikeSpec, io: String, defEndian: Option[FixedEndian]): Unit = {
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosHeader(id, io, attr.dataType, needRaw(attr.dataType))
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false, defEndian)
+        attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
         condRepeatEosFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
         condRepeatExprHeader(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false, defEndian)
+        attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
         condRepeatExprFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
         condRepeatUntilHeader(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false, defEndian)
+        attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
         condRepeatUntilFooter(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
       case NoRepeat =>
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false, defEndian)
+        attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
     }
   }
 
-  def attrParse2(id: Identifier, dataType: DataType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], assignType: Option[DataType] = None): Unit
+  def attrParse2(id: Identifier, dataType: DataType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], assignType: Option[DataType] = None): Unit
 
   def needRaw(dataType: DataType): Boolean = {
     dataType match {

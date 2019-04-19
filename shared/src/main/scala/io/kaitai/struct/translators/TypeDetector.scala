@@ -48,13 +48,13 @@ class TypeDetector(provider: TypeProvider) {
       case Ast.expr.FloatNum(_) => CalcFloatType
       case Ast.expr.Str(_) => CalcStrType
       case Ast.expr.Bool(_) => CalcBooleanType
-      case Ast.expr.EnumByLabel(enumType, _) =>
+      case Ast.expr.EnumByLabel(enumType, _, inType) =>
         val t = EnumType(List(enumType.name), CalcIntType)
-        t.enumSpec = Some(provider.resolveEnum(enumType.name))
+        t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
-      case Ast.expr.EnumById(enumType, _) =>
+      case Ast.expr.EnumById(enumType, _, inType) =>
         val t = EnumType(List(enumType.name), CalcIntType)
-        t.enumSpec = Some(provider.resolveEnum(enumType.name))
+        t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
@@ -131,7 +131,7 @@ class TypeDetector(provider: TypeProvider) {
   def detectAttributeType(value: Ast.expr, attr: Ast.identifier) = {
     val valType = detectType(value)
     valType match {
-      case KaitaiStructType =>
+      case KaitaiStructType | CalcKaitaiStructType =>
         throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '$value'")
       case t: UserType =>
         t.classSpec match {
@@ -278,9 +278,11 @@ object TypeDetector {
       case (_: NumericType, _: NumericType) => // ok
       case (_: BooleanType, _: BooleanType) => // ok
       case (_: BytesType, _: BytesType) => // ok
-      case (EnumType(name1, _), EnumType(name2, _)) =>
-        if (name1 != name2) {
-          throw new TypeMismatchError(s"can't compare different enums '$name1' and '$name2'")
+      case (et1: EnumType, et2: EnumType) =>
+        val et1Spec = et1.enumSpec.get
+        val et2Spec = et2.enumSpec.get
+        if (et1Spec != et2Spec) {
+          throw new TypeMismatchError(s"can't compare different enums '${et1Spec.nameAsStr}' and '${et2Spec.nameAsStr}'")
         }
         op match {
           case Ast.cmpop.Eq | Ast.cmpop.NotEq => // ok
@@ -336,19 +338,31 @@ object TypeDetector {
               if (t1.name == t2.name) {
                 t1
               } else {
-                KaitaiStructType
+                if (t1.isOwning || t2.isOwning) {
+                  KaitaiStructType
+                } else {
+                  CalcKaitaiStructType
+                }
               }
             case (Some(cs1), Some(cs2)) =>
               if (cs1 == cs2) {
                 t1
               } else {
-                KaitaiStructType
+                if (t1.isOwning || t2.isOwning) {
+                  KaitaiStructType
+                } else {
+                  CalcKaitaiStructType
+                }
               }
             case (_, _) =>
-              KaitaiStructType
+              if (t1.isOwning || t2.isOwning) {
+                KaitaiStructType
+              } else {
+                CalcKaitaiStructType
+              }
           }
-        case (_: UserType, KaitaiStructType) => KaitaiStructType
-        case (KaitaiStructType, _: UserType) => KaitaiStructType
+        case (_: UserType, _: ComplexDataType) => CalcKaitaiStructType
+        case (_: ComplexDataType, _: UserType) => CalcKaitaiStructType
         case _ => AnyType
       }
     }
@@ -399,6 +413,7 @@ object TypeDetector {
         case (_: BooleanType, _: BooleanType) => true
         case (_: StrType, _: StrType) => true
         case (_: UserType, KaitaiStructType) => true
+        case (_: UserType, CalcKaitaiStructType) => true
         case (t1: UserType, t2: UserType) =>
           (t1.classSpec, t2.classSpec) match {
             case (None, None) =>
@@ -410,6 +425,9 @@ object TypeDetector {
             case (_, _) =>
               false
           }
+        case (t1: EnumType, t2: EnumType) =>
+          // enums are assignable if their enumSpecs match
+          t1.enumSpec.get == t2.enumSpec.get
         case (_, _) => false
       }
     }

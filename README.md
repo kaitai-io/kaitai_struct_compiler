@@ -34,7 +34,7 @@ If you're looking for information on:
 
 ### Main code
 
-Kaitai Struct compiler itself is copyright (C) 2015-2018 Kaitai
+Kaitai Struct compiler itself is copyright (C) 2015-2019 Kaitai
 Project.
 
 This program is free software: you can redistribute it and/or modify

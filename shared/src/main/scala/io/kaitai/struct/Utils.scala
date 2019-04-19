@@ -5,6 +5,11 @@ import java.nio.charset.Charset
 import scala.collection.mutable.ListBuffer
 
 object Utils {
+  /**
+    * BigInt-typed max value of unsigned 64-bit integer.
+    */
+  val MAX_UINT64 = BigInt("18446744073709551615")
+
   private val RDecimal = "^(-?[0-9]+)$".r
   private val RHex = "^0x([0-9a-fA-F]+)$".r
 
@@ -108,4 +113,23 @@ object Utils {
     } else {
       fullPath
     }
+
+  /**
+    * Performs safe lookup for up to `len` character in a given
+    * string `src`, starting at `from`.
+    * @param src string to work on
+    * @param from starting character index
+    * @param len max length of substring
+    * @return substring of `src`, starting at `from`, up to `len` chars max
+    */
+  def safeLookup(src: String, from: Int, len: Int): String = {
+    val maxLen = src.length
+    if (from >= maxLen) {
+      ""
+    } else {
+      val to = from + len
+      val safeTo = if (to > maxLen) maxLen else to
+      src.substring(from, safeTo)
+    }
+  }
 }

@@ -363,11 +363,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("my ($self) = @_;")
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)} if (${privateMemberName(instName)});")
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
@@ -398,8 +398,6 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
   def boolLiteral(b: Boolean): String = translator.doBoolLiteral(b)
-
-  def types2class(t: List[String]) = t.map(type2class).mkString("::")
 }
 
 object PerlCompiler extends LanguageCompilerStatic
@@ -413,4 +411,6 @@ object PerlCompiler extends LanguageCompilerStatic
   def packageName: String = "IO::KaitaiStruct"
   override def kstreamName: String = s"$packageName::Stream"
   override def kstructName: String = s"$packageName::Struct"
+
+  def types2class(t: List[String]): String = t.map(type2class).mkString("::")
 }

@@ -13,7 +13,7 @@ trait TypeProvider {
   def nowClass: ClassSpec
   def determineType(attrName: String): DataType
   def determineType(inClass: ClassSpec, attrName: String): DataType
-  def resolveEnum(enumName: String): EnumSpec
+  def resolveEnum(typeName: Ast.typeId, enumName: String): EnumSpec
   def resolveType(typeName: Ast.typeId): DataType
   def isLazy(attrName: String): Boolean
   def isLazy(inClass: ClassSpec, attrName: String): Boolean

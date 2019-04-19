@@ -2,16 +2,67 @@ package io.kaitai.struct.translators
 
 import java.nio.charset.Charset
 
-import io.kaitai.struct.{ImportList, Utils}
-import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.CppRuntimeConfig.{RawPointers, SharedPointers, UniqueAndRawPointers}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CppCompiler
+import io.kaitai.struct.{ImportList, RuntimeConfig, Utils}
 
-class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends BaseTranslator(provider) {
+class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
+
+  /**
+    * Handles integer literals for C++ by appending relevant suffix to
+    * decimal notation.
+    *
+    * Note that suffixes essentially mean "long", "unsigned long",
+    * and "unsigned long long", which are not really guaranteed to match
+    * `int32_t`, `uint32_t` and `uint64_t`, but it would work for majority
+    * of current compilers.
+    *
+    * For reference, ranges of integers that are used in this conversion are:
+    *
+    * * int32_t (no suffix): –2147483648..2147483647
+    * * uint32_t (UL): 0..4294967295
+    * * int64_t (LL): -9223372036854775808..9223372036854775807
+    * * uint64_t (ULL): 0..18446744073709551615
+    *
+    * Merging all these ranges, we get the following decision tree:
+    *
+    * * -9223372036854775808..-2147483649 => LL
+    * * -2147483648..2147483647 => no suffix
+    * * 2147483648..4294967295 => UL
+    * * 4294967296..9223372036854775807 => LL
+    * * 9223372036854775808..18446744073709551615 => ULL
+    *
+    * Beyond these boundaries, C++ is unlikely to be able to represent
+    * these anyway, so we just drop the suffix and hope for the miracle.
+    *
+    * @param n integer to render
+    * @return rendered integer literal in C++ syntax as string
+    */
+  override def doIntLiteral(n: BigInt): String = {
+    val suffix = if (n < -9223372036854775808L) {
+      "" // too low, no suffix would help anyway
+    } else if (n <= -2147483649L) {
+      "LL" // -9223372036854775808..–2147483649
+    } else if (n <= 2147483647L) {
+      "" // -2147483648..2147483647
+    } else if (n <= 4294967295L) {
+      "UL" // 2147483648..4294967295
+    } else if (n <= 9223372036854775807L) {
+      "LL" // 4294967296..9223372036854775807
+    } else if (n <= Utils.MAX_UINT64) {
+      "ULL" // 9223372036854775808..18446744073709551615
+    } else {
+      "" // too high, no suffix would help anyway
+    }
+
+    s"$n$suffix"
+  }
 
   /**
     * Handles string literal for C++ by wrapping a C `const char*`-style string
@@ -77,7 +128,8 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends B
   }
 
   override def doEnumByLabel(enumType: List[String], label: String): String =
-    (enumType.last + "_" + label).toUpperCase
+    CppCompiler.types2class(enumType.dropRight(1)) + "::" +
+      (enumType.last + "_" + label).toUpperCase
   override def doEnumById(enumType: List[String], id: String): String =
     s"static_cast<${CppCompiler.types2class(enumType)}>($id)"
 
@@ -95,8 +147,20 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList) extends B
     s"${translate(container)}->at(${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
-  override def doCast(value: Ast.expr, typeName: Ast.typeId): String =
-    s"static_cast<${CppCompiler.types2class(typeName)}*>(${translate(value)})"
+  override def doCast(value: Ast.expr, typeName: DataType): String =
+    config.cppConfig.pointers match {
+      case RawPointers | UniqueAndRawPointers =>
+        cppStaticCast(value, typeName)
+      case SharedPointers =>
+        typeName match {
+          case ut: UserType =>
+            s"std::static_pointer_cast<${CppCompiler.types2class(ut.classSpec.get.name)}>(${translate(value)})"
+          case _ => cppStaticCast(value, typeName)
+        }
+    }
+
+  def cppStaticCast(value: Ast.expr, typeName: DataType): String =
+    s"static_cast<${CppCompiler.kaitaiType2NativeType(config.cppConfig, typeName)}>(${translate(value)})"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {

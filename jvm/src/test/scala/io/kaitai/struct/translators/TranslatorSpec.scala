@@ -119,6 +119,11 @@ class TranslatorSpec extends FunSuite {
   full("some_bool.to_i", CalcBooleanType, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "some_bool()",
     CSharpCompiler -> "(SomeBool ? 1 : 0)",
+    GoCompiler -> """tmp1 := 0
+                    |if this.SomeBool {
+                    |  tmp1 = 1
+                    |}
+                    |tmp1""".stripMargin,
     JavaCompiler -> "(someBool() ? 1 : 0)",
     JavaScriptCompiler -> "(this.someBool | 0)",
     LuaCompiler -> "self.some_bool and 1 or 0",
@@ -132,6 +137,7 @@ class TranslatorSpec extends FunSuite {
   full("foo_str", CalcStrType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo_str()",
     CSharpCompiler -> "FooStr",
+    GoCompiler -> "this.FooStr",
     JavaCompiler -> "fooStr()",
     JavaScriptCompiler -> "this.fooStr",
     LuaCompiler -> "self.foo_str",
@@ -144,6 +150,7 @@ class TranslatorSpec extends FunSuite {
   full("foo_block", userType(List("block")), userType(List("block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo_block()",
     CSharpCompiler -> "FooBlock",
+    GoCompiler -> "this.FooBlock",
     JavaCompiler -> "fooBlock()",
     JavaScriptCompiler -> "this.fooBlock",
     LuaCompiler -> "self.foo_block",
@@ -156,6 +163,7 @@ class TranslatorSpec extends FunSuite {
   full("foo.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo()->bar()",
     CSharpCompiler -> "Foo.Bar",
+    GoCompiler -> "this.Foo.Bar",
     JavaCompiler -> "foo().bar()",
     JavaScriptCompiler -> "this.foo.bar",
     LuaCompiler -> "self.foo.bar",
@@ -168,6 +176,7 @@ class TranslatorSpec extends FunSuite {
   full("foo.inner.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo()->inner()->baz()",
     CSharpCompiler -> "Foo.Inner.Baz",
+    GoCompiler -> "this.Foo.Inner.Baz",
     JavaCompiler -> "foo().inner().baz()",
     JavaScriptCompiler -> "this.foo.inner.baz",
     LuaCompiler -> "self.foo.inner.baz",
@@ -180,6 +189,7 @@ class TranslatorSpec extends FunSuite {
   full("_root.foo", userType(List("top_class", "block")), userType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "_root()->foo()",
     CSharpCompiler -> "M_Root.Foo",
+    GoCompiler -> "this._root.Foo",
     JavaCompiler -> "_root.foo()",
     JavaScriptCompiler -> "this._root.foo",
     LuaCompiler -> "self._root.foo",
@@ -192,6 +202,7 @@ class TranslatorSpec extends FunSuite {
   full("a != 2 and a != 5", CalcIntType, CalcBooleanType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a() != 2 && a() != 5",
     CSharpCompiler -> "A != 2 && A != 5",
+    GoCompiler -> "a != 2 && a != 5",
     JavaCompiler -> "a() != 2 && a() != 5",
     JavaScriptCompiler -> "this.a != 2 && this.a != 5",
     LuaCompiler -> "self.a ~= 2 and self.a ~= 5",
@@ -204,6 +215,7 @@ class TranslatorSpec extends FunSuite {
   // Arrays
   full("[0, 1, 100500]", CalcIntType, ArrayType(CalcIntType), Map[LanguageCompilerStatic, String](
     CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
+    GoCompiler -> "[]int{0, 1, 100500}",
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
     JavaScriptCompiler -> "[0, 1, 100500]",
     LuaCompiler -> "{0, 1, 100500}",
@@ -253,7 +265,8 @@ class TranslatorSpec extends FunSuite {
   full("a[42]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->at(42)",
     CSharpCompiler -> "A[42]",
-    JavaCompiler -> "a().get(42)",
+    GoCompiler -> "this.A[42]",
+    JavaCompiler -> "a().get((int) 42)",
     JavaScriptCompiler -> "this.a[42]",
     LuaCompiler -> "self.a[43]",
     PHPCompiler -> "$this->a()[42]",
@@ -264,6 +277,7 @@ class TranslatorSpec extends FunSuite {
   full("a[42 - 2]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->at((42 - 2))",
     CSharpCompiler -> "A[(42 - 2)]",
+    GoCompiler -> "this.A[(42 - 2)]",
     JavaCompiler -> "a().get((42 - 2))",
     JavaScriptCompiler -> "this.a[(42 - 2)]",
     LuaCompiler -> "self.a[(43 - 2)]",
@@ -275,6 +289,7 @@ class TranslatorSpec extends FunSuite {
   full("a.first", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->front()",
     CSharpCompiler -> "A[0]",
+    GoCompiler -> "this.A[0]",
     JavaCompiler -> "a().get(0)",
     JavaScriptCompiler -> "this.a[0]",
     LuaCompiler -> "self.a[1]",
@@ -285,7 +300,8 @@ class TranslatorSpec extends FunSuite {
 
   full("a.last", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->back()",
-    CSharpCompiler -> "A[A.Length - 1]",
+    CSharpCompiler -> "A[A.Count - 1]",
+    GoCompiler -> "this.A[len(this.A)-1]",
     JavaCompiler -> "a().get(a().size() - 1)",
     JavaScriptCompiler -> "this.a[this.a.length - 1]",
     LuaCompiler -> "self.a[#self.a]",
@@ -297,6 +313,7 @@ class TranslatorSpec extends FunSuite {
   full("a.size", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "a()->size()",
     CSharpCompiler -> "A.Count",
+    GoCompiler -> "len(this.A)",
     JavaCompiler -> "a().size()",
     JavaScriptCompiler -> "this.a.length",
     LuaCompiler -> "#self.a",
@@ -336,6 +353,7 @@ class TranslatorSpec extends FunSuite {
   full("\"str\\u000anext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str\\nnext\")",
     CSharpCompiler -> "\"str\\nnext\"",
+    GoCompiler -> "\"str\\u000anext\"",
     JavaCompiler -> "\"str\\nnext\"",
     JavaScriptCompiler -> "\"str\\nnext\"",
     LuaCompiler -> "\"str\\nnext\"",
@@ -348,6 +366,7 @@ class TranslatorSpec extends FunSuite {
   full("\"str\\0next\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str\\000next\", 8)",
     CSharpCompiler -> "\"str\\0next\"",
+    GoCompiler -> "\"str\\000next\"",
     JavaCompiler -> "\"str\\000next\"",
     JavaScriptCompiler -> "\"str\\000next\"",
     LuaCompiler -> "\"str\\000next\"",
@@ -406,6 +425,7 @@ class TranslatorSpec extends FunSuite {
   full("\"str\".reverse", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "kaitai::kstream::reverse(std::string(\"str\"))",
       CSharpCompiler -> "new string(Array.Reverse(\"str\".ToCharArray()))",
+      GoCompiler -> "kaitai.StringReverse(\"str\")",
       JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
       JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
       LuaCompiler -> "string.reverse(\"str\")",
@@ -418,6 +438,7 @@ class TranslatorSpec extends FunSuite {
   full("\"12345\".to_i", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::stoi(std::string(\"12345\"))",
     CSharpCompiler -> "Convert.ToInt64(\"12345\", 10)",
+    GoCompiler -> "func()(int){i, err := strconv.Atoi(\"12345\"); if (err != nil) { panic(err) }; return i}()",
     JavaCompiler -> "Long.parseLong(\"12345\", 10)",
     JavaScriptCompiler -> "Number.parseInt(\"12345\", 10)",
     LuaCompiler -> "tonumber(\"12345\")",
@@ -430,6 +451,7 @@ class TranslatorSpec extends FunSuite {
   full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::stoi(std::string(\"1234fe\"), 0, 16)",
     CSharpCompiler -> "Convert.ToInt64(\"1234fe\", 16)",
+    GoCompiler -> "func()(int64){i, err := strconv.ParseInt(\"1234fe\", 16, 64); if (err != nil) { panic(err) }; return i}()",
     JavaCompiler -> "Long.parseLong(\"1234fe\", 16)",
     JavaScriptCompiler -> "Number.parseInt(\"1234fe\", 16)",
     LuaCompiler -> "tonumber(\"1234fe\", 16)",
@@ -443,6 +465,7 @@ class TranslatorSpec extends FunSuite {
   full("other.as<block>.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "static_cast<block_t*>(other())->bar()",
     CSharpCompiler -> "((Block) (Other)).Bar",
+    GoCompiler -> "this.Other.(Block).Bar",
     JavaCompiler -> "((Block) (other())).bar()",
     JavaScriptCompiler -> "this.other.bar",
     LuaCompiler -> "self.other.bar",
@@ -455,6 +478,7 @@ class TranslatorSpec extends FunSuite {
   full("other.as<block::innerblock>.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "static_cast<block_t::innerblock_t*>(other())->baz()",
     CSharpCompiler -> "((Block.Innerblock) (Other)).Baz",
+    GoCompiler -> "this.Other.(Block.Innerblock).Baz",
     JavaCompiler -> "((Block.Innerblock) (other())).baz()",
     JavaScriptCompiler -> "this.other.baz",
     LuaCompiler -> "self.other.baz",
@@ -462,6 +486,20 @@ class TranslatorSpec extends FunSuite {
     PHPCompiler -> "$this->other()->baz()",
     PythonCompiler -> "self.other.baz",
     RubyCompiler -> "other.baz"
+  ))
+
+  // primitive pure types
+  full("(1 + 2).as<s2>", CalcIntType, IntMultiType(true, Width2, None), Map[LanguageCompilerStatic, String](
+    CppCompiler -> "static_cast<int16_t>((1 + 2))",
+    CSharpCompiler -> "((short) ((1 + 2)))",
+    GoCompiler -> "int16((1 + 2))",
+    JavaCompiler -> "((short) ((1 + 2)))",
+    JavaScriptCompiler -> "(1 + 2)",
+    LuaCompiler -> "(1 + 2)",
+    PerlCompiler -> "(1 + 2)",
+    PHPCompiler -> "(1 + 2)",
+    PythonCompiler -> "(1 + 2)",
+    RubyCompiler -> "(1 + 2)"
   ))
 
   // empty array casting
@@ -540,7 +578,7 @@ class TranslatorSpec extends FunSuite {
     val goOutput = new StringLanguageOutputWriter("  ")
 
     val langs = Map[LanguageCompilerStatic, AbstractTranslator with TypeDetector](
-      CppCompiler -> new CppTranslator(tp, new ImportList()),
+      CppCompiler -> new CppTranslator(tp, new ImportList(), RuntimeConfig()),
       CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
       GoCompiler -> new GoTranslator(goOutput, tp, new ImportList()),
       JavaCompiler -> new JavaTranslator(tp, new ImportList()),
@@ -583,7 +621,7 @@ class TranslatorSpec extends FunSuite {
   abstract class FakeTypeProvider extends TypeProvider {
     val nowClass = ClassSpec.opaquePlaceholder(List("top_class"))
 
-    override def resolveEnum(enumName: String) =
+    override def resolveEnum(inType: Ast.typeId, enumName: String) =
       throw new NotImplementedError
 
     override def resolveType(typeName: Ast.typeId): DataType =

@@ -18,7 +18,7 @@ case class ValueInstanceSpec(
   override def isNullable: Boolean = ifExpr.isDefined
 }
 case class ParseInstanceSpec(
-  id: Identifier,
+  id: InstanceIdentifier,
   path: List[String],
   private val _doc: DocSpec,
   dataType: DataType,
@@ -41,7 +41,7 @@ object InstanceSpec {
   def fromYaml(src: Any, path: List[String], metaDef: MetaSpec, id: InstanceIdentifier): InstanceSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
 
-    ParseUtils.getOptValueStr(srcMap, "value", path).map(Expressions.parse) match {
+    ParseUtils.getOptValueExpression(srcMap, "value", path) match {
       case Some(value) =>
         // value instance
         ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS_VALUE_INST, path, Some("value instance"))
@@ -54,7 +54,7 @@ object InstanceSpec {
             Ast.expr.EnumById(Ast.identifier(enumName), value)
         }
 
-        val ifExpr = ParseUtils.getOptValueStr(srcMap, "if", path).map(Expressions.parse)
+        val ifExpr = ParseUtils.getOptValueExpression(srcMap, "if", path)
 
         ValueInstanceSpec(
           path,
@@ -65,8 +65,8 @@ object InstanceSpec {
         )
       case None =>
         // normal positional instance
-        val pos = ParseUtils.getOptValueStr(srcMap, "pos", path).map(Expressions.parse)
-        val io = ParseUtils.getOptValueStr(srcMap, "io", path).map(Expressions.parse)
+        val pos = ParseUtils.getOptValueExpression(srcMap, "pos", path)
+        val io = ParseUtils.getOptValueExpression(srcMap, "io", path)
 
         val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io")
         val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef, id)

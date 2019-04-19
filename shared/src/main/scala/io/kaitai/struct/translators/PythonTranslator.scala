@@ -4,7 +4,7 @@ import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.languages.PythonCompiler
+import io.kaitai.struct.languages.{PythonCompiler, RubyCompiler}
 
 class PythonTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
@@ -54,8 +54,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${PythonCompiler.types2class(enumTypeAbs)}.$label"
-  override def doEnumById(enumTypeAbs: List[String], id: String) =
-    s"${PythonCompiler.types2class(enumTypeAbs)}($id)"
+  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumTypeAbs)}, $id)"
 
   override def booleanOp(op: Ast.boolop) = op match {
     case Ast.boolop.Or => "or"

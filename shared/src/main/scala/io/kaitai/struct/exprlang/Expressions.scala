@@ -47,7 +47,7 @@ object Expressions {
     case Seq(x) => x
     case xs => Ast.expr.BoolOp(Ast.boolop.And, xs)
   }
-  val not_test: P[Ast.expr] = P( ("not" ~ not_test).map(Ast.expr.UnaryOp(Ast.unaryop.Not, _)) | comparison )
+  val not_test: P[Ast.expr] = P( (kw("not") ~ not_test).map(Ast.expr.UnaryOp(Ast.unaryop.Not, _)) | comparison )
   val comparison: P[Ast.expr] = P( expr ~ (comp_op ~ expr).? ).map{
     case (lhs, None) => lhs
     case (lhs, Some(chunks)) =>
@@ -160,8 +160,18 @@ object Expressions {
 
   val testlist1: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") )
 
-  val enumByName: P[Ast.expr.EnumByLabel] = P( (NAME) ~ "::" ~ (NAME) ).map {
-    case(enumName, enumLabel) => Ast.expr.EnumByLabel(enumName, enumLabel)
+  val enumByName: P[Ast.expr.EnumByLabel] = P("::".!.? ~ NAME.rep(2, "::")).map {
+    case (first, names: Seq[Ast.identifier]) =>
+      val isAbsolute = first.nonEmpty
+      val (enumName, enumLabel) = names.takeRight(2) match {
+        case Seq(a, b) => (a, b)
+      }
+      val typePath = names.dropRight(2)
+      if (typePath.isEmpty) {
+        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.EmptyTypeId)
+      } else {
+        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.typeId(isAbsolute, typePath.map(_.name)))
+      }
   }
 
   val topExpr: P[Ast.expr] = P( test ~ End )

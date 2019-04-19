@@ -20,20 +20,25 @@ object ProcessExpr {
       case None =>
         None
       case Some(op) =>
-        Some(op match {
-          case "zlib" =>
-            ProcessZlib
-          case ReXor(arg) =>
-            ProcessXor(Expressions.parse(arg))
-          case ReRotate(dir, arg) =>
-            ProcessRotate(dir == "l", Expressions.parse(arg))
-          case ReCustom(name, args) =>
-            ProcessCustom(name.split('.').toList, Expressions.parseList(args))
-          case ReCustomNoArg(name) =>
-            ProcessCustom(name.split('.').toList, Seq())
-          case _ =>
-            throw YAMLParseException.badProcess(op, path)
-        })
+        try {
+          Some(op match {
+            case "zlib" =>
+              ProcessZlib
+            case ReXor(arg) =>
+              ProcessXor(Expressions.parse(arg))
+            case ReRotate(dir, arg) =>
+              ProcessRotate(dir == "l", Expressions.parse(arg))
+            case ReCustom(name, args) =>
+              ProcessCustom(name.split('.').toList, Expressions.parseList(args))
+            case ReCustomNoArg(name) =>
+              ProcessCustom(name.split('.').toList, Seq())
+            case _ =>
+              throw YAMLParseException.badProcess(op, path)
+          })
+        } catch {
+          case epe: Expressions.ParseException =>
+            throw YAMLParseException.expression(epe, path)
+        }
     }
   }
 }

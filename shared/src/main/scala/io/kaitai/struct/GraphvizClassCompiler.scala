@@ -3,7 +3,6 @@ package io.kaitai.struct
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 import io.kaitai.struct.precompile.CalculateSeqSizes
@@ -98,18 +97,6 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
     })
 
     tableEnd
-  }
-
-  def seqPosToStr(seqPos: Option[Int]): Option[String] = {
-    seqPos.map { (pos) =>
-      val posByte = pos / 8
-      val posBit = pos % 8
-      if (posBit == 0) {
-        s"$posByte"
-      } else {
-        s"$posByte:$posBit"
-      }
-    }
   }
 
   def compileParseInstance(className: List[String], id: InstanceIdentifier, inst: ParseInstanceSpec): Unit = {
@@ -272,46 +259,46 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
     }
   }
 
-  def expressionSize(ex: expr, attrName: String): String = {
+  def expressionSize(ex: Ast.expr, attrName: String): String = {
     expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_size", STYLE_EDGE_SIZE)
   }
 
-  def expressionPos(ex: expr, attrName: String): String = {
+  def expressionPos(ex: Ast.expr, attrName: String): String = {
     expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_pos", STYLE_EDGE_POS)
   }
 
-  def expressionType(ex: expr, attrName: String): String = {
+  def expressionType(ex: Ast.expr, attrName: String): String = {
     expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_type", STYLE_EDGE_VALUE)
   }
 
-  def expression(e: expr, portName: String, style: String): String = {
+  def expression(e: Ast.expr, portName: String, style: String): String = {
     affectedVars(e).foreach((v) =>
       links += ((v, portName, style))
     )
     htmlEscape(translator.translate(e))
   }
 
-  def affectedVars(e: expr): List[String] = {
+  def affectedVars(e: Ast.expr): List[String] = {
     e match {
-      case expr.BoolOp(op, values) =>
+      case Ast.expr.BoolOp(op, values) =>
         values.flatMap(affectedVars).toList
-      case expr.BinOp(left, op, right) =>
+      case Ast.expr.BinOp(left, op, right) =>
         affectedVars(left) ++ affectedVars(right)
-      case expr.UnaryOp(op, operand) =>
+      case Ast.expr.UnaryOp(op, operand) =>
         affectedVars(operand)
-      case expr.IfExp(condition, ifTrue, ifFalse) =>
+      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
         affectedVars(condition) ++ affectedVars(ifTrue) ++ affectedVars(ifFalse)
       //      case expr.Dict(keys, values) =>
-      case expr.Compare(left, ops, right) =>
+      case Ast.expr.Compare(left, ops, right) =>
         affectedVars(left) ++ affectedVars(right)
       //      case expr.Call(func, args) =>
-      case expr.IntNum(_) | expr.FloatNum(_) | expr.Str(_) | expr.Bool(_) =>
+      case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) | Ast.expr.Str(_) | Ast.expr.Bool(_) =>
         List()
-      case expr.EnumByLabel(enumName, label) =>
+      case _: Ast.expr.EnumByLabel =>
         List()
-      case expr.EnumById(enumName, id) =>
+      case Ast.expr.EnumById(_, id, _) =>
         affectedVars(id)
-      case expr.Attribute(value, attr) =>
+      case Ast.expr.Attribute(value, attr) =>
         val targetClass = translator.detectType(value)
         targetClass match {
           case t: UserType =>
@@ -328,17 +315,20 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
           case _ =>
             affectedVars(value)
         }
-      case expr.Subscript(value, idx) =>
+      case Ast.expr.Subscript(value, idx) =>
         affectedVars(value) ++ affectedVars(idx)
       case SwitchType.ELSE_CONST =>
         // "_" is a special const for
         List()
-      case expr.Name(Ast.identifier("_io")) =>
-        // "_io" is a special const too
-        List()
-      case expr.Name(id) =>
-        List(resolveLocalNode(id.name))
-      case expr.List(elts) =>
+      case Ast.expr.Name(id) =>
+        if (id.name.charAt(0) == '_') {
+          // other special consts like "_io", "_index", etc
+          List()
+        } else {
+          // this must be local name, resolve it
+          List(resolveLocalNode(id.name))
+        }
+      case Ast.expr.List(elts) =>
         elts.flatMap(affectedVars).toList
     }
   }
@@ -443,5 +433,23 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
 
   def htmlEscape(s: String): String = {
     s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;")
+  }
+
+  /**
+    * Converts bit-level position into byte/bit human-readable combination.
+    * @param seqPos optional number of bits
+    * @return fractional human-readable string which displays "bytes:bits",
+    *         akin to "minutes:seconds" time display
+    */
+  def seqPosToStr(seqPos: Option[Int]): Option[String] = {
+    seqPos.map { (pos) =>
+      val posByte = pos / 8
+      val posBit = pos % 8
+      if (posBit == 0) {
+        s"$posByte"
+      } else {
+        s"$posByte:$posBit"
+      }
+    }
   }
 }

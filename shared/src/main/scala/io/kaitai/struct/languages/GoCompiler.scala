@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
@@ -16,8 +16,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalFooter
     with UniversalDoc
     with AllocateIOLocalVar
-    with GoReads
-    with FixedContentsUsingArrayByteLiteral {
+    with GoReads {
   import GoCompiler._
 
   override val translator = new GoTranslator(out, typeProvider, importList)
@@ -117,8 +116,23 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = ???
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents($contents);")
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
+    out.puts(s"${privateMemberName(attrName)}, err = $normalIO.ReadBytes(${contents.length})")
+
+    out.puts(s"if err != nil {")
+    out.inc
+    out.puts("return err")
+    out.dec
+    out.puts("}")
+
+    importList.add("bytes")
+    importList.add("errors")
+    val expected = translator.resToStr(translator.doByteArrayLiteral(contents))
+    out.puts(s"if !bytes.Equal(${privateMemberName(attrName)}, $expected) {")
+    out.inc
+    out.puts("return errors.New(\"Unexpected fixed contents\")")
+    out.dec
+    out.puts("}")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
@@ -146,7 +160,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
+      case RepeatEos | RepeatExpr(_) => s"$javaName[len($javaName) - 1]"
       case RepeatUntil(_) => translator.specialName(Identifier.ITERATOR2)
       case NoRepeat => javaName
     }
@@ -158,8 +172,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def useIO(ioEx: Ast.expr): String = {
-    out.puts(s"$kstreamName io = ${expression(ioEx)};")
-    "io"
+    out.puts(s"thisIo := ${expression(ioEx)}")
+    "thisIo"
   }
 
   override def pushPos(io: String): Unit = {
@@ -191,10 +205,19 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, 0);")
     //out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))})")
-    out.puts(s"for !$io.EOF() {")
+    out.puts(s"for {")
     out.inc
+
+    val eofVar = translator.allocateLocalVar()
+    out.puts(s"${translator.localVarName(eofVar)}, err := this._io.EOF()")
+    translator.outAddErrCheck()
+    out.puts(s"if ${translator.localVarName(eofVar)} {")
+    out.inc
+    out.puts("break")
+    out.dec
+    out.puts("}")
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, r: TranslatorResult): Unit = {
@@ -205,7 +228,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>((int) (${expression(repeatExpr)}));")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, ${expression(repeatExpr)})")
     out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))}, ${expression(repeatExpr)})")
     out.puts(s"for i := range ${privateMemberName(id)} {")
     out.inc
@@ -219,30 +242,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayType(dataType))}();")
-    out.puts("{")
-    out.inc
-    out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.specialName(Identifier.ITERATOR)};")
-    out.puts("do {")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, 0);")
+    out.puts("for {")
     out.inc
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, r: TranslatorResult, isRaw: Boolean): Unit = {
     val expr = translator.resToStr(r)
-    val (typeDecl, tempVar) = if (isRaw) {
-      ("byte[] ", translator.specialName(Identifier.ITERATOR2))
-    } else {
-      ("", translator.specialName(Identifier.ITERATOR))
-    }
-    out.puts(s"$typeDecl$tempVar = $expr;")
-    out.puts(s"${privateMemberName(id)}.add($tempVar);")
+    val tempVar = translator.specialName(Identifier.ITERATOR)
+    out.puts(s"$tempVar := $expr")
+    out.puts(s"${privateMemberName(id)} = append(${privateMemberName(id)}, $tempVar)")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts(s"if ${expression(untilExpr)} {")
+    out.inc
+    out.puts("break")
     out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts("}")
     out.dec
     out.puts("}")
   }
@@ -263,7 +281,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1 =>
-        s"$io.ReadBitsInt(1) != 0"
+        s"$io.ReadBitsInt(1)"
       case BitsType(width: Int) =>
         s"$io.ReadBitsInt($width)"
       case t: UserType =>
@@ -297,18 +315,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"switch (${expression(on)}) {")
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    // Java is very specific about what can be used as "condition" in "case
-    // condition:".
-    val condStr = condition match {
-      case Ast.expr.EnumByLabel(enumName, enumVal) =>
-        // If switch is over a enum, only literal enum values are supported,
-        // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
-        value2Const(enumVal.name)
-      case _ =>
-        expression(condition)
-    }
-
-    out.puts(s"case $condStr: {")
+    out.puts(s"case ${expression(condition)}: {")
     out.inc
   }
 
@@ -351,14 +358,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(instName)} = $converted")
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if (this.${calculatedFlagForName(instName)}) {")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     universalFooter
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)}, nil")
   }
 
@@ -366,41 +373,21 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"this.${calculatedFlagForName(instName)} = true")
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
-    val enumClass = type2class(enumName)
+    val fullEnumName: List[String] = curClass ++ List(enumName)
+    val fullEnumNameStr = types2class(fullEnumName)
 
     out.puts
-    out.puts(s"public enum $enumClass {")
+    out.puts(s"type $fullEnumNameStr int")
+    out.puts("const (")
     out.inc
 
-    if (enumColl.size > 1) {
-      enumColl.dropRight(1).foreach { case (id, label) =>
-        out.puts(s"${value2Const(label.name)}($id),")
-      }
-    }
-    enumColl.last match {
-      case (id, label) =>
-        out.puts(s"${value2Const(label.name)}($id);")
+    enumColl.foreach { case (id, label) =>
+      out.puts(s"${enumToStr(fullEnumName, label.name)} $fullEnumNameStr = $id")
     }
 
-    out.puts
-    out.puts("private final long id;")
-    out.puts(s"$enumClass(long id) { this.id = id; }")
-    out.puts("public long id() { return id; }")
-    out.puts(s"private static final Map<Long, $enumClass> byId = new HashMap<Long, $enumClass>(${enumColl.size});")
-    out.puts("static {")
-    out.inc
-    out.puts(s"for ($enumClass e : $enumClass.values())")
-    out.inc
-    out.puts(s"byId.put(e.id(), e);")
     out.dec
-    out.dec
-    out.puts("}")
-    out.puts(s"public static $enumClass byId(long id) { return byId.get(id); }")
-    out.dec
-    out.puts("}")
+    out.puts(")")
   }
-
-  def value2Const(s: String) = s.toUpperCase
 
   def idToStr(id: Identifier): String = {
     id match {
@@ -473,21 +460,30 @@ object GoCompiler extends LanguageCompilerStatic
 
       case AnyType => "interface{}"
       case KaitaiStreamType => "*" + kstreamName
-      case KaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType => kstructName
 
       case t: UserType => "*" + types2class(t.classSpec match {
         case Some(cs) => cs.name
         case None => t.name
       })
-      case EnumType(name, _) => types2class(name)
+      case t: EnumType => types2class(t.enumSpec.get.name)
 
       case ArrayType(inType) => s"[]${kaitaiType2NativeType(inType)}"
 
-      case SwitchType(_, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
+      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
   }
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString("_")
+
+  def enumToStr(enumTypeAbs: List[String]): String = {
+    val enumName = enumTypeAbs.last
+    val enumClass: List[String] = enumTypeAbs.dropRight(1)
+    enumToStr(enumClass, enumName)
+  }
+
+  def enumToStr(typeName: List[String], enumName: String): String =
+    types2class(typeName) + "__" + type2class(enumName)
 
   override def kstreamName: String = "kaitai.Stream"
   override def kstructName: String = "interface{}"

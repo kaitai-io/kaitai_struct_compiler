@@ -22,7 +22,7 @@ class RustClassCompiler(
     extraAttrs += AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None))
     extraAttrs += AttrSpec(List(), ParentIdentifier, curClass.parentType)
 
-    extraAttrs ++= getExtraAttrs(curClass)
+    extraAttrs ++= ExtraAttrs.forClassSpec(curClass, lang)
 
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
@@ -36,9 +36,9 @@ class RustClassCompiler(
     }
     
     // Constructor = Read() function
-    compileReadFunction(curClass, extraAttrs)
+    compileReadFunction(curClass)
     
-    compileInstances(curClass, extraAttrs)
+    compileInstances(curClass)
 
     compileAttrReaders(curClass.seq ++ extraAttrs)
     lang.classFooter(curClass.name)
@@ -49,7 +49,7 @@ class RustClassCompiler(
     compileSubclasses(curClass)
   }
 
-  def compileReadFunction(curClass: ClassSpec, extraAttrs: ListBuffer[AttrSpec]) = {
+  def compileReadFunction(curClass: ClassSpec) = {
     lang.classConstructorHeader(
       curClass.name,
       curClass.parentType,
@@ -66,18 +66,18 @@ class RustClassCompiler(
     
     lang.readHeader(defEndian, false)
     
-    compileSeq(curClass.seq, extraAttrs, defEndian)
+    compileSeq(curClass.seq, defEndian)
     lang.classConstructorFooter
   }
 
-  override def compileInstances(curClass: ClassSpec, extraAttrs: ListBuffer[AttrSpec]) = {
+  override def compileInstances(curClass: ClassSpec) = {
     lang.instanceDeclHeader(curClass.name)
     curClass.instances.foreach { case (instName, instSpec) =>
-      compileInstance(curClass.name, instName, instSpec, extraAttrs, curClass.meta.endian)
+      compileInstance(curClass.name, instName, instSpec, curClass.meta.endian)
     }
   }
 
-  override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
+  override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, endian: Option[Endianness]): Unit = {
     // FIXME: support calculated endianness
 
     // Determine datatype
@@ -86,7 +86,7 @@ class RustClassCompiler(
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
-    lang.instanceCheckCacheAndReturn(instName)
+    lang.instanceCheckCacheAndReturn(instName, dataType)
 
     instSpec match {
       case vi: ValueInstanceSpec =>
@@ -94,17 +94,11 @@ class RustClassCompiler(
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
       case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, extraAttrs, None) // FIXME
+        lang.attrParse(i, instName, None) // FIXME
     }
 
     lang.instanceSetCalculated(instName)
-    lang.instanceReturn(instName)
+    lang.instanceReturn(instName, dataType)
     lang.instanceFooter
-  }
-
-  def getExtraAttrs(curClass: ClassSpec): List[AttrSpec] = {
-    curClass.seq.foldLeft(List[AttrSpec]())(
-      (attrs, attr) => attrs ++ ExtraAttrs.forAttr(attr)
-    )
   }
 }

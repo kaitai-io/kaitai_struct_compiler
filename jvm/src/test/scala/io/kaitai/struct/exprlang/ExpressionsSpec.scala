@@ -131,8 +131,39 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("~(7+3)") should be (UnaryOp(Invert, BinOp(IntNum(7), Add, IntNum(3))))
     }
 
+    // Enums
     it("parses port::http") {
       Expressions.parse("port::http") should be (EnumByLabel(identifier("port"), identifier("http")))
+    }
+
+    it("parses some_type::port::http") {
+      Expressions.parse("some_type::port::http") should be (
+        EnumByLabel(
+          identifier("port"),
+          identifier("http"),
+          typeId(absolute = false, Seq("some_type"))
+        )
+      )
+    }
+
+    it("parses parent_type::child_type::port::http") {
+      Expressions.parse("parent_type::child_type::port::http") should be (
+        EnumByLabel(
+          identifier("port"),
+          identifier("http"),
+          typeId(absolute = false, Seq("parent_type", "child_type"))
+        )
+      )
+    }
+
+    it("parses ::parent_type::child_type::port::http") {
+      Expressions.parse("::parent_type::child_type::port::http") should be (
+        EnumByLabel(
+          identifier("port"),
+          identifier("http"),
+          typeId(absolute = true, Seq("parent_type", "child_type"))
+        )
+      )
     }
 
     it("parses port::http.to_i + 8000 == 8080") {
@@ -169,6 +200,36 @@ class ExpressionsSpec extends FunSpec {
 
     it("parses truer") {
       Expressions.parse("truer") should be (Name(identifier("truer")))
+    }
+
+    // Boolean operations
+    it("parses not foo") {
+      Expressions.parse("not foo") should be (
+        UnaryOp(
+          Ast.unaryop.Not,
+          Name(identifier("foo"))
+        )
+      )
+    }
+
+    it("parses note_len") {
+      Expressions.parse("note_len") should be (Name(identifier("note_len")))
+    }
+
+    it("parses notnot") {
+      Expressions.parse("notnot") should be (Name(identifier("notnot")))
+    }
+
+    it("parses not not true") {
+      Expressions.parse("not not true") should be (
+        UnaryOp(
+          Ast.unaryop.Not,
+          UnaryOp(
+            Ast.unaryop.Not,
+            Bool(true)
+          )
+        )
+      )
     }
 
     // String literals

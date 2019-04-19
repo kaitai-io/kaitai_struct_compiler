@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType.EnumType
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -39,7 +40,20 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s":${enumTypeAbs.last}_$label"
   override def doEnumById(enumType: List[String], id: String): String =
-    s"${RubyCompiler.kstreamName}::resolve_enum(${enumType.last.toUpperCase}, $id)"
+    s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumType)}, $id)"
+
+  def enumDirectMap(enumTypeAndName: List[String]): String = {
+    val enumTypeAbs = enumTypeAndName.dropRight(1)
+    val enumTypeName = enumTypeAndName.last.toUpperCase
+
+    val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
+
+    if (enumTypeRel.nonEmpty) {
+      (enumTypeRel.map((x) => Utils.upperCamelCase(x)) ++ List(enumTypeName)).mkString("::")
+    } else {
+      enumTypeName
+    }
+  }
 
   override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"

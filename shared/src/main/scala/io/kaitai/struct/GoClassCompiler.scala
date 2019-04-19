@@ -17,15 +17,17 @@ class GoClassCompiler(
   override def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
-    val extraAttrs = ListBuffer[AttrSpec]()
-    extraAttrs += AttrSpec(List(), IoIdentifier, KaitaiStreamType)
-    extraAttrs += AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None))
-    extraAttrs += AttrSpec(List(), ParentIdentifier, curClass.parentType)
-
-    extraAttrs ++= getExtraAttrs(curClass)
+    val extraAttrs = List(
+      AttrSpec(List(), IoIdentifier, KaitaiStreamType),
+      AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None)),
+      AttrSpec(List(), ParentIdentifier, curClass.parentType)
+    ) ++ ExtraAttrs.forClassSpec(curClass, lang)
 
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
+
+    // Enums declaration defines types, so they need to go first
+    compileEnums(curClass)
 
     // Basic struct declaration
     lang.classHeader(curClass.name)
@@ -36,19 +38,17 @@ class GoClassCompiler(
     lang.classFooter(curClass.name)
 
     // Constructor = Read() function
-    compileReadFunction(curClass, extraAttrs)
+    compileReadFunction(curClass)
 
-    compileInstances(curClass, extraAttrs)
+    compileInstances(curClass)
 
     compileAttrReaders(curClass.seq ++ extraAttrs)
-
-    compileEnums(curClass)
 
     // Recursive types
     compileSubclasses(curClass)
   }
 
-  def compileReadFunction(curClass: ClassSpec, extraAttrs: ListBuffer[AttrSpec]) = {
+  def compileReadFunction(curClass: ClassSpec) = {
     lang.classConstructorHeader(
       curClass.name,
       curClass.parentType,
@@ -61,11 +61,11 @@ class GoClassCompiler(
       case Some(fe: FixedEndian) => Some(fe)
       case _ => None
     }
-    compileSeq(curClass.seq, extraAttrs, defEndian)
+    compileSeq(curClass.seq, defEndian)
     lang.classConstructorFooter
   }
 
-  override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, extraAttrs: ListBuffer[AttrSpec], endian: Option[Endianness]): Unit = {
+  override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, endian: Option[Endianness]): Unit = {
     // FIXME: support calculated endianness
 
     // Determine datatype
@@ -74,7 +74,7 @@ class GoClassCompiler(
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
-    lang.instanceCheckCacheAndReturn(instName)
+    lang.instanceCheckCacheAndReturn(instName, dataType)
 
     instSpec match {
       case vi: ValueInstanceSpec =>
@@ -82,17 +82,11 @@ class GoClassCompiler(
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
       case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, extraAttrs, None) // FIXME
+        lang.attrParse(i, instName, None) // FIXME
     }
 
     lang.instanceSetCalculated(instName)
-    lang.instanceReturn(instName)
+    lang.instanceReturn(instName, dataType)
     lang.instanceFooter
-  }
-
-  def getExtraAttrs(curClass: ClassSpec): List[AttrSpec] = {
-    curClass.seq.foldLeft(List[AttrSpec]())(
-      (attrs, attr) => attrs ++ ExtraAttrs.forAttr(attr)
-    )
   }
 }

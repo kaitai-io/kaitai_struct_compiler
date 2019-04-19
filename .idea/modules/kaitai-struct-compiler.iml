@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<module external.linked.project.id="compilerJS" external.linked.project.path="$MODULE_DIR$/../../js" external.root.project.path="$MODULE_DIR$/../.." external.system.id="SBT" type="JAVA_MODULE" version="4">
-  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8">
+<module external.linked.project.id="compilerJS [file:/home/greycat/git/kaitai_struct/compiler/]" external.linked.project.path="$MODULE_DIR$/../../js" external.root.project.path="$MODULE_DIR$/../.." external.system.id="SBT" type="JAVA_MODULE" version="4">
+  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_11">
     <output url="file://$MODULE_DIR$/../../js/target/scala-2.12/classes" />
     <output-test url="file://$MODULE_DIR$/../../js/target/scala-2.12/test-classes" />
     <exclude-output />
@@ -17,8 +17,6 @@
       <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.12/resource_managed/main" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/../../js/src/test/resources" type="java-test-resource" />
       <sourceFolder url="file://$MODULE_DIR$/../../js/target/scala-2.12/resource_managed/test" type="java-test-resource" />
-      <excludeFolder url="file://$MODULE_DIR$/../../js/target/resolution-cache" />
-      <excludeFolder url="file://$MODULE_DIR$/../../js/target/scala-2.11" />
       <excludeFolder url="file://$MODULE_DIR$/../../js/target/streams" />
       <excludeFolder url="file://$MODULE_DIR$/../../js/target/universal" />
     </content>

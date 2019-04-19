@@ -1,13 +1,13 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.format.{ClassSpec, JavaScriptClassSpecs, JavaScriptKSYParser, KSVersion}
+import io.kaitai.struct.format.{JavaScriptKSYParser, KSVersion}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExport
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 @JSExport
 object MainJs {
@@ -16,13 +16,12 @@ object MainJs {
   @JSExport
   def compile(langStr: String, yaml: js.Object, importer: JavaScriptImporter, debug: Boolean = false): js.Promise[js.Dictionary[String]] = {
     try {
-      val config = new RuntimeConfig(debug = debug)
+      // TODO: add proper enabled by a flag
+      //Log.initFromVerboseFlag(Seq("file", "value", "parent", "type_resolve", "type_valid", "seq_sizes", "import"))
+      val config = new RuntimeConfig(autoRead = !debug, readStoresPos = debug)
       val lang = LanguageCompilerStatic.byString(langStr)
 
-      val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
-      val firstSpec = ClassSpec.fromYaml(yamlScala)
-      val specs = new JavaScriptClassSpecs(importer, firstSpec)
-      Main.importAndPrecompile(specs, config).map { (_) =>
+      JavaScriptKSYParser.yamlToSpecs(yaml, importer, config).map { (specs) =>
         specs.flatMap({ case (_, spec) =>
           val files = Main.compile(specs, spec, lang, config).files
           files.map((x) => x.fileName -> x.contents).toMap

@@ -4,7 +4,13 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
-sealed trait DataType
+sealed trait DataType {
+  /**
+    * @return Data type as non-owning data type. Default implementation
+    *         always returns itself, complex types
+    */
+  def asNonOwning: DataType = this
+}
 
 /**
   * A collection of case objects and classes that are used to represent internal
@@ -21,14 +27,14 @@ object DataType {
     * A common trait for all types that can be read with a simple,
     * parameterless KaitaiStream API call.
     */
-  trait ReadableType extends DataType {
+  sealed trait ReadableType extends DataType {
     def apiCall(defEndian: Option[FixedEndian]): String
   }
 
-  abstract class NumericType extends DataType
-  abstract class BooleanType extends DataType
+  abstract sealed class NumericType extends DataType
+  abstract sealed class BooleanType extends DataType
 
-  abstract class IntType extends NumericType
+  abstract sealed class IntType extends NumericType
   case object CalcIntType extends IntType
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
     override def apiCall(defEndian: Option[FixedEndian]): String = if (signed) "s1" else "u1"
@@ -87,43 +93,103 @@ object DataType {
   case class StrFromBytesType(bytes: BytesType, encoding: String) extends StrType
 
   case object CalcBooleanType extends BooleanType
-  case class ArrayType(elType: DataType) extends DataType
 
+  /**
+    * Complex data type is a data type which creation and destruction is
+    * not an atomic, built-in operation, but rather a sequence of new/delete
+    * operations. The main common trait for all complex data types is a flag
+    * that determines whether they're "owning" or "borrowed". Owning objects
+    * manage their own creation/destruction, borrowed rely on other doing
+    * that.
+    */
+  abstract sealed class ComplexDataType extends DataType {
+    /**
+      * @return If true, this is "owning" type: for languages where data ownership
+      *         matters, this one represents primary owner of the data block, who
+      *         will be responsible for whole life cycle: creation of the object
+      *         and its destruction.
+      */
+    def isOwning: Boolean
+  }
+
+  /**
+    * Common abstract ancestor for all types which can treated as "user types".
+    * Namely, this typically means that this type has a name, may have some
+    * parameters, and forced parent expression.
+    * @param name name of the type, might include several components
+    * @param forcedParent optional parent enforcement expression
+    * @param args parameters passed into this type as extra arguments
+    */
   abstract class UserType(
     val name: List[String],
     val forcedParent: Option[Ast.expr],
     var args: Seq[Ast.expr]
-  ) extends DataType {
+  ) extends ComplexDataType {
     var classSpec: Option[ClassSpec] = None
     def isOpaque = {
       val cs = classSpec.get
       cs.isTopLevel || cs.meta.isOpaque
+    }
+
+    override def asNonOwning: UserType = {
+      if (!isOwning) {
+        this
+      } else {
+        val r = CalcUserType(name, forcedParent, args)
+        r.classSpec = classSpec
+        r
+      }
     }
   }
   case class UserTypeInstream(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
     _args: Seq[Ast.expr] = Seq()
-  ) extends UserType(_name, _forcedParent, _args)
+  ) extends UserType(_name, _forcedParent, _args) {
+    def isOwning = true
+  }
   case class UserTypeFromBytes(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
     _args: Seq[Ast.expr] = Seq(),
     bytes: BytesType,
     override val process: Option[ProcessExpr]
-  ) extends UserType(_name, _forcedParent, _args) with Processing
+  ) extends UserType(_name, _forcedParent, _args) with Processing {
+    override def isOwning = true
+  }
+  case class CalcUserType(
+    _name: List[String],
+    _forcedParent: Option[Ast.expr],
+    _args: Seq[Ast.expr] = Seq()
+  ) extends UserType(_name, _forcedParent, _args) {
+    override def isOwning = false
+  }
+
+  case class ArrayType(elType: DataType) extends ComplexDataType {
+    override def isOwning: Boolean = true
+    override def asNonOwning: CalcArrayType = CalcArrayType(elType)
+  }
+  case class CalcArrayType(elType: DataType) extends ComplexDataType {
+    override def isOwning: Boolean = false
+  }
 
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
 
   case object AnyType extends DataType
-  case object KaitaiStructType extends DataType
+  case object KaitaiStructType extends ComplexDataType {
+    def isOwning = true
+    override def asNonOwning: DataType = CalcKaitaiStructType
+  }
+  case object CalcKaitaiStructType extends ComplexDataType {
+    def isOwning = false
+  }
   case object KaitaiStreamType extends DataType
 
   case class EnumType(name: List[String], basedOn: IntType) extends DataType {
     var enumSpec: Option[EnumSpec] = None
   }
 
-  case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, DataType]) extends DataType {
+  case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, DataType], isOwning: Boolean = true) extends ComplexDataType {
     def combinedType: DataType = TypeDetector.combineTypes(cases.values)
 
     /**
@@ -160,6 +226,8 @@ object DataType {
       cases.values.exists((t) =>
         t.isInstanceOf[UserTypeFromBytes] || t.isInstanceOf[BytesType]
       )
+
+    override def asNonOwning: DataType = SwitchType(on, cases, false)
   }
 
   object SwitchType {
@@ -301,7 +369,11 @@ object DataType {
       }
     }
 
-    arg.enumRef match {
+    applyEnumType(r, arg.enumRef, path)
+  }
+
+  private def applyEnumType(r: DataType, enumRef: Option[String], path: List[String]) = {
+    enumRef match {
       case Some(enumName) =>
         r match {
           case numType: IntType => EnumType(classNameToList(enumName), numType)
@@ -315,6 +387,9 @@ object DataType {
 
   private val RePureIntType = """([us])(2|4|8)""".r
   private val RePureFloatType = """f(4|8)""".r
+
+  def pureFromString(dto: Option[String], enumRef: Option[String], path: List[String]): DataType =
+    applyEnumType(pureFromString(dto), enumRef, path)
 
   def pureFromString(dto: Option[String]): DataType = dto match {
     case None => CalcBytesType
@@ -348,10 +423,10 @@ object DataType {
       )
     case "str" => CalcStrType
     case "bool" => CalcBooleanType
-    case "struct" => KaitaiStructType
+    case "struct" => CalcKaitaiStructType
     case "io" => KaitaiStreamType
     case "any" => AnyType
-    case _ => UserTypeInstream(classNameToList(dt), None)
+    case _ => CalcUserType(classNameToList(dt), None)
   }
 
   def getEncoding(curEncoding: Option[String], metaDef: MetaSpec, path: List[String]): String = {

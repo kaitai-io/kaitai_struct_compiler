@@ -446,7 +446,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if let Some(x) = ${privateMemberName(instName)} {")
     out.inc
     out.puts("return x;")
@@ -455,7 +455,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
@@ -538,9 +538,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}>"
 
       case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
-      case KaitaiStructType => s"Option<Box<KaitaiStruct>>"
+      case KaitaiStructType | CalcKaitaiStructType => s"Option<Box<KaitaiStruct>>"
       
-      case SwitchType(on, cases) => kaitaiType2NativeType(TypeDetector.combineTypes(cases.values))
+      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
   }
   
@@ -576,7 +576,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case KaitaiStreamType => "None"
       case KaitaiStructType => "None"
       
-      case SwitchType(on, cases) => ""
+      case _: SwitchType => ""
       // TODO
     }
   }

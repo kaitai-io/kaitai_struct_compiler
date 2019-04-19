@@ -51,11 +51,13 @@ trait CommonArraysAndCast[T] extends TypeDetector {
     * @return translation result
     */
   def doCastOrArray(v: Ast.expr.CastToType): T = {
+    val castToType = detectCastType(v.typeName)
+
     v.value match {
       case array: Ast.expr.List =>
         // Special handling for literal arrays: if cast is present,
         // then we don't need to guess the data type
-        detectCastType(v.typeName) match {
+        castToType match {
           case _: BytesType =>
             doByteArray(array.elts)
           case ArrayType(elType) =>
@@ -63,14 +65,14 @@ trait CommonArraysAndCast[T] extends TypeDetector {
           case _ =>
             // No luck, this is some kind of weird cast, not a type enforcement;
             // Just do it and let real type casting deal with it.
-            doCast(v.value, v.typeName)
+            doCast(v.value, castToType)
         }
       case _ =>
-        doCast(v.value, v.typeName)
+        doCast(v.value, castToType)
     }
   }
 
-  def doCast(value: Ast.expr, typeName: Ast.typeId): T
+  def doCast(value: Ast.expr, typeName: DataType): T
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): T
   def doByteArrayLiteral(arr: Seq[Byte]): T
   def doByteArrayNonLiteral(elts: Seq[Ast.expr]): T

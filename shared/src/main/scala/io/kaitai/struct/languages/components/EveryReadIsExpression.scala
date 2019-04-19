@@ -25,7 +25,6 @@ trait EveryReadIsExpression
     id: Identifier,
     dataType: DataType,
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
     isRaw: Boolean,
     defEndian: Option[FixedEndian],
@@ -33,16 +32,16 @@ trait EveryReadIsExpression
   ): Unit = {
     val assignType = assignTypeOpt.getOrElse(dataType)
 
-    if (debug && rep != NoRepeat)
+    if (config.readStoresPos && rep != NoRepeat)
       attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
       case FixedBytesType(c, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
-        attrUserTypeParse(id, t, io, extraAttrs, rep, defEndian)
+        attrUserTypeParse(id, t, io, rep, defEndian)
       case t: BytesType =>
-        attrBytesTypeParse(id, t, io, extraAttrs, rep, isRaw)
+        attrBytesTypeParse(id, t, io, rep, isRaw)
       case st: SwitchType =>
         val isNullable = if (switchBytesOnlyAsRaw) {
           st.isNullableSwitchRaw
@@ -50,7 +49,7 @@ trait EveryReadIsExpression
           st.isNullable
         }
 
-        attrSwitchTypeParse(id, st.on, st.cases, io, extraAttrs, rep, defEndian, isNullable, st.combinedType)
+        attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, isNullable, st.combinedType)
       case t: StrFromBytesType =>
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), Ast.expr.Str(t.encoding))
         handleAssignment(id, expr, rep, isRaw)
@@ -62,7 +61,7 @@ trait EveryReadIsExpression
         handleAssignment(id, expr, rep, isRaw)
     }
 
-    if (debug && rep != NoRepeat)
+    if (config.readStoresPos && rep != NoRepeat)
       attrDebugEnd(id, dataType, io, rep)
   }
 
@@ -70,17 +69,13 @@ trait EveryReadIsExpression
     id: Identifier,
     dataType: BytesType,
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
     isRaw: Boolean
   ): Unit = {
     // use intermediate variable name, if we'll be doing post-processing
     val rawId = dataType.process match {
       case None => id
-      case Some(_) =>
-        val rawId = RawIdentifier(id)
-        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, dataType))
-        rawId
+      case Some(_) => RawIdentifier(id)
     }
 
     val expr = parseExprBytes(dataType, io)
@@ -104,25 +99,23 @@ trait EveryReadIsExpression
     }
   }
 
-  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
+  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType.bytes
 
-        attrParse2(rawId, byteType, io, extraAttrs, rep, true, defEndian)
+        attrParse2(rawId, byteType, io, rep, true, defEndian)
 
         val extraType = rep match {
           case NoRepeat => byteType
           case _ => ArrayType(byteType)
         }
 
-        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, extraType))
-
         this match {
           case thisStore: AllocateAndStoreIO =>
-            thisStore.allocateIO(rawId, rep, extraAttrs)
+            thisStore.allocateIO(rawId, rep)
           case thisLocal: AllocateIOLocalVar =>
             thisLocal.allocateIO(rawId, rep)
         }
@@ -131,13 +124,13 @@ trait EveryReadIsExpression
         io
     }
     val expr = parseExpr(dataType, dataType, newIO, defEndian)
-    if (!debug) {
+    if (config.autoRead) {
       handleAssignment(id, expr, rep, false)
     } else {
-      // Debug mode requires one to actually call "_read" method on constructed user type,
-      // and this must be done as a separate statement - or else exception handler would
-      // blast the whole structure, not only this element. This, in turn, makes us assign
-      // constructed element to a temporary variable in case on repetitions
+      // Disabled autoRead requires one to actually call `_read` method on constructed
+      // user type, and this must be done as a separate statement - or else exception
+      // handler would blast the whole structure, not only this element. This, in turn,
+      // makes us assign constructed element to a temporary variable in case of arrays.
       rep match {
         case NoRepeat =>
           handleAssignmentSimple(id, expr)
@@ -156,7 +149,6 @@ trait EveryReadIsExpression
     on: Ast.expr,
     cases: Map[Ast.expr, DataType],
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
     defEndian: Option[FixedEndian],
     isNullable: Boolean,
@@ -169,17 +161,17 @@ trait EveryReadIsExpression
       (dataType) => {
         if (isNullable)
           condIfSetNonNull(id)
-        attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
+        attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
       },
       (dataType) => if (switchBytesOnlyAsRaw) {
         dataType match {
           case t: BytesType =>
-            attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
+            attrParse2(RawIdentifier(id), dataType, io, rep, false, defEndian, Some(assignType))
           case _ =>
-            attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
+            attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
         }
       } else {
-        attrParse2(id, dataType, io, extraAttrs, rep, false, defEndian, Some(assignType))
+        attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
       }
     )
   }
@@ -201,10 +193,10 @@ trait EveryReadIsExpression
 
   def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
   def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String
-  def userTypeDebugRead(id: String): Unit = {}
+  def userTypeDebugRead(id: String): Unit = ???
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
-    if (debug)
+    if (config.readStoresPos)
       attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }

@@ -63,13 +63,14 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       case GenericStructClassSpec =>
         KaitaiStructType
       case cs: ClassSpec =>
-        val ut = UserTypeInstream(cs.name, None)
+        val ut = CalcUserType(cs.name, None)
         ut.classSpec = Some(cs)
         ut
     }
   }
 
-  override def resolveEnum(enumName: String): EnumSpec = resolveEnum(nowClass, enumName)
+  override def resolveEnum(inType: Ast.typeId, enumName: String): EnumSpec =
+    resolveEnum(resolveClassSpec(inType), enumName)
 
   def resolveEnum(inClass: ClassSpec, enumName: String): EnumSpec = {
     inClass.enums.get(enumName) match {
@@ -86,12 +87,18 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
   }
 
   override def resolveType(typeName: Ast.typeId): DataType =
-    resolveType(if (typeName.absolute) topClass else nowClass, typeName.names)
+    makeUserType(resolveClassSpec(typeName))
 
-  def resolveType(inClass: ClassSpec, typeName: Seq[String]): DataType =
-    makeUserType(resolveClassSpec(inClass, typeName))
+  def resolveClassSpec(typeName: Ast.typeId): ClassSpec =
+    resolveClassSpec(
+      if (typeName.absolute) topClass else nowClass,
+      typeName.names
+    )
 
   def resolveClassSpec(inClass: ClassSpec, typeName: Seq[String]): ClassSpec = {
+    if (typeName.isEmpty)
+      return inClass
+
     val headTypeName :: restTypesNames = typeName.toList
     val nextClass = resolveClassSpec(inClass, headTypeName)
     if (restTypesNames.isEmpty) {

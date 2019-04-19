@@ -1,7 +1,8 @@
 package io.kaitai.struct.format
 
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType.{KaitaiStructType, UserTypeInstream}
+import io.kaitai.struct.datatype.DataType._
+
 import scala.collection.mutable
 
 /**
@@ -53,8 +54,8 @@ case class ClassSpec(
   var seqSize: Sized = NotCalculatedSized
 
   def parentType: DataType = parentClass match {
-    case UnknownClassSpec | GenericStructClassSpec => KaitaiStructType
-    case t: ClassSpec => UserTypeInstream(t.name, None)
+    case UnknownClassSpec | GenericStructClassSpec => CalcKaitaiStructType
+    case t: ClassSpec => CalcUserType(t.name, None)
   }
 
   /**
@@ -66,6 +67,21 @@ case class ClassSpec(
     types.foreach { case (_, typeSpec) =>
       typeSpec.forEachRec(proc)
     }
+  }
+
+  override def equals(obj: Any): Boolean = obj match {
+    case other: ClassSpec =>
+      path == other.path &&
+      isTopLevel == other.isTopLevel &&
+      meta == other.meta &&
+      doc == other.doc &&
+      params == other.params &&
+      seq == other.seq &&
+      types == other.types &&
+      instances == other.instances &&
+      enums == other.enums &&
+      name == other.name
+    case _ => false
   }
 }
 

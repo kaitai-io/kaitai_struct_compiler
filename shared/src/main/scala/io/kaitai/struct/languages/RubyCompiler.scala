@@ -64,7 +64,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classHeader(name: String): Unit = {
     out.puts(s"class ${type2class(name)} < $kstructName")
     out.inc
-    if (debug)
+    if (config.readStoresPos)
       out.puts("attr_reader :_debug")
   }
 
@@ -88,7 +88,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
 
-    if (debug) {
+    if (config.readStoresPos) {
       out.puts("@_debug = {}")
     }
   }
@@ -209,6 +209,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
+    val ioName = s"_io_${idToStr(id)}"
 
     val args = rep match {
       case RepeatEos | RepeatUntil(_) => s"$memberName.last"
@@ -216,8 +217,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => s"$memberName"
     }
 
-    out.puts(s"io = $kstreamName.new($args)")
-    "io"
+    out.puts(s"$ioName = $kstreamName.new($args)")
+    ioName
   }
 
   override def useIO(ioEx: expr): String = {
@@ -404,11 +405,11 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)} unless ${privateMemberName(instName)}.nil?")
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(privateMemberName(instName))
   }
 

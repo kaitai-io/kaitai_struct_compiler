@@ -32,6 +32,25 @@ bintray_create_version()
 }
 
 ##
+# Uploads generic file to Bintray.
+#
+# Input:
+# $1 = filename to upload
+bintray_upload_generic()
+{
+	local filename="$1"
+
+	echo "bintray_upload_generic(repo=${BINTRAY_REPO}, package=${BINTRAY_PACKAGE}, version=${BINTRAY_VERSION}, filename=${filename})"
+
+	curl $BINTRAY_CURL_ARGS -f \
+		-T "$filename" \
+		"-u$BINTRAY_USER:$BINTRAY_API_KEY" \
+		-H "X-Bintray-Package: $BINTRAY_PACKAGE" \
+		-H "X-Bintray-Version: $BINTRAY_VERSION" \
+		https://api.bintray.com/content/$BINTRAY_ACCOUNT/$BINTRAY_REPO/
+}
+
+##
 # Uploads deb package to Bintray.
 #
 # Input:

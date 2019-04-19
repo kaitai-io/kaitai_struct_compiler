@@ -22,6 +22,7 @@ object ParamDefSpec {
   val LEGAL_KEYS = Set(
     "id",
     "type",
+    "enum",
     "doc",
     "doc-ref"
   )
@@ -29,7 +30,11 @@ object ParamDefSpec {
   def fromYaml(srcMap: Map[String, Any], path: List[String], id: Identifier): ParamDefSpec = {
     val doc = DocSpec.fromYaml(srcMap, path)
     val typeStr = ParseUtils.getOptValueStr(srcMap, "type", path)
-    val dataType = DataType.pureFromString(typeStr)
+    val enumRef = ParseUtils.getOptValueStr(srcMap, "enum", path)
+
+    val dataType = DataType.pureFromString(typeStr, enumRef, path)
+
+    ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path, Some("parameter definition"))
 
     ParamDefSpec(path, id, dataType, doc)
   }
