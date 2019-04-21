@@ -16,7 +16,6 @@ lazy val root = project.in(file(".")).
   )
 
 lazy val compiler = crossProject.in(file(".")).
-  enablePlugins(BuildInfoPlugin).
   enablePlugins(JavaAppPackaging).
   settings(
     organization := "io.kaitai",
@@ -24,9 +23,6 @@ lazy val compiler = crossProject.in(file(".")).
     version := sys.env.getOrElse("KAITAI_STRUCT_VERSION", VERSION),
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
     scalaVersion := "2.12.4",
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "io.kaitai.struct",
-    buildInfoOptions += BuildInfoOption.BuildTime,
 
     // Repo publish options
     publishTo := version { (v: String) =>
@@ -52,6 +48,9 @@ lazy val compiler = crossProject.in(file(".")).
         </developer>
       </developers>
     ,
+
+    generateVersion := generateVersionTask.value, // register manual sbt command
+    sourceGenerators in Compile += generateVersionTask.taskValue, // update automatically on every rebuild
 
     libraryDependencies ++= Seq(
       "com.github.scopt" %%% "scopt" % "3.6.0",
@@ -159,3 +158,23 @@ lazy val compiler = crossProject.in(file(".")).
 
 lazy val compilerJVM = compiler.jvm
 lazy val compilerJS = compiler.js
+
+lazy val generateVersion = taskKey[Seq[File]]("generateVersion")
+lazy val generateVersionTask = Def.task {
+  // Generate contents of Version.scala
+  val contents = s"""package io.kaitai.struct
+                    |
+                    |object Version {
+                    |  val name = "${name.value}"
+                    |  val version = "${version.value}"
+                    |  val gitCommit = "${sys.env.getOrElse("GIT_COMMIT", "GIT_COMMIT not defined")}"
+                    |  val gitTime = "${sys.env.getOrElse("GIT_DATE_ISO", "GIT_DATE_ISO not defined")}"
+                    |}
+                    |""".stripMargin
+
+  // Update Version.scala file, if needed
+  val file = (sourceManaged in Compile).value / "version" / "Version.scala"
+  println(s"Version file generated: $file")
+  IO.write(file, contents)
+  Seq(file)
+}
