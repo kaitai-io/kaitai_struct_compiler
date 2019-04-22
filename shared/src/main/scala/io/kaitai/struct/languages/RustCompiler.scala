@@ -84,7 +84,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val isRoot = name == rootClassName
 
     if (isRoot) {
-      out.puts(s"    _parent: Option<&'a Self>,")
+      out.puts(s"    _parent: Option<&'a ()>,")
     } else {
       out.puts(s"    _parent: Option<&'a $tParent<'a>>,")
     }
@@ -95,8 +95,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"impl<'a> KaitaiStruct<'a> for ${type2class(name)}<'a> {")
     out.inc
 
-    if (name == rootClassName) {
-      out.puts(s"type Parent = Self;")
+    if (isRoot) {
+      out.puts(s"type Parent = ();")
       out.puts(s"type Root = Self;")
     } else {
       out.puts(s"type Parent = $tParent<'a>;")
@@ -156,9 +156,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     attrName match {
       case ParentIdentifier | RootIdentifier | IoIdentifier =>
-        // just ignore it for now
-      case IoIdentifier =>
-        out.puts(s"    stream: ${kaitaiType2NativeType(attrType)},")
+        // We don't set up the io/root/parent references here, as we need access to the class info
+        // to properly select types
       case _ =>
         out.puts(s"    pub ${idToStr(attrName)}: ${kaitaiType2NativeType(attrType)},")
     }
@@ -188,7 +187,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensure_fixed_cntents($contents);")
+    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensure_fixed_contents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
@@ -218,7 +217,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           className
         } else {
           val pkgName = type2classAbs(name.init)
-	  val className = type2class(name.last)
+          val className = type2class(name.last)
           importList.add(s"$pkgName::$className")
           s"$pkgName::$className"
         }
