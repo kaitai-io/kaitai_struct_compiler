@@ -18,7 +18,6 @@ sealed trait DataType {
   */
 object DataType {
   abstract class IntWidth(val width: Int)
-  case object Width1 extends IntWidth(1)
   case object Width2 extends IntWidth(2)
   case object Width4 extends IntWidth(4)
   case object Width8 extends IntWidth(8)
