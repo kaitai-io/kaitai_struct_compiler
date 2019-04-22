@@ -49,8 +49,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def doName(s: String) = s
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
-    val enumClass = types2classAbs(enumTypeAbs)
-    s"$enumClass::${Utils.upperCamelCase(label)}"
+    s"enumClass::${Utils.upperCamelCase(label)}"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
@@ -120,10 +119,4 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     s"${translate(a)}.iter().min()"
   override def arrayMax(a: Ast.expr): String =
     s"${translate(a)}.iter().max()"
-
-  def types2classAbs(names: List[String]) =
-    names match {
-      case List("kaitai_struct") => RustCompiler.kstructName
-      case _ => RustCompiler.types2classRel(names)
-    }
 }
