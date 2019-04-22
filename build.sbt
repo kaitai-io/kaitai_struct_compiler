@@ -153,7 +153,7 @@ lazy val compiler = crossProject.in(file(".")).
     maintainer in Debian := "Mikhail Yakshin <greycat@kaitai.io>"
   ).
   jsSettings(
-    // Add JS-specific settings here
+    buildNpmJsFile := buildNpmJsFileTask.value
   )
 
 lazy val compilerJVM = compiler.jvm
@@ -177,4 +177,41 @@ lazy val generateVersionTask = Def.task {
   println(s"Version file generated: $file")
   IO.write(file, contents)
   Seq(file)
+}
+
+/**
+  * Builds JavaScript output file to be packaged as part of NPM package.
+  * Essentially wraps raw JavaScript output into AMD-style exports.
+  */
+lazy val buildNpmJsFile = taskKey[Seq[File]]("buildNpmJsFile")
+lazy val buildNpmJsFileTask = Def.task {
+  val compiledFile = target.value / "scala-2.12" / s"${name.value}-fastopt.js"
+  println(s"buildNpmJsFile: reading $compiledFile")
+  val compiledFileContents = IO.read(compiledFile)
+
+  val fileWithExports =
+    s"""(function (root, factory) {
+       |  if (typeof define === 'function' && define.amd) {
+       |    define([], factory);
+       |  } else if (typeof module === 'object' && module.exports) {
+       |    module.exports = factory();
+       |  } else {
+       |    root.KaitaiStructCompiler = factory();
+       |  }
+       |}(this, function () {
+       |
+       |var exports = {};
+       |var __ScalaJSEnv = { exportsNamespace: exports };
+       |
+       |$compiledFileContents
+       |
+       |return exports.io.kaitai.struct.MainJs;
+       |
+       |}));
+     """.stripMargin
+
+  val targetFile = new File(s"js/npm/${name.value}.js")
+  println(s"buildNpmJsFile: writing $targetFile with AMD exports")
+  IO.write(targetFile, fileWithExports)
+  Seq(targetFile)
 }
