@@ -33,7 +33,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
 
     // Runtime-required imports
-    importList.add("kaitai::{self, KError, KResult, KStream, KStruct}")
+    importList.add("kaitai::{self, KError, KResult, KStream, KStruct, KStructUnit}")
     importList.add("std::convert::TryFrom")
     importList.add("std::vec::Vec")
   }
@@ -55,10 +55,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val rootClass = if (typeProvider.nowClass.isTopLevel) "Self" else s"${normalizeClassName(typeProvider.topClass.name)}<'a>"
         s"Option<&'a $rootClass>"
       case ParentIdentifier =>
-        val parentClass = typeProvider.nowClass.parentClass match {
-          case t: ClassSpec => normalizeClassName(t.name)
-          case GenericStructClassSpec => kstructName
-        }
+        val parentClass = if (typeProvider.nowClass.isTopLevel)
+          kstructUnitName
+        else
+          typeProvider.nowClass.parentClass match {
+            case t: ClassSpec => normalizeClassName(t.name)
+            case GenericStructClassSpec => kstructName
+          }
         s"Option<&'a $parentClass<'a>>"
       case _ => kaitaiTypeToNativeType(attrType)
     }
@@ -335,4 +338,5 @@ object RustCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "KStream"
   override def kstructName: String = "KStruct"
+  def kstructUnitName: String = "KStructUnit"
 }
