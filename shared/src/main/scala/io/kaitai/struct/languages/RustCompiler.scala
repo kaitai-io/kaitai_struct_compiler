@@ -8,6 +8,8 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RustTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
+import scala.collection.mutable
+
 class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
@@ -41,7 +43,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classHeader(name: List[String]): Unit = {
     // Set up the struct definition
 
-    // TODO: Derive Clone/PartialEq/Debug?
+    // TODO: Derive Clone/PartialEq?
+    // Can't safely derive Copy because of byte slices
     out.puts(s"#[derive(Default, Debug)]")
     out.puts(s"struct ${normalizeClassName(name)}<'a> {")
 
@@ -51,18 +54,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     val typeName = attrName match {
       case IoIdentifier => return // No-op, the stream doesn't get stored inside the struct
-      case RootIdentifier =>
-        val rootClass = if (typeProvider.nowClass.isTopLevel) "Self" else s"${normalizeClassName(typeProvider.topClass.name)}<'a>"
-        s"Option<&'a $rootClass>"
-      case ParentIdentifier =>
-        val parentClass = if (typeProvider.nowClass.isTopLevel)
-          kstructUnitName
-        else
-          typeProvider.nowClass.parentClass match {
-            case t: ClassSpec => normalizeClassName(t.name)
-            case GenericStructClassSpec => kstructName
-          }
-        s"Option<&'a $parentClass<'a>>"
+      case RootIdentifier => s"Option<&'a ${rootClassType(typeProvider.nowClass, typeProvider.topClass)}>"
+      case ParentIdentifier => s"Option<&'a ${parentClassType(typeProvider.nowClass)}>"
       case _ => kaitaiTypeToNativeType(attrType)
     }
 
@@ -91,23 +84,60 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
 
-    // Begin impl block
-    out.puts(s"// classConstructorHeader($name, $parentType, $rootClassName, $isHybrid, $params)")
+    val currentName = normalizeClassName(name)
+    val parentType = parentClassType(typeProvider.nowClass)
+    val rootType = rootClassType(typeProvider.nowClass, typeProvider.topClass)
+
+    out.puts(s"impl<'a> KStruct<'a> for $currentName<'a> {")
+
+    out.inc
+    out.puts(s"type Parent = $parentType;")
+    out.puts(s"type Root = $rootType;")
+    out.puts
+
+    out.puts(s"fn new(_parent: Option<&'a $parentType>, _root: Option<&'a $rootType>) -> KResult<'a, Self> {")
+    out.inc
+    out.puts(s"let s = $currentName {")
+    out.inc
+    out.puts("_parent,")
+    out.puts(s"_root,")
+    out.puts(s"..Default::default()")
+    out.dec
+    out.puts(s"};")
+
+    out.puts(s"Ok(s)")
+    out.dec
+    out.puts("}")
   }
 
   override def runRead(): Unit = out.puts("// runRead()")
 
   override def runReadCalc(): Unit = out.puts("// runReadCalc()")
 
-  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = out.puts(s"// readHeader($endian, $isEmpty)")
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    out.puts(s"fn read<S: $kstreamName>(&mut self, _stream: &mut S) -> KResult<'a, ()> {")
+    out.inc
+  }
 
   override def readFooter(): Unit = out.puts(s"// readFooter()")
 
   // Intentional no-op; Rust handles ownership, so we can use struct attributes directly without readers
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
-  override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit =
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
     out.puts(s"// attrParse($attr, $id, $defEndian)")
+
+    // TODO: readFooter isn't getting called? Goes to universalFooter instead?
+    // Right now we detect when this is the last attribute parse, and finish the read method here
+    if (typeProvider.nowClass.seq.last.id == id) {
+      // This is the end of the `read` method, we need to return `OK(())` because we've finished
+      out.puts("Ok(())")
+
+      // Also the end of the impl block
+      out.dec
+      out.puts(s"}")
+    }
+  }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit =
     out.puts(s"// attrParseHybrid(${leProc()}, ${beProc()})")
@@ -143,8 +173,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def alignToByte(io: String): Unit = out.puts(s"// alignToByte($io)")
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit =
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
+
+    val normClass = normalizeClassName(className)
+
+    // We'd normally like to handle starting the impl block in `instanceDeclHeader`,
+    // but this causes issues with alignment
+    if (!hasInstanceImplBlock.contains(normClass)) {
+      hasInstanceImplBlock.add(normClass)
+
+      out.puts(s"impl<'a> ${normalizeClassName(className)}<'a> {")
+      out.inc
+    }
+
     out.puts(s"// instanceHeader($className, $instName, $dataType, $isNullable)")
+  }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit =
     out.puts(s"// instanceCheckCacheAndReturn($instName, $dataType)")
@@ -251,7 +294,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     * Single method that outputs all kind of footers in the language.
     */
   override def universalFooter: Unit = {
-    out.puts("// universalFooter()")
+    out.dec
+    out.puts("}")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -284,6 +328,8 @@ object RustCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new RustCompiler(tp, config)
+
+  val hasInstanceImplBlock: mutable.Set[String] = mutable.Set[String]()
 
   def normalizeClassName(names: List[String]): String = type2class(names.mkString("_"))
 
@@ -337,6 +383,18 @@ object RustCompiler extends LanguageCompilerStatic
   }
 
   override def kstreamName: String = "KStream"
-  override def kstructName: String = "KStruct"
-  def kstructUnitName: String = "KStructUnit"
+  override def kstructName: String = "KStruct<'a>"
+  def kstructUnitName: String = "KStructUnit<'a>"
+
+  def rootClassType(nowClass: ClassSpec, topClass: ClassSpec): String =
+    if (nowClass.isTopLevel) "Self" else s"${normalizeClassName(topClass.name)}<'a>"
+
+  def parentClassType(nowClass: ClassSpec): String =
+    if (nowClass.isTopLevel)
+      kstructUnitName
+    else
+      nowClass.parentClass match {
+        case t: ClassSpec => s"${normalizeClassName(t.name)}<'a>"
+        case GenericStructClassSpec => s"$kstructName<'a>"
+      }
 }
