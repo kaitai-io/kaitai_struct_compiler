@@ -12,8 +12,6 @@ import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile.ErrorInInput
 
 object JavaMain {
-  KSVersion.current = Version.version
-
   case class CLIConfig(
     verbose: Seq[String] = Seq(),
     srcFiles: Seq[File] = Seq(),

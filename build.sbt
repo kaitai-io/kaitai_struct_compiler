@@ -8,11 +8,24 @@ resolvers += Resolver.sonatypeRepo("public")
 val VERSION = "0.9-SNAPSHOT"
 val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Lua, Perl, PHP, Python, Ruby"
 
+val sharedSourceManaged = Def.setting(
+  baseDirectory.value / "shared" / "src" / "main" / "scala" / "src_managed"
+)
+
 lazy val root = project.in(file(".")).
   aggregate(compilerJS, compilerJVM).
   settings(
+    name := "kaitai-struct-compiler",
+    version := sys.env.getOrElse("KAITAI_STRUCT_VERSION", VERSION),
+
     publish := {},
-    publishLocal := {}
+    publishLocal := {},
+    sourceManaged := sharedSourceManaged.value,
+
+    generateVersion := generateVersionTask.value, // register manual sbt command
+    sourceGenerators in Compile += generateVersionTask.taskValue, // depend on it before compilation
+
+    cleanFiles += sharedSourceManaged.value,
   )
 
 lazy val compiler = crossProject.in(file(".")).
@@ -48,9 +61,6 @@ lazy val compiler = crossProject.in(file(".")).
         </developer>
       </developers>
     ,
-
-    generateVersion := generateVersionTask.value, // register manual sbt command
-    sourceGenerators in Compile += generateVersionTask.taskValue, // update automatically on every rebuild
 
     libraryDependencies ++= Seq(
       "com.github.scopt" %%% "scopt" % "3.6.0",
@@ -173,7 +183,7 @@ lazy val generateVersionTask = Def.task {
                     |""".stripMargin
 
   // Update Version.scala file, if needed
-  val file = (sourceManaged in Compile).value / "version" / "Version.scala"
+  val file = (sourceManaged in Compile).value / "Version.scala"
   println(s"Version file generated: $file")
   IO.write(file, contents)
   Seq(file)
