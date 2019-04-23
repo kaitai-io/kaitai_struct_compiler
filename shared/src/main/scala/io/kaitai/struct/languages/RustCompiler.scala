@@ -55,17 +55,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val rootClass = if (typeProvider.nowClass.isTopLevel) "Self" else s"${normalizeClassName(typeProvider.topClass.name)}<'a>"
         s"Option<&'a $rootClass>"
       case ParentIdentifier =>
-        if (typeProvider.nowClass.isTopLevel) {
-          // We're top level, so parent type is Unit, but use the full signature for homogeneity
-          "Option<&'a ()>"
-        } else {
-          // We're not top level, so parentClass is a bit trickier
-          val parentClass = typeProvider.nowClass.parentClass match {
-            case t: ClassSpec => normalizeClassName(t.name)
-            case GenericStructClassSpec => kstructName
-          }
-          s"Option<&'a $parentClass<'a>>"
+        val parentClass = typeProvider.nowClass.parentClass match {
+          case t: ClassSpec => normalizeClassName(t.name)
+          case GenericStructClassSpec => kstructName
         }
+        s"Option<&'a $parentClass<'a>>"
       case _ => kaitaiTypeToNativeType(attrType)
     }
 
