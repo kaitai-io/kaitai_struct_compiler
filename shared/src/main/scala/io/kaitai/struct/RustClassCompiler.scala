@@ -49,7 +49,7 @@ class RustClassCompiler(
     compileSubclasses(curClass)
   }
 
-  def compileReadFunction(curClass: ClassSpec) = {
+  def compileReadFunction(curClass: ClassSpec): Unit = {
     lang.classConstructorHeader(
       curClass.name,
       curClass.parentType,
@@ -64,17 +64,18 @@ class RustClassCompiler(
       case _ => None
     }
     
-    lang.readHeader(defEndian, false)
+    lang.readHeader(defEndian, isEmpty = false)
     
     compileSeq(curClass.seq, defEndian)
     lang.classConstructorFooter
   }
 
-  override def compileInstances(curClass: ClassSpec) = {
+  override def compileInstances(curClass: ClassSpec): Unit = {
     lang.instanceDeclHeader(curClass.name)
     curClass.instances.foreach { case (instName, instSpec) =>
       compileInstance(curClass.name, instName, instSpec, curClass.meta.endian)
     }
+    lang.instanceDeclFooter(curClass.name)
   }
 
   override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, endian: Option[Endianness]): Unit = {
@@ -99,6 +100,6 @@ class RustClassCompiler(
 
     lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType)
-    lang.instanceFooter
+    lang.instanceFooter()
   }
 }

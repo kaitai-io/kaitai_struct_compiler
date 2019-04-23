@@ -26,7 +26,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def strLiteralUnicode(code: Char): String =
     "\\u{%x}".format(code.toInt)
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"${translate(left)} / ${translate(right)}"
@@ -37,21 +37,23 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     }
   }
 
-  override def doLocalName(s: String) = {
+  override def doLocalName(s: String): String = {
     s match {
       case Identifier.ITERATOR => "tmpa"
       case Identifier.ITERATOR2 => "tmpb"
       case Identifier.INDEX => "i"
+      // TODO: Safer way to handle than `unwrap()`?
+      case Identifier.ROOT | Identifier.PARENT => s"self.${doName(s)}.unwrap()"
       case _ => s"self.${doName(s)}"
     }
   }
 
-  override def doName(s: String) = s
+  override def doName(s: String): String = s
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
-    s"enumClass::${Utils.upperCamelCase(label)}"
+    s"${RustCompiler.normalizeClassName(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
   }
-  override def doEnumById(enumTypeAbs: List[String], id: String) =
+  override def doEnumById(enumTypeAbs: List[String], id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 
@@ -119,4 +121,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     s"${translate(a)}.iter().min()"
   override def arrayMax(a: Ast.expr): String =
     s"${translate(a)}.iter().max()"
+
+  override def doEnumCompareOp(left: expr, op: Ast.cmpop, right: expr): String =
+    // TODO: This probably isn't safe - no guarantees that the enum value is on the right
+    s"${translate(left)} ${cmpOp(op)} Some(${translate(right)})"
 }

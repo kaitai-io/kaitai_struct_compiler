@@ -8,13 +8,12 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RustTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
-import scala.collection.mutable
-
 class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
+    with EveryReadIsExpression
     with ObjectOrientedLanguage
-    with UpperCamelCaseClasses
     with SingleOutputFile
+    with UpperCamelCaseClasses
     with UniversalFooter
     with UniversalDoc {
 
@@ -36,7 +35,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // Runtime-required imports
     importList.add("kaitai::{self, KError, KResult, KStream, KStruct, KStructUnit}")
-    importList.add("std::convert::TryFrom")
+    importList.add("std::convert::{TryFrom, TryInto}")
     importList.add("std::vec::Vec")
   }
 
@@ -115,7 +114,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def runReadCalc(): Unit = out.puts("// runReadCalc()")
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
-    out.puts(s"fn read<S: $kstreamName>(&mut self, _stream: &mut S) -> KResult<'a, ()> {")
+    out.puts(s"fn read<S: $kstreamName>(&'a mut self, stream: &mut S) -> KResult<'a, ()> {")
     out.inc
   }
 
@@ -125,7 +124,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
   override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
-    out.puts(s"// attrParse($attr, $id, $defEndian)")
+    super.attrParse(attr, id, defEndian)
 
     // TODO: readFooter isn't getting called? Goes to universalFooter instead?
     // Right now we detect when this is the last attribute parse, and finish the read method here
@@ -139,14 +138,72 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit =
-    out.puts(s"// attrParseHybrid(${leProc()}, ${beProc()})")
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = ???
+
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = pushToMember(id, expr)
+
+  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = pushToMember(id, expr)
+
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+    val tempVar = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+
+    out.puts(s"let mut $tempVar = $expr;")
+    out.puts(s"$tempVar.read(${privateMemberName(IoIdentifier)});")
+    pushToMember(id, tempVar)
+  }
+
+  def pushToMember(id: Identifier, expr: String): Unit = out.puts(s"${privateMemberName(id)}.push($expr);")
+
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+    val assignTo = typeProvider.nowClass.seq.filter(a => a.id == id).head
+
+    val optionSafe = assignTo.dataType match {
+      case _: EnumType => s"Some($expr.try_into()?)"
+      case _ => expr
+    }
+    out.puts(s"${privateMemberName(id)} = $optionSafe;")
+  }
+
+  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String =
+    dataType match {
+      case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?"
+      case b: BytesLimitType =>
+        // Because `b.size` can be coming from an instance, we need to safely handle looking it up
+        val expr = b.size match {
+          // TODO: Non-instance backreferences?
+          // TODO: Better type handling for size than just casting?
+          case Ast.expr.Name(_) => s"${expression(b.size)}() as usize"
+          case _ => expression(b.size)
+        }
+        s"$io.read_bytes($expr)?"
+      case _: BytesEosType => s"$io.read_bytes_full()?"
+      case b: BytesTerminatedType => s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
+      case BitsType1 => s"$io.read_bits_int(1)? != 0"
+      case BitsType(width) => s"$io.read_bits_int($width)?"
+      case u: UserType =>
+        s"${normalizeClassName(u.classSpec.get.name)}::new(Some(self), self.${privateMemberName(RootIdentifier)})?"
+    }
+
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+    val ioId = privateMemberName(IoIdentifier)
+    val expr = padRight match {
+      // The original implementation forces the trait default, but I'd rather let KStream implementors re-do them
+      case Some(p) => s"$ioId.bytes_strip_right($expr0, $p)"
+      case None => expr0
+    }
+    terminator match {
+      case Some(term) => s"$ioId.bytes_terminate($expr, $term, $include)"
+      case None => expr
+    }
+  }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit =
     out.puts(s"// attrFixedContentsParse($attrName, $contents)")
 
-  override def condIfHeader(expr: Ast.expr): Unit =
-    out.puts(s"// condIfHeader($expr)")
+  override def condIfHeader(expr: Ast.expr): Unit = {
+    out.puts(s"if ${expression(expr)} {")
+    out.inc
+  }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit =
     out.puts(s"// condRepeatEosHeader($id, $io, $dataType, $needRaw)")
@@ -173,27 +230,27 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def alignToByte(io: String): Unit = out.puts(s"// alignToByte($io)")
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-
-    val normClass = normalizeClassName(className)
-
-    // We'd normally like to handle starting the impl block in `instanceDeclHeader`,
-    // but this causes issues with alignment
-    if (!hasInstanceImplBlock.contains(normClass)) {
-      hasInstanceImplBlock.add(normClass)
-
-      out.puts(s"impl<'a> ${normalizeClassName(className)}<'a> {")
-      out.inc
-    }
-
-    out.puts(s"// instanceHeader($className, $instName, $dataType, $isNullable)")
+  override def instanceDeclHeader(className: List[String]): Unit = {
+    out.puts(s"impl<'a> ${normalizeClassName(className)}<'a> {")
+    out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit =
-    out.puts(s"// instanceCheckCacheAndReturn($instName, $dataType)")
+  override def instanceDeclFooter(className: List[String]): Unit = universalFooter
+
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"fn ${idToStr(instName)}(&mut self) -> ${kaitaiTypeToNativeType(dataType)} {")
+    out.inc
+  }
+
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
+    out.puts(s"if let Some(x) = ${privateMemberName(instName)} {")
+    out.puts("    return x;")
+    out.puts("}")
+    out.puts
+  }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit =
-    out.puts(s"// instanceReturn($instName, $attrType)")
+    out.puts(s"${privateMemberName(instName)}.unwrap()")
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit =
     out.puts(s"// instanceCalculate($instName, $dataType, $value)")
@@ -202,7 +259,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = normalizeClassName(curClass ::: List(enumName))
 
     // Set up the actual enum definition
-    out.puts(s"#[derive(Debug)]")
+    out.puts(s"#[derive(Debug, PartialEq)]")
     out.puts(s"enum $enumClass {")
     out.inc
 
@@ -261,15 +318,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     case RawIdentifier(inner) => s"raw_${idToStr(inner)}"
   }
 
-  /**
-    * Renders identifier as a proper reference to a private member
-    * that represents this field. This might include some prefixes
-    * like "@" or "this." or "self.".
-    *
-    * @param id identifier to render
-    * @return identifier as string
-    */
-  override def privateMemberName(id: Identifier): String = s"// privateMemberName($id)"
+  override def privateMemberName(id: Identifier): String = id match {
+    case IoIdentifier => "stream"
+    case RootIdentifier => "_root"
+    case ParentIdentifier => "_parent"
+    case _ => s"self.${idToStr(id)}"
+  }
 
   /**
     * Renders identifier as a proper reference to a public member
@@ -329,8 +383,6 @@ object RustCompiler extends LanguageCompilerStatic
     config: RuntimeConfig
   ): LanguageCompiler = new RustCompiler(tp, config)
 
-  val hasInstanceImplBlock: mutable.Set[String] = mutable.Set[String]()
-
   def normalizeClassName(names: List[String]): String = type2class(names.mkString("_"))
 
   def kaitaiTypeToNativeType(attrType: DataType, excludeOptionUser: Boolean = false): String = attrType match {
@@ -372,7 +424,6 @@ object RustCompiler extends LanguageCompilerStatic
       case None => s"Option<${normalizeClassName(t.name)}>"
     }
 
-    // TODO: Store references instead of owned? Potential issues with UserType ref vs. repeated EnumType ref
     case t: ArrayType => s"Vec<${kaitaiTypeToNativeType(t.elType, excludeOptionUser = true)}>"
 
     // TODO: Safer way of handling raw Kaitai types?
