@@ -222,13 +222,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def useIO(ioEx: Ast.expr): String = s"// useIO($ioEx)"
 
-  override def pushPos(io: String): Unit = out.puts(s"// pushPos($io)")
+  override def pushPos(io: String): Unit = out.puts(s"let pos = $io.pos();")
 
-  override def seek(io: String, pos: Ast.expr): Unit = out.puts(s"// seek($io, $pos)")
+  override def seek(io: String, pos: Ast.expr): Unit = out.puts(s"$io.seek($pos);")
 
-  override def popPos(io: String): Unit = out.puts(s"// popPos($io)")
+  override def popPos(io: String): Unit = out.puts(s"$io.seek(pos)")
 
-  override def alignToByte(io: String): Unit = out.puts(s"// alignToByte($io)")
+  override def alignToByte(io: String): Unit = out.puts(s"$io.align_to_byte();")
 
   override def instanceDeclHeader(className: List[String]): Unit = {
     out.puts(s"impl<'a> ${normalizeClassName(className)}<'a> {")
