@@ -21,7 +21,16 @@ package io.kaitai.struct.exprlang
   */
 object Ast {
   case class identifier(name: String)
-  case class typeId(absolute: Boolean, names: Seq[String], isArray: Boolean = false)
+  case class typeId(absolute: Boolean, names: Seq[String], isArray: Boolean = false) {
+    /**
+      * @return Type designation name as human-readable string, to be used in compiler
+      *         error messages.
+      */
+    def nameAsStr: String =
+      (if (absolute) "::" else "") +
+        names.mkString("::") +
+        (if (isArray) "[]" else "")
+  }
 
   val EmptyTypeId = typeId(false, Seq())
 
@@ -44,6 +53,8 @@ object Ast {
 
     case class Attribute(value: expr, attr: identifier) extends expr
     case class CastToType(value: expr, typeName: typeId) extends expr
+    case class ByteSizeOfType(typeName: typeId) extends expr
+    case class BitSizeOfType(typeName: typeId) extends expr
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
     case class List(elts: Seq[expr]) extends expr

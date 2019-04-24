@@ -38,3 +38,10 @@ class FieldNotFoundError(val name: String, val curClass: ClassSpec)
   extends NotFoundError(s"unable to access '$name' in ${curClass.nameAsStr} context")
 class EnumNotFoundError(val name: String, val curClass: ClassSpec)
   extends NotFoundError(s"unable to find enum '$name', searching from ${curClass.nameAsStr}")
+
+/**
+  * Internal compiler logic error: should never happen, but at least we want to
+  * handle it gracefully if it's happening.
+  * @param msg message for the user
+  */
+case class InternalCompilerError(msg: String) extends RuntimeException(msg)

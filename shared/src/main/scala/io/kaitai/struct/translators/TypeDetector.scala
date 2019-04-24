@@ -117,6 +117,8 @@ class TypeDetector(provider: TypeProvider) {
         }
       case Ast.expr.CastToType(_, typeName) =>
         detectCastType(typeName)
+      case Ast.expr.ByteSizeOfType(_) | Ast.expr.BitSizeOfType(_) =>
+        CalcIntType
     }
   }
 

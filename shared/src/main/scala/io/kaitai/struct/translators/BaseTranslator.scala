@@ -3,7 +3,8 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.precompile.TypeMismatchError
+import io.kaitai.struct.format.{DynamicSized, FixedSized}
+import io.kaitai.struct.precompile.{TypeMismatchError, TypeUndecidedError}
 
 /**
   * BaseTranslator is a common semi-abstract implementation of a translator
@@ -124,12 +125,26 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doGuessArrayLiteral(values)
       case ctt: Ast.expr.CastToType =>
         doCastOrArray(ctt)
+      case Ast.expr.ByteSizeOfType(typeName) =>
+        doByteSizeOfType(typeName)
+      case Ast.expr.BitSizeOfType(typeName) =>
+        doBitSizeOfType(typeName)
     }
   }
 
   def doSubscript(container: Ast.expr, idx: Ast.expr): String
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: DataType): String = translate(value)
+  def doByteSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
+    CommonSizeOf.getByteSizeOfType(
+      typeName.nameAsStr, detectCastType(typeName)
+    )
+  )
+  def doBitSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
+    CommonSizeOf.getBitsSizeOfType(
+      typeName.nameAsStr, detectCastType(typeName)
+    )
+  )
 
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
