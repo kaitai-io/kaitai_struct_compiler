@@ -16,7 +16,7 @@ jobs:
           - v1-dependencies-{{ checksum "build.sbt" }}
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
-      - run: cat /dev/null | sbt compilerJVM/universal:packageBin
+      - run: cat /dev/null | sbt compile compilerJVM/stage fastOptJS buildNpmJsFile compilerJVM/universal:packageBin
       - store_artifacts:
           path: jvm/target/universal/kaitai-struct-compiler-*.zip
       - save_cache:
