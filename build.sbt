@@ -5,6 +5,7 @@ import sbt.Keys._
 
 resolvers += Resolver.sonatypeRepo("public")
 
+val NAME = "kaitai-struct-compiler"
 val VERSION = "0.9-SNAPSHOT"
 val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Lua, Perl, PHP, Python, Ruby"
 
@@ -15,7 +16,7 @@ val sharedSourceManaged = Def.setting(
 lazy val root = project.in(file(".")).
   aggregate(compilerJS, compilerJVM).
   settings(
-    name := "kaitai-struct-compiler",
+    name := NAME + "-common",
     version := sys.env.getOrElse("KAITAI_STRUCT_VERSION", VERSION),
 
     publish := {},
@@ -32,7 +33,6 @@ lazy val compiler = crossProject.in(file(".")).
   enablePlugins(JavaAppPackaging).
   settings(
     organization := "io.kaitai",
-    name := "kaitai-struct-compiler",
     version := sys.env.getOrElse("KAITAI_STRUCT_VERSION", VERSION),
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
     scalaVersion := "2.12.4",
@@ -69,6 +69,8 @@ lazy val compiler = crossProject.in(file(".")).
     )
   ).
   jvmSettings(
+    name := NAME,
+
     mainClass in Compile := Some("io.kaitai.struct.JavaMain"),
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.0.1" % "test"
@@ -163,6 +165,7 @@ lazy val compiler = crossProject.in(file(".")).
     maintainer in Debian := "Mikhail Yakshin <greycat@kaitai.io>"
   ).
   jsSettings(
+    name := NAME + "-js",
     buildNpmJsFile := buildNpmJsFileTask.value
   )
 
