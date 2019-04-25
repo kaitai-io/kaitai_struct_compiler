@@ -19,7 +19,7 @@ object CalculateSeqSizes {
             sizeElement
           case RepeatExpr(expr) =>
             expr.evaluateIntConst match {
-              case Some(count) => FixedSized(elementSize * count)
+              case Some(count) => FixedSized(elementSize * count.toInt)
               case None => DynamicSized
             }
           case _: RepeatUntil | RepeatEos =>
@@ -108,7 +108,7 @@ object CalculateSeqSizes {
       case FloatMultiType(width, _) => FixedSized(width.width)
       case _: BytesEosType => DynamicSized
       case blt: BytesLimitType => blt.size.evaluateIntConst match {
-        case Some(x) => FixedSized(x)
+        case Some(x) => FixedSized(x.toInt)
         case None => DynamicSized
       }
       case _: BytesTerminatedType => DynamicSized

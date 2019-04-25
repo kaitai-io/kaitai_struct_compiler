@@ -1,26 +1,19 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType.UserType
 import io.kaitai.struct.format.{DynamicSized, FixedSized}
 import io.kaitai.struct.precompile.{CalculateSeqSizes, InternalCompilerError, TypeMismatchError}
 
 object CommonSizeOf {
-  def getByteSizeOfType(typeName: String, dataType: DataType): Int = {
-    val bits = getBitsSizeOfType(typeName, dataType)
-
-    // Bits-to-bytes, rounded up
-    (bits + 7) / 8
-  }
+  /**
+    * Converts bit size to byte size, rounded up to byte margin.
+    * @param bits number of bits
+    * @return number of bytes it takes
+    */
+  def bitToByteSize(bits: Int): Int = (bits + 7) / 8
 
   def getBitsSizeOfType(typeName: String, dataType: DataType): Int = {
-    val sizeSpec = dataType match {
-      case ut: UserType =>
-        ut.classSpec.get.seqSize
-      case _ =>
-        // TODO: handle impossible types errors
-        CalculateSeqSizes.dataTypeBitsSize(dataType)
-    }
+    val sizeSpec = CalculateSeqSizes.dataTypeBitsSize(dataType)
     sizeSpec match {
       case FixedSized(n) =>
         n

@@ -438,5 +438,5 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   override def byteSizeOfValue(attrName: String, valType: DataType): TranslatorResult =
-    trIntLiteral(CommonSizeOf.getByteSizeOfType(attrName, valType))
+    trIntLiteral(CommonSizeOf.bitToByteSize(CommonSizeOf.getBitsSizeOfType(attrName, valType)))
 }

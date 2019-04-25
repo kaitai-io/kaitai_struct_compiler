@@ -3,8 +3,8 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.precompile.TypeMismatchError
+import io.kaitai.struct.format.{ClassSpec, DynamicSized, FixedSized, Identifier}
+import io.kaitai.struct.precompile.{InternalCompilerError, TypeMismatchError}
 
 /**
   * BaseTranslator is a common semi-abstract implementation of a translator
@@ -63,10 +63,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
-          // TODO: implement a cleaner way to use ClassSpec directly w/o wrapping
-          val ut = CalcUserType(List(), None)
-          ut.classSpec = Some(provider.nowClass)
-          byteSizeOfValue(name.name, ut)
+          byteSizeOfClassSpec(provider.nowClass)
         } else {
           doLocalName(name.name)
         }
@@ -143,8 +140,10 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: DataType): String = translate(value)
   def doByteSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
-    CommonSizeOf.getByteSizeOfType(
-      typeName.nameAsStr, detectCastType(typeName)
+    CommonSizeOf.bitToByteSize(
+      CommonSizeOf.getBitsSizeOfType(
+        typeName.nameAsStr, detectCastType(typeName)
+      )
     )
   )
   def doBitSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
@@ -153,7 +152,18 @@ abstract class BaseTranslator(val provider: TypeProvider)
     )
   )
   def byteSizeOfValue(attrName: String, valType: DataType): String = doIntLiteral(
-    CommonSizeOf.getByteSizeOfType(attrName, valType)
+    CommonSizeOf.bitToByteSize(
+      CommonSizeOf.getBitsSizeOfType(attrName, valType)
+    )
+  )
+  def byteSizeOfClassSpec(cs: ClassSpec): String = doIntLiteral(
+    CommonSizeOf.bitToByteSize(cs.seqSize match {
+      case FixedSized(n) => n
+      case DynamicSized =>
+        throw new TypeMismatchError(s"unable to derive sizeof for type `${cs.nameAsStr}`: dynamic sized type")
+      case other =>
+        throw InternalCompilerError(s"internal compiler error: sizeSpec=$other for type `${cs.nameAsStr}`")
+    })
   )
 
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
