@@ -3,8 +3,8 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{DynamicSized, FixedSized}
-import io.kaitai.struct.precompile.{TypeMismatchError, TypeUndecidedError}
+import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.precompile.TypeMismatchError
 
 /**
   * BaseTranslator is a common semi-abstract implementation of a translator
@@ -62,7 +62,14 @@ abstract class BaseTranslator(val provider: TypeProvider)
         val enumSpec = provider.resolveEnum(inType, enumType.name)
         doEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
-        doLocalName(name.name)
+        if (name.name == Identifier.SIZEOF) {
+          // TODO: implement a cleaner way to use ClassSpec directly w/o wrapping
+          val ut = CalcUserType(List(), None)
+          ut.classSpec = Some(provider.nowClass)
+          byteSizeOfValue(name.name, ut)
+        } else {
+          doLocalName(name.name)
+        }
       case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
         unaryOp(op) + (inner match {
           case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
@@ -144,6 +151,9 @@ abstract class BaseTranslator(val provider: TypeProvider)
     CommonSizeOf.getBitsSizeOfType(
       typeName.nameAsStr, detectCastType(typeName)
     )
+  )
+  def byteSizeOfValue(attrName: String, valType: DataType): String = doIntLiteral(
+    CommonSizeOf.getByteSizeOfType(attrName, valType)
   )
 
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"

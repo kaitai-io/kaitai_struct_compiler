@@ -1,7 +1,9 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.precompile.TypeMismatchError
 
 abstract trait CommonMethods[T] extends TypeDetector {
@@ -16,6 +18,11 @@ abstract trait CommonMethods[T] extends TypeDetector {
     val attr = call.attr
     val value = call.value
     val valType = detectType(value)
+
+    // Special case: will be compiled as compile-time determined constant
+    if (attr.name == Identifier.SIZEOF)
+      return byteSizeOfValue(value.toString, valType)
+
     valType match {
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
@@ -116,4 +123,6 @@ abstract trait CommonMethods[T] extends TypeDetector {
   def enumToInt(value: Ast.expr, et: EnumType): T
 
   def boolToInt(value: Ast.expr): T
+
+  def byteSizeOfValue(attrName: String, valType: DataType): T
 }

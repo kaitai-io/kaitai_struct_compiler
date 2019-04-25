@@ -3,6 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.precompile.{TypeMismatchError, TypeUndecidedError}
 
 /**
@@ -130,8 +131,13 @@ class TypeDetector(provider: TypeProvider) {
     * @param attr attribute identifier part of attribute expression
     * @return data type
     */
-  def detectAttributeType(value: Ast.expr, attr: Ast.identifier) = {
+  def detectAttributeType(value: Ast.expr, attr: Ast.identifier): DataType = {
     val valType = detectType(value)
+
+    // Special case: will be compiled as compile-time determined constant
+    if (attr.name == Identifier.SIZEOF)
+      return CalcIntType
+
     valType match {
       case KaitaiStructType | CalcKaitaiStructType =>
         throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '$value'")
