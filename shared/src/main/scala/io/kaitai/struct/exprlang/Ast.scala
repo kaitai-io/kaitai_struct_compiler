@@ -46,9 +46,39 @@ object Ast {
       * @return integer result of evaluation if it's constant or None, if it's
       *         variable
       */
-    def evaluateIntConst: Option[Int] = {
+    def evaluateIntConst: Option[BigInt] = {
       this match {
-        case expr.IntNum(x) => Some(x.toInt)
+        case expr.IntNum(x) =>
+          Some(x)
+        case expr.UnaryOp(op, operand) =>
+          operand.evaluateIntConst.map(opValue =>
+            op match {
+              case unaryop.Invert => ~opValue
+              case unaryop.Not => return None // TODO?
+              case unaryop.Minus => -opValue
+            }
+          )
+        case expr.BinOp(left, op, right) =>
+          val leftValue = left.evaluateIntConst match {
+            case Some(x) => x
+            case None => return None
+          }
+          val rightValue = right.evaluateIntConst match {
+            case Some(x) => x
+            case None => return None
+          }
+          op match {
+            case operator.Add => Some(leftValue + rightValue)
+            case operator.Sub => Some(leftValue - rightValue)
+            case operator.Mult => Some(leftValue * rightValue)
+            case operator.Div => Some(leftValue / rightValue)
+            case operator.Mod => Some(leftValue % rightValue)
+            case operator.LShift => Some(leftValue << rightValue.toInt)
+            case operator.RShift => Some(leftValue >> rightValue.toInt)
+            case operator.BitOr => Some(leftValue | rightValue)
+            case operator.BitXor => Some(leftValue ^ rightValue)
+            case operator.BitAnd => Some(leftValue & rightValue)
+          }
         case _ => None
       }
     }
