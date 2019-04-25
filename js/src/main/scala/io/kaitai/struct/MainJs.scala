@@ -11,6 +11,8 @@ import scala.scalajs.js.annotation.JSExport
 
 @JSExport
 object MainJs {
+  KSVersion.current = Version.version
+
   @JSExport
   def compile(langStr: String, yaml: js.Object, importer: JavaScriptImporter, debug: Boolean = false): js.Promise[js.Dictionary[String]] = {
     try {

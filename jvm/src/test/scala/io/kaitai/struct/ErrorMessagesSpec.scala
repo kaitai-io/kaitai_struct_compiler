@@ -10,6 +10,10 @@ import io.kaitai.struct.precompile.ErrorInInput
 import org.scalatest.FunSuite
 
 class ErrorMessagesSpec extends FunSuite {
+  // required, because this class is the sole entry point and this test needs
+  // version info
+  KSVersion.current = Version.version
+
   val FORMATS_ERR_DIR = "../tests/formats_err"
   val CHARSET_UTF8 = Charset.forName("UTF-8")
   val DEFAULT_CONFIG = CLIConfig()
