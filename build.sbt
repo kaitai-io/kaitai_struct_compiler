@@ -1,4 +1,6 @@
 import java.io.File
+import java.nio.charset.Charset
+import java.nio.file.Files
 
 import com.typesafe.sbt.packager.linux.{LinuxPackageMapping, LinuxSymlink}
 import sbt.Keys._
@@ -8,6 +10,7 @@ resolvers += Resolver.sonatypeRepo("public")
 val NAME = "kaitai-struct-compiler"
 val VERSION = "0.9-SNAPSHOT"
 val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Lua, Perl, PHP, Python, Ruby"
+val UTF8 = Charset.forName("UTF-8")
 
 val sharedSourceManaged = Def.setting(
   baseDirectory.value / "shared" / "src" / "main" / "scala" / "src_managed"
@@ -166,7 +169,8 @@ lazy val compiler = crossProject.in(file(".")).
   ).
   jsSettings(
     name := NAME + "-js",
-    buildNpmJsFile := buildNpmJsFileTask.value
+    buildNpmJsFile := buildNpmJsFileTask.value,
+    buildNpmPackage := buildNpmPackageTask.value
   )
 
 lazy val compilerJVM = compiler.jvm
@@ -200,7 +204,7 @@ lazy val buildNpmJsFile = taskKey[Seq[File]]("buildNpmJsFile")
 lazy val buildNpmJsFileTask = Def.task {
   val compiledFile = target.value / "scala-2.12" / s"${name.value}-fastopt.js"
   println(s"buildNpmJsFile: reading $compiledFile")
-  val compiledFileContents = IO.read(compiledFile)
+  val compiledFileContents = IO.read(compiledFile, UTF8)
 
   val fileWithExports =
     s"""(function (root, factory) {
@@ -225,6 +229,30 @@ lazy val buildNpmJsFileTask = Def.task {
 
   val targetFile = new File(s"js/npm/${name.value}.js")
   println(s"buildNpmJsFile: writing $targetFile with AMD exports")
-  IO.write(targetFile, fileWithExports)
+  IO.write(targetFile, fileWithExports, UTF8)
   Seq(targetFile)
+}
+
+lazy val buildNpmPackage = taskKey[Seq[File]]("buildNpmPackage")
+lazy val buildNpmPackageTask = Def.task {
+  val licenseFile = new File("js/npm/LICENSE")
+  val readMeFile = new File("js/npm/README.md")
+  val packageJsonFile = new File("js/npm/package.json")
+
+  Files.copy(new File("LICENSE").toPath, licenseFile.toPath)
+  Files.copy(new File("js/README.md").toPath, readMeFile.toPath)
+
+  val packageJsonTmpl = IO.read(new File("js/package.json"), UTF8)
+  val packageJsonContents = packageJsonTmpl.replaceFirst(
+    "\"version\": \".*?\"",
+    "\"version\": \"" + version.value + "\""
+  )
+
+  IO.write(packageJsonFile, packageJsonContents, UTF8)
+
+  Seq(
+    licenseFile,
+    readMeFile,
+    packageJsonFile
+  )
 }
