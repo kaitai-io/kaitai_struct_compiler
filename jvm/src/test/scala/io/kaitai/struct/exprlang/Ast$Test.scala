@@ -9,6 +9,10 @@ class Ast$Test extends FunSpec {
       Expressions.parse("42").evaluateIntConst should be(Some(42))
     }
 
+    it ("considers `-1` constant") {
+      Expressions.parse("-1").evaluateIntConst should be(Some(-1))
+    }
+
     it ("considers `42 - 2` constant") {
       Expressions.parse("42 - 2").evaluateIntConst should be(Some(40))
     }
@@ -19,6 +23,10 @@ class Ast$Test extends FunSpec {
 
     it ("considers `[3, 1, 4][2]` constant") {
       Expressions.parse("[3, 1, 4][2]").evaluateIntConst should be(Some(4))
+    }
+
+    it ("considers `4 > 2 ? 1 : 5` constant") {
+      Expressions.parse("4 > 2 ? 1 : 5").evaluateIntConst should be(Some(1))
     }
 
     it ("considers `x` variable") {
