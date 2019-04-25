@@ -35,7 +35,25 @@ object Ast {
   val EmptyTypeId = typeId(false, Seq())
 
   // BoolOp() can use left & right?
-  sealed trait expr
+  sealed trait expr {
+    /**
+      * Evaluates the expression, if it's possible to get a static integer
+      * constant as the result of evaluation (i.e. if it does not involve any
+      * variables or anything like that). Expect no complex logic or symbolic
+      * simplification of expressions here: something like "x - x", which is
+      * known to be always 0, will still report it as "None".
+      *
+      * @return integer result of evaluation if it's constant or None, if it's
+      *         variable
+      */
+    def evaluateIntConst: Option[Int] = {
+      this match {
+        case expr.IntNum(x) => Some(x.toInt)
+        case _ => None
+      }
+    }
+  }
+
   object expr{
     case class BoolOp(op: boolop, values: Seq[expr]) extends expr
     case class BinOp(left: expr, op: operator, right: expr) extends expr
