@@ -2,7 +2,7 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType.CalcUserType
-import io.kaitai.struct.format.{DynamicSized, FixedSized}
+import io.kaitai.struct.format.{ClassSpec, DynamicSized, FixedSized}
 import io.kaitai.struct.precompile.{CalculateSeqSizes, InternalCompilerError, TypeMismatchError}
 
 object CommonSizeOf {
@@ -26,5 +26,15 @@ object CommonSizeOf {
       case other =>
         throw InternalCompilerError(s"internal compiler error: sizeSpec=$other for `$typeName`")
     }
+  }
+
+  def getByteSizeOfClassSpec(cs: ClassSpec): Int = {
+    bitToByteSize(cs.seqSize match {
+      case FixedSized(n) => n
+      case DynamicSized =>
+        throw new TypeMismatchError(s"unable to derive sizeof for type `${cs.nameAsStr}`: dynamic sized type")
+      case other =>
+        throw InternalCompilerError(s"internal compiler error: sizeSpec=$other for type `${cs.nameAsStr}`")
+    })
   }
 }

@@ -3,8 +3,8 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{ClassSpec, DynamicSized, FixedSized, Identifier}
-import io.kaitai.struct.precompile.{InternalCompilerError, TypeMismatchError}
+import io.kaitai.struct.format.{ClassSpec, Identifier}
+import io.kaitai.struct.precompile.TypeMismatchError
 
 /**
   * BaseTranslator is a common semi-abstract implementation of a translator
@@ -156,15 +156,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
       CommonSizeOf.getBitsSizeOfType(attrName, valType)
     )
   )
-  def byteSizeOfClassSpec(cs: ClassSpec): String = doIntLiteral(
-    CommonSizeOf.bitToByteSize(cs.seqSize match {
-      case FixedSized(n) => n
-      case DynamicSized =>
-        throw new TypeMismatchError(s"unable to derive sizeof for type `${cs.nameAsStr}`: dynamic sized type")
-      case other =>
-        throw InternalCompilerError(s"internal compiler error: sizeSpec=$other for type `${cs.nameAsStr}`")
-    })
-  )
+  def byteSizeOfClassSpec(cs: ClassSpec): String =
+    doIntLiteral(CommonSizeOf.getByteSizeOfClassSpec(cs))
 
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"

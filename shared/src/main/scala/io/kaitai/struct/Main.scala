@@ -36,8 +36,8 @@ object Main {
     new ResolveTypes(classSpecs, opaqueTypes).run()
     new ParentTypes(classSpecs).run()
     new SpecsValueTypeDerive(classSpecs).run()
-    new TypeValidator(classSpecs, topClass).run()
     new CalculateSeqSizes(classSpecs).run()
+    new TypeValidator(classSpecs, topClass).run()
 
     topClass.parentClass = GenericStructClassSpec
   }
