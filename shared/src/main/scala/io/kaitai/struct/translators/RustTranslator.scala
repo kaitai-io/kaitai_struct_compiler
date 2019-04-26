@@ -4,6 +4,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.NamedIdentifier
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
@@ -46,7 +47,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     }
   }
 
-  override def doName(s: String) = s
+  override def doName(s: String) = s"${Utils.lowerCamelCase(s)}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)
@@ -61,7 +62,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     "if " + translate(condition) +
     	" { " + translate(ifTrue) + " } else { " +
-	translate(ifFalse) + "}"
+	translate(ifFalse) + " }"
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr): String =

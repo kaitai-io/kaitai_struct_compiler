@@ -65,9 +65,8 @@ class RustClassCompiler(
     }
     
     lang.readHeader(defEndian, false)
-    
     compileSeq(curClass.seq, defEndian)
-    lang.classConstructorFooter
+    lang.readFooter()
   }
 
   override def compileInstances(curClass: ClassSpec) = {
