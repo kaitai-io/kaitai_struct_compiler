@@ -102,7 +102,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
       out.puts("this._is_le = _is_le;")
 
     // Store parameters passed to us
-    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+    params.foreach((p) => handleAssignmentSimple(p.id, Some(p.dataType), paramName(p.id)))
 
     if (config.readStoresPos) {
       out.puts("this._debug = {};")
@@ -343,7 +343,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR, None)
     out.puts(s"var $tmpName = $expr;")
     out.puts(s"${privateMemberName(id)}.push($tmpName);")
   }
@@ -355,7 +355,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts(s"} while (!(${expression(untilExpr)}));")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 

@@ -86,7 +86,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     // Store parameters passed to us
-    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+    params.foreach((p) => handleAssignmentSimple(p.id, Some(p.dataType), paramName(p.id)))
 
     if (config.readStoresPos) {
       out.puts("@_debug = {}")
@@ -313,7 +313,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR, None)
     out.puts(s"$tmpName = $expr")
     out.puts(s"${privateMemberName(id)} << $tmpName")
   }
@@ -325,7 +325,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"end until ${expression(untilExpr)}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =

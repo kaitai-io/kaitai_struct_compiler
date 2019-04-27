@@ -1,6 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.{ImportList, Utils}
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
@@ -43,14 +44,14 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"struct.pack('${elts.length}b', ${elts.map(translate).mkString(", ")})"
   }
 
-  override def doLocalName(s: String) = {
+  override def doLocalName(s: String, t: Option[DataType]) = {
     s match {
       case Identifier.ITERATOR => "_"
       case Identifier.INDEX => "i"
-      case _ => s"self.${doName(s)}"
+      case _ => s"self.${doName(s, t)}"
     }
   }
-  override def doName(s: String) = s
+  override def doName(s: String, t: Option[DataType]) = s
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${PythonCompiler.types2class(enumTypeAbs)}.$label"

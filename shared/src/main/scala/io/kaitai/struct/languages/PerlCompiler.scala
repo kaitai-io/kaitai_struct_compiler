@@ -82,11 +82,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"my $$self = $kstructName->new($$_io);")
     out.puts
     out.puts("bless $self, $class;")
-    handleAssignmentSimple(ParentIdentifier, "$_parent")
-    handleAssignmentSimple(RootIdentifier, "$_root || $self;")
+    handleAssignmentSimple(ParentIdentifier, None, "$_parent")
+    handleAssignmentSimple(RootIdentifier, None, "$_root || $self;")
 
     if (isHybrid)
-      handleAssignmentSimple(EndianIdentifier, "$_is_le")
+      handleAssignmentSimple(EndianIdentifier, None, "$_is_le")
 
     out.puts
   }
@@ -196,7 +196,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val args = rep match {
       case RepeatEos => s"$memberName[-1]"
       case RepeatExpr(_) => s"$memberName[$$i]"
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2, None)
       case NoRepeat => s"$memberName"
     }
 
@@ -262,9 +262,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val (decl, tmpName) = if (isRaw) {
-      ("my ", translator.doName(Identifier.ITERATOR2))
+      ("my ", translator.doName(Identifier.ITERATOR2, None))
     } else {
-      ("", translator.doName(Identifier.ITERATOR))
+      ("", translator.doName(Identifier.ITERATOR, None))
     }
     out.puts(s"$decl$tmpName = $expr;")
     out.puts(s"push @{${privateMemberName(id)}}, $tmpName;")
@@ -276,7 +276,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"} until (${expression(untilExpr)});")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {

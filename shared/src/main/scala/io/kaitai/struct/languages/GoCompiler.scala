@@ -263,7 +263,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, r: TranslatorResult): Unit = {
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], r: TranslatorResult): Unit = {
     val expr = translator.resToStr(r)
     out.puts(s"${privateMemberName(id)} = $expr")
   }

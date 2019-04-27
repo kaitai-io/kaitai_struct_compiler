@@ -91,7 +91,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("self._is_le = is_le")
 
     // Store parameters passed to us
-    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+    params.foreach((p) => handleAssignmentSimple(p.id, Some(p.dataType), paramName(p.id)))
   }
   override def classConstructorFooter: Unit = {
     out.dec
@@ -306,11 +306,11 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[i] = $expr")
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR, None)
     out.puts(s"$tmpName = $expr")
     out.puts(s"${privateMemberName(id)}[i] = $tmpName")
   }
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = dataType match {

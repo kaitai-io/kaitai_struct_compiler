@@ -57,7 +57,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = type2class(classSpec.name.last)
     val pkg = type2classAbs(classSpec.name)
-    
+
     importList.add(s"$pkg::$name")
   }
 
@@ -77,7 +77,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"impl KaitaiStruct for ${type2class(name)} {")
     out.inc
-    
+
     // Parameter names
     val pIo = paramName(IoIdentifier)
     val pParent = paramName(ParentIdentifier)
@@ -113,7 +113,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def runReadCalc(): Unit = {
-  
+
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
@@ -146,7 +146,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-  
+
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -216,7 +216,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$memberName.last()"
-      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2, None)
       case NoRepeat => memberName
     }
 
@@ -284,9 +284,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val tempVar = if (isRaw) {
-      translator.doLocalName(Identifier.ITERATOR2)
+      translator.doLocalName(Identifier.ITERATOR2, None)
     } else {
-      translator.doLocalName(Identifier.ITERATOR)
+      translator.doLocalName(Identifier.ITERATOR, None)
     }
     out.puts(s"let $tempVar = $expr;")
     out.puts(s"${privateMemberName(id)}.append($expr);")
@@ -299,7 +299,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("} { }")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 
@@ -333,7 +333,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
-	
+
         s"Box::new(${translator.types2classAbs(t.classSpec.get.name)}::new(self.stream, self, _root)?)"
     }
   }
@@ -458,7 +458,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"enum $enumClass {")
     out.inc
-    
+
     enumColl.foreach { case (id, label) =>
       universalDoc(label.doc)
       out.puts(s"${value2Const(label.name)},")
@@ -494,7 +494,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
   override def paramName(id: Identifier): String = s"${idToStr(id)}"
-    
+
   def kaitaiType2NativeType(attrType: DataType): String = {
     attrType match {
       case Int1Type(false) => "u8"
@@ -523,7 +523,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case Some(cs) => s"Box<${type2class(cs.name)}>"
 	case None => s"Box<${type2class(t.name)}>"
       }
-      
+
       case t: EnumType => t.enumSpec match {
         case Some(cs) => s"Box<${type2class(cs.name)}>"
 	case None => s"Box<${type2class(t.name)}>"
@@ -533,11 +533,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
       case KaitaiStructType | CalcKaitaiStructType => s"Option<Box<KaitaiStruct>>"
-      
+
       case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
   }
-  
+
   def kaitaiType2Default(attrType: DataType): String = {
     attrType match {
       case Int1Type(false) => "0"
@@ -569,12 +569,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case KaitaiStreamType => "None"
       case KaitaiStructType => "None"
-      
+
       case _: SwitchType => ""
       // TODO
     }
   }
-  
+
   def type2class(names: List[String]) = types2classRel(names)
 
   def type2classAbs(names: List[String]) =

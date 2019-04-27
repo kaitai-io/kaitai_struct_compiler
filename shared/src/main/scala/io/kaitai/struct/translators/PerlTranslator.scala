@@ -54,17 +54,17 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"pack('C*', (${elts.map(translate).mkString(", ")}))"
 
   override def anyField(value: Ast.expr, attrName: String): String =
-    s"${translate(value)}->${doName(attrName)}"
+    s"${translate(value)}->${doName(attrName, Some(detectType(value)))}"
 
-  override def doLocalName(s: String) = {
+  override def doLocalName(s: String, t: Option[DataType]) = {
     s match {
       case "_" | "_on" => "$" + s
-      case Identifier.INDEX => doName(s)
-      case _ => s"$$self->${doName(s)}"
+      case Identifier.INDEX => doName(s, t)
+      case _ => s"$$self->${doName(s, t)}"
     }
   }
 
-  override def doName(s: String) = {
+  override def doName(s: String, t: Option[DataType]) = {
     s match {
       case Identifier.ITERATOR => "$_"
       case Identifier.ITERATOR2 => "$_buf"

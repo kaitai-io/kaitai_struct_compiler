@@ -65,7 +65,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
         if (name.name == Identifier.SIZEOF) {
           byteSizeOfClassSpec(provider.nowClass)
         } else {
-          doLocalName(name.name)
+          doLocalName(name.name, Some(detectType(v)))
         }
       case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
         unaryOp(op) + (inner match {
@@ -163,8 +163,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
   def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = ???
 
-  def doLocalName(s: String): String = doName(s)
-  def doName(s: String): String
+  def doLocalName(s: String, t: Option[DataType]): String = doName(s, t)
+  def doName(s: String, t: Option[DataType]): String
   def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String =
     anyField(value, attrName)
 
@@ -188,5 +188,5 @@ abstract class BaseTranslator(val provider: TypeProvider)
   // Helper that does simple "one size fits all" attribute calling, if it is useful
   // for the language
   def anyField(value: Ast.expr, attrName: String): String =
-    s"${translate(value)}.${doName(attrName)}"
+    s"${translate(value)}.${doName(attrName, Some(detectType(value)))}"
 }

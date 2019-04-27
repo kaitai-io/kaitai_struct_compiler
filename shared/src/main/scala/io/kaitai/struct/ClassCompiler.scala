@@ -50,7 +50,7 @@ class ClassCompiler(
       compileClassDoc(curClass)
 
     // Forward declarations for recursive types
-    curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(List(typeName)) }
+    curClass.types.foreach { case (_, className) => lang.classForwardDeclaration(className.name) }
 
     if (lang.innerEnums)
       compileEnums(curClass)

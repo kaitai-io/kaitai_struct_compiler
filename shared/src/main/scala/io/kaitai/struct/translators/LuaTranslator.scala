@@ -44,12 +44,12 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + decEscapeByteArray(arr) + "\""
 
-  override def doLocalName(s: String) = s match {
+  override def doLocalName(s: String, t: Option[DataType]) = s match {
     case Identifier.ITERATOR => "_"
     case Identifier.INDEX => "i"
-    case _ => s"self.${doName(s)}"
+    case _ => s"self.${doName(s, t)}"
   }
-  override def doName(s: String): String =
+  override def doName(s: String, t: Option[DataType]): String =
     s
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${LuaCompiler.types2class(enumTypeAbs)}.$label"

@@ -156,7 +156,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     // Store parameters passed to us
-    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+    params.foreach((p) => handleAssignmentSimple(p.id, Some(p.dataType), paramName(p.id)))
   }
 
   override def runRead(): Unit =
@@ -269,7 +269,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2, None)
       case NoRepeat => javaName
     }
 
@@ -388,7 +388,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
     out.puts("{")
     out.inc
-    out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_")};")
+    out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_", None)};")
     out.puts("int i = 0;")
     out.puts("do {")
     out.inc
@@ -398,9 +398,9 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val (typeDecl, tempVar) = if (isRaw) {
-      ("byte[] ", translator.doName(Identifier.ITERATOR2))
+      ("byte[] ", translator.doName(Identifier.ITERATOR2, None))
     } else {
-      ("", translator.doName(Identifier.ITERATOR))
+      ("", translator.doName(Identifier.ITERATOR, None))
     }
     out.puts(s"$typeDecl$tempVar = $expr;")
     out.puts(s"${privateMemberName(id)}.add($tempVar);")
@@ -415,7 +415,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
