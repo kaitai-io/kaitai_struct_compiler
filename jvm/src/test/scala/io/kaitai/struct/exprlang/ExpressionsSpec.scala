@@ -384,5 +384,9 @@ class ExpressionsSpec extends FunSpec {
     it("parses 123.4.to_s") {
       Expressions.parse("123.4.to_s") should be (Attribute(FloatNum(123.4),identifier("to_s")))
     }
+
+    it("parses foo.bar") {
+      Expressions.parse("foo.bar") should be (Attribute(Name(identifier("foo")),identifier("bar")))
+    }
   }
 }
