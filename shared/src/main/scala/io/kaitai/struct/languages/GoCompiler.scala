@@ -232,7 +232,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], r: TranslatorResult): Unit = {
     val name = privateMemberName(id)
     val expr = translator.resToStr(r)
     out.puts(s"$name[i] = $expr")

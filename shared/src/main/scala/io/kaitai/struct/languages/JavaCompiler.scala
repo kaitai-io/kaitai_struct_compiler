@@ -378,7 +378,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("java.util.ArrayList")
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 

@@ -78,11 +78,14 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
       case Some(IntMultiType(false,Width8,_)) => s"$s.unsignedLongLongValue"
       case Some(CalcIntType) => s"$s.unsignedLongLongValue"
       case Some(CalcFloatType) => s"$s.doubleValue"
+      case Some(FloatMultiType(Width8,_)) => s"$s.doubleValue"
+      case Some(FloatMultiType(Width4,_)) => s"$s.singleValue"
       case _ => s"$s"
     }
   }
 
-  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "@[" + value.map((v) => boxNSNumber(translate(v))).mkString(", ") + "]"
+  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String =
+    "@[" + value.map((v) => boxNSNumber(translate(v))).mkString(", ") + "]"
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "[NSData dataWithBytes:\"" + Utils.hexEscapeByteArray(arr) + "\" length:" + arr.length + "]"
@@ -98,11 +101,15 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   def boxNSNumber(s: String): String = s"@($s)"
 
   // Members declared in io.kaitai.struct.translators.CommonMethods
-  override def arrayFirst(a: io.kaitai.struct.exprlang.Ast.expr): String = s"arrayFirst"
-  override def arrayLast(a: io.kaitai.struct.exprlang.Ast.expr): String = s"arrayLast"
-  override def arrayMax(a: io.kaitai.struct.exprlang.Ast.expr): String = s"arrayMax"
-  override def arrayMin(a: io.kaitai.struct.exprlang.Ast.expr): String = s"arrayMin"
-  override def arraySize(a: io.kaitai.struct.exprlang.Ast.expr): String = s"arraySize"
+  override def arrayFirst(a: io.kaitai.struct.exprlang.Ast.expr): String =
+    doName(s"${translate(a)}.firstObject", Some(detectType(a).asInstanceOf[ArrayType].elType))
+  override def arrayLast(a: io.kaitai.struct.exprlang.Ast.expr): String =
+    doName(s"${translate(a)}.lastObject", Some(detectType(a).asInstanceOf[ArrayType].elType))
+  override def arrayMax(a: io.kaitai.struct.exprlang.Ast.expr): String =
+    doName(s"((${ObjcCompiler.kaitaiType2NativeType(detectType(a).asInstanceOf[ArrayType].elType)})[" + translate(a) + " valueForKeyPath: @\"@max.self\"])", Some(detectType(a).asInstanceOf[ArrayType].elType))
+  override def arrayMin(a: io.kaitai.struct.exprlang.Ast.expr): String =
+    doName(s"((${ObjcCompiler.kaitaiType2NativeType(detectType(a).asInstanceOf[ArrayType].elType)})[" + translate(a) + " valueForKeyPath: @\"@min.self\"])", Some(detectType(a).asInstanceOf[ArrayType].elType))
+  override def arraySize(a: io.kaitai.struct.exprlang.Ast.expr): String = s"${translate(a)}.count"
   override def enumToInt(value: io.kaitai.struct.exprlang.Ast.expr, et: io.kaitai.struct.datatype.DataType.EnumType): String = s"enumToInt"
   override def floatToInt(value: io.kaitai.struct.exprlang.Ast.expr): String = s"floatToInt"
   override def intToStr(value: io.kaitai.struct.exprlang.Ast.expr, num: io.kaitai.struct.exprlang.Ast.expr): String = s"intToStr"

@@ -84,15 +84,27 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
     outSrc.puts(s"handleAssignmentRepeatEos")
   }
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    outSrc.puts(s"handleAssignmentRepeatExpr")
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
+    outHdr.puts("// comment: handleAssignmentRepeatExpr")
+    outSrc.puts(s"// comment: handleAssignmentRepeatExpr, i: $id, d: $dataType, e: $expr")
+
+    id match {
+      case _: InstanceIdentifier => {
+        dataType match {
+          case Some(_: UserType) => outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
+          case Some(_: NumericType) | Some(_: BooleanType) => outSrc.puts(s"[${privateMemberName(id)} addObject:@($expr)];")
+          case _ => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
+        }
+      }
+        case _ => outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
+    }
   }
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     outSrc.puts(s"handleAssignmentRepeatUntil")
   }
   override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outHdr.puts("// comment: handleAssignmentInstance")
-    outSrc.puts("// comment: handleAssignmentInstance")
+    outSrc.puts(s"// comment: handleAssignmentInstance: Identifier: $id, DataType: $dataType")
 
     id match {
       case _: InstanceIdentifier => {
@@ -100,10 +112,10 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case Some(_: UserType) => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
           case Some(_: NumericType) | Some(_: BooleanType) => outSrc.puts(s"self.${publicMemberName(id)} = @($expr);")
           case _ => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
-          }
         }
+      }
         case _ => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
-     }
+    }
   }
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
@@ -293,11 +305,40 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outSrc.puts(s"condRepeatEosHeader")
   }
   override def condRepeatExprFooter: Unit = {
-    outSrc.puts(s"condRepeatExprFooter")
+    outHdr.puts("// comment: condRepeatExprFooter")
+    outSrc.puts("// comment: condRepeatExprFooter")
+    outSrc.dec
+    outSrc.puts("}")
   }
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    outSrc.puts(s"condRepeatExprHeader")
+    outHdr.puts("// comment: condRepeatExprHeader")
+    outSrc.puts("// comment: condRepeatExprHeader")
+    val lenVar = s"l_${idToStr(id)}"
+    outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
+    if (needRaw) {
+      val rawId = privateMemberName(RawIdentifier(id))
+      outSrc.puts(s"$rawId = ${newVector(CalcBytesType, lenVar)};")
+      val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
+      outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType, lenVar)};")
+    }
+    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType, lenVar)};")
+    outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
+    outSrc.inc
   }
+
+  def newVector(elType: DataType, length: String): String = {
+    val objcElType = kaitaiType2NativeType(elType)
+    elType match {
+      case StrFromBytesType(_,_) => s"[NSMutableArray arrayWithCapacity:$length]"
+      case FloatMultiType(_,_) => s"[NSMutableArray arrayWithCapacity:$length]"
+      case IntMultiType(_,_,_) => s"[NSMutableArray arrayWithCapacity:$length]"
+      case Numeric => s"[NSMutableArray arrayWithCapacity:$length]"
+      case KaitaiStreamType => s"[NSMutableArray arrayWithCapacity:$length]"
+      case CalcBytesType => s"[NSMutableArray arrayWithCapacity:$length]"
+      case _ => s"newVector: unknown data type: $elType"
+    }
+  }
+
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     outSrc.puts(s"condRepeatUntilFooter")
   }

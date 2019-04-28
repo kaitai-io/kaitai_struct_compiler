@@ -296,7 +296,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"(${expression(repeatExpr)}).times { |i|")
     out.inc
   }
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[i] = $expr")
   override def condRepeatExprFooter: Unit = {
     out.dec

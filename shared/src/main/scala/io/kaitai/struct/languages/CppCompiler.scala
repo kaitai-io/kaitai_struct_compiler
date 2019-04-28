@@ -587,7 +587,7 @@ class CppCompiler(
     outSrc.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(expr)});")
   }
 

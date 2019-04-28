@@ -179,14 +179,14 @@ trait EveryReadIsExpression
   def handleAssignment(id: Identifier, dataType: DataType, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
     rep match {
       case RepeatEos => handleAssignmentRepeatEos(id, expr)
-      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
+      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, Some(dataType), expr)
       case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr, isRaw)
       case NoRepeat => handleAssignmentSimple(id, Some(dataType), expr)
     }
   }
 
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
-  def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
+  def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit
   def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit
   def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
