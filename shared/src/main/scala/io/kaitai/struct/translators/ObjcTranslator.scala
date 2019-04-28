@@ -37,6 +37,23 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
     }
   }
 
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
+    op match {
+      case Ast.cmpop.Eq =>
+        s"[${translate(left)} isEqualToData:${translate(right)}]"
+      case Ast.cmpop.NotEq =>
+        s"!([${translate(left)} isEqualToData:${translate(right)}])"
+      case Ast.cmpop.Lt =>
+        s"([${translate(left)} KSCompare:${translate(right)}] < NSOrderedSame)"
+      case Ast.cmpop.Gt =>
+        s"([${translate(left)} KSCompare:${translate(right)}] > NSOrderedSame)"
+      case Ast.cmpop.GtE =>
+        s"([${translate(left)} KSCompare:${translate(right)}] >= NSOrderedSame)"
+      case Ast.cmpop.LtE =>
+        s"([${translate(left)} KSCompare:${translate(right)}] <= NSOrderedSame)"
+    }
+  }
+
   override def doLocalName(s: String, t: Option[DataType]) = {
     s match {
       case Identifier.ITERATOR => "_"
@@ -65,6 +82,11 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
     }
   }
 
+  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "@[" + value.map((v) => boxNSNumber(translate(v))).mkString(", ") + "]"
+
+  override def doByteArrayLiteral(arr: Seq[Byte]): String =
+    "[NSData dataWithBytes:\"" + Utils.hexEscapeByteArray(arr) + "\" length:" + arr.length + "]"
+
   override def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String =
     translate(value) + "." + doName(attrName, Some(provider.determineType(userType.classSpec.get, attrName)))
 
@@ -72,6 +94,8 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
     s"${translate(value)}.${doName(attrName, Some(detectType(value)))}"
 
   override def doSubscript(container: io.kaitai.struct.exprlang.Ast.expr, idx: io.kaitai.struct.exprlang.Ast.expr): String = s"doSubscript"
+
+  def boxNSNumber(s: String): String = s"@($s)"
 
   // Members declared in io.kaitai.struct.translators.CommonMethods
   override def arrayFirst(a: io.kaitai.struct.exprlang.Ast.expr): String = s"arrayFirst"
