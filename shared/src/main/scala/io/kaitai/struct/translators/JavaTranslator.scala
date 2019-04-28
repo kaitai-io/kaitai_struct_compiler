@@ -43,7 +43,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
   }
 
-  override def doName(s: String, t: Option[DataType]) =
+  override def doName(s: String, t: Option[DataType] = None) =
     s match {
       case Identifier.ROOT => s
       case Identifier.PARENT => "_parent()"

@@ -269,7 +269,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2, None)
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
       case NoRepeat => javaName
     }
 
@@ -388,7 +388,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
     out.puts("{")
     out.inc
-    out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_", None)};")
+    out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_")};")
     out.puts("int i = 0;")
     out.puts("do {")
     out.inc
@@ -398,9 +398,9 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val (typeDecl, tempVar) = if (isRaw) {
-      ("byte[] ", translator.doName(Identifier.ITERATOR2, None))
+      ("byte[] ", translator.doName(Identifier.ITERATOR2))
     } else {
-      ("", translator.doName(Identifier.ITERATOR, None))
+      ("", translator.doName(Identifier.ITERATOR))
     }
     out.puts(s"$typeDecl$tempVar = $expr;")
     out.puts(s"${privateMemberName(id)}.add($tempVar);")

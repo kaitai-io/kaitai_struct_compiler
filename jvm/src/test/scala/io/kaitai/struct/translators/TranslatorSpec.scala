@@ -65,11 +65,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     LuaCompiler -> "2 < 3 and \"foo\" or \"bar\"",
+    ObjcCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     PerlCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     PHPCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     PythonCompiler -> "u\"foo\" if 2 < 3 else u\"bar\"",
-    RubyCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
-    ObjcCompiler -> "2 < 3 ? \"foo\" : \"bar\""
+    RubyCompiler -> "2 < 3 ? \"foo\" : \"bar\""
   ))
 
   everybodyExcept("~777", "~777", Map[LanguageCompilerStatic, String](
@@ -98,11 +98,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "true",
     JavaScriptCompiler -> "true",
     LuaCompiler -> "true",
+    ObjcCompiler -> "YES",
     PerlCompiler -> "1",
     PHPCompiler -> "true",
     PythonCompiler -> "True",
-    RubyCompiler -> "true",
-    ObjcCompiler -> "YES"
+    RubyCompiler -> "true"
   ))
 
   full("false", CalcBooleanType, CalcBooleanType, Map[LanguageCompilerStatic, String](
@@ -112,11 +112,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "false",
     JavaScriptCompiler -> "false",
     LuaCompiler -> "false",
+    ObjcCompiler -> "NO",
     PerlCompiler -> "0",
     PHPCompiler -> "false",
     PythonCompiler -> "False",
-    RubyCompiler -> "false",
-    ObjcCompiler -> "NO"
+    RubyCompiler -> "false"
   ))
 
   full("some_bool.to_i", CalcBooleanType, CalcIntType, Map[LanguageCompilerStatic, String](
@@ -130,11 +130,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "(someBool() ? 1 : 0)",
     JavaScriptCompiler -> "(this.someBool | 0)",
     LuaCompiler -> "self.some_bool and 1 or 0",
+    ObjcCompiler -> "(some_bool ? 1 : 0)",
     PerlCompiler -> "$self->some_bool()",
     PHPCompiler -> "intval($this->someBool())",
     PythonCompiler -> "int(self.some_bool)",
-    RubyCompiler -> "(some_bool ? 1 : 0)",
-    ObjcCompiler -> "(some_bool ? 1 : 0)"
+    RubyCompiler -> "(some_bool ? 1 : 0)"
   ))
 
   // Member access
@@ -145,11 +145,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "fooStr()",
     JavaScriptCompiler -> "this.fooStr",
     LuaCompiler -> "self.foo_str",
+    ObjcCompiler -> "self.foo_str",
     PerlCompiler -> "$self->foo_str()",
     PHPCompiler -> "$this->fooStr()",
     PythonCompiler -> "self.foo_str",
-    RubyCompiler -> "foo_str",
-    ObjcCompiler -> "self.foo_str"
+    RubyCompiler -> "foo_str"
   ))
 
   full("foo_block", userType(List("block")), userType(List("block")), Map[LanguageCompilerStatic, String](
@@ -159,11 +159,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "fooBlock()",
     JavaScriptCompiler -> "this.fooBlock",
     LuaCompiler -> "self.foo_block",
+    ObjcCompiler -> "self.foo_block",
     PerlCompiler -> "$self->foo_block()",
     PHPCompiler -> "$this->fooBlock()",
     PythonCompiler -> "self.foo_block",
-    RubyCompiler -> "foo_block",
-    ObjcCompiler -> "self.foo_block"
+    RubyCompiler -> "foo_block"
   ))
 
   full("foo.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
@@ -173,11 +173,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "foo().bar()",
     JavaScriptCompiler -> "this.foo.bar",
     LuaCompiler -> "self.foo.bar",
+    ObjcCompiler -> "self.foo.bar",
     PerlCompiler -> "$self->foo()->bar()",
     PHPCompiler -> "$this->foo()->bar()",
     PythonCompiler -> "self.foo.bar",
-    RubyCompiler -> "foo.bar",
-    ObjcCompiler -> "self.foo.bar"
+    RubyCompiler -> "foo.bar"
   ))
 
   full("foo.inner.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
@@ -187,11 +187,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "foo().inner().baz()",
     JavaScriptCompiler -> "this.foo.inner.baz",
     LuaCompiler -> "self.foo.inner.baz",
+    ObjcCompiler -> "self.foo.inner.baz",
     PerlCompiler -> "$self->foo()->inner()->baz()",
     PHPCompiler -> "$this->foo()->inner()->baz()",
     PythonCompiler -> "self.foo.inner.baz",
-    RubyCompiler -> "foo.inner.baz",
-    ObjcCompiler -> "self.foo.inner.baz"
+    RubyCompiler -> "foo.inner.baz"
   ))
 
   full("_root.foo", userType(List("top_class", "block")), userType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
@@ -201,11 +201,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "_root.foo()",
     JavaScriptCompiler -> "this._root.foo",
     LuaCompiler -> "self._root.foo",
+    ObjcCompiler -> "self._root.foo",
     PerlCompiler -> "$self->_root()->foo()",
     PHPCompiler -> "$this->_root()->foo()",
     PythonCompiler -> "self._root.foo",
-    RubyCompiler -> "_root.foo",
-    ObjcCompiler -> "self._root.foo"
+    RubyCompiler -> "_root.foo"
   ))
 
   full("a != 2 and a != 5", CalcIntType, CalcBooleanType, Map[LanguageCompilerStatic, String](
@@ -215,11 +215,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "a() != 2 && a() != 5",
     JavaScriptCompiler -> "this.a != 2 && this.a != 5",
     LuaCompiler -> "self.a ~= 2 and self.a ~= 5",
+    ObjcCompiler -> "a != 2 && a != 5",
     PerlCompiler -> "$self->a() != 2 && $self->a() != 5",
     PHPCompiler -> "$this->a() != 2 && $this->a() != 5",
     PythonCompiler -> "self.a != 2 and self.a != 5",
-    RubyCompiler -> "a != 2 && a != 5",
-    ObjcCompiler -> "a != 2 && a != 5"
+    RubyCompiler -> "a != 2 && a != 5"
   ))
 
   // Arrays
@@ -229,11 +229,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
     JavaScriptCompiler -> "[0, 1, 100500]",
     LuaCompiler -> "{0, 1, 100500}",
+    ObjcCompiler -> "@[@(0), @(1), @(100500)]",
     PerlCompiler -> "(0, 1, 100500)",
     PHPCompiler -> "[0, 1, 100500]",
     PythonCompiler -> "[0, 1, 100500]",
-    RubyCompiler -> "[0, 1, 100500]",
-    ObjcCompiler -> "@[0, 1, 100500]"
+    RubyCompiler -> "[0, 1, 100500]"
   ))
 
   full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
@@ -243,11 +243,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
     JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
     LuaCompiler -> "\"\\034\\000\\010\\064\\065\\066\\092\"",
+    ObjcCompiler -> "[NSData dataWithBytes:\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\" length:7]",
     PerlCompiler -> "pack('C*', (34, 0, 10, 64, 65, 66, 92))",
     PHPCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
     PythonCompiler -> "b\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
-    RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')",
-    ObjcCompiler -> "[NSData dataWithBytes:\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\" length:7]"
+    RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')"
   ))
 
   full("[255, 0, 255]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
@@ -257,11 +257,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "new byte[] { -1, 0, -1 }",
     JavaScriptCompiler -> "[255, 0, 255]",
     LuaCompiler -> "\"\\255\\000\\255\"",
+    ObjcCompiler -> "[NSData dataWithBytes:\"\\xFF\\x00\\xFF\" length:3]",
     PerlCompiler -> "pack('C*', (255, 0, 255))",
     PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
     PythonCompiler -> "b\"\\255\\000\\255\"",
-    RubyCompiler -> "[255, 0, 255].pack('C*')",
-    ObjcCompiler -> "[NSData dataWithBytes:\"\\xFF\\x00\\xFF\" length:3]"
+    RubyCompiler -> "[255, 0, 255].pack('C*')"
   ))
 
   full("[0, 1, 2].length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
@@ -269,11 +269,11 @@ class TranslatorSpec extends FunSuite {
     GoCompiler -> "len(\"\\x00\\x01\\x02\")",
     JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
     LuaCompiler -> "string.len(\"str\")",
+    ObjcCompiler -> "[NSData dataWithBytes:\"\\x00\\x01\\x02\" length:3].length",
     PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
     PHPCompiler -> "strlen(\"\\x00\\x01\\x02\")",
     PythonCompiler -> "len(b\"\\x00\\x01\\x02\")",
-    RubyCompiler -> "[0, 1, 2].pack('C*').size",
-    ObjcCompiler -> "[NSData dataWithBytes:\"\\x00\\x01\\x02\" length:3].length"
+    RubyCompiler -> "[0, 1, 2].pack('C*').size"
   ))
 
   full("a[42]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
@@ -283,10 +283,10 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "a().get((int) 42)",
     JavaScriptCompiler -> "this.a[42]",
     LuaCompiler -> "self.a[43]",
+    ObjcCompiler -> "a[42],
     PHPCompiler -> "$this->a()[42]",
     PythonCompiler -> "self.a[42]",
-    RubyCompiler -> "a[42]",
-    ObjcCompiler -> "a[42]"
+    RubyCompiler -> "a[42]"
   ))
 
   full("a[42 - 2]", ArrayType(CalcStrType), CalcStrType, Map[LanguageCompilerStatic, String](
@@ -296,10 +296,10 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "a().get((42 - 2))",
     JavaScriptCompiler -> "this.a[(42 - 2)]",
     LuaCompiler -> "self.a[(43 - 2)]",
+    ObjcCompiler -> "a[(42 - 2)]",
     PHPCompiler -> "$this->a()[(42 - 2)]",
     PythonCompiler -> "self.a[(42 - 2)]",
-    RubyCompiler -> "a[(42 - 2)]",
-    ObjcCompiler -> "a[(42 - 2)]"
+    RubyCompiler -> "a[(42 - 2)]"
   ))
 
   full("a.first", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
@@ -309,10 +309,10 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "a().get(0)",
     JavaScriptCompiler -> "this.a[0]",
     LuaCompiler -> "self.a[1]",
+    ObjcCompiler -> "a[0]",
     PHPCompiler -> "$this->a()[0]",
     PythonCompiler -> "self.a[0]",
-    RubyCompiler -> "a.first",
-    ObjcCompiler -> "a[0]"
+    RubyCompiler -> "a.first"
   ))
 
   full("a.last", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
@@ -322,10 +322,10 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "a().get(a().size() - 1)",
     JavaScriptCompiler -> "this.a[this.a.length - 1]",
     LuaCompiler -> "self.a[#self.a]",
+    ObjcCompiler -> "[a lastObject]",
     PHPCompiler -> "$this->a()[count($this->a()) - 1]",
     PythonCompiler -> "self.a[-1]",
-    RubyCompiler -> "a.last",
-    ObjcCompiler -> "[a lastObject]"
+    RubyCompiler -> "a.last"
   ))
 
   full("a.size", ArrayType(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
@@ -335,11 +335,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "a().size()",
     JavaScriptCompiler -> "this.a.length",
     LuaCompiler -> "#self.a",
+    ObjcCompiler -> "a.length",
     PHPCompiler -> "count($this->a())",
     PerlCompiler -> "scalar($self->a())",
     PythonCompiler -> "len(self.a)",
-    RubyCompiler -> "a.length",
-    ObjcCompiler -> "a.length"
+    RubyCompiler -> "a.length"
   ))
 
   // Strings
@@ -350,11 +350,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "\"str\"",
     JavaScriptCompiler -> "\"str\"",
     LuaCompiler -> "\"str\"",
+    ObjcCompiler -> "@\"str\"",
     PerlCompiler -> "\"str\"",
     PHPCompiler -> "\"str\"",
     PythonCompiler -> "u\"str\"",
-    RubyCompiler -> "\"str\"",
-    ObjcCompiler -> "@\"str\""
+    RubyCompiler -> "\"str\""
   ))
 
   full("\"str\\nnext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
@@ -364,11 +364,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "\"str\\nnext\"",
     JavaScriptCompiler -> "\"str\\nnext\"",
     LuaCompiler -> "\"str\\nnext\"",
+    ObjcCompiler -> "@\"str\\nnext\"",
     PerlCompiler -> "\"str\\nnext\"",
     PHPCompiler -> "\"str\\nnext\"",
     PythonCompiler -> "u\"str\\nnext\"",
-    RubyCompiler -> "\"str\\nnext\"",
-    ObjcCompiler -> "@\"str\\nnext\""
+    RubyCompiler -> "\"str\\nnext\""
   ))
 
   full("\"str\\u000anext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
@@ -378,11 +378,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "\"str\\nnext\"",
     JavaScriptCompiler -> "\"str\\nnext\"",
     LuaCompiler -> "\"str\\nnext\"",
+    ObjcCompiler -> "@\"str\\nnext\"",
     PerlCompiler -> "\"str\\nnext\"",
     PHPCompiler -> "\"str\\nnext\"",
     PythonCompiler -> "u\"str\\nnext\"",
-    RubyCompiler -> "\"str\\nnext\"",
-    ObjcCompiler -> "@\"str\\nnext\""
+    RubyCompiler -> "\"str\\nnext\""
   ))
 
   full("\"str\\0next\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
@@ -392,38 +392,38 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "\"str\\000next\"",
     JavaScriptCompiler -> "\"str\\000next\"",
     LuaCompiler -> "\"str\\000next\"",
+    ObjcCompiler -> "[NSString initWithBytes:\"str\\000next\" length:8 encoding:NSUTF8StringEncoding]",
     PerlCompiler -> "\"str\\000next\"",
     PHPCompiler -> "\"str\\000next\"",
     PythonCompiler -> "u\"str\\000next\"",
-    RubyCompiler -> "\"str\\000next\"",
-    ObjcCompiler -> "[NSString initWithBytes:\"str\\000next\" length:8 encoding:NSUTF8StringEncoding]"
+    RubyCompiler -> "\"str\\000next\""
   ))
 
   everybodyExcept("\"str1\" + \"str2\"", "\"str1\" + \"str2\"", Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str1\") + std::string(\"str2\")",
     LuaCompiler -> "\"str1\" .. \"str2\"",
+    ObjcCompiler -> "[@\"str1\" appendString:@\"str2\""]",
     PerlCompiler -> "\"str1\" . \"str2\"",
     PHPCompiler -> "\"str1\" . \"str2\"",
-    PythonCompiler -> "u\"str1\" + u\"str2\"",
-    ObjcCompiler -> "[@\"str1\" appendString:@\"str2\""]"
+    PythonCompiler -> "u\"str1\" + u\"str2\""
   ), CalcStrType)
 
   everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str1\") == (std::string(\"str2\"))",
     JavaCompiler -> "\"str1\".equals(\"str2\")",
     LuaCompiler -> "\"str1\" == \"str2\"",
+    ObjcCompiler -> "[@\"str1\" isEqualToString:@\"str2\""]",
     PerlCompiler -> "\"str1\" eq \"str2\"",
-    PythonCompiler -> "u\"str1\" == u\"str2\"",
-    ObjcCompiler -> "[@\"str1\" isEqualToString:@\"str2\""]"
+    PythonCompiler -> "u\"str1\" == u\"str2\""
   ), CalcBooleanType)
 
   everybodyExcept("\"str1\" != \"str2\"", "\"str1\" != \"str2\"", Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"str1\") != std::string(\"str2\")",
     JavaCompiler -> "!(\"str1\").equals(\"str2\")",
     LuaCompiler -> "\"str1\" ~= \"str2\"",
+    ObjcCompiler -> "![@\"str1\" isEqualToString:@\"str2\""]",
     PerlCompiler -> "\"str1\" ne \"str2\"",
-    PythonCompiler -> "u\"str1\" != u\"str2\"",
-    ObjcCompiler -> "![@\"str1\" isEqualToString:@\"str2\""]"
+    PythonCompiler -> "u\"str1\" != u\"str2\""
   ), CalcBooleanType)
 
   everybodyExcept("\"str1\" < \"str2\"", "\"str1\" < \"str2\"", Map[LanguageCompilerStatic, String](
@@ -431,9 +431,9 @@ class TranslatorSpec extends FunSuite {
     CSharpCompiler -> "(\"str1\".CompareTo(\"str2\") < 0)",
     JavaCompiler -> "(\"str1\".compareTo(\"str2\") < 0)",
     LuaCompiler -> "\"str1\" < \"str2\"",
+    ObjcCompiler -> "([@\"str1\" compare:@\"str2\"" < 0)]",
     PerlCompiler -> "\"str1\" lt \"str2\"",
-    PythonCompiler -> "u\"str1\" < u\"str2\"",
-    ObjcCompiler -> "([@\"str1\" compare:@\"str2\"" < 0)]"
+    PythonCompiler -> "u\"str1\" < u\"str2\""
   ), CalcBooleanType)
 
   full("\"str\".length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
@@ -443,11 +443,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "\"str\".length()",
     JavaScriptCompiler -> "\"str\".length",
     LuaCompiler -> "string.len(\"str\")",
+    ObjcCompiler -> @"\"str\".length",
     PerlCompiler -> "length(\"str\")",
     PHPCompiler -> "strlen(\"str\")",
     PythonCompiler -> "len(u\"str\")",
-    RubyCompiler -> "\"str\".size",
-    ObjcCompiler -> @"\"str\".length"
+    RubyCompiler -> "\"str\".size"
   ))
 
   full("\"str\".reverse", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
@@ -457,11 +457,11 @@ class TranslatorSpec extends FunSuite {
       JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
       JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
       LuaCompiler -> "string.reverse(\"str\")",
+      ObjcCompiler -> "[@\"str\" KSReverse]",
       PerlCompiler -> "scalar(reverse(\"str\"))",
       PHPCompiler -> "strrev(\"str\")",
       PythonCompiler -> "u\"str\"[::-1]",
-      RubyCompiler -> "\"str\".reverse",
-      ObjcCompiler -> "[@\"str\" ksReverse]"
+      RubyCompiler -> "\"str\".reverse"
     ))
 
   full("\"12345\".to_i", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
@@ -471,11 +471,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "Long.parseLong(\"12345\", 10)",
     JavaScriptCompiler -> "Number.parseInt(\"12345\", 10)",
     LuaCompiler -> "tonumber(\"12345\")",
+    ObjcCompiler -> "@\"12345\".intValue",
     PerlCompiler -> "\"12345\"",
     PHPCompiler -> "intval(\"12345\", 10)",
     PythonCompiler -> "int(u\"12345\")",
-    RubyCompiler -> "\"12345\".to_i",
-    ObjcCompiler -> "@\"12345\".intValue"
+    RubyCompiler -> "\"12345\".to_i"
   ))
 
   full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
@@ -485,11 +485,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "Long.parseLong(\"1234fe\", 16)",
     JavaScriptCompiler -> "Number.parseInt(\"1234fe\", 16)",
     LuaCompiler -> "tonumber(\"1234fe\", 16)",
+    ObjcCompiler -> "[@\"1234fe\" ksToNumberWithBase:16]",
     PerlCompiler -> "hex(\"1234fe\")",
     PHPCompiler -> "intval(\"1234fe\", 16)",
     PythonCompiler -> "int(u\"1234fe\", 16)",
-    RubyCompiler -> "\"1234fe\".to_i(16)",
-    ObjcCompiler -> "[@\"1234fe\" ksToNumberWithBase:16]"
+    RubyCompiler -> "\"1234fe\".to_i(16)"
   ))
 
   // casts
@@ -500,11 +500,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "((Block) (other())).bar()",
     JavaScriptCompiler -> "this.other.bar",
     LuaCompiler -> "self.other.bar",
+    ObjcCompiler -> "((block_t *)other).bar",
     PerlCompiler -> "$self->other()->bar()",
     PHPCompiler -> "$this->other()->bar()",
     PythonCompiler -> "self.other.bar",
-    RubyCompiler -> "other.bar",
-    ObjcCompiler -> "((block_t *)other).bar"
+    RubyCompiler -> "other.bar"
   ))
 
   full("other.as<block::innerblock>.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
@@ -514,11 +514,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "((Block.Innerblock) (other())).baz()",
     JavaScriptCompiler -> "this.other.baz",
     LuaCompiler -> "self.other.baz",
+    ObjcCompiler -> "???",
     PerlCompiler -> "$self->other()->baz()",
     PHPCompiler -> "$this->other()->baz()",
     PythonCompiler -> "self.other.baz",
-    RubyCompiler -> "other.baz",
-    ObjcCompiler -> "???"
+    RubyCompiler -> "other.baz"
   ))
 
   // primitive pure types
@@ -529,11 +529,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "((short) ((1 + 2)))",
     JavaScriptCompiler -> "(1 + 2)",
     LuaCompiler -> "(1 + 2)",
+    ObjcCompiler -> "((int16_t) ((1 + 2)))",
     PerlCompiler -> "(1 + 2)",
     PHPCompiler -> "(1 + 2)",
     PythonCompiler -> "(1 + 2)",
-    RubyCompiler -> "(1 + 2)",
-    ObjcCompiler -> "((int16_t) ((1 + 2)))"
+    RubyCompiler -> "(1 + 2)"
   ))
 
   // empty array casting
@@ -544,11 +544,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "new byte[] {  }",
     JavaScriptCompiler -> "[]",
     LuaCompiler -> "\"\"",
+    ObjcCompiler -> "[NSData data]",
     PerlCompiler -> "pack('C*', ())",
     PHPCompiler -> "\"\"",
     PythonCompiler -> "b\"\"",
-    RubyCompiler -> "[].pack('C*')",
-    ObjcCompiler -> "[NSData data]"
+    RubyCompiler -> "[].pack('C*')"
   ))
 
   full("[].as<u1[]>", CalcIntType, ArrayType(Int1Type(false)), Map[LanguageCompilerStatic, String](
@@ -558,11 +558,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList())",
     JavaScriptCompiler -> "[]",
     LuaCompiler -> "{}",
+    ObjcCompiler -> "[NSData data]",
     PerlCompiler -> "()",
     PHPCompiler -> "[]",
     PythonCompiler -> "[]",
-    RubyCompiler -> "[]",
-    ObjcCompiler -> "[NSData array]"
+    RubyCompiler -> "[]"
   ))
 
   full("[].as<f8[]>", CalcIntType, ArrayType(FloatMultiType(Width8, None)), Map[LanguageCompilerStatic, String](
@@ -572,11 +572,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "new ArrayList<Double>(Arrays.asList())",
     JavaScriptCompiler -> "[]",
     LuaCompiler -> "{}",
+    ObjcCompiler -> "[NSData data]",
     PerlCompiler -> "()",
     PHPCompiler -> "[]",
     PythonCompiler -> "[]",
-    RubyCompiler -> "[]",
-    ObjcCompiler -> "[NSData array]"
+    RubyCompiler -> "[]"
   ))
 
   // type enforcement: casting to non-literal byte array
@@ -587,11 +587,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "new byte[] { (0 + 1), 5 }",
     JavaScriptCompiler -> "new Uint8Array([(0 + 1), 5])",
     LuaCompiler -> "???",
+    ObjcCompiler -> "???",
     PerlCompiler -> "pack('C*', ((0 + 1), 5))",
     PHPCompiler -> "pack('C*', (0 + 1), 5)",
     PythonCompiler -> "struct.pack('2b', (0 + 1), 5)",
-    RubyCompiler -> "[(0 + 1), 5].pack('C*')",
-    ObjcCompiler -> "???"
+    RubyCompiler -> "[(0 + 1), 5].pack('C*')"
   ))
 
   // type enforcement: casting to array of integers
@@ -601,11 +601,11 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 2))",
     JavaScriptCompiler -> "[0, 1, 2]",
     LuaCompiler -> "{0, 1, 2}",
+    ObjcCompiler -> "@[@(0), @(1), @(2)]",
     PerlCompiler -> "(0, 1, 2)",
     PHPCompiler -> "[0, 1, 2]",
     PythonCompiler -> "[0, 1, 2]",
-    RubyCompiler -> "[0, 1, 2]",
-    ObjcCompiler -> "@[@(0), @(1), @(2)]"
+    RubyCompiler -> "[0, 1, 2]"
   ))
 
   // sizeof of primitive types
@@ -649,11 +649,11 @@ class TranslatorSpec extends FunSuite {
       JavaCompiler -> new JavaTranslator(tp, new ImportList()),
       JavaScriptCompiler -> new JavaScriptTranslator(tp),
       LuaCompiler -> new LuaTranslator(tp, new ImportList()),
+      ObjcCompiler -> new ObjcTranslator(tp),
       PerlCompiler -> new PerlTranslator(tp, new ImportList()),
       PHPCompiler -> new PHPTranslator(tp, RuntimeConfig()),
       PythonCompiler -> new PythonTranslator(tp, new ImportList()),
-      RubyCompiler -> new RubyTranslator(tp),
-      ObjcCompiler -> new ObjcTranslator(tp)
+      RubyCompiler -> new RubyTranslator(tp)
     )
 
     langs.foreach { case (langObj, tr) =>

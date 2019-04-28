@@ -49,7 +49,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     case Identifier.INDEX => "i"
     case _ => s"self.${doName(s, t)}"
   }
-  override def doName(s: String, t: Option[DataType]): String =
+  override def doName(s: String, t: Option[DataType] = None): String =
     s
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${LuaCompiler.types2class(enumTypeAbs)}.$label"

@@ -31,7 +31,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
     '\b' -> "\\b"
   )
 
-  override def doName(s: String, t: Option[DataType]) = {
+  override def doName(s: String, t: Option[DataType] = None) = {
     s match {
       case Identifier.INDEX => "i" // FIXME: probably would clash with attribute named "i"
       case _ => s

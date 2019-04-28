@@ -47,7 +47,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     }
   }
 
-  override def doName(s: String, t: Option[DataType]) = s
+  override def doName(s: String, t: Option[DataType] = None) = s
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)

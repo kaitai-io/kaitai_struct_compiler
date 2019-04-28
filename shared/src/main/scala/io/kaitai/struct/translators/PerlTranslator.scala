@@ -64,7 +64,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
   }
 
-  override def doName(s: String, t: Option[DataType]) = {
+  override def doName(s: String, t: Option[DataType] = None) = {
     s match {
       case Identifier.ITERATOR => "$_"
       case Identifier.ITERATOR2 => "$_buf"

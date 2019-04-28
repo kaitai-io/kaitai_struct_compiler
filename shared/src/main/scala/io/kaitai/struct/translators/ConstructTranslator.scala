@@ -16,7 +16,7 @@ class ConstructTranslator(provider: TypeProvider, importList: ImportList) extend
     }
   }
 
-  override def doName(s: String, t: Option[DataType]) = {
+  override def doName(s: String, t: Option[DataType] = None) = {
     s match {
       case Identifier.PARENT => "_"
       case _ => s

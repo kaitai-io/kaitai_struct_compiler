@@ -47,7 +47,7 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     }
   }
 
-  override def doName(s: String, t: Option[DataType]) = {
+  override def doName(s: String, t: Option[DataType] = None) = {
     s match {
       case "_root" | "_parent" | "_io" => s
       case _ => Utils.lowerCamelCase(s)

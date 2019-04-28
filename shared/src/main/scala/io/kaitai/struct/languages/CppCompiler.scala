@@ -482,7 +482,7 @@ class CppCompiler(
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2, None)
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
       case NoRepeat => memberName
     }
 
@@ -607,7 +607,7 @@ class CppCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${translator.doName("_", None)};")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${translator.doName("_")};")
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -616,9 +616,9 @@ class CppCompiler(
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val (typeDecl, tempVar) = if (isRaw) {
-      ("std::string ", translator.doName(Identifier.ITERATOR2, None))
+      ("std::string ", translator.doName(Identifier.ITERATOR2))
     } else {
-      ("", translator.doName(Identifier.ITERATOR, None))
+      ("", translator.doName(Identifier.ITERATOR))
     }
 
     val (wrappedTempVar, rawPtrExpr) = if (config.cppConfig.pointers == UniqueAndRawPointers) {

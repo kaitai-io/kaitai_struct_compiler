@@ -120,7 +120,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
   override def anyField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName, Some(detectType(value)))}"
 
-  override def doName(s: String, t: Option[DataType]) = s match {
+  override def doName(s: String, t: Option[DataType] = None) = s match {
     case Identifier.ITERATOR => "_"
     case Identifier.ITERATOR2 => "_buf"
     case Identifier.INDEX => "i"

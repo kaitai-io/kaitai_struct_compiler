@@ -164,7 +164,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = ???
 
   def doLocalName(s: String, t: Option[DataType]): String = doName(s, t)
-  def doName(s: String, t: Option[DataType]): String
+  def doName(s: String, t: Option[DataType] = None): String
   def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String =
     anyField(value, attrName)
 

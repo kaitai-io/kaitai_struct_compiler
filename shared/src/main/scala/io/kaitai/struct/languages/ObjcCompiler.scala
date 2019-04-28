@@ -1,19 +1,16 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.CppRuntimeConfig._
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{ObjcTranslator, TypeDetector}
+import io.kaitai.struct.RuntimeConfig
 
-class ObjcCompiler(
-  typeProvider: ClassTypeProvider,
-  config: RuntimeConfig
-) extends LanguageCompiler(typeProvider, config)
+class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+  extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with FixedContentsUsingArrayByteLiteral
@@ -24,7 +21,7 @@ class ObjcCompiler(
   val importListSrc = new ImportList
   val importListHdr = new ImportList
 
-  override val translator = new ObjcTranslator(typeProvider, importListSrc, config)
+  override val translator = new ObjcTranslator(typeProvider, importListSrc)
   val outSrcHeader = new StringLanguageOutputWriter(indent)
   val outHdrHeader = new StringLanguageOutputWriter(indent)
   val outSrc = new StringLanguageOutputWriter(indent)
@@ -42,7 +39,7 @@ class ObjcCompiler(
   override def innerEnums = false
 
   private def importListToStr(importList: ImportList): String =
-  importList.toList.map((x) => s"#import <$x>").mkString("", "\n", "\n")
+    importList.toList.map((x) => s"#import <$x>").mkString("", "\n", "\n")
   override def indent: String = "    "
 
   // Members declared in io.kaitai.struct.languages.components.AllocateAndStoreIO
@@ -52,7 +49,7 @@ class ObjcCompiler(
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2, None)
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
       case NoRepeat => memberName
     }
 
@@ -73,7 +70,7 @@ class ObjcCompiler(
   }
 
   // Members declared in io.kaitai.struct.languages.components.EveryReadIsExpression
-  override def bytesPadTermExpr(expr0: String,padRight: Option[Int],terminator: Option[Int],include: Boolean): String = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
     val expr1 = padRight match {
       case Some(padByte) => s"[$expr0 KSBytesStripRightPadByte:$padByte]"
       case None => expr0
@@ -84,13 +81,13 @@ class ObjcCompiler(
     }
     expr2
   }
-  override def handleAssignmentRepeatEos(id: Identifier,expr: String): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
     outSrc.puts(s"handleAssignmentRepeatEos")
   }
-  override def handleAssignmentRepeatExpr(id: Identifier,expr: String): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
     outSrc.puts(s"handleAssignmentRepeatExpr")
   }
-  override def handleAssignmentRepeatUntil(id: Identifier,expr: String,isRaw: Boolean): Unit = {
+  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     outSrc.puts(s"handleAssignmentRepeatUntil")
   }
   override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
@@ -101,14 +98,14 @@ class ObjcCompiler(
       case _: InstanceIdentifier => {
         dataType match {
           case Some(_: UserType) => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
-          case Some(_: NumericType) => outSrc.puts(s"self.${publicMemberName(id)} = @($expr);")
+          case Some(_: NumericType) | Some(_: BooleanType) => outSrc.puts(s"self.${publicMemberName(id)} = @($expr);")
           case _ => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
           }
         }
         case _ => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
      }
   }
-  override def parseExpr(dataType: DataType,assignType: DataType,io: String,defEndian: Option[FixedEndian]): String = {
+  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
         s"($io).read_${t.apiCall(defEndian)}"
@@ -142,7 +139,7 @@ class ObjcCompiler(
   }
 
   // Members declared in io.kaitai.struct.languages.components.FixedContentsUsingArrayByteLiteral
-  override def attrFixedContentsParse(attrName: Identifier,contents: String): Unit = {
+  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
     outSrc.puts(s"attrFixedContentsParse")
   }
 
@@ -153,26 +150,23 @@ class ObjcCompiler(
   override def attrParseHybrid(leProc: () => Unit,beProc: () => Unit): Unit = {
     outSrc.puts(s"attrParseHybrid(leProc: () => Unit,beProc: ")
   }
-  override def attrProcess(proc: io.kaitai.struct.format.ProcessExpr,varSrc: Identifier,varDest: Identifier): Unit = {
+  override def attrProcess(proc: io.kaitai.struct.format.ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     outSrc.puts(s"attrProcess")
   }
-  override def attributeDeclaration(attrName: Identifier,attrType: DataType,isNullable: Boolean): Unit = {
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     attrName match {
-      case _: InstanceIdentifier | _: NamedIdentifier => {
+      case _: InstanceIdentifier | _: NamedIdentifier =>
         outHdr.puts("// comment: attributeDeclaration: InstanceIdentifier or NamedIdentifier")
         outSrc.puts("// comment: attributeDeclaration: InstanceIdentifier or NamedIdentifier")
-
         outHdr.puts(s"@property (strong,nonatomic) ${kaitaiType2NativeType(attrType, true)}${publicMemberName(attrName)};")
-        }
       case _ => {
         outHdr.puts(s"// comment: attributeDeclaration: $attrName")
         outSrc.puts(s"// comment: attributeDeclaration: $attrName")
-
         outHdr.puts(s"@property (strong,nonatomic) ${kaitaiType2NativeType(attrType, false)}${publicMemberName(attrName)};")
       }
     }
   }
-  override def attributeReader(attrName: Identifier,attrType: DataType,isNullable: Boolean): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     outHdr.puts("// comment: attributeReader")
     outSrc.puts("// comment: attributeReader")
   }
@@ -187,7 +181,7 @@ class ObjcCompiler(
     outSrc.puts
   }
 
-  override def classConstructorHeader(name: List[String],parentType: DataType,rootClassName: List[String],isHybrid: Boolean,params: List[io.kaitai.struct.format.ParamDefSpec]): Unit = {
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[io.kaitai.struct.format.ParamDefSpec]): Unit = {
     val (endianSuffixHdr, endianSuffixSrc)  = if (isHybrid) {
       (" withHybrid:(int)p_is_le", " withHybrid:p_is_le")
     } else {
@@ -295,23 +289,23 @@ class ObjcCompiler(
   override def condRepeatEosFooter: Unit = {
     outSrc.puts(s"condRepeatEosFooter")
   }
-  override def condRepeatEosHeader(id: Identifier,io: String,dataType: DataType,needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     outSrc.puts(s"condRepeatEosHeader")
   }
   override def condRepeatExprFooter: Unit = {
     outSrc.puts(s"condRepeatExprFooter")
   }
-  override def condRepeatExprHeader(id: Identifier,io: String,dataType: DataType,needRaw: Boolean,repeatExpr: Ast.expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     outSrc.puts(s"condRepeatExprHeader")
   }
-  override def condRepeatUntilFooter(id: Identifier,io: String,dataType: DataType,needRaw: Boolean,repeatExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     outSrc.puts(s"condRepeatUntilFooter")
   }
-  override def condRepeatUntilHeader(id: Identifier,io: String,dataType: DataType,needRaw: Boolean,repeatExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     outSrc.puts(s"condRepeatUntilHeader")
   }
-  override def enumDeclaration(curClass: List[String],enumName: String,enumColl: Seq[(Long, io.kaitai.struct.format.EnumValueSpec)]): Unit = {
-    outSrc.puts(s"enumDeclaration(curClass: List[String],enumName: String,enumColl: Seq[")
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, io.kaitai.struct.format.EnumValueSpec)]): Unit = {
+    outSrc.puts(s"enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[")
   }
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// comment: fileHeader")
@@ -320,12 +314,9 @@ class ObjcCompiler(
     outSrcHeader.puts("#import \"" + outFileName(topClassName) + ".h\"")
 
     outHdrHeader.puts(s"// comment: fileHeader")
-    if (config.cppConfig.usePragmaOnce) {
-      outHdrHeader.puts("#pragma once")
-    } else {
-      outHdrHeader.puts(s"#ifndef ${defineName(topClassName)}")
-      outHdrHeader.puts(s"#define ${defineName(topClassName)}")
-    }
+    outHdrHeader.puts(s"#ifndef ${defineName(topClassName)}")
+    outHdrHeader.puts(s"#define ${defineName(topClassName)}")
+
     outHdrHeader.puts
     outHdrHeader.puts(s"// $headerComment")
     outHdrHeader.puts
@@ -347,12 +338,10 @@ class ObjcCompiler(
     outHdr.puts("// comment: fileFooter")
     outSrc.puts("// comment: fileFooter")
 
-    if (!config.cppConfig.usePragmaOnce) {
-      outHdr.puts
-      outHdr.puts(s"#endif  // ${defineName(topClassName)}")
-    }
+    outHdr.puts
+    outHdr.puts(s"#endif  // ${defineName(topClassName)}")
   }
-  override def instanceCheckCacheAndReturn(instName: io.kaitai.struct.format.InstanceIdentifier,dataType: DataType): Unit = {
+  override def instanceCheckCacheAndReturn(instName: io.kaitai.struct.format.InstanceIdentifier, dataType: DataType): Unit = {
     outHdr.puts("// comment: instanceCheckCacheAndReturn")
     outSrc.puts("// comment: instanceCheckCacheAndReturn")
     outSrc.puts(s"if (${instancePrivateMemberName(instName)})")
@@ -366,13 +355,13 @@ class ObjcCompiler(
     outSrc.dec
     outSrc.puts("}")
   }
-  override def instanceHeader(className: List[String],instName: io.kaitai.struct.format.InstanceIdentifier,dataType: DataType,isNullable: Boolean): Unit = {
+  override def instanceHeader(className: List[String], instName: io.kaitai.struct.format.InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     outHdr.puts("// comment: instanceHeader")
     outSrc.puts("// comment: instanceHeader")
     outSrc.puts(s"-(${kaitaiType2NativeType(dataType, true)}) ${publicMemberName(instName)} {")
     outSrc.inc
   }
-  override def instanceReturn(instName: io.kaitai.struct.format.InstanceIdentifier,attrType: DataType): Unit = {
+  override def instanceReturn(instName: io.kaitai.struct.format.InstanceIdentifier, attrType: DataType): Unit = {
     outHdr.puts("// comment: instanceReturn")
     outSrc.puts("// comment: instanceReturn")
     outSrc.puts(s"return ${instancePrivateMemberName(instName)};")
@@ -389,7 +378,7 @@ class ObjcCompiler(
     outSrc.dec
     outSrc.puts("}")
   }
-  override def readHeader(endian: Option[FixedEndian],isEmpty: Boolean): Unit = {
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
     outHdr.puts("// comment: readHeader")
     outSrc.puts("// comment: readHeader")
     val suffix = endian match {
@@ -459,26 +448,37 @@ class ObjcCompiler(
   override def switchEnd(): Unit = {
     outSrc.puts(s"switchEnd")
   }
-  override def switchStart(id: Identifier,on: Ast.expr): Unit = {
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     outSrc.puts(s"switchStart")
   }
 
   // Members declared in io.kaitai.struct.languages.components.UniversalDoc
-  override def universalDoc(doc: io.kaitai.struct.format.DocSpec): Unit = {
-    outSrc.puts(s"universalDoc")
+  override def universalDoc(doc: DocSpec): Unit = {
+    outHdr.puts("// comment: universalDoc")
+    outSrc.puts("// comment: universalDoc")
+    outHdr.puts
+    outHdr.puts( "/**")
+
+    doc.summary.foreach(docStr => outHdr.putsLines(" * ", docStr))
+
+    doc.ref.foreach {
+      case TextRef(text) =>
+        outHdr.putsLines(" * ", s"\\sa $text")
+      case UrlRef(url, text) =>
+        outHdr.putsLines(" * ", s"\\sa $url $text")
+    }
+
+    outHdr.puts( " */")
   }
 
   def defineName(className: String) = className.toUpperCase + "_H_"
 
   def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String =
-    ObjcCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
+    ObjcCompiler.kaitaiType2NativeType(attrType, absolute)
 
   override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
 
-  def nullPtr: String = config.cppConfig.pointers match {
-    case RawPointers => "0"
-    case SharedPointers | UniqueAndRawPointers => "nullptr"
-  }
+  def nullPtr: String = "0"
 }
 
 object ObjcCompiler extends LanguageCompilerStatic with StreamStructNames {
@@ -490,7 +490,7 @@ object ObjcCompiler extends LanguageCompilerStatic with StreamStructNames {
   override def kstructName = "kstruct"
   override def kstreamName = "kstream"
 
-  def kaitaiType2NativeType(config: CppRuntimeConfig, attrType: DataType, absolute: Boolean = false): String = {
+  def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
     attrType match {
       case Int1Type(false) => "NSNumber *"
       case IntMultiType(false, Width2, _) => "NSNumber *"
@@ -528,15 +528,15 @@ object ObjcCompiler extends LanguageCompilerStatic with StreamStructNames {
           t.name
         })
 
-      case ArrayType(inType) => s"NSMutableArray <${kaitaiType2NativeType(config, inType, absolute)}> *"
-      case CalcArrayType(inType) => s"NSMutableArray <${kaitaiType2NativeType(config, inType, absolute)}> *"
+      case ArrayType(inType) => s"NSMutableArray <${kaitaiType2NativeType(inType, absolute)}> *"
+      case CalcArrayType(inType) => s"NSMutableArray <${kaitaiType2NativeType(inType, absolute)}> *"
 
       case KaitaiStreamType => s"$kstreamName *"
       case KaitaiStructType => s"$kstructName *"
       case CalcKaitaiStructType => s"$kstructName *"
 
       case st: SwitchType =>
-        kaitaiType2NativeType(config, combineSwitchType(st), absolute)
+        kaitaiType2NativeType(combineSwitchType(st), absolute)
     }
   }
 
