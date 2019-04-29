@@ -143,6 +143,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let mut $tempVar = $expr;")
     out.puts(s"$tempVar.read(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}.or(Some(self)), Some(self))?;")
     pushToMember(id, tempVar)
+
+    // Because of Rust's move semantics, `tempVar` is no longer available. Instead,
+    // we'll re-bind that variable name to the borrowed value, instead of owned.
+    out.puts(s"let $tempVar = ${privateMemberName(id)}.last().unwrap();")
   }
 
   def pushToMember(id: Identifier, expr: String): Unit = out.puts(s"${privateMemberName(id)}.push($expr);")
@@ -203,11 +207,24 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit =
     out.puts(s"// condRepeatExprHeader($id, $io, $dataType, $needRaw, $repeatExpr)")
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit =
-    out.puts(s"// condRepeatUntilHeader($id, $io, $dataType, $needRaw, $repeatExpr)")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+    if (needRaw)
+      out.puts(s"${privateMemberName(RawIdentifier(id))}.clear();")
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit =
-    out.puts(s"// condRepeatUntilFooter($id, $io, $dataType, $needRaw, $repeatExpr)")
+    out.puts(s"${privateMemberName(id)}.clear();")
+
+    // Because Rust allows the `while` predicate to be an expression, we actually do all work
+    // as part of the predicate, and have an empty loop body. Slightly preferable to `loop { if pred { break }}`
+    out.puts("while {")
+    out.inc
+  }
+
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+    typeProvider._currentIteratorType = Some(dataType)
+    out.puts(s"!(${expression(repeatExpr)})")
+    out.dec
+    out.puts("} {}")
+  }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit =
     out.puts(s"// attrProcess($proc, $varSrc, $varDest)")
