@@ -152,13 +152,24 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   def pushToMember(id: Identifier, expr: String): Unit = out.puts(s"${privateMemberName(id)}.push($expr);")
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    val assignTo = typeProvider.nowClass.seq.filter(a => a.id == id).head
+    val seqId = typeProvider.nowClass.seq.filter(a => a.id == id)
 
-    val optionSafe = assignTo.dataType match {
-      case _: EnumType => s"Some($expr.try_into()?)"
-      case _ => expr
+    val typeSafe = if (seqId.isEmpty) {
+      // No matching ID's in the main parse body, so this is an instance
+      //s"Some($expr)"
+      val dataType = typeProvider.nowClass.instances(id.asInstanceOf[InstanceIdentifier]).dataTypeComposite
+
+      // Currently a ton of type-related issues in instance calculations, hold off for now
+      //s"Some($expr as ${kaitaiTypeToNativeType(dataType)})"
+      "panic!(\"Instance calculation currently unsupported.\")"
+    } else if (seqId.head.dataType.isInstanceOf[EnumType]) {
+      // Assign to enum, so handle the conversion with `TryFrom`
+      s"Some($expr.try_into()?)"
+    } else {
+      expr
     }
-    out.puts(s"${privateMemberName(id)} = $optionSafe;")
+
+    out.puts(s"${privateMemberName(id)} = $typeSafe;")
   }
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String =
@@ -267,9 +278,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"${privateMemberName(instName)}.unwrap()")
   }
-
-  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit =
-    out.puts(s"// instanceCalculate($instName, $dataType, $value)")
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val enumClass = normalizeClassName(curClass ::: List(enumName))
