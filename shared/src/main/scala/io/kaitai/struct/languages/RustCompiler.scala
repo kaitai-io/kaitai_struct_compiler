@@ -163,7 +163,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // Because `b.size` can be coming from an instance, we need to safely handle looking it up
         val expr = b.size match {
           // TODO: Non-instance backreferences?
-          case Ast.expr.Name(_) => s"${expression(b.size)}()"
+          case Ast.expr.Name(_) =>
+            s"${expression(b.size)}(${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})"
           case _ => expression(b.size)
         }
         s"$io.read_bytes($expr as usize)?"
@@ -228,7 +229,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceDeclFooter(className: List[String]): Unit = universalFooter
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"fn ${idToStr(instName)}(&mut self) -> ${kaitaiTypeToNativeType(dataType)} {")
+    out.puts(s"fn ${idToStr(instName)}(")
+    out.inc
+    out.puts(s"&mut self,")
+    out.puts(s"${privateMemberName(RootIdentifier)}: Option<&${rootClassType(typeProvider.nowClass, typeProvider.topClass)}>,")
+    out.puts(s"${privateMemberName(ParentIdentifier)}: Option<&${parentClassType(typeProvider.nowClass)}>")
+    out.dec
+    out.puts(s") -> ${kaitaiTypeToNativeType(dataType)} {")
     out.inc
   }
 
