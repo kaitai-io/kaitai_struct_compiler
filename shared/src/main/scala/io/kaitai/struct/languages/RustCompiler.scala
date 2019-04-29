@@ -178,7 +178,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case b: BytesLimitType =>
         // Because `b.size` can be coming from an instance, we need to safely handle looking it up
         val expr = b.size match {
-          // TODO: Non-instance backreferences?
           case Ast.expr.Name(_) =>
             s"${expression(b.size)}(${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})"
           case _ => expression(b.size)
