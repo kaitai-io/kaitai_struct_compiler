@@ -52,9 +52,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     val typeName = attrName match {
-      case IoIdentifier => return // No-op, the stream doesn't get stored inside the struct
-      case RootIdentifier => s"Option<&'a ${rootClassType(typeProvider.nowClass, typeProvider.topClass)}>"
-      case ParentIdentifier => s"Option<&'a ${parentClassType(typeProvider.nowClass)}>"
+      // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
+      case IoIdentifier | RootIdentifier | ParentIdentifier => return
       case _ => kaitaiTypeToNativeType(attrType)
     }
 
@@ -79,7 +78,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String],
                                       isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     // Normally OO languages attempt to put classes within each other; Rust can't do that, so we end the struct
-    // definition here and start the impl block
+    // definition here and let `readHeader` take over
     out.dec
     out.puts("}")
 
@@ -93,20 +92,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"type Parent = $parentType;")
     out.puts(s"type Root = $rootType;")
     out.puts
-
-    out.puts(s"fn new(_parent: Option<&'a $parentType>, _root: Option<&'a $rootType>) -> KResult<'a, Self> {")
-    out.inc
-    out.puts(s"let s = $currentName {")
-    out.inc
-    out.puts("_parent,")
-    out.puts(s"_root,")
-    out.puts(s"..Default::default()")
-    out.dec
-    out.puts(s"};")
-
-    out.puts(s"Ok(s)")
-    out.dec
-    out.puts("}")
   }
 
   override def runRead(): Unit = out.puts("// runRead()")
@@ -114,7 +99,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def runReadCalc(): Unit = out.puts("// runReadCalc()")
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
-    out.puts(s"fn read<S: $kstreamName>(&'a mut self, stream: &mut S) -> KResult<'a, ()> {")
+    out.puts(s"fn read<'s: 'a, S: $kstreamName>(")
+    out.inc
+    out.puts(s"&mut self,")
+    out.puts(s"${privateMemberName(IoIdentifier)}: &'s S,")
+    out.puts(s"${privateMemberName(RootIdentifier)}: Option<&Self::Root>,")
+    out.puts(s"${privateMemberName(ParentIdentifier)}: Option<&Self::Parent>,")
+    out.dec
+    out.puts(s") -> KResult<'s, ()> {")
     out.inc
   }
 
@@ -148,7 +140,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val tempVar = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
 
     out.puts(s"let mut $tempVar = $expr;")
-    out.puts(s"$tempVar.read(${privateMemberName(IoIdentifier)});")
+    out.puts(s"$tempVar.read(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}.or(Some(self)), Some(self))?;")
     pushToMember(id, tempVar)
   }
 
@@ -171,23 +163,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // Because `b.size` can be coming from an instance, we need to safely handle looking it up
         val expr = b.size match {
           // TODO: Non-instance backreferences?
-          // TODO: Better type handling for size than just casting?
-          case Ast.expr.Name(_) => s"${expression(b.size)}() as usize"
+          case Ast.expr.Name(_) => s"${expression(b.size)}()"
           case _ => expression(b.size)
         }
-        s"$io.read_bytes($expr)?"
+        s"$io.read_bytes($expr as usize)?"
       case _: BytesEosType => s"$io.read_bytes_full()?"
       case b: BytesTerminatedType => s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
       case BitsType1 => s"$io.read_bits_int(1)? != 0"
       case BitsType(width) => s"$io.read_bits_int($width)?"
       case u: UserType =>
-        s"${normalizeClassName(u.classSpec.get.name)}::new(Some(self), self.${privateMemberName(RootIdentifier)})?"
+        s"${normalizeClassName(u.classSpec.get.name)}::default()"
     }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
     val ioId = privateMemberName(IoIdentifier)
     val expr = padRight match {
-      // The original implementation forces the trait default, but I'd rather let KStream implementors re-do them
       case Some(p) => s"$ioId.bytes_strip_right($expr0, $p)"
       case None => expr0
     }
@@ -222,13 +212,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def useIO(ioEx: Ast.expr): String = s"// useIO($ioEx)"
 
-  override def pushPos(io: String): Unit = out.puts(s"let pos = $io.pos();")
+  override def pushPos(io: String): Unit = out.puts(s"// pushPos($io)")
 
-  override def seek(io: String, pos: Ast.expr): Unit = out.puts(s"$io.seek($pos);")
+  override def seek(io: String, pos: Ast.expr): Unit = out.puts(s"// seek($io, $pos)")
 
-  override def popPos(io: String): Unit = out.puts(s"$io.seek(pos)")
+  override def popPos(io: String): Unit = out.puts(s"// popPos($io)")
 
-  override def alignToByte(io: String): Unit = out.puts(s"$io.align_to_byte();")
+  override def alignToByte(io: String): Unit = out.puts(s"$io.align_to_byte()?;")
 
   override def instanceDeclHeader(className: List[String]): Unit = {
     out.puts(s"impl<'a> ${normalizeClassName(className)}<'a> {")
@@ -249,8 +239,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit =
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"${privateMemberName(instName)}.unwrap()")
+  }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit =
     out.puts(s"// instanceCalculate($instName, $dataType, $value)")
@@ -287,7 +278,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     enumColl.foreach { case (value, label) =>
       out.puts(s"$value => Ok($enumClass::${type2class(label.name)}),")
     }
-    out.puts("_ => Err(KError::UnknownEnum(flag)),")
+    out.puts("_ => Err(KError::UnknownVariant(flag)),")
     out.dec
 
     out.puts(s"}")
@@ -309,21 +300,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     * @param id identifier to render
     * @return identifier as string
     */
-  override def idToStr(id: Identifier): String = id match {
-    case SpecialIdentifier(n) => n
-    case NamedIdentifier(n) => n
-    case InstanceIdentifier(n) => n
-    case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-    // Raw identifiers store bytes locally, we'll parse them later
-    case RawIdentifier(inner) => s"raw_${idToStr(inner)}"
-  }
+  override def idToStr(id: Identifier): String = RustCompiler.idToStr(id)
 
-  override def privateMemberName(id: Identifier): String = id match {
-    case IoIdentifier => "stream"
-    case RootIdentifier => "_root"
-    case ParentIdentifier => "_parent"
-    case _ => s"self.${idToStr(id)}"
-  }
+  override def privateMemberName(id: Identifier): String = RustCompiler.privateMemberName(id)
 
   /**
     * Renders identifier as a proper reference to a public member
@@ -435,7 +414,8 @@ object RustCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "KStream"
   override def kstructName: String = "KStruct<'a>"
-  def kstructUnitName: String = "KStructUnit<'a>"
+
+  def kstructUnitName: String = "KStructUnit"
 
   def rootClassType(nowClass: ClassSpec, topClass: ClassSpec): String =
     if (nowClass.isTopLevel) "Self" else s"${normalizeClassName(topClass.name)}<'a>"
@@ -448,4 +428,20 @@ object RustCompiler extends LanguageCompilerStatic
         case t: ClassSpec => s"${normalizeClassName(t.name)}<'a>"
         case GenericStructClassSpec => s"$kstructName<'a>"
       }
+
+  def privateMemberName(id: Identifier): String = id match {
+    case IoIdentifier => "_io"
+    case RootIdentifier => "_root"
+    case ParentIdentifier => "_parent"
+    case _ => s"self.${idToStr(id)}"
+  }
+
+  def idToStr(id: Identifier): String = id match {
+    case SpecialIdentifier(n) => n
+    case NamedIdentifier(n) => n
+    case InstanceIdentifier(n) => n
+    case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+    // Raw identifiers store bytes locally, we'll parse them later
+    case RawIdentifier(inner) => s"raw_${idToStr(inner)}"
+  }
 }

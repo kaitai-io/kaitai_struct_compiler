@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{Identifier, ParentIdentifier, RootIdentifier}
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
@@ -42,8 +42,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case Identifier.ITERATOR => "tmpa"
       case Identifier.ITERATOR2 => "tmpb"
       case Identifier.INDEX => "i"
-      // TODO: Safer way to handle than `unwrap()`?
-      case Identifier.ROOT | Identifier.PARENT => s"self.${doName(s)}.unwrap()"
+      case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
+      case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.ok_or(KError::MissingParent)?"
       case _ => s"self.${doName(s)}"
     }
   }
