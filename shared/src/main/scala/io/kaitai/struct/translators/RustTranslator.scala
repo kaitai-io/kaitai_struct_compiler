@@ -94,14 +94,14 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
         s"base_convert(strval(${translate(i)}), 10, $baseStr)"
     }
   }
+
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     translate(encoding) match {
-      case "\"ASCII\"" =>
-        s"String::from_utf8_lossy($bytesExpr)"
-      case _ =>
-        "panic!(\"Unimplemented encoding for bytesToStr: {}\", " +
-	translate(encoding) + ")"
+      // Because ASCII is a subset of UTF-8,
+      case "\"ASCII\"" | "\"UTF-8\"" => s"str::from_utf8($bytesExpr).or(Err(KError::Encoding { expected: ${translate(encoding)} }))?"
+      case _ => "panic!(\"Unimplemented encoding for bytesToStr: {}\", \"" + translate(encoding) + "\")"
     }
+
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.len()"
   override def strLength(s: expr): String =
@@ -123,6 +123,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     s"${translate(a)}.iter().max()"
 
   override def doEnumCompareOp(left: expr, op: Ast.cmpop, right: expr): String =
-    // TODO: This probably isn't safe - no guarantees that the enum value is on the right
+  // TODO: This probably isn't legal - no guarantees that the enum value is on the right
     s"${translate(left)} ${cmpOp(op)} Some(${translate(right)})"
 }
