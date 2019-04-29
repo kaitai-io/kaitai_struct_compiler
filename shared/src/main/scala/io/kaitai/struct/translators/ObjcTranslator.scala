@@ -66,8 +66,11 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   // Members declared in io.kaitai.struct.translators.BaseTranslator
   override def bytesToStr(value: String, expr: io.kaitai.struct.exprlang.Ast.expr): String =
     s"[${value} KSBytesToStringWithEncoding:${translate(expr)}]"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String = s"doEnumById"
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"doEnumByLabel"
+  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+    s"[@($id) KSENUMWithDictionary:self._root._${enumTypeAbs.last} ]"
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
+    "[@\"" + s"$label" + "\" " + s"KSENUMWithDictionary:self._root._${enumTypeAbs.last} ]"
+
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
 

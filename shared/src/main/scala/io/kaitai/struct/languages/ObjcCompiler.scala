@@ -36,7 +36,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def innerClasses = false
-  override def innerEnums = false
+  override def innerEnums = true
 
   private def importListToStr(importList: ImportList): String =
     importList.toList.map((x) => s"#import <$x>").mkString("", "\n", "\n")
@@ -69,6 +69,10 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     ioName
   }
 
+//  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+//    case _: IntType => false
+//    case _ => true
+//  }
   // Members declared in io.kaitai.struct.languages.components.EveryReadIsExpression
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
     val expr1 = padRight match {
@@ -367,9 +371,46 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     outSrc.puts(s"condRepeatUntilHeader")
   }
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, io.kaitai.struct.format.EnumValueSpec)]): Unit = {
-    outSrc.puts(s"enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[")
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
+    outHdr.puts("// comment: enumDeclaration")
+    outSrc.puts("// comment: enumDeclaration")
+
+    val enumInstName = enumPropertyName(List(enumName))
+
+    outHdr.puts(s"@property (strong,nonatomic) NSDictionary *$enumInstName;")
+    outHdr.puts
+    outHdr.puts
+//    outSrc.puts(s"@dynamic $enumInstName;")
+    outSrc.puts(s"- (NSDictionary *)$enumInstName {")
+    outSrc.inc
+    outSrc.puts(s" if(_$enumInstName == nil) {")
+    outSrc.inc
+    outSrc.puts(s"_$enumInstName = @{")
+    outSrc.inc
+
+
+    if (enumColl.size > 1) {
+      enumColl.dropRight(1).foreach { case (id, label) =>
+        outSrc.puts("@\"" + s"${label.name}" + "\"" + s" : @($id),")
+      }
+    }
+    enumColl.last match {
+      case (id, label) =>
+        outSrc.puts("@\"" + s"${label.name}" + "\"" + s" : @($id)")
+    }
+    outSrc.dec
+    outSrc.puts("};")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts(s"return _$enumInstName;")
+    outSrc.dec
+    outSrc.puts("}")
   }
+
+  def enumPropertyName(s: List[String]): String = "_" + s.last
+
+//  def value2Const(enumName: String, label: String) = (enumName + "_" + label).toUpperCase
+
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// comment: fileHeader")
     outSrcHeader.puts(s"// $headerComment")
@@ -598,12 +639,7 @@ object ObjcCompiler extends LanguageCompilerStatic with StreamStructNames {
           t.name
         }) + " *"
 
-      case t: EnumType =>
-        types2class(if (absolute) {
-          t.enumSpec.get.name
-        } else {
-          t.name
-        })
+      case _: EnumType => "NSDictionary *"
 
       case ArrayType(inType) => s"NSMutableArray <${kaitaiType2NativeType(inType, absolute)}> *"
       case CalcArrayType(inType) => s"NSMutableArray <${kaitaiType2NativeType(inType, absolute)}> *"
