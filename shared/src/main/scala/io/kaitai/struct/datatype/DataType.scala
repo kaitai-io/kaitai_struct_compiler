@@ -420,6 +420,11 @@ object DataType {
         },
         None
       )
+    case ReBitType(widthStr) =>
+      widthStr match {
+        case "1" => BitsType1
+        case _ => BitsType(widthStr.toInt)
+      }
     case "str" => CalcStrType
     case "bool" => CalcBooleanType
     case "struct" => CalcKaitaiStructType

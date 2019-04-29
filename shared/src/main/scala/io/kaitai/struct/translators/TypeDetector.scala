@@ -3,7 +3,8 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.precompile.{TypeMismatchError, TypeUndecidedError}
+import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.precompile.{MethodNotFoundError, TypeMismatchError, TypeUndecidedError}
 
 /**
   * Basic class the implements type inferring functionality for Ast.expr
@@ -117,6 +118,8 @@ class TypeDetector(provider: TypeProvider) {
         }
       case Ast.expr.CastToType(_, typeName) =>
         detectCastType(typeName)
+      case Ast.expr.ByteSizeOfType(_) | Ast.expr.BitSizeOfType(_) =>
+        CalcIntType
     }
   }
 
@@ -128,11 +131,16 @@ class TypeDetector(provider: TypeProvider) {
     * @param attr attribute identifier part of attribute expression
     * @return data type
     */
-  def detectAttributeType(value: Ast.expr, attr: Ast.identifier) = {
+  def detectAttributeType(value: Ast.expr, attr: Ast.identifier): DataType = {
     val valType = detectType(value)
+
+    // Special case: will be compiled as compile-time determined constant
+    if (attr.name == Identifier.SIZEOF)
+      return CalcIntType
+
     valType match {
       case KaitaiStructType | CalcKaitaiStructType =>
-        throw new TypeMismatchError(s"called attribute '${attr.name}' on generic struct expression '$value'")
+        throw new MethodNotFoundError(attr.name, valType)
       case t: UserType =>
         t.classSpec match {
           case Some(tt) => provider.determineType(tt, attr.name)
@@ -141,50 +149,50 @@ class TypeDetector(provider: TypeProvider) {
       case _: BytesType =>
         attr.name match {
           case "length" => CalcIntType
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: StrType =>
         attr.name match {
           case "length" => CalcIntType
           case "reverse" => CalcStrType
           case "to_i" => CalcIntType
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: IntType =>
         attr.name match {
           case "to_s" => CalcStrType
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: FloatType =>
         attr.name match {
           case "to_i" => CalcIntType
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case ArrayType(inType) =>
         attr.name match {
           case "first" | "last" | "min" | "max" => inType
           case "size" => CalcIntType
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case KaitaiStreamType =>
         attr.name match {
           case "size" => CalcIntType
           case "pos" => CalcIntType
           case "eof" => CalcBooleanType
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case et: EnumType =>
         attr.name match {
           case "to_i" => CalcIntType
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: BooleanType =>
         attr.name match {
           case "to_i" => CalcIntType
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _ =>
-        throw new TypeMismatchError(s"don't know how to call anything on $valType")
+        throw new MethodNotFoundError(attr.name, valType)
     }
   }
 
@@ -204,7 +212,8 @@ class TypeDetector(provider: TypeProvider) {
         (objType, methodName.name) match {
           case (_: StrType, "substring") => CalcStrType
           case (_: StrType, "to_i") => CalcIntType
-          case _ => throw new RuntimeException(s"don't know how to call method '$methodName' of object type '$objType'")
+          case _ =>
+            throw new MethodNotFoundError(methodName.name, objType)
         }
     }
   }

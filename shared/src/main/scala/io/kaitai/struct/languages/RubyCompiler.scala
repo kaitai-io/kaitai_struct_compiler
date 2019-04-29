@@ -152,15 +152,13 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts("##")
 
-    doc.summary.foreach((summary) => out.putsLines("# ", summary))
+    doc.summary.foreach(summary => out.putsLines("# ", summary))
 
-    doc.ref match {
+    doc.ref.foreach {
       case TextRef(text) =>
         out.putsLines("# ", s"@see '' $text", "  ")
       case UrlRef(url, text) =>
         out.putsLines("# ", s"@see $url $text", "  ")
-      case NoRef =>
-        // do nothing
     }
   }
 

@@ -1,9 +1,3 @@
-### Submitting bugs / issues / ideas
-
-> We're phasing out "Issues" tab in this repository. Please submit all issues to the [main project's tracker](https://github.com/kaitai-io/kaitai_struct/issues).
-
----
-
 # Kaitai Struct: compiler
 
 This project is an official reference compiler for [Kaitai Struct](http://kaitai.io) project.

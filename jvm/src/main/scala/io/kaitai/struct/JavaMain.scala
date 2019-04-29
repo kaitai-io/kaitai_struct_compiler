@@ -12,7 +12,7 @@ import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile.ErrorInInput
 
 object JavaMain {
-  KSVersion.current = BuildInfo.version
+  KSVersion.current = Version.version
 
   case class CLIConfig(
     verbose: Seq[String] = Seq(),
@@ -30,10 +30,10 @@ object JavaMain {
   val CPP_STANDARDS = Set("98", "11")
 
   def parseCommandLine(args: Array[String]): Option[CLIConfig] = {
-    val parser = new scopt.OptionParser[CLIConfig](BuildInfo.name) {
+    val parser = new scopt.OptionParser[CLIConfig](Version.name) {
       override def showUsageOnError = true
 
-      head(BuildInfo.name, BuildInfo.version)
+      head(Version.name, Version.version)
 
       arg[File]("<file>...") unbounded() action { (x, c) =>
         c.copy(srcFiles = c.srcFiles :+ x) } text("source files (.ksy)")

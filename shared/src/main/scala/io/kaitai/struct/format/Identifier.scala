@@ -76,6 +76,7 @@ object Identifier {
   val INDEX = "_index"
   val SWITCH_ON = "_on"
   val IS_LE = "_is_le"
+  val SIZEOF = "_sizeof"
 }
 
 case class RawIdentifier(innerId: Identifier) extends Identifier {

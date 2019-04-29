@@ -162,16 +162,16 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def universalDoc(doc: DocSpec): Unit = {
     out.puts
-    doc.summary.foreach { (summary) =>
+    doc.summary.foreach { summary =>
       out.puts("/// <summary>")
       out.putsLines("/// ", XMLUtils.escape(summary))
       out.puts("/// </summary>")
     }
 
-    if (doc.ref != NoRef) {
+    doc.ref.foreach { docRef =>
       out.puts("/// <remarks>")
 
-      val refStr = doc.ref match {
+      val refStr = docRef match {
         case TextRef(text) => XMLUtils.escape(text)
         case ref: UrlRef => ref.toAhref
       }

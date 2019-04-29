@@ -3,6 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.format.{ClassSpec, Identifier}
 import io.kaitai.struct.precompile.TypeMismatchError
 
 /**
@@ -61,7 +62,11 @@ abstract class BaseTranslator(val provider: TypeProvider)
         val enumSpec = provider.resolveEnum(inType, enumType.name)
         doEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
-        doLocalName(name.name)
+        if (name.name == Identifier.SIZEOF) {
+          byteSizeOfClassSpec(provider.nowClass)
+        } else {
+          doLocalName(name.name)
+        }
       case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
         unaryOp(op) + (inner match {
           case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
@@ -124,12 +129,35 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doGuessArrayLiteral(values)
       case ctt: Ast.expr.CastToType =>
         doCastOrArray(ctt)
+      case Ast.expr.ByteSizeOfType(typeName) =>
+        doByteSizeOfType(typeName)
+      case Ast.expr.BitSizeOfType(typeName) =>
+        doBitSizeOfType(typeName)
     }
   }
 
   def doSubscript(container: Ast.expr, idx: Ast.expr): String
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: DataType): String = translate(value)
+  def doByteSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
+    CommonSizeOf.bitToByteSize(
+      CommonSizeOf.getBitsSizeOfType(
+        typeName.nameAsStr, detectCastType(typeName)
+      )
+    )
+  )
+  def doBitSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
+    CommonSizeOf.getBitsSizeOfType(
+      typeName.nameAsStr, detectCastType(typeName)
+    )
+  )
+  def byteSizeOfValue(attrName: String, valType: DataType): String = doIntLiteral(
+    CommonSizeOf.bitToByteSize(
+      CommonSizeOf.getBitsSizeOfType(attrName, valType)
+    )
+  )
+  def byteSizeOfClassSpec(cs: ClassSpec): String =
+    doIntLiteral(CommonSizeOf.getByteSizeOfClassSpec(cs))
 
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
   def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"

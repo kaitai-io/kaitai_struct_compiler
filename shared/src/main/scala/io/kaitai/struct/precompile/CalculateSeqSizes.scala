@@ -18,8 +18,8 @@ object CalculateSeqSizes {
           case NoRepeat =>
             sizeElement
           case RepeatExpr(expr) =>
-            evaluateIntLiteral(expr) match {
-              case Some(count) => FixedSized(elementSize * count)
+            expr.evaluateIntConst match {
+              case Some(count) => FixedSized(elementSize * count.toInt)
               case None => DynamicSized
             }
           case _: RepeatUntil | RepeatEos =>
@@ -107,28 +107,14 @@ object CalculateSeqSizes {
       case FixedBytesType(contents, _) => FixedSized(contents.length)
       case FloatMultiType(width, _) => FixedSized(width.width)
       case _: BytesEosType => DynamicSized
-      case blt: BytesLimitType => evaluateIntLiteral(blt.size) match {
-        case Some(x) => FixedSized(x)
+      case blt: BytesLimitType => blt.size.evaluateIntConst match {
+        case Some(x) => FixedSized(x.toInt)
         case None => DynamicSized
       }
       case _: BytesTerminatedType => DynamicSized
       case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
       case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
       case st: SwitchType => DynamicSized // FIXME: it's really possible get size if st.hasSize
-    }
-  }
-
-  /**
-    * Evaluates the expression, if possible to get the result without introduction
-    * of any variables or anything.
-    *
-    * @param expr expression to evaluate
-    * @return integer result or None
-    */
-  def evaluateIntLiteral(expr: Ast.expr): Option[Int] = {
-    expr match {
-      case Ast.expr.IntNum(x) => Some(x.toInt)
-      case _ => None
     }
   }
 }

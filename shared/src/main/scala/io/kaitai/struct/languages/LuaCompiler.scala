@@ -62,14 +62,12 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         ""
     }
     val extraNewLine = if (docStr.isEmpty || docStr.last == '\n') "" else "\n"
-    val refStr = doc.ref match {
+    val refStr = doc.ref.map {
       case TextRef(text) =>
         s"See also: $text"
       case UrlRef(url, text) =>
         s"See also: $text ($url)"
-      case NoRef =>
-        ""
-    }
+    }.mkString("\n")
 
     out.putsLines("-- ", "\n" + docStr + extraNewLine + refStr)
   }

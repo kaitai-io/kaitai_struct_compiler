@@ -12,7 +12,7 @@ import org.scalatest.FunSuite
 class ErrorMessagesSpec extends FunSuite {
   // required, because this class is the sole entry point and this test needs
   // version info
-  KSVersion.current = BuildInfo.version
+  KSVersion.current = Version.version
 
   val FORMATS_ERR_DIR = "../tests/formats_err"
   val CHARSET_UTF8 = Charset.forName("UTF-8")

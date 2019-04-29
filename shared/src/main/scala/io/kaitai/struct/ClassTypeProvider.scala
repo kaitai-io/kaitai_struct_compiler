@@ -35,6 +35,8 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
         currentSwitchType
       case Identifier.INDEX =>
         CalcIntType
+      case Identifier.SIZEOF =>
+        CalcIntType
       case _ =>
         inClass.seq.foreach { el =>
           if (el.id == NamedIdentifier(attrName))

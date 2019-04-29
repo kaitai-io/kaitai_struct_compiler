@@ -207,15 +207,13 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts( "/**")
 
-    doc.summary.foreach((summary) => out.putsLines(" * ", summary))
+    doc.summary.foreach(summary => out.putsLines(" * ", summary))
 
-    doc.ref match {
+    doc.ref.foreach {
       case TextRef(text) =>
         out.putsLines(" * ", "@see \"" + text + "\"")
       case ref: UrlRef =>
         out.putsLines(" * ", s"@see ${ref.toAhref}")
-      case NoRef =>
-        // no reference => output nothing
     }
 
     out.puts( " */")
