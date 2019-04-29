@@ -152,7 +152,9 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   // Members declared in io.kaitai.struct.languages.components.FixedContentsUsingArrayByteLiteral
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    outSrc.puts(s"attrFixedContentsParse")
+    outHdr.puts("// comment: attrFixedContentsParse")
+    outSrc.puts("// comment: attrFixedContentsParse")
+    outSrc.puts(s"${privateMemberName(attrName)} = [$normalIO ensure_fixed_contents:$contents];")
   }
 
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
@@ -162,8 +164,38 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrParseHybrid(leProc: () => Unit,beProc: () => Unit): Unit = {
     outSrc.puts(s"attrParseHybrid(leProc: () => Unit,beProc: ")
   }
-  override def attrProcess(proc: io.kaitai.struct.format.ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    outSrc.puts(s"attrProcess")
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    outHdr.puts("// comment: attrProcess")
+    outSrc.puts("// comment: attrProcess")
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
+    proc match {
+      case ProcessXor(xorValue) =>
+        val procName = translator.detectType(xorValue) match {
+          case _: IntType => "KSProcessXorOneWithKey"
+          case _: BytesType => "KSProcessXorManyWithKey"
+        }
+        outSrc.puts(s"$destName = [$srcName $procName:${expression(xorValue)}];")
+      case ProcessZlib =>
+        outSrc.puts(s"$destName = [$srcName KSProcess_zlib];")
+      case ProcessRotate(isLeft, rotValue) =>
+        val expr = if (isLeft) {
+          expression(rotValue)
+        } else {
+          s"8 - (${expression(rotValue)})"
+        }
+        outSrc.puts(s"$destName = [$srcName KSProcessRotateLeftWithAmount:$expr];")
+      case ProcessCustom(name, args) =>
+//        val procClass = name.map((x) => type2class(x)).mkString("::")
+        val procClass = type2class(name.last)
+        val procName = s"_process_${idToStr(varSrc)}"
+
+        importListSrc.add(name.last + ".h")
+
+        outSrc.puts(s"$procClass *$procName = [[$procClass alloc] initWith:${args.map(expression).mkString(", ")}];")
+        outSrc.puts(s"$destName = [$procName decode:$srcName];")
+    }
   }
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     attrName match {
@@ -326,18 +358,8 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outSrc.inc
   }
 
-  def newVector(elType: DataType, length: String): String = {
-    val objcElType = kaitaiType2NativeType(elType)
-    elType match {
-      case StrFromBytesType(_,_) => s"[NSMutableArray arrayWithCapacity:$length]"
-      case FloatMultiType(_,_) => s"[NSMutableArray arrayWithCapacity:$length]"
-      case IntMultiType(_,_,_) => s"[NSMutableArray arrayWithCapacity:$length]"
-      case Numeric => s"[NSMutableArray arrayWithCapacity:$length]"
-      case KaitaiStreamType => s"[NSMutableArray arrayWithCapacity:$length]"
-      case CalcBytesType => s"[NSMutableArray arrayWithCapacity:$length]"
-      case _ => s"newVector: unknown data type: $elType"
-    }
-  }
+  def newVector(elType: DataType, length: String): String =
+    s"[NSMutableArray arrayWithCapacity:$length]"
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     outSrc.puts(s"condRepeatUntilFooter")
@@ -456,7 +478,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def seek(io: String, pos: Ast.expr): Unit =
     outSrc.puts(s"[$io seek:${expression(pos)}];")
 
-  override def type2class(className: String): String = s"type2class"
+  override def type2class(className: String): String = ObjcCompiler.type2class(className)
   override def useIO(ioEx: Ast.expr): String = s"useIO"
 
   // Members declared in io.kaitai.struct.languages.components.ObjectOrientedLanguage
@@ -478,19 +500,33 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   // Members declared in io.kaitai.struct.languages.components.SwitchOps
   override def switchCaseEnd(): Unit = {
-    outSrc.puts(s"switchCaseEnd")
+    outHdr.puts("// comment: switchCaseEnd")
+    outSrc.puts("// comment: switchCaseEnd")
+    outSrc.puts("break;")
+    outSrc.dec
+    outSrc.puts("}")
   }
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    outSrc.puts(s"switchCaseStart")
+    outHdr.puts("// comment: switchCaseStart")
+    outSrc.puts("// comment: switchCaseStart")
+    outSrc.puts(s"case ${expression(condition)}: {")
+    outSrc.inc
   }
   override def switchElseStart(): Unit = {
-    outSrc.puts(s"switchElseStart")
+    outHdr.puts("// comment: switchElseStart")
+    outSrc.puts("// comment: switchElseStart")
+    outSrc.puts("default: {")
+    outSrc.inc
   }
   override def switchEnd(): Unit = {
-    outSrc.puts(s"switchEnd")
+    outHdr.puts("// comment: switchEnd")
+    outSrc.puts("// comment: switchEnd")
+    outSrc.puts("}")
   }
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    outSrc.puts(s"switchStart")
+    outHdr.puts("// comment: switchStart")
+    outSrc.puts("// comment: switchStart")
+    outSrc.puts(s"switch (${expression(on)}) {")
   }
 
   // Members declared in io.kaitai.struct.languages.components.UniversalDoc
@@ -576,31 +612,8 @@ object ObjcCompiler extends LanguageCompilerStatic with StreamStructNames {
       case KaitaiStructType => s"$kstructName *"
       case CalcKaitaiStructType => s"$kstructName *"
 
-      case st: SwitchType =>
-        kaitaiType2NativeType(combineSwitchType(st), absolute)
-    }
-  }
-
-  /**
-    * C does not have a concept of AnyType, and common use case "lots of
-    * incompatible UserTypes for cases + 1 BytesType for else" combined would
-    * result in exactly AnyType - so we try extra hard to avoid that here with
-    * this pre-filtering. In C, "else" case with raw byte array would
-    * be available through _raw_* attribute anyway.
-    *
-    * @param st switch type to combine into one overall type
-    * @return
-    */
-  def combineSwitchType(st: SwitchType): DataType = {
-    val ct1 = TypeDetector.combineTypes(
-      st.cases.filterNot {
-        case (caseExpr, _) => caseExpr == SwitchType.ELSE_CONST
-      }.values
-    )
-    if (st.isOwning) {
-      ct1
-    } else {
-      ct1.asNonOwning
+      case st: SwitchType => "id "
+      case AnyType => "id "
     }
   }
 

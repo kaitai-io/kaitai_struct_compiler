@@ -13,12 +13,63 @@ import io.kaitai.struct.{ImportList, Utils}
 class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
 
+  /**
+    * Handles integer literals for Objective-C by appending relevant suffix to
+    * decimal notation.
+    *
+    * Note that suffixes essentially mean "long", "unsigned long",
+    * and "unsigned long long", which are not really guaranteed to match
+    * `int32_t`, `uint32_t` and `uint64_t`, but it would work for majority
+    * of current compilers.
+    *
+    * For reference, ranges of integers that are used in this conversion are:
+    *
+    * * int32_t (no suffix): –2147483648..2147483647
+    * * uint32_t (UL): 0..4294967295
+    * * int64_t (LL): -9223372036854775808..9223372036854775807
+    * * uint64_t (ULL): 0..18446744073709551615
+    *
+    * Merging all these ranges, we get the following decision tree:
+    *
+    * * -9223372036854775808..-2147483649 => LL
+    * * -2147483648..2147483647 => no suffix
+    * * 2147483648..4294967295 => UL
+    * * 4294967296..9223372036854775807 => LL
+    * * 9223372036854775808..18446744073709551615 => ULL
+    *
+    * Beyond these boundaries, Objective-C is unlikely to be able to represent
+    * these anyway, so we just drop the suffix and hope for the miracle.
+    *
+    * @param n integer to render
+    * @return rendered integer literal in Objective-C syntax as string
+    */
+  override def doIntLiteral(n: BigInt): String = {
+    val suffix = if (n < -9223372036854775808L) {
+      "" // too low, no suffix would help anyway
+    } else if (n <= -2147483649L) {
+      "LL" // -9223372036854775808..–2147483649
+    } else if (n <= 2147483647L) {
+      "" // -2147483648..2147483647
+    } else if (n <= 4294967295L) {
+      "UL" // 2147483648..4294967295
+    } else if (n <= 9223372036854775807L) {
+      "LL" // 4294967296..9223372036854775807
+    } else if (n <= Utils.MAX_UINT64) {
+      "ULL" // 9223372036854775808..18446744073709551615
+    } else {
+      "" // too high, no suffix would help anyway
+    }
+
+    s"$n$suffix"
+  }
+
   // Members declared in io.kaitai.struct.translators.BaseTranslator
   override def bytesToStr(value: String, expr: io.kaitai.struct.exprlang.Ast.expr): String =
     s"[${value} KSBytesToStringWithEncoding:${translate(expr)}]"
   override def doEnumById(enumTypeAbs: List[String], id: String): String = s"doEnumById"
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"doEnumByLabel"
-  override def doIfExp(condition: io.kaitai.struct.exprlang.Ast.expr, ifTrue: io.kaitai.struct.exprlang.Ast.expr, ifFalse: io.kaitai.struct.exprlang.Ast.expr): String = s"doIfExp"
+  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
+    s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     op match {
@@ -79,7 +130,7 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
       case Some(CalcIntType) => s"$s.unsignedLongLongValue"
       case Some(CalcFloatType) => s"$s.doubleValue"
       case Some(FloatMultiType(Width8,_)) => s"$s.doubleValue"
-      case Some(FloatMultiType(Width4,_)) => s"$s.singleValue"
+      case Some(FloatMultiType(Width4,_)) => s"$s.floatValue"
       case _ => s"$s"
     }
   }
@@ -96,8 +147,8 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   override def anyField(value: Ast.expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName, Some(detectType(value)))}"
 
-  override def doSubscript(container: io.kaitai.struct.exprlang.Ast.expr, idx: io.kaitai.struct.exprlang.Ast.expr): String = s"doSubscript"
-
+  override def doSubscript(container: expr, idx: expr): String =
+    doName(s"${translate(container)}[${translate(idx)}]", Some(detectType(container).asInstanceOf[ArrayType].elType))
   def boxNSNumber(s: String): String = s"@($s)"
 
   // Members declared in io.kaitai.struct.translators.CommonMethods
@@ -111,11 +162,11 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
     doName(s"((${ObjcCompiler.kaitaiType2NativeType(detectType(a).asInstanceOf[ArrayType].elType)})[" + translate(a) + " valueForKeyPath: @\"@min.self\"])", Some(detectType(a).asInstanceOf[ArrayType].elType))
   override def arraySize(a: io.kaitai.struct.exprlang.Ast.expr): String = s"${translate(a)}.count"
   override def enumToInt(value: io.kaitai.struct.exprlang.Ast.expr, et: io.kaitai.struct.datatype.DataType.EnumType): String = s"enumToInt"
-  override def floatToInt(value: io.kaitai.struct.exprlang.Ast.expr): String = s"floatToInt"
-  override def intToStr(value: io.kaitai.struct.exprlang.Ast.expr, num: io.kaitai.struct.exprlang.Ast.expr): String = s"intToStr"
-  override def strLength(s: io.kaitai.struct.exprlang.Ast.expr): String =
-        s"[${translate(s)} length]"
-  override def strReverse(s: io.kaitai.struct.exprlang.Ast.expr): String = s"strReverse"
+  override def floatToInt(v: expr): String = s"((int)${translate(v)})"
+  override def intToStr(value: io.kaitai.struct.exprlang.Ast.expr, num: io.kaitai.struct.exprlang.Ast.expr): String =
+    "[NSString stringWithFormat:@\"%d\", " + s"${translate(value)}]"
+  override def strLength(s: io.kaitai.struct.exprlang.Ast.expr): String = s"[${translate(s)} length]"
+  override def strReverse(s: io.kaitai.struct.exprlang.Ast.expr): String = s"[${translate(s)} KSReverse]"
   override def strSubstring(s: io.kaitai.struct.exprlang.Ast.expr, from: io.kaitai.struct.exprlang.Ast.expr, to: io.kaitai.struct.exprlang.Ast.expr): String =
     s"[${translate(s)} substringWithRange:NSMakeRange(${translate(from)}, ${translate(to)} - ${translate(from)})]"
   override def strToInt(s: io.kaitai.struct.exprlang.Ast.expr, base: io.kaitai.struct.exprlang.Ast.expr): String =
@@ -130,7 +181,7 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"[kstream modA(${translate(left)} b:${translate(right)}]"
+        s"[kstream modA:${translate(left)} b:${translate(right)}]"
       case _ =>
         super.numericBinOp(left, op, right)
     }
