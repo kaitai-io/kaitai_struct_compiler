@@ -9,6 +9,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.ObjcCompiler
 import io.kaitai.struct.{ImportList, Utils}
+import io.kaitai.struct.precompile.TypeMismatchError
 
 class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
@@ -67,9 +68,14 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   override def bytesToStr(value: String, expr: io.kaitai.struct.exprlang.Ast.expr): String =
     s"[${value} KSBytesToStringWithEncoding:${translate(expr)}]"
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"[@($id) KSENUMWithDictionary:self._root._${enumTypeAbs.last} ]"
+    if(id.startsWith("(self._io).")) {
+        s"[$id KSENUMWithDictionary:${ObjcCompiler.types2class(enumTypeAbs.dropRight(1))}._${enumTypeAbs.last}]"
+    } else {
+        s"[@($id) KSENUMWithDictionary:${ObjcCompiler.types2class(enumTypeAbs.dropRight(1))}._${enumTypeAbs.last}]"
+    }
+
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    "[@\"" + s"$label" + "\" " + s"KSENUMWithDictionary:self._root._${enumTypeAbs.last} ]"
+    "[@\"" + s"$label" + "\" " + s"KSENUMWithDictionary:${ObjcCompiler.types2class(enumTypeAbs.dropRight(1))}._${enumTypeAbs.last}]"
 
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
@@ -164,7 +170,8 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   override def arrayMin(a: io.kaitai.struct.exprlang.Ast.expr): String =
     doName(s"((${ObjcCompiler.kaitaiType2NativeType(detectType(a).asInstanceOf[ArrayType].elType)})[" + translate(a) + " valueForKeyPath: @\"@min.self\"])", Some(detectType(a).asInstanceOf[ArrayType].elType))
   override def arraySize(a: io.kaitai.struct.exprlang.Ast.expr): String = s"${translate(a)}.count"
-  override def enumToInt(value: io.kaitai.struct.exprlang.Ast.expr, et: io.kaitai.struct.datatype.DataType.EnumType): String = s"enumToInt"
+  override def enumToInt(value: io.kaitai.struct.exprlang.Ast.expr, et: io.kaitai.struct.datatype.DataType.EnumType): String =
+    doName(s"((${ObjcCompiler.kaitaiType2NativeType(et.asInstanceOf[EnumType].basedOn)})" + translate(value) + "[@\"value\"])", Some(et.asInstanceOf[EnumType].basedOn))
   override def floatToInt(v: expr): String = s"((int)${translate(v)})"
   override def intToStr(value: io.kaitai.struct.exprlang.Ast.expr, num: io.kaitai.struct.exprlang.Ast.expr): String =
     "[NSString stringWithFormat:@\"%d\", " + s"${translate(value)}]"
@@ -187,6 +194,14 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
         s"[kstream modA:${translate(left)} b:${translate(right)}]"
       case _ =>
         super.numericBinOp(left, op, right)
+    }
+  }
+  override def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: EnumType, _: EnumType, Ast.cmpop.Eq) =>
+        s"[${translate(left)} KSIsEqualToENUM:${translate(right)}]"
+      case _ =>
+        throw new TypeMismatchError(s"can't use comparison operator $op on enums")
     }
   }
 }

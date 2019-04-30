@@ -375,19 +375,19 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHdr.puts("// comment: enumDeclaration")
     outSrc.puts("// comment: enumDeclaration")
 
-    val enumInstName = enumPropertyName(List(enumName))
+    val enumInstName = enumPropertyName(enumName)
+    val enumPriInstName = enumPrivatePropertyName(curClass :+ enumName)
 
-    outHdr.puts(s"@property (strong,nonatomic) NSDictionary *$enumInstName;")
+    outHdr.puts(s"@property (class,strong,nonatomic,readonly) NSDictionary *$enumInstName;")
     outHdr.puts
     outHdr.puts
-//    outSrc.puts(s"@dynamic $enumInstName;")
-    outSrc.puts(s"- (NSDictionary *)$enumInstName {")
+    outSrc.puts(s"static NSDictionary *$enumPriInstName = nil;")
+    outSrc.puts(s"+ (NSDictionary *)$enumInstName {")
     outSrc.inc
-    outSrc.puts(s" if(_$enumInstName == nil) {")
+    outSrc.puts(s" if($enumPriInstName == nil) {")
     outSrc.inc
-    outSrc.puts(s"_$enumInstName = @{")
+    outSrc.puts(s"$enumPriInstName = @{")
     outSrc.inc
-
 
     if (enumColl.size > 1) {
       enumColl.dropRight(1).foreach { case (id, label) =>
@@ -402,14 +402,13 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outSrc.puts("};")
     outSrc.dec
     outSrc.puts("}")
-    outSrc.puts(s"return _$enumInstName;")
+    outSrc.puts(s"return $enumPriInstName;")
     outSrc.dec
     outSrc.puts("}")
   }
 
-  def enumPropertyName(s: List[String]): String = "_" + s.last
-
-//  def value2Const(enumName: String, label: String) = (enumName + "_" + label).toUpperCase
+  def enumPropertyName(s: String): String = "_" + s
+  def enumPrivatePropertyName(s: List[String]): String = "_" + s.reverse.mkString("_")
 
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// comment: fileHeader")
