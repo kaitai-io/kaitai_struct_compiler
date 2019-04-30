@@ -132,7 +132,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"[$io read_bytes_term:$terminator include:$include consume:$consume eosErr:$eosError]"
       case BitsType1 =>
-        s"[$io read_bits_int:1"
+        s"[$io read_bits_int:1]"
       case BitsType(width: Int) =>
         s"[$io read_bits_int:$width]"
       case t: UserType =>
@@ -163,7 +163,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
   override def alignToByte(io: String): Unit = {
-    outSrc.puts(s"alignToByte")
+    outSrc.puts(s"[self.${idToStr(IoIdentifier)} alignToByte];")
   }
   override def attrParseHybrid(leProc: () => Unit,beProc: () => Unit): Unit = {
     outSrc.puts(s"attrParseHybrid(leProc: () => Unit,beProc: ")
@@ -595,7 +595,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
 
-  def nullPtr: String = "0"
+  def nullPtr: String = "nil"
 }
 
 object ObjcCompiler extends LanguageCompilerStatic with StreamStructNames {

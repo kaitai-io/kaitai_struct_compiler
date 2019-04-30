@@ -140,7 +140,56 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
       case Some(CalcFloatType) => s"$s.doubleValue"
       case Some(FloatMultiType(Width8,_)) => s"$s.doubleValue"
       case Some(FloatMultiType(Width4,_)) => s"$s.floatValue"
+      case Some(BitsType1) => s"$s.boolValue"
+      case Some(BitsType(1)) => s"$s.boolValue"
+      case Some(BitsType(2)) => s"$s.unsignedCharValue"
+      case Some(BitsType(3)) => s"$s.unsignedCharValue"
+      case Some(BitsType(4)) => s"$s.unsignedCharValue"
+      case Some(BitsType(5)) => s"$s.unsignedCharValue"
+      case Some(BitsType(6)) => s"$s.unsignedCharValue"
+      case Some(BitsType(7)) => s"$s.unsignedCharValue"
+      case Some(BitsType(8)) => s"$s.unsignedCharValue"
+      case Some(BitsType(9)) => s"$s.unsignedShortValue"
+      case Some(BitsType(10)) => s"$s.unsignedShortValue"
+      case Some(BitsType(11)) => s"$s.unsignedShortValue"
+      case Some(BitsType(12)) => s"$s.unsignedShortValue"
+      case Some(BitsType(13)) => s"$s.unsignedShortValue"
+      case Some(BitsType(14)) => s"$s.unsignedShortValue"
+      case Some(BitsType(15)) => s"$s.unsignedShortValue"
+      case Some(BitsType(16)) => s"$s.unsignedShortValue"
+      case Some(BitsType(17)) => s"$s.unsignedIntValue"
+      case Some(BitsType(18)) => s"$s.unsignedIntValue"
+      case Some(BitsType(19)) => s"$s.unsignedIntValue"
+      case Some(BitsType(20)) => s"$s.unsignedIntValue"
+      case Some(BitsType(21)) => s"$s.unsignedIntValue"
+      case Some(BitsType(22)) => s"$s.unsignedIntValue"
+      case Some(BitsType(23)) => s"$s.unsignedIntValue"
+      case Some(BitsType(24)) => s"$s.unsignedIntValue"
+      case Some(BitsType(25)) => s"$s.unsignedIntValue"
+      case Some(BitsType(26)) => s"$s.unsignedIntValue"
+      case Some(BitsType(27)) => s"$s.unsignedIntValue"
+      case Some(BitsType(28)) => s"$s.unsignedIntValue"
+      case Some(BitsType(29)) => s"$s.unsignedIntValue"
+      case Some(BitsType(30)) => s"$s.unsignedIntValue"
+      case Some(BitsType(31)) => s"$s.unsignedIntValue"
+      case Some(BitsType(32)) => s"$s.unsignedIntValue"
       case _ => s"$s"
+    }
+  }
+
+  def removeNumberValue(s: String): String = {
+    s match {
+      case s if s.endsWith(".boolValue") => s.dropRight(10)
+      case s if s.endsWith(".unsignedCharValue") => s.dropRight(18)
+      case s if s.endsWith(".charValue") => s.dropRight(10)
+      case s if s.endsWith(".shortValue") => s.dropRight(11)
+      case s if s.endsWith(".unsignedShortValue") => s.dropRight(19)
+      case s if s.endsWith(".intValue") => s.dropRight(9)
+      case s if s.endsWith(".unsignedIntValue") => s.dropRight(17)
+      case s if s.endsWith(".longLongValue") => s.dropRight(14)
+      case s if s.endsWith(".unsignedLongLongValue") => s.dropRight(22)
+      case s if s.endsWith(".doubleValue") => s.dropRight(12)
+      case s if s.endsWith(".floatValue") => s.dropRight(11)
     }
   }
 
@@ -173,8 +222,14 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   override def enumToInt(value: io.kaitai.struct.exprlang.Ast.expr, et: io.kaitai.struct.datatype.DataType.EnumType): String =
     doName(s"((${ObjcCompiler.kaitaiType2NativeType(et.asInstanceOf[EnumType].basedOn)})" + translate(value) + "[@\"value\"])", Some(et.asInstanceOf[EnumType].basedOn))
   override def floatToInt(v: expr): String = s"((int)${translate(v)})"
-  override def intToStr(value: io.kaitai.struct.exprlang.Ast.expr, num: io.kaitai.struct.exprlang.Ast.expr): String =
-    "[NSString stringWithFormat:@\"%d\", " + s"${translate(value)}]"
+  override def intToStr(value: io.kaitai.struct.exprlang.Ast.expr, base: io.kaitai.struct.exprlang.Ast.expr): String = {
+    val baseStr = translate(base)
+    baseStr match {
+      case "10" =>
+        s"${removeNumberValue(translate(value))}.stringValue"
+      case _ => throw new UnsupportedOperationException(baseStr)
+    }
+  }
   override def strLength(s: io.kaitai.struct.exprlang.Ast.expr): String = s"[${translate(s)} length]"
   override def strReverse(s: io.kaitai.struct.exprlang.Ast.expr): String = s"[${translate(s)} KSReverse]"
   override def strSubstring(s: io.kaitai.struct.exprlang.Ast.expr, from: io.kaitai.struct.exprlang.Ast.expr, to: io.kaitai.struct.exprlang.Ast.expr): String =
