@@ -155,13 +155,16 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val seqId = typeProvider.nowClass.seq.filter(a => a.id == id)
 
     val typeSafe = if (seqId.isEmpty) {
-      // No matching ID's in the main parse body, so this is an instance
+      // No matching ID's in the main parse body, so this is either an instance or raw
       //s"Some($expr)"
-      val dataType = typeProvider.nowClass.instances(id.asInstanceOf[InstanceIdentifier]).dataTypeComposite
+      id match {
+        case _: InstanceIdentifier => "panic!(\"Instance calculation currently unsupported\")"
+        case _: RawIdentifier => "panic!(\"No idea what to do with raw idents\")"
+      }
 
       // Currently a ton of type-related issues in instance calculations, hold off for now
+      // val dataType = typeProvider.nowClass.instances(id.asInstanceOf[InstanceIdentifier]).dataTypeComposite
       //s"Some($expr as ${kaitaiTypeToNativeType(dataType)})"
-      "panic!(\"Instance calculation currently unsupported.\")"
     } else if (seqId.head.dataType.isInstanceOf[EnumType]) {
       // Assign to enum, so handle the conversion with `TryFrom`
       s"Some($expr.try_into()?)"
