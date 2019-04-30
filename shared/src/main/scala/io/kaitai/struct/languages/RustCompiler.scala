@@ -428,7 +428,7 @@ object RustCompiler extends LanguageCompilerStatic
       if (excludeOptionUser)
         typeName
       else
-        s"Option<&'a $typeName>"
+        s"Option<$typeName>"
 
     case t: EnumType => t.enumSpec match {
       case Some(cs) => s"Option<${normalizeClassName(cs.name)}>"
