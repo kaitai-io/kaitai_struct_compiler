@@ -214,8 +214,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit =
-    out.puts(s"// condRepeatEosHeader($id, $io, $dataType, $needRaw)")
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
+    if (needRaw)
+      out.puts(s"${privateMemberName(RawIdentifier(id))}.clear();")
+
+    out.puts(s"${privateMemberName(id)}.clear();")
+    out.puts(s"while !$io.is_eof()? {")
+    out.inc
+  }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit =
     out.puts(s"// condRepeatExprHeader($id, $io, $dataType, $needRaw, $repeatExpr)")
@@ -461,7 +467,7 @@ object RustCompiler extends LanguageCompilerStatic
     else
       nowClass.parentClass match {
         case t: ClassSpec => s"${normalizeClassName(t.name)}<'a>"
-        case GenericStructClassSpec => s"$kstructName<'a>"
+        case GenericStructClassSpec => s"$kstructName"
       }
 
   def privateMemberName(id: Identifier): String = id match {
