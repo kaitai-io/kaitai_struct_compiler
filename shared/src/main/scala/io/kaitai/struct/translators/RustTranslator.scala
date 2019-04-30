@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -8,10 +9,10 @@ import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
 class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
+  var castAsType: Option[DataType] = None
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "vec!([" + arr.map((x) =>
-    	     "%0#2x".format(x & 0xff)
-    ).mkString(", ") + "])"
+    "vec![" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
@@ -44,7 +45,12 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case Identifier.INDEX => "i"
       case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
       case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.ok_or(KError::MissingParent)?"
-      case _ => s"self.${doName(s)}"
+      case _ =>
+        val suffix = castAsType match {
+          case Some(d) => s"as ${RustCompiler.kaitaiTypeToNativeType(d)}"
+          case None => ""
+        }
+        s"self.${doName(s)} $suffix".trim
     }
   }
 

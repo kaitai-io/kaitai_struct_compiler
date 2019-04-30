@@ -62,7 +62,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit =
-    out.puts(s"${idToAccessModifier(attrName)} ${idToStr(attrName)}: ${kaitaiTypeToNativeType(attrType)},".trim)
+    out.puts(s"${idToAccessModifier(attrName)} ${idToStr(attrName)}: Option<${kaitaiTypeToNativeType(attrType)}>,".trim)
 
   def idToAccessModifier(id: Identifier): String = id match {
     case RootIdentifier | ParentIdentifier | InstanceIdentifier(_) | RawIdentifier(_) => ""
@@ -152,9 +152,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val typeSafe = if (seqId.isEmpty) {
       // No matching ID's in the main parse body, so this is either an instance or raw
-      //s"Some($expr)"
       id match {
-        case _: InstanceIdentifier => "panic!(\"Instance calculation currently unsupported\")"
+        case _: InstanceIdentifier => s"Some($expr)"
         case _: RawIdentifier => "panic!(\"No idea what to do with raw idents\")"
       }
 
@@ -289,6 +288,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"${privateMemberName(instName)}.unwrap()")
+  }
+
+  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
+    // Because Rust doesn't auto-widen types, we need to inform the translator that the expressions it's using
+    // have to obey a specific type
+    // TODO: Type stack instead? Don't think it's necessary.
+    translator.castAsType = Some(dataType)
+    super.instanceCalculate(instName, dataType, value)
+    translator.castAsType = None
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
