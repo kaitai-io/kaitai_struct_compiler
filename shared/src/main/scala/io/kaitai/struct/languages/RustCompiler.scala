@@ -61,12 +61,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${idToAccessModifier(attrName)} ${idToStr(attrName)}: $typeName,".trim)
   }
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    // Instances are different than attributes because we cache the values and re-use
-    val typeName = kaitaiTypeToNativeType(attrType)
-    val finalType = s"Option<$typeName>"
-    out.puts(s"${idToAccessModifier(attrName)} ${idToStr(attrName)}: $finalType,".trim)
-  }
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit =
+    out.puts(s"${idToAccessModifier(attrName)} ${idToStr(attrName)}: ${kaitaiTypeToNativeType(attrType)},".trim)
 
   def idToAccessModifier(id: Identifier): String = id match {
     case RootIdentifier | ParentIdentifier | InstanceIdentifier(_) | RawIdentifier(_) => ""
@@ -223,8 +219,16 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit =
-    out.puts(s"// condRepeatExprHeader($id, $io, $dataType, $needRaw, $repeatExpr)")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+    if (needRaw)
+      out.puts(s"${privateMemberName(RawIdentifier(id))}.clear();")
+
+    out.puts(s"${privateMemberName(id)}.clear();")
+    out.puts(s"let size = ${expression(repeatExpr)} as usize;")
+    out.puts(s"${privateMemberName(id)}.reserve(size);")
+    out.puts(s"for i in 0..size {")
+    out.inc
+  }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
@@ -446,7 +450,6 @@ object RustCompiler extends LanguageCompilerStatic
 
     case t: ArrayType => s"Vec<${kaitaiTypeToNativeType(t.elType, excludeOptionUser = true)}>"
 
-    // TODO: Safer way of handling raw Kaitai types?
     case KaitaiStreamType => kstreamName
     case KaitaiStructType | CalcKaitaiStructType => kstructName
 
@@ -467,7 +470,7 @@ object RustCompiler extends LanguageCompilerStatic
     else
       nowClass.parentClass match {
         case t: ClassSpec => s"${normalizeClassName(t.name)}<'a>"
-        case GenericStructClassSpec => s"$kstructName"
+        case GenericStructClassSpec => kstructUnitName
       }
 
   def privateMemberName(id: Identifier): String = id match {
