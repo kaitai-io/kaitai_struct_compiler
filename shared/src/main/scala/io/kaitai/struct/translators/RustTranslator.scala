@@ -4,6 +4,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.exprlang.Ast.expr.Name
 import io.kaitai.struct.format.{Identifier, ParentIdentifier, RootIdentifier}
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
@@ -55,6 +56,20 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   }
 
   override def doName(s: String): String = s
+
+
+  override def userTypeField(userType: UserType, value: expr, attrName: String): String = {
+    // Like `doLocalName`, but called when we are attempting to access user type fields.
+    // Important because we need to handle unwrapping the Option type
+    value match {
+      // TODO: Clean up this guard
+      case Name(id) if id.name == Identifier.ROOT
+        || id.name == Identifier.PARENT
+        || id.name == Identifier.ITERATOR
+        || id.name == Identifier.IO => super.userTypeField(userType, value, attrName)
+      case _ => s"${translate(value)}.as_ref().unwrap().${doName(attrName)}"
+    }
+  }
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     s"${RustCompiler.normalizeClassName(enumTypeAbs)}::${Utils.upperCamelCase(label)}"

@@ -46,7 +46,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // TODO: Derive Clone/PartialEq?
     // Can't safely derive Copy because of byte slices
     out.puts(s"#[derive(Default, Debug)]")
-    out.puts(s"struct ${normalizeClassName(name)}<'a> {")
+    out.puts(s"pub struct ${normalizeClassName(name)}<'a> {")
 
     out.inc
   }
@@ -137,7 +137,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val tempVar = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
 
     out.puts(s"let mut $tempVar = $expr;")
-    out.puts(s"$tempVar.read(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}.or(Some(self)), Some(self))?;")
+    out.puts(s"${doRead(tempVar)};")
     pushToMember(id, tempVar)
 
     // Because of Rust's move semantics, `tempVar` is no longer available. Instead,
@@ -145,29 +145,37 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let $tempVar = ${privateMemberName(id)}.last().unwrap();")
   }
 
+  def doRead(id: String): String =
+    s"$id.read(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}.or(Some(self)), Some(self))?"
+
   def pushToMember(id: Identifier, expr: String): Unit = out.puts(s"${privateMemberName(id)}.push($expr);")
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     val seqId = typeProvider.nowClass.seq.filter(a => a.id == id)
 
-    val typeSafe = if (seqId.isEmpty) {
+    if (seqId.isEmpty) {
       // No matching ID's in the main parse body, so this is either an instance or raw
       id match {
-        case _: InstanceIdentifier => s"Some($expr)"
-        case _: RawIdentifier => "panic!(\"No idea what to do with raw idents\")"
+        case _: InstanceIdentifier => out.puts(s"${privateMemberName(id)} = Some($expr);")
+        case _: RawIdentifier => out.puts("panic!(\"No idea what to do with raw idents\");")
       }
 
       // Currently a ton of type-related issues in instance calculations, hold off for now
       // val dataType = typeProvider.nowClass.instances(id.asInstanceOf[InstanceIdentifier]).dataTypeComposite
       //s"Some($expr as ${kaitaiTypeToNativeType(dataType)})"
-    } else if (seqId.head.dataType.isInstanceOf[EnumType]) {
-      // Assign to enum, so handle the conversion with `TryFrom`
-      s"Some($expr.try_into()?)"
-    } else {
-      expr
+    } else seqId.head.dataType match {
+      case _: EnumType =>
+        // Assign to enum, so handle the conversion with `TryFrom`
+        out.puts(s"${privateMemberName(id)} = Some($expr.try_into()?);")
+      case _: UserType =>
+        // Assign from owned user type, so need to read and then wrap in Option.
+        val localTemp = translator.doLocalName(Identifier.ITERATOR);
+        out.puts(s"let mut $localTemp = $expr;")
+        out.puts(s"${doRead(localTemp)};")
+        out.puts(s"${privateMemberName(id)} = Some($localTemp);")
+      case _ =>
+        out.puts(s"${privateMemberName(id)} = $expr;")
     }
-
-    out.puts(s"${privateMemberName(id)} = $typeSafe;")
   }
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String =
@@ -304,7 +312,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // Set up the actual enum definition
     out.puts(s"#[derive(Debug, PartialEq)]")
-    out.puts(s"enum $enumClass {")
+    out.puts(s"pub enum $enumClass {")
     out.inc
 
     enumColl.foreach { case (_, label) =>
@@ -318,6 +326,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
 
     // Set up parsing enums from the underlying value
+    // TODO: Use type-casting instead? https://stackoverflow.com/a/33354168/1454178
     out.puts(s"impl TryFrom<u64> for $enumClass {")
 
     out.inc
