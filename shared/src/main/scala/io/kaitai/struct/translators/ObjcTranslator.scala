@@ -208,7 +208,7 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
 
   override def strConcat(left: Ast.expr, right: Ast.expr): String =
     s"[${translate(left)} stringByAppendingString:${translate(right)}]"
-
+  override def kaitaiStreamEof(value: Ast.expr): String = anyField(value, "isEof")
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>

@@ -141,7 +141,19 @@ class ObjcCompiler(
     }
   }
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    outSrc.puts(s"handleAssignmentRepeatUntil")
+    outHdr.puts("// comment: handleAssignmentRepeatUntil")
+    outSrc.puts("// comment: handleAssignmentRepeatUntil")
+    val (typeDecl, tempVar) = if (isRaw) {
+      ("std::string ", translator.doName(Identifier.ITERATOR2))
+    } else {
+      ("", translator.doName(Identifier.ITERATOR))
+    }
+
+    val (wrappedTempVar, rawPtrExpr) = (tempVar, expr)
+
+    outSrc.puts(s"$typeDecl$tempVar = $rawPtrExpr;")
+
+    outSrc.puts(s"[${privateMemberName(id)} addObject:$wrappedTempVar];")
   }
   override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outHdr.puts("// comment: handleAssignmentInstance")
@@ -169,6 +181,8 @@ class ObjcCompiler(
       case BitsType(width: Int) =>
         s"[$io read_bits_int:$width]"
       case t: UserType =>
+        val addParams = Utils.join(t.args.zipWithIndex.map { case (a, i) =>
+          s"withParam$i:@(${translator.translate(a)})"}," ", " ", "")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -183,7 +197,7 @@ class ObjcCompiler(
           }
           s" withStruct:$parent withRoot:${privateMemberName(RootIdentifier)}$addEndian"
         }
-        s"[${types2class(t.classSpec.get.name)} initialize:$io$addArgs]"
+        s"[${types2class(t.classSpec.get.name)} initialize:$io$addArgs$addParams]"
     }
   }
 
@@ -271,16 +285,25 @@ class ObjcCompiler(
   }
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[io.kaitai.struct.format.ParamDefSpec]): Unit = {
+    outHdr.puts(s"// comment: classConstructorHeader: $params")
+    outSrc.puts(s"// comment: classConstructorHeader: $params")
+
     val (endianSuffixHdr, endianSuffixSrc)  = if (isHybrid) {
       (" withEndian:(int)p_is_le", " withEndian:p_is_le")
     } else {
       ("", "")
     }
-    val paramsArg = Utils.join(params.map((p) =>
-      s"${kaitaiType2NativeType(p.dataType)} ${paramName(p.id)}"
-    ), "", ", ", ", ")
 
- //   val classNameBrief = types2class(List(name.last))
+    val classParamsArg = Utils.join(params.zipWithIndex.map { case (p, i) =>
+      s"withParam$i:(${kaitaiType2NativeType(p.dataType)})${paramName(p.id)}"}," ", " ", "")
+
+    val initParamsArg = Utils.join(params.zipWithIndex.map { case (p, i) =>
+      s"withParam$i:${paramName(p.id)}"}," ", " ", "")
+
+    val assignParamsArg = Utils.join(params.map((p) =>
+      s"self.${publicMemberName(p.id)} = ${paramName(p.id)};"
+    ), "", "\r", "")
+
 
     // Parameter names
     val pIo = paramName(IoIdentifier)
@@ -292,45 +315,44 @@ class ObjcCompiler(
     val tParent = kaitaiType2NativeType(parentType)
     val tRoot = kaitaiType2NativeType(CalcUserType(rootClassName, None))
 
-    outHdr.puts("// comment: classConstructorHeader")
     outHdr.puts
-    outHdr.puts(s"+ (instancetype) initialize:$paramsArg" +
+    outHdr.puts(s"+ (instancetype) initialize:" +
       s"($tIo)$pIo " +
       s"withStruct:($tParent)$pParent " +
-      s"withRoot:($tRoot)$pRoot$endianSuffixHdr;"
+      s"withRoot:($tRoot)$pRoot$endianSuffixHdr$classParamsArg;"
     )
-    outHdr.puts(s"+ (instancetype) initialize:$paramsArg" +
-      s"($tIo)$pIo$endianSuffixHdr;"
+    outHdr.puts(s"+ (instancetype) initialize:" +
+      s"($tIo)$pIo$endianSuffixHdr$classParamsArg;"
     )
 
-    outSrc.puts("// comment: classConstructorHeader")
-    outSrc.puts(s"+ (instancetype) initialize:$paramsArg" +
+    outSrc.puts(s"+ (instancetype) initialize:" +
       s"($tIo)$pIo " +
       s"withStruct:($tParent)$pParent " +
-      s"withRoot:($tRoot)$pRoot$endianSuffixHdr {")
+      s"withRoot:($tRoot)$pRoot$endianSuffixHdr$classParamsArg {")
     val className = types2class(name)
     outSrc.inc
-    outSrc.puts(s"return [[$className alloc] initWith:$pIo withStruct:$pParent withRoot:$pRoot$endianSuffixSrc];")
+    outSrc.puts(s"return [[$className alloc] initWith:$pIo withStruct:$pParent withRoot:$pRoot$endianSuffixSrc$initParamsArg];")
     outSrc.dec
     outSrc.puts(s"}")
     outSrc.puts
 
-    outSrc.puts(s"+ (instancetype) initialize:$paramsArg" +
-      s"($tIo)$pIo$endianSuffixHdr {")
+    outSrc.puts(s"+ (instancetype) initialize:" +
+      s"($tIo)$pIo$endianSuffixHdr$classParamsArg {")
     outSrc.inc
-    outSrc.puts(s"return [[$className alloc] initWith:$pIo withStruct:nil withRoot:nil$endianSuffixSrc];")
+    outSrc.puts(s"return [[$className alloc] initWith:$pIo withStruct:nil withRoot:nil$endianSuffixSrc$initParamsArg];")
     outSrc.dec
     outSrc.puts(s"}")
     outSrc.puts
 
-    outSrc.puts(s"- (instancetype) initWith:$paramsArg" +
+    outSrc.puts(s"- (instancetype) initWith:" +
       s"($tIo)$pIo " +
       s"withStruct:($tParent)$pParent " +
-      s"withRoot:($tRoot)$pRoot$endianSuffixHdr {")
+      s"withRoot:($tRoot)$pRoot$endianSuffixHdr$classParamsArg {")
     outSrc.inc
     outSrc.puts(s"self = [super initWith:$pIo withStruct:$pParent withRoot:$pRoot$endianSuffixSrc];")
     outSrc.puts(s"if (self) {")
     outSrc.inc
+    outSrc.puts(assignParamsArg)
 
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
@@ -434,11 +456,30 @@ class ObjcCompiler(
     }
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    outSrc.puts(s"condRepeatUntilFooter")
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+    outHdr.puts("// comment: condRepeatUntilFooter")
+    outSrc.puts("// comment: condRepeatUntilFooter")
+    typeProvider._currentIteratorType = Some(dataType)
+    outSrc.puts("i++;")
+    outSrc.dec
+    outSrc.puts(s"} while (!(${expression(untilExpr)}));")
+    outSrc.dec
+    outSrc.puts("}")
   }
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    outSrc.puts(s"condRepeatUntilHeader")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+    outHdr.puts("// comment: condRepeatUntilHeader")
+    outSrc.puts("// comment: condRepeatUntilHeader")
+    if (needRaw) {
+      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType, None)};")
+      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType, None)};")
+    }
+    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType, None)};")
+    outSrc.puts("{")
+    outSrc.inc
+    outSrc.puts("int i = 0;")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning, true)} ${translator.doName("_")};")
+    outSrc.puts("do {")
+    outSrc.inc
   }
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     outHdr.puts("// comment: enumDeclaration")
@@ -587,7 +628,10 @@ class ObjcCompiler(
     outSrc.puts(s"[$io seek:${expression(pos)}];")
 
   override def type2class(className: String): String = ObjcCompiler.type2class(className)
-  override def useIO(ioEx: Ast.expr): String = s"useIO"
+  override def useIO(ioEx: Ast.expr): String = {
+    outSrc.puts(s"$kstreamName *io = ${expression(ioEx)};")
+    "io"
+  }
 
   // Members declared in io.kaitai.struct.languages.components.ObjectOrientedLanguage
   override def idToStr(id: Identifier): String = {
