@@ -43,10 +43,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classHeader(name: List[String]): Unit = {
     // Set up the struct definition
 
+    val lifetime = if (classContainsReferences(typeProvider.nowClass)) "<'a>" else ""
+
     // TODO: Derive Clone/PartialEq?
     // Can't safely derive Copy because of byte slices
     out.puts(s"#[derive(Default, Debug)]")
-    out.puts(s"pub struct ${normalizeClassName(name)}<'a> {")
+    out.puts(s"pub struct ${normalizeClassName(name)}$lifetime {")
 
     out.inc
   }
@@ -79,11 +81,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
 
-    val currentName = normalizeClassName(name)
+    val lifetime = if (classContainsReferences(typeProvider.nowClass)) "<'a>" else ""
+    val currentName = s"${normalizeClassName(name)}$lifetime"
     val parentType = parentClassType(typeProvider.nowClass)
     val rootType = rootClassType(typeProvider.nowClass, typeProvider.topClass)
 
-    out.puts(s"impl<'a> KStruct<'a> for $currentName<'a> {")
+    out.puts(s"impl<'a> KStruct<'a> for $currentName {")
 
     out.inc
     out.puts(s"type Parent = $parentType;")
@@ -270,7 +273,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def alignToByte(io: String): Unit = out.puts(s"$io.align_to_byte()?;")
 
   override def instanceDeclHeader(className: List[String]): Unit = {
-    out.puts(s"impl<'a> ${normalizeClassName(className)}<'a> {")
+    val lifetime = if (classContainsReferences(typeProvider.nowClass)) "<'a>" else ""
+    out.puts(s"impl$lifetime ${normalizeClassName(className)}$lifetime {")
     out.inc
   }
 
@@ -451,9 +455,14 @@ object RustCompiler extends LanguageCompilerStatic
     case _: BytesType => "&'a [u8]"
 
     case t: UserType =>
+      // TODO: Potentially need to add these types to the import list
       val typeName = t.classSpec match {
-        case Some(cs) => s"${normalizeClassName(cs.name)}<'a>"
-        case None => s"${normalizeClassName(t.name)}<'a>"
+        case Some(cs) =>
+          val lifetime = if (classContainsReferences(cs)) "<'a>" else ""
+          s"${normalizeClassName(cs.name)}$lifetime"
+        case None =>
+          val lifetime = if (datatypeContainsReferences(t)) "<'a>" else ""
+          s"${normalizeClassName(t.name)}$lifetime"
       }
       if (excludeOptionUser)
         typeName
@@ -468,7 +477,9 @@ object RustCompiler extends LanguageCompilerStatic
     case t: ArrayType => s"Vec<${kaitaiTypeToNativeType(t.elType, excludeOptionUser = true)}>"
 
     case KaitaiStreamType => kstreamName
-    case KaitaiStructType | CalcKaitaiStructType => kstructName
+    // TODO: Handle calculated/switch types
+    // Right now we fail on KStruct types because the associated type parameters aren't bound
+    case KaitaiStructType | CalcKaitaiStructType => kstructUnitName
 
     case st: SwitchType => kaitaiTypeToNativeType(st.combinedType)
   }
@@ -478,15 +489,22 @@ object RustCompiler extends LanguageCompilerStatic
 
   def kstructUnitName: String = "KStructUnit"
 
-  def rootClassType(nowClass: ClassSpec, topClass: ClassSpec): String =
-    if (nowClass.isTopLevel) "Self" else s"${normalizeClassName(topClass.name)}<'a>"
+  def rootClassType(nowClass: ClassSpec, topClass: ClassSpec): String = {
+    if (nowClass.isTopLevel) "Self" else {
+      val lifetime = if (classContainsReferences(topClass)) "<'a>" else ""
+      s"${normalizeClassName(topClass.name)}$lifetime"
+    }
+  }
 
   def parentClassType(nowClass: ClassSpec): String =
     if (nowClass.isTopLevel)
       kstructUnitName
     else
       nowClass.parentClass match {
-        case t: ClassSpec => s"${normalizeClassName(t.name)}<'a>"
+        case t: ClassSpec => {
+          val lifetime = if (classContainsReferences(t)) "<'a>" else ""
+          s"${normalizeClassName(t.name)}$lifetime"
+        }
         case GenericStructClassSpec => kstructUnitName
       }
 
@@ -504,5 +522,24 @@ object RustCompiler extends LanguageCompilerStatic
     case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
     // Raw identifiers store bytes locally, we'll parse them later
     case RawIdentifier(inner) => s"raw_${idToStr(inner)}"
+  }
+
+  def classContainsReferences(c: ClassSpec): Boolean = {
+    val seqReferences = c.seq.exists(t => datatypeContainsReferences(t.dataType))
+
+    if (seqReferences)
+      true
+    else
+      c.instances.exists(inst => datatypeContainsReferences(inst._2.dataTypeComposite))
+  }
+
+  def datatypeContainsReferences(d: DataType): Boolean = d match {
+    case _: BytesType | _: StrType => true
+    case t: UserType => t.classSpec match {
+      case Some(inner) => classContainsReferences(inner)
+      case None => false
+    }
+    case t: ArrayType => datatypeContainsReferences(t.elType)
+    case _ => false
   }
 }
