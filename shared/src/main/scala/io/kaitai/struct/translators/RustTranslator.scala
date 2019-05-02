@@ -120,7 +120,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     translate(encoding) match {
       // Because ASCII is a subset of UTF-8,
       case "\"ASCII\"" | "\"UTF-8\"" => s"str::from_utf8($bytesExpr).or(Err(KError::Encoding { expected: ${translate(encoding)} }))?"
-      case _ => "panic!(\"Unimplemented encoding for bytesToStr: {}\", \"" + translate(encoding) + "\")"
+      case _ => "panic!(\"Unimplemented encoding for bytesToStr: {}\", " + translate(encoding) + ")"
     }
 
   override def bytesLength(b: Ast.expr): String =
