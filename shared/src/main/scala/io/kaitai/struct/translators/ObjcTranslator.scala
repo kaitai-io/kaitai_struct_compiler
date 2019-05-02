@@ -68,11 +68,7 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   override def bytesToStr(value: String, expr: io.kaitai.struct.exprlang.Ast.expr): String =
     s"[${value} KSBytesToStringWithEncoding:${translate(expr)}]"
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    if(id.startsWith("(self._io).")) {
-        s"[$id KSENUMWithDictionary:${ObjcCompiler.types2class(enumTypeAbs.dropRight(1))}._${enumTypeAbs.last}]"
-    } else {
-        s"[@($id) KSENUMWithDictionary:${ObjcCompiler.types2class(enumTypeAbs.dropRight(1))}._${enumTypeAbs.last}]"
-    }
+    s"[@($id) KSENUMWithDictionary:${ObjcCompiler.types2class(enumTypeAbs.dropRight(1))}._${enumTypeAbs.last}]"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     "[@\"" + s"$label" + "\" " + s"KSENUMWithDictionary:${ObjcCompiler.types2class(enumTypeAbs.dropRight(1))}._${enumTypeAbs.last}]"
@@ -142,37 +138,10 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
       case Some(FloatMultiType(Width4,_)) => s"$s.floatValue"
       case Some(BitsType1) => s"$s.boolValue"
       case Some(BitsType(1)) => s"$s.boolValue"
-      case Some(BitsType(2)) => s"$s.unsignedCharValue"
-      case Some(BitsType(3)) => s"$s.unsignedCharValue"
-      case Some(BitsType(4)) => s"$s.unsignedCharValue"
-      case Some(BitsType(5)) => s"$s.unsignedCharValue"
-      case Some(BitsType(6)) => s"$s.unsignedCharValue"
-      case Some(BitsType(7)) => s"$s.unsignedCharValue"
-      case Some(BitsType(8)) => s"$s.unsignedCharValue"
-      case Some(BitsType(9)) => s"$s.unsignedShortValue"
-      case Some(BitsType(10)) => s"$s.unsignedShortValue"
-      case Some(BitsType(11)) => s"$s.unsignedShortValue"
-      case Some(BitsType(12)) => s"$s.unsignedShortValue"
-      case Some(BitsType(13)) => s"$s.unsignedShortValue"
-      case Some(BitsType(14)) => s"$s.unsignedShortValue"
-      case Some(BitsType(15)) => s"$s.unsignedShortValue"
-      case Some(BitsType(16)) => s"$s.unsignedShortValue"
-      case Some(BitsType(17)) => s"$s.unsignedIntValue"
-      case Some(BitsType(18)) => s"$s.unsignedIntValue"
-      case Some(BitsType(19)) => s"$s.unsignedIntValue"
-      case Some(BitsType(20)) => s"$s.unsignedIntValue"
-      case Some(BitsType(21)) => s"$s.unsignedIntValue"
-      case Some(BitsType(22)) => s"$s.unsignedIntValue"
-      case Some(BitsType(23)) => s"$s.unsignedIntValue"
-      case Some(BitsType(24)) => s"$s.unsignedIntValue"
-      case Some(BitsType(25)) => s"$s.unsignedIntValue"
-      case Some(BitsType(26)) => s"$s.unsignedIntValue"
-      case Some(BitsType(27)) => s"$s.unsignedIntValue"
-      case Some(BitsType(28)) => s"$s.unsignedIntValue"
-      case Some(BitsType(29)) => s"$s.unsignedIntValue"
-      case Some(BitsType(30)) => s"$s.unsignedIntValue"
-      case Some(BitsType(31)) => s"$s.unsignedIntValue"
-      case Some(BitsType(32)) => s"$s.unsignedIntValue"
+      case Some(BitsType(n)) if (n >= 2 && n <= 8) => s"$s.unsignedCharValue"
+      case Some(BitsType(n)) if (n >= 9 && n <= 16) => s"$s.unsignedShortValue"
+      case Some(BitsType(n)) if (n >= 17 && n <= 32) => s"$s.unsignedIntValue"
+      case Some(BitsType(n)) if (n >= 33 && n <= 64) => s"$s.unsignedLongLongValue"
       case _ => s"$s"
     }
   }
@@ -200,10 +169,7 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
     "[NSData dataWithBytes:\"" + Utils.hexEscapeByteArray(arr) + "\" length:" + arr.length + "]"
 
   override def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String =
-    translate(value) + "." + doName(attrName, Some(provider.determineType(userType.classSpec.get, attrName)))
-
-  override def anyField(value: Ast.expr, attrName: String): String =
-    s"${translate(value)}.${doName(attrName, Some(detectType(value)))}"
+    s"((${ObjcCompiler.kaitaiType2NativeType(userType, true)})" + translate(value) + ")." + doName(attrName, Some(provider.determineType(userType.classSpec.get, attrName)))
 
   override def doSubscript(container: expr, idx: expr): String =
     doName(s"${translate(container)}[${translate(idx)}]", Some(detectType(container).asInstanceOf[ArrayType].elType))

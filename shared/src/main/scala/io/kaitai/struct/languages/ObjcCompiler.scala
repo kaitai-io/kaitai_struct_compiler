@@ -9,12 +9,15 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{ObjcTranslator, TypeDetector}
 import io.kaitai.struct.RuntimeConfig
 
-class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
-  extends LanguageCompiler(typeProvider, config)
+class ObjcCompiler(
+  val typeProvider: ClassTypeProvider,
+  config: RuntimeConfig
+) extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
+    with SwitchIfOps
     with EveryReadIsExpression {
   import ObjcCompiler._
 
@@ -34,6 +37,48 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"$fn.h" -> (outHdrHeader.result + importListToStr(importListHdr) + outHdr.result)
     )
   }
+
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType => false
+    case _ => true
+  }
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    outSrc.puts("{")
+    outSrc.inc
+    outSrc.puts(s"${kaitaiType2NativeType(onType)}on = ${expression(on)};")
+  }
+
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    outHdr.puts("// comment: switchIfCaseFirstStart")
+    outSrc.puts(s"// comment: switchIfCaseFirstStart: $condition")
+    outSrc.puts(s"if ([on isEqualToData:${expression(condition)}]) {")
+    outSrc.inc
+  }
+
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    outHdr.puts("// comment: switchIfCaseStart")
+    outSrc.puts(s"// comment: switchIfCaseStart: $condition")
+    outSrc.puts(s"else if ([on isEqualToData:${expression(condition)}]) {")
+    outSrc.inc
+  }
+
+  override def switchIfCaseEnd(): Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
+  override def switchIfElseStart(): Unit = {
+    outSrc.puts("else {")
+    outSrc.inc
+  }
+
+  override def switchIfEnd(): Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
+//  override def typeProvider: io.kaitai.struct.ClassTypeProvider = typeProvider
 
   override def innerClasses = false
   override def innerEnums = true
@@ -69,10 +114,6 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     ioName
   }
 
-//  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
-//    case _: IntType => false
-//    case _ => true
-//  }
   // Members declared in io.kaitai.struct.languages.components.EveryReadIsExpression
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
     val expr1 = padRight match {
@@ -86,21 +127,17 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    outSrc.puts(s"handleAssignmentRepeatEos")
+    outHdr.puts("// comment: handleAssignmentRepeatEos")
+    outSrc.puts("// comment: handleAssignmentRepeatEos")
+
+    outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
   }
   override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outHdr.puts("// comment: handleAssignmentRepeatExpr")
     outSrc.puts(s"// comment: handleAssignmentRepeatExpr, i: $id, d: $dataType, e: $expr")
-
-    id match {
-      case _: InstanceIdentifier => {
-        dataType match {
-          case Some(_: UserType) => outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
-          case Some(_: NumericType) | Some(_: BooleanType) => outSrc.puts(s"[${privateMemberName(id)} addObject:@($expr)];")
-          case _ => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
-        }
-      }
-        case _ => outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
+    dataType match {
+      case Some(_: NumericType) | Some(_: BooleanType) => outSrc.puts(s"[${privateMemberName(id)} addObject:@($expr)];")
+      case _ => outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
     }
   }
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
@@ -109,16 +146,12 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outHdr.puts("// comment: handleAssignmentInstance")
     outSrc.puts(s"// comment: handleAssignmentInstance: Identifier: $id, DataType: $dataType")
-
     id match {
-      case _: InstanceIdentifier => {
-        dataType match {
-          case Some(_: UserType) => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
-          case Some(_: NumericType) | Some(_: BooleanType) => outSrc.puts(s"self.${publicMemberName(id)} = @($expr);")
-          case _ => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
-        }
-      }
+      case SpecialIdentifier(n) if (n == "_is_le") => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
+      case _ => dataType match {
+        case Some(_: NumericType) | Some(_: BooleanType) => outSrc.puts(s"self.${publicMemberName(id)} = @($expr);")
         case _ => outSrc.puts(s"self.${publicMemberName(id)} = $expr;")
+      }
     }
   }
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
@@ -145,7 +178,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case None => "self"
           }
           val addEndian = t.classSpec.get.meta.endian match {
-            case Some(InheritedEndian) => " withEndian: m__is_le"
+            case Some(InheritedEndian) => " withEndian: self._is_le"
             case _ => ""
           }
           s" withStruct:$parent withRoot:${privateMemberName(RootIdentifier)}$addEndian"
@@ -165,8 +198,16 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def alignToByte(io: String): Unit = {
     outSrc.puts(s"[self.${idToStr(IoIdentifier)} alignToByte];")
   }
-  override def attrParseHybrid(leProc: () => Unit,beProc: () => Unit): Unit = {
-    outSrc.puts(s"attrParseHybrid(leProc: () => Unit,beProc: ")
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    outSrc.puts("if (self._is_le == YES) {")
+    outSrc.inc
+    leProc()
+    outSrc.dec
+    outSrc.puts("} else {")
+    outSrc.inc
+    beProc()
+    outSrc.dec
+    outSrc.puts("}")
   }
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     outHdr.puts("// comment: attrProcess")
@@ -231,7 +272,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[io.kaitai.struct.format.ParamDefSpec]): Unit = {
     val (endianSuffixHdr, endianSuffixSrc)  = if (isHybrid) {
-      (" withHybrid:(int)p_is_le", " withHybrid:p_is_le")
+      (" withEndian:(int)p_is_le", " withEndian:p_is_le")
     } else {
       ("", "")
     }
@@ -258,7 +299,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"withStruct:($tParent)$pParent " +
       s"withRoot:($tRoot)$pRoot$endianSuffixHdr;"
     )
-    outHdr.puts(s"+ (instancetype) structWith:$paramsArg" +
+    outHdr.puts(s"+ (instancetype) initialize:$paramsArg" +
       s"($tIo)$pIo$endianSuffixHdr;"
     )
 
@@ -274,7 +315,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outSrc.puts(s"}")
     outSrc.puts
 
-    outSrc.puts(s"+ (instancetype) structWith:$paramsArg" +
+    outSrc.puts(s"+ (instancetype) initialize:$paramsArg" +
       s"($tIo)$pIo$endianSuffixHdr {")
     outSrc.inc
     outSrc.puts(s"return [[$className alloc] initWith:$pIo withStruct:nil withRoot:nil$endianSuffixSrc];")
@@ -290,12 +331,20 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outSrc.puts(s"self = [super initWith:$pIo withStruct:$pParent withRoot:$pRoot$endianSuffixSrc];")
     outSrc.puts(s"if (self) {")
     outSrc.inc
+
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        outHdr.puts("@property int _is_le;")
+      case _ =>
+        // no _is_le variable
+    }
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     outHdr.puts("// comment: opaqueClassDeclaration")
     outSrc.puts("// comment: opaqueClassDeclaration")
     classForwardDeclaration(classSpec.name)
+    outHdr.puts("#import \"" + outFileName(classSpec.name.head) + ".h\"")
   }
   override def classForwardDeclaration(name: List[String]): Unit = {
     outHdrHeader.puts("// comment: classForwardDeclaration")
@@ -321,6 +370,7 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outSrc.puts(s"@implementation $className")
     outSrc.puts(s"@dynamic _root;")
     outSrc.puts(s"@dynamic _parent;")
+    outSrc.puts(s"@dynamic _is_le;")
   }
   override def condIfFooter(expr: Ast.expr): Unit = {
     outHdr.puts("// comment: condIfFooter")
@@ -335,10 +385,25 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outSrc.inc
   }
   override def condRepeatEosFooter: Unit = {
-    outSrc.puts(s"condRepeatEosFooter")
+    outHdr.puts("// comment: condRepeatEosFooter")
+    outSrc.puts("// comment: condRepeatEosFooter")
+
+    outSrc.puts("i++;")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.dec
+    outSrc.puts("}")
   }
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    outSrc.puts(s"condRepeatEosHeader")
+    outHdr.puts("// comment: condRepeatEosHeader")
+    outSrc.puts("// comment: condRepeatEosHeader")
+
+    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType, None)};")
+    outSrc.puts("{")
+    outSrc.inc
+    outSrc.puts("int i = 0;")
+    outSrc.puts(s"while (!($io).isEof) {")
+    outSrc.inc
   }
   override def condRepeatExprFooter: Unit = {
     outHdr.puts("// comment: condRepeatExprFooter")
@@ -353,17 +418,21 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
     if (needRaw) {
       val rawId = privateMemberName(RawIdentifier(id))
-      outSrc.puts(s"$rawId = ${newVector(CalcBytesType, lenVar)};")
+      outSrc.puts(s"$rawId = ${newVector(CalcBytesType, Some(lenVar))};")
       val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-      outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType, lenVar)};")
+      outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType, Some(lenVar))};")
     }
-    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType, lenVar)};")
+    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType, Some(lenVar))};")
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
   }
 
-  def newVector(elType: DataType, length: String): String =
-    s"[NSMutableArray arrayWithCapacity:$length]"
+  def newVector(elType: DataType, length: Option[String]): String = {
+    length match {
+      case Some(t) => s"[NSMutableArray arrayWithCapacity:$t]"
+      case _ => s"[NSMutableArray array]"
+    }
+  }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     outSrc.puts(s"condRepeatUntilFooter")
@@ -500,12 +569,11 @@ class ObjcCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def runReadCalc(): Unit = {
     outSrc.puts
-    outSrc.puts("if (m__is_le == -1) {")
+    outSrc.puts("if (self._is_le == -1) {")
     outSrc.inc
-    importListSrc.add("stdexcept")
-    outSrc.puts("[NSException raise:@\"unable to decide on endianness\" format @\"\"]")
+    outSrc.puts("[NSException raise:@\"unable to decide on endianness\" format:@\"\"];")
     outSrc.dec
-    outSrc.puts("} else if (m__is_le == 1) {")
+    outSrc.puts("} else if (self._is_le == YES) {")
     outSrc.inc
     outSrc.puts("[self _read_le];")
     outSrc.dec
