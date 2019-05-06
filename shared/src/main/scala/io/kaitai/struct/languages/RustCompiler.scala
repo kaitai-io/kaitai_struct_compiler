@@ -353,10 +353,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
 
     // Set up parsing enums from the underlying value
-    // TODO: Use type-casting instead? https://stackoverflow.com/a/33354168/1454178
     out.puts(s"impl TryFrom<i64> for $enumClass {")
 
     out.inc
+    // We typically need the lifetime in KError for returning byte slices from stream;
+    // because we can only return `UnknownVariant` which contains a Copy type, it's safe
+    // to declare that the error type is `'static`
     out.puts(s"type Error = KError<'static>;")
     out.puts(s"fn try_from(flag: i64) -> KResult<'static, $enumClass> {")
 
