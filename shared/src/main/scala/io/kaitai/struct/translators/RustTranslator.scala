@@ -14,6 +14,14 @@ import scala.collection.mutable
 class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
   var castAsType: mutable.Stack[Option[DataType]] = mutable.Stack()
 
+  def translateAsType(v: Ast.expr, t: Option[DataType]): String = {
+    castAsType.push(t)
+    val ret = translate(v)
+    castAsType.pop()
+
+    ret
+  }
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "vec![" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
@@ -49,7 +57,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
       case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.ok_or(KError::MissingParent)?"
       case _ =>
-        castAsType.last match {
+        castAsType.head match {
           case Some(d) => s"(self.${doName(s)} as ${RustCompiler.kaitaiTypeToNativeType(d)})"
           case None => s"self.${doName(s)}"
         }
@@ -124,42 +132,24 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case _ => "panic!(\"Unimplemented encoding for bytesToStr: {}\", " + translate(encoding) + ")"
     }
 
-  override def bytesLength(b: Ast.expr): String = {
-    // When getting the length of an underlying, make sure we don't attempt to cast it,
-    // we want the actual reference
-    castAsType.push(None)
-    val ret = s"${translate(b)}.len()"
-    castAsType.pop()
+  override def bytesLength(b: Ast.expr): String = s"${translateAsType(b, None)}.len()"
 
-    ret
-  }
-
-  override def strLength(s: expr): String = {
-    // When getting the length of an underlying, make sure we don't attempt to cast it,
-    // we want the actual reference
-
-    castAsType.push(None)
-    val ret = s"${translate(s)}.len()"
-    castAsType.pop()
-
-    ret
-  }
+  override def strLength(s: expr): String = s"${translateAsType(s, None)}.len()"
 
   override def strReverse(s: expr): String =
     s"${translate(s)}.graphemes(true).rev().flat_map(|g| g.chars()).collect()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
-  override def arrayFirst(a: expr): String =
-    s"${translate(a)}.first()"
-  override def arrayLast(a: expr): String =
-    s"${translate(a)}.last()"
-  override def arraySize(a: expr): String =
-    s"${translate(a)}.len()"
-  override def arrayMin(a: Ast.expr): String =
-    s"${translate(a)}.iter().min()"
-  override def arrayMax(a: Ast.expr): String =
-    s"${translate(a)}.iter().max()"
+  override def arrayFirst(a: expr): String = s"${translateAsType(a, None)}.first()"
+
+  override def arrayLast(a: expr): String = s"${translateAsType(a, None)}.last()"
+
+  override def arraySize(a: expr): String = s"${translateAsType(a, None)}.len()"
+
+  override def arrayMin(a: Ast.expr): String = s"${translateAsType(a, None)}.iter().min()"
+
+  override def arrayMax(a: Ast.expr): String = s"${translateAsType(a, None)}.iter().max()"
 
   override def doEnumCompareOp(left: expr, op: Ast.cmpop, right: expr): String =
   // TODO: This probably isn't legal - no guarantees that the enum value is on the right
