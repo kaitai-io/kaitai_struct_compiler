@@ -291,7 +291,20 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceDeclFooter(className: List[String]): Unit = universalFooter
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"fn ${idToStr(instName)}(")
+    // If the current class has no lifetime associated with it, but either the root or parent does,
+    // we need to declare the lifetime in the function definition so that it can be used as a lifetime param
+    val rootHasLifetime = classContainsReferences(typeProvider.topClass)
+    val parentHasLifetime = typeProvider.nowClass.parentClass match {
+      case t: ClassSpec => classContainsReferences(t)
+      case _ => false
+    }
+    val fnLifetime = if (!classContainsReferences(typeProvider.nowClass) && (rootHasLifetime || parentHasLifetime)) {
+      "<'a>"
+    } else {
+      ""
+    }
+
+    out.puts(s"fn ${idToStr(instName)}$fnLifetime(")
     out.inc
     out.puts(s"&mut self,")
     out.puts(s"${privateMemberName(RootIdentifier)}: Option<&${rootClassType(typeProvider.nowClass, typeProvider.topClass)}>,")
