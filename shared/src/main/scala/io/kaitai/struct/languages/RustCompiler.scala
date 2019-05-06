@@ -179,7 +179,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else seqId.head.dataType match {
       case _: EnumType =>
         // Assign to enum, so handle the conversion with `TryFrom`
-        out.puts(s"${privateMemberName(id)} = Some($expr.try_into()?);")
+        out.puts(s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);")
       case _: UserType =>
         // Assign from owned user type, so need to read and then wrap in Option.
         val localTemp = translator.doLocalName(Identifier.ITERATOR)
@@ -354,11 +354,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // Set up parsing enums from the underlying value
     // TODO: Use type-casting instead? https://stackoverflow.com/a/33354168/1454178
-    out.puts(s"impl TryFrom<u64> for $enumClass {")
+    out.puts(s"impl TryFrom<i64> for $enumClass {")
 
     out.inc
     out.puts(s"type Error = KError<'static>;")
-    out.puts(s"fn try_from(flag: u64) -> KResult<'static, $enumClass> {")
+    out.puts(s"fn try_from(flag: i64) -> KResult<'static, $enumClass> {")
 
     out.inc
     out.puts(s"match flag {")
