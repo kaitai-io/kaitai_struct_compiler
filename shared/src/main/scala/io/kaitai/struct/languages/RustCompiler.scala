@@ -182,6 +182,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);")
       case _: UserType =>
         // Assign from owned user type, so need to read and then wrap in Option.
+        // TODO: Implement localTemporaryName
         val localTemp = translator.doLocalName(Identifier.ITERATOR)
         out.puts(s"let mut $localTemp = $expr;")
         out.puts(s"${doRead(localTemp)};")
