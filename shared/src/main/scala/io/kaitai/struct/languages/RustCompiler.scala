@@ -114,6 +114,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts(s") -> KResult<'s, ()> {")
     out.inc
+
+    // If there are no attributes to parse, we need to end the read implementation ourselves
+    if (typeProvider.nowClass.seq.isEmpty)
+      endRead()
   }
 
   override def readFooter(): Unit = out.puts(s"// readFooter()")
@@ -126,14 +130,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // TODO: readFooter isn't getting called? Goes to universalFooter instead?
     // Right now we detect when this is the last attribute parse, and finish the read method here
-    if (typeProvider.nowClass.seq.last.id == id) {
-      // This is the end of the `read` method, we need to return `OK(())` because we've finished
-      out.puts("Ok(())")
+    if (typeProvider.nowClass.seq.last.id == id)
+      endRead()
+  }
 
-      // Also the end of the impl block
-      out.dec
-      out.puts(s"}")
-    }
+  def endRead(): Unit = {
+    out.puts("Ok(())")
+    out.dec
+    out.puts("}")
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = ???
