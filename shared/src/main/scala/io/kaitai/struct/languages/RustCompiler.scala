@@ -328,10 +328,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     // Because Rust doesn't auto-widen types, we need to inform the translator that the expressions it's using
     // have to obey a specific type
-    // TODO: Type stack instead? Don't think it's necessary.
-    translator.castAsType = Some(dataType)
+    translator.castAsType.push(Some(dataType))
     super.instanceCalculate(instName, dataType, value)
-    translator.castAsType = None
+    translator.castAsType.pop()
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {

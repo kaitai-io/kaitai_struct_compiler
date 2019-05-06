@@ -9,8 +9,10 @@ import io.kaitai.struct.format.{Identifier, ParentIdentifier, RootIdentifier}
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
+import scala.collection.mutable
+
 class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
-  var castAsType: Option[DataType] = None
+  var castAsType: mutable.Stack[Option[DataType]] = mutable.Stack()
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "vec![" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
@@ -47,7 +49,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
       case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.ok_or(KError::MissingParent)?"
       case _ =>
-        castAsType match {
+        castAsType.last match {
           case Some(d) => s"(self.${doName(s)} as ${RustCompiler.kaitaiTypeToNativeType(d)})"
           case None => s"self.${doName(s)}"
         }
@@ -122,10 +124,27 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case _ => "panic!(\"Unimplemented encoding for bytesToStr: {}\", " + translate(encoding) + ")"
     }
 
-  override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.len()"
-  override def strLength(s: expr): String =
-    s"${translate(s)}.len()"
+  override def bytesLength(b: Ast.expr): String = {
+    // When getting the length of an underlying, make sure we don't attempt to cast it,
+    // we want the actual reference
+    castAsType.push(None)
+    val ret = s"${translate(b)}.len()"
+    castAsType.pop()
+
+    ret
+  }
+
+  override def strLength(s: expr): String = {
+    // When getting the length of an underlying, make sure we don't attempt to cast it,
+    // we want the actual reference
+
+    castAsType.push(None)
+    val ret = s"${translate(s)}.len()"
+    castAsType.pop()
+
+    ret
+  }
+
   override def strReverse(s: expr): String =
     s"${translate(s)}.graphemes(true).rev().flat_map(|g| g.chars()).collect()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
