@@ -97,16 +97,16 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
 
   def handleAssignment(id: Identifier, dataType: DataType, expr: TranslatorResult, rep: RepeatSpec, isRaw: Boolean): Unit = {
     rep match {
-      case RepeatEos => handleAssignmentRepeatEos(id, expr)
+      case RepeatEos => handleAssignmentRepeatEos(id, Some(dataType), expr)
       case RepeatExpr(_) => handleAssignmentRepeatExpr(id, Some(dataType), expr)
-      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr, isRaw)
+      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, Some(dataType), expr, isRaw)
       case NoRepeat => handleAssignmentSimple(id, Some(dataType), expr)
     }
   }
 
-  def handleAssignmentRepeatEos(id: Identifier, expr: TranslatorResult): Unit
+  def handleAssignmentRepeatEos(id: Identifier, dataType: Option[DataType], expr: TranslatorResult): Unit
   def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: TranslatorResult): Unit
-  def handleAssignmentRepeatUntil(id: Identifier, expr: TranslatorResult, isRaw: Boolean): Unit
+  def handleAssignmentRepeatUntil(id: Identifier, dataType: Option[DataType], expr: TranslatorResult, isRaw: Boolean): Unit
   def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: TranslatorResult): Unit
 
   def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String

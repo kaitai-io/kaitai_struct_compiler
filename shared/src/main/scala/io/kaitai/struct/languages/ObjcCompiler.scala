@@ -52,14 +52,24 @@ class ObjcCompiler(
   override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
     outHdr.puts("// comment: switchIfCaseFirstStart")
     outSrc.puts(s"// comment: switchIfCaseFirstStart: $condition")
-    outSrc.puts(s"if ([on isEqualToData:${expression(condition)}]) {")
+    condition match {
+    	case Ast.expr.Str(_) =>
+    		outSrc.puts(s"if ([on isEqualToString:${expression(condition)}]) {")
+    	case _ =>
+		    outSrc.puts(s"if ([on isEqualToData:${expression(condition)}]) {")
+    }
     outSrc.inc
   }
 
   override def switchIfCaseStart(condition: Ast.expr): Unit = {
     outHdr.puts("// comment: switchIfCaseStart")
     outSrc.puts(s"// comment: switchIfCaseStart: $condition")
-    outSrc.puts(s"else if ([on isEqualToData:${expression(condition)}]) {")
+    condition match {
+    	case Ast.expr.Str(_) =>
+    		outSrc.puts(s"else if ([on isEqualToString:${expression(condition)}]) {")
+    	case _ =>
+		    outSrc.puts(s"else if ([on isEqualToData:${expression(condition)}]) {")
+    }
     outSrc.inc
   }
 
@@ -93,7 +103,7 @@ class ObjcCompiler(
     val ioId = IoStorageIdentifier(id)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
+      case RepeatEos | RepeatExpr(_) => s"$memberName[$memberName.count - 1]"
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
       case NoRepeat => memberName
     }
@@ -107,7 +117,7 @@ class ObjcCompiler(
       case _ =>
         val localIO = s"io_${idToStr(id)}"
         outSrc.puts(s"$kstreamName* $localIO = $newStream;")
-        outSrc.puts(s"${privateMemberName(ioId)}->push_back($localIO);")
+        outSrc.puts(s"[${privateMemberName(ioId)} addObject:$localIO];")
         localIO
     }
 
@@ -126,11 +136,14 @@ class ObjcCompiler(
     }
     expr2
   }
-  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outHdr.puts("// comment: handleAssignmentRepeatEos")
     outSrc.puts("// comment: handleAssignmentRepeatEos")
-
-    outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
+//    outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
+    dataType match {
+      case Some(_: NumericType) | Some(_: BooleanType) => outSrc.puts(s"[${privateMemberName(id)} addObject:@($expr)];")
+      case _ => outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
+    }
   }
   override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outHdr.puts("// comment: handleAssignmentRepeatExpr")
@@ -140,20 +153,23 @@ class ObjcCompiler(
       case _ => outSrc.puts(s"[${privateMemberName(id)} addObject:$expr];")
     }
   }
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+  override def handleAssignmentRepeatUntil(id: Identifier, dataType: Option[DataType], expr: String, isRaw: Boolean): Unit = {
     outHdr.puts("// comment: handleAssignmentRepeatUntil")
     outSrc.puts("// comment: handleAssignmentRepeatUntil")
     val (typeDecl, tempVar) = if (isRaw) {
-      ("std::string ", translator.doName(Identifier.ITERATOR2))
+      ("NSData *", translator.doName(Identifier.ITERATOR2))
     } else {
       ("", translator.doName(Identifier.ITERATOR))
     }
 
     val (wrappedTempVar, rawPtrExpr) = (tempVar, expr)
 
-    outSrc.puts(s"$typeDecl$tempVar = $rawPtrExpr;")
+		dataType match {
+		case Some(_: NumericType) | Some(_: BooleanType) => outSrc.puts(s"$typeDecl$tempVar = @($rawPtrExpr);")
+		case _ => outSrc.puts(s"$typeDecl$tempVar = $rawPtrExpr;")
+		}
 
-    outSrc.puts(s"[${privateMemberName(id)} addObject:$wrappedTempVar];")
+		outSrc.puts(s"[${privateMemberName(id)} addObject:$wrappedTempVar];")
   }
   override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outHdr.puts("// comment: handleAssignmentInstance")
@@ -182,7 +198,11 @@ class ObjcCompiler(
         s"[$io read_bits_int:$width]"
       case t: UserType =>
         val addParams = Utils.join(t.args.zipWithIndex.map { case (a, i) =>
-          s"withParam$i:@(${translator.translate(a)})"}," ", " ", "")
+        	translator.detectType(a) match {
+				case _: NumericType | _: BooleanType => s"withParam$i:@(${translator.translate(a)})"
+				case _ => s"withParam$i:${translator.translate(a)}"
+			}
+		}," ", " ", "")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -295,7 +315,7 @@ class ObjcCompiler(
     }
 
     val classParamsArg = Utils.join(params.zipWithIndex.map { case (p, i) =>
-      s"withParam$i:(${kaitaiType2NativeType(p.dataType)})${paramName(p.id)}"}," ", " ", "")
+      s"withParam$i:(${kaitaiType2NativeType(p.dataType, true)})${paramName(p.id)}"}," ", " ", "")
 
     val initParamsArg = Utils.join(params.zipWithIndex.map { case (p, i) =>
       s"withParam$i:${paramName(p.id)}"}," ", " ", "")
@@ -458,7 +478,7 @@ class ObjcCompiler(
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
     outHdr.puts("// comment: condRepeatUntilFooter")
-    outSrc.puts("// comment: condRepeatUntilFooter")
+    outSrc.puts(s"// comment: condRepeatUntilFooter id: $id, io:$io, dt:$dataType, nr: $needRaw, ue: $untilExpr")
     typeProvider._currentIteratorType = Some(dataType)
     outSrc.puts("i++;")
     outSrc.dec
@@ -524,6 +544,8 @@ class ObjcCompiler(
     outSrcHeader.puts(s"// comment: fileHeader")
     outSrcHeader.puts(s"// $headerComment")
     outSrcHeader.puts
+    outSrcHeader.puts("#pragma clang diagnostic push")
+		outSrcHeader.puts("#pragma clang diagnostic ignored \"-Wincompatible-pointer-types\"")
     outSrcHeader.puts("#import \"" + outFileName(topClassName) + ".h\"")
 
     outHdrHeader.puts(s"// comment: fileHeader")
@@ -550,7 +572,7 @@ class ObjcCompiler(
   override def fileFooter(topClassName: String): Unit = {
     outHdr.puts("// comment: fileFooter")
     outSrc.puts("// comment: fileFooter")
-
+		outSrc.puts("#pragma clang diagnostic pop")
     outHdr.puts
     outHdr.puts(s"#endif  // ${defineName(topClassName)}")
   }
@@ -759,7 +781,7 @@ object ObjcCompiler extends LanguageCompilerStatic with StreamStructNames {
       case KaitaiStructType => s"$kstructName *"
       case CalcKaitaiStructType => s"$kstructName *"
 
-      case st: SwitchType => "id "
+      case st: SwitchType => kaitaiType2NativeType(st.combinedType, true)
       case AnyType => "id "
     }
   }

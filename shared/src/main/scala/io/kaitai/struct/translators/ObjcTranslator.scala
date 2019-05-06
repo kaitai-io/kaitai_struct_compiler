@@ -112,14 +112,56 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
 
   override def doLocalName(s: String, t: Option[DataType]) = {
     s match {
-      case Identifier.ITERATOR => "_"
+      case Identifier.ITERATOR => t match {
+		  case Some(CalcBooleanType) => s"_.boolValue"
+		  case Some(Int1Type(false)) => s"_.unsignedCharValue"
+		  case Some(Int1Type(true)) => s"_.charValue"
+		  case Some(IntMultiType(true,Width2,_)) => s"_.shortValue"
+		  case Some(IntMultiType(false,Width2,_)) => s"_.unsignedShortValue"
+		  case Some(IntMultiType(true,Width4,_)) => s"_.intValue"
+		  case Some(IntMultiType(false,Width4,_)) => s"_.unsignedIntValue"
+		  case Some(IntMultiType(true,Width8,_)) => s"_.longLongValue"
+		  case Some(IntMultiType(false,Width8,_)) => s"_.unsignedLongLongValue"
+		  case Some(CalcIntType) => s"_.unsignedLongLongValue"
+		  case Some(CalcFloatType) => s"_.doubleValue"
+		  case Some(FloatMultiType(Width8,_)) => s"_.doubleValue"
+		  case Some(FloatMultiType(Width4,_)) => s"_.floatValue"
+		  case Some(BitsType1) => s"_.boolValue"
+		  case Some(BitsType(1)) => s"_.boolValue"
+		  case Some(BitsType(n)) if (n >= 2 && n <= 8) => s"_.unsignedCharValue"
+		  case Some(BitsType(n)) if (n >= 9 && n <= 16) => s"_.unsignedShortValue"
+		  case Some(BitsType(n)) if (n >= 17 && n <= 32) => s"_.unsignedIntValue"
+		  case Some(BitsType(n)) if (n >= 33 && n <= 64) => s"_.unsignedLongLongValue"
+		  case _ => s"_"
+		}
       case Identifier.INDEX => "i"
       case _ => s"self.${doName(s, t)}"
     }
   }
 
   override def doName(s: String, t: Option[DataType] = None) = s match {
-    case Identifier.ITERATOR => "_"
+    case Identifier.ITERATOR => t match {
+		  case Some(CalcBooleanType) => s"_.boolValue"
+		  case Some(Int1Type(false)) => s"_.unsignedCharValue"
+		  case Some(Int1Type(true)) => s"_.charValue"
+		  case Some(IntMultiType(true,Width2,_)) => s"_.shortValue"
+		  case Some(IntMultiType(false,Width2,_)) => s"_.unsignedShortValue"
+		  case Some(IntMultiType(true,Width4,_)) => s"_.intValue"
+		  case Some(IntMultiType(false,Width4,_)) => s"_.unsignedIntValue"
+		  case Some(IntMultiType(true,Width8,_)) => s"_.longLongValue"
+		  case Some(IntMultiType(false,Width8,_)) => s"_.unsignedLongLongValue"
+		  case Some(CalcIntType) => s"_.unsignedLongLongValue"
+		  case Some(CalcFloatType) => s"_.doubleValue"
+		  case Some(FloatMultiType(Width8,_)) => s"_.doubleValue"
+		  case Some(FloatMultiType(Width4,_)) => s"_.floatValue"
+		  case Some(BitsType1) => s"_.boolValue"
+		  case Some(BitsType(1)) => s"_.boolValue"
+		  case Some(BitsType(n)) if (n >= 2 && n <= 8) => s"_.unsignedCharValue"
+		  case Some(BitsType(n)) if (n >= 9 && n <= 16) => s"_.unsignedShortValue"
+		  case Some(BitsType(n)) if (n >= 17 && n <= 32) => s"_.unsignedIntValue"
+		  case Some(BitsType(n)) if (n >= 33 && n <= 64) => s"_.unsignedLongLongValue"
+		  case _ => s"_"
+    }
     case Identifier.ITERATOR2 => "_buf"
     case Identifier.INDEX => "i"
     case _ => t match {
@@ -159,11 +201,19 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
       case s if s.endsWith(".unsignedLongLongValue") => s.dropRight(22)
       case s if s.endsWith(".doubleValue") => s.dropRight(12)
       case s if s.endsWith(".floatValue") => s.dropRight(11)
+      case _ => s"$s"
     }
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String =
-    "@[" + value.map((v) => boxNSNumber(translate(v))).mkString(", ") + "]"
+    "@[" + value.map((v) => boxNSNumber(detectType(v), translate(v))).mkString(", ") + "]"
+
+  def boxNSNumber(d: DataType, s: String): String = {
+  	d match {
+  		case _: NumericType | _: BooleanType => s"@($s)"
+  		case _ => s"$s"
+  	}
+  }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "[NSData dataWithBytes:\"" + Utils.hexEscapeByteArray(arr) + "\" length:" + arr.length + "]"
@@ -173,7 +223,6 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
 
   override def doSubscript(container: expr, idx: expr): String =
     doName(s"${translate(container)}[${translate(idx)}]", Some(detectType(container).asInstanceOf[ArrayType].elType))
-  def boxNSNumber(s: String): String = s"@($s)"
 
   // Members declared in io.kaitai.struct.translators.CommonMethods
   override def arrayFirst(a: io.kaitai.struct.exprlang.Ast.expr): String =
@@ -191,8 +240,10 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   override def intToStr(value: io.kaitai.struct.exprlang.Ast.expr, base: io.kaitai.struct.exprlang.Ast.expr): String = {
     val baseStr = translate(base)
     baseStr match {
-      case "10" =>
-        s"${removeNumberValue(translate(value))}.stringValue"
+      case "10" => detectType(value) match {
+      	case CalcIntType | CalcFloatType => s"@(${translate(value)}).stringValue"
+      	case _ => s"${removeNumberValue(translate(value))}.stringValue"
+      }
       case _ => throw new UnsupportedOperationException(baseStr)
     }
   }
