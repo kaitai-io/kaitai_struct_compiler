@@ -29,6 +29,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // TODO: #![allow(unused_imports)] instead?
     importList.toList.map(i => s"#[allow(unused_imports)]\nuse $i;").mkString("", "\n", "\n")
 
+  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+    // TODO: Package name?
+    importList.add(s"crate::${classSpec.name.mkString("", "::", "")}::${normalizeClassName(classSpec.name)}")
+  }
+
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"// $headerComment")
     outHeader.puts
@@ -172,7 +177,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"${privateMemberName(id)} = Some($expr.try_into()?);")
       case _: UserType =>
         // Assign from owned user type, so need to read and then wrap in Option.
-        val localTemp = translator.doLocalName(Identifier.ITERATOR);
+        val localTemp = translator.doLocalName(Identifier.ITERATOR)
         out.puts(s"let mut $localTemp = $expr;")
         out.puts(s"${doRead(localTemp)};")
         out.puts(s"${privateMemberName(id)} = Some($localTemp);")
@@ -455,7 +460,6 @@ object RustCompiler extends LanguageCompilerStatic
     case _: BytesType => "&'a [u8]"
 
     case t: UserType =>
-      // TODO: Potentially need to add these types to the import list
       val typeName = t.classSpec match {
         case Some(cs) =>
           val lifetime = if (classContainsReferences(cs)) "<'a>" else ""
@@ -501,10 +505,9 @@ object RustCompiler extends LanguageCompilerStatic
       kstructUnitName
     else
       nowClass.parentClass match {
-        case t: ClassSpec => {
+        case t: ClassSpec =>
           val lifetime = if (classContainsReferences(t)) "<'a>" else ""
           s"${normalizeClassName(t.name)}$lifetime"
-        }
         case GenericStructClassSpec => kstructUnitName
       }
 
