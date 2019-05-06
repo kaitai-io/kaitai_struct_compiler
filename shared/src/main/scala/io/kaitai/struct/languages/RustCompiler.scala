@@ -300,30 +300,31 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => false
     }
     val fnLifetime = if (!classContainsReferences(typeProvider.nowClass) && (rootHasLifetime || parentHasLifetime)) {
-      "<'a>"
+      s"<'a, 's: 'a, S: $kstreamName>"
     } else {
-      ""
+      s"<'s, S: $kstreamName>"
     }
 
     out.puts(s"fn ${idToStr(instName)}$fnLifetime(")
     out.inc
     out.puts(s"&mut self,")
+    out.puts(s"${privateMemberName(IoIdentifier)}: &'s S,")
     out.puts(s"${privateMemberName(RootIdentifier)}: Option<&${rootClassType(typeProvider.nowClass, typeProvider.topClass)}>,")
     out.puts(s"${privateMemberName(ParentIdentifier)}: Option<&${parentClassType(typeProvider.nowClass)}>")
     out.dec
-    out.puts(s") -> ${kaitaiTypeToNativeType(dataType)} {")
+    out.puts(s") -> KResult<'s, ${kaitaiTypeToNativeType(dataType)}> {")
     out.inc
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if let Some(x) = ${privateMemberName(instName)} {")
-    out.puts("    return x;")
+    out.puts("    return Ok(x);")
     out.puts("}")
     out.puts
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    out.puts(s"${privateMemberName(instName)}.unwrap()")
+    out.puts(s"Ok(${privateMemberName(instName)}.unwrap())")
   }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
