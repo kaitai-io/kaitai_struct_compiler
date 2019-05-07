@@ -187,7 +187,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: EnumType =>
         // Assign to enum, so handle the conversion with `TryFrom`
         out.puts(s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);")
-      case _: UserType | _: SwitchType => out.puts(s"${privateMemberName(id)} = Some($expr)")
+      case _: UserType => out.puts(s"${privateMemberName(id)} = Some($expr)")
+      case st: SwitchType =>
+        // TODO: We have no idea which variant we're constructing for assignment
+        val enumName = kaitaiTypeToNativeType(id, typeProvider.nowClass, st, excludeOptionWrapper = true, excludeLifetime = true)
+        // out.puts(s"${privateMemberName(id)} = Some($enumName::$variantName($expr));
+        out.puts(s"${privateMemberName(id)} = None; // handleAssignmentSimple($id, $expr)")
       case _ => out.puts(s"${privateMemberName(id)} = $expr;")
     }
   }
@@ -426,6 +431,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     doc.summary.foreach(out.putsLines("/// ", _))
   }
+
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = out.puts(s"// switchStart($id, $on)")
 
