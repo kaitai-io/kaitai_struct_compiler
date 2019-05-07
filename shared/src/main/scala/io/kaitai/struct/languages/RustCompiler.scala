@@ -84,9 +84,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String],
                                       isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     // Normally OO languages attempt to put classes within each other; Rust can't do that, so we end the struct
-    // definition here and let `readHeader` take over
+    // definition here
     out.dec
     out.puts("}")
+
+    // If there are any switch types in the `seq` body, create the enums for them
+    typeProvider.nowClass.seq.foreach(a => a.dataType match {
+      case switchType: SwitchType => switchTypeEnum(a.id, switchType)
+      case _ => ()
+    })
 
     val lifetime = if (classContainsReferences(typeProvider.nowClass)) "<'a>" else ""
     val currentName = s"${normalizeClassName(name)}$lifetime"
@@ -181,11 +187,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: EnumType =>
         // Assign to enum, so handle the conversion with `TryFrom`
         out.puts(s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);")
-      case _: UserType =>
-        // Assign from owned user type, so need to wrap in Option.
-        out.puts(s"${privateMemberName(id)} = Some($expr)")
-      case _ =>
-        out.puts(s"${privateMemberName(id)} = $expr;")
+      case _: UserType | _: SwitchType => out.puts(s"${privateMemberName(id)} = Some($expr)")
+      case _ => out.puts(s"${privateMemberName(id)} = $expr;")
     }
   }
 
@@ -439,6 +442,50 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     Nil
   }
 
+  def switchTypeEnum(id: Identifier, st: SwitchType): Unit = {
+    // Because Rust can't handle `AnyType` in the type hierarchy,
+    // we generate an enum with all possible variations
+    val typeName = kaitaiTypeToNativeType(id, typeProvider.nowClass, st, excludeOptionWrapper = true)
+    out.puts(s"enum $typeName {")
+    out.inc
+
+    val types = st.cases.values.toSet
+    types.foreach(t => {
+      // Because this switch type will itself be in an option, we can exclude it from user types
+      val variantName = switchVariantName(id, t)
+      val typeName = kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true)
+      out.puts(s"$variantName($typeName),")
+    })
+
+    out.dec
+    out.puts("}")
+  }
+
+  def switchVariantName(id: Identifier, attrType: DataType): String = attrType match {
+    case Int1Type(false) => "U1"
+    case IntMultiType(false, Width2, _) => "U2"
+    case IntMultiType(false, Width4, _) => "U4"
+    case IntMultiType(false, Width8, _) => "U8"
+
+    case Int1Type(true) => "S1"
+    case IntMultiType(true, Width2, _) => "S2"
+    case IntMultiType(true, Width4, _) => "S4"
+    case IntMultiType(true, Width8, _) => "S8"
+
+    case FloatMultiType(Width4, _) => "F4"
+    case FloatMultiType(Width8, _) => "F8"
+
+    case BitsType(_) => "Bits"
+    case _: BooleanType => "Boolean"
+    case CalcIntType => "Int"
+    case CalcFloatType => "Float"
+    case _: StrType => "String"
+    case _: BytesType => "Bytes"
+
+    case t: UserType => kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true, excludeLifetime = true)
+    case t: EnumType => kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true)
+    case t: ArrayType => s"Arr${switchVariantName(id, t.elType)}"
+  }
 }
 
 object RustCompiler extends LanguageCompilerStatic
@@ -453,7 +500,7 @@ object RustCompiler extends LanguageCompilerStatic
   def normalizeClassName(names: List[String]): String = type2class(names.last)
 
   def kaitaiTypeToNativeType(id: Identifier, cs: ClassSpec, attrType: DataType,
-                             excludeOptionUser: Boolean = false): String = attrType match {
+                             excludeOptionWrapper: Boolean = false, excludeLifetime: Boolean = false): String = attrType match {
     case _: NumericType => kaitaiPrimitiveToNativeType(attrType)
     case _: BooleanType => kaitaiPrimitiveToNativeType(attrType)
     case _: StrType => kaitaiPrimitiveToNativeType(attrType)
@@ -462,37 +509,38 @@ object RustCompiler extends LanguageCompilerStatic
     case t: UserType =>
       val typeName = t.classSpec match {
         case Some(spec) =>
-          val lifetime = if (classContainsReferences(spec)) "<'a>" else ""
+          val lifetime = if (!excludeLifetime && classContainsReferences(spec)) "<'a>" else ""
           s"${normalizeClassName(spec.name)}$lifetime"
         case None =>
-          val lifetime = if (datatypeContainsReferences(t)) "<'a>" else ""
+          val lifetime = if (!excludeLifetime && datatypeContainsReferences(t)) "<'a>" else ""
           s"${normalizeClassName(t.name)}$lifetime"
       }
-      if (excludeOptionUser)
-        typeName
-      else
-        s"Option<$typeName>"
+      if (excludeOptionWrapper) typeName else s"Option<$typeName>"
 
-    case t: EnumType => t.enumSpec match {
-      case Some(spec) => s"Option<${normalizeClassName(spec.name)}>"
-      case None => s"Option<${normalizeClassName(t.name)}>"
-    }
+    case t: EnumType =>
+      val typeName = t.enumSpec match {
+        case Some(spec) => s"${normalizeClassName(spec.name)}"
+        case None => s"${normalizeClassName(t.name)}"
+      }
+      if (excludeOptionWrapper) typeName else s"Option<$typeName>"
 
-    case t: ArrayType => s"Vec<${kaitaiTypeToNativeType(id, cs, t.elType, excludeOptionUser = true)}>"
+    case t: ArrayType => s"Vec<${kaitaiTypeToNativeType(id, cs, t.elType, excludeOptionWrapper = true)}>"
 
     case KaitaiStreamType => kstreamName
     // TODO: Handle KStruct types
     // Right now we fail on KStruct types because the associated type parameters aren't bound
     case KaitaiStructType | CalcKaitaiStructType => kstructUnitName
 
-    // TODO: SwitchType should be handled as an `enum` in Rust
-    /*
-    case _: SwitchType => id match {
-      case name: NamedIdentifier => normalizeClassName(cs.name ::: List(name.name))
-      case name: InstanceIdentifier => normalizeClassName(cs.name ::: List(name.name))
-    }
-     */
-    case _: SwitchType => kstructUnitName
+    case st: SwitchType =>
+      val types = st.cases.values.toSet
+      val lifetime = if (!excludeLifetime && types.exists(t => datatypeContainsReferences(t))) "<'a>" else ""
+      val typeName = id match {
+        case name: NamedIdentifier => s"${type2class(List(cs.name.last, name.name).mkString("_"))}$lifetime"
+        case name: InstanceIdentifier => s"${type2class(List(cs.name.last, name.name).mkString("_"))}$lifetime"
+        case _ => kstructUnitName
+      }
+
+      if (excludeOptionWrapper) typeName else s"Option<$typeName>"
   }
 
   def kaitaiPrimitiveToNativeType(attrType: DataType): String = attrType match {
