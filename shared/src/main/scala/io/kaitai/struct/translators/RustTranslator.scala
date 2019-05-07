@@ -23,7 +23,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "vec![" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
+    "[" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
