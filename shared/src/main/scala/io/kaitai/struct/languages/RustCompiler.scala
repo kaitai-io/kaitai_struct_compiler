@@ -31,7 +31,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     // TODO: Package name?
-    importList.add(s"crate::${classSpec.name.mkString("", "::", "")}::${normalizeClassName(classSpec.name)}")
+    importList.add(s"crate::${classSpec.name.mkString("", "::", "")}::${normalizeClassName(classSpec.name.last)}")
   }
 
   override def fileHeader(topClassName: String): Unit = {
@@ -54,7 +54,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // TODO: Derive Clone/PartialEq?
     // Can't safely derive Copy because of byte slices
     out.puts(s"#[derive(Default, Debug)]")
-    out.puts(s"pub struct ${normalizeClassName(name)}$lifetime {")
+    out.puts(s"pub struct ${normalizeClassName(name.last)}$lifetime {")
 
     out.inc
   }
@@ -88,7 +88,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
 
     val lifetime = if (classContainsReferences(typeProvider.nowClass)) "<'a>" else ""
-    val currentName = s"${normalizeClassName(name)}$lifetime"
+    val currentName = s"${normalizeClassName(name.last)}$lifetime"
     val parentType = parentClassType(typeProvider.nowClass)
     val rootType = rootClassType(typeProvider.nowClass, typeProvider.topClass)
 
@@ -208,7 +208,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1 => s"$io.read_bits_int(1)? != 0"
       case BitsType(width) => s"$io.read_bits_int($width)?"
       case u: UserType =>
-        s"${normalizeClassName(u.classSpec.get.name)}::default()"
+        s"${normalizeClassName(u.classSpec.get.name.last)}::default()"
     }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
@@ -335,7 +335,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
-    val enumClass = normalizeClassName(curClass ::: List(enumName))
+    val enumClass = normalizeClassName(enumName)
 
     // Set up the actual enum definition
     out.puts(s"#[derive(Debug, PartialEq)]")
@@ -453,7 +453,9 @@ object RustCompiler extends LanguageCompilerStatic
     config: RuntimeConfig
   ): LanguageCompiler = new RustCompiler(tp, config)
 
-  def normalizeClassName(names: List[String]): String = type2class(names.mkString("_"))
+  def normalizeClassName(names: List[String]): String = normalizeClassName(names.mkString("_"))
+
+  def normalizeClassName(name: String): String = type2class(name)
 
   def kaitaiTypeToNativeType(id: Identifier, cs: ClassSpec, attrType: DataType,
                              excludeOptionUser: Boolean = false): String = attrType match {
@@ -466,10 +468,10 @@ object RustCompiler extends LanguageCompilerStatic
       val typeName = t.classSpec match {
         case Some(spec) =>
           val lifetime = if (classContainsReferences(spec)) "<'a>" else ""
-          s"${normalizeClassName(spec.name)}$lifetime"
+          s"${normalizeClassName(spec.name.last)}$lifetime"
         case None =>
           val lifetime = if (datatypeContainsReferences(t)) "<'a>" else ""
-          s"${normalizeClassName(t.name)}$lifetime"
+          s"${normalizeClassName(t.name.last)}$lifetime"
       }
       if (excludeOptionUser)
         typeName
@@ -477,8 +479,8 @@ object RustCompiler extends LanguageCompilerStatic
         s"Option<$typeName>"
 
     case t: EnumType => t.enumSpec match {
-      case Some(spec) => s"Option<${normalizeClassName(spec.name)}>"
-      case None => s"Option<${normalizeClassName(t.name)}>"
+      case Some(spec) => s"Option<${normalizeClassName(spec.name.last)}>"
+      case None => s"Option<${normalizeClassName(t.name.last)}>"
     }
 
     case t: ArrayType => s"Vec<${kaitaiTypeToNativeType(id, cs, t.elType, excludeOptionUser = true)}>"
@@ -531,7 +533,7 @@ object RustCompiler extends LanguageCompilerStatic
   def rootClassType(nowClass: ClassSpec, topClass: ClassSpec): String = {
     if (nowClass.isTopLevel) "Self" else {
       val lifetime = if (classContainsReferences(topClass)) "<'a>" else ""
-      s"${normalizeClassName(topClass.name)}$lifetime"
+      s"${normalizeClassName(topClass.name.last)}$lifetime"
     }
   }
 
@@ -542,7 +544,7 @@ object RustCompiler extends LanguageCompilerStatic
       nowClass.parentClass match {
         case t: ClassSpec =>
           val lifetime = if (classContainsReferences(t)) "<'a>" else ""
-          s"${normalizeClassName(t.name)}$lifetime"
+          s"${normalizeClassName(t.name.last)}$lifetime"
         case GenericStructClassSpec => kstructUnitName
       }
 
