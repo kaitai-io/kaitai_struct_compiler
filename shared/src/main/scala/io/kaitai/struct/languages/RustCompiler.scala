@@ -53,6 +53,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // TODO: Derive Clone/PartialEq?
     // Can't safely derive Copy because of byte slices
+    out.puts
     out.puts(s"#[derive(Default, Debug)]")
     out.puts(s"pub struct ${normalizeClassName(name)}$lifetime {")
 
@@ -181,12 +182,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // Assign to enum, so handle the conversion with `TryFrom`
         out.puts(s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);")
       case _: UserType =>
-        // Assign from owned user type, so need to read and then wrap in Option.
-        // TODO: Implement localTemporaryName
-        val localTemp = translator.doLocalName(Identifier.ITERATOR)
-        out.puts(s"let mut $localTemp = $expr;")
-        out.puts(s"${doRead(localTemp)};")
-        out.puts(s"${privateMemberName(id)} = Some($localTemp);")
+        // Assign from owned user type, so need to wrap in Option.
+        out.puts(s"${privateMemberName(id)} = Some($expr)")
       case _ =>
         out.puts(s"${privateMemberName(id)} = $expr;")
     }
@@ -208,7 +205,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1 => s"$io.read_bits_int(1)? != 0"
       case BitsType(width) => s"$io.read_bits_int($width)?"
       case u: UserType =>
-        s"${normalizeClassName(u.classSpec.get.name)}::default()"
+        s"{ let mut tmp = ${normalizeClassName(u.classSpec.get.name)}::default(); ${doRead("tmp")}; tmp }"
     }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
@@ -412,7 +409,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     * @param id identifier to render
     * @return identifier as string
     */
-  override def localTemporaryName(id: Identifier): String = s"// localTemporaryName($id)"
+  override def localTemporaryName(id: Identifier): String = s"tmp_$id"
 
   /**
     * Single method that outputs all kind of footers in the language.
