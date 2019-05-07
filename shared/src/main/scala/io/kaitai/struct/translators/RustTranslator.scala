@@ -57,9 +57,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
       case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.ok_or(KError::MissingParent)?"
       case _ =>
-        castAsType.head match {
-          case Some(d) => s"(self.${doName(s)} as ${RustCompiler.kaitaiPrimitiveToNativeType(d)})"
-          case None => s"self.${doName(s)}"
+        castAsType.headOption match {
+          case Some(Some(d)) => s"(self.${doName(s)} as ${RustCompiler.kaitaiPrimitiveToNativeType(d)})"
+          case _ => s"self.${doName(s)}"
         }
     }
   }

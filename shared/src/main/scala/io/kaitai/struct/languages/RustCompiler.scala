@@ -433,15 +433,44 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = out.puts(s"// switchStart($id, $on)")
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    out.puts(s"match ${expression(on)} {")
+    out.inc
+  }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = out.puts(s"// switchCaseStart($condition)")
+  var hasElseCase = false
 
-  override def switchCaseEnd(): Unit = out.puts(s"// switchCaseEnd()")
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    hasElseCase = false
+    out.puts(s"${expression(condition)} => {")
+    out.inc
+  }
 
-  override def switchElseStart(): Unit = out.puts(s"// switchElseStart()")
+  override def switchCaseEnd(): Unit = {
+    out.dec
+    out.puts("},")
+  }
 
-  override def switchEnd(): Unit = out.puts(s"// switchEnd()")
+  override def switchElseStart(): Unit = {
+    hasElseCase = true
+    out.puts("_ => {")
+    out.inc
+  }
+
+  override def switchElseEnd(): Unit = {
+    out.dec
+    out.puts("},")
+  }
+
+  override def switchEnd(): Unit = {
+    if (!hasElseCase) {
+      out.puts("_ => ()")
+      hasElseCase = true
+    }
+
+    out.dec
+    out.puts("}")
+  }
 
   override def extraAttrForIO(id: Identifier, rep: RepeatSpec): List[AttrSpec] = {
     out.puts(s"// extraAttrForIO($id, $rep)")
@@ -452,7 +481,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Because Rust can't handle `AnyType` in the type hierarchy,
     // we generate an enum with all possible variations
     val typeName = kaitaiTypeToNativeType(id, typeProvider.nowClass, st, excludeOptionWrapper = true)
-    out.puts(s"enum $typeName {")
+    out.puts("#[derive(Debug)]")
+    out.puts(s"pub enum $typeName {")
     out.inc
 
     val types = st.cases.values.toSet
