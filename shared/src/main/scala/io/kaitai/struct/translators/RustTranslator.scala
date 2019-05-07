@@ -58,7 +58,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.ok_or(KError::MissingParent)?"
       case _ =>
         castAsType.head match {
-          case Some(d) => s"(self.${doName(s)} as ${RustCompiler.kaitaiTypeToNativeType(d)})"
+          case Some(d) => s"(self.${doName(s)} as ${RustCompiler.kaitaiPrimitiveToNativeType(d)})"
           case None => s"self.${doName(s)}"
         }
     }
@@ -110,10 +110,10 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     translate(v)
 
   override def boolToInt(v: expr): String =
-    s"(${translate(v)} as ${RustCompiler.kaitaiTypeToNativeType(CalcIntType)})"
+    s"(${translate(v)} as ${RustCompiler.kaitaiPrimitiveToNativeType(CalcIntType)})"
 
   override def floatToInt(v: expr): String =
-    s"(${translate(v)} as ${RustCompiler.kaitaiTypeToNativeType(CalcIntType)})"
+    s"(${translate(v)} as ${RustCompiler.kaitaiPrimitiveToNativeType(CalcIntType)})"
 
   override def intToStr(i: expr, base: expr): String = {
     val baseStr = translate(base)

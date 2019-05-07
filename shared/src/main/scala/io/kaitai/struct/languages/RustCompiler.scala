@@ -63,14 +63,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val typeName = attrName match {
       // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
       case IoIdentifier | RootIdentifier | ParentIdentifier => return
-      case _ => kaitaiTypeToNativeType(attrType)
+      case _ => kaitaiTypeToNativeType(attrName, typeProvider.nowClass, attrType)
     }
 
     out.puts(s"${idToAccessModifier(attrName)} ${idToStr(attrName)}: $typeName,".trim)
   }
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit =
-    out.puts(s"${idToAccessModifier(attrName)} ${idToStr(attrName)}: Option<${kaitaiTypeToNativeType(attrType)}>,".trim)
+    out.puts(s"${idToAccessModifier(attrName)} ${idToStr(attrName)}: Option<${kaitaiTypeToNativeType(attrName, typeProvider.nowClass, attrType)}>,".trim)
 
   def idToAccessModifier(id: Identifier): String = id match {
     case RootIdentifier | ParentIdentifier | InstanceIdentifier(_) | RawIdentifier(_) => ""
@@ -312,7 +312,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(RootIdentifier)}: Option<&${rootClassType(typeProvider.nowClass, typeProvider.topClass)}>,")
     out.puts(s"${privateMemberName(ParentIdentifier)}: Option<&${parentClassType(typeProvider.nowClass)}>")
     out.dec
-    out.puts(s") -> KResult<'s, ${kaitaiTypeToNativeType(dataType)}> {")
+    out.puts(s") -> KResult<'s, ${kaitaiTypeToNativeType(instName, typeProvider.nowClass, dataType)}> {")
     out.inc
   }
 
@@ -455,7 +455,50 @@ object RustCompiler extends LanguageCompilerStatic
 
   def normalizeClassName(names: List[String]): String = type2class(names.mkString("_"))
 
-  def kaitaiTypeToNativeType(attrType: DataType, excludeOptionUser: Boolean = false): String = attrType match {
+  def kaitaiTypeToNativeType(id: Identifier, cs: ClassSpec, attrType: DataType,
+                             excludeOptionUser: Boolean = false): String = attrType match {
+    case _: NumericType => kaitaiPrimitiveToNativeType(attrType)
+    case _: BooleanType => kaitaiPrimitiveToNativeType(attrType)
+    case _: StrType => kaitaiPrimitiveToNativeType(attrType)
+    case _: BytesType => kaitaiPrimitiveToNativeType(attrType)
+
+    case t: UserType =>
+      val typeName = t.classSpec match {
+        case Some(spec) =>
+          val lifetime = if (classContainsReferences(spec)) "<'a>" else ""
+          s"${normalizeClassName(spec.name)}$lifetime"
+        case None =>
+          val lifetime = if (datatypeContainsReferences(t)) "<'a>" else ""
+          s"${normalizeClassName(t.name)}$lifetime"
+      }
+      if (excludeOptionUser)
+        typeName
+      else
+        s"Option<$typeName>"
+
+    case t: EnumType => t.enumSpec match {
+      case Some(spec) => s"Option<${normalizeClassName(spec.name)}>"
+      case None => s"Option<${normalizeClassName(t.name)}>"
+    }
+
+    case t: ArrayType => s"Vec<${kaitaiTypeToNativeType(id, cs, t.elType, excludeOptionUser = true)}>"
+
+    case KaitaiStreamType => kstreamName
+    // TODO: Handle KStruct types
+    // Right now we fail on KStruct types because the associated type parameters aren't bound
+    case KaitaiStructType | CalcKaitaiStructType => kstructUnitName
+
+    // TODO: SwitchType should be handled as an `enum` in Rust
+    /*
+    case _: SwitchType => id match {
+      case name: NamedIdentifier => normalizeClassName(cs.name ::: List(name.name))
+      case name: InstanceIdentifier => normalizeClassName(cs.name ::: List(name.name))
+    }
+     */
+    case _: SwitchType => kstructUnitName
+  }
+
+  def kaitaiPrimitiveToNativeType(attrType: DataType): String = attrType match {
     case Int1Type(false) => "u8"
     case IntMultiType(false, Width2, _) => "u16"
     case IntMultiType(false, Width4, _) => "u32"
@@ -478,34 +521,6 @@ object RustCompiler extends LanguageCompilerStatic
 
     case _: StrType => "&'a str"
     case _: BytesType => "&'a [u8]"
-
-    case t: UserType =>
-      val typeName = t.classSpec match {
-        case Some(cs) =>
-          val lifetime = if (classContainsReferences(cs)) "<'a>" else ""
-          s"${normalizeClassName(cs.name)}$lifetime"
-        case None =>
-          val lifetime = if (datatypeContainsReferences(t)) "<'a>" else ""
-          s"${normalizeClassName(t.name)}$lifetime"
-      }
-      if (excludeOptionUser)
-        typeName
-      else
-        s"Option<$typeName>"
-
-    case t: EnumType => t.enumSpec match {
-      case Some(cs) => s"Option<${normalizeClassName(cs.name)}>"
-      case None => s"Option<${normalizeClassName(t.name)}>"
-    }
-
-    case t: ArrayType => s"Vec<${kaitaiTypeToNativeType(t.elType, excludeOptionUser = true)}>"
-
-    case KaitaiStreamType => kstreamName
-    // TODO: Handle calculated/switch types
-    // Right now we fail on KStruct types because the associated type parameters aren't bound
-    case KaitaiStructType | CalcKaitaiStructType => kstructUnitName
-
-    case st: SwitchType => kaitaiTypeToNativeType(st.combinedType)
   }
 
   override def kstreamName: String = "KStream"
