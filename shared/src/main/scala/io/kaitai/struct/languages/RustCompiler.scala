@@ -165,8 +165,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let $tempVar = ${privateMemberName(id)}.last().unwrap();")
   }
 
-  def doRead(id: String): String =
-    s"$id.read(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}.or(Some(self)), Some(self))?"
+  def doRead(id: String, isOpaque: Boolean = false, isTopLevel: Boolean = false): String =
+    if (isOpaque)
+      s"$id.read(${privateMemberName(IoIdentifier)}, None, None)?"
+    else {
+      val rootParam = if (isTopLevel)
+        s"${privateMemberName(RootIdentifier)}.or(Some(self))"
+      else
+        s"Some(${privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?)"
+
+      s"$id.read(${privateMemberName(IoIdentifier)}, $rootParam, Some(self))?"
+    }
 
   def pushToMember(id: Identifier, expr: String): Unit = out.puts(s"${privateMemberName(id)}.push($expr);")
 
@@ -213,7 +222,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1 => s"$io.read_bits_int(1)? != 0"
       case BitsType(width) => s"$io.read_bits_int($width)?"
       case u: UserType =>
-        s"{ let mut tmp = ${normalizeClassName(u.classSpec.get.name)}::default(); ${doRead("tmp")}; tmp }"
+        s"{ let mut tmp = ${normalizeClassName(u.classSpec.get.name)}::default(); ${doRead("tmp", u.isOpaque, typeProvider.nowClass.isTopLevel)}; tmp }"
     }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
