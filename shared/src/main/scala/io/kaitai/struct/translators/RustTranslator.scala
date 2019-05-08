@@ -186,4 +186,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def doEnumCompareOp(left: expr, op: Ast.cmpop, right: expr): String =
   // TODO: This probably isn't legal - no guarantees that the enum value is on the right
     s"${translate(left)} ${cmpOp(op)} Some(${translate(right)})"
+
+  override def doNumericCompareOp(left: expr, op: Ast.cmpop, right: expr): String =
+  // TODO: No guarantees that the ident is on the left
+    s"${translateAsType(left, None)} ${cmpOp(op)} ${translate(right)}"
 }
