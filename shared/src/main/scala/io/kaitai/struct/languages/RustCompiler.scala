@@ -338,7 +338,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    out.puts(s"Ok(${privateMemberName(instName)}.unwrap())")
+    out.puts(s"${privateMemberName(instName)}.ok_or(KError::MissingInstanceValue)")
   }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
