@@ -147,13 +147,32 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def arrayLast(a: expr): String =
     s"${iterDeref()}${translateAsType(a, None)}.last().ok_or(KError::EmptyIterator)?"
 
-  override def arraySize(a: expr): String = s"${translateAsType(a, None)}.len()"
+  override def arraySize(a: expr): String = {
+    val cast = castAsType.headOption match {
+      case Some(Some(d)) => s" as ${RustCompiler.kaitaiPrimitiveToNativeType(d)}"
+      case _ => ""
+    }
+    s"${translateAsType(a, None)}.len()$cast"
+  }
 
-  override def arrayMin(a: Ast.expr): String =
-    s"${iterDeref()}${translateAsType(a, None)}.iter().min().ok_or(KError::EmptyIterator)?"
+  override def arrayMin(a: Ast.expr): String = {
+    val iterMethod = castAsType.headOption match {
+      case Some(Some(FloatMultiType(Width4, _))) => ".fold(None, kf32_min)"
+      case Some(Some(FloatMultiType(Width8, _))) => ".fold(None, kf64_min)"
+      case _ => ".min()"
+    }
+    s"${iterDeref()}${translateAsType(a, None)}.iter()$iterMethod.ok_or(KError::EmptyIterator)?"
+  }
 
-  override def arrayMax(a: Ast.expr): String =
-    s"${iterDeref()}${translateAsType(a, None)}.iter().max().ok_or(KError::EmptyIterator)?"
+  override def arrayMax(a: Ast.expr): String = {
+    val iterMethod = castAsType.headOption match {
+      case Some(Some(FloatMultiType(Width4, _))) => ".fold(None, kf32_max)"
+      case Some(Some(FloatMultiType(Width8, _))) => ".fold(None, kf64_max)"
+      case _ => ".max()"
+    }
+
+    s"${iterDeref()}${translateAsType(a, None)}.iter()$iterMethod.ok_or(KError::EmptyIterator)?"
+  }
 
   def iterDeref(): String = {
     val needsDeref = castAsType.headOption match {

@@ -40,6 +40,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // Runtime-required imports
     importList.add("kaitai::{self, KError, KResult, KStream, KStruct, KStructUnit}")
+    importList.add("kaitai::{kf32_max, kf64_max, kf32_min, kf64_min}")
     // TODO: `no_std` compatibility?
     importList.add("std::convert::{TryFrom, TryInto}")
     importList.add("std::str")
