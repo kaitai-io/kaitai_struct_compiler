@@ -452,7 +452,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
     hasElseCase = false
-    out.puts(s"${expression(condition)} => {")
+    translator.detectType(condition) match {
+      case _: EnumType => out.puts(s"Some(${expression(condition)}) => {")
+      case _ => out.puts(s"${expression(condition)} => {")
+    }
     out.inc
   }
 
