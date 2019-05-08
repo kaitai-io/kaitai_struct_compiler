@@ -141,15 +141,28 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
-  override def arrayFirst(a: expr): String = s"${translateAsType(a, None)}.first()"
+  override def arrayFirst(a: expr): String =
+    s"${iterDeref()}${translateAsType(a, None)}.first().ok_or(KError::EmptyIterator)?"
 
-  override def arrayLast(a: expr): String = s"${translateAsType(a, None)}.last()"
+  override def arrayLast(a: expr): String =
+    s"${iterDeref()}${translateAsType(a, None)}.last().ok_or(KError::EmptyIterator)?"
 
   override def arraySize(a: expr): String = s"${translateAsType(a, None)}.len()"
 
-  override def arrayMin(a: Ast.expr): String = s"${translateAsType(a, None)}.iter().min()"
+  override def arrayMin(a: Ast.expr): String =
+    s"${iterDeref()}${translateAsType(a, None)}.iter().min().ok_or(KError::EmptyIterator)?"
 
-  override def arrayMax(a: Ast.expr): String = s"${translateAsType(a, None)}.iter().max()"
+  override def arrayMax(a: Ast.expr): String =
+    s"${iterDeref()}${translateAsType(a, None)}.iter().max().ok_or(KError::EmptyIterator)?"
+
+  def iterDeref(): String = {
+    val needsDeref = castAsType.headOption match {
+      case Some(Some(dt: DataType)) => dt.isInstanceOf[NumericType] || dt.isInstanceOf[BooleanType]
+      case _ => false
+    }
+
+    if (needsDeref) "*" else ""
+  }
 
   override def doEnumCompareOp(left: expr, op: Ast.cmpop, right: expr): String =
   // TODO: This probably isn't legal - no guarantees that the enum value is on the right
