@@ -13,6 +13,7 @@ class ObjcCompiler(
   val typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) extends LanguageCompiler(typeProvider, config)
+    with UpperCamelCaseClasses
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with FixedContentsUsingArrayByteLiteral
@@ -248,7 +249,7 @@ class ObjcCompiler(
         }
         outSrc.puts(s"$destName = [$srcName KSProcessRotateLeftWithAmount:$expr];")
       case ProcessCustom(name, args) =>
-        val procClass = type2class(name.last)
+        val procClass = name.last
         val procName = s"_process_${idToStr(varSrc)}"
 
         importListSrc.add(name.last + ".h")
@@ -700,7 +701,7 @@ object ObjcCompiler extends LanguageCompilerStatic with StreamStructNames {
   }
 
   def types2class(components: List[String]) =
-    type2class(components.reverse.mkString("_"))
+    type2class(components.reverse.map(Utils.upperCamelCase).mkString("_"))
 
-  def type2class(name: String) = name + "_t"
+  def type2class(name: String) = "KS" + name
 }
