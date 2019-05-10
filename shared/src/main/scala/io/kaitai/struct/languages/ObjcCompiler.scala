@@ -202,7 +202,7 @@ class ObjcCompiler(
           }
           s" parent:$parent root:${privateMemberName(RootIdentifier)}$addEndian"
         }
-        s"[${types2class(t.classSpec.get.name)} initWithStream:$io$addArgs$addParams]"
+        s"[${types2class(t.classSpec.get.name)} structWithStream:$io$addArgs$addParams]"
       case _ => throw new UnsupportedOperationException(s"parseExpr: $dataType")
     }
   }
@@ -307,16 +307,16 @@ class ObjcCompiler(
     val tRoot = kaitaiType2NativeType(CalcUserType(rootClassName, None))
 
     outHdr.puts
-    outHdr.puts(s"+ (instancetype) initWithStream:" +
+    outHdr.puts(s"+ (instancetype) structWithStream:" +
       s"($tIo)$pIo " +
       s"parent:($tParent)$pParent " +
       s"root:($tRoot)$pRoot$endianSuffixHdr$classParamsArg;"
     )
-    outHdr.puts(s"+ (instancetype) initWithStream:" +
+    outHdr.puts(s"+ (instancetype) structWithStream:" +
       s"($tIo)$pIo$endianSuffixHdr$classParamsArg;"
     )
 
-    outSrc.puts(s"+ (instancetype) initWithStream:" +
+    outSrc.puts(s"+ (instancetype) structWithStream:" +
       s"($tIo)$pIo " +
       s"parent:($tParent)$pParent " +
       s"root:($tRoot)$pRoot$endianSuffixHdr$classParamsArg {")
@@ -327,7 +327,7 @@ class ObjcCompiler(
     outSrc.puts(s"}")
     outSrc.puts
 
-    outSrc.puts(s"+ (instancetype) initWithStream:" +
+    outSrc.puts(s"+ (instancetype) structWithStream:" +
       s"($tIo)$pIo$endianSuffixHdr$classParamsArg {")
     outSrc.inc
     outSrc.puts(s"return [[$className alloc] initWithStream:$pIo parent:nil root:nil$endianSuffixSrc$initParamsArg];")
