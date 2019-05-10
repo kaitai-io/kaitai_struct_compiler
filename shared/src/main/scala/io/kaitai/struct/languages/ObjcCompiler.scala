@@ -396,6 +396,12 @@ class ObjcCompiler(
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
 
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType, None)};")
+    if (needRaw) {
+      val rawId = privateMemberName(RawIdentifier(id))
+      outSrc.puts(s"$rawId = ${newVector(CalcBytesType, None)};")
+      val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
+      outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType, None)};")
+    }
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
