@@ -263,7 +263,7 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"[kstream modA:${translate(left)} b:${translate(right)}]"
+        s"[KSStream modA:${translate(left)} b:${translate(right)}]"
       case _ =>
         super.numericBinOp(left, op, right)
     }

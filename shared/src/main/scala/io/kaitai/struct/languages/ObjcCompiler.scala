@@ -172,15 +172,15 @@ class ObjcCompiler(
       case t: ReadableType =>
         s"($io).read_${t.apiCall(defEndian)}"
       case blt: BytesLimitType =>
-        s"[$io read_bytes:(${expression(blt.size)})]"
+        s"[$io readBytes:(${expression(blt.size)})]"
       case _: BytesEosType =>
-        s"($io).read_bytes_full"
+        s"($io).readBytesFull"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"[$io read_bytes_term:$terminator include:$include consume:$consume eosErr:$eosError]"
+        s"[$io readBytesTerm:$terminator include:$include consume:$consume eosErr:$eosError]"
       case BitsType1 =>
-        s"[$io read_bits_int:1]"
+        s"[$io readBitsInt:1]"
       case BitsType(width: Int) =>
-        s"[$io read_bits_int:$width]"
+        s"[$io readBitsInt:$width]"
       case t: UserType =>
         val addParams = Utils.join(t.args.zipWithIndex.map { case (a, i) =>
           translator.detectType(a) match {
@@ -196,19 +196,19 @@ class ObjcCompiler(
             case None => "self"
           }
           val addEndian = t.classSpec.get.meta.endian match {
-            case Some(InheritedEndian) => " withEndian: self._is_le"
+            case Some(InheritedEndian) => " endian: self._is_le"
             case _ => ""
           }
-          s" withStruct:$parent withRoot:${privateMemberName(RootIdentifier)}$addEndian"
+          s" parent:$parent root:${privateMemberName(RootIdentifier)}$addEndian"
         }
-        s"[${types2class(t.classSpec.get.name)} initialize:$io$addArgs$addParams]"
+        s"[${types2class(t.classSpec.get.name)} initWithStream:$io$addArgs$addParams]"
       case _ => throw new UnsupportedOperationException(s"parseExpr: $dataType")
     }
   }
 
   // Members declared in io.kaitai.struct.languages.components.FixedContentsUsingArrayByteLiteral
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    outSrc.puts(s"${privateMemberName(attrName)} = [$normalIO ensure_fixed_contents:$contents];")
+    outSrc.puts(s"${privateMemberName(attrName)} = [$normalIO ensureFixedContents:$contents];")
   }
 
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
@@ -279,7 +279,7 @@ class ObjcCompiler(
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[io.kaitai.struct.format.ParamDefSpec]): Unit = {
     val (endianSuffixHdr, endianSuffixSrc)  = if (isHybrid) {
-      (" withEndian:(int)p_is_le", " withEndian:p_is_le")
+      (" endian:(int)p_is_le", " endian:p_is_le")
     } else {
       ("", "")
     }
@@ -306,40 +306,40 @@ class ObjcCompiler(
     val tRoot = kaitaiType2NativeType(CalcUserType(rootClassName, None))
 
     outHdr.puts
-    outHdr.puts(s"+ (instancetype) initialize:" +
+    outHdr.puts(s"+ (instancetype) initWithStream:" +
       s"($tIo)$pIo " +
-      s"withStruct:($tParent)$pParent " +
-      s"withRoot:($tRoot)$pRoot$endianSuffixHdr$classParamsArg;"
+      s"parent:($tParent)$pParent " +
+      s"root:($tRoot)$pRoot$endianSuffixHdr$classParamsArg;"
     )
-    outHdr.puts(s"+ (instancetype) initialize:" +
+    outHdr.puts(s"+ (instancetype) initWithStream:" +
       s"($tIo)$pIo$endianSuffixHdr$classParamsArg;"
     )
 
-    outSrc.puts(s"+ (instancetype) initialize:" +
+    outSrc.puts(s"+ (instancetype) initWithStream:" +
       s"($tIo)$pIo " +
-      s"withStruct:($tParent)$pParent " +
-      s"withRoot:($tRoot)$pRoot$endianSuffixHdr$classParamsArg {")
+      s"parent:($tParent)$pParent " +
+      s"root:($tRoot)$pRoot$endianSuffixHdr$classParamsArg {")
     val className = types2class(name)
     outSrc.inc
-    outSrc.puts(s"return [[$className alloc] initWith:$pIo withStruct:$pParent withRoot:$pRoot$endianSuffixSrc$initParamsArg];")
+    outSrc.puts(s"return [[$className alloc] initWithStream:$pIo parent:$pParent root:$pRoot$endianSuffixSrc$initParamsArg];")
     outSrc.dec
     outSrc.puts(s"}")
     outSrc.puts
 
-    outSrc.puts(s"+ (instancetype) initialize:" +
+    outSrc.puts(s"+ (instancetype) initWithStream:" +
       s"($tIo)$pIo$endianSuffixHdr$classParamsArg {")
     outSrc.inc
-    outSrc.puts(s"return [[$className alloc] initWith:$pIo withStruct:nil withRoot:nil$endianSuffixSrc$initParamsArg];")
+    outSrc.puts(s"return [[$className alloc] initWithStream:$pIo parent:nil root:nil$endianSuffixSrc$initParamsArg];")
     outSrc.dec
     outSrc.puts(s"}")
     outSrc.puts
 
-    outSrc.puts(s"- (instancetype) initWith:" +
+    outSrc.puts(s"- (instancetype) initWithStream:" +
       s"($tIo)$pIo " +
-      s"withStruct:($tParent)$pParent " +
-      s"withRoot:($tRoot)$pRoot$endianSuffixHdr$classParamsArg {")
+      s"parent:($tParent)$pParent " +
+      s"root:($tRoot)$pRoot$endianSuffixHdr$classParamsArg {")
     outSrc.inc
-    outSrc.puts(s"self = [super initWith:$pIo withStruct:$pParent withRoot:$pRoot$endianSuffixSrc];")
+    outSrc.puts(s"self = [super initWithStream:$pIo parent:$pParent root:$pRoot$endianSuffixSrc];")
     outSrc.puts(s"if (self) {")
     outSrc.inc
     outSrc.puts(assignParamsArg)
@@ -650,8 +650,8 @@ object ObjcCompiler extends LanguageCompilerStatic with StreamStructNames {
     config: RuntimeConfig
   ): LanguageCompiler = new ObjcCompiler(tp, config)
 
-  override def kstructName = "kstruct"
-  override def kstreamName = "kstream"
+  override def kstructName = "KSStruct"
+  override def kstreamName = "KSStream"
 
   def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
     attrType match {
