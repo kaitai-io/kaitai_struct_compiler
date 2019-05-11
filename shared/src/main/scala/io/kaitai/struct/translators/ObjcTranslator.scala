@@ -117,7 +117,7 @@ class ObjcTranslator(provider: TypeProvider, importListSrc: ImportList) extends 
 		  case Some(Int1Type(false)) => s"_.unsignedCharValue"
 		  case Some(Int1Type(true)) => s"_.charValue"
 		  case Some(IntMultiType(true,Width2,_)) => s"_.shortValue"
-		  case Some(IntMultiType(false,Width2,_)) => s"_.unsignedShortValue"
+  	  case Some(IntMultiType(false,Width2,_)) => s"_.unsignedShortValue"
 		  case Some(IntMultiType(true,Width4,_)) => s"_.intValue"
 		  case Some(IntMultiType(false,Width4,_)) => s"_.unsignedIntValue"
 		  case Some(IntMultiType(true,Width8,_)) => s"_.longLongValue"
