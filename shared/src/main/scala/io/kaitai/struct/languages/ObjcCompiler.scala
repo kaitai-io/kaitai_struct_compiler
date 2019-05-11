@@ -126,7 +126,7 @@ class ObjcCompiler(
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"[$expr1 KSBytesTerminateTerm:$term include:$include]"
+      case Some(term) => s"[$expr1 KSBytesTerminateTerm:$term include:${translator.doBoolLiteral(include)}]"
       case None => expr1
     }
     expr2
@@ -177,7 +177,7 @@ class ObjcCompiler(
       case _: BytesEosType =>
         s"($io).readBytesFull"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"[$io readBytesTerm:$terminator include:$include consume:$consume eosErr:$eosError]"
+        s"[$io readBytesTerm:$terminator include:${translator.doBoolLiteral(include)} consume:${translator.doBoolLiteral(consume)} eosErr:${translator.doBoolLiteral(eosError)}]"
       case BitsType1 =>
         s"[$io readBitsInt:1]"
       case BitsType(width: Int) =>
