@@ -260,6 +260,8 @@ class ObjcCompiler(
   }
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     attrName match {
+      case ParentIdentifier | RootIdentifier =>
+        outHdr.puts(s"@property (weak,nonatomic) ${kaitaiType2NativeType(attrType, false)}${publicMemberName(attrName)};")
       case _: InstanceIdentifier | _: NamedIdentifier =>
         outHdr.puts(s"@property (strong,nonatomic) ${kaitaiType2NativeType(attrType, true)}${publicMemberName(attrName)};")
       case _ => {
