@@ -10,6 +10,7 @@ import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
 class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
+    with AllocateIOLocalVar
     with EveryReadIsExpression
     with FixedContentsUsingArrayByteLiteral
     with ObjectOrientedLanguage
@@ -116,15 +117,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       endRead()
   }
 
-  def endRead(): Unit = {
-    out.puts("Ok(())")
-    out.dec
-    out.puts("}")
-  }
-
-  override def privateMemberName(id: Identifier): String =
-    RustCompiler.privateMemberName(id)
-
   override def readFooter(): Unit = out.puts(s"// readFooter()")
 
   override def attributeDeclaration(attrName: Identifier,
@@ -143,8 +135,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     super.attrParse(attr, id, defEndian)
 
     // Detect if this is the last attribute parse and finish the read method
-    if (typeProvider.nowClass.seq.last.id == id)
+    if (typeProvider.nowClass.seq.nonEmpty && typeProvider.nowClass.seq.last.id == id)
       endRead()
+  }
+
+  def endRead(): Unit = {
+    out.puts("Ok(())")
+    out.dec
+    out.puts("}")
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit =
@@ -255,6 +253,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
+  override def privateMemberName(id: Identifier): String =
+    RustCompiler.privateMemberName(id)
+
   override def idToStr(id: Identifier): String = RustCompiler.idToStr(id)
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier,
@@ -329,6 +330,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"// extraAttrForIO($id, $rep)")
     Nil
   }
+
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): String =
+    s"// allocateIO($varName, $rep)"
 }
 
 object RustCompiler
@@ -380,8 +384,11 @@ object RustCompiler
       s"(${classTypeName(c.upClass.get)}, <${classTypeName(c.upClass.get)} as $kstructName<$readLife, $streamLife>>::ParentStack)"
   }
 
+  def types2class(names: List[String]): String =
+    names.map(x => type2class(x)).mkString("_")
+
   def classTypeName(c: ClassSpec): String =
-    s"${type2class(c.name.last)}${lifetimeParam(c)}"
+    s"${types2class(c.name)}${lifetimeParam(c)}"
 
   def lifetimeParam(c: ClassSpec): String =
     if (containsReferences(c)) s"<$streamLife>" else ""
@@ -389,19 +396,26 @@ object RustCompiler
   def lifetimeParam(d: DataType): String =
     if (containsReferences(d)) s"<$streamLife>" else ""
 
-  def containsReferences(c: ClassSpec): Boolean =
-    c.seq.exists(t => containsReferences(t.dataType)) ||
-      c.instances.exists(i => containsReferences(i._2.dataTypeComposite))
+  def containsReferences(c: ClassSpec): Boolean = containsReferences(c, Some(c))
 
-  def containsReferences(d: DataType): Boolean = d match {
+  def containsReferences(d: DataType): Boolean = containsReferences(d, None)
+
+  def containsReferences(c: ClassSpec, originating: Option[ClassSpec]): Boolean =
+    c.seq.exists(t => containsReferences(t.dataType, originating)) ||
+      c.instances.exists(i => containsReferences(i._2.dataTypeComposite, originating))
+
+  def containsReferences(d: DataType, originating: Option[ClassSpec]): Boolean = d match {
     case _: BytesType | _: StrType => true
     case t: UserType =>
       t.classSpec match {
-        case Some(inner) => containsReferences(inner)
+        // Recursive types may need references, but the recursion itself
+        // will be handled by `Box<>`, so doesn't need a reference
+        case Some(inner) if originating.contains(inner) => false
+        case Some(inner) => containsReferences(inner, originating.orElse(Some(inner)))
         case None => false
       }
-    case t: ArrayType => containsReferences(t.elType)
-    case st: SwitchType => st.cases.values.exists(containsReferences)
+    case t: ArrayType => containsReferences(t.elType, originating)
+    case st: SwitchType => st.cases.values.exists(t => containsReferences(t, originating))
     case _ => false
   }
 }
