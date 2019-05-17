@@ -45,6 +45,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       "kaitai::{KError, KResult, KStream, KStruct, KStructUnit, TypedStack}"
     )
     importList.add("kaitai::{kf32_max, kf64_max, kf32_min, kf64_min}")
+    importList.add("std::convert::TryFrom")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
@@ -54,13 +55,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classHeader(name: List[String]): Unit = {
     out.puts
-    out.puts("#[derive(Default, Debug)]")
+    out.puts("#[allow(non_camel_case_types)]")
+    out.puts("#[derive(Default, Debug, PartialEq)]")
     out.puts(s"pub struct ${classTypeName(typeProvider.nowClass)} {")
     out.inc
 
-    // TODO: Remove shim `PhantomData` implementation
-    if (containsReferences(typeProvider.nowClass))
-      out.puts(s"_phantom: std::marker::PhantomData<&$streamLife ()>")
+    // Because we can't predict whether opaque types will need lifetimes as a type parameter,
+    // everyone gets a phantom data marker
+    out.puts(s"_phantom: std::marker::PhantomData<&$streamLife ()>,")
   }
 
   // Intentional no-op; Rust has already ended the struct definition by the time we reach this
@@ -72,9 +74,24 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                       isHybrid: Boolean,
                                       params: List[ParamDefSpec]): Unit = {
 
-    // Unlike other OOP languages, implementing an interface happens outside the "class" definition.
-    // End the definition here so we can start the `impl` block
+    // Unlike other OOP languages, implementing an interface happens outside the struct declaration.
     universalFooter
+
+    // If there are any switch types in the struct definition, create the enums for them
+    typeProvider.nowClass.seq.foreach(
+      a =>
+        a.dataType match {
+          case st: SwitchType => switchTypeEnum(a.id, st)
+          case _ => ()
+        }
+    )
+    typeProvider.nowClass.instances.foreach(
+      i =>
+        i._2.dataTypeComposite match {
+          case st: SwitchType => switchTypeEnum(i._1, st)
+          case _ => ()
+        }
+    )
 
     out.puts(
       s"impl<$readLife, $streamLife: $readLife> $kstructName<$readLife, $streamLife> for ${classTypeName(typeProvider.nowClass)} {"
@@ -121,8 +138,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attributeDeclaration(attrName: Identifier,
                                     attrType: DataType,
-                                    isNullable: Boolean): Unit =
-    out.puts(s"// attributeDeclaration($attrName, $attrType, $isNullable)")
+                                    isNullable: Boolean): Unit = {
+    val typeName = attrName match {
+      // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
+      case IoIdentifier | RootIdentifier | ParentIdentifier => return
+      case _ =>
+        kaitaiTypeToNativeType(attrName, typeProvider.nowClass, attrType)
+    }
+
+    // TODO: Remove access modifier?
+    out.puts(s"pub ${idToStr(attrName)}: $typeName,")
+  }
 
   // Intentional no-op; Rust handles ownership, so don't worry about reader methods
   override def attributeReader(attrName: Identifier,
@@ -233,6 +259,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceDeclFooter(className: List[String]): Unit =
     universalFooter
 
+  override def instanceDeclaration(attrName: InstanceIdentifier,
+                                   attrType: DataType,
+                                   isNullable: Boolean): Unit = {
+    val typeName = kaitaiTypeToNativeType(
+      attrName,
+      typeProvider.nowClass,
+      attrType,
+      excludeOptionWrapper = true
+    )
+    attrType match {
+      case _: ArrayType => out.puts(s"pub ${idToStr(attrName)}: $typeName,")
+      case _ => out.puts(s"pub ${idToStr(attrName)}: Option<$typeName>,")
+    }
+  }
+
   override def instanceHeader(className: List[String],
                               instName: InstanceIdentifier,
                               dataType: DataType,
@@ -248,8 +289,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"${privateMemberName(ParentIdentifier)}: TypedStack<${parentStackTypeName(typeProvider.nowClass)}>"
     )
     out.dec
-    // TODO: Return actual instance type
-    out.puts(s") -> KResult<$streamLife, ()> {")
+    val typeName = kaitaiTypeToNativeType(
+      instName,
+      typeProvider.nowClass,
+      dataType,
+      excludeOptionWrapper = true
+    )
+    out.puts(s") -> KResult<$streamLife, $typeName> {")
     out.inc
   }
 
@@ -270,8 +316,55 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def enumDeclaration(curClass: List[String],
                                enumName: String,
-                               enumColl: Seq[(Long, EnumValueSpec)]): Unit =
-    out.puts(s"// enumDeclaration($curClass, $enumName, $enumColl)")
+                               enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
+
+    val enumClass = types2class(curClass ::: List(enumName))
+
+    // Set up the actual enum definition
+    out.puts(s"#[allow(non_camel_case_types)]")
+    out.puts(s"#[derive(Debug, PartialEq)]")
+    out.puts(s"pub enum $enumClass {")
+    out.inc
+
+    enumColl.foreach {
+      case (_, label) =>
+        if (label.doc.summary.isDefined)
+          universalDoc(label.doc)
+
+        out.puts(s"${type2class(label.name)},")
+    }
+
+    out.dec
+    out.puts("}")
+
+    // Set up parsing enums from the underlying value
+    out.puts(s"impl TryFrom<i64> for $enumClass {")
+
+    out.inc
+    // We typically need the lifetime in KError for returning byte slices from stream;
+    // because we can only return `UnknownVariant` which contains a Copy type, it's safe
+    // to declare that the error type is `'static`
+    out.puts(s"type Error = KError<'static>;")
+    out.puts(s"fn try_from(flag: i64) -> KResult<'static, $enumClass> {")
+
+    out.inc
+    out.puts(s"match flag {")
+
+    out.inc
+    enumColl.foreach {
+      case (value, label) =>
+        out.puts(s"$value => Ok($enumClass::${type2class(label.name)}),")
+    }
+    out.puts("_ => Err(KError::UnknownVariant(flag)),")
+    out.dec
+
+    out.puts(s"}")
+    out.dec
+    out.puts(s"}")
+    out.dec
+    out.puts(s"}")
+    out.puts
+  }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"// handleAssignmentRepeatEos($id, $expr)")
@@ -333,6 +426,79 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String =
     s"// allocateIO($varName, $rep)"
+
+  def switchTypeEnum(id: Identifier, st: SwitchType): Unit = {
+    // Because Rust can't handle `AnyType` in the type hierarchy,
+    // we generate an enum with all possible variations
+    val typeName = kaitaiTypeToNativeType(
+      id,
+      typeProvider.nowClass,
+      st,
+      excludeOptionWrapper = true
+    )
+    out.puts("#[allow(non_camel_case_types)]")
+    out.puts("#[derive(Debug, PartialEq)]")
+    out.puts(s"pub enum $typeName {")
+    out.inc
+
+    val types = st.cases.values.toSet
+    types.foreach(t => {
+      // Because this switch type will itself be in an option, we can exclude it from user types
+      val variantName = switchVariantName(id, t)
+      val typeName = kaitaiTypeToNativeType(
+        id,
+        typeProvider.nowClass,
+        t,
+        excludeOptionWrapper = true
+      )
+      out.puts(s"$variantName($typeName),")
+    })
+
+    out.dec
+    out.puts("}")
+  }
+
+  def switchVariantName(id: Identifier, attrType: DataType): String =
+    attrType match {
+      // TODO: Not exhaustive
+      case Int1Type(false) => "U1"
+      case IntMultiType(false, Width2, _) => "U2"
+      case IntMultiType(false, Width4, _) => "U4"
+      case IntMultiType(false, Width8, _) => "U8"
+
+      case Int1Type(true) => "S1"
+      case IntMultiType(true, Width2, _) => "S2"
+      case IntMultiType(true, Width4, _) => "S4"
+      case IntMultiType(true, Width8, _) => "S8"
+
+      case FloatMultiType(Width4, _) => "F4"
+      case FloatMultiType(Width8, _) => "F8"
+
+      case BitsType(_) => "Bits"
+      case _: BooleanType => "Boolean"
+      case CalcIntType => "Int"
+      case CalcFloatType => "Float"
+      case _: StrType => "String"
+      case _: BytesType => "Bytes"
+
+      case t: UserType =>
+        kaitaiTypeToNativeType(
+          id,
+          typeProvider.nowClass,
+          t,
+          excludeOptionWrapper = true,
+          excludeLifetime = true,
+          excludeBox = true
+        )
+      case t: EnumType =>
+        kaitaiTypeToNativeType(
+          id,
+          typeProvider.nowClass,
+          t,
+          excludeOptionWrapper = true
+        )
+      case t: ArrayType => s"Arr${switchVariantName(id, t.elType)}"
+    }
 }
 
 object RustCompiler
@@ -385,28 +551,29 @@ object RustCompiler
   }
 
   def types2class(names: List[String]): String =
+  // TODO: Use `mod` to scope types instead of weird names
     names.map(x => type2class(x)).mkString("_")
 
   def classTypeName(c: ClassSpec): String =
-    s"${types2class(c.name)}${lifetimeParam(c)}"
-
-  def lifetimeParam(c: ClassSpec): String =
-    if (containsReferences(c)) s"<$streamLife>" else ""
+    s"${types2class(c.name)}<$streamLife>"
 
   def lifetimeParam(d: DataType): String =
     if (containsReferences(d)) s"<$streamLife>" else ""
 
-  def containsReferences(c: ClassSpec): Boolean = containsReferences(c, Some(c))
-
   def containsReferences(d: DataType): Boolean = containsReferences(d, None)
 
-  def containsReferences(c: ClassSpec, originating: Option[ClassSpec]): Boolean =
+  def containsReferences(c: ClassSpec,
+                         originating: Option[ClassSpec]): Boolean =
     c.seq.exists(t => containsReferences(t.dataType, originating)) ||
-      c.instances.exists(i => containsReferences(i._2.dataTypeComposite, originating))
+      c.instances.exists(
+        i => containsReferences(i._2.dataTypeComposite, originating)
+      )
 
-  def containsReferences(d: DataType, originating: Option[ClassSpec]): Boolean = d match {
-    case _: BytesType | _: StrType => true
-    case t: UserType =>
+  def containsReferences(d: DataType, originating: Option[ClassSpec]): Boolean =
+    d match {
+      case _: BytesType | _: StrType => true
+      case t: UserType => true
+      /*
       t.classSpec match {
         // Recursive types may need references, but the recursion itself
         // will be handled by `Box<>`, so doesn't need a reference
@@ -414,8 +581,89 @@ object RustCompiler
         case Some(inner) => containsReferences(inner, originating.orElse(Some(inner)))
         case None => false
       }
-    case t: ArrayType => containsReferences(t.elType, originating)
-    case st: SwitchType => st.cases.values.exists(t => containsReferences(t, originating))
-    case _ => false
+       */
+      case t: ArrayType => containsReferences(t.elType, originating)
+      case st: SwitchType =>
+        st.cases.values.exists(t => containsReferences(t, originating))
+      case _ => false
+    }
+
+  def kaitaiTypeToNativeType(id: Identifier,
+                             cs: ClassSpec,
+                             attrType: DataType,
+                             excludeOptionWrapper: Boolean = false,
+                             excludeLifetime: Boolean = false,
+                             excludeBox: Boolean = false): String =
+    attrType match {
+      // TODO: Not exhaustive
+      case _: NumericType => kaitaiPrimitiveToNativeType(attrType)
+      case _: BooleanType => kaitaiPrimitiveToNativeType(attrType)
+      case _: StrType => kaitaiPrimitiveToNativeType(attrType)
+      case _: BytesType => kaitaiPrimitiveToNativeType(attrType)
+
+      case t: UserType =>
+        val baseName = t.classSpec match {
+          case Some(spec) => types2class(spec.name)
+          case None => types2class(t.name)
+        }
+        val lifetime = if (!excludeLifetime) s"<$streamLife>" else ""
+
+        // Because we can't predict if opaque types will recurse, we have to box them
+        val typeName =
+          if (!excludeBox && t.isOpaque) s"Box<$baseName$lifetime>"
+          else s"$baseName$lifetime"
+        if (excludeOptionWrapper) typeName else s"Option<$typeName>"
+
+      case t: EnumType =>
+        val typeName = t.enumSpec match {
+          case Some(spec) => s"${types2class(spec.name)}"
+          case None => s"${types2class(t.name)}"
+        }
+        if (excludeOptionWrapper) typeName else s"Option<$typeName>"
+
+      case t: ArrayType =>
+        s"Vec<${kaitaiTypeToNativeType(id, cs, t.elType, excludeOptionWrapper = true, excludeLifetime = excludeLifetime)}>"
+
+      case st: SwitchType =>
+        val types = st.cases.values.toSet
+        val lifetime =
+          if (!excludeLifetime && types.exists(containsReferences))
+            s"<$streamLife>"
+          else ""
+        val typeName = id match {
+          case name: NamedIdentifier =>
+            s"${types2class(cs.name ::: List(name.name))}$lifetime"
+          case name: InstanceIdentifier =>
+            s"${types2class(cs.name ::: List(name.name))}$lifetime"
+          case _ => kstructUnitName
+        }
+
+        if (excludeOptionWrapper) typeName else s"Option<$typeName>"
+
+      case KaitaiStreamType => kstreamName
+    }
+
+  def kaitaiPrimitiveToNativeType(attrType: DataType): String = attrType match {
+    case Int1Type(false) => "u8"
+    case IntMultiType(false, Width2, _) => "u16"
+    case IntMultiType(false, Width4, _) => "u32"
+    case IntMultiType(false, Width8, _) => "u64"
+
+    case Int1Type(true) => "i8"
+    case IntMultiType(true, Width2, _) => "i16"
+    case IntMultiType(true, Width4, _) => "i32"
+    case IntMultiType(true, Width8, _) => "i64"
+
+    case FloatMultiType(Width4, _) => "f32"
+    case FloatMultiType(Width8, _) => "f64"
+
+    case BitsType(_) => "u64"
+
+    case _: BooleanType => "bool"
+    case CalcIntType => "i32"
+    case CalcFloatType => "f64"
+
+    case _: StrType => s"&$streamLife str"
+    case _: BytesType => s"&$streamLife [u8]"
   }
 }

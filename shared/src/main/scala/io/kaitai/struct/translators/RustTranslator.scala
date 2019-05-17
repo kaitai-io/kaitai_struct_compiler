@@ -10,7 +10,7 @@ import io.kaitai.struct.{RuntimeConfig, Utils}
 class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "vec!([" + arr.map((x) => "%0#2x".format(x & 0xff)).mkString(", ") + "])"
+    "&[" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
@@ -49,10 +49,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def doName(s: String) = s
 
-  override def doEnumByLabel(enumTypeAbs: List[String],
-                             label: String): String = {
-    s"${enumTypeAbs.last}::${label.toUpperCase}"
-  }
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
+    s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
+
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
