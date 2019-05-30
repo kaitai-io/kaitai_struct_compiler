@@ -196,6 +196,10 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents($contents);")
 
+  override def attrScanCustom(scanEnd: ScanExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    None
+  }
+
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
     val destName = privateMemberName(varDest)
@@ -356,7 +360,7 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.ReadBytes(${expression(blt.size)})"
       case _: BytesEosType =>
         s"$io.ReadBytesFull()"
-      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+      case BytesTerminatedType(terminator, include, consume, eosError, _, _) =>
         s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1 =>
         s"$io.ReadBitsInt(1) != 0"

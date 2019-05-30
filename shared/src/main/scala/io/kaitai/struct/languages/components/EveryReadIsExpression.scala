@@ -36,7 +36,7 @@ trait EveryReadIsExpression
       attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
-      case FixedBytesType(c, _) =>
+      case FixedBytesType(c, _, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
         attrUserTypeParse(id, t, io, rep, defEndian)
@@ -73,6 +73,7 @@ trait EveryReadIsExpression
     isRaw: Boolean
   ): Unit = {
     // use intermediate variable name, if we'll be doing post-processing
+
     val rawId = dataType.process match {
       case None => id
       case Some(_) => RawIdentifier(id)
@@ -82,7 +83,9 @@ trait EveryReadIsExpression
     handleAssignment(rawId, expr, rep, isRaw)
 
     // apply post-processing
+
     dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
+    dataType.scanEnd.foreach((scanEnd) => attrScanCustom(scanEnd, rawId, id))
   }
 
   def parseExprBytes(dataType: BytesType, io: String): String = {
@@ -90,9 +93,9 @@ trait EveryReadIsExpression
 
     // apply pad stripping and termination
     dataType match {
-      case BytesEosType(terminator, include, padRight, _) =>
+      case BytesEosType(terminator, include, padRight, _, _) =>
         bytesPadTermExpr(expr, padRight, terminator, include)
-      case BytesLimitType(_, terminator, include, padRight, _) =>
+      case BytesLimitType(_, terminator, include, padRight, _, _) =>
         bytesPadTermExpr(expr, padRight, terminator, include)
       case _ =>
         expr

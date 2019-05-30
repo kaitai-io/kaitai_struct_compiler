@@ -62,30 +62,42 @@ object DataType {
     def process: Option[ProcessExpr]
   }
 
-  abstract class BytesType extends DataType with Processing
+  trait ScanEnd {
+    def scanEnd: Option[ScanExpr]
+  }
+
+  abstract class BytesType extends DataType with Processing with ScanEnd
   case object CalcBytesType extends BytesType {
     override def process = None
+    override def scanEnd = None
   }
-  case class FixedBytesType(contents: Array[Byte], override val process: Option[ProcessExpr]) extends BytesType
+  case class FixedBytesType(contents: Array[Byte], override val process: Option[ProcessExpr], override val scanEnd: Option[ScanExpr] = None) extends BytesType
   case class BytesEosType(
     terminator: Option[Int],
     include: Boolean,
     padRight: Option[Int],
-    override val process: Option[ProcessExpr]
+    override val process: Option[ProcessExpr],
+    override val scanEnd: Option[ScanExpr] = None
   ) extends BytesType
   case class BytesLimitType(
     size: Ast.expr,
     terminator: Option[Int],
     include: Boolean,
     padRight: Option[Int],
-    override val process: Option[ProcessExpr]
+    override val process: Option[ProcessExpr],
+    override val scanEnd: Option[ScanExpr] = None
   ) extends BytesType
   case class BytesTerminatedType(
     terminator: Int,
     include: Boolean,
     consume: Boolean,
     eosError: Boolean,
-    override val process: Option[ProcessExpr]
+    override val process: Option[ProcessExpr],
+    override val scanEnd: Option[ScanExpr] = None
+  ) extends BytesType
+  case class BytesScanEndType(
+    override val process: Option[ProcessExpr],
+    override val scanEnd: Option[ScanExpr] = None
   ) extends BytesType
 
   abstract class StrType extends DataType
@@ -276,9 +288,9 @@ object DataType {
       } else {
         (arg.size, arg.sizeEos) match {
           case (Some(sizeValue), false) =>
-            Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, None, false, None, arg.process))
+            Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, None, false, None, arg.process, arg.scanEnd))
           case (None, true) =>
-            Map(SwitchType.ELSE_CONST -> BytesEosType(None, false, None, arg.process))
+            Map(SwitchType.ELSE_CONST -> BytesEosType(None, false, None, arg.process, arg.scanEnd))
           case (None, false) =>
             Map()
           case (Some(_), true) =>
@@ -304,7 +316,7 @@ object DataType {
     val r = dto match {
       case None =>
         arg.contents match {
-          case Some(c) => FixedBytesType(c, arg.process)
+          case Some(c) => FixedBytesType(c, arg.process, arg.scanEnd)
           case _ => arg.getByteArrayType(path)
         }
       case Some(dt) => dt match {
