@@ -386,8 +386,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BytesTerminatedType(terminator, include, consume, eosError, _, _) =>
         s"$io.read_bytes_term($terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
       case BytesScanEndType(_, scanEnd) =>
-        // FIXME: don't parse this part.
-        s""
+        s"''"
       case BitsType1 =>
         s"$io.read_bits_int(1) != 0"
       case BitsType(width: Int) =>
