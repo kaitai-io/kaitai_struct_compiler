@@ -3,12 +3,15 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{Identifier, InstanceIdentifier, IoIdentifier, NamedIdentifier, ParentIdentifier, RootIdentifier}
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
 class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   extends BaseTranslator(provider) {
+
+  import RustCompiler._
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "&[" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
@@ -43,7 +46,22 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       case Identifier.ITERATOR => "tmpa"
       case Identifier.ITERATOR2 => "tmpb"
       case Identifier.INDEX => "i"
-      case _ => s"self.${doName(s)}"
+      case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
+      case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
+      case Identifier.PARENT =>
+        // TODO: How to handle _parent._parent?
+        s"${RustCompiler.privateMemberName(ParentIdentifier)}.peek()"
+      case _ =>
+        if (provider.nowClass.seq.exists(a => a.id != IoIdentifier && a.id == NamedIdentifier(s))) {
+          // If the name is part of the `seq` parse list, it's safe to return as-is
+          s"self.${doName(s)}"
+        } else if (provider.nowClass.instances.contains(InstanceIdentifier(s))) {
+          // It's an instance, we need to safely handle lookup
+          s"self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
+        } else {
+          // TODO: Is it possible to reach this block? RawIdentifier?
+          s"self.${doName(s)}"
+        }
     }
   }
 
@@ -57,7 +75,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     id
 
   override def doSubscript(container: expr, idx: expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container)}[${translate(idx)} as usize]"
+
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     "if " + translate(condition) +
       " { " + translate(ifTrue) + " } else { " +
@@ -98,7 +117,10 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     translate(encoding) match {
       case "\"ASCII\"" =>
-        s"String::from_utf8_lossy($bytesExpr)"
+        // Currently has issues because the `&str` created doesn't outlive the function,
+        // will likely need to decode *as* as string or handle specially elsewhere
+        // s"&String::from_utf8_lossy($bytesExpr)"
+        "panic!(\"Unresolved lifetime issues with string parsing\")"
       case _ =>
         "panic!(\"Unimplemented encoding for bytesToStr: {}\", " +
           translate(encoding) + ")"

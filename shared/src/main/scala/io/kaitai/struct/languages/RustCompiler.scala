@@ -45,7 +45,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       "kaitai::{KError, KResult, KStream, KStruct, KStructUnit, TypedStack}"
     )
     importList.add("kaitai::{kf32_max, kf64_max, kf32_min, kf64_min}")
-    importList.add("std::convert::TryFrom")
+    importList.add("std::convert::{TryFrom, TryInto}")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
@@ -63,6 +63,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Because we can't predict whether opaque types will need lifetimes as a type parameter,
     // everyone gets a phantom data marker
     out.puts(s"_phantom: std::marker::PhantomData<&$streamLife ()>,")
+
+    typeProvider.nowClass.params.foreach { p =>
+      // Make sure the parameter is imported if necessary
+      p.dataType match {
+        case u: UserType => if (u.isOpaque && u.classSpec.isDefined) opaqueClassDeclaration(u.classSpec.get)
+        case _ => ()
+      }
+
+      // Declare parameters as if they were attributes
+      attributeDeclaration(p.id, p.dataType, isNullable = false)
+    }
   }
 
   // Intentional no-op; Rust has already ended the struct definition by the time we reach this
@@ -104,11 +115,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def universalFooter: Unit = {
-    out.dec
-    out.puts("}")
-  }
-
   override def runRead(): Unit = out.puts(s"// runRead()")
 
   override def runReadCalc(): Unit = out.puts(s"// runReadCalc()")
@@ -146,7 +152,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         kaitaiTypeToNativeType(attrName, typeProvider.nowClass, attrType)
     }
 
-    // TODO: Remove access modifier?
     out.puts(s"pub ${idToStr(attrName)}: $typeName,")
   }
 
@@ -247,7 +252,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def popPos(io: String): Unit = out.puts(s"// popPos($io)")
 
-  override def alignToByte(io: String): Unit = out.puts(s"// alignToByte($io)")
+  override def alignToByte(io: String): Unit =
+    out.puts(s"${privateMemberName(IoIdentifier)}.align_to_byte()?;")
+
+  override def privateMemberName(id: Identifier): String =
+    RustCompiler.privateMemberName(id)
 
   override def instanceDeclHeader(className: List[String]): Unit = {
     out.puts(
@@ -258,6 +267,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceDeclFooter(className: List[String]): Unit =
     universalFooter
+
+  override def universalFooter: Unit = {
+    out.dec
+    out.puts("}")
+  }
 
   override def instanceDeclaration(attrName: InstanceIdentifier,
                                    attrType: DataType,
@@ -274,6 +288,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def idToStr(id: Identifier): String = RustCompiler.idToStr(id)
+
   override def instanceHeader(className: List[String],
                               instName: InstanceIdentifier,
                               dataType: DataType,
@@ -281,6 +297,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"fn ${idToStr(instName)}<S: $kstreamName>(")
     out.inc
+    out.puts("&mut self,")
     out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S,")
     out.puts(
       s"${privateMemberName(RootIdentifier)}: Option<&$readLife ${rootClassTypeName(typeProvider.nowClass)}>,"
@@ -298,11 +315,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s") -> KResult<$streamLife, $typeName> {")
     out.inc
   }
-
-  override def privateMemberName(id: Identifier): String =
-    RustCompiler.privateMemberName(id)
-
-  override def idToStr(id: Identifier): String = RustCompiler.idToStr(id)
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier,
                                            dataType: DataType): Unit =
@@ -366,6 +378,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
+  override def universalDoc(doc: DocSpec): Unit = {
+    out.puts(s"// universalDoc()")
+  }
+
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"// handleAssignmentRepeatEos($id, $expr)")
 
@@ -377,20 +393,51 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                            isRaw: Boolean): Unit =
     out.puts(s"// handleAssignmentRepeatUntil($id, $expr, $isRaw)")
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
-    out.puts(s"// handleAssignmentSimple($id, $expr)")
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+    val seqId = typeProvider.nowClass.seq.find(s => s.id == id)
+
+    if (seqId.isDefined) seqId.get.dataType match {
+      case _: EnumType =>
+        out.puts(
+          s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
+        )
+      case _: UserType | _: SwitchType | _: BytesLimitType =>
+        out.puts(s"// handleAssignmentSimple($id, $expr)")
+      case _ => out.puts(s"${privateMemberName(id)} = $expr;")
+    }
+  }
 
   override def parseExpr(dataType: DataType,
                          assignType: DataType,
                          io: String,
                          defEndian: Option[FixedEndian]): String =
-    s"// parseExpr($dataType, $assignType, $io, $defEndian)"
+    dataType match {
+      case IntMultiType(_, _, None) => "panic!(\"Unable to parse unknown-endian integers\")"
+      case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?"
+      case _: BytesEosType => s"$io.read_bytes_full()?"
+      case b: BytesTerminatedType =>
+        s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
+      case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?"
+      case BitsType1 => s"$io.read_bits_int(1)? != 0"
+      case BitsType(width) => s"$io.read_bits_int($width)?"
+      case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
+    }
 
   override def bytesPadTermExpr(expr0: String,
                                 padRight: Option[Int],
                                 terminator: Option[Int],
-                                include: Boolean): String =
-    s"// bytesPadTermExpr($expr0, $padRight, $terminator, $include)"
+                                include: Boolean): String = {
+    val ioId = privateMemberName(IoIdentifier)
+    val expr = padRight match {
+      case Some(p) => s"$ioId.bytes_strip_right($expr0, $p)"
+      case None => expr0
+    }
+
+    terminator match {
+      case Some(term) => s"$ioId.bytes_terminate($expr, $term, $include)"
+      case None => expr
+    }
+  }
 
   override def attrFixedContentsParse(attrName: Identifier,
                                       contents: String): Unit =
@@ -401,10 +448,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String =
     s"// localTemporaryName($id)"
-
-  override def universalDoc(doc: DocSpec): Unit = {
-    out.puts(s"// universalDoc()")
-  }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
     out.puts(s"// switchStart($id, $on)")
@@ -509,15 +552,7 @@ object RustCompiler
                            config: RuntimeConfig): LanguageCompiler =
     new RustCompiler(tp, config)
 
-  override def kstructName = s"KStruct"
-
-  def streamLife = "'s"
-
-  def readLife = "'r"
-
   override def kstreamName = "KStream"
-
-  def kstructUnitName = "KStructUnit"
 
   def privateMemberName(id: Identifier): String = id match {
     case IoIdentifier => "_io"
@@ -547,15 +582,23 @@ object RustCompiler
     if (c.isTopLevel)
       s"($kstructUnitName)"
     else
-      s"(${classTypeName(c.upClass.get)}, <${classTypeName(c.upClass.get)} as $kstructName<$readLife, $streamLife>>::ParentStack)"
+      s"(&$streamLife ${classTypeName(c.upClass.get)}, <${classTypeName(c.upClass.get)} as $kstructName<$readLife, $streamLife>>::ParentStack)"
   }
+
+  override def kstructName = s"KStruct"
+
+  def readLife = "'r"
+
+  def kstructUnitName = "KStructUnit"
+
+  def classTypeName(c: ClassSpec): String =
+    s"${types2class(c.name)}<$streamLife>"
+
+  def streamLife = "'s"
 
   def types2class(names: List[String]): String =
   // TODO: Use `mod` to scope types instead of weird names
     names.map(x => type2class(x)).mkString("_")
-
-  def classTypeName(c: ClassSpec): String =
-    s"${types2class(c.name)}<$streamLife>"
 
   def lifetimeParam(d: DataType): String =
     if (containsReferences(d)) s"<$streamLife>" else ""
