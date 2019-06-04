@@ -3,15 +3,17 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{Identifier, InstanceIdentifier, IoIdentifier, NamedIdentifier, ParentIdentifier, RootIdentifier}
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
-class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
+class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
+  extends BaseTranslator(provider) {
+
+  import RustCompiler._
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "vec!([" + arr.map((x) =>
-    	     "%0#2x".format(x & 0xff)
-    ).mkString(", ") + "])"
+    "&[" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
@@ -26,7 +28,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def strLiteralUnicode(code: Char): String =
     "\\u{%x}".format(code.toInt)
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def numericBinOp(left: Ast.expr,
+                            op: Ast.operator,
+                            right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"${translate(left)} / ${translate(right)}"
@@ -42,26 +46,41 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case Identifier.ITERATOR => "tmpa"
       case Identifier.ITERATOR2 => "tmpb"
       case Identifier.INDEX => "i"
-      case _ => s"self.${doName(s)}"
+      case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
+      case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
+      case Identifier.PARENT =>
+        // TODO: How to handle _parent._parent?
+        s"${RustCompiler.privateMemberName(ParentIdentifier)}.peek()"
+      case _ =>
+        if (provider.nowClass.seq.exists(a => a.id != IoIdentifier && a.id == NamedIdentifier(s))) {
+          // If the name is part of the `seq` parse list, it's safe to return as-is
+          s"self.${doName(s)}"
+        } else if (provider.nowClass.instances.contains(InstanceIdentifier(s))) {
+          // It's an instance, we need to safely handle lookup
+          s"self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
+        } else {
+          // TODO: Is it possible to reach this block? RawIdentifier?
+          s"self.${doName(s)}"
+        }
     }
   }
 
   override def doName(s: String) = s
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
-    val enumClass = types2classAbs(enumTypeAbs)
-    s"$enumClass::${label.toUpperCase}"
-  }
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
+    s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
+
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 
   override def doSubscript(container: expr, idx: expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container)}[${translate(idx)} as usize]"
+
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     "if " + translate(condition) +
-    	" { " + translate(ifTrue) + " } else { " +
-	translate(ifFalse) + "}"
+      " { " + translate(ifTrue) + " } else { " +
+      translate(ifFalse) + "}"
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr): String =
@@ -72,7 +91,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case "10" =>
         s"${translate(s)}.parse().unwrap()"
       case _ =>
-        "panic!(\"Converting from string to int in base {} is unimplemented\"" + translate(base) + ")"
+        "panic!(\"Converting from string to int in base {} is unimplemented\"" + translate(
+          base
+        ) + ")"
     }
 
   override def enumToInt(v: expr, et: EnumType): String =
@@ -96,10 +117,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     translate(encoding) match {
       case "\"ASCII\"" =>
-        s"String::from_utf8_lossy($bytesExpr)"
+        // Currently has issues because the `&str` created doesn't outlive the function,
+        // will likely need to decode *as* as string or handle specially elsewhere
+        // s"&String::from_utf8_lossy($bytesExpr)"
+        "panic!(\"Unresolved lifetime issues with string parsing\")"
       case _ =>
         "panic!(\"Unimplemented encoding for bytesToStr: {}\", " +
-	translate(encoding) + ")"
+          translate(encoding) + ")"
     }
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.len()"
@@ -120,10 +144,4 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     s"${translate(a)}.iter().min()"
   override def arrayMax(a: Ast.expr): String =
     s"${translate(a)}.iter().max()"
-
-  def types2classAbs(names: List[String]) =
-    names match {
-      case List("kaitai_struct") => RustCompiler.kstructName
-      case _ => RustCompiler.types2classRel(names)
-    }
 }
