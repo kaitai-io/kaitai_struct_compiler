@@ -104,7 +104,7 @@ object CalculateSeqSizes {
     dataType match {
       case _: Int1Type => FixedSized(1)
       case IntMultiType(_, width, _) => FixedSized(width.width)
-      case FixedBytesType(contents, _) => FixedSized(contents.length)
+      case FixedBytesType(contents, _, _) => FixedSized(contents.length)
       case FloatMultiType(width, _) => FixedSized(width.width)
       case _: BytesEosType => DynamicSized
       case blt: BytesLimitType => blt.size.evaluateIntConst match {
@@ -112,6 +112,7 @@ object CalculateSeqSizes {
         case None => DynamicSized
       }
       case _: BytesTerminatedType => DynamicSized
+      case _: BytesScanEndType => DynamicSized
       case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
       case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
       case st: SwitchType => DynamicSized // FIXME: it's really possible get size if st.hasSize

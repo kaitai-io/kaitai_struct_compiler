@@ -22,7 +22,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
     assignType: Option[DataType] = None
   ): Unit = {
     dataType match {
-      case FixedBytesType(c, _) =>
+      case FixedBytesType(c, _, _) =>
         attrFixedContentsParse(id, c)
       case t: UserType =>
         attrUserTypeParse(id, t, io, rep, defEndian)

@@ -136,7 +136,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       s"Int${width.width * 8}${signToStr(signed)}${fixedEndianToStr(endianOpt.get)}"
     case FloatMultiType(width, endianOpt) =>
       s"Float${width.width * 8}${fixedEndianToStr(endianOpt.get)}"
-    case BytesEosType(terminator, include, padRight, process) =>
+    case BytesEosType(terminator, include, padRight, process, scanEnd) =>
       "GreedyBytes"
     case blt: BytesLimitType =>
       attrBytesLimitType(blt)
@@ -144,7 +144,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       attrBytesTerminatedType(btt, "GreedyBytes")
     case StrFromBytesType(bytes, encoding) =>
       bytes match {
-        case BytesEosType(terminator, include, padRight, process) =>
+        case BytesEosType(terminator, include, padRight, process, scanEnd) =>
           s"GreedyString(encoding='$encoding')"
         case blt: BytesLimitType =>
           attrBytesLimitType(blt, s"GreedyString(encoding='$encoding')")
@@ -156,7 +156,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     case utb: UserTypeFromBytes =>
       utb.bytes match {
         //case BytesEosType(terminator, include, padRight, process) =>
-        case BytesLimitType(size, terminator, include, padRight, process) =>
+        case BytesLimitType(size, terminator, include, padRight, process, scanEnd) =>
           s"FixedSized(${translator.translate(size)}, LazyBound(lambda: ${type2class(utb.classSpec.get)}))"
         //case BytesTerminatedType(terminator, include, consume, eosError, process) =>
         case _ => "???"

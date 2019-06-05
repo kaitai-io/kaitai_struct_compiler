@@ -83,7 +83,8 @@ case class YamlAttrArgs(
   contents: Option[Array[Byte]],
   enumRef: Option[String],
   parent: Option[Ast.expr],
-  process: Option[ProcessExpr]
+  process: Option[ProcessExpr],
+  scanEnd: Option[ScanExpr]
 ) {
   def getByteArrayType(path: List[String]) = {
     (size, sizeEos) match {
@@ -96,7 +97,8 @@ case class YamlAttrArgs(
           case Some(term) =>
             BytesTerminatedType(term, include, consume, eosError, process)
           case None =>
-            throw new YAMLParseException("'size', 'size-eos' or 'terminator' must be specified", path)
+            BytesScanEndType(process, scanEnd)
+            // throw new YAMLParseException("'size', 'size-eos' or 'terminator' must be specified", path)
         }
       case (Some(_), true) =>
         throw new YAMLParseException("only one of 'size' or 'size-eos' must be specified", path)
@@ -115,7 +117,8 @@ object AttrSpec {
     "consume",
     "include",
     "eos-error",
-    "repeat"
+    "repeat",
+    "scan-end"
   )
 
   val LEGAL_KEYS_BYTES = Set(
@@ -165,6 +168,8 @@ object AttrSpec {
   def fromYaml2(srcMap: Map[String, Any], path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
     val doc = DocSpec.fromYaml(srcMap, path)
     val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path), path)
+    val scanEnd = ScanExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "scan-end", path), path)
+
     // TODO: add proper path propagation
     val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))
     val size = ParseUtils.getOptValueExpression(srcMap, "size", path)
@@ -184,7 +189,7 @@ object AttrSpec {
     val yamlAttrArgs = YamlAttrArgs(
       size, sizeEos,
       encoding, terminator, include, consume, eosError, padRight,
-      contents, enum, parent, process
+      contents, enum, parent, process, scanEnd
     )
 
     // Unfortunately, this monstrous match can't rewritten in simpler way due to Java type erasure

@@ -111,6 +111,7 @@ abstract class LanguageCompiler(
   def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
 
   def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
+  def attrScanCustom(scanEnd: ScanExpr, varSrc: Identifier, varDest: Identifier): Unit
 
   def normalIO: String
   def useIO(ioEx: Ast.expr): String

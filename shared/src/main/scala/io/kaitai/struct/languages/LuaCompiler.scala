@@ -208,6 +208,9 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
+  override def attrScanCustom(scanEnd: ScanExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    None
+  }
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
     val destName = privateMemberName(varDest)
@@ -320,7 +323,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"$io:read_bytes(${expression(blt.size)})"
     case _: BytesEosType =>
       s"$io:read_bytes_full()"
-    case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+    case BytesTerminatedType(terminator, include, consume, eosError, _, _) =>
       s"$io:read_bytes_term($terminator, $include, $consume, $eosError)"
     case BitsType1 =>
       s"$io:read_bits_int(1)"

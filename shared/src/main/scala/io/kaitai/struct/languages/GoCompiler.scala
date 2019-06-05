@@ -133,6 +133,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
+  override def attrScanCustom(scanEnd: ScanExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    None
+  }
+
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
     val destName = privateMemberName(varDest)
@@ -276,7 +280,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.ReadBytes(int(${expression(blt.size)}))"
       case _: BytesEosType =>
         s"$io.ReadBytesFull()"
-      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+      case BytesTerminatedType(terminator, include, consume, eosError, _, _) =>
         s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1 =>
         s"$io.ReadBitsInt(1)"

@@ -182,6 +182,33 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
+  // This function is to generate code for scan-end
+  override def attrScanCustom(scanEnd: ScanExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
+    scanEnd match {
+      case ScanCustom(name, args) =>
+        val scanClass = if (name.length == 1) {
+          val onlyName = name.head
+          val className = type2class(onlyName)
+          importList.add(s"from $onlyName import $className")
+          className
+        } else {
+          val pkgName = name.init.mkString(".")
+          importList.add(s"import $pkgName")
+          s"$pkgName.${type2class(name.last)}"
+        }
+
+        out.puts(s"pos1 = self._io.pos()")
+        out.puts(s"_scanner = $scanClass(self._io, ${args.map(expression).mkString(", ")})")
+        out.puts(s"_scanner.scan()")
+        out.puts(s"pos2 = self._io.pos()")
+        out.puts(s"self._io.seek(pos1)")
+        out.puts(s"$destName = self._io.read_bytes(pos2 - pos1)")
+    }
+  }
+
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
     val srcName = privateMemberName(varSrc)
     val destName = privateMemberName(varDest)
@@ -356,8 +383,10 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.read_bytes(${expression(blt.size)})"
       case _: BytesEosType =>
         s"$io.read_bytes_full()"
-      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+      case BytesTerminatedType(terminator, include, consume, eosError, _, _) =>
         s"$io.read_bytes_term($terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
+      case BytesScanEndType(_, scanEnd) =>
+        s"''"
       case BitsType1 =>
         s"$io.read_bits_int(1) != 0"
       case BitsType(width: Int) =>
