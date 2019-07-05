@@ -2,7 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -710,6 +710,22 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def publicMemberName(id: Identifier) = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  override def ksErrorName(err: KSError): String = s"KaitaiStream.${super.ksErrorName(err)}"
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    out.inc
+    out.puts(s"throw new $errName($errArgsStr);")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object JavaCompiler extends LanguageCompilerStatic
