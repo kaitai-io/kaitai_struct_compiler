@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -108,19 +108,17 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def runReadCalc(): Unit = {
-    out.puts
-    out.puts(s"if self._is_le == True:")
+    out.puts(s"if not hasattr(self, '_is_le'):")
+    out.inc
+    out.puts(s"raise ${ksErrorName(UndecidedEndiannessError)}(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\")")
+    out.dec
+    out.puts(s"elif self._is_le == True:")
     out.inc
     out.puts("self._read_le()")
     out.dec
     out.puts("elif self._is_le == False:")
     out.inc
     out.puts("self._read_be()")
-    out.dec
-    out.puts("else:")
-    out.inc
-    //out.puts(s"raise $kstreamName.UndecidedEndiannessError")
-    out.puts("raise Exception(\"Unable to decide endianness\")")
     out.dec
   }
 
