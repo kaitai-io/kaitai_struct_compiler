@@ -66,6 +66,7 @@ case class AttrSpec(
   id: Identifier,
   dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
+  valid: Option[ValidationSpec] = None,
   doc: DocSpec = DocSpec.EMPTY
 ) extends AttrLikeSpec with MemberSpec {
   override def isLazy = false
@@ -115,6 +116,7 @@ object AttrSpec {
     "consume",
     "include",
     "eos-error",
+    "valid",
     "repeat"
   )
 
@@ -178,6 +180,7 @@ object AttrSpec {
     val padRight = ParseUtils.getOptValueInt(srcMap, "pad-right", path)
     val enum = ParseUtils.getOptValueStr(srcMap, "enum", path)
     val parent = ParseUtils.getOptValueExpression(srcMap, "parent", path)
+    val valid = srcMap.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
 
     val typObj = srcMap.get("type")
 
@@ -220,7 +223,7 @@ object AttrSpec {
 
     ParseUtils.ensureLegalKeys(srcMap, legalKeys, path)
 
-    AttrSpec(path, id, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
+    AttrSpec(path, id, dataType, ConditionalSpec(ifExpr, repeatSpec), valid, doc)
   }
 
   def parseContentSpec(c: Any, path: List[String]): Array[Byte] = {

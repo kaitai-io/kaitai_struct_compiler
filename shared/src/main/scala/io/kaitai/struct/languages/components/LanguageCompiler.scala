@@ -11,7 +11,7 @@ import scala.collection.mutable.ListBuffer
 abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
   val config: RuntimeConfig
-) extends SwitchOps
+) extends SwitchOps with ValidateOps
   with ExtraAttrs {
 
   val translator: AbstractTranslator

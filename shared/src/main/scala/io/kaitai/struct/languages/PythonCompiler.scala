@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -43,14 +43,15 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
 
     importList.add("from pkg_resources import parse_version")
-    importList.add(s"from kaitaistruct import __version__ as ks_version, $kstructName, $kstreamName, BytesIO")
+    importList.add("import kaitaistruct")
+    importList.add(s"from kaitaistruct import $kstructName, $kstreamName, BytesIO")
 
     out.puts
     out.puts
 
     // API compatibility check
     out.puts(
-      "if parse_version(ks_version) < parse_version('" +
+      "if parse_version(kaitaistruct.__version__) < parse_version('" +
         KSVersion.minimalRuntime +
         "'):"
     )
@@ -58,7 +59,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(
       "raise Exception(\"Incompatible Kaitai Struct Python API: " +
         KSVersion.minimalRuntime +
-        " or later is required, but you have %s\" % (ks_version))"
+        " or later is required, but you have %s\" % (kaitaistruct.__version__))"
     )
     out.dec
     out.puts
@@ -479,6 +480,21 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  override def ksErrorName(err: KSError): String = s"kaitaistruct.${super.ksErrorName(err)}"
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if not ${translator.translate(checkExpr)}:")
+    out.inc
+    out.puts(s"raise $errName($errArgsStr)")
+    out.dec
+  }
 
   def userType2class(t: UserType): String = {
     val name = t.classSpec.get.name

@@ -1,5 +1,7 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.exprlang.Ast
+
 /**
   * Common abstract container for all identifiers that Kaitai Struct deals with.
   */
@@ -9,6 +11,11 @@ abstract class Identifier {
     *         error messaging purposes.
     */
   def humanReadable: String
+
+  /**
+    * @return Identifier ready to be used in KS expressions.
+    */
+  def toAstIdentifier: Ast.identifier = Ast.identifier(humanReadable)
 }
 
 /**
