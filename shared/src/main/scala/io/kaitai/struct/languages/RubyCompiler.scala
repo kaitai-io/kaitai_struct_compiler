@@ -109,7 +109,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("else")
     out.inc
-    out.puts("raise Kaitai::Struct::Stream::UndecidedEndiannessError")
+    out.puts(s"raise ${ksErrorName(UndecidedEndiannessError)}.new(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\")")
     out.dec
     out.puts("end")
   }
