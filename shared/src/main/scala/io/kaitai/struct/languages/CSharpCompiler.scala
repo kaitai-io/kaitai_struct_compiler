@@ -563,11 +563,14 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
   override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
+
+  override def ksErrorName(err: KSError): String = CSharpCompiler.ksErrorName(err)
 }
 
 object CSharpCompiler extends LanguageCompilerStatic
   with StreamStructNames
-  with UpperCamelCaseClasses {
+  with UpperCamelCaseClasses
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -635,6 +638,7 @@ object CSharpCompiler extends LanguageCompilerStatic
 
   override def kstructName = "KaitaiStruct"
   override def kstreamName = "KaitaiStream"
+  override def ksErrorName(err: KSError): String = ???
 
   override def type2class(name: String): String = Utils.upperCamelCase(name)
 }

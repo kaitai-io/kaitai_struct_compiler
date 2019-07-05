@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.{KSError, ValidationNotEqualError}
+import io.kaitai.struct.datatype.KSError
 
 /**
   * Stores per-language knowledge on how a particular KS-generated
@@ -14,7 +14,5 @@ trait ExceptionNames {
     * @param err KS-generated error that might be thrown in runtime
     * @return name of exception as a string
     */
-  def ksErrorName(err: KSError): String = err match {
-    case ValidationNotEqualError => "ValidationNotEqualError"
-  }
+  def ksErrorName(err: KSError): String
 }

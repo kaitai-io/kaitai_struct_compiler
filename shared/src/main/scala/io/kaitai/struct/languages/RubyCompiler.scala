@@ -452,7 +452,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
-  override def ksErrorName(err: KSError): String = s"Kaitai::Struct::${super.ksErrorName(err)}"
+  override def ksErrorName(err: KSError): String = RubyCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
     attrId: Identifier,
@@ -468,7 +468,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 }
 
 object RubyCompiler extends LanguageCompilerStatic
-  with StreamStructNames {
+  with StreamStructNames
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -476,6 +477,7 @@ object RubyCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"
+  override def ksErrorName(err: KSError): String = s"Kaitai::Struct::${err.name}"
 
   def inverseEnumName(enumName: String) = s"I__$enumName"
 }

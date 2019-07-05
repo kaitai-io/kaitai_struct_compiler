@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.CppRuntimeConfig._
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -938,9 +938,13 @@ class CppCompiler(
     case UniqueAndRawPointers => s"std::move($expr)"
     case _ => expr
   }
+
+  override def ksErrorName(err: KSError): String = CppCompiler.ksErrorName(err)
 }
 
-object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
+object CppCompiler extends LanguageCompilerStatic
+  with StreamStructNames
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -948,6 +952,7 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
+  override def ksErrorName(err: KSError): String = ???
 
   def kaitaiType2NativeType(config: CppRuntimeConfig, attrType: DataType, absolute: Boolean = false): String = {
     attrType match {

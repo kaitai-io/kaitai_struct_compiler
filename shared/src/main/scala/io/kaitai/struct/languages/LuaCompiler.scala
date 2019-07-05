@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -390,11 +390,14 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"local _io = $kstreamName(stringstream($args))")
     "_io"
   }
+
+  override def ksErrorName(err: KSError): String = LuaCompiler.ksErrorName(err)
 }
 
 object LuaCompiler extends LanguageCompilerStatic
     with UpperCamelCaseClasses
-    with StreamStructNames {
+    with StreamStructNames
+    with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -402,6 +405,7 @@ object LuaCompiler extends LanguageCompilerStatic
 
   override def kstructName: String = "KaitaiStruct"
   override def kstreamName: String = "KaitaiStream"
+  override def ksErrorName(err: KSError): String = ???
 
   def types2class(name: List[String]): String =
     name.map(x => type2class(x)).mkString(".")

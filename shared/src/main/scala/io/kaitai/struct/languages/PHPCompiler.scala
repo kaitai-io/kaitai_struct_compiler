@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
@@ -463,11 +463,14 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case KaitaiStreamType => kstreamName
     }
   }
+
+  override def ksErrorName(err: KSError): String = PHPCompiler.ksErrorName(err)
 }
 
 object PHPCompiler extends LanguageCompilerStatic
   with StreamStructNames
-  with UpperCamelCaseClasses {
+  with UpperCamelCaseClasses
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -476,6 +479,8 @@ object PHPCompiler extends LanguageCompilerStatic
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 
   override def kstructName: String = "\\Kaitai\\Struct\\Struct"
+
+  override def ksErrorName(err: KSError): String = ???
 
   def types2classRel(names: List[String]) = names.map(type2class).mkString("\\")
 }

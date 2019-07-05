@@ -1,12 +1,12 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, _}
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{RustTranslator, TypeDetector}
+import io.kaitai.struct.translators.RustTranslator
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -579,11 +579,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def type2classAbs(names: List[String]) =
     names.mkString("::")
+
+  override def ksErrorName(err: KSError): String = RustCompiler.ksErrorName(err)
 }
 
 object RustCompiler extends LanguageCompilerStatic
   with StreamStructNames
-  with UpperCamelCaseClasses {
+  with UpperCamelCaseClasses
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -591,6 +594,7 @@ object RustCompiler extends LanguageCompilerStatic
 
   override def kstructName = "&Option<Box<KaitaiStruct>>"
   override def kstreamName = "&mut S"
+  override def ksErrorName(err: KSError): String = ???
 
   def types2class(typeName: Ast.typeId) = {
     typeName.names.map(type2class).mkString(

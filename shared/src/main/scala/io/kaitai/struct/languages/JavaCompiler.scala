@@ -711,7 +711,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
-  override def ksErrorName(err: KSError): String = s"KaitaiStream.${super.ksErrorName(err)}"
+  override def ksErrorName(err: KSError): String = JavaCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
     attrId: Identifier,
@@ -730,7 +730,8 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
 object JavaCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
-  with StreamStructNames {
+  with StreamStructNames
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -837,4 +838,5 @@ object JavaCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"
+  override def ksErrorName(err: KSError): String = s"KaitaiStream.${err.name}"
 }

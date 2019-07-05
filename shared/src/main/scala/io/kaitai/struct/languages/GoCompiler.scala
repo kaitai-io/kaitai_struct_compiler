@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
@@ -415,11 +415,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
   def calculatedFlagForName(id: Identifier) = s"_f_${idToStr(id)}"
+
+  override def ksErrorName(err: KSError): String = GoCompiler.ksErrorName(err)
 }
 
 object GoCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
-  with StreamStructNames {
+  with StreamStructNames
+  with ExceptionNames {
 
   override def getCompiler(
     tp: ClassTypeProvider,
@@ -485,4 +488,5 @@ object GoCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "kaitai.Stream"
   override def kstructName: String = "interface{}"
+  override def ksErrorName(err: KSError): String = ???
 }
