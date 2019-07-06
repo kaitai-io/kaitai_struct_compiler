@@ -567,6 +567,20 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
   override def ksErrorName(err: KSError): String = JavaScriptCompiler.ksErrorName(err)
 
+  override def attrValidateExpr(
+    attrId: Identifier,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    out.inc
+    out.puts(s"throw new $errName($errArgsStr);")
+    out.dec
+    out.puts("}")
+  }
+
   private
   def attrDebugNeeded(attrId: Identifier) = attrId match {
     case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
@@ -598,7 +612,7 @@ object JavaScriptCompiler extends LanguageCompilerStatic
   // FIXME: probably KaitaiStruct will emerge some day in JavaScript runtime, but for now it is unused
   override def kstructName: String = ???
 
-  override def ksErrorName(err: KSError): String = ???
+  override def ksErrorName(err: KSError): String = s"KaitaiStream.${err.name}"
 
   def types2class(types: List[String]): String = types.map(type2class).mkString(".")
 }
