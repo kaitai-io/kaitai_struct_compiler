@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.{KSError, ValidationNotEqualError}
+import io.kaitai.struct.datatype.{DataType, KSError, ValidationNotEqualError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{AttrSpec, Identifier, IoIdentifier, ValidationEq, ValidationSpec, YAMLParseException}
 
@@ -13,6 +13,7 @@ trait ValidateOps extends ExceptionNames {
       case ValidationEq(expected) =>
         attrValidateExpr(
           attrId,
+          attr.dataType,
           Ast.expr.Compare(
             Ast.expr.Name(attrId.toAstIdentifier),
             Ast.cmpop.Eq,
@@ -29,5 +30,5 @@ trait ValidateOps extends ExceptionNames {
     }
   }
 
-  def attrValidateExpr(attrId: Identifier, checkExpr: Ast.expr, errName: String, errArgs: List[Ast.expr]): Unit = {}
+  def attrValidateExpr(attrId: Identifier, attrType: DataType, checkExpr: Ast.expr, errName: String, errArgs: List[Ast.expr]): Unit = {}
 }

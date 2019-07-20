@@ -569,6 +569,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
   override def attrValidateExpr(
     attrId: Identifier,
+    attrType: DataType,
     checkExpr: Ast.expr,
     errName: String,
     errArgs: List[Ast.expr]

@@ -715,6 +715,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrValidateExpr(
     attrId: Identifier,
+    attrType: DataType,
     checkExpr: Ast.expr,
     errName: String,
     errArgs: List[Ast.expr]

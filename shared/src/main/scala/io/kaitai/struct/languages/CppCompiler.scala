@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.CppRuntimeConfig._
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -245,8 +245,9 @@ class CppCompiler(
     outSrc.puts
     outSrc.puts("if (m__is_le == -1) {")
     outSrc.inc
-    importListSrc.add("stdexcept")
-    outSrc.puts("throw std::runtime_error(\"unable to decide on endianness\");")
+    importListSrc.add("kaitai/exceptions.h")
+    outSrc.puts(s"throw ${CppCompiler.ksErrorName(UndecidedEndiannessError)}" +
+      "(\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\");")
     outSrc.dec
     outSrc.puts("} else if (m__is_le == 1) {")
     outSrc.inc
@@ -940,6 +941,22 @@ class CppCompiler(
   }
 
   override def ksErrorName(err: KSError): String = CppCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    importListSrc.add("kaitai/exceptions.h")
+    outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    outSrc.inc
+    outSrc.puts(s"throw $errName<${kaitaiType2NativeType(attrType, absolute = true)}>($errArgsStr);")
+    outSrc.dec
+    outSrc.puts("}")
+  }
 }
 
 object CppCompiler extends LanguageCompilerStatic
@@ -952,7 +969,11 @@ object CppCompiler extends LanguageCompilerStatic
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
-  override def ksErrorName(err: KSError): String = ???
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "kaitai::end_of_stream_error"
+    case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
+    case ValidationNotEqualError => "kaitai::validation_not_equal_error"
+  }
 
   def kaitaiType2NativeType(config: CppRuntimeConfig, attrType: DataType, absolute: Boolean = false): String = {
     attrType match {
