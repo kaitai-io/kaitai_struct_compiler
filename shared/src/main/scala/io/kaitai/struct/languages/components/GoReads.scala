@@ -12,6 +12,22 @@ import scala.collection.mutable.ListBuffer
 trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
   val translator: GoTranslator
 
+  def attrBytesTypeParse(
+    id: Identifier,
+    dataType: BytesType,
+    io: String,
+    rep: RepeatSpec,
+    isRaw: Boolean
+  ): Unit = {
+    val rawId = dataType.process match {
+      case None => id
+      case Some(_) => RawIdentifier(id)
+    }
+    val expr = translator.outVarCheckRes(parseExprBytes(dataType, io))
+    handleAssignment(rawId, expr, rep, isRaw)
+    dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
+  }
+
   override def attrParse2(
     id: Identifier,
     dataType: DataType,
@@ -26,8 +42,8 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
         attrFixedContentsParse(id, c)
       case t: UserType =>
         attrUserTypeParse(id, t, io, rep, defEndian)
-//      case t: BytesType =>
-//        attrBytesTypeParse(id, t, io, extraAttrs, rep, isRaw)
+      case t: BytesType =>
+        attrBytesTypeParse(id, t, io, rep, isRaw)
 //      case SwitchType(on, cases) =>
 //        attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep)
       case t: StrFromBytesType =>
@@ -51,9 +67,21 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
     }
   }
 
+  def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+    val expr1 = padRight match {
+      case Some(padByte) => s"kaitai.BytesStripRight($expr0, $padByte)"
+      case None => expr0
+    }
+    val expr2 = terminator match {
+      case Some(term) => s"kaitai.BytesTerminate($expr1, $term, $include)"
+      case None => expr1
+    }
+    expr2
+  }
+
   def parseExprBytes(dataType: BytesType, io: String): String = {
     val expr = parseExpr(dataType, io, None) // FIXME
-/*
+
     // apply pad stripping and termination
     dataType match {
       case BytesEosType(terminator, include, padRight, _) =>
@@ -62,7 +90,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
         bytesPadTermExpr(expr, padRight, terminator, include)
       case _ =>
         expr
-    }*/
+    }
     expr
   }
 
