@@ -139,16 +139,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"$destName = $kstreamName.processXor($srcName, ${expression(xorValue)});")
+        translator.detectType(xorValue) match {
+          case _: IntType =>
+            out.puts(s"$destName = kaitai.ProcessXOR($srcName, []byte{${expression(xorValue)}})")
+          case _: BytesType =>
+            out.puts(s"$destName = kaitai.ProcessXOR($srcName, ${expression(xorValue)})")
+        }
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName.processZlib($srcName);")
+        out.puts(s"$destName, err = kaitai.ProcessZlib($srcName)")
+        translator.outAddErrCheck()
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+        out.puts(s"$destName = kaitai.ProcessRotateLeft($srcName, int($expr))")
+      case ProcessCustom(name, args) =>
+        // TODO(jchw): This hack is necessary because Go tests fail catastrophically otherwise...
+        out.puts(s"$destName = $srcName")
     }
   }
 
