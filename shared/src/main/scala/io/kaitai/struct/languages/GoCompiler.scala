@@ -364,6 +364,21 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchEnd(): Unit =
     out.puts("}")
 
+  override def switchShouldUseCompareFn(onType: DataType): Option[String] = {
+    onType match {
+      case _: BytesType =>
+        importList.add("bytes")
+        Some("bytes.Equal")
+      case _ =>
+        None
+    }
+  }
+
+  override def switchCaseStartCompareFn(compareFn: String, switchOn: Ast.expr, condition: Ast.expr): Unit = {
+    out.puts(s"case ${compareFn}(${expression(switchOn)}, ${expression(condition)}):")
+    out.inc
+  }
+
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${calculatedFlagForName(attrName)} bool")
     out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
