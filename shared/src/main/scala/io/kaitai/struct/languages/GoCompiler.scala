@@ -318,22 +318,21 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 //    expr2
 //  }
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"switch (${expression(on)}) {")
+  }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"case ${expression(condition)}: {")
+    out.puts(s"case ${expression(condition)}:")
     out.inc
   }
 
   override def switchCaseEnd(): Unit = {
-    out.puts("break;")
     out.dec
-    out.puts("}")
   }
 
   override def switchElseStart(): Unit = {
-    out.puts("default: {")
+    out.puts("default:")
     out.inc
   }
 
