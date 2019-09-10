@@ -5,7 +5,7 @@ import io.kaitai.struct.datatype.{DataType, FixedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{GoTranslator, TranslatorResult, TypeDetector}
+import io.kaitai.struct.translators.{GoTranslator, ResultString, TranslatorResult, TypeDetector}
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
@@ -272,8 +272,33 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
+  private def castToType(r: TranslatorResult, dataType: DataType): TranslatorResult = {
+    dataType match {
+      case t @ (_: IntMultiType | _: FloatMultiType) =>
+        ResultString(s"${kaitaiType2NativeType(t)}(${translator.resToStr(r)})")
+      case _ =>
+        r
+    }
+  }
+
+  private def combinedType(dataType: DataType) = {
+    dataType match {
+      case st: SwitchType => st.combinedType
+      case _ => dataType
+    }
+  }
+
+  private def handleCompositeTypeCast(id: Identifier, r: TranslatorResult): TranslatorResult = {
+    id match {
+      case NamedIdentifier(name) =>
+        castToType(r, combinedType(typeProvider.determineType(name)))
+      case _ =>
+        r
+    }
+  }
+
   override def handleAssignmentSimple(id: Identifier, r: TranslatorResult): Unit = {
-    val expr = translator.resToStr(r)
+    val expr = translator.resToStr(handleCompositeTypeCast(id, r))
     out.puts(s"${privateMemberName(id)} = $expr")
   }
 
