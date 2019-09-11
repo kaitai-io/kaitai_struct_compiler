@@ -57,7 +57,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = () // XXX
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
-    importList.add(s"../kaitai_struct_nim_runtime/kaitai")
+    importList.add(s"../../../runtime/nim/kaitai")
     out.puts
   }
   override def indent: String = "  "
@@ -67,7 +67,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = () // XXX
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = () // XXX
   override def normalIO: String = "" // XXX
-  override def outFileName(topClassName: String): String = "parser.nim" // XXX
+  override def outFileName(topClassName: String): String =
+    s"$topClassName.nim"
   override def popPos(io: String): Unit = () // XXX
   override def pushPos(io: String): Unit = () // XXX
   override def readFooter(): Unit = () // XXX
@@ -154,7 +155,7 @@ object NimCompiler extends LanguageCompilerStatic
       case _: StrType => "string"
       case _: BytesType => "seq[byte]"
 
-      case KaitaiStructType | CalcKaitaiStructType => "type(nil)"
+      case KaitaiStructType | CalcKaitaiStructType => "ref RootObj"
 
       case t: UserType => types2class(t.name)
     }
