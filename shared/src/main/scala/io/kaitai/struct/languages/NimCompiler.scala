@@ -31,11 +31,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     val name = idToStr(attrName)
-    val typePrefix = attrType match {
-      case _: UserType if (name == "root" || name == "parent") => "ref "
-      case _ => ""
-    }
-    out.puts(s"${name}*: ${typePrefix}${kaitaiType2NimType(attrType)}")
+    out.puts(s"${name}*: ${kaitaiType2NimType(attrType)}")
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = ()
@@ -52,7 +48,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val root = types2class(rootClassName)
     val parent = kaitaiType2NimType(parentType)
     out.puts
-    out.puts(s"proc read*(_: typedesc[${current}], stream: KaitaiStream, root: ref ${root}, parent: ${parent}): owned ${current} =")
+    out.puts(s"proc read*(_: typedesc[${current}], stream: KaitaiStream, root: ${root}, parent: ${parent}): owned ${current} =")
     out.inc
     out.puts(s"result = new(${current})")
     out.puts("let root = if root == nil: result else: root")
@@ -64,7 +60,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classHeader(name: List[String]): Unit = {
-    out.puts(s"${upperCamelCase(name.mkString(""))}* = object")
+    out.puts(s"${upperCamelCase(name.mkString(""))}* = ref object")
     out.inc
   }
 
