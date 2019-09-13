@@ -17,17 +17,18 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   import NimCompiler._
 
   // Members declared in io.kaitai.struct.languages.components.ExceptionNames
-  override def ksErrorName(err: KSError): String = "" // XXX
+  override def ksErrorName(err: KSError): String = ""
 
   // Members declared in io.kaitai.struct.languages.components.ExtraAttrs
-  override def extraAttrForIO(id: Identifier, rep: RepeatSpec): List[AttrSpec] = List() // XXX
+  override def extraAttrForIO(id: Identifier, rep: RepeatSpec): List[AttrSpec] = List()
 
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
-  override def alignToByte(io: String): Unit = () // XXX
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = Array() // XXX
-  override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = Option() // XXX
-  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = () // XXX
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = () // XXX
+  override def alignToByte(io: String): Unit = ()
+  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = Array()
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = Option()
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = ()
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = ()
+
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     val name = idToStr(attrName)
     val typePrefix = attrType match {
@@ -36,62 +37,100 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     out.puts(s"${name}*: ${typePrefix}${kaitaiType2NimType(attrType)}")
   }
-  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = () // XXX
-  override def classConstructorFooter: Unit = () // XXX
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = () // XXX
-  override def classFooter(name: List[String]): Unit = {
+
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = ()
+  override def classConstructorFooter: Unit = {
     out.dec
   }
+
+  // The "constructor" is the read() proc
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
+    val current = types2class(name)
+    val root = types2class(rootClassName)
+    val parent = kaitaiType2NimType(parentType)
+    out.puts
+    out.puts(s"proc read*(_: typedesc[${current}], stream: KaitaiStream, root: ref ${root}, parent: ${parent}): owned ${current} =")
+    out.inc
+    out.puts(s"result = new(${current})")
+    out.puts("let root = if root == nil: result else: root")
+    out.puts("result.root = root")
+    out.puts("result.parent = parent")
+  }
+
+  override def classFooter(name: List[String]): Unit = {
+    out.dec
+    out.dec
+  }
+
   override def classHeader(name: List[String]): Unit = {
-    out.puts(s"type ${upperCamelCase(name.mkString(""))}* = object")
+    out.puts(s"${upperCamelCase(name.mkString(""))}* = object")
     out.inc
   }
-  override def condIfFooter(expr: Ast.expr): Unit = () // XXX
-  override def condIfHeader(expr: Ast.expr): Unit = () // XXX
-  override def condRepeatEosFooter: Unit = () // XXX
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = () // XXX
-  override def condRepeatExprFooter: Unit = () // XXX
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = () // XXX
-  override def condRepeatUntilFooter(id: Identifier, io: String,dataType: DataType,needRaw: Boolean, repeatExpr: Ast.expr): Unit = () // XXX
-  override def condRepeatUntilHeader(id: Identifier, io: String,dataType: DataType,needRaw: Boolean, repeatExpr: Ast.expr): Unit = () // XXX
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = () // XXX
+
+  override def condIfFooter(expr: Ast.expr): Unit = ()
+  override def condIfHeader(expr: Ast.expr): Unit = ()
+  override def condRepeatEosFooter: Unit = ()
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = ()
+  override def condRepeatExprFooter: Unit = ()
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = ()
+  override def condRepeatUntilFooter(id: Identifier, io: String,dataType: DataType,needRaw: Boolean, repeatExpr: Ast.expr): Unit = ()
+  override def condRepeatUntilHeader(id: Identifier, io: String,dataType: DataType,needRaw: Boolean, repeatExpr: Ast.expr): Unit = ()
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = ()
+
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
     importList.add(s"../../../runtime/nim/kaitai")
     out.puts
+    out.puts("type")
+    out.inc
   }
+
   override def indent: String = "  "
-  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = () // XXX
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = () // XXX
-  override def instanceFooter: Unit = () // XXX
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = () // XXX
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = () // XXX
-  override def normalIO: String = "" // XXX
+  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = ()
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = ()
+  override def instanceFooter: Unit = ()
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = ()
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = ()
+  override def normalIO: String = ""
   override def outFileName(topClassName: String): String =
     s"$topClassName.nim"
-  override def popPos(io: String): Unit = () // XXX
-  override def pushPos(io: String): Unit = () // XXX
-  override def readFooter(): Unit = () // XXX
-  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = () // XXX
-  override def runRead(): Unit = () // XXX
-  override def runReadCalc(): Unit = () // XXX
-  override def seek(io: String, pos: Ast.expr): Unit = () // XXX
+  override def popPos(io: String): Unit = ()
+  override def pushPos(io: String): Unit = ()
+  override def readFooter(): Unit = ()
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = ()
+  override def runRead(): Unit = ()
+  override def runReadCalc(): Unit = ()
+  override def seek(io: String, pos: Ast.expr): Unit = ()
 
   val importListSrc = new ImportList
-  override val translator: io.kaitai.struct.translators.AbstractTranslator = new CppTranslator(typeProvider, importListSrc, config) // XXX
+  override val translator: io.kaitai.struct.translators.AbstractTranslator = new CppTranslator(typeProvider, importListSrc, config)
 
-  override def useIO(ioEx: Ast.expr): String = "" // XXX
+  override def useIO(ioEx: Ast.expr): String = ""
 
   // Members declared in io.kaitai.struct.languages.components.SwitchOps
-  override def switchCaseEnd(): Unit = () // XXX
-  override def switchCaseStart(condition: Ast.expr): Unit = () // XXX
-  override def switchElseStart(): Unit = () // XXX
-  override def switchEnd(): Unit = () // XXX
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = () // XXX
+  override def switchCaseEnd(): Unit = ()
+  override def switchCaseStart(condition: Ast.expr): Unit = ()
+  override def switchElseStart(): Unit = ()
+  override def switchEnd(): Unit = ()
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = ()
 
   // Members declared in io.kaitai.struct.languages.components.SingleOutputFile
   override def outImports(topClass: ClassSpec) =
     "\n" + importList.toList.map((x) => s"import $x").mkString("\n") + "\n"
+
+  def fromFileProc(name: List[String]): Unit = {
+    val current = name.map(x => type2class(x)).mkString("_")
+    out.puts
+    out.puts(s"proc fromFile*(_: typedesc[${current}], filename: string): owned ${current} =")
+    out.inc
+    out.puts("var stream = newKaitaiStream(filename)")
+    out.puts(s"${current}.read(stream, nil, nil)")
+    out.dec
+  }
+
+  def instanceCalculatePleb(left: String, right: String): Unit = {
+    out.puts(left + " = " + right)
+  }
 
   // Slightly different implementation than io.kaitai.struct.Utils
   // This is necessary because identifiers cannot start with "_" in Nim
