@@ -49,8 +49,13 @@ class NimClassCompiler(
       curClass.params
     )
 
-    // example: "result.one = readU4Be(stream)"
-    compileReads(curClass.seq)
+    // FIXME
+    val defEndian = curClass.meta.endian match {
+      case Some(fe: FixedEndian) => Some(fe)
+      case _ => None
+    }
+
+    compileReads(curClass)
 
     lang.classConstructorFooter
 
@@ -62,14 +67,11 @@ class NimClassCompiler(
     curClass.types.foreach { case (_, subClass) => compileSubprocs(subClass) }
   }
 
-  // XXX
-  def compileReads(seq: List[AttrSpec]): Unit = {
-    lang.readHeader(None, false)
-
-    seq.foreach { (attr) =>
-      lang.asInstanceOf[NimCompiler].instanceCalculatePleb(attr.id.toString(), attr.dataType.toString())
+  def compileReads(curClass: ClassSpec): Unit = {
+    val defEndian = curClass.meta.endian match {
+      case Some(fe: FixedEndian) => Some(fe)
+      case _ => None
     }
-
-    lang.readFooter()
+    curClass.seq.foreach { (attr) => lang.asInstanceOf[NimCompiler].readInstance(attr.id, attr.dataType, defEndian) }
   }
 }

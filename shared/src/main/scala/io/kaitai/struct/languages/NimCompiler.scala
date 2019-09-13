@@ -39,7 +39,10 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = ()
+
   override def classConstructorFooter: Unit = {
+    out.puts("result.root = root")
+    out.puts("result.parent = parent")
     out.dec
   }
 
@@ -53,8 +56,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts(s"result = new(${current})")
     out.puts("let root = if root == nil: result else: root")
-    out.puts("result.root = root")
-    out.puts("result.parent = parent")
   }
 
   override def classFooter(name: List[String]): Unit = {
@@ -128,8 +129,13 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
-  def instanceCalculatePleb(left: String, right: String): Unit = {
-    out.puts(left + " = " + right)
+  def readInstance(instName: Identifier, dataType: DataType, endian: Option[FixedEndian]): Unit = {
+    val api = dataType match {
+      case rt: ReadableType => rt.apiCall(endian)
+      case _ => dataType.toString
+    }
+
+    out.puts("result." + idToStr(instName) + " = read" + Utils.capitalize(api) + "(stream)")
   }
 
   // Slightly different implementation than io.kaitai.struct.Utils
