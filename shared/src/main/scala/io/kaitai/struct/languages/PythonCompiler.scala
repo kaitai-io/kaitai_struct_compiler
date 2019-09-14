@@ -95,7 +95,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("self._is_le = _is_le")
 
     // Store parameters passed to us
-    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+    params.foreach((p) => handleAssignmentSimple(p.id, Some(p.dataType), paramName(p.id)))
 
     if (config.readStoresPos) {
       importList.add("import collections")
@@ -299,7 +299,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"while not $io.is_eof():")
     out.inc
   }
-  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
+  override def handleAssignmentRepeatEos(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)}.append($expr)")
   override def condRepeatEosFooter: Unit = {
     out.puts("i += 1")
@@ -313,7 +313,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"for i in range(${expression(repeatExpr)}):")
     out.inc
   }
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[i] = $expr")
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
@@ -325,7 +325,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+  override def handleAssignmentRepeatUntil(id: Identifier, dataType: Option[DataType], expr: String, isRaw: Boolean): Unit = {
     val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
     out.puts(s"$tmpName = $expr")
     out.puts(s"${privateMemberName(id)}.append($tmpName)")
@@ -341,7 +341,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =

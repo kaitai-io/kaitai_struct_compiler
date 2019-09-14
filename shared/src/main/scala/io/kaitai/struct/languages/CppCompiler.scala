@@ -150,7 +150,7 @@ class CppCompiler(
   }
 
   override def classForwardDeclaration(name: List[String]): Unit = {
-    outHdr.puts(s"class ${types2class(name)};")
+    outHdr.puts(s"class ${types2class(List(name.last))};")
   }
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
@@ -198,8 +198,8 @@ class CppCompiler(
       outSrc.puts(s"const auto weakPtrTrick = std::shared_ptr<$classNameBrief>(this, []($classNameBrief*){});")
     }
 
-    handleAssignmentSimple(ParentIdentifier, pParent)
-    handleAssignmentSimple(RootIdentifier, if (name == rootClassName) {
+    handleAssignmentSimple(ParentIdentifier, None, pParent)
+    handleAssignmentSimple(RootIdentifier, None, if (name == rootClassName) {
       config.cppConfig.pointers match {
         case RawPointers | UniqueAndRawPointers => "this"
         case SharedPointers => "shared_from_this()"
@@ -212,14 +212,14 @@ class CppCompiler(
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
         ensureMode(PrivateAccess)
         outHdr.puts("int m__is_le;")
-        handleAssignmentSimple(EndianIdentifier, if (isHybrid) "p_is_le" else "-1")
+        handleAssignmentSimple(EndianIdentifier, None, if (isHybrid) "p_is_le" else "-1")
         ensureMode(PublicAccess)
       case _ =>
         // no _is_le variable
     }
 
     // Store parameters passed to us
-    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+    params.foreach((p) => handleAssignmentSimple(p.id, Some(p.dataType), paramName(p.id)))
   }
 
   override def classConstructorFooter: Unit = {
@@ -557,7 +557,7 @@ class CppCompiler(
     outSrc.inc
   }
 
-  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(expr)});")
   }
 
@@ -588,7 +588,7 @@ class CppCompiler(
     outSrc.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(expr)});")
   }
 
@@ -615,7 +615,7 @@ class CppCompiler(
 
   private val ReStdUniquePtr = "^std::unique_ptr<(.*?)>\\((.*?)\\)$".r
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+  override def handleAssignmentRepeatUntil(id: Identifier, dataType: Option[DataType], expr: String, isRaw: Boolean): Unit = {
     val (typeDecl, tempVar) = if (isRaw) {
       ("std::string ", translator.doName(Identifier.ITERATOR2))
     } else {
@@ -647,7 +647,7 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     outSrc.puts(s"${privateMemberName(id)} = $expr;")
   }
 

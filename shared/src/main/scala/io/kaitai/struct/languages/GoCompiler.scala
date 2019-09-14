@@ -227,7 +227,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentRepeatEos(id: Identifier, r: TranslatorResult): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, dataType: Option[DataType], r: TranslatorResult): Unit = {
     val name = privateMemberName(id)
     val expr = translator.resToStr(r)
     out.puts(s"$name = append($name, $expr)")
@@ -241,7 +241,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], r: TranslatorResult): Unit = {
     val name = privateMemberName(id)
     val expr = translator.resToStr(r)
     out.puts(s"$name[i] = $expr")
@@ -254,7 +254,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, r: TranslatorResult, isRaw: Boolean): Unit = {
+  override def handleAssignmentRepeatUntil(id: Identifier, dataType: Option[DataType], r: TranslatorResult, isRaw: Boolean): Unit = {
     val expr = translator.resToStr(r)
     val tempVar = translator.specialName(Identifier.ITERATOR)
     out.puts(s"$tempVar := $expr")
@@ -272,7 +272,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, r: TranslatorResult): Unit = {
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], r: TranslatorResult): Unit = {
     val expr = translator.resToStr(r)
     out.puts(s"${privateMemberName(id)} = $expr")
   }

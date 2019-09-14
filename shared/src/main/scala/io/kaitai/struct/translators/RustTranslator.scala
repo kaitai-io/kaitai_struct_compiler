@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -37,16 +38,16 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     }
   }
 
-  override def doLocalName(s: String) = {
+  override def doLocalName(s: String, t: Option[DataType]) = {
     s match {
       case Identifier.ITERATOR => "tmpa"
       case Identifier.ITERATOR2 => "tmpb"
       case Identifier.INDEX => "i"
-      case _ => s"self.${doName(s)}"
+      case _ => s"self.${doName(s, t)}"
     }
   }
 
-  override def doName(s: String) = s
+  override def doName(s: String, t: Option[DataType] = None) = s
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)

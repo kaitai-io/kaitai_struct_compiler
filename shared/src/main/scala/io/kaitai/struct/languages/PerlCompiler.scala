@@ -82,11 +82,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"my $$self = $kstructName->new($$_io);")
     out.puts
     out.puts("bless $self, $class;")
-    handleAssignmentSimple(ParentIdentifier, "$_parent")
-    handleAssignmentSimple(RootIdentifier, "$_root || $self;")
+    handleAssignmentSimple(ParentIdentifier, None, "$_parent")
+    handleAssignmentSimple(RootIdentifier, None, "$_root || $self;")
 
     if (isHybrid)
-      handleAssignmentSimple(EndianIdentifier, "$_is_le")
+      handleAssignmentSimple(EndianIdentifier, None, "$_is_le")
 
     out.puts
   }
@@ -236,7 +236,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
+  override def handleAssignmentRepeatEos(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
@@ -249,7 +249,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[$$i] = $expr;")
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
@@ -260,7 +260,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+  override def handleAssignmentRepeatUntil(id: Identifier, dataType: Option[DataType], expr: String, isRaw: Boolean): Unit = {
     val (decl, tmpName) = if (isRaw) {
       ("my ", translator.doName(Identifier.ITERATOR2))
     } else {
@@ -276,7 +276,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"} until (${expression(untilExpr)});")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {

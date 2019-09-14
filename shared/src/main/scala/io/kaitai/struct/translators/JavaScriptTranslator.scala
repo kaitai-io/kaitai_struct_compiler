@@ -1,6 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -37,16 +38,16 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     }
   }
 
-  override def doLocalName(s: String) = {
+  override def doLocalName(s: String, t: Option[DataType]) = {
     s match {
       case "_" => s
       case Identifier.SWITCH_ON => "on"
       case Identifier.INDEX => "i"
-      case _ => s"this.${doName(s)}"
+      case _ => s"this.${doName(s, t)}"
     }
   }
 
-  override def doName(s: String) = {
+  override def doName(s: String, t: Option[DataType] = None) = {
     s match {
       case "_root" | "_parent" | "_io" => s
       case _ => Utils.lowerCamelCase(s)

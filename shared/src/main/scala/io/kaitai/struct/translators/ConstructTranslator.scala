@@ -3,19 +3,20 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.ImportList
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.datatype.DataType
 
 class ConstructTranslator(provider: TypeProvider, importList: ImportList) extends PythonTranslator(provider, importList) {
-  override def doLocalName(s: String) = {
+  override def doLocalName(s: String, t: Option[DataType]) = {
     s match {
       case Identifier.ITERATOR => "obj_"
       case Identifier.INDEX => "i"
       case Identifier.ROOT => "this._root"
       case Identifier.IO => "_io"
-      case _ => s"this.${doName(s)}"
+      case _ => s"this.${doName(s, t)}"
     }
   }
 
-  override def doName(s: String) = {
+  override def doName(s: String, t: Option[DataType] = None) = {
     s match {
       case Identifier.PARENT => "_"
       case _ => s

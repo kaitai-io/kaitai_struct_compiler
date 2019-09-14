@@ -52,13 +52,13 @@ trait EveryReadIsExpression
         attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, isNullable, st.combinedType)
       case t: StrFromBytesType =>
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), Ast.expr.Str(t.encoding))
-        handleAssignment(id, expr, rep, isRaw)
+        handleAssignment(id, dataType, expr, rep, isRaw)
       case t: EnumType =>
         val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, t.basedOn, io, defEndian))
-        handleAssignment(id, expr, rep, isRaw)
+        handleAssignment(id, dataType, expr, rep, isRaw)
       case _ =>
         val expr = parseExpr(dataType, assignType, io, defEndian)
-        handleAssignment(id, expr, rep, isRaw)
+        handleAssignment(id, dataType, expr, rep, isRaw)
     }
 
     if (config.readStoresPos && rep != NoRepeat)
@@ -79,7 +79,7 @@ trait EveryReadIsExpression
     }
 
     val expr = parseExprBytes(dataType, io)
-    handleAssignment(rawId, expr, rep, isRaw)
+    handleAssignment(rawId, dataType, expr, rep, isRaw)
 
     // apply post-processing
     dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
@@ -125,7 +125,7 @@ trait EveryReadIsExpression
     }
     val expr = parseExpr(dataType, dataType, newIO, defEndian)
     if (config.autoRead) {
-      handleAssignment(id, expr, rep, false)
+      handleAssignment(id, dataType, expr, rep, false)
     } else {
       // Disabled autoRead requires one to actually call `_read` method on constructed
       // user type, and this must be done as a separate statement - or else exception
@@ -133,13 +133,13 @@ trait EveryReadIsExpression
       // makes us assign constructed element to a temporary variable in case of arrays.
       rep match {
         case NoRepeat =>
-          handleAssignmentSimple(id, expr)
+          handleAssignmentSimple(id, Some(dataType), expr)
           userTypeDebugRead(privateMemberName(id))
         case _ =>
           val tempVarName = localTemporaryName(id)
           handleAssignmentTempVar(dataType, tempVarName, expr)
           userTypeDebugRead(tempVarName)
-          handleAssignment(id, tempVarName, rep, false)
+          handleAssignment(id, dataType, tempVarName, rep, false)
       }
     }
   }
@@ -176,19 +176,19 @@ trait EveryReadIsExpression
     )
   }
 
-  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
+  def handleAssignment(id: Identifier, dataType: DataType, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
     rep match {
-      case RepeatEos => handleAssignmentRepeatEos(id, expr)
-      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
-      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr, isRaw)
-      case NoRepeat => handleAssignmentSimple(id, expr)
+      case RepeatEos => handleAssignmentRepeatEos(id, Some(dataType), expr)
+      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, Some(dataType), expr)
+      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, Some(dataType), expr, isRaw)
+      case NoRepeat => handleAssignmentSimple(id, Some(dataType), expr)
     }
   }
 
-  def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
-  def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
-  def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit
-  def handleAssignmentSimple(id: Identifier, expr: String): Unit
+  def handleAssignmentRepeatEos(id: Identifier, dataType: Option[DataType], expr: String): Unit
+  def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit
+  def handleAssignmentRepeatUntil(id: Identifier, dataType: Option[DataType], expr: String, isRaw: Boolean): Unit
+  def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
 
   def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
@@ -198,6 +198,6 @@ trait EveryReadIsExpression
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (config.readStoresPos)
       attrDebugStart(instName, dataType, None, NoRepeat)
-    handleAssignmentSimple(instName, expression(value))
+    handleAssignmentSimple(instName, Some(dataType), expression(value))
   }
 }

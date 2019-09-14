@@ -102,10 +102,10 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"parent::__construct($pIo, $pParent, $pRoot);")
 
     if (isHybrid)
-      handleAssignmentSimple(EndianIdentifier, "$is_le")
+      handleAssignmentSimple(EndianIdentifier, None, "$is_le")
 
     // Store parameters passed to us
-    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+    params.foreach((p) => handleAssignmentSimple(p.id, Some(p.dataType), paramName(p.id)))
   }
 
   override def runRead(): Unit =
@@ -220,7 +220,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"end($memberName)"
-      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2, None)
       case NoRepeat => memberName
     }
 
@@ -259,7 +259,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}[] = $expr;")
   }
 
@@ -277,7 +277,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}[] = $expr;")
   }
 
@@ -290,8 +290,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val tmpName = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+  override def handleAssignmentRepeatUntil(id: Identifier, dataType: Option[DataType], expr: String, isRaw: Boolean): Unit = {
+    val tmpName = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR, None)
     out.puts(s"$tmpName = $expr;")
     out.puts(s"${privateMemberName(id)}[] = $tmpName;")
   }
@@ -303,7 +303,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"} while (!(${expression(untilExpr)}));")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+  override def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
 

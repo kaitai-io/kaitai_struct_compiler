@@ -49,21 +49,21 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
       case t: StrFromBytesType =>
         val r1 = translator.outVarCheckRes(parseExprBytes(t.bytes, io))
         val expr = translator.bytesToStr(translator.resToStr(r1), Ast.expr.Str(t.encoding))
-        handleAssignment(id, expr, rep, isRaw)
+        handleAssignment(id, dataType, expr, rep, isRaw)
       case t: EnumType =>
         val r1 = translator.outVarCheckRes(parseExpr(t.basedOn, io, defEndian))
         val enumSpec = t.enumSpec.get
         val expr = translator.trEnumById(enumSpec.name, translator.resToStr(r1))
-        handleAssignment(id, expr, rep, isRaw)
+        handleAssignment(id, dataType, expr, rep, isRaw)
       case BitsType1 =>
         val expr = parseExpr(dataType, io, defEndian)
         val r1 = translator.outVarCheckRes(expr)
         val r2 = ResultString(s"${translator.resToStr(r1)} != 0")
-        handleAssignment(id, r2, rep, isRaw)
+        handleAssignment(id, dataType, r2, rep, isRaw)
       case _ =>
         val expr = parseExpr(dataType, io, defEndian)
         val r = translator.outVarCheckRes(expr)
-        handleAssignment(id, r, rep, isRaw)
+        handleAssignment(id, dataType, r, rep, isRaw)
     }
   }
 
@@ -120,22 +120,22 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
     }
 
     val expr = translator.userType(dataType, newIO)
-    handleAssignment(id, expr, rep, false)
+    handleAssignment(id, dataType, expr, rep, false)
   }
 
-  def handleAssignment(id: Identifier, expr: TranslatorResult, rep: RepeatSpec, isRaw: Boolean): Unit = {
+  def handleAssignment(id: Identifier, dataType: DataType, expr: TranslatorResult, rep: RepeatSpec, isRaw: Boolean): Unit = {
     rep match {
-      case RepeatEos => handleAssignmentRepeatEos(id, expr)
-      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
-      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr, isRaw)
-      case NoRepeat => handleAssignmentSimple(id, expr)
+      case RepeatEos => handleAssignmentRepeatEos(id, Some(dataType), expr)
+      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, Some(dataType), expr)
+      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, Some(dataType), expr, isRaw)
+      case NoRepeat => handleAssignmentSimple(id, Some(dataType), expr)
     }
   }
 
-  def handleAssignmentRepeatEos(id: Identifier, expr: TranslatorResult): Unit
-  def handleAssignmentRepeatExpr(id: Identifier, expr: TranslatorResult): Unit
-  def handleAssignmentRepeatUntil(id: Identifier, expr: TranslatorResult, isRaw: Boolean): Unit
-  def handleAssignmentSimple(id: Identifier, expr: TranslatorResult): Unit
+  def handleAssignmentRepeatEos(id: Identifier, dataType: Option[DataType], expr: TranslatorResult): Unit
+  def handleAssignmentRepeatExpr(id: Identifier, dataType: Option[DataType], expr: TranslatorResult): Unit
+  def handleAssignmentRepeatUntil(id: Identifier, dataType: Option[DataType], expr: TranslatorResult, isRaw: Boolean): Unit
+  def handleAssignmentSimple(id: Identifier, dataType: Option[DataType], expr: TranslatorResult): Unit
 
   def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String
 }

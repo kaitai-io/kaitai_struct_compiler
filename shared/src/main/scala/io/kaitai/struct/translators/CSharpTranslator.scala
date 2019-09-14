@@ -45,7 +45,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     }
   }
 
-  override def doName(s: String) =
+  override def doName(s: String, t: Option[DataType] = None) =
     if (s.startsWith("_")) {
       s match {
         case Identifier.SWITCH_ON => "on"

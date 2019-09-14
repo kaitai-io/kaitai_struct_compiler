@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -44,18 +45,18 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   }
 
   override def anyField(value: expr, attrName: String): String =
-    s"${translate(value)}->${doName(attrName)}"
+    s"${translate(value)}->${doName(attrName, Some(detectType(value)))}"
 
-  override def doLocalName(s: String) = {
+  override def doLocalName(s: String, t: Option[DataType]) = {
     s match {
       case Identifier.ITERATOR => "$_"
       case Identifier.ITERATOR2 => "$_buf"
       case Identifier.INDEX => "$i"
-      case _ => s"$$this->${doName(s)}"
+      case _ => s"$$this->${doName(s, t)}"
     }
   }
 
-  override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
+  override def doName(s: String, t: Option[DataType] = None) = s"${Utils.lowerCamelCase(s)}()"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)
