@@ -76,7 +76,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
-    importList.add(s"../../../runtime/nim/kaitai")
+    importList.add(s"kaitai")
     out.puts
     out.puts("type")
     out.inc
