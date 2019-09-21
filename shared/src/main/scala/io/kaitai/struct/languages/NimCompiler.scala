@@ -199,6 +199,11 @@ object NimCompiler extends LanguageCompilerStatic
       case KaitaiStructType | CalcKaitaiStructType => "ref RootObj"
 
       case t: UserType => types2class(t.name)
+      case EnumType(name, _) => types2class(name)
+
+      case ArrayType(inType) => s"seq[${kaitaiType2NimType(inType)}]"
+
+      case st: SwitchType => kaitaiType2NimType(st.combinedType)
     }
   }
 
