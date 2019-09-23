@@ -9,7 +9,7 @@ import io.kaitai.struct.translators.{GoTranslator, ResultString, TranslatorResul
 
 import scala.collection.mutable.ListBuffer
 
-trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
+trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
   val translator: GoTranslator
 
   def attrBytesTypeParse(
@@ -28,6 +28,29 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
     dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
   }
 
+  def attrSwitchTypeParse(
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, DataType],
+    io: String,
+    rep: RepeatSpec,
+    defEndian: Option[FixedEndian],
+    isNullable: Boolean,
+    assignType: DataType
+  ): Unit = {
+    switchCases[DataType](id, on, cases,
+      (dataType) => {
+        attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
+      },
+      {
+        case dataType@(t: BytesType) =>
+          attrParse2(RawIdentifier(id), dataType, io, rep, false, defEndian, Some(assignType))
+        case dataType =>
+          attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
+      }
+    )
+  }
+
   override def attrParse2(
     id: Identifier,
     dataType: DataType,
@@ -44,8 +67,8 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with SwitchOps {
         attrUserTypeParse(id, t, io, rep, defEndian)
       case t: BytesType =>
         attrBytesTypeParse(id, t, io, rep, isRaw)
-//      case SwitchType(on, cases) =>
-//        attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep)
+      case st: SwitchType =>
+        attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, st.isNullableSwitchRaw, st.combinedType)
       case t: StrFromBytesType =>
         val r1 = translator.outVarCheckRes(parseExprBytes(t.bytes, io))
         val expr = translator.bytesToStr(translator.resToStr(r1), Ast.expr.Str(t.encoding))

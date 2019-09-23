@@ -1,11 +1,11 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian, KSError}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{GoTranslator, TranslatorResult, TypeDetector}
+import io.kaitai.struct.translators.{GoTranslator, ResultString, TranslatorResult}
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
@@ -32,7 +32,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String =
     s"src/${config.goPackage}/$topClassName.go"
 
-  override def outImports(topClass: ClassSpec) = {
+  override def outImports(topClass: ClassSpec): String = {
     val imp = importList.toList
     imp.size match {
       case 0 => ""
@@ -46,7 +46,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"// $headerComment")
-    if (!config.goPackage.isEmpty) {
+    if (config.goPackage.nonEmpty) {
       outHeader.puts
       outHeader.puts(s"package ${config.goPackage}")
     }
@@ -62,32 +62,72 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def classFooter(name: List[String]): Unit = universalFooter
-
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
-    out.puts
-    out.puts(
-      s"func (this *${types2class(name)}) Read(" +
-        s"io *$kstreamName, " +
-        s"parent ${kaitaiType2NativeType(parentType)}, " +
-        s"root *${types2class(rootClassName)}) (err error) {"
-    )
-    out.inc
-    out.puts(s"${privateMemberName(IoIdentifier)} = io")
-    out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
-    out.puts(s"${privateMemberName(RootIdentifier)} = root")
-    out.puts
-  }
-
-  override def classConstructorFooter: Unit = {
-    out.puts("return err")
+  override def classFooter(name: List[String]): Unit = {
+    // TODO(jchw): where should this attribute actually be generated at?
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        out.puts(s"${idToStr(EndianIdentifier)} int")
+      case _ =>
+    }
     universalFooter
   }
 
-  override def runRead(): Unit = {}
-  override def runReadCalc(): Unit = ???
-  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {}
-  override def readFooter(): Unit = {}
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {}
+
+  override def classConstructorFooter: Unit = {}
+
+  override def runRead(): Unit = {
+    out.puts("this.Read()")
+  }
+
+  override def runReadCalc(): Unit = {
+    out.puts
+    out.puts(s"switch ${privateMemberName(EndianIdentifier)} {")
+    out.puts("case 0:")
+    out.inc
+    out.puts("err = this._read_be()")
+    out.dec
+    out.puts("case 1:")
+    out.inc
+    out.puts("err = this._read_le()")
+    out.dec
+    out.puts("default:")
+    out.inc
+    // FIXME
+    // out.puts(s"err = ${GoCompiler.ksErrorName(UndecidedEndiannessError)}()")
+    out.puts("panic(\"undecided endianness\")")
+    out.dec
+    out.puts("}")
+  }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    endian match {
+      case None =>
+        out.puts
+        out.puts(
+          s"func (this *${types2class(typeProvider.nowClass.name)}) Read(" +
+            s"io *$kstreamName, " +
+            s"parent ${kaitaiType2NativeType(typeProvider.nowClass.parentType)}, " +
+            s"root *${types2class(typeProvider.topClass.name)}) (err error) {"
+        )
+        out.inc
+        out.puts(s"${privateMemberName(IoIdentifier)} = io")
+        out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
+        out.puts(s"${privateMemberName(RootIdentifier)} = root")
+        out.puts
+      case Some(e) =>
+        out.puts
+        out.puts(
+          s"func (this *${types2class(typeProvider.nowClass.name)}) " +
+            s"_read_${e.toSuffix}() (err error) {")
+        out.inc
+    }
+
+  }
+  override def readFooter(): Unit = {
+    out.puts("return err")
+    universalFooter
+  }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
@@ -112,7 +152,24 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts( " */")
   }
 
-  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = ???
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts(s"switch ${privateMemberName(EndianIdentifier)} {")
+    out.puts("case 0:")
+    out.inc
+    beProc()
+    out.dec
+    out.puts("case 1:")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("default:")
+    out.inc
+    // FIXME
+    // out.puts(s"err = ${GoCompiler.ksErrorName(UndecidedEndiannessError)}()")
+    out.puts("panic(\"undecided endianness\")")
+    out.dec
+    out.puts("}")
+  }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
     out.puts(s"${privateMemberName(attrName)}, err = $normalIO.ReadBytes(${contents.length})")
@@ -272,8 +329,33 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
+  private def castToType(r: TranslatorResult, dataType: DataType): TranslatorResult = {
+    dataType match {
+      case t @ (_: IntMultiType | _: FloatMultiType) =>
+        ResultString(s"${kaitaiType2NativeType(t)}(${translator.resToStr(r)})")
+      case _ =>
+        r
+    }
+  }
+
+  private def combinedType(dataType: DataType) = {
+    dataType match {
+      case st: SwitchType => st.combinedType
+      case _ => dataType
+    }
+  }
+
+  private def handleCompositeTypeCast(id: Identifier, r: TranslatorResult): TranslatorResult = {
+    id match {
+      case NamedIdentifier(name) =>
+        castToType(r, combinedType(typeProvider.determineType(name)))
+      case _ =>
+        r
+    }
+  }
+
   override def handleAssignmentSimple(id: Identifier, r: TranslatorResult): Unit = {
-    val expr = translator.resToStr(r)
+    val expr = translator.resToStr(handleCompositeTypeCast(id, r))
     out.puts(s"${privateMemberName(id)} = $expr")
   }
 
@@ -318,27 +400,41 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 //    expr2
 //  }
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"switch (${expression(on)}) {")
+  }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"case ${expression(condition)}: {")
+    out.puts(s"case ${expression(condition)}:")
     out.inc
   }
 
   override def switchCaseEnd(): Unit = {
-    out.puts("break;")
     out.dec
-    out.puts("}")
   }
 
   override def switchElseStart(): Unit = {
-    out.puts("default: {")
+    out.puts("default:")
     out.inc
   }
 
   override def switchEnd(): Unit =
     out.puts("}")
+
+  override def switchShouldUseCompareFn(onType: DataType): Option[String] = {
+    onType match {
+      case _: BytesType =>
+        importList.add("bytes")
+        Some("bytes.Equal")
+      case _ =>
+        None
+    }
+  }
+
+  override def switchCaseStartCompareFn(compareFn: String, switchOn: Ast.expr, condition: Ast.expr): Unit = {
+    out.puts(s"case ${compareFn}(${expression(switchOn)}, ${expression(condition)}):")
+    out.inc
+  }
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${calculatedFlagForName(attrName)} bool")
