@@ -114,6 +114,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"${privateMemberName(IoIdentifier)} = io")
         out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
         out.puts(s"${privateMemberName(RootIdentifier)} = root")
+        typeProvider.nowClass.meta.endian match {
+          case Some(_: CalcEndian) =>
+            out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
+          case Some(InheritedEndian) =>
+            out.puts(s"${privateMemberName(EndianIdentifier)} = " +
+              s"${privateMemberName(ParentIdentifier)}." +
+              s"${idToStr(EndianIdentifier)}")
+          case _ =>
+        }
         out.puts
       case Some(e) =>
         out.puts
