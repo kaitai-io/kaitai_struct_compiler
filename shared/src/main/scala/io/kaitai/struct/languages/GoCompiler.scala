@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
@@ -93,9 +93,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("default:")
     out.inc
-    // FIXME
-    // out.puts(s"err = ${GoCompiler.ksErrorName(UndecidedEndiannessError)}()")
-    out.puts("panic(\"undecided endianness\")")
+    out.puts(s"err = ${GoCompiler.ksErrorName(UndecidedEndiannessError)}{}")
     out.dec
     out.puts("}")
   }
@@ -164,9 +162,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("default:")
     out.inc
-    // FIXME
-    // out.puts(s"err = ${GoCompiler.ksErrorName(UndecidedEndiannessError)}()")
-    out.puts("panic(\"undecided endianness\")")
+    out.puts(s"err = ${GoCompiler.ksErrorName(UndecidedEndiannessError)}{}")
     out.dec
     out.puts("}")
   }
@@ -580,7 +576,7 @@ object GoCompiler extends LanguageCompilerStatic
     }
   }
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString("_")
+  def types2class(names: List[String]): String = names.map(x => type2class(x)).mkString("_")
 
   def enumToStr(enumTypeAbs: List[String]): String = {
     val enumName = enumTypeAbs.last
@@ -593,5 +589,9 @@ object GoCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "kaitai.Stream"
   override def kstructName: String = "interface{}"
-  override def ksErrorName(err: KSError): String = ???
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "kaitai.EndOfStreamError"
+    case UndecidedEndiannessError => "kaitai.UndecidedEndiannessError"
+    case ValidationNotEqualError => "kaitai.ValidationNotEqualError"
+  }
 }
