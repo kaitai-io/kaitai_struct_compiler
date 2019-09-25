@@ -8,7 +8,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 
-import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
+import io.kaitai.struct.translators.{NimTranslator, TypeDetector}
 
 class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -51,16 +51,15 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"proc read*(_: typedesc[${current}], stream: KaitaiStream, root: ${root}, parent: ${parent}): owned ${current} =")
     out.inc
     out.puts(s"result = new(${current})")
-    out.puts("let root = if root == nil: result else: root")
+    out.puts(s"let root = if root == nil: cast[$root](result) else: root")
   }
 
   override def classFooter(name: List[String]): Unit = {
     out.dec
-    out.dec
   }
 
   override def classHeader(name: List[String]): Unit = {
-    out.puts(s"${upperCamelCase(name.mkString(""))}* = ref object")
+    out.puts(s"${upperCamelCase(name.last)}* = ref object")
     out.inc
   }
 
@@ -76,7 +75,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
-    importList.add(s"kaitai")
+    importList.add(s"../../../runtime/nim/kaitai")
     out.puts
     out.puts("type")
     out.inc
@@ -85,6 +84,11 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def indent: String = "  "
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = ()
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = ()
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    importList.add("options")
+    val name = idToStr(attrName)
+    out.puts(s"${name}*: Option[${kaitaiType2NimType(attrType)}]")
+  }
   override def instanceFooter: Unit = ()
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = ()
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = ()
@@ -100,7 +104,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def seek(io: String, pos: Ast.expr): Unit = ()
 
   val importListSrc = new ImportList
-  override val translator: io.kaitai.struct.translators.AbstractTranslator = new CppTranslator(typeProvider, importListSrc, config)
+  override val translator: io.kaitai.struct.translators.AbstractTranslator = new NimTranslator(typeProvider, importListSrc)
 
   override def useIO(ioEx: Ast.expr): String = ""
 
@@ -116,7 +120,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     "\n" + importList.toList.map((x) => s"import $x").mkString("\n") + "\n"
 
   def fromFileProc(name: List[String]): Unit = {
-    val current = name.map(x => type2class(x)).mkString("_")
+    val current = types2class(name)
     out.puts
     out.puts(s"proc fromFile*(_: typedesc[${current}], filename: string): owned ${current} =")
     out.inc
@@ -125,13 +129,45 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
-  def readInstance(instName: Identifier, dataType: DataType, endian: Option[FixedEndian]): Unit = {
-    val api = dataType match {
-      case rt: ReadableType => rt.apiCall(endian)
-      case _ => dataType.toString
+  def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
+    dataType match {
+      case t: ReadableType =>
+        s"read${Utils.capitalize(t.apiCall(defEndian))}(stream)"
+      case blt: BytesLimitType =>
+        s"readBytes($io, int(${translator.translate(blt.size)}))"
+      case _: BytesEosType =>
+        s"readBytesFull($io)"
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        s"readBytesTerm($io, $terminator, $include, $consume, $eosError)"
+      case BitsType1 =>
+        s"bool(readBitsInt($io, 1))"
+      case BitsType(width: Int) =>
+        s"readBitsInt($io, $width)"
+      case t: UserType =>
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "nil"
+            case Some(fp) => translator.translate(fp)
+            case None => "result"
+          }
+          s", root, $parent"
+        }
+        s"${types2class(t.name)}.read($io$addArgs)"
     }
+  }
 
-    out.puts("result." + idToStr(instName) + " = read" + Utils.capitalize(api) + "(stream)")
+  def readInstance(instName: Identifier, dataType: DataType, isArray: Boolean, endian: Option[FixedEndian]): Unit = {
+    if (isArray) {
+      out.puts("result." + idToStr(instName) + " = " + s"newSeq[${kaitaiType2NimType(dataType)}]()")
+      out.puts("while not eof(stream):")
+      out.inc
+      out.puts("result." + idToStr(instName) + ".add(" + parseExpr(dataType, "stream", endian) + ")")
+      out.dec
+    } else {
+      out.puts("result." + idToStr(instName) + " = " + parseExpr(dataType, "stream", endian))
+    }
   }
 
   // Slightly different implementation than io.kaitai.struct.Utils
@@ -160,7 +196,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NamedIdentifier(name) => lowerCamelCase(name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => lowerCamelCase(name)
-      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
+      case RawIdentifier(innerId) => "raw_" + idToStr(innerId)
     }
   }
 }
@@ -182,7 +218,7 @@ object NimCompiler extends LanguageCompilerStatic
       case Int1Type(true) => "int8"
       case IntMultiType(true, Width2, _) => "int16"
       case IntMultiType(true, Width4, _) => "int32"
-      case IntMultiType(true, Width8, _) => "int"
+      case IntMultiType(true, Width8, _) => "int64"
 
       case FloatMultiType(Width4, _) => "float32"
       case FloatMultiType(Width8, _) => "float64"
@@ -207,5 +243,5 @@ object NimCompiler extends LanguageCompilerStatic
     }
   }
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString("_")
+  def types2class(names: List[String]) = Utils.upperCamelCase(names.last)
 }
