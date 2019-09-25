@@ -104,6 +104,11 @@ class TypeDetector(provider: TypeProvider) {
               case _: IntType => elType
               case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
             }
+          case CalcArrayType(elType: DataType) =>
+            detectType(idx) match {
+              case _: IntType => elType
+              case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
+            }
           case cntType => throw new TypeMismatchError(s"unable to apply operation [] to $cntType")
         }
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
