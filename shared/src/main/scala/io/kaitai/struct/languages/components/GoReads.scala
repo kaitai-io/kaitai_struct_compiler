@@ -1,13 +1,10 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{GoTranslator, ResultString, TranslatorResult}
-
-import scala.collection.mutable.ListBuffer
+import io.kaitai.struct.translators.{GoTranslator, ResultLocalVar, ResultString, TranslatorResult}
 
 trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
   val translator: GoTranslator
@@ -23,7 +20,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
       case None => id
       case Some(_) => RawIdentifier(id)
     }
-    val expr = translator.outVarCheckRes(parseExprBytes(dataType, io))
+    val expr = parseExprBytes(translator.outVarCheckRes(parseExpr(dataType, io, None)), dataType)
     handleAssignment(rawId, expr, rep, isRaw)
     dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
   }
@@ -70,7 +67,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
       case st: SwitchType =>
         attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, st.isNullableSwitchRaw, st.combinedType)
       case t: StrFromBytesType =>
-        val r1 = translator.outVarCheckRes(parseExprBytes(t.bytes, io))
+        val r1 = parseExprBytes(translator.outVarCheckRes(parseExpr(t.bytes, io, defEndian)), t.bytes)
         val expr = translator.bytesToStr(translator.resToStr(r1), Ast.expr.Str(t.encoding))
         handleAssignment(id, expr, rep, isRaw)
       case t: EnumType =>
@@ -90,7 +87,8 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     }
   }
 
-  def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+  def bytesPadTermExpr(id: ResultLocalVar, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+    val expr0 = translator.resToStr(id)
     val expr1 = padRight match {
       case Some(padByte) => s"kaitai.BytesStripRight($expr0, $padByte)"
       case None => expr0
@@ -102,19 +100,15 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     expr2
   }
 
-  def parseExprBytes(dataType: BytesType, io: String): String = {
-    val expr = parseExpr(dataType, io, None) // FIXME
-
-    // apply pad stripping and termination
+  def parseExprBytes(id: ResultLocalVar, dataType: BytesType): ResultLocalVar = {
     dataType match {
       case BytesEosType(terminator, include, padRight, _) =>
-        bytesPadTermExpr(expr, padRight, terminator, include)
+        translator.outTransform(id, bytesPadTermExpr(id, padRight, terminator, include))
       case BytesLimitType(_, terminator, include, padRight, _) =>
-        bytesPadTermExpr(expr, padRight, terminator, include)
+        translator.outTransform(id, bytesPadTermExpr(id, padRight, terminator, include))
       case _ =>
-        expr
+        id
     }
-    expr
   }
 
   def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
