@@ -16,7 +16,13 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   }
   override def doEnumById(enumTypeAbs: List[String], id: String): String = ???
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = ???
-  override def doName(s: String): String = s"${Utils.lowerCamelCase(s)}"
+  override def doName(s: String): String =
+    s match {
+      case Identifier.PARENT => "parent"
+      case Identifier.IO => "stream"
+      case _ => s"${Utils.lowerCamelCase(s)}"
+    }
+
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
   override def doSubscript(container: expr, idx: expr): String =

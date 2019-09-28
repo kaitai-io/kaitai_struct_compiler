@@ -8,7 +8,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 
-import io.kaitai.struct.translators.{NimTranslator, TypeDetector}
+import io.kaitai.struct.translators.{AbstractTranslator, NimTranslator, TypeDetector}
 
 class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -37,8 +37,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = ()
 
   override def classConstructorFooter: Unit = {
-    out.puts("result.root = root")
-    out.puts("result.parent = parent")
+    out.puts("stream.seek(streamPos)")
     out.dec
   }
 
@@ -52,6 +51,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts(s"result = new(${current})")
     out.puts(s"let root = if root == nil: cast[$root](result) else: root")
+    out.puts("result.root = root")
+    out.puts("result.parent = parent")
   }
 
   override def classFooter(name: List[String]): Unit = {
@@ -104,7 +105,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def seek(io: String, pos: Ast.expr): Unit = ()
 
   val importListSrc = new ImportList
-  override val translator: io.kaitai.struct.translators.AbstractTranslator = new NimTranslator(typeProvider, importListSrc)
+  override val translator: AbstractTranslator = new NimTranslator(typeProvider, importListSrc)
 
   override def useIO(ioEx: Ast.expr): String = ""
 
@@ -125,7 +126,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"proc fromFile*(_: typedesc[${current}], filename: string): owned ${current} =")
     out.inc
     out.puts("var stream = newKaitaiStream(filename)")
-    out.puts(s"${current}.read(stream, nil, nil)")
+    out.puts(s"result = ${current}.read(stream, nil, nil)")
+    out.puts("close(stream)")
     out.dec
   }
 
@@ -158,7 +160,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  def readInstance(instName: Identifier, dataType: DataType, isArray: Boolean, endian: Option[FixedEndian]): Unit = {
+  def readType(instName: Identifier, dataType: DataType, isArray: Boolean, endian: Option[FixedEndian]): Unit = {
     if (isArray) {
       out.puts("result." + idToStr(instName) + " = " + s"newSeq[${kaitaiType2NimType(dataType)}]()")
       out.puts("while not eof(stream):")
@@ -168,6 +170,15 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       out.puts("result." + idToStr(instName) + " = " + parseExpr(dataType, "stream", endian))
     }
+  }
+
+  def readInstance(instName: Identifier, dataType: DataType, pos: Ast.expr, endian: Option[FixedEndian]): Unit = {
+    out.puts(s"stream.seek(${translator.translate(pos)})")
+    out.puts("result." + idToStr(instName) + " = some(" + parseExpr(dataType, "stream", endian) + ")")
+  }
+
+  def savePosition(): Unit = {
+    out.puts("let streamPos = pos(stream)")
   }
 
   // Slightly different implementation than io.kaitai.struct.Utils
