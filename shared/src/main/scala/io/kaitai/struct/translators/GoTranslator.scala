@@ -413,6 +413,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultLocalVar(v1)
   }
 
+  def outTransform(id: ResultLocalVar, expr: String): ResultLocalVar = {
+    out.puts(s"${resToStr(id)} = $expr")
+    id
+  }
+
   private
   var localVarNum = 0
 
