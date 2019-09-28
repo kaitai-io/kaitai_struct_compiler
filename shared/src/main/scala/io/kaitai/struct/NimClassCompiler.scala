@@ -75,6 +75,10 @@ class NimClassCompiler(
       case Some(fe: FixedEndian) => Some(fe)
       case _ => Some(LittleEndian)
     }
-    curClass.seq.foreach { (attr) => lang.asInstanceOf[NimCompiler].readInstance(attr.id, attr.dataType, attr.isArray, defEndian) }
+    curClass.seq.foreach { (attr) => lang.asInstanceOf[NimCompiler].readType(attr.id, attr.dataType, attr.isArray, defEndian) }
+    lang.asInstanceOf[NimCompiler].savePosition()
+    curClass.instances.foreach { case (id, pis: ParseInstanceSpec) =>
+      lang.asInstanceOf[NimCompiler].readInstance(id, pis.dataType, pis.pos.get, defEndian)
+    }
   }
 }
