@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.languages.NimCompiler
+import io.kaitai.struct.NimClassCompiler
 
 class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   // Members declared in io.kaitai.struct.translators.BaseTranslator
@@ -20,6 +20,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s match {
       case Identifier.PARENT => "parent"
       case Identifier.IO => "stream"
+      case Identifier.ITERATOR2 => "it"
       case _ => s"${Utils.lowerCamelCase(s)}"
     }
 
@@ -28,9 +29,25 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doSubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
 
+  override def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} & ${translate(right)}"
+
   // Members declared in io.kaitai.struct.translators.CommonMethods
-  override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"${NimCompiler.kaitaiType2NimType(typeName)}(${translate(value)})"
+  override def binOp(op: Ast.operator): String = {
+    op match {
+      case Ast.operator.Add => "+"
+      case Ast.operator.Sub => "-"
+      case Ast.operator.Mult => "*"
+      case Ast.operator.Div => "/"
+      case Ast.operator.Mod => "%%%"
+      case Ast.operator.BitAnd => "and"
+      case Ast.operator.BitOr => "or"
+      case Ast.operator.BitXor => "xor"
+      case Ast.operator.LShift => "shl"
+      case Ast.operator.RShift => "shr"
+    }
+  }
+//  override def doCast(value: Ast.expr, typeName: DataType): String =
+//    s"${NimCompiler.kaitaiType2NimType(typeName)}(${translate(value)})"
   override def doIntLiteral(n: BigInt): String = {
     if (n < -9223372036854775808L) {
       s"$n" // too low, no type conversion would help anyway
