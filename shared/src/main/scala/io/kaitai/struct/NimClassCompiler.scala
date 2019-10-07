@@ -7,7 +7,11 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 import io.kaitai.struct.translators.NimTranslator
 
-class NimClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
+class NimClassCompiler(
+  classSpecs: ClassSpecs,
+  topClass: ClassSpec,
+  config: RuntimeConfig
+) extends AbstractCompiler {
   import NimClassCompiler._
 
   val out = new StringLanguageOutputWriter(indent)
@@ -16,7 +20,7 @@ class NimClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends Abst
   val translator = new NimTranslator(provider, importList)
 
   override def compile: CompileLog.SpecSuccess = {
-    out.puts("TEST")
+    importList.add(config.nimModule)
 
     CompileLog.SpecSuccess(
       "",
@@ -30,7 +34,7 @@ class NimClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends Abst
   def indent: String = "  "
   def outFileName(topClassName: String): String = s"$topClassName.nim"
   def outImports(topClass: ClassSpec) =
-    "\n" + importList.toList.map((x) => s"import $x").mkString("\n") + "\n"
+    importList.toList.map((x) => s"import $x").mkString("\n") + "\n"
 }
 
 object NimClassCompiler extends LanguageCompilerStatic {

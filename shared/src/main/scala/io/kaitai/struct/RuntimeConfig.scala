@@ -61,6 +61,7 @@ object CppRuntimeConfig {
   * @param dotNetNamespace .NET (C#) namespace
   * @param phpNamespace PHP namespace
   * @param pythonPackage Python package name
+  * @param nimModule Path of Nim runtime module
   */
 case class RuntimeConfig(
   autoRead: Boolean = true,
@@ -72,5 +73,6 @@ case class RuntimeConfig(
   javaFromFileClass: String = "io.kaitai.struct.ByteBufferKaitaiStream",
   dotNetNamespace: String = "Kaitai",
   phpNamespace: String = "",
-  pythonPackage: String = ""
+  pythonPackage: String = "",
+  nimModule: String = "kaitai_struct/runtime/nim/kaitai"
 )

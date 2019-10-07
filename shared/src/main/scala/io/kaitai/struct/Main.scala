@@ -66,7 +66,7 @@ object Main {
       case HtmlClassCompiler =>
         new HtmlClassCompiler(specs, spec)
       case NimClassCompiler =>
-        new NimClassCompiler(specs, spec)
+        new NimClassCompiler(specs, spec, config)
       case _ =>
         new ClassCompiler(specs, spec, config, lang)
     }

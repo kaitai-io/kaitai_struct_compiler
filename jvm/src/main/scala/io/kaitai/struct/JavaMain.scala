@@ -117,6 +117,10 @@ object JavaMain {
         c.copy(runtime = c.runtime.copy(pythonPackage = x))
       } text("Python package (Python only, default: root package)")
 
+      opt[String]("nim-module") valueName("<module>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(nimModule = x))
+      } text("Path of Nim runtime module (Nim only, default: kaitai_struct/runtime/nim/kaitai)")
+
       opt[Boolean]("opaque-types") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
       } text("opaque types allowed, default: false")
