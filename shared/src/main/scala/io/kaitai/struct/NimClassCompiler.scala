@@ -1,80 +1,42 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.CompileLog.FileSuccess
-import io.kaitai.struct.datatype.DataType.UserTypeInstream
-import io.kaitai.struct.datatype.{InheritedEndian, FixedEndian, LittleEndian}
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.components.ExtraAttrs
-import io.kaitai.struct.languages.NimCompiler
+import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
+import io.kaitai.struct.translators.NimTranslator
 
-class NimClassCompiler(
-  classSpecs: ClassSpecs,
-  override val topClass: ClassSpec,
-  config: RuntimeConfig
-) extends ClassCompiler(classSpecs, topClass, config, NimCompiler) {
+class NimClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
+  import NimClassCompiler._
+
+  val out = new StringLanguageOutputWriter(indent)
+  val provider = new ClassTypeProvider(classSpecs, topClass)
+  val importList = new ImportList
+  val translator = new NimTranslator(provider, importList)
+
   override def compile: CompileLog.SpecSuccess = {
-    lang.fileHeader(topClassName.head)
-    compileTypes(topClass)
-    lang.classFooter(null)
-    compileProcs(topClass)
+    out.puts("TEST")
 
     CompileLog.SpecSuccess(
-      lang.type2class(topClassName.head),
-      lang.results(topClass).map { case (fileName, contents) => FileSuccess(fileName, contents) }.toList
+      "",
+      List(CompileLog.FileSuccess(
+        outFileName(topClass.nameAsStr),
+        outImports(topClass) + out.result
+      ))
     )
   }
 
-  def compileTypes(curClass: ClassSpec): Unit = {
-    lang.classHeader(curClass.name)
+  def indent: String = "  "
+  def outFileName(topClassName: String): String = s"$topClassName.nim"
+  def outImports(topClass: ClassSpec) =
+    "\n" + importList.toList.map((x) => s"import $x").mkString("\n") + "\n"
+}
 
-    val extraAttrs = List(
-      AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None)),
-      AttrSpec(List(), ParentIdentifier, curClass.parentType)
-    ) ++ ExtraAttrs.forClassSpec(curClass, lang)
-
-    compileAttrDeclarations(curClass.seq ++ extraAttrs)
-    compileInstanceDeclarations(curClass)
-    lang.classFooter(curClass.name)
-    compileSubtypes(curClass)
-  }
-
-  def compileSubtypes(curClass: ClassSpec): Unit = {
-    curClass.types.foreach { case (_, subClass) => compileTypes(subClass) }
-  }
-
-  def compileInstanceDeclarations(curClass: ClassSpec) = {
-    curClass.instances.foreach { case (instName, instSpec) =>
-      lang.instanceDeclaration(instName, instSpec.dataTypeComposite, instSpec.isNullable)
-    }
-  }
-
-  def compileProcs(curClass: ClassSpec): Unit = {
-    compileSubprocs(curClass)
-
-    lang.classConstructorHeader(
-      curClass.name,
-      curClass.parentType,
-      topClassName,
-      curClass.meta.endian.contains(InheritedEndian),
-      curClass.params
-    )
-
-    compileReads(curClass)
-
-    lang.classConstructorFooter
-
-    lang.asInstanceOf[NimCompiler].fromFileProc(curClass.name)
-  }
-
-  def compileSubprocs(curClass: ClassSpec): Unit = {
-    curClass.types.foreach { case (_, subClass) => compileProcs(subClass) }
-  }
-
-  def compileReads(curClass: ClassSpec): Unit = {
-    val defEndian = curClass.meta.endian match {
-      case Some(fe: FixedEndian) => Some(fe)
-      case _ => Some(LittleEndian)
-    }
-    curClass.seq.foreach { (attr) => lang.asInstanceOf[NimCompiler].readInstance(attr.id, attr.dataType, attr.isArray, defEndian) }
-  }
+object NimClassCompiler extends LanguageCompilerStatic {
+  // FIXME: Unused, should be probably separated from LanguageCompilerStatic
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig
+  ): LanguageCompiler = ???
 }
