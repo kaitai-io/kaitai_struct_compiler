@@ -123,6 +123,7 @@ class NimClassCompiler(
     }
     out.dec
     out.puts
+    // generate instance closures here
     out.puts(s"proc fromFile*(_: typedesc[$t], filename: string): owned $t =")
     out.inc
     out.puts(s"$t.read(newKaitaiStream(filename), nil, nil)")
