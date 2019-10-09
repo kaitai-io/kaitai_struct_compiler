@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -26,13 +26,15 @@ class NimClassCompiler(
     out.inc
     compileTypes(topClass)
     out.dec
+    out.puts
+    compileProcs(topClass)
 
 
     CompileLog.SpecSuccess(
       "",
       List(CompileLog.FileSuccess(
         outFileName(topClass.nameAsStr),
-        imports + "\n" + globalPragmas + "\n" + out.result
+        imports + "\n\n" + globalPragmas + "\n\n" + out.result
       ))
     )
   }
@@ -45,14 +47,10 @@ class NimClassCompiler(
   def globalPragmas =
     globalPragmaList.toList.map((x) => s"{.$x.}").mkString("\n")
 
-  def compileSubtypes(curClass: ClassSpec): Unit = {
-    curClass.types.foreach { case (_, subClass) => compileTypes(subClass) }
-  }
-
   def compileTypes(curClass: ClassSpec): Unit = {
     compileSubtypes(curClass)
 
-    val t = camelCase(curClass.name.last, true)
+    val t = listToNim(curClass.name)
     out.puts(s"${t}* = ref ${t}Obj")
     out.puts(s"${t}Obj* = object")
     out.inc
@@ -64,19 +62,123 @@ class NimClassCompiler(
     )
 
     (extraAttrs ++ curClass.seq).foreach {
-      (attr) => compileAttrDeclaration(attr.id, attr.dataTypeComposite)
+      (attr) => {
+        val i = idToStr(attr.id)
+        val t = ksToNim(attr.dataTypeComposite)
+        out.puts(s"${i}${if (attr.id == IoIdentifier) "" else "*" }: $t")
+      }
     }
 
-    //compileInstDeclarations(curClass)
+    if (curClass.instances.size != 0) {
+      importList.add("options")
+      globalPragmaList.add("experimental: \"dotOperators\"")
+    }
 
+    curClass.instances.foreach {
+      case (id, spec) => {
+        val i = idToStr(id)
+        val t = ksToNim(spec.dataTypeComposite)
+        out.puts(s"${i}: proc(): $t")
+      }
+    }
     out.dec
   }
 
-  def compileAttrDeclaration(id: Identifier, dt: DataType): Unit = {
-    val i = idToStr(id)
-    val t = ksToNim(dt)
-    out.puts(s"${i}${if (id == IoIdentifier) "" else "*" }: $t")
+  def compileSubtypes(curClass: ClassSpec): Unit = {
+    curClass.types.foreach { case (_, subClass) => compileTypes(subClass) }
   }
+
+  def compileProcs(curClass: ClassSpec): Unit = {
+    compileSubtypeProcs(curClass)
+
+    val t = listToNim(curClass.name)
+    val p = ksToNim(curClass.parentType)
+    val r = camelCase(topClass.name.head, true)
+    
+    out.puts(s"# $t")
+
+    if (curClass.instances.size != 0) {
+      out.puts(s"template `.`*(a: $t, b: untyped): untyped =")
+      out.inc
+      out.puts("(a.`b inst`)()")
+      out.dec
+      out.puts
+    }
+
+    out.puts(s"proc read*(_: typedesc[$t], io: KaitaiStream, root: $r, parent: $p): owned $t =")
+    out.inc
+    out.puts(s"result = new($t)")
+    out.puts(s"let root = if root == nil: cast[$r](result) else: root")
+    out.puts("result.io = io")
+    out.puts("result.root = root")
+    out.puts("result.parent = parent")
+    out.puts
+    curClass.seq.foreach {
+      (attr) => {
+        val i = idToStr(attr.id)
+        val t = attr.dataTypeComposite
+        // XXX: fix endian
+        out.puts(s"result.$i = ${parse(t, "io", "result", None)}")
+      }
+    }
+    out.dec
+    out.puts
+    out.puts(s"proc fromFile*(_: typedesc[$t], filename: string): owned $t =")
+    out.inc
+    out.puts(s"$t.read(newKaitaiStream(filename), nil, nil)")
+    out.dec
+    out.puts
+    out.puts(s"proc `=destroy`(x: var ${t}Obj) =")
+    out.inc
+    out.puts("close(x.io)")
+    out.dec
+    out.puts
+  }
+
+  def compileSubtypeProcs(curClass: ClassSpec): Unit = {
+    curClass.types.foreach { case (_, subClass) => compileProcs(subClass) }
+  }
+
+  def parse(dataType: DataType, io: String, obj: String, endian: Option[FixedEndian]): String = {
+    def process(unproc: String, proc: Option[ProcessExpr]): String =
+      proc match {
+        case None => unproc
+        case Some(proc) => 
+          proc match {
+            case ProcessXor(key) => unproc + s".processXor(${evalLocal(key)})"
+          }
+      }
+
+    dataType match {
+      case t: ReadableType =>
+        s"read${Utils.capitalize(t.apiCall(endian))}($io)"
+      case t: BytesLimitType =>
+        process(s"readBytes($io, int(${evalLocal(t.size)}))", t.process)
+      case t: BytesEosType =>
+        process(s"readBytesFull($io)", t.process)
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        s"readBytesTerm($io, $terminator, $include, $consume, $eosError)"
+      case BitsType1 =>
+        s"bool(readBitsInt($io, 1))"
+      case BitsType(width: Int) =>
+        s"readBitsInt($io, $width)"
+      case t: UserType =>
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "nil"
+            case Some(fp) => translator.translate(fp)
+            case None => obj
+          }
+          s", root, $parent"
+        }
+        s"${listToNim(t.name)}.read($io$addArgs)"
+    }
+  }
+
+  def evalLocal(e: Ast.expr): String =
+    s"${e match {case Ast.expr.Name(_) => "result." case _ => ""}}${translator.translate(e)}"
 
   def camelCase(s: String, upper: Boolean): String = {
     if (upper) {
@@ -103,6 +205,8 @@ class NimClassCompiler(
       case RawIdentifier(innerId) => "raw" + camelCase(idToStr(innerId), true)
     }
   }
+
+  def listToNim(names: List[String]) = camelCase(names.last, true)
 
   def ksToNim(attrType: DataType): String = {
     attrType match {
@@ -131,8 +235,8 @@ class NimClassCompiler(
       case KaitaiStructType | CalcKaitaiStructType => "ref RootObj"
       case KaitaiStreamType => "KaitaiStream"
 
-      case t: UserType => camelCase(t.name.last, true)
-      case EnumType(name, _) => camelCase(name.last, true)
+      case t: UserType => listToNim(t.name)
+      case EnumType(name, _) => listToNim(name)
 
       case ArrayType(inType) => s"seq[${ksToNim(inType)}]"
 
