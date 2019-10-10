@@ -216,7 +216,7 @@ class TranslatorSpec extends FunSuite {
   full("[0, 1, 100500]", CalcIntType, ArrayType(CalcIntType), Map[LanguageCompilerStatic, String](
     CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
     GoCompiler -> "[]int{0, 1, 100500}",
-    JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
+    JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1L, 100500))",
     JavaScriptCompiler -> "[0, 1, 100500]",
     LuaCompiler -> "{0, 1, 100500}",
     PerlCompiler -> "(0, 1, 100500)",
