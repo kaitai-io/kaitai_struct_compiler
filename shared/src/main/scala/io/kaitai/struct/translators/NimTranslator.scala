@@ -23,7 +23,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Identifier.ITERATOR2 => "it"
       case _ => s"${Utils.lowerCamelCase(s)}"
     }
-
+  override def doLocalName(s: String): String = s"shadow.${doName(s)}"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
   override def doSubscript(container: expr, idx: expr): String =
@@ -32,6 +32,13 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} & ${translate(right)}"
 
   // Members declared in io.kaitai.struct.translators.CommonMethods
+
+  override def unaryOp(op: Ast.unaryop): String = op match {
+    case Ast.unaryop.Invert => "not"
+    case Ast.unaryop.Minus => "-"
+    case Ast.unaryop.Not => "not"
+  }
+
   override def binOp(op: Ast.operator): String = {
     op match {
       case Ast.operator.Add => "+"

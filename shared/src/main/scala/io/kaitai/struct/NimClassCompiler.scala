@@ -116,14 +116,43 @@ class NimClassCompiler(
     curClass.seq.foreach {
       (attr) => {
         val i = idToStr(attr.id)
-        val t = attr.dataTypeComposite
+        val dt = attr.dataTypeComposite
         // XXX: fix endian
-        out.puts(s"result.$i = ${parse(t, "io", "result", None)}")
+        out.puts(s"result.$i = ${parse(dt, "io", "result", None)}")
+      }
+    }
+    out.puts
+    if (curClass.instances.size != 0)
+      out.puts("let shadow = result")
+    curClass.instances.foreach {
+      case (id, spec) => {
+        val i = idToStr(id)
+        val t = ksToNim(spec.dataTypeComposite)
+        val v = i.dropRight(4)
+        out.puts(s"var $v: Option[$t]")
+        out.puts(s"result.$i = proc(): $t =")
+        out.inc
+        out.puts(s"if isNone($v):")
+        out.inc
+        spec match {
+          case s: ValueInstanceSpec => {
+            s.dataType match {
+              case Some(dt) => out.puts(s"$v = some(${ksToNim(dt)}(${translator.translate(s.value)}))")
+              case None => out.puts(s"$v = some(${translator.translate(s.value)})")
+            }
+
+          }
+          case s: ParseInstanceSpec => {
+            out.puts(s"$v = ${parse(s.dataType, "io", "shadow", None)}")
+          }
+        }
+        out.dec
+        out.puts(s"get($v)")
+        out.dec
       }
     }
     out.dec
     out.puts
-    // generate instance closures here
     out.puts(s"proc fromFile*(_: typedesc[$t], filename: string): owned $t =")
     out.inc
     out.puts(s"$t.read(newKaitaiStream(filename), nil, nil)")
@@ -141,22 +170,13 @@ class NimClassCompiler(
   }
 
   def parse(dataType: DataType, io: String, obj: String, endian: Option[FixedEndian]): String = {
-    def process(unproc: String, proc: Option[ProcessExpr]): String =
-      proc match {
-        case None => unproc
-        case Some(proc) => 
-          proc match {
-            case ProcessXor(key) => unproc + s".processXor(${evalLocal(key)})"
-          }
-      }
-
     dataType match {
       case t: ReadableType =>
         s"read${Utils.capitalize(t.apiCall(endian))}($io)"
       case t: BytesLimitType =>
-        process(s"readBytes($io, int(${evalLocal(t.size)}))", t.process)
+        s"readBytes($io, int(${evalLocal(t.size)}))"
       case t: BytesEosType =>
-        process(s"readBytesFull($io)", t.process)
+        s"readBytesFull($io)"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"readBytesTerm($io, $terminator, $include, $consume, $eosError)"
       case BitsType1 =>
@@ -180,34 +200,13 @@ class NimClassCompiler(
 
   def evalLocal(e: Ast.expr): String =
     s"${e match {case Ast.expr.Name(_) => "result." case _ => ""}}${translator.translate(e)}"
+}
 
-  def camelCase(s: String, upper: Boolean): String = {
-    if (upper) {
-      s.split("_").map(Utils.capitalize).mkString
-    } else {
-      if (s.startsWith("_")) {
-        camelCase(s.substring(1), false)
-      } else {
-        val firstWord :: restWords = s.split("_").toList
-        (firstWord :: restWords.map(Utils.capitalize)).mkString
-      }
-    }
-  }
-
-  def idToStr(id: Identifier): String = {
-    id match {
-      case IoIdentifier => "io"
-      case NamedIdentifier(name) =>  camelCase(name, false)
-      case InstanceIdentifier(name) => camelCase(name, false) + "Inst"
-      case IoStorageIdentifier(innerId) => "io" + camelCase(idToStr(innerId), true)
-
-      case SpecialIdentifier(name) => camelCase(name, false)
-      case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE}$idx"
-      case RawIdentifier(innerId) => "raw" + camelCase(idToStr(innerId), true)
-    }
-  }
-
-  def listToNim(names: List[String]) = camelCase(names.last, true)
+object NimClassCompiler extends LanguageCompilerStatic {
+  override def getCompiler(
+    tp: ClassTypeProvider,
+    config: RuntimeConfig
+  ): LanguageCompiler = ???
 
   def ksToNim(attrType: DataType): String = {
     attrType match {
@@ -244,12 +243,32 @@ class NimClassCompiler(
       case st: SwitchType => ksToNim(st.combinedType)
     }
   }
-}
 
-object NimClassCompiler extends LanguageCompilerStatic {
-  // FIXME: Unused, should probably be separated from LanguageCompilerStatic
-  override def getCompiler(
-    tp: ClassTypeProvider,
-    config: RuntimeConfig
-  ): LanguageCompiler = ???
+  def camelCase(s: String, upper: Boolean): String = {
+    if (upper) {
+      s.split("_").map(Utils.capitalize).mkString
+    } else {
+      if (s.startsWith("_")) {
+        camelCase(s.substring(1), false)
+      } else {
+        val firstWord :: restWords = s.split("_").toList
+        (firstWord :: restWords.map(Utils.capitalize)).mkString
+      }
+    }
+  }
+
+  def idToStr(id: Identifier): String = {
+    id match {
+      case IoIdentifier => "io"
+      case NamedIdentifier(name) =>  camelCase(name, false)
+      case InstanceIdentifier(name) => camelCase(name, false) + "Inst"
+      case IoStorageIdentifier(innerId) => "io" + camelCase(idToStr(innerId), true)
+
+      case SpecialIdentifier(name) => camelCase(name, false)
+      case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE}$idx"
+      case RawIdentifier(innerId) => "raw" + camelCase(idToStr(innerId), true)
+    }
+  }
+
+  def listToNim(names: List[String]) = camelCase(names.last, true)
 }
