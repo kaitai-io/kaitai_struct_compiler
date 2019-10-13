@@ -28,7 +28,11 @@ abstract trait CommonMethods[T] extends TypeDetector {
         userTypeField(ut, value, attr.name)
       case _: BytesType =>
         attr.name match {
-          case "length" => bytesLength(value)
+          case "first" => bytesFirst(value)
+          case "last" => bytesLast(value)
+          case "length" | "size" => bytesLength(value)
+          case "min" => bytesMin(value)
+          case "max" => bytesMax(value)
         }
       case _: StrType =>
         attr.name match {
@@ -97,7 +101,12 @@ abstract trait CommonMethods[T] extends TypeDetector {
 
   def userTypeField(ut: UserType, value: Ast.expr, name: String): T
 
-  def bytesLength(b: Ast.expr): T = ???
+  def bytesSubscript(container: Ast.expr, idx: Ast.expr): T
+  def bytesFirst(b: Ast.expr): T
+  def bytesLast(b: Ast.expr): T
+  def bytesLength(b: Ast.expr): T
+  def bytesMin(b: Ast.expr): T
+  def bytesMax(b: Ast.expr): T
 
   def strLength(s: Ast.expr): T
   def strReverse(s: Ast.expr): T
@@ -114,6 +123,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
   def kaitaiStreamEof(value: Ast.expr): T
   def kaitaiStreamPos(value: Ast.expr): T
 
+  def arraySubscript(container: Ast.expr, idx: Ast.expr): T
   def arrayFirst(a: Ast.expr): T
   def arrayLast(a: Ast.expr): T
   def arraySize(a: Ast.expr): T

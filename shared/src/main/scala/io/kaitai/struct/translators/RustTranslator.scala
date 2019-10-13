@@ -56,7 +56,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     "if " + translate(condition) +

@@ -31,7 +31,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
   with CommonLiterals
   with CommonOps
   with CommonArraysAndCast[String]
-  with CommonMethods[String] {
+  with CommonMethods[String]
+  with ByteArraysAsTrueArrays[String] {
 
   /**
     * Translates KS expression into an expression in some target language.
@@ -117,7 +118,14 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         detectType(idx) match {
           case _: IntType =>
-            doSubscript(container, idx)
+            detectType(container) match {
+              case _: ArrayType =>
+                arraySubscript(container, idx)
+              case _: BytesType =>
+                bytesSubscript(container, idx)
+              case containerType =>
+                throw new TypeMismatchError(s"can't index $containerType as array")
+            }
           case idxType =>
             throw new TypeMismatchError(s"can't use $idx as array index (need int, got $idxType)")
         }
@@ -136,7 +144,6 @@ abstract class BaseTranslator(val provider: TypeProvider)
     }
   }
 
-  def doSubscript(container: Ast.expr, idx: Ast.expr): String
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: DataType): String = translate(value)
   def doByteSizeOfType(typeName: Ast.typeId): String = doIntLiteral(

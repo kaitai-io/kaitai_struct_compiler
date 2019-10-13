@@ -17,7 +17,8 @@ import io.kaitai.struct.format.Identifier
   */
 class ExpressionValidator(val provider: TypeProvider)
   extends TypeDetector(provider)
-  with CommonMethods[Unit] {
+  with CommonMethods[Unit]
+  with ByteArraysAsTrueArrays[Unit] {
   /**
     * Validates one expression. Throws exceptions when encounters an error.
     * @param v expression to validate
@@ -106,6 +107,10 @@ class ExpressionValidator(val provider: TypeProvider)
   override def kaitaiStreamEof(value: Ast.expr): Unit = validate(value)
   override def kaitaiStreamPos(value: Ast.expr): Unit = validate(value)
 
+  override def arraySubscript(container: Ast.expr, idx: Ast.expr): Unit = {
+    validate(container)
+    validate(idx)
+  }
   override def arrayFirst(a: Ast.expr): Unit = validate(a)
   override def arrayLast(a: Ast.expr): Unit = validate(a)
   override def arraySize(a: Ast.expr): Unit = validate(a)

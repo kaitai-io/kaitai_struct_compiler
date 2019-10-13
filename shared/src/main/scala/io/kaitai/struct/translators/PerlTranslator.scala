@@ -103,7 +103,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     doStrCompareOp(left, op, right)
 
-  override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
+  override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"@{${translate(container)}}[${translate(idx)}]"
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"

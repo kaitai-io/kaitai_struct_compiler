@@ -25,7 +25,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     }
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
 
   override def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} & ${translate(right)}"

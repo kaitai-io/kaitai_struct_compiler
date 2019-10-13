@@ -105,6 +105,7 @@ class TypeDetector(provider: TypeProvider) {
               case _: IntType => elType
               case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
             }
+          case _: BytesType => Int1Type(false)
           case cntType => throw new TypeMismatchError(s"unable to apply operation [] to $cntType")
         }
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
@@ -148,7 +149,8 @@ class TypeDetector(provider: TypeProvider) {
         }
       case _: BytesType =>
         attr.name match {
-          case "length" => CalcIntType
+          case "length" | "size" => CalcIntType
+          case "first" | "last" | "min" | "max" => Int1Type(false)
           case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: StrType =>
