@@ -113,24 +113,30 @@ class NimClassCompiler(
     out.puts("result.root = root")
     out.puts("result.parent = parent")
     out.puts
+    var wasUnaligned = false
     curClass.seq.foreach {
       (attr) => {
+        val nowUnaligned = isUnalignedBits(attr.dataType)
+        if (wasUnaligned && !nowUnaligned)
+          out.puts("alignToByte(io)")
         val i = idToStr(attr.id)
         val dt = attr.dataTypeComposite
         // XXX: fix endian
-        out.puts(s"result.$i = ${parse(dt, "io", "result", None)}")
+        out.puts(s"let $i = ${parse(dt, "io", None)}")
+        out.puts(s"result.$i = $i")
+        wasUnaligned = nowUnaligned
       }
     }
     out.puts
-    if (curClass.instances.size != 0)
-      out.puts("let shadow = result")
+
     curClass.instances.foreach {
       case (id, spec) => {
         val i = idToStr(id)
+        val r = i.dropRight(4)
+        val v = i.dropRight(4) + "Val"
         val t = ksToNim(spec.dataTypeComposite)
-        val v = i.dropRight(4)
-        out.puts(s"var $v: Option[$t]")
-        out.puts(s"result.$i = proc(): $t =")
+        out.puts(s"var ${v}: Option[$t]")
+        out.puts(s"let $r = proc(): $t =")
         out.inc
         out.puts(s"if isNone($v):")
         out.inc
@@ -143,12 +149,13 @@ class NimClassCompiler(
 
           }
           case s: ParseInstanceSpec => {
-            out.puts(s"$v = ${parse(s.dataType, "io", "shadow", None)}")
+            out.puts(s"$v = ${parse(s.dataType, "io", None)}")
           }
         }
         out.dec
         out.puts(s"get($v)")
         out.dec
+        out.puts(s"result.$i = $r")
       }
     }
     out.dec
@@ -169,20 +176,31 @@ class NimClassCompiler(
     curClass.types.foreach { case (_, subClass) => compileProcs(subClass) }
   }
 
-  def parse(dataType: DataType, io: String, obj: String, endian: Option[FixedEndian]): String = {
+  def parse(dataType: DataType, io: String, endian: Option[FixedEndian]): String = {
+    def process(unproc: String, proc: Option[ProcessExpr]): String =
+      proc match {
+        case None => unproc
+        case Some(proc) => 
+          proc match {
+            case ProcessXor(key) => unproc + s".processXor(${evalLocal(key)})"
+          }
+      }
+
     dataType match {
       case t: ReadableType =>
         s"read${Utils.capitalize(t.apiCall(endian))}($io)"
       case t: BytesLimitType =>
-        s"readBytes($io, int(${evalLocal(t.size)}))"
+        process(s"readBytes($io, int(${evalLocal(t.size)}))", t.process)
       case t: BytesEosType =>
-        s"readBytesFull($io)"
-      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"readBytesTerm($io, $terminator, $include, $consume, $eosError)"
+        process(s"readBytesFull($io)", t.process)
+      case BytesTerminatedType(terminator, include, consume, eosError, proc) =>
+        process(s"readBytesTerm($io, $terminator, $include, $consume, $eosError)", proc)
       case BitsType1 =>
         s"bool(readBitsInt($io, 1))"
       case BitsType(width: Int) =>
         s"readBitsInt($io, $width)"
+      case t: UserTypeFromBytes =>
+        parse(t.bytes, "io", None)
       case t: UserType =>
         val addArgs = if (t.isOpaque) {
           ""
@@ -190,7 +208,7 @@ class NimClassCompiler(
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "nil"
             case Some(fp) => translator.translate(fp)
-            case None => obj
+            case None => "result" // ???
           }
           s", root, $parent"
         }
@@ -200,6 +218,13 @@ class NimClassCompiler(
 
   def evalLocal(e: Ast.expr): String =
     s"${e match {case Ast.expr.Name(_) => "result." case _ => ""}}${translator.translate(e)}"
+
+  def isUnalignedBits(dt: DataType): Boolean =
+    dt match {
+      case _: BitsType | BitsType1 => true
+      case et: EnumType => isUnalignedBits(et.basedOn)
+      case _ => false
+    }
 }
 
 object NimClassCompiler extends LanguageCompilerStatic {

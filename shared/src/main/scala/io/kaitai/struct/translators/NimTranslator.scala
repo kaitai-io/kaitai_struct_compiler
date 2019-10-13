@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.NimClassCompiler
+import io.kaitai.struct.NimClassCompiler.ksToNim
 
 class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   // Members declared in io.kaitai.struct.translators.BaseTranslator
@@ -14,8 +14,8 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     importList.add("encodings")
     s"convert($bytesExpr, srcEncoding = ${translate(encoding)})"
   }
-  override def doEnumById(enumTypeAbs: List[String], id: String): String = ???
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = ???
+  override def doEnumById(enumTypeAbs: List[String], id: String): String = ""
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = ""
   override def doName(s: String): String =
     s match {
       case Identifier.PARENT => "parent"
@@ -23,7 +23,6 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Identifier.ITERATOR2 => "it"
       case _ => s"${Utils.lowerCamelCase(s)}"
     }
-  override def doLocalName(s: String): String = s"shadow.${doName(s)}"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
   override def doSubscript(container: expr, idx: expr): String =
@@ -73,9 +72,9 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     }
   }
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String =
-    s"@[${value.map((v) => translate(v)).mkString(", ")}]"
+    s"@[${value.map((v) => translate(v)).mkString(", ")}].mapIt(${ksToNim(t)}(it))"
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"@[${arr.mkString(", ")}]"
+    s"@[${arr.mkString(", ")}].mapIt(toByte(it))"
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"@[${elts.map(translate).mkString(", ")}]"
   override def arrayFirst(a: expr): String = s"${translate(a)}[0]"
