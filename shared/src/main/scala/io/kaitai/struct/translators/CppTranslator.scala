@@ -190,6 +190,24 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     s"${CppCompiler.kstreamName}::bytes_to_str($bytesExpr, ${translate(encoding)})"
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.length()"
+
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"${translate(container)}[${translate(idx)}]"
+  override def bytesFirst(b: Ast.expr): String =
+    s"${translate(b)}.front()"
+  override def bytesLast(b: Ast.expr): String =
+    s"${translate(b)}.back()"
+  override def bytesMin(b: Ast.expr): String = {
+    importListSrc.add("algorithm")
+    val v = translate(b)
+    s"*std::max_element($v.begin(), $v.end())"
+  }
+  override def bytesMax(b: Ast.expr): String = {
+    importListSrc.add("algorithm")
+    val v = translate(b)
+    s"*std::max_element($v.begin(), $v.end())"
+  }
+
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =
