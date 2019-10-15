@@ -197,16 +197,10 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     s"${translate(b)}.front()"
   override def bytesLast(b: Ast.expr): String =
     s"${translate(b)}.back()"
-  override def bytesMin(b: Ast.expr): String = {
-    importListSrc.add("algorithm")
-    val v = translate(b)
-    s"*std::max_element($v.begin(), $v.end())"
-  }
-  override def bytesMax(b: Ast.expr): String = {
-    importListSrc.add("algorithm")
-    val v = translate(b)
-    s"*std::max_element($v.begin(), $v.end())"
-  }
+  override def bytesMin(b: Ast.expr): String =
+    s"${CppCompiler.kstreamName}::byte_array_min(${translate(b)})"
+  override def bytesMax(b: Ast.expr): String =
+    s"${CppCompiler.kstreamName}::byte_array_max(${translate(b)})"
 
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
