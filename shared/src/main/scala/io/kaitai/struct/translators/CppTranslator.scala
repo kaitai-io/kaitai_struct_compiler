@@ -193,10 +193,18 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
 
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def bytesFirst(b: Ast.expr): String =
-    s"${translate(b)}.front()"
-  override def bytesLast(b: Ast.expr): String =
-    s"${translate(b)}.back()"
+  override def bytesFirst(b: Ast.expr): String = {
+    config.cppConfig.stdStringFrontBack match {
+      case true => s"${translate(b)}.front()"
+      case false => s"${translate(b)}[0]"
+    }
+  }
+  override def bytesLast(b: Ast.expr): String = {
+    config.cppConfig.stdStringFrontBack match {
+      case true => s"${translate(b)}.back()"
+      case false => s"${translate(b)}[${translate(b)}.length() - 1]"
+    }
+  }
   override def bytesMin(b: Ast.expr): String =
     s"${CppCompiler.kstreamName}::byte_array_min(${translate(b)})"
   override def bytesMax(b: Ast.expr): String =

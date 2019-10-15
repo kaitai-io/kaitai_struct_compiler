@@ -4,11 +4,14 @@ package io.kaitai.struct
   * C++-specific runtime configuration of the compiler.
   * @param usePragmaOnce If true, use `#pragma once` in headers. If false (default),
   *                      use `#ifndef`-`#define`-`#endif` guards.
+  * @param stdStringFrontBack If true, allow use of `front()` and `back()` methods
+  *                           on `std::string`. If false, come up with simulation.
   * @param pointers Choose which style of pointers to use.
   */
 case class CppRuntimeConfig(
   namespace: List[String] = List(),
   usePragmaOnce: Boolean = false,
+  stdStringFrontBack: Boolean = false,
   pointers: CppRuntimeConfig.Pointers = CppRuntimeConfig.RawPointers
 ) {
   /**
@@ -17,6 +20,7 @@ case class CppRuntimeConfig(
     */
   def copyAsCpp98() = copy(
     usePragmaOnce = false,
+    stdStringFrontBack = false,
     pointers = CppRuntimeConfig.RawPointers
   )
 
@@ -26,6 +30,7 @@ case class CppRuntimeConfig(
     */
   def copyAsCpp11() = copy(
     usePragmaOnce = true,
+    stdStringFrontBack = true,
     pointers = CppRuntimeConfig.UniqueAndRawPointers
   )
 }
