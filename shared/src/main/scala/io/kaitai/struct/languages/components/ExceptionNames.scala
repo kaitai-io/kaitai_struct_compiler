@@ -9,8 +9,8 @@ import io.kaitai.struct.datatype.KSError
 trait ExceptionNames {
   /**
     * Resolves string name of exception in target language.
-    * Default implementation provides UpperCamelCase renditions
-    * of original names.
+    * Suggested implementation is to use `err.name` that provides
+    * UpperCamelCase renditions of original names.
     * @param err KS-generated error that might be thrown in runtime
     * @return name of exception as a string
     */

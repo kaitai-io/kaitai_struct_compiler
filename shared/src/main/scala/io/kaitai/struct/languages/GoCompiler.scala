@@ -598,9 +598,5 @@ object GoCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "kaitai.Stream"
   override def kstructName: String = "interface{}"
-  override def ksErrorName(err: KSError): String = err match {
-    case EndOfStreamError => "kaitai.EndOfStreamError"
-    case UndecidedEndiannessError => "kaitai.UndecidedEndiannessError"
-    case ValidationNotEqualError => "kaitai.ValidationNotEqualError"
-  }
+  override def ksErrorName(err: KSError): String = s"kaitai.${err.name}"
 }

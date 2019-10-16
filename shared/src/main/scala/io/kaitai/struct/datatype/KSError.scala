@@ -9,17 +9,21 @@ sealed trait KSError {
 }
 
 object KSError {
+  val RE_VALIDATION_NOT_EQUAL = "^ValidationNotEqualError<(.*)>$".r
+
   def fromName(name: String): KSError = name match {
     case "EndOfStreamError" => EndOfStreamError
     case "UndecidedEndiannessError" => UndecidedEndiannessError
-    case "ValidationNotEqualError" => ValidationNotEqualError
+    case RE_VALIDATION_NOT_EQUAL(dataTypeStr) =>
+      ValidationNotEqualError(DataType.pureFromString(dataTypeStr))
   }
 }
 
 /**
   * Error to be thrown when validation on equality fails.
+  * @param dt data type used in validation process
   */
-case object ValidationNotEqualError extends KSError {
+case class ValidationNotEqualError(dt: DataType) extends KSError {
   def name = "ValidationNotEqualError"
 }
 

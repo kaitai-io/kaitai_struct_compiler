@@ -246,7 +246,7 @@ class CppCompiler(
     outSrc.puts("if (m__is_le == -1) {")
     outSrc.inc
     importListSrc.add("kaitai/exceptions.h")
-    outSrc.puts(s"throw ${CppCompiler.ksErrorName(UndecidedEndiannessError)}" +
+    outSrc.puts(s"throw ${ksErrorName(UndecidedEndiannessError)}" +
       "(\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\");")
     outSrc.dec
     outSrc.puts("} else if (m__is_le == 1) {")
@@ -940,7 +940,12 @@ class CppCompiler(
     case _ => expr
   }
 
-  override def ksErrorName(err: KSError): String = CppCompiler.ksErrorName(err)
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "kaitai::end_of_stream_error"
+    case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
+    case ValidationNotEqualError(dt) =>
+      s"kaitai::validation_not_equal_error<${kaitaiType2NativeType(dt, true)}>"
+  }
 
   override def attrValidateExpr(
     attrId: Identifier,
@@ -953,15 +958,14 @@ class CppCompiler(
     importListSrc.add("kaitai/exceptions.h")
     outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
     outSrc.inc
-    outSrc.puts(s"throw $errName<${kaitaiType2NativeType(attrType, absolute = true)}>($errArgsStr);")
+    outSrc.puts(s"throw $errName($errArgsStr);")
     outSrc.dec
     outSrc.puts("}")
   }
 }
 
 object CppCompiler extends LanguageCompilerStatic
-  with StreamStructNames
-  with ExceptionNames {
+  with StreamStructNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -969,11 +973,6 @@ object CppCompiler extends LanguageCompilerStatic
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
-  override def ksErrorName(err: KSError): String = err match {
-    case EndOfStreamError => "kaitai::end_of_stream_error"
-    case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
-    case ValidationNotEqualError => "kaitai::validation_not_equal_error"
-  }
 
   def kaitaiType2NativeType(config: CppRuntimeConfig, attrType: DataType, absolute: Boolean = false): String = {
     attrType match {

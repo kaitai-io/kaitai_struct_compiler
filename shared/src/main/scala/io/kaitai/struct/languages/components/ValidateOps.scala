@@ -19,7 +19,7 @@ trait ValidateOps extends ExceptionNames {
             Ast.cmpop.Eq,
             expected
           ),
-          ksErrorName(ValidationNotEqualError),
+          ksErrorName(ValidationNotEqualError(attr.dataType)),
           List(
             expected,
             Ast.expr.Name(attrId.toAstIdentifier),

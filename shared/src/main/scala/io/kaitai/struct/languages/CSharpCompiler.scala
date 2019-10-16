@@ -638,7 +638,7 @@ object CSharpCompiler extends LanguageCompilerStatic
 
   override def kstructName = "KaitaiStruct"
   override def kstreamName = "KaitaiStream"
-  override def ksErrorName(err: KSError): String = ???
+  override def ksErrorName(err: KSError): String = err.name
 
   override def type2class(name: String): String = Utils.upperCamelCase(name)
 }
