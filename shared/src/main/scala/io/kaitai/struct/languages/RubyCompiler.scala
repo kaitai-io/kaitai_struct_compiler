@@ -478,7 +478,10 @@ object RubyCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"
-  override def ksErrorName(err: KSError): String = s"Kaitai::Struct::${err.name}"
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "EOFError"
+    case _ => s"Kaitai::Struct::${err.name}"
+  }
 
   def inverseEnumName(enumName: String) = s"I__$enumName"
 }
