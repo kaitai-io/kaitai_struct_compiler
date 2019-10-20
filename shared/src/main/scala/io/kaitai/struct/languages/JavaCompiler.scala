@@ -2,7 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -27,12 +27,14 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   // Preprocess fromFileClass and make import
   val fromFileClass = {
-    val pos = config.javaFromFileClass.lastIndexOf('.')
+    val pos = config.java.fromFileClass.lastIndexOf('.')
     if (pos < 0) {
-      config.javaFromFileClass
+      // If relative "fromFileClass", then just use it as is
+      config.java.fromFileClass
     } else {
-      importList.add(config.javaFromFileClass)
-      config.javaFromFileClass.substring(pos + 1)
+      // If absolute "fromFileClass", add relevant import + use relative
+      importList.add(config.java.fromFileClass)
+      config.java.fromFileClass.substring(pos + 1)
     }
   }
 
@@ -43,16 +45,16 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String =
-    s"src/${config.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
+    s"src/${config.java.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
 
   override def outImports(topClass: ClassSpec) =
     "\n" + importList.toList.map((x) => s"import $x;").mkString("\n") + "\n"
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"// $headerComment")
-    if (!config.javaPackage.isEmpty) {
+    if (!config.java.javaPackage.isEmpty) {
       outHeader.puts
-      outHeader.puts(s"package ${config.javaPackage};")
+      outHeader.puts(s"package ${config.java.javaPackage};")
     }
 
     // Used in every class
@@ -92,7 +94,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // fromFile helper makes no sense for inherited endianness structures:
     // they require endianness to be parsed anyway
-    if (!isInheritedEndian && !config.javaFromFileClass.isEmpty && typeProvider.nowClass.params.isEmpty) {
+    if (!isInheritedEndian && !config.java.fromFileClass.isEmpty && typeProvider.nowClass.params.isEmpty) {
       out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
       out.inc
       out.puts(s"return new ${type2class(name)}(new $fromFileClass(fileName));")
@@ -711,7 +713,10 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
-  override def ksErrorName(err: KSError): String = JavaCompiler.ksErrorName(err)
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => config.java.endOfStreamErrorClass
+    case _ => s"KaitaiStream.${err.name}"
+  }
 
   override def attrValidateExpr(
     attrId: Identifier,
@@ -731,8 +736,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
 object JavaCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
-  with StreamStructNames
-  with ExceptionNames {
+  with StreamStructNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -839,5 +843,4 @@ object JavaCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"
-  override def ksErrorName(err: KSError): String = s"KaitaiStream.${err.name}"
 }

@@ -2,6 +2,7 @@ package io.kaitai.struct
 
 /**
   * C++-specific runtime configuration of the compiler.
+  * @param namespace C++ namespace to generate classes in.
   * @param usePragmaOnce If true, use `#pragma once` in headers. If false (default),
   *                      use `#ifndef`-`#define`-`#endif` guards.
   * @param stdStringFrontBack If true, allow use of `front()` and `back()` methods
@@ -43,6 +44,19 @@ object CppRuntimeConfig {
 }
 
 /**
+  * Java-specific runtime configuration of the compiler.
+  * @param javaPackage Package to generate classes in.
+  * @param fromFileClass Class to be invoked in `fromFile` helper methods.
+  * @param endOfStreamErrorClass Exception class expected to be thrown on
+  *                              end-of-stream errors.
+  */
+case class JavaRuntimeConfig(
+  javaPackage: String = "",
+  fromFileClass: String = "io.kaitai.struct.ByteBufferKaitaiStream",
+  endOfStreamErrorClass: String = "java.nio.BufferUnderflowException",
+)
+
+/**
   * Runtime configuration of the compiler which controls certain aspects of
   * code generation for target languages.
   * @param autoRead If true, constructor (or equivalent) invocation would
@@ -60,9 +74,8 @@ object CppRuntimeConfig {
   *                    defined somewhere else. If false, it will be reported as
   *                    precompile error.
   * @param cppConfig C++-specific configuration
+  * @param java Java-specific configuration
   * @param goPackage Go package name
-  * @param javaPackage Java package name
-  * @param javaFromFileClass Java class to be invoked in `fromFile` helper methods
   * @param dotNetNamespace .NET (C#) namespace
   * @param phpNamespace PHP namespace
   * @param pythonPackage Python package name
@@ -74,8 +87,7 @@ case class RuntimeConfig(
   opaqueTypes: Boolean = false,
   cppConfig: CppRuntimeConfig = CppRuntimeConfig(),
   goPackage: String = "",
-  javaPackage: String = "",
-  javaFromFileClass: String = "io.kaitai.struct.ByteBufferKaitaiStream",
+  java: JavaRuntimeConfig = JavaRuntimeConfig(),
   dotNetNamespace: String = "Kaitai",
   phpNamespace: String = "",
   pythonPackage: String = "",
