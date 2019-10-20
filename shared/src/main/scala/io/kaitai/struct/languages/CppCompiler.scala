@@ -941,7 +941,7 @@ class CppCompiler(
   }
 
   override def ksErrorName(err: KSError): String = err match {
-    case EndOfStreamError => "kaitai::end_of_stream_error"
+    case EndOfStreamError => "std::ifstream::failure"
     case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
     case ValidationNotEqualError(dt) =>
       s"kaitai::validation_not_equal_error<${kaitaiType2NativeType(dt, true)}>"
