@@ -128,8 +128,6 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   def enumToStr(enumSpec: EnumSpec) = enumSpec.name.mkString("__")
 
   def typeToStr(dataType: DataType): String = dataType match {
-    case fbt: FixedBytesType =>
-      s"Const(${translator.doByteArrayLiteral(fbt.contents)})"
     case Int1Type(signed) =>
       s"Int8${signToStr(signed)}b"
     case IntMultiType(signed, width, endianOpt) =>
