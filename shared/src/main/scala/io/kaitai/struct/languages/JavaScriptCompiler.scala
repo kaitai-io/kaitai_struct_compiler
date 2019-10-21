@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype.{DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -613,7 +613,10 @@ object JavaScriptCompiler extends LanguageCompilerStatic
   // FIXME: probably KaitaiStruct will emerge some day in JavaScript runtime, but for now it is unused
   override def kstructName: String = ???
 
-  override def ksErrorName(err: KSError): String = s"KaitaiStream.${err.name}"
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => s"KaitaiStream.EOFError"
+    case _ => s"KaitaiStream.${err.name}"
+  }
 
   def types2class(types: List[String]): String = types.map(type2class).mkString(".")
 }
