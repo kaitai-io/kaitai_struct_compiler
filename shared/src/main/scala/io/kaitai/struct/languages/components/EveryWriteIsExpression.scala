@@ -2,6 +2,7 @@ package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.FixedEndian
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -9,7 +10,7 @@ import io.kaitai.struct.format._
 import scala.collection.mutable.ListBuffer
 
 trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguage with EveryReadIsExpression {
-  override def attrWrite(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit = {
+  override def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[FixedEndian]): Unit = {
     attrParseIfHeader(id, attr.cond.ifExpr)
 
     val io = normalIO
@@ -17,18 +18,18 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosHeader2(id, io, attr.dataType, needRaww(attr.dataType))
-        attrWrite2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
+        attrWrite2(id, attr.dataType, io, defEndian, attr.cond.repeat, false)
         condRepeatEosFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
         condRepeatExprHeader2(id, io, attr.dataType, needRaww(attr.dataType), repeatExpr)
-        attrWrite2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
+        attrWrite2(id, attr.dataType, io, defEndian, attr.cond.repeat, false)
         condRepeatExprFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
         condRepeatUntilHeader(id, io, attr.dataType, needRaww(attr.dataType), untilExpr)
-        attrWrite2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
+        attrWrite2(id, attr.dataType, io, defEndian, attr.cond.repeat, false)
         condRepeatUntilFooter(id, io, attr.dataType, needRaww(attr.dataType), untilExpr)
       case NoRepeat =>
-        attrWrite2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
+        attrWrite2(id, attr.dataType, io, defEndian, attr.cond.repeat, false)
     }
 
     attrParseIfFooter(attr.cond.ifExpr)
@@ -38,43 +39,42 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     id: Identifier,
     dataType: DataType,
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
+    defEndian: Option[FixedEndian],
     rep: RepeatSpec,
     isRaw: Boolean
   ): Unit = {
     dataType match {
       case t: UserType =>
-        attrUserTypeWrite(id, t, io, extraAttrs, rep, isRaw)
+        attrUserTypeWrite(id, t, io, rep, isRaw, defEndian)
       case t: BytesType =>
-        attrBytesTypeWrite(id, t, io, extraAttrs, rep, isRaw)
-      case SwitchType(on, cases) =>
-        attrSwitchTypeWrite(id, on, cases, io, extraAttrs, rep)
+        attrBytesTypeWrite(id, t, io, rep, isRaw)
+      case SwitchType(on, cases, _) =>
+        attrSwitchTypeWrite(id, on, cases, io, rep, defEndian)
       case t: StrFromBytesType =>
-        attrStrTypeWrite(id, t, io, extraAttrs, rep, isRaw)
+        attrStrTypeWrite(id, t, io, rep, isRaw)
       case t: EnumType =>
         val expr = translator.enumToInt(Ast.expr.Name(Ast.identifier(idToStr(id))), t)
-        attrPrimitiveWrite(io, expr, t.basedOn)
+        attrPrimitiveWrite(io, expr, t.basedOn, defEndian)
       case _ =>
         val expr = writeExpr(id, rep, isRaw)
-        attrPrimitiveWrite(io, expr, dataType)
+        attrPrimitiveWrite(io, translator.translate(expr), dataType, defEndian)
     }
   }
 
-  def writeExpr(id: Identifier, rep: RepeatSpec, isRaw: Boolean): String = {
+  def writeExpr(id: Identifier, rep: RepeatSpec, isRaw: Boolean): Ast.expr = {
+    val astId = Ast.expr.Name(Ast.identifier(idToStr(id)))
     rep match {
       case _: RepeatExpr | RepeatEos =>
-        translator.translate(
-          Ast.expr.Subscript(
-            Ast.expr.Name(Ast.identifier(idToStr(id))),
-            Ast.expr.Name(Ast.identifier(Identifier.ITERATOR_I))
-          )
+        Ast.expr.Subscript(
+          astId,
+          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
         )
       case NoRepeat =>
-        privateMemberName(id)
+        astId
     }
   }
 
-  def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean) = {
+  def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, rep: RepeatSpec, isRaw: Boolean) = {
     val idToWrite = t.process match {
       case Some(proc) =>
         val rawId = RawIdentifier(id)
@@ -85,40 +85,40 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     }
     t match {
       case FixedBytesType(contents, process) =>
-        attrPrimitiveWrite(io, translator.doByteArrayLiteral(contents), t)
+        attrPrimitiveWrite(io, translator.doByteArrayLiteral(contents), t, None)
       case t: BytesEosType =>
         val expr = writeExpr(idToWrite, rep, isRaw)
-        attrPrimitiveWrite(io, expr, t)
+        attrPrimitiveWrite(io, translator.translate(expr), t, None)
         if (t.terminator.isDefined && !t.include)
-          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false))
+          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false), None)
       case blt: BytesLimitType =>
         val expr = writeExpr(idToWrite, rep, isRaw)
-        attrBytesLimitWrite2(io, expr, blt)
+        attrBytesLimitWrite2(io, translator.translate(expr), blt)
       case t: BytesTerminatedType =>
         val expr = writeExpr(idToWrite, rep, isRaw)
-        attrPrimitiveWrite(io, expr, t)
+        attrPrimitiveWrite(io, translator.translate(expr), t, None)
         if (t.consume && !t.include)
-          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false))
+          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false), None)
     }
   }
 
-  def attrStrTypeWrite(id: Identifier, t: StrFromBytesType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec, isRaw: Boolean) = {
+  def attrStrTypeWrite(id: Identifier, t: StrFromBytesType, io: String, rep: RepeatSpec, isRaw: Boolean) = {
     val expr = translator.strToBytes(writeExpr(id, rep, isRaw), Ast.expr.Str(t.encoding))
-    attrPrimitiveWrite(io, expr, t.bytes)
+    attrPrimitiveWrite(io, expr, t.bytes, None)
 
     t.bytes match {
       case t: BytesEosType =>
         if (t.terminator.isDefined && !t.include)
-          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false))
+          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false), None)
       case t: BytesLimitType =>
         // FIXME: implement padding and terminator byte
         t.terminator.foreach((terminator) =>
           if (!t.include)
-            attrPrimitiveWrite(io, terminator.toString, Int1Type(false))
+            attrPrimitiveWrite(io, terminator.toString, Int1Type(false), None)
         )
       case t: BytesTerminatedType =>
         if (t.consume && !t.include)
-          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false))
+          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false), None)
     }
   }
 
@@ -127,7 +127,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case (None, None, false) =>
         // no terminator, no padding => just a regular output
         // validation should check that expression's length matches size
-        attrPrimitiveWrite(io, expr, blt)
+        attrPrimitiveWrite(io, expr, blt, None)
         return
       case (_, None, true) =>
         // terminator included, no padding => pad with zeroes
@@ -153,15 +153,15 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     id: Identifier,
     t: UserType,
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
-    isRaw: Boolean
+    isRaw: Boolean,
+    defEndian: Option[FixedEndian]
   ) = {
     val expr = writeExpr(id, rep, isRaw)
 
     t match {
       case _: UserTypeInstream =>
-        attrUserTypeInstreamWrite(io, expr)
+        attrUserTypeInstreamWrite(io, translator.translate(expr))
       case knownSizeType: UserTypeFromBytes =>
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType.bytes
@@ -176,11 +176,11 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
                   //        privateMemberName(ourIO)
                   case thisLocal: AllocateIOLocalVar =>
                     val ioFixed = thisLocal.allocateIOFixed(rawId, translator.translate(blt.size))
-                    attrUserTypeInstreamWrite(ioFixed, expr)
+                    attrUserTypeInstreamWrite(ioFixed, translator.translate(expr))
                     attrWriteStreamToStream(ioFixed, io)
                 }
               case _ =>
-                attrUserTypeInstreamWrite(io, expr)
+                attrUserTypeInstreamWrite(io, translator.translate(expr))
             }
           case Some(process) =>
             byteType match {
@@ -188,16 +188,16 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
                 this match {
                   case thisLocal: AllocateIOLocalVar =>
                     val ioFixed = thisLocal.allocateIOFixed(rawId, translator.translate(blt.size))
-                    attrUserTypeInstreamWrite(ioFixed, expr)
+                    attrUserTypeInstreamWrite(ioFixed, translator.translate(expr))
                     handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, isRaw)
-                    attrBytesTypeWrite(rawId, byteType, io, extraAttrs, rep, isRaw)
+                    attrBytesTypeWrite(rawId, byteType, io, rep, isRaw)
                 }
             }
         }
     }
   }
 
-  def attrSwitchTypeWrite(id: Identifier, on: expr, cases: Map[expr, DataType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec) = {
+  def attrSwitchTypeWrite(id: Identifier, on: expr, cases: Map[expr, DataType], io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]) = {
     switchStart(id, on)
 
     // Pass 1: only normal case clauses
@@ -214,7 +214,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
           } else {
             switchCaseStart(condition)
           }
-          attrWrite2(id, dataType, io, extraAttrs, rep, false)
+          attrWrite2(id, dataType, io, defEndian, rep, false)
           switchCaseEnd()
       }
     }
@@ -227,12 +227,12 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
           if (switchBytesOnlyAsRaw) {
             dataType match {
               case t: BytesType =>
-                attrWrite2(RawIdentifier(id), dataType, io, extraAttrs, rep, false)
+                attrWrite2(RawIdentifier(id), dataType, io, defEndian, rep, false)
               case _ =>
-                attrWrite2(id, dataType, io, extraAttrs, rep, false)
+                attrWrite2(id, dataType, io, defEndian, rep, false)
             }
           } else {
-            attrWrite2(id, dataType, io, extraAttrs, rep, false)
+            attrWrite2(id, dataType, io, defEndian, rep, false)
           }
           switchElseEnd()
         case _ =>
@@ -243,7 +243,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     switchEnd()
   }
 
-  def attrPrimitiveWrite(io: String, expr: String, dt: DataType): Unit
+  def attrPrimitiveWrite(io: String, expr: String, dt: DataType, defEndian: Option[FixedEndian]): Unit
   def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit
   def attrUserTypeInstreamWrite(io: String, expr: String): Unit
   def attrWriteStreamToStream(srcIo: String, dstIo: String): Unit

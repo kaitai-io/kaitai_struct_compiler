@@ -1,6 +1,7 @@
 package io.kaitai.struct.format
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.exprlang.{Ast, Expressions}
 
 object ParseUtils {
   def ensureLegalKeys(src: Map[String, Any], legalKeys: Set[String], path: List[String], where: Option[String] = None) = {
@@ -21,10 +22,19 @@ object ParseUtils {
 
   def getValueStr(src: Map[String, Any], field: String, path: List[String]): String = {
     src.get(field) match {
-      case Some(value: String) =>
-        value
-      case unknown =>
-        throw YAMLParseException.badType("string", unknown, path ++ List(field))
+      case Some(value) =>
+        asStr(value, path ++ List(field))
+      case None =>
+        throw YAMLParseException.noKey(path ++ List(field))
+    }
+  }
+
+  def getValueMapStrStr(src: Map[String, Any], field: String, path: List[String]): Map[String, String] = {
+    src.get(field) match {
+      case Some(value) =>
+        asMapStrStr(value, path ++ List(field))
+      case None =>
+        throw YAMLParseException.noKey(path ++ List(field))
     }
   }
 
@@ -61,6 +71,37 @@ object ParseUtils {
     }
   }
 
+  def getValueIdentifier(src: Map[String, Any], idx: Int, entityName: String, path: List[String]): Identifier = {
+    getOptValueStr(src, "id", path) match {
+      case Some(idStr) =>
+        try {
+          NamedIdentifier(idStr)
+        } catch {
+          case _: InvalidIdentifier =>
+            throw YAMLParseException.invalidId(idStr, entityName, path ++ List("id"))
+        }
+      case None => NumberedIdentifier(idx)
+    }
+  }
+
+  def getValueExpression(src: Map[String, Any], field: String, path: List[String]): Ast.expr = {
+    try {
+      Expressions.parse(getValueStr(src, field, path))
+    } catch {
+      case epe: Expressions.ParseException =>
+        throw YAMLParseException.expression(epe, path)
+    }
+  }
+
+  def getOptValueExpression(src: Map[String, Any], field: String, path: List[String]): Option[Ast.expr] = {
+    try {
+      getOptValueStr(src, field, path).map(Expressions.parse)
+    } catch {
+      case epe: Expressions.ParseException =>
+        throw YAMLParseException.expression(epe, path)
+    }
+  }
+
   /**
     * Gets a list of T-typed values from a given YAML map's key "field",
     * reporting errors accurately and ensuring type safety.
@@ -89,6 +130,8 @@ object ParseUtils {
         srcList.zipWithIndex.map { case (element, idx) =>
           convertFunc(element, pathField ++ List(idx.toString))
         }
+      case Some(singleObject: T) =>
+        List(singleObject)
       case None =>
         List()
       case unknown =>
@@ -112,6 +155,8 @@ object ParseUtils {
       case str: String =>
         str
       case n: Int =>
+        n.toString
+      case n: Long =>
         n.toString
       case n: Double =>
         n.toString

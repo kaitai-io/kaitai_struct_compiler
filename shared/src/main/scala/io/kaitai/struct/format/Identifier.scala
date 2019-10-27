@@ -1,15 +1,31 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.exprlang.Ast
+
 /**
   * Common abstract container for all identifiers that Kaitai Struct deals with.
   */
-abstract class Identifier
+abstract class Identifier {
+  /**
+    * @return Human-readable name of identifier, to be used exclusively for ksc
+    *         error messaging purposes.
+    */
+  def humanReadable: String
+
+  /**
+    * @return Identifier ready to be used in KS expressions.
+    */
+  def toAstIdentifier: Ast.identifier = Ast.identifier(humanReadable)
+}
 
 /**
   * Identifier generated automatically for seq attributes which lack true string "id" field.
   * @param idx unique number to identify attribute with
   */
-case class NumberedIdentifier(idx: Int) extends Identifier
+case class NumberedIdentifier(idx: Int) extends Identifier {
+  import NumberedIdentifier._
+  override def humanReadable: String = s"${TEMPLATE}_$idx"
+}
 
 object NumberedIdentifier {
   val TEMPLATE = "unnamed"
@@ -21,9 +37,13 @@ object NumberedIdentifier {
   */
 case class NamedIdentifier(name: String) extends Identifier {
   Identifier.checkIdentifier(name)
+
+  override def humanReadable: String = name
 }
 
-case class InvalidIdentifier(id: String) extends RuntimeException
+case class InvalidIdentifier(id: String) extends RuntimeException(
+  s"invalid ID: '$id', expected /${Identifier.ReIdentifier.toString}/"
+)
 
 object Identifier {
   val ReIdentifier = "^[a-z][a-z0-9_]*$".r
@@ -60,19 +80,31 @@ object Identifier {
   val IO = "_io"
   val ITERATOR = "_"
   val ITERATOR2 = "_buf"
-  val ITERATOR_I = "_i"
+  val INDEX = "_index"
+  val SWITCH_ON = "_on"
+  val IS_LE = "_is_le"
+  val SIZEOF = "_sizeof"
 }
 
-case class RawIdentifier(innerId: Identifier) extends Identifier
+case class RawIdentifier(innerId: Identifier) extends Identifier {
+  override def humanReadable: String = s"raw(${innerId.humanReadable})"
+}
 
-case class IoStorageIdentifier(innerId: Identifier) extends Identifier
+case class IoStorageIdentifier(innerId: Identifier) extends Identifier {
+  override def humanReadable: String = s"io(${innerId.humanReadable})"
+}
 
 case class InstanceIdentifier(name: String) extends Identifier {
   Identifier.checkIdentifier(name)
+
+  override def humanReadable: String = name
 }
 
-case class SpecialIdentifier(name: String) extends Identifier
+case class SpecialIdentifier(name: String) extends Identifier {
+  override def humanReadable: String = name
+}
 
 object RootIdentifier extends SpecialIdentifier(Identifier.ROOT)
 object ParentIdentifier extends SpecialIdentifier(Identifier.PARENT)
 object IoIdentifier extends SpecialIdentifier(Identifier.IO)
+object EndianIdentifier extends SpecialIdentifier(Identifier.IS_LE)

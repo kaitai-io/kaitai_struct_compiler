@@ -1,5 +1,6 @@
 package io.kaitai.struct.precompile
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.format.ClassSpec
 
 /**
@@ -9,7 +10,7 @@ import io.kaitai.struct.format.ClassSpec
   * @param path YAML path components in file
   * @param file file to report as erroneous, None means "main compilation unit"
   */
-class ErrorInInput(err: Throwable, path: List[String] = List(), file: Option[String] = None)
+case class ErrorInInput(err: Throwable, val path: List[String] = List(), val file: Option[String] = None)
   extends RuntimeException(ErrorInInput.message(err, path, file), err)
 
 object ErrorInInput {
@@ -18,7 +19,8 @@ object ErrorInInput {
       case Some(x) => x.replace('\\', '/')
       case None => "(main)"
     }
-    s"$fileStr: /${path.mkString("/")}: ${err.getMessage}"
+    val msg = Option(err.getMessage).getOrElse(err.toString)
+    s"$fileStr: /${path.mkString("/")}: $msg"
   }
 }
 
@@ -37,3 +39,12 @@ class FieldNotFoundError(val name: String, val curClass: ClassSpec)
   extends NotFoundError(s"unable to access '$name' in ${curClass.nameAsStr} context")
 class EnumNotFoundError(val name: String, val curClass: ClassSpec)
   extends NotFoundError(s"unable to find enum '$name', searching from ${curClass.nameAsStr}")
+class MethodNotFoundError(val name: String, val dataType: DataType)
+  extends NotFoundError(s"don't know how to call method '$name' of object type '$dataType'")
+
+/**
+  * Internal compiler logic error: should never happen, but at least we want to
+  * handle it gracefully if it's happening.
+  * @param msg message for the user
+  */
+case class InternalCompilerError(msg: String) extends RuntimeException(msg)

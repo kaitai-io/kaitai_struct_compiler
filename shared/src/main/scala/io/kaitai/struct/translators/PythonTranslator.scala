@@ -1,10 +1,12 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.languages.PythonCompiler
+import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.languages.{PythonCompiler, RubyCompiler}
 
-class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class PythonTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
@@ -35,11 +37,16 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   )
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"struct.pack('${arr.length}b', ${arr.mkString(", ")})"
+    "b\"" + Utils.hexEscapeByteArray(arr) + "\""
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = {
+    importList.add("import struct")
+    s"struct.pack('${elts.length}b', ${elts.map(translate).mkString(", ")})"
+  }
 
   override def doLocalName(s: String) = {
     s match {
-      case "_" => s
+      case Identifier.ITERATOR => "_"
+      case Identifier.INDEX => "i"
       case _ => s"self.${doName(s)}"
     }
   }
@@ -47,8 +54,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${PythonCompiler.types2class(enumTypeAbs)}.$label"
-  override def doEnumById(enumTypeAbs: List[String], id: String) =
-    s"${PythonCompiler.types2class(enumTypeAbs)}($id)"
+  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumTypeAbs)}, $id)"
 
   override def booleanOp(op: Ast.boolop) = op match {
     case Ast.boolop.Or => "or"
@@ -60,7 +67,7 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     case _ => super.unaryOp(op)
   }
 
-  override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
+  override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(${translate(ifTrue)} if ${translate(condition)} else ${translate(ifFalse)})"
@@ -78,6 +85,8 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
     s"${translate(v)}.value"
   override def boolToInt(v: Ast.expr): String =
     s"int(${translate(v)})"
+  override def floatToInt(v: Ast.expr): String =
+    s"int(${translate(v)})"
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     val func = baseStr match {
@@ -92,12 +101,16 @@ class PythonTranslator(provider: TypeProvider) extends BaseTranslator(provider) 
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"($bytesExpr).decode(${translate(encoding)})"
+  override def bytesLength(value: Ast.expr): String =
+    s"len(${translate(value)})"
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
   override def strReverse(value: Ast.expr): String =
     s"${translate(value)}[::-1]"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
+  override def strToBytes(s: Ast.expr, encoding: Ast.expr): String =
+    "" // TODO: implement
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[0]"

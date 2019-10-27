@@ -1,21 +1,21 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
-import io.kaitai.struct.translators.{BaseTranslator, RubyTranslator, TypeProvider}
+import io.kaitai.struct.precompile.CalculateSeqSizes
+import io.kaitai.struct.translators.RubyTranslator
 
 import scala.collection.mutable.ListBuffer
 
-class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
+class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
   import GraphvizClassCompiler._
 
   val out = new StringLanguageOutputWriter(indent)
 
-  val provider = new ClassTypeProvider(topClass)
+  val provider = new ClassTypeProvider(classSpecs, topClass)
   val translator = new RubyTranslator(provider)
   val links = ListBuffer[(String, String, String)]()
   val extraClusterLines = new StringLanguageOutputWriter(indent)
@@ -59,7 +59,7 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
     out.puts
 
     // Sequence
-    compileSeq(className, curClass)
+    compileSeqRead(className, curClass)
 
     curClass.instances.foreach { case (instName, instSpec) =>
       instSpec match {
@@ -84,34 +84,19 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
     out.puts("}")
   }
 
-  def compileSeq(className: List[String], curClass: ClassSpec): Unit = {
+  def compileSeqRead(className: List[String], curClass: ClassSpec): Unit = {
     tableStart(className, "seq")
-    var seqPos: Option[Int] = Some(0)
-    curClass.seq.foreach { (attr) =>
+
+    CalculateSeqSizes.forEachSeqAttr(curClass, (attr, seqPos, _, _) => {
       attr.id match {
         case NamedIdentifier(name) =>
           tableRow(className, seqPosToStr(seqPos), attr, name)
-
-          val size = dataTypeBitsSize(attr.dataType)
-          seqPos = (seqPos, size) match {
-            case (Some(pos), Some(siz)) => Some(pos + siz)
-            case _ => None
-          }
+        case NumberedIdentifier(n) =>
+          tableRow(className, seqPosToStr(seqPos), attr, s"_${NumberedIdentifier.TEMPLATE}$n")
       }
-    }
+    })
+
     tableEnd
-  }
-
-  def seqPosToStr(seqPos: Option[Int]): Option[String] = {
-    seqPos.map { (pos) =>
-      val posByte = pos / 8
-      val posBit = pos % 8
-      if (posBit == 0) {
-        s"$posByte"
-      } else {
-        s"$posByte:$posBit"
-      }
-    }
   }
 
   def compileParseInstance(className: List[String], id: InstanceIdentifier, inst: ParseInstanceSpec): Unit = {
@@ -254,63 +239,66 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
     */
   def dataTypeSizeAsString(dataType: DataType, attrName: String): String = {
     dataType match {
-      case _: Int1Type => "1"
-      case IntMultiType(_, width, _) => width.width.toString
-      case FloatMultiType(width, _) => width.width.toString
-      case FixedBytesType(contents, _) => contents.length.toString
       case _: BytesEosType => END_OF_STREAM
       case blt: BytesLimitType => expressionSize(blt.size, attrName)
-      case _: BytesTerminatedType => UNKNOWN
       case StrFromBytesType(basedOn, _) => dataTypeSizeAsString(basedOn, attrName)
       case utb: UserTypeFromBytes => dataTypeSizeAsString(utb.bytes, attrName)
-      case UserTypeInstream(_, _) => UNKNOWN
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
-      case _: SwitchType => UNKNOWN
-      case BitsType1 => "1b"
-      case BitsType(width) => s"${width}b"
+      case _ =>
+        CalculateSeqSizes.dataTypeBitsSize(dataType) match {
+          case FixedSized(n) =>
+            if (n % 8 == 0) {
+              s"${n / 8}"
+            } else {
+              s"${n}b"
+            }
+          case DynamicSized => UNKNOWN
+          case NotCalculatedSized | StartedCalculationSized =>
+            throw new RuntimeException("Should never happen: problems with CalculateSeqSizes")
+        }
     }
   }
 
-  def expressionSize(ex: expr, attrName: String): String = {
+  def expressionSize(ex: Ast.expr, attrName: String): String = {
     expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_size", STYLE_EDGE_SIZE)
   }
 
-  def expressionPos(ex: expr, attrName: String): String = {
+  def expressionPos(ex: Ast.expr, attrName: String): String = {
     expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_pos", STYLE_EDGE_POS)
   }
 
-  def expressionType(ex: expr, attrName: String): String = {
+  def expressionType(ex: Ast.expr, attrName: String): String = {
     expression(ex, getGraphvizNode(nowClassName, nowClass, attrName) + s":${attrName}_type", STYLE_EDGE_VALUE)
   }
 
-  def expression(e: expr, portName: String, style: String): String = {
+  def expression(e: Ast.expr, portName: String, style: String): String = {
     affectedVars(e).foreach((v) =>
       links += ((v, portName, style))
     )
     htmlEscape(translator.translate(e))
   }
 
-  def affectedVars(e: expr): List[String] = {
+  def affectedVars(e: Ast.expr): List[String] = {
     e match {
-      case expr.BoolOp(op, values) =>
+      case Ast.expr.BoolOp(op, values) =>
         values.flatMap(affectedVars).toList
-      case expr.BinOp(left, op, right) =>
+      case Ast.expr.BinOp(left, op, right) =>
         affectedVars(left) ++ affectedVars(right)
-      case expr.UnaryOp(op, operand) =>
+      case Ast.expr.UnaryOp(op, operand) =>
         affectedVars(operand)
-      case expr.IfExp(condition, ifTrue, ifFalse) =>
+      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
         affectedVars(condition) ++ affectedVars(ifTrue) ++ affectedVars(ifFalse)
       //      case expr.Dict(keys, values) =>
-      case expr.Compare(left, ops, right) =>
+      case Ast.expr.Compare(left, ops, right) =>
         affectedVars(left) ++ affectedVars(right)
       //      case expr.Call(func, args) =>
-      case expr.IntNum(_) | expr.FloatNum(_) | expr.Str(_) | expr.Bool(_) =>
+      case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) | Ast.expr.Str(_) | Ast.expr.Bool(_) =>
         List()
-      case expr.EnumByLabel(enumName, label) =>
+      case _: Ast.expr.EnumByLabel =>
         List()
-      case expr.EnumById(enumName, id) =>
+      case Ast.expr.EnumById(_, id, _) =>
         affectedVars(id)
-      case expr.Attribute(value, attr) =>
+      case Ast.expr.Attribute(value, attr) =>
         val targetClass = translator.detectType(value)
         targetClass match {
           case t: UserType =>
@@ -327,17 +315,20 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
           case _ =>
             affectedVars(value)
         }
-      case expr.Subscript(value, idx) =>
+      case Ast.expr.Subscript(value, idx) =>
         affectedVars(value) ++ affectedVars(idx)
       case SwitchType.ELSE_CONST =>
         // "_" is a special const for
         List()
-      case expr.Name(Ast.identifier("_io")) =>
-        // "_io" is a special const too
-        List()
-      case expr.Name(id) =>
-        List(resolveLocalNode(id.name))
-      case expr.List(elts) =>
+      case Ast.expr.Name(id) =>
+        if (id.name.charAt(0) == '_') {
+          // other special consts like "_io", "_index", etc
+          List()
+        } else {
+          // this must be local name, resolve it
+          List(resolveLocalNode(id.name))
+        }
+      case Ast.expr.List(elts) =>
         elts.flatMap(affectedVars).toList
     }
   }
@@ -367,14 +358,29 @@ class GraphvizClassCompiler(topClass: ClassSpec) extends AbstractCompiler {
     s"${getGraphvizNode(className, cs, s)}:${s}_type"
 
   def getGraphvizNode(className: List[String], cs: ClassSpec, s: String): String = {
-    cs.seq.foreach((attr) =>
-      attr.id match {
+    cs.seq.foreach { (attr) =>
+      val name = attr.id match {
         case NamedIdentifier(attrName) =>
-          if (attrName == s) {
-            return s"${type2class(className)}__seq"
-          }
+          attrName
+        case NumberedIdentifier(n) =>
+          s"_${NumberedIdentifier.TEMPLATE}$n"
       }
-    )
+      if (name == s) {
+        return s"${type2class(className)}__seq"
+      }
+    }
+
+    cs.params.foreach { (attr) =>
+      val name = attr.id match {
+        case NamedIdentifier(attrName) =>
+          attrName
+        case NumberedIdentifier(n) =>
+          s"_${NumberedIdentifier.TEMPLATE}$n"
+      }
+      if (name == s) {
+        return s"${type2class(className)}__params"
+      }
+    }
 
     cs.instances.get(InstanceIdentifier(s)).foreach((inst) =>
       return s"${type2class(className)}__inst__$s"
@@ -397,46 +403,9 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
   def type2class(name: List[String]) = name.last
   def type2display(name: List[String]) = name.map(Utils.upperCamelCase).mkString("::")
 
-  /**
-    * Determines how many bits occupies given data type.
-    *
-    * @param dataType data type to analyze
-    * @return number of bits or None, if it's impossible to determine a priori
-    */
-  def dataTypeBitsSize(dataType: DataType): Option[Int] = {
-    dataType match {
-      case BitsType1 => Some(1)
-      case BitsType(width) => Some(width)
-      case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
-      case _ => dataTypeByteSize(dataType).map((byteSize) => byteSize * 8)
-    }
-  }
-
-  /**
-    * Determines how many bytes occupies a given data type.
-    *
-    * @param dataType data type to analyze
-    * @return number of bytes or None, if it's impossible to determine a priori
-    */
-  def dataTypeByteSize(dataType: DataType): Option[Int] = {
-    dataType match {
-      case _: Int1Type => Some(1)
-      case IntMultiType(_, width, _) => Some(width.width)
-      case FixedBytesType(contents, _) => Some(contents.length)
-      case FloatMultiType(width, _) => Some(width.width)
-      case _: BytesEosType => None
-      case blt: BytesLimitType => evaluateIntLiteral(blt.size)
-      case _: BytesTerminatedType => None
-      case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
-      case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
-      case UserTypeInstream(_, _) => None
-      case _: SwitchType => None
-    }
-  }
-
   def dataTypeName(dataType: DataType): String = {
     dataType match {
-      case rt: ReadableType => rt.apiCall
+      case rt: ReadableType => rt.apiCall(None) // FIXME
       case ut: UserType => type2display(ut.name)
       case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
@@ -462,21 +431,25 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     }
   }
 
-  /**
-    * Evaluates the expression, if possible to get the result without introduction
-    * of any variables or anything.
-    *
-    * @param expr expression to evaluate
-    * @return integer result or None
-    */
-  def evaluateIntLiteral(expr: Ast.expr): Option[Int] = {
-    expr match {
-      case Ast.expr.IntNum(x) => Some(x.toInt)
-      case _ => None
-    }
-  }
-
   def htmlEscape(s: String): String = {
     s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;")
+  }
+
+  /**
+    * Converts bit-level position into byte/bit human-readable combination.
+    * @param seqPos optional number of bits
+    * @return fractional human-readable string which displays "bytes:bits",
+    *         akin to "minutes:seconds" time display
+    */
+  def seqPosToStr(seqPos: Option[Int]): Option[String] = {
+    seqPos.map { (pos) =>
+      val posByte = pos / 8
+      val posBit = pos % 8
+      if (posBit == 0) {
+        s"$posByte"
+      } else {
+        s"$posByte:$posBit"
+      }
+    }
   }
 }

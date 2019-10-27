@@ -1,32 +1,38 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
-import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
+import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaCompiler
 
-class JavaTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
+class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
-    val literal = n.toString
+    val literal = if (n > Long.MaxValue) {
+      "0x" + n.toString(16)
+    } else {
+      n.toString
+    }
     val suffix = if (n > Int.MaxValue) "L" else ""
 
-    s"${literal}${suffix}"
+    s"$literal$suffix"
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    // FIXME
-    val compiler = new JavaCompiler(provider.asInstanceOf[ClassTypeProvider], config)
-
-    val javaType = compiler.kaitaiType2JavaTypeBoxed(t)
+    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
+
+    importList.add("java.util.ArrayList")
+    importList.add("java.util.Arrays")
     s"new ArrayList<$javaType>(Arrays.asList($commaStr))"
   }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new byte[] { ${arr.mkString(", ")} }"
+  override def doByteArrayNonLiteral(elts: Seq[expr]): String =
+    s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
@@ -44,7 +50,8 @@ class JavaTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case Identifier.IO => "_io()"
       case Identifier.ITERATOR => "_it"
       case Identifier.ITERATOR2 => "_buf"
-      case Identifier.ITERATOR_I => "_i"
+      case Identifier.SWITCH_ON => "on"
+      case Identifier.INDEX => "i"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 
@@ -71,46 +78,58 @@ class JavaTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     op match {
       case Ast.cmpop.Eq =>
+        importList.add("java.util.Arrays")
         s"Arrays.equals(${translate(left)}, ${translate(right)})"
       case Ast.cmpop.NotEq =>
+        importList.add("java.util.Arrays")
         s"!Arrays.equals(${translate(left)}, ${translate(right)})"
       case _ =>
         s"(${JavaCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
     }
   }
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}.get((int) ${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: String): String =
-    s"((${Utils.upperCamelCase(typeName)}) (${translate(value)}))"
+  override def doCast(value: Ast.expr, typeName: DataType): String =
+    s"((${JavaCompiler.kaitaiType2JavaType(typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
     s"Long.parseLong(${translate(s)}, ${translate(base)})"
   override def enumToInt(v: expr, et: EnumType): String =
     s"${translate(v)}.id()"
+  override def floatToInt(v: expr): String =
+    s"(int) (${translate(v)} + 0)"
   override def intToStr(i: expr, base: expr): String =
     s"Long.toString(${translate(i)}, ${translate(base)})"
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
+    importList.add("java.nio.charset.Charset")
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
+  }
+
+  override def bytesLength(b: Ast.expr): String =
+    s"${translate(b)}.length"
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"${translate(container)}[${translate(idx)}]"
   override def bytesFirst(b: Ast.expr): String =
     s"${translate(b)}[0]"
-  override def bytesLast(b: Ast.expr): String = {
-    val v = translate(b)
-    s"$v[$v.length - 1]"
-  }
-  override def bytesSize(b: Ast.expr): String =
-    s"${translate(b)}.length"
-  override def strToBytes(strExpr: String, encoding: expr): String =
-    s"($strExpr).getBytes(Charset.forName(${translate(encoding)}))"
+  override def bytesLast(b: Ast.expr): String =
+    s"${translate(b)}[(${translate(b)}).length - 1]"
+  override def bytesMin(b: Ast.expr): String =
+    s"${JavaCompiler.kstreamName}.byteArrayMin(${translate(b)})"
+  override def bytesMax(b: Ast.expr): String =
+    s"${JavaCompiler.kstreamName}.byteArrayMax(${translate(b)})"
+
   override def strLength(s: expr): String =
-    s"${translate(s)}.length()"
+    s"(${translate(s)}).length()"
   override def strReverse(s: expr): String =
     s"new StringBuilder(${translate(s)}).reverse().toString()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"(${translate(s)}).substring(${translate(from)}, ${translate(to)})"
+  override def strToBytes(s: expr, encoding: expr): String =
+    s"(${translate(s)}).getBytes(Charset.forName(${translate(encoding)}))"
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}.get(0)"
@@ -120,8 +139,12 @@ class JavaTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   }
   override def arraySize(a: expr): String =
     s"${translate(a)}.size()"
-  override def arrayMin(a: Ast.expr): String =
+  override def arrayMin(a: Ast.expr): String = {
+    importList.add("java.util.Collections")
     s"Collections.min(${translate(a)})"
-  override def arrayMax(a: Ast.expr): String =
+  }
+  override def arrayMax(a: Ast.expr): String = {
+    importList.add("java.util.Collections")
     s"Collections.max(${translate(a)})"
+  }
 }

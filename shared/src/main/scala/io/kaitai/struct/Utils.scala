@@ -5,6 +5,11 @@ import java.nio.charset.Charset
 import scala.collection.mutable.ListBuffer
 
 object Utils {
+  /**
+    * BigInt-typed max value of unsigned 64-bit integer.
+    */
+  val MAX_UINT64 = BigInt("18446744073709551615")
+
   private val RDecimal = "^(-?[0-9]+)$".r
   private val RHex = "^0x([0-9a-fA-F]+)$".r
 
@@ -65,6 +70,18 @@ object Utils {
   }
 
   /**
+    * Joins collection together to make a single string. Makes extra exception for empty
+    * collections (not like [[TraversableOnce]] `mkString`).
+    * @param start the starting string.
+    * @param sep   the separator string.
+    * @param end   the ending string.
+    * @return If the collection is empty, returns empty string, otherwise returns `start`,
+    *         then elements of the collection, every pair separated with `sep`, then `end`.
+    */
+  def join[T](coll: TraversableOnce[T], start: String, sep: String, end: String): String =
+    if (coll.isEmpty) "" else coll.mkString(start, sep, end)
+
+  /**
     * Converts byte array (Seq[Byte]) into hex-escaped C-style literal characters
     * (i.e. like \xFF).
     * @param arr byte array to escape
@@ -96,4 +113,23 @@ object Utils {
     } else {
       fullPath
     }
+
+  /**
+    * Performs safe lookup for up to `len` character in a given
+    * string `src`, starting at `from`.
+    * @param src string to work on
+    * @param from starting character index
+    * @param len max length of substring
+    * @return substring of `src`, starting at `from`, up to `len` chars max
+    */
+  def safeLookup(src: String, from: Int, len: Int): String = {
+    val maxLen = src.length
+    if (from >= maxLen) {
+      ""
+    } else {
+      val to = from + len
+      val safeTo = if (to > maxLen) maxLen else to
+      src.substring(from, safeTo)
+    }
+  }
 }

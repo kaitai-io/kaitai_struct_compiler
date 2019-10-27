@@ -1,13 +1,13 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{PythonTranslator, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.translators.PythonTranslator
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils}
 
 class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -18,11 +18,14 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with EveryReadIsExpression
     with AllocateIOLocalVar
     with FixedContentsUsingArrayByteLiteral
+    with UniversalDoc
     with NoNeedForFullClassPath {
 
   import PythonCompiler._
 
-  override val translator = new PythonTranslator(typeProvider)
+  override val translator = new PythonTranslator(typeProvider, importList)
+
+  override def innerDocstrings = true
 
   override def universalFooter: Unit = {
     out.dec
@@ -32,22 +35,23 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"$topClassName.py"
 
+  override def outImports(topClass: ClassSpec) =
+    importList.toList.mkString("", "\n", "\n")
+
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"# $headerComment")
-    out.puts
-    out.puts("import array")
-    out.puts("import struct")
-    out.puts("import zlib")
-    out.puts("from enum import Enum")
-    out.puts("from pkg_resources import parse_version")
-    out.puts
-    out.puts(s"from kaitaistruct import __version__ as ks_version, $kstructName, $kstreamName, BytesIO")
+    outHeader.puts(s"# $headerComment")
+    outHeader.puts
+
+    importList.add("from pkg_resources import parse_version")
+    importList.add("import kaitaistruct")
+    importList.add(s"from kaitaistruct import $kstructName, $kstreamName, BytesIO")
+
     out.puts
     out.puts
 
     // API compatibility check
     out.puts(
-      "if parse_version(ks_version) < parse_version('" +
+      "if parse_version(kaitaistruct.__version__) < parse_version('" +
         KSVersion.minimalRuntime +
         "'):"
     )
@@ -55,7 +59,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(
       "raise Exception(\"Incompatible Kaitai Struct Python API: " +
         KSVersion.minimalRuntime +
-        " or later is required, but you have %s\" % (ks_version))"
+        " or later is required, but you have %s\" % (kaitaistruct.__version__))"
     )
     out.dec
     out.puts
@@ -63,7 +67,13 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = classSpec.name.head
-    out.puts(s"from $name import ${type2class(name)}")
+    out.puts(
+      if (config.pythonPackage.nonEmpty) {
+        s"from ${config.pythonPackage} import $name"
+      } else {
+        s"import $name"
+      }
+    )
   }
 
   override def classHeader(name: String): Unit = {
@@ -71,38 +81,141 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
-    out.puts("def __init__(self, _io, _parent=None, _root=None):")
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
+    val endianAdd = if (isHybrid) ", _is_le=None" else ""
+    val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
+
+    out.puts(s"def __init__(self$paramsList, _io, _parent=None, _root=None$endianAdd):")
     out.inc
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
     out.puts("self._root = _root if _root else self")
+
+    if (isHybrid)
+      out.puts("self._is_le = _is_le")
+
+    // Store parameters passed to us
+    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+
+    if (config.readStoresPos) {
+      importList.add("import collections")
+      out.puts("self._debug = collections.defaultdict(dict)")
+    }
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
+  override def runRead(): Unit = {
+    out.puts("self._read()")
+  }
 
-  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
+  override def runReadCalc(): Unit = {
+    out.puts(s"if not hasattr(self, '_is_le'):")
+    out.inc
+    out.puts(s"raise ${ksErrorName(UndecidedEndiannessError)}(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\")")
+    out.dec
+    out.puts(s"elif self._is_le == True:")
+    out.inc
+    out.puts("self._read_le()")
+    out.dec
+    out.puts("elif self._is_le == False:")
+    out.inc
+    out.puts("self._read_be()")
+    out.dec
+  }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    val suffix = endian match {
+      case Some(e) => s"_${e.toSuffix}"
+      case None => ""
+    }
+    out.puts(s"def _read$suffix(self):")
+    out.inc
+    if (isEmpty)
+      out.puts("pass")
+  }
+
+  override def readFooter() = universalFooter
+
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
+
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
+
+  override def universalDoc(doc: DocSpec): Unit = {
+    val docStr = doc.summary match {
+      case Some(summary) =>
+        val lastChar = summary.last
+        if (lastChar == '.' || lastChar == '\n') {
+          summary
+        } else {
+          summary + "."
+        }
+      case None =>
+        ""
+    }
+
+    val extraNewline = if (docStr.isEmpty || docStr.last == '\n') "" else "\n"
+    val refStr = doc.ref.map {
+      case TextRef(text) =>
+        val seeAlso = new StringLanguageOutputWriter("")
+        seeAlso.putsLines("   ", text)
+        s"$extraNewline\n.. seealso::\n${seeAlso.result}"
+      case ref: UrlRef =>
+        val seeAlso = new StringLanguageOutputWriter("")
+        seeAlso.putsLines("   ", s"${ref.text} - ${ref.url}")
+        s"$extraNewline\n.. seealso::\n${seeAlso.result}"
+    }.mkString("\n")
+
+    out.putsLines("", "\"\"\"" + docStr + refStr + "\"\"\"")
+  }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents($contents)")
 
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts("if self._is_le:")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("else:")
+    out.inc
+    beProc()
+    out.dec
+  }
+
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+    val srcName = privateMemberName(varSrc)
+    val destName = privateMemberName(varDest)
+
     proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        out.puts(s"${privateMemberName(varDest)} = $kstreamName.$procName(${privateMemberName(varSrc)}, ${expression(xorValue)})")
+        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)})")
       case ProcessZlib =>
-        out.puts(s"${privateMemberName(varDest)} = zlib.decompress(${privateMemberName(varSrc)})")
+        importList.add("import zlib")
+        out.puts(s"$destName = zlib.decompress($srcName)")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"${privateMemberName(varDest)} = $kstreamName.process_rotate_left(${privateMemberName(varSrc)}, $expr, 1)")
+        out.puts(s"$destName = $kstreamName.process_rotate_left($srcName, $expr, 1)")
+      case ProcessCustom(name, args) =>
+        val procClass = if (name.length == 1) {
+          val onlyName = name.head
+          val className = type2class(onlyName)
+          importList.add(s"from $onlyName import $className")
+          className
+        } else {
+          val pkgName = name.init.mkString(".")
+          importList.add(s"import $pkgName")
+          s"$pkgName.${type2class(name.last)}"
+        }
+
+        out.puts(s"_process = $procClass(${args.map(expression).mkString(", ")})")
+        out.puts(s"$destName = _process.decode($srcName)")
     }
   }
 
@@ -110,6 +223,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val varStr = privateMemberName(varName)
+    val ioName = s"_io_${idToStr(varName)}"
 
     val args = rep match {
       case RepeatEos | RepeatUntil(_) => s"$varStr[-1]"
@@ -117,8 +231,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => varStr
     }
 
-    out.puts(s"io = $kstreamName(BytesIO($args))")
-    "io"
+    out.puts(s"$ioName = $kstreamName(BytesIO($args))")
+    ioName
   }
 
   override def useIO(ioEx: expr): String = {
@@ -138,6 +252,40 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def alignToByte(io: String): Unit =
     out.puts(s"$io.align_to_byte()")
 
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
+    ios.foreach { (io) =>
+      val name = attrId match {
+        case _: RawIdentifier | _: SpecialIdentifier => return
+        case _ => idToStr(attrId)
+      }
+      rep match {
+        case NoRepeat =>
+          out.puts(s"self._debug['$name']['start'] = $io.pos()")
+        case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
+          out.puts(s"if not 'arr' in self._debug['$name']:")
+          out.inc
+          out.puts(s"self._debug['$name']['arr'] = []")
+          out.dec
+          out.puts(s"self._debug['$name']['arr'].append({'start': $io.pos()})")
+      }
+    }
+  }
+
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
+    val name = attrId match {
+      case _: RawIdentifier | _: SpecialIdentifier => return
+      case _ => idToStr(attrId)
+    }
+    rep match {
+      case NoRepeat =>
+        out.puts(s"self._debug['$name']['end'] = $io.pos()")
+      case _: RepeatExpr =>
+        out.puts(s"self._debug['$name']['arr'][i]['end'] = $io.pos()")
+      case RepeatEos | _: RepeatUntil =>
+        out.puts(s"self._debug['$name']['arr'][len(${privateMemberName(attrId)}) - 1]['end'] = $io.pos()")
+    }
+  }
+
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)}:")
     out.inc
@@ -147,11 +295,16 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts("i = 0")
     out.puts(s"while not $io.is_eof():")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}.append($expr)")
+  override def condRepeatEosFooter: Unit = {
+    out.puts("i += 1")
+    universalFooter
+  }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
@@ -167,6 +320,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts("i = 0")
     out.puts("while True:")
     out.inc
   }
@@ -183,16 +337,20 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts("break")
     out.dec
+    out.puts("i += 1")
     out.dec
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
 
-  override def parseExpr(dataType: DataType, io: String): String = {
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"$id = $expr")
+
+  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read_${t.apiCall}()"
+        s"$io.read_${t.apiCall(defEndian)}()"
       case blt: BytesLimitType =>
         s"$io.read_bytes(${expression(blt.size)})"
       case _: BytesEosType =>
@@ -204,6 +362,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io.read_bits_int($width)"
       case t: UserType =>
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -211,9 +370,13 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "self"
           }
-          s", $parent, self._root"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => ", self._is_le"
+            case _ => ""
+          }
+          s", $parent, self._root$addEndian"
         }
-        s"${types2class(t.classSpec.get.name)}($io$addArgs)"
+        s"${userType2class(t)}($addParams$io$addArgs)"
     }
   }
 
@@ -228,6 +391,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     expr2
   }
+
+  override def userTypeDebugRead(id: String): Unit =
+    out.puts(s"$id._read()")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"_on = ${expression(on)}")
@@ -253,32 +419,39 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def switchEnd(): Unit = {}
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit = {
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts("@property")
     out.puts(s"def ${publicMemberName(instName)}(self):")
     out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if hasattr(self, '${idToStr(instName)}'):")
     out.inc
-    instanceReturn(instName)
+    instanceReturn(instName, dataType)
     out.dec
     out.puts
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     // not very efficient, probably should be some other way to do that, but for now it will do:
     // workaround to avoid Python generating an "AttributeError: instance has no attribute"
     out.puts(s"return ${privateMemberName(instName)} if hasattr(self, '${idToStr(instName)}') else None")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
+    importList.add("from enum import Enum")
+
     out.puts
     out.puts(s"class ${type2class(enumName)}(Enum):")
     out.inc
     enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = $id") }
     out.dec
+  }
+
+  override def debugClassSequence(seq: List[AttrSpec]) = {
+    val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
+    out.puts(s"SEQ_FIELDS = [$seqStr]")
   }
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
@@ -303,11 +476,41 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case RawIdentifier(innerId) => s"_raw_${publicMemberName(innerId)}"
     }
   }
+
+  override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  override def ksErrorName(err: KSError): String = PythonCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if not ${translator.translate(checkExpr)}:")
+    out.inc
+    out.puts(s"raise $errName($errArgsStr)")
+    out.dec
+  }
+
+  def userType2class(t: UserType): String = {
+    val name = t.classSpec.get.name
+    val firstName = name.head
+    val prefix = if (t.isOpaque && firstName != translator.provider.nowClass.name.head) {
+      s"$firstName."
+    } else {
+      ""
+    }
+    s"$prefix${types2class(name)}"
+  }
 }
 
 object PythonCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
-  with StreamStructNames {
+  with StreamStructNames
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -315,6 +518,7 @@ object PythonCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"
+  override def ksErrorName(err: KSError): String = s"kaitaistruct.${err.name}"
 
   def types2class(name: List[String]): String = {
     if (name.size > 1) {
