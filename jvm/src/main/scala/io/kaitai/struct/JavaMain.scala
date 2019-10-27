@@ -9,7 +9,7 @@ import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseExcep
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
-import io.kaitai.struct.precompile.ErrorInInput
+import io.kaitai.struct.precompile.{ErrorInInput, YAMLParserError}
 
 object JavaMain {
   KSVersion.current = Version.version
@@ -361,6 +361,9 @@ class JavaMain(config: CLIConfig) {
           case None => e.getMessage
         }
         CompileError(file, e.path, msg)
+      case ypr: YAMLParserError =>
+        val file = ypr.file.getOrElse(srcFile)
+        CompileError(file, List(), ex.getMessage)
       case _ =>
         CompileError(srcFile, List(), ex.getMessage)
     }
