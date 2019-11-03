@@ -292,7 +292,7 @@ object DataType {
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
   private val ReFloatType = """f(4|8)(le|be)?""".r
   private val ReBitType = """b(\d+)""".r
-  private val ReUserTypeWithArgs = """(.+)\((.*)\)""".r
+  private val ReUserTypeWithArgs = """^([a-z][a-z0-9_]*)\((.*)\)$""".r
 
   def fromYaml(
     dto: Option[String],
