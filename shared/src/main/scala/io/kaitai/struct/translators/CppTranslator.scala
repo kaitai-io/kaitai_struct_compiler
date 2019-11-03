@@ -216,8 +216,6 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     s"${CppCompiler.kstreamName}::reverse(${translate(s)})"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substr(${translate(from)}, (${translate(to)}) - (${translate(from)}))"
-  override def strToBytes(s: expr, encoding: expr): String =
-    "" // TODO: implement
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}->front()"

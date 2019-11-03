@@ -95,8 +95,6 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   }
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substr(${translate(from)}, ${translate(to)})"
-  override def strToBytes(s: expr, encoding: expr): String =
-    "" // TODO: implement
   override def strToInt(s: expr, base: expr): String =
     s"${translate(s)}.parseInt(${translate(base)}"
 }

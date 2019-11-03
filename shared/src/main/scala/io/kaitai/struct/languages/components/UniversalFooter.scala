@@ -20,6 +20,7 @@ trait UniversalFooter extends LanguageCompiler {
   override def checkFooter: Unit = universalFooter
   def condRepeatExprFooter = universalFooter
   def condRepeatEosFooter: Unit = universalFooter
+  def condRepeatEosFooter2: Unit = universalFooter
   def condIfFooter(expr: expr): Unit = universalFooter
   def instanceFooter: Unit = universalFooter
 }

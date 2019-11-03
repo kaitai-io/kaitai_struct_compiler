@@ -105,8 +105,6 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     s"strrev(${translate(s)})"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
-  override def strToBytes(s: expr, encoding: expr): String =
-    "" // TODO: implement
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"

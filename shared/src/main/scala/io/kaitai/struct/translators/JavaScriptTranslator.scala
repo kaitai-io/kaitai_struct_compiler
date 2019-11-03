@@ -117,9 +117,6 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
-  override def strToBytes(s: expr, encoding: expr): String =
-    "" // TODO: implement
-
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String = {

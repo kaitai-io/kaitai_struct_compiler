@@ -109,8 +109,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     s"${translate(s)}.graphemes(true).rev().flat_map(|g| g.chars()).collect()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
-  override def strToBytes(s: expr, encoding: expr): String =
-    "" // TODO: implement
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}.first()"

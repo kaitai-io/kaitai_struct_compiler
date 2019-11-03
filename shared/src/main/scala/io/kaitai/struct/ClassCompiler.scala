@@ -403,7 +403,7 @@ class ClassCompiler(
       lang.classDoc(curClass.name, curClass.doc)
   }
 
-  def compileInstanceDoc(instName: Identifier, instSpec: InstanceSpec) = {
+  def compileInstanceDoc(instName: Identifier, instSpec: InstanceSpec) {
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
   }

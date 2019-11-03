@@ -1,6 +1,6 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{ImportList, Utils}
+import io.kaitai.struct.{ClassTypeProvider, ImportList, RuntimeConfig, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
@@ -8,7 +8,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaCompiler
 
-class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+class JavaTranslator(provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
     val literal = if (n > Long.MaxValue) {
       "0x" + n.toString(16)
@@ -21,7 +21,10 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
+    // FIXME
+    val compiler = new JavaCompiler(provider.asInstanceOf[ClassTypeProvider], config)
+
+    val javaType = compiler.kaitaiType2JavaTypeBoxed(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
 
     importList.add("java.util.ArrayList")
@@ -92,8 +95,11 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"${translate(container)}.get((int) ${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"((${JavaCompiler.kaitaiType2JavaType(typeName)}) (${translate(value)}))"
+  override def doCast(value: Ast.expr, typeName: DataType): String = {
+    // FIXME
+    val compiler = new JavaCompiler(provider.asInstanceOf[ClassTypeProvider], config)
+    s"((${compiler.kaitaiType2JavaType(typeName)}) (${translate(value)}))"
+  }
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =

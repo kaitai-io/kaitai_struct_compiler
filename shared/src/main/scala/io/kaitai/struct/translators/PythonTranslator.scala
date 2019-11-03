@@ -109,8 +109,6 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"${translate(value)}[::-1]"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s)}[${translate(from)}:${translate(to)}]"
-  override def strToBytes(s: Ast.expr, encoding: Ast.expr): String =
-    "" // TODO: implement
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[0]"

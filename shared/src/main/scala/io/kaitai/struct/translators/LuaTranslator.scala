@@ -101,8 +101,6 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"string.reverse(${translate(s)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"string.sub(${translate(s)}, ${translate(from)}, ${translate(to)})"
-  override def strToBytes(s: Ast.expr, encoding: Ast.expr): String =
-    "" // TODO: implement
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[1]"

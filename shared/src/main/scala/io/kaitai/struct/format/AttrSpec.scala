@@ -182,6 +182,17 @@ object AttrSpec {
     val parent = ParseUtils.getOptValueExpression(srcMap, "parent", path)
     val valid = srcMap.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
 
+    // Convert value of `contents` into validation spec and merge it in, if possible
+    val valid2: Option[ValidationSpec] = (contents, valid) match {
+      case (None, _) => valid
+      case (Some(byteArray), None) =>
+        Some(ValidationEq(Ast.expr.List(
+          byteArray.map(x => Ast.expr.IntNum(x & 0xff))
+        )))
+      case (Some(_), Some(_)) =>
+        throw new YAMLParseException(s"`contents` and `valid` can't be used together", path)
+    }
+
     val typObj = srcMap.get("type")
 
     val yamlAttrArgs = YamlAttrArgs(
@@ -223,7 +234,7 @@ object AttrSpec {
 
     ParseUtils.ensureLegalKeys(srcMap, legalKeys, path)
 
-    AttrSpec(path, id, dataType, ConditionalSpec(ifExpr, repeatSpec), valid, doc)
+    AttrSpec(path, id, dataType, ConditionalSpec(ifExpr, repeatSpec), valid2, doc)
   }
 
   def parseContentSpec(c: Any, path: List[String]): Array[Byte] = {

@@ -565,6 +565,22 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
 
   override def ksErrorName(err: KSError): String = CSharpCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if (!(${translator.translate(checkExpr)}))")
+    out.puts("{")
+    out.inc
+    out.puts(s"throw new $errName($errArgsStr);")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object CSharpCompiler extends LanguageCompilerStatic
@@ -638,7 +654,10 @@ object CSharpCompiler extends LanguageCompilerStatic
 
   override def kstructName = "KaitaiStruct"
   override def kstreamName = "KaitaiStream"
-  override def ksErrorName(err: KSError): String = err.name
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "EndOfStreamException"
+    case _ => err.name
+  }
 
   override def type2class(name: String): String = Utils.upperCamelCase(name)
 }

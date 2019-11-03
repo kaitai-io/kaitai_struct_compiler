@@ -607,7 +607,7 @@ class TranslatorSpec extends FunSuite {
       CppCompiler -> new CppTranslator(tp, new ImportList(), RuntimeConfig()),
       CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
       GoCompiler -> new GoTranslator(goOutput, tp, new ImportList()),
-      JavaCompiler -> new JavaTranslator(tp, new ImportList()),
+      JavaCompiler -> new JavaTranslator(tp, new ImportList(), RuntimeConfig()),
       JavaScriptCompiler -> new JavaScriptTranslator(tp),
       LuaCompiler -> new LuaTranslator(tp, new ImportList()),
       PerlCompiler -> new PerlTranslator(tp, new ImportList()),

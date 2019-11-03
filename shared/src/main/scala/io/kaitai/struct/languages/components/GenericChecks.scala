@@ -14,7 +14,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
       case RepeatEos =>
         condRepeatEosHeader2(id, io, attr.dataType, needRaw(attr.dataType))
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
-        condRepeatEosFooter
+        condRepeatEosFooter2
       case RepeatExpr(repeatExpr: Ast.expr) =>
         attrArraySizeCheck(id, repeatExpr)
         condRepeatExprHeader2(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
@@ -32,12 +32,28 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
   }
 
   def attrCheck2(id: Identifier, dataType: DataType, io: String, repeat: RepeatSpec, isRaw: Boolean) = {
+    // TODO: unify with EveryWriteIsExpression.writeExprAsExpr
+    val astName = idToName(id)
+    val item = repeat match {
+      case NoRepeat =>
+        astName
+      case _ =>
+        Ast.expr.Subscript(
+          astName,
+          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
+        )
+    }
+
     dataType match {
       case t: BytesType =>
-        attrByteSizeCheck(id, t, exprByteArraySize(idToName(id)))
+        attrByteSizeCheck(astName, t, exprByteArraySize(item), idToMsg(id))
       case st: StrFromBytesType =>
-        attrByteSizeCheck(id, st.bytes,
-          exprByteArraySize(exprStrToBytes(idToName(id), st.encoding))
+        val bytes = exprStrToBytes(item, st.encoding)
+        attrByteSizeCheck(
+          bytes,
+          st.bytes,
+          exprByteArraySize(bytes),
+          idToMsg(id)
         )
       case _ => // no checks
     }
@@ -50,40 +66,40 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
       idToMsg(id)
     )
 
-  def attrByteSizeCheck(id: Identifier, t: BytesType, actualSize: Ast.expr): Unit = {
+  def attrByteSizeCheck(name: Ast.expr, t: BytesType, actualSize: Ast.expr, msgId: String): Unit = {
     t match {
       case blt: BytesLimitType =>
         if (blt.padRight.isDefined) {
           // size must be "<= declared"
-          attrAssertLtE(actualSize, blt.size, idToMsg(id))
+          attrAssertLtE(actualSize, blt.size, msgId)
           blt.terminator.foreach { (term) =>
             if (blt.include)
-              attrAssertLastByte(id, term, idToMsg(id))
+              attrAssertLastByte(name, term, msgId)
           }
         } else {
           blt.terminator match {
             case Some(term) =>
               if (!blt.include) {
                 // size must be "<= (declared - 1)", i.e. "< declared"
-                attrAssertLt(actualSize, blt.size, idToMsg(id))
+                attrAssertLt(actualSize, blt.size, msgId)
               } else {
                 // terminator is included into the string, so
                 // size must be "<= declared"
-                attrAssertLtE(actualSize, blt.size, idToMsg(id))
-                attrAssertLastByte(id, term, idToMsg(id))
+                attrAssertLtE(actualSize, blt.size, msgId)
+                attrAssertLastByte(name, term, msgId)
               }
             case None =>
               // size must match declared size exactly
               attrAssertEqual(
                 actualSize,
                 blt.size,
-                idToMsg(id)
+                msgId
               )
           }
         }
       case btt: BytesTerminatedType =>
         if (btt.include)
-          attrAssertLastByte(id, btt.terminator, idToMsg(id))
+          attrAssertLastByte(name, btt.terminator, msgId)
       case _ => // no checks
     }
   }
@@ -119,10 +135,10 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
       Seq(Ast.expr.Str(encoding))
     )
 
-  def attrAssertLastByte(actualId: Identifier, expectedLast: Int, msg: String): Unit = {
+  def attrAssertLastByte(name: Ast.expr, expectedLast: Int, msg: String): Unit = {
     attrAssertEqual(
       Ast.expr.Attribute(
-        idToName(actualId),
+        name,
         Ast.identifier("last")
       ),
       Ast.expr.IntNum(expectedLast),

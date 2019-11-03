@@ -336,10 +336,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString(s"${translate(s)}[${translate(from)}:${translate(to)}]")
   }
 
-  override def strToBytes(s: Ast.expr, encoding: Ast.expr): TranslatorResult = {
-    ResultString("") // TODO: implement
-  }
-
   override def intToStr(value: Ast.expr, base: Ast.expr): TranslatorResult = {
     importList.add("strconv")
     ResultString(s"strconv.FormatInt(int64(${translate(value)}), ${translate(base)})")

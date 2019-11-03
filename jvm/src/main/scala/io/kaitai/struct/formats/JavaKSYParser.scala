@@ -6,9 +6,12 @@ import java.util.{List => JList, Map => JMap}
 
 import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
+import io.kaitai.struct.precompile.YAMLParserError
 import io.kaitai.struct.{Log, Main}
-import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.SafeConstructor
+import org.yaml.snakeyaml.error.MarkedYAMLException
+import org.yaml.snakeyaml.representer.Representer
+import org.yaml.snakeyaml.{DumperOptions, LoaderOptions, Yaml}
 
 import scala.collection.JavaConversions._
 import scala.concurrent.Await
@@ -34,20 +37,38 @@ object JavaKSYParser {
     val fis = new FileInputStream(yamlFilename)
     val isr = new InputStreamReader(fis, Charset.forName("UTF-8"))
     val br = new BufferedReader(isr)
-    val scalaSrc = readerToYaml(br)
-    ClassSpec.fromYaml(scalaSrc)
+    try {
+      val scalaSrc = readerToYaml(br)
+      ClassSpec.fromYaml(scalaSrc)
+    } catch {
+      case marked: MarkedYAMLException =>
+        val mark = marked.getProblemMark
+        throw YAMLParserError(
+          marked.getProblem,
+          Some(yamlFilename),
+          Some(mark.getLine + 1),
+          Some(mark.getColumn + 1)
+        )
+    }
+  }
+
+  def getYamlLoader: Yaml = {
+    val loaderOptions = new LoaderOptions
+    loaderOptions.setAllowDuplicateKeys(false)
+    new Yaml(
+      new SafeConstructor,
+      new Representer,
+      new DumperOptions,
+      loaderOptions
+    )
   }
 
   def readerToYaml(reader: Reader): Any = {
-    val yamlLoader = new Yaml(new SafeConstructor)
-    val javaSrc = yamlLoader.load(reader)
-    yamlJavaToScala(javaSrc)
+    yamlJavaToScala(getYamlLoader.load(reader))
   }
 
   def stringToYaml(data: String): Any = {
-    val yamlLoader = new Yaml(new SafeConstructor)
-    val javaSrc = yamlLoader.load(data)
-    yamlJavaToScala(javaSrc)
+    yamlJavaToScala(getYamlLoader.load(data))
   }
 
   def yamlJavaToScala(src: Any): Any = {

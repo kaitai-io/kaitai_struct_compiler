@@ -9,7 +9,7 @@ import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseExcep
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
-import io.kaitai.struct.precompile.ErrorInInput
+import io.kaitai.struct.precompile.{ErrorInInput, YAMLParserError}
 
 object JavaMain {
   KSVersion.current = Version.version
@@ -102,12 +102,12 @@ object JavaMain {
       } text("Go package (Go only, default: none)")
 
       opt[String]("java-package") valueName("<package>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(javaPackage = x))
+        c.copy(runtime = c.runtime.copy(java = c.runtime.java.copy(javaPackage = x)))
       } text("Java package (Java only, default: root package)")
 
       opt[String]("java-from-file-class") valueName("<class>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(javaFromFileClass = x))
-      } text(s"Java class to be invoked in fromFile() helper (default: ${RuntimeConfig().javaFromFileClass})")
+        c.copy(runtime = c.runtime.copy(java = c.runtime.java.copy(fromFileClass = x)))
+      } text(s"Java class to be invoked in fromFile() helper (default: ${RuntimeConfig().java.fromFileClass})")
 
       opt[String]("dotnet-namespace") valueName("<namespace>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(dotNetNamespace = x))
@@ -365,6 +365,9 @@ class JavaMain(config: CLIConfig) {
           case None => e.getMessage
         }
         CompileError(file, e.path, msg)
+      case ypr: YAMLParserError =>
+        val file = ypr.file.getOrElse(srcFile)
+        CompileError(file, List(), ex.getMessage)
       case _ =>
         CompileError(srcFile, List(), ex.getMessage)
     }
