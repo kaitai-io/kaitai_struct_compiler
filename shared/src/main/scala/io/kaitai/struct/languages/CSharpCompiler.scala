@@ -9,7 +9,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CSharpTranslator, TypeDetector}
 
-class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with UpperCamelCaseClasses
     with ObjectOrientedLanguage
@@ -18,6 +18,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with EveryReadIsExpression
     with UniversalDoc
     with FixedContentsUsingArrayByteLiteral
+    with SwitchIfOps
     with NoNeedForFullClassPath {
   import CSharpCompiler._
 
@@ -161,16 +162,16 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def universalDoc(doc: DocSpec): Unit = {
     out.puts
-    doc.summary.foreach { (summary) =>
+    doc.summary.foreach { summary =>
       out.puts("/// <summary>")
       out.putsLines("/// ", XMLUtils.escape(summary))
       out.puts("/// </summary>")
     }
 
-    if (doc.ref != NoRef) {
+    doc.ref.foreach { docRef =>
       out.puts("/// <remarks>")
 
-      val refStr = doc.ref match {
+      val refStr = docRef match {
         case TextRef(text) => XMLUtils.escape(text)
         case ref: UrlRef => ref.toAhref
       }
@@ -396,31 +397,47 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String): Unit =
     out.puts(s"$id._read();")
 
-  /**
-    * Designates switch mode. If false, we're doing real switch-case for this
-    * attribute. If true, we're doing if-based emulation.
-    */
-  var switchIfs = false
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: EnumType | _: StrType => false
+    case _ => true
+  }
+
+  //<editor-fold desc="switching: true version">
 
   val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    val onType = translator.detectType(on)
-    typeProvider._currentSwitchType = Some(onType)
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    out.puts(s"switch (${expression(on)}) {")
 
-    // Determine switching mode for this construct based on type
-    switchIfs = onType match {
-      case _: IntType | _: EnumType | _: StrType => false
-      case _ => true
-    }
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)
 
-    if (switchIfs) {
-      out.puts("{")
-      out.inc
-      out.puts(s"${kaitaiType2NativeType(onType)} ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
-    } else {
-      out.puts(s"switch (${expression(on)}) {")
-    }
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"case ${expression(condition)}: {")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+    out.puts("break;")
+    out.dec
+    out.puts("}")
+  }
+
+  override def switchElseStart(): Unit = {
+    out.puts("default: {")
+    out.inc
+  }
+
+  override def switchEnd(): Unit =
+    out.puts("}")
+
+  //</editor-fold>
+
+  //<editor-fold desc="switching: emulation with ifs">
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    out.puts("{")
+    out.inc
+    out.puts(s"${kaitaiType2NativeType(onType)} ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
   }
 
   def switchCmpExpr(condition: Ast.expr): String =
@@ -432,54 +449,35 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       )
     )
 
-  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"if (${switchCmpExpr(condition)})")
-      out.puts("{")
-      out.inc
-    } else {
-      switchCaseStart(condition)
-    }
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    out.puts(s"if (${switchCmpExpr(condition)})")
+    out.puts("{")
+    out.inc
   }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"else if (${switchCmpExpr(condition)})")
-      out.puts("{")
-      out.inc
-    } else {
-      out.puts(s"case ${expression(condition)}: {")
-      out.inc
-    }
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"else if (${switchCmpExpr(condition)})")
+    out.puts("{")
+    out.inc
   }
 
-  override def switchCaseEnd(): Unit = {
-    if (switchIfs) {
-      out.dec
-      out.puts("}")
-    } else {
-      out.puts("break;")
-      out.dec
-      out.puts("}")
-    }
-  }
-
-  override def switchElseStart(): Unit = {
-    if (switchIfs) {
-      out.puts("else")
-      out.puts("{")
-      out.inc
-    } else {
-      out.puts("default: {")
-      out.inc
-    }
-  }
-
-  override def switchEnd(): Unit = {
-    if (switchIfs)
-      out.dec
+  override def switchIfCaseEnd(): Unit = {
+    out.dec
     out.puts("}")
   }
+
+  override def switchIfElseStart(): Unit = {
+    out.puts("else")
+    out.puts("{")
+    out.inc
+  }
+
+  override def switchIfEnd(): Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  //</editor-fold>
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"private bool ${flagForInstName(attrName)};")
@@ -565,11 +563,30 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
   override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
+
+  override def ksErrorName(err: KSError): String = CSharpCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if (!(${translator.translate(checkExpr)}))")
+    out.puts("{")
+    out.inc
+    out.puts(s"throw new $errName($errArgsStr);")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object CSharpCompiler extends LanguageCompilerStatic
   with StreamStructNames
-  with UpperCamelCaseClasses {
+  with UpperCamelCaseClasses
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -637,6 +654,10 @@ object CSharpCompiler extends LanguageCompilerStatic
 
   override def kstructName = "KaitaiStruct"
   override def kstreamName = "KaitaiStream"
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "EndOfStreamException"
+    case _ => err.name
+  }
 
   override def type2class(name: String): String = Utils.upperCamelCase(name)
 }

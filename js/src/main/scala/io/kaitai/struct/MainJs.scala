@@ -11,7 +11,7 @@ import scala.scalajs.js.annotation.JSExport
 
 @JSExport
 object MainJs {
-  KSVersion.current = BuildInfo.version
+  KSVersion.current = Version.version
 
   @JSExport
   def compile(langStr: String, yaml: js.Object, importer: JavaScriptImporter, debug: Boolean = false): js.Promise[js.Dictionary[String]] = {
@@ -36,8 +36,8 @@ object MainJs {
   lazy val languages: js.Array[String] = LanguageCompilerStatic.NAME_TO_CLASS.keys.toSeq.sorted.toJSArray
 
   @JSExport
-  lazy val version = BuildInfo.version
+  lazy val version = Version.version
 
   @JSExport
-  lazy val buildDate = BuildInfo.builtAtString
+  lazy val buildDate = Version.gitTime
 }

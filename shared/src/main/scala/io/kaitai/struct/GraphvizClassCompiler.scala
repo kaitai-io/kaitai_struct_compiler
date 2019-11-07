@@ -407,7 +407,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     dataType match {
       case rt: ReadableType => rt.apiCall(None) // FIXME
       case ut: UserType => type2display(ut.name)
-      case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
+      //case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         val args = ListBuffer[String]()
         if (terminator != 0)

@@ -56,6 +56,14 @@ case class KSVersion(nums: List[Int]) extends Ordered[KSVersion] {
 }
 
 object KSVersion {
+  /**
+    * This is abomination, the sole purpose of which is to get away from atrocious
+    * SBT "we can generate managed source files (=Version.scala) only in platform-
+    * dependent projects". As "shared" is not a such project, we can't just directly
+    * generate a file that will be used by both projects. Probably something can be
+    * done about it, but I've already spent like 4-5 hours on it and I'd rather spend
+    * more on something more productive.
+    */
   private var _current: Option[KSVersion] = None
 
   def current_=(str: String) {
@@ -74,5 +82,5 @@ object KSVersion {
     * language supports it) when trying to use generated file together
     * with this older runtime API.
     */
-  val minimalRuntime: KSVersion = KSVersion.fromStr("0.7")
+  val minimalRuntime: KSVersion = KSVersion.fromStr("0.9")
 }

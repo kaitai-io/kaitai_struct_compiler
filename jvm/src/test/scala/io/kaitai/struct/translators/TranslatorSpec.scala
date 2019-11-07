@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
-import io.kaitai.struct.format.ClassSpec
+import io.kaitai.struct.format.{ClassSpec, FixedSized}
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.{ImportList, RuntimeConfig, StringLanguageOutputWriter}
@@ -569,6 +569,32 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "[0, 1, 2]"
   ))
 
+  // sizeof of primitive types
+  everybody("sizeof<b1>", "1", CalcIntType)
+  everybody("sizeof<b7>", "1", CalcIntType)
+  everybody("sizeof<b8>", "1", CalcIntType)
+  everybody("sizeof<b9>", "2", CalcIntType)
+  everybody("sizeof<s1>", "1", CalcIntType)
+  everybody("sizeof<s2>", "2", CalcIntType)
+  everybody("sizeof<u4>", "4", CalcIntType)
+  everybody("sizeof<f8>", "8", CalcIntType)
+
+  // sizeof of fixed user type
+  everybody("sizeof<block>", "7", CalcIntType)
+
+  // bitsizeof of primitive types
+  everybody("bitsizeof<b1>", "1", CalcIntType)
+  everybody("bitsizeof<b7>", "7", CalcIntType)
+  everybody("bitsizeof<b8>", "8", CalcIntType)
+  everybody("bitsizeof<b9>", "9", CalcIntType)
+  everybody("bitsizeof<s1>", "8", CalcIntType)
+  everybody("bitsizeof<s2>", "16", CalcIntType)
+  everybody("bitsizeof<u4>", "32", CalcIntType)
+  everybody("bitsizeof<f8>", "64", CalcIntType)
+
+  // sizeof of fixed user type
+  everybody("bitsizeof<block>", "56", CalcIntType)
+
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
     var eo: Option[Ast.expr] = None
     test(s"_expr:$src") {
@@ -624,8 +650,18 @@ class TranslatorSpec extends FunSuite {
     override def resolveEnum(inType: Ast.typeId, enumName: String) =
       throw new NotImplementedError
 
-    override def resolveType(typeName: Ast.typeId): DataType =
-      throw new NotImplementedError
+    override def resolveType(typeName: Ast.typeId): DataType = {
+      if (typeName == Ast.typeId(false, List("block"), false)) {
+        val name = List("top_class", "block")
+        val r = CalcUserType(name, None, Seq())
+        val cs = ClassSpec.opaquePlaceholder(name)
+        cs.seqSize = FixedSized(56)
+        r.classSpec = Some(cs)
+        return r
+      } else {
+        throw new NotImplementedError
+      }
+    }
 
     override def isLazy(attrName: String): Boolean = false
 

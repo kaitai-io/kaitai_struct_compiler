@@ -1,12 +1,11 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype.DataType.{KaitaiStreamType, UserTypeInstream}
-import io.kaitai.struct.datatype.{Endianness, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.DataType.{CalcIntType, KaitaiStreamType, UserTypeInstream}
+import io.kaitai.struct.datatype.{BigEndian, CalcEndian, Endianness, FixedEndian, InheritedEndian, LittleEndian}
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.languages.components.ExtraAttrs
-
-import scala.collection.mutable.ListBuffer
 
 class GoClassCompiler(
   classSpecs: ClassSpecs,
@@ -56,18 +55,11 @@ class GoClassCompiler(
       curClass.meta.endian.contains(InheritedEndian),
       curClass.params
     )
-    // FIXME
-    val defEndian = curClass.meta.endian match {
-      case Some(fe: FixedEndian) => Some(fe)
-      case _ => None
-    }
-    compileSeq(curClass.seq, defEndian)
+    compileEagerRead(curClass.seq, curClass.meta.endian)
     lang.classConstructorFooter
   }
 
   override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, endian: Option[Endianness]): Unit = {
-    // FIXME: support calculated endianness
-
     // Determine datatype
     val dataType = instSpec.dataTypeComposite
 
@@ -82,11 +74,22 @@ class GoClassCompiler(
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
       case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, None) // FIXME
+        lang.attrParse(i, instName, endian)
     }
 
     lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
+  }
+
+  override def compileCalcEndian(ce: CalcEndian): Unit = {
+    def renderProc(result: FixedEndian): Unit = {
+      val v = result match {
+        case LittleEndian => Ast.expr.IntNum(1)
+        case BigEndian => Ast.expr.IntNum(0)
+      }
+      lang.instanceCalculate(IS_LE_ID, CalcIntType, v)
+    }
+    lang.switchCases[FixedEndian](IS_LE_ID, ce.on, ce.cases, renderProc, renderProc)
   }
 }

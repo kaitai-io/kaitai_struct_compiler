@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
@@ -216,6 +216,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
+    val ioName = s"$$_io_${idToStr(id)}"
 
     val args = rep match {
       case RepeatEos | RepeatExpr(_) => s"end($memberName)"
@@ -223,8 +224,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => memberName
     }
 
-    out.puts(s"$$io = new $kstreamName($args);")
-    "$io"
+    out.puts(s"$ioName = new $kstreamName($args);")
+    ioName
   }
 
   override def useIO(ioEx: Ast.expr): String = {
@@ -462,11 +463,14 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case KaitaiStreamType => kstreamName
     }
   }
+
+  override def ksErrorName(err: KSError): String = PHPCompiler.ksErrorName(err)
 }
 
 object PHPCompiler extends LanguageCompilerStatic
   with StreamStructNames
-  with UpperCamelCaseClasses {
+  with UpperCamelCaseClasses
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -475,6 +479,8 @@ object PHPCompiler extends LanguageCompilerStatic
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 
   override def kstructName: String = "\\Kaitai\\Struct\\Struct"
+
+  override def ksErrorName(err: KSError): String = ???
 
   def types2classRel(names: List[String]) = names.map(type2class).mkString("\\")
 }

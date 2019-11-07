@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.CppRuntimeConfig._
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -11,13 +11,14 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
 
 class CppCompiler(
-  typeProvider: ClassTypeProvider,
+  val typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
+    with SwitchIfOps
     with EveryReadIsExpression {
   import CppCompiler._
 
@@ -244,8 +245,9 @@ class CppCompiler(
     outSrc.puts
     outSrc.puts("if (m__is_le == -1) {")
     outSrc.inc
-    importListSrc.add("stdexcept")
-    outSrc.puts("throw std::runtime_error(\"unable to decide on endianness\");")
+    importListSrc.add("kaitai/exceptions.h")
+    outSrc.puts(s"throw ${ksErrorName(UndecidedEndiannessError)}" +
+      "(\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\");")
     outSrc.dec
     outSrc.puts("} else if (m__is_le == 1) {")
     outSrc.inc
@@ -310,15 +312,13 @@ class CppCompiler(
     outHdr.puts
     outHdr.puts( "/**")
 
-    doc.summary.foreach((docStr) => outHdr.putsLines(" * ", docStr))
+    doc.summary.foreach(docStr => outHdr.putsLines(" * ", docStr))
 
-    doc.ref match {
+    doc.ref.foreach {
       case TextRef(text) =>
         outHdr.putsLines(" * ", s"\\sa $text")
       case UrlRef(url, text) =>
-        outHdr.putsLines(" * ", s"\\sa $text")
-      case NoRef =>
-        // nothing to output
+        outHdr.putsLines(" * ", s"\\sa $url $text")
     }
 
     outHdr.puts( " */")
@@ -728,78 +728,76 @@ class CppCompiler(
   override def userTypeDebugRead(id: String): Unit =
     outSrc.puts(s"$id->_read();")
 
-  /**
-    * Designates switch mode. If false, we're doing real switch-case for this
-    * attribute. If true, we're doing if-based emulation.
-    */
-  var switchIfs = false
-
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    val onType = translator.detectType(on)
-
-    // Determine switching mode for this construct based on type
-    switchIfs = onType match {
-      case _: IntType | _: EnumType => false
-      case _ => true
-    }
-
-    if (switchIfs) {
-      outSrc.puts("{")
-      outSrc.inc
-      outSrc.puts(s"${kaitaiType2NativeType(onType)} on = ${expression(on)};")
-    } else {
-      outSrc.puts(s"switch (${expression(on)}) {")
-    }
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: EnumType => false
+    case _ => true
   }
 
+  //<editor-fold desc="switching: true version">
+
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    outSrc.puts(s"switch (${expression(on)}) {")
+
   override def switchCaseFirstStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      outSrc.puts(s"if (on == ${expression(condition)}) {")
-      outSrc.inc
-    } else {
-      outSrc.puts(s"case ${expression(condition)}: {")
-      outSrc.inc
-    }
+    outSrc.puts(s"case ${expression(condition)}: {")
+    outSrc.inc
   }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      outSrc.puts(s"else if (on == ${expression(condition)}) {")
-      outSrc.inc
-    } else {
-      outSrc.puts(s"case ${expression(condition)}: {")
-      outSrc.inc
-    }
+    outSrc.puts(s"case ${expression(condition)}: {")
+    outSrc.inc
   }
 
   override def switchCaseEnd(): Unit = {
-    if (switchIfs) {
-      outSrc.dec
-      outSrc.puts("}")
-    } else {
-      outSrc.puts("break;")
-      outSrc.dec
-      outSrc.puts("}")
-    }
+    outSrc.puts("break;")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   override def switchElseStart(): Unit = {
-    if (switchIfs) {
-      outSrc.puts("else {")
-      outSrc.inc
-    } else {
-      outSrc.puts("default: {")
-      outSrc.inc
-    }
+    outSrc.puts("default: {")
+    outSrc.inc
   }
 
   override def switchEnd(): Unit =
-    if (switchIfs) {
-      outSrc.dec
-      outSrc.puts("}")
-    } else {
-      outSrc.puts("}")
-    }
+    outSrc.puts("}")
+
+  //</editor-fold>
+
+  //<editor-fold desc="switching: emulation with ifs">
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    outSrc.puts("{")
+    outSrc.inc
+    outSrc.puts(s"${kaitaiType2NativeType(onType)} on = ${expression(on)};")
+  }
+
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    outSrc.puts(s"if (on == ${expression(condition)}) {")
+    outSrc.inc
+  }
+
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    outSrc.puts(s"else if (on == ${expression(condition)}) {")
+    outSrc.inc
+  }
+
+  override def switchIfCaseEnd(): Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
+  override def switchIfElseStart(): Unit = {
+    outSrc.puts("else {")
+    outSrc.inc
+  }
+
+  override def switchIfEnd(): Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
+  //</editor-fold>
 
   override def switchBytesOnlyAsRaw = true
 
@@ -941,9 +939,33 @@ class CppCompiler(
     case UniqueAndRawPointers => s"std::move($expr)"
     case _ => expr
   }
+
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "std::ifstream::failure"
+    case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
+    case ValidationNotEqualError(dt) =>
+      s"kaitai::validation_not_equal_error<${kaitaiType2NativeType(dt, true)}>"
+  }
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    importListSrc.add("kaitai/exceptions.h")
+    outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    outSrc.inc
+    outSrc.puts(s"throw $errName($errArgsStr);")
+    outSrc.dec
+    outSrc.puts("}")
+  }
 }
 
-object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
+object CppCompiler extends LanguageCompilerStatic
+  with StreamStructNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig

@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -43,14 +43,15 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
 
     importList.add("from pkg_resources import parse_version")
-    importList.add(s"from kaitaistruct import __version__ as ks_version, $kstructName, $kstreamName, BytesIO")
+    importList.add("import kaitaistruct")
+    importList.add(s"from kaitaistruct import $kstructName, $kstreamName, BytesIO")
 
     out.puts
     out.puts
 
     // API compatibility check
     out.puts(
-      "if parse_version(ks_version) < parse_version('" +
+      "if parse_version(kaitaistruct.__version__) < parse_version('" +
         KSVersion.minimalRuntime +
         "'):"
     )
@@ -58,7 +59,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(
       "raise Exception(\"Incompatible Kaitai Struct Python API: " +
         KSVersion.minimalRuntime +
-        " or later is required, but you have %s\" % (ks_version))"
+        " or later is required, but you have %s\" % (kaitaistruct.__version__))"
     )
     out.dec
     out.puts
@@ -107,19 +108,17 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def runReadCalc(): Unit = {
-    out.puts
-    out.puts(s"if self._is_le == True:")
+    out.puts(s"if not hasattr(self, '_is_le'):")
+    out.inc
+    out.puts(s"raise ${ksErrorName(UndecidedEndiannessError)}(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\")")
+    out.dec
+    out.puts(s"elif self._is_le == True:")
     out.inc
     out.puts("self._read_le()")
     out.dec
     out.puts("elif self._is_le == False:")
     out.inc
     out.puts("self._read_be()")
-    out.dec
-    out.puts("else:")
-    out.inc
-    //out.puts(s"raise $kstreamName.UndecidedEndiannessError")
-    out.puts("raise Exception(\"Unable to decide endianness\")")
     out.dec
   }
 
@@ -154,7 +153,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     val extraNewline = if (docStr.isEmpty || docStr.last == '\n') "" else "\n"
-    val refStr = doc.ref match {
+    val refStr = doc.ref.map {
       case TextRef(text) =>
         val seeAlso = new StringLanguageOutputWriter("")
         seeAlso.putsLines("   ", text)
@@ -163,9 +162,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val seeAlso = new StringLanguageOutputWriter("")
         seeAlso.putsLines("   ", s"${ref.text} - ${ref.url}")
         s"$extraNewline\n.. seealso::\n${seeAlso.result}"
-      case NoRef =>
-        ""
-    }
+    }.mkString("\n")
 
     out.putsLines("", "\"\"\"" + docStr + refStr + "\"\"\"")
   }
@@ -226,6 +223,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val varStr = privateMemberName(varName)
+    val ioName = s"_io_${idToStr(varName)}"
 
     val args = rep match {
       case RepeatEos | RepeatUntil(_) => s"$varStr[-1]"
@@ -233,8 +231,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => varStr
     }
 
-    out.puts(s"io = $kstreamName(BytesIO($args))")
-    "io"
+    out.puts(s"$ioName = $kstreamName(BytesIO($args))")
+    ioName
   }
 
   override def useIO(ioEx: expr): String = {
@@ -481,6 +479,22 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
+  override def ksErrorName(err: KSError): String = PythonCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if not ${translator.translate(checkExpr)}:")
+    out.inc
+    out.puts(s"raise $errName($errArgsStr)")
+    out.dec
+  }
+
   def userType2class(t: UserType): String = {
     val name = t.classSpec.get.name
     val firstName = name.head
@@ -495,7 +509,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
 object PythonCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
-  with StreamStructNames {
+  with StreamStructNames
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -503,6 +518,10 @@ object PythonCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "EOFError"
+    case _ => s"kaitaistruct.${err.name}"
+  }
 
   def types2class(name: List[String]): String = {
     if (name.size > 1) {

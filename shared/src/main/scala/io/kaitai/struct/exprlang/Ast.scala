@@ -21,12 +21,69 @@ package io.kaitai.struct.exprlang
   */
 object Ast {
   case class identifier(name: String)
-  case class typeId(absolute: Boolean, names: Seq[String], isArray: Boolean = false)
+  case class typeId(absolute: Boolean, names: Seq[String], isArray: Boolean = false) {
+    /**
+      * @return Type designation name as human-readable string, to be used in compiler
+      *         error messages.
+      */
+    def nameAsStr: String =
+      (if (absolute) "::" else "") +
+        names.mkString("::") +
+        (if (isArray) "[]" else "")
+  }
 
   val EmptyTypeId = typeId(false, Seq())
 
   // BoolOp() can use left & right?
-  sealed trait expr
+  sealed trait expr {
+    /**
+      * Evaluates the expression, if it's possible to get a static integer
+      * constant as the result of evaluation (i.e. if it does not involve any
+      * variables or anything like that). Expect no complex logic or symbolic
+      * simplification of expressions here: something like "x - x", which is
+      * known to be always 0, will still report it as "None".
+      *
+      * @return integer result of evaluation if it's constant or None, if it's
+      *         variable
+      */
+    def evaluateIntConst: Option[BigInt] = {
+      this match {
+        case expr.IntNum(x) =>
+          Some(x)
+        case expr.UnaryOp(op, operand) =>
+          operand.evaluateIntConst.map(opValue =>
+            op match {
+              case unaryop.Invert => ~opValue
+              case unaryop.Not => return None // TODO?
+              case unaryop.Minus => -opValue
+            }
+          )
+        case expr.BinOp(left, op, right) =>
+          val leftValue = left.evaluateIntConst match {
+            case Some(x) => x
+            case None => return None
+          }
+          val rightValue = right.evaluateIntConst match {
+            case Some(x) => x
+            case None => return None
+          }
+          op match {
+            case operator.Add => Some(leftValue + rightValue)
+            case operator.Sub => Some(leftValue - rightValue)
+            case operator.Mult => Some(leftValue * rightValue)
+            case operator.Div => Some(leftValue / rightValue)
+            case operator.Mod => Some(leftValue % rightValue)
+            case operator.LShift => Some(leftValue << rightValue.toInt)
+            case operator.RShift => Some(leftValue >> rightValue.toInt)
+            case operator.BitOr => Some(leftValue | rightValue)
+            case operator.BitXor => Some(leftValue ^ rightValue)
+            case operator.BitAnd => Some(leftValue & rightValue)
+          }
+        case _ => None
+      }
+    }
+  }
+
   object expr{
     case class BoolOp(op: boolop, values: Seq[expr]) extends expr
     case class BinOp(left: expr, op: operator, right: expr) extends expr
@@ -44,6 +101,8 @@ object Ast {
 
     case class Attribute(value: expr, attr: identifier) extends expr
     case class CastToType(value: expr, typeName: typeId) extends expr
+    case class ByteSizeOfType(typeName: typeId) extends expr
+    case class BitSizeOfType(typeName: typeId) extends expr
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
     case class List(elts: Seq[expr]) extends expr

@@ -36,8 +36,6 @@ trait EveryReadIsExpression
       attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
-      case FixedBytesType(c, _) =>
-        attrFixedContentsParse(id, c)
       case t: UserType =>
         attrUserTypeParse(id, t, io, rep, defEndian)
       case t: BytesType =>

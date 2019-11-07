@@ -330,6 +330,52 @@ class ExpressionsSpec extends FunSpec {
       )
     }
 
+    // sizeof keyword
+    it("parses sizeof<foo>") {
+      Expressions.parse("sizeof<foo>") should be (
+        ByteSizeOfType(typeId(false, Seq("foo")))
+      )
+    }
+
+    it("parses sizeof<foo::bar>") {
+      Expressions.parse("sizeof<foo::bar>") should be (
+        ByteSizeOfType(typeId(false, Seq("foo", "bar")))
+      )
+    }
+
+    it("parses sizeof<::foo::bar>") {
+      Expressions.parse("sizeof<::foo::bar>") should be (
+        ByteSizeOfType(typeId(true, Seq("foo", "bar")))
+      )
+    }
+
+    it("parses sizeof<foo") {
+      Expressions.parse("sizeof<foo") should be (
+        Compare(
+          Name(identifier("sizeof")),
+          Lt,
+          Name(identifier("foo"))
+        )
+      )
+    }
+
+    // bitsizeof keyword
+    it("parses bitsizeof<foo>") {
+      Expressions.parse("bitsizeof<foo>") should be (
+        BitSizeOfType(typeId(false, Seq("foo")))
+      )
+    }
+
+    it("parses bitsizeof<foo") {
+      Expressions.parse("bitsizeof<foo") should be (
+        Compare(
+          Name(identifier("bitsizeof")),
+          Lt,
+          Name(identifier("foo"))
+        )
+      )
+    }
+
     // Attribute / method call
     it("parses 123.to_s") {
       Expressions.parse("123.to_s") should be (Attribute(IntNum(123),identifier("to_s")))
@@ -337,6 +383,10 @@ class ExpressionsSpec extends FunSpec {
 
     it("parses 123.4.to_s") {
       Expressions.parse("123.4.to_s") should be (Attribute(FloatNum(123.4),identifier("to_s")))
+    }
+
+    it("parses foo.bar") {
+      Expressions.parse("foo.bar") should be (Attribute(Name(identifier("foo")),identifier("bar")))
     }
   }
 }

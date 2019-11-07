@@ -36,8 +36,8 @@ object Main {
     new ResolveTypes(classSpecs, opaqueTypes).run()
     new ParentTypes(classSpecs).run()
     new SpecsValueTypeDerive(classSpecs).run()
-    new TypeValidator(classSpecs, topClass).run()
     new CalculateSeqSizes(classSpecs).run()
+    new TypeValidator(classSpecs, topClass).run()
 
     topClass.parentClass = GenericStructClassSpec
   }
@@ -65,6 +65,8 @@ object Main {
         new ConstructClassCompiler(specs, spec)
       case HtmlClassCompiler =>
         new HtmlClassCompiler(specs, spec)
+      case NimClassCompiler =>
+        new NimClassCompiler(specs, spec, config)
       case _ =>
         new ClassCompiler(specs, spec, config, lang)
     }
