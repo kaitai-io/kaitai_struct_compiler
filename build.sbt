@@ -1,4 +1,4 @@
-buildimport java.io.File
+import java.io.File
 import java.nio.charset.Charset
 import java.nio.file.Files
 
