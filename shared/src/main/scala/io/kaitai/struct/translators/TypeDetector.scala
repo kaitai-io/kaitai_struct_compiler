@@ -105,6 +105,11 @@ class TypeDetector(provider: TypeProvider) {
               case _: IntType => elType
               case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
             }
+          case CalcArrayType(elType: DataType) =>
+            detectType(idx) match {
+              case _: IntType => elType
+              case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
+            }
           case _: BytesType => Int1Type(false)
           case cntType => throw new TypeMismatchError(s"unable to apply operation [] to $cntType")
         }
@@ -170,7 +175,13 @@ class TypeDetector(provider: TypeProvider) {
           case "to_i" => CalcIntType
           case _ => throw new MethodNotFoundError(attr.name, valType)
         }
-      case ArrayType(inType) =>
+      case ArrayType(_) | CalcArrayType(_) =>
+        val inType = valType match {
+          case ArrayType(inType) => inType
+          case CalcArrayType(inType) => inType
+          case _ => throw new TypeMismatchError(s"Unexpected type for arrays ${valType}.");
+        }
+
         attr.name match {
           case "first" | "last" | "min" | "max" => inType
           case "size" => CalcIntType
