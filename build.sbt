@@ -1,4 +1,4 @@
-import java.io.File
+buildimport java.io.File
 import java.nio.charset.Charset
 import java.nio.file.Files
 
@@ -235,7 +235,7 @@ lazy val buildNpmPackageTask = Def.task {
   val packageJsonTmpl = IO.read(new File("js/package.json"), UTF8)
   val packageJsonContents = packageJsonTmpl.replaceFirst(
     "\"version\": \".*?\"",
-    "\"version\": \"" + version.value + "\""
+    "\"version\": \"" + version.value.replace("-SNAPSHOT", ".0-SNAPHSOT") + "\""
   )
 
   IO.write(packageJsonFile, packageJsonContents, UTF8)
