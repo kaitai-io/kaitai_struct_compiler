@@ -6,13 +6,13 @@ import java.nio.charset.Charset
 import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{KSVersion, YAMLParseException}
 import io.kaitai.struct.formats.JavaKSYParser
-import io.kaitai.struct.precompile.ErrorInInput
+import io.kaitai.struct.precompile.{ErrorInInput, YAMLParserError}
 import org.scalatest.FunSuite
 
 class ErrorMessagesSpec extends FunSuite {
   // required, because this class is the sole entry point and this test needs
   // version info
-  KSVersion.current = BuildInfo.version
+  KSVersion.current = Version.version
 
   val FORMATS_ERR_DIR = "../tests/formats_err"
   val CHARSET_UTF8 = Charset.forName("UTF-8")
@@ -42,7 +42,7 @@ class ErrorMessagesSpec extends FunSuite {
         val classSpec = JavaKSYParser.localFileToSpecs(fn, DEFAULT_CONFIG)
       }
       caught match {
-        case _: YAMLParseException | _: ErrorInInput =>
+        case _: YAMLParseException | _: ErrorInInput | _: YAMLParserError =>
           assertResult(expected) {
             // replace version-dependent message with a moniker
             caught.getMessage.replace(

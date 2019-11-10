@@ -1,13 +1,13 @@
 package io.kaitai.struct.languages
 
+import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{RubyTranslator, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, LanguageOutputWriter, RuntimeConfig}
+import io.kaitai.struct.translators.RubyTranslator
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -33,11 +33,15 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String = s"$topClassName.rb"
   override def indent: String = "  "
 
+  override def outImports(topClass: ClassSpec) =
+    importList.toList.map((x) => s"require '$x'").mkString("\n") + "\n"
+
   override def fileHeader(topClassName: String): Unit = {
-    out.puts(s"# $headerComment")
-    out.puts
-    out.puts("require 'kaitai/struct/struct'")
-    out.puts("require 'zlib'") // TODO: add only if actually used
+    outHeader.puts(s"# $headerComment")
+    outHeader.puts
+
+    importList.add("kaitai/struct/struct")
+
     out.puts
 
     // API compatibility check
@@ -60,37 +64,82 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classHeader(name: String): Unit = {
     out.puts(s"class ${type2class(name)} < $kstructName")
     out.inc
-    if (debug)
+    if (config.readStoresPos)
       out.puts("attr_reader :_debug")
   }
 
-  override def classConstructorHeader(name: String, parentClassName: String, rootClassName: String): Unit = {
-    out.puts("def initialize(_io, _parent = nil, _root = self)")
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
+    val endianSuffix = if (isHybrid) {
+      ", _is_le = nil"
+    } else {
+      ""
+    }
+
+    val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
+
+    out.puts(s"def initialize(_io, _parent = nil, _root = self$endianSuffix$paramsList)")
     out.inc
     out.puts("super(_io, _parent, _root)")
-    if (debug) {
+
+    if (isHybrid) {
+      out.puts("@_is_le = _is_le")
+    }
+
+    // Store parameters passed to us
+    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+
+    if (config.readStoresPos) {
       out.puts("@_debug = {}")
-      out.dec
-      out.puts("end")
-      out.puts
-      out.puts("def _read")
-      out.inc
     }
   }
 
-  override def classConstructorFooter: Unit = {
-    if (debug) {
-      // Actually, it's not constructor in debug mode, but a "_read" method. Make sure it returns an instance of the
-      // class, just as normal Foo.new call does.
-      out.puts
-      out.puts("self")
+  override def runRead(): Unit = {
+    out.puts("_read")
+  }
+
+  override def runReadCalc(): Unit = {
+    out.puts
+    out.puts(s"if @_is_le == true")
+    out.inc
+    out.puts("_read_le")
+    out.dec
+    out.puts("elsif @_is_le == false")
+    out.inc
+    out.puts("_read_be")
+    out.dec
+    out.puts("else")
+    out.inc
+    out.puts(s"raise ${ksErrorName(UndecidedEndiannessError)}.new(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\")")
+    out.dec
+    out.puts("end")
+  }
+
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
+    val suffix = endian match {
+      case Some(e) => s"_${e.toSuffix}"
+      case None => ""
     }
+    out.puts
+    out.puts(s"def _read$suffix")
+    out.inc
+  }
+
+  override def readFooter() = {
+    // This is required for debug mode to be able to do stuff like:
+    //
+    //     obj = Obj.new(...)._read
+    //
+    // i.e. drop-in replacement of non-debug mode invocation:
+    //
+    //     obj = Obj.new(...)
+    out.puts("self")
+
     universalFooter
   }
 
-  override def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {}
+  override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
-  override def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit = {
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     attrName match {
       case RootIdentifier | ParentIdentifier =>
         // ignore, they are already added in Kaitai::Struct::Struct
@@ -103,16 +152,26 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts("##")
 
-    doc.summary.foreach((summary) => out.putsLines("# ", summary))
+    doc.summary.foreach(summary => out.putsLines("# ", summary))
 
-    doc.ref match {
+    doc.ref.foreach {
       case TextRef(text) =>
         out.putsLines("# ", s"@see '' $text", "  ")
       case UrlRef(url, text) =>
         out.putsLines("# ", s"@see $url $text", "  ")
-      case NoRef =>
-        // do nothing
     }
+  }
+
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
+    out.puts("if @_is_le")
+    out.inc
+    leProc()
+    out.dec
+    out.puts("else")
+    out.inc
+    beProc()
+    out.dec
+    out.puts("end")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
@@ -130,6 +189,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
+        importList.add("zlib")
         s"$destName = Zlib::Inflate.inflate($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
@@ -138,11 +198,16 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s"8 - (${expression(rotValue)})"
         }
         s"$destName = $kstreamName::process_rotate_left($srcName, $expr, 1)"
+      case ProcessCustom(name, args) =>
+        val procClass = name.map((x) => type2class(x)).mkString("::")
+        out.puts(s"_process = $procClass.new(${args.map(expression).mkString(", ")})")
+        s"$destName = _process.decode($srcName)"
     })
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
+    val ioName = s"_io_${idToStr(id)}"
 
     val args = rep match {
       case RepeatEos | RepeatUntil(_) => s"$memberName.last"
@@ -150,8 +215,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => s"$memberName"
     }
 
-    out.puts(s"io = $kstreamName.new($args)")
-    "io"
+    out.puts(s"$ioName = $kstreamName.new($args)")
+    ioName
   }
 
   override def useIO(ioEx: expr): String = {
@@ -213,11 +278,16 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
 
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts("i = 0")
     out.puts(s"while not $io.eof?")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} << $expr")
+  override def condRepeatEosFooter: Unit = {
+    out.puts("i += 1")
+    super.condRepeatEosFooter
+  }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
@@ -237,6 +307,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts("i = 0")
     out.puts("begin")
     out.inc
   }
@@ -249,6 +320,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("i += 1")
     out.dec
     out.puts(s"end until ${expression(untilExpr)}")
   }
@@ -259,10 +331,10 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"$id = $expr")
 
-  override def parseExpr(dataType: DataType, io: String): String = {
+  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read_${t.apiCall}"
+        s"$io.read_${t.apiCall(defEndian)}"
       case blt: BytesLimitType =>
         s"$io.read_bytes(${expression(blt.size)})"
       case _: BytesEosType =>
@@ -274,6 +346,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io.read_bits_int($width)"
       case t: UserType =>
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -281,9 +354,13 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None => "self"
           }
-          s", $parent, @_root"
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => ", @_is_le"
+            case _ => ""
+          }
+          s", $parent, @_root$addEndian"
         }
-        s"${type2class(t.name.last)}.new($io$addArgs)"
+        s"${types2class(t.name)}.new($io$addArgs$addParams)"
     }
   }
 
@@ -321,16 +398,16 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchEnd(): Unit =
     out.puts("end")
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType): Unit = {
+  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"def ${instName.name}")
     out.inc
   }
 
-  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)} unless ${privateMemberName(instName)}.nil?")
   }
 
-  override def instanceReturn(instName: InstanceIdentifier): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(privateMemberName(instName))
   }
 
@@ -372,10 +449,28 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
 
   override def publicMemberName(id: Identifier): String = idToStr(id)
+
+  override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  override def ksErrorName(err: KSError): String = RubyCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"raise $errName.new($errArgsStr) if not ${translator.translate(checkExpr)}")
+  }
+
+  def types2class(names: List[String]) = names.map(type2class).mkString("::")
 }
 
 object RubyCompiler extends LanguageCompilerStatic
-  with StreamStructNames {
+  with StreamStructNames
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -383,6 +478,10 @@ object RubyCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "EOFError"
+    case _ => s"Kaitai::Struct::${err.name}"
+  }
 
   def inverseEnumName(enumName: String) = s"I__$enumName"
 }

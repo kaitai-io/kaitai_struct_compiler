@@ -1,11 +1,11 @@
 package io.kaitai.struct.precompile
 
-import io.kaitai.struct.format.{ClassSpec, ValueInstanceSpec, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs, ValueInstanceSpec, YAMLParseException}
 import io.kaitai.struct.translators.TypeDetector
 import io.kaitai.struct.{ClassTypeProvider, Log}
 
-class ValueTypesDeriver(topClass: ClassSpec) {
-  val provider = new ClassTypeProvider(topClass)
+class ValueTypesDeriver(specs: ClassSpecs, topClass: ClassSpec) {
+  val provider = new ClassTypeProvider(specs, topClass)
   val detector = new TypeDetector(provider)
 
   def run(): Boolean =
@@ -24,7 +24,7 @@ class ValueTypesDeriver(topClass: ClassSpec) {
             vi.dataType match {
               case None =>
                 try {
-                  val viType = detector.detectType(vi.value)
+                  val viType = detector.detectType(vi.value).asNonOwning
                   vi.dataType = Some(viType)
                   Log.typeProcValue.info(() => s"${instName.name} derived type: $viType")
                   hasChanged = true

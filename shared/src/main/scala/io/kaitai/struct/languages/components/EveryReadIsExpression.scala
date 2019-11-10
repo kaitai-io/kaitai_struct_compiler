@@ -1,10 +1,11 @@
 package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.Utils
-import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
+import io.kaitai.struct.translators.BaseTranslator
 
 import scala.collection.mutable.ListBuffer
 
@@ -13,93 +14,52 @@ import scala.collection.mutable.ListBuffer
   * rvalue. In these languages, "attrStdTypeParse" is replaced with higher-level API: "stdTypeParseExpr" and
   * "handleAssignment".
   */
-trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage {
-  override def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit = {
-    attrParseIfHeader(id, attr.cond.ifExpr)
+trait EveryReadIsExpression
+  extends LanguageCompiler
+  with ObjectOrientedLanguage
+  with CommonReads
+  with SwitchOps {
+  val translator: BaseTranslator
 
-    // Manage IO & seeking for ParseInstances
-    val io = attr match {
-      case pis: ParseInstanceSpec =>
-        val io = pis.io match {
-          case None => normalIO
-          case Some(ex) => useIO(ex)
-        }
-        pis.pos.foreach { pos =>
-          pushPos(io)
-          seek(io, pos)
-        }
-        io
-      case _ =>
-        // no seeking required for sequence attributes
-        normalIO
-    }
-
-    if (debug)
-      attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
-
-    attr.cond.repeat match {
-      case RepeatEos =>
-        condRepeatEosHeader(id, io, attr.dataType, needRaw(attr.dataType))
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
-        condRepeatEosFooter
-      case RepeatExpr(repeatExpr: Ast.expr) =>
-        condRepeatExprHeader(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
-        condRepeatExprFooter
-      case RepeatUntil(untilExpr: Ast.expr) =>
-        condRepeatUntilHeader(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
-        condRepeatUntilFooter(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
-      case NoRepeat =>
-        attrParse2(id, attr.dataType, io, extraAttrs, attr.cond.repeat, false)
-    }
-
-    if (debug)
-      attrDebugEnd(id, attr.dataType, io, NoRepeat)
-
-    // More position management after parsing for ParseInstanceSpecs
-    attr match {
-      case pis: ParseInstanceSpec =>
-        if (pis.pos.isDefined)
-          popPos(io)
-      case _ => // no seeking required for sequence attributes
-    }
-
-    attrParseIfFooter(attr.cond.ifExpr)
-  }
-
-  def attrParse2(
+  override def attrParse2(
     id: Identifier,
     dataType: DataType,
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
-    isRaw: Boolean
+    isRaw: Boolean,
+    defEndian: Option[FixedEndian],
+    assignTypeOpt: Option[DataType] = None
   ): Unit = {
-    if (debug && rep != NoRepeat)
+    val assignType = assignTypeOpt.getOrElse(dataType)
+
+    if (config.readStoresPos && rep != NoRepeat)
       attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
-      case FixedBytesType(c, _) =>
-        attrFixedContentsParse(id, c)
       case t: UserType =>
-        attrUserTypeParse(id, t, io, extraAttrs, rep)
+        attrUserTypeParse(id, t, io, rep, defEndian)
       case t: BytesType =>
-        attrBytesTypeParse(id, t, io, extraAttrs, rep, isRaw)
-      case SwitchType(on, cases) =>
-        attrSwitchTypeParse(id, on, cases, io, extraAttrs, rep)
+        attrBytesTypeParse(id, t, io, rep, isRaw)
+      case st: SwitchType =>
+        val isNullable = if (switchBytesOnlyAsRaw) {
+          st.isNullableSwitchRaw
+        } else {
+          st.isNullable
+        }
+
+        attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, isNullable, st.combinedType)
       case t: StrFromBytesType =>
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), Ast.expr.Str(t.encoding))
         handleAssignment(id, expr, rep, isRaw)
       case t: EnumType =>
-        val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, io))
+        val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, t.basedOn, io, defEndian))
         handleAssignment(id, expr, rep, isRaw)
       case _ =>
-        val expr = parseExpr(dataType, io)
+        val expr = parseExpr(dataType, assignType, io, defEndian)
         handleAssignment(id, expr, rep, isRaw)
     }
 
-    if (debug && rep != NoRepeat)
+    if (config.readStoresPos && rep != NoRepeat)
       attrDebugEnd(id, dataType, io, rep)
   }
 
@@ -107,17 +67,13 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     id: Identifier,
     dataType: BytesType,
     io: String,
-    extraAttrs: ListBuffer[AttrSpec],
     rep: RepeatSpec,
     isRaw: Boolean
   ): Unit = {
     // use intermediate variable name, if we'll be doing post-processing
     val rawId = dataType.process match {
       case None => id
-      case Some(_) =>
-        val rawId = RawIdentifier(id)
-        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, dataType))
-        rawId
+      case Some(_) => RawIdentifier(id)
     }
 
     val expr = parseExprBytes(dataType, io)
@@ -128,7 +84,7 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
   }
 
   def parseExprBytes(dataType: BytesType, io: String): String = {
-    val expr = parseExpr(dataType, io)
+    val expr = parseExpr(dataType, dataType, io, None)
 
     // apply pad stripping and termination
     dataType match {
@@ -141,27 +97,23 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
+  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
         val rawId = RawIdentifier(id)
         val byteType = knownSizeType.bytes
 
-        attrParse2(rawId, byteType, io, extraAttrs, rep, true)
+        attrParse2(rawId, byteType, io, rep, true, defEndian)
 
         val extraType = rep match {
           case NoRepeat => byteType
           case _ => ArrayType(byteType)
         }
 
-        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), rawId, extraType))
-
         this match {
           case thisStore: AllocateAndStoreIO =>
-            val ourIO = thisStore.allocateIO(rawId, rep)
-            Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
-            privateMemberName(ourIO)
+            thisStore.allocateIO(rawId, rep)
           case thisLocal: AllocateIOLocalVar =>
             thisLocal.allocateIO(rawId, rep)
         }
@@ -169,20 +121,20 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
         // no fixed buffer, just use regular IO
         io
     }
-    val expr = parseExpr(dataType, newIO)
-    if (!debug) {
+    val expr = parseExpr(dataType, dataType, newIO, defEndian)
+    if (config.autoRead) {
       handleAssignment(id, expr, rep, false)
     } else {
-      // Debug mode requires one to actually call "_read" method on constructed user type,
-      // and this must be done as a separate statement - or else exception handler would
-      // blast the whole structure, not only this element. This, in turn, makes us assign
-      // constructed element to a temporary variable in case on repetitions
+      // Disabled autoRead requires one to actually call `_read` method on constructed
+      // user type, and this must be done as a separate statement - or else exception
+      // handler would blast the whole structure, not only this element. This, in turn,
+      // makes us assign constructed element to a temporary variable in case of arrays.
       rep match {
         case NoRepeat =>
           handleAssignmentSimple(id, expr)
           userTypeDebugRead(privateMemberName(id))
         case _ =>
-          val tempVarName = s"_t_${idToStr(id)}"
+          val tempVarName = localTemporaryName(id)
           handleAssignmentTempVar(dataType, tempVarName, expr)
           userTypeDebugRead(tempVarName)
           handleAssignment(id, tempVarName, rep, false)
@@ -190,57 +142,36 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  def needRaw(dataType: DataType): Boolean = {
-    dataType match {
-      case t: UserTypeFromBytes => true
-      case _ => false
-    }
-  }
+  def attrSwitchTypeParse(
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, DataType],
+    io: String,
+    rep: RepeatSpec,
+    defEndian: Option[FixedEndian],
+    isNullable: Boolean,
+    assignType: DataType
+  ): Unit = {
+    if (isNullable)
+      condIfSetNull(id)
 
-  def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, DataType], io: String, extraAttrs: ListBuffer[AttrSpec], rep: RepeatSpec): Unit = {
-    switchStart(id, on)
-
-    // Pass 1: only normal case clauses
-    var first = true
-
-    cases.foreach { case (condition, dataType) =>
-      condition match {
-        case SwitchType.ELSE_CONST =>
-          // skip for now
-        case _ =>
-          if (first) {
-            switchCaseFirstStart(condition)
-            first = false
-          } else {
-            switchCaseStart(condition)
-          }
-          attrParse2(id, dataType, io, extraAttrs, rep, false)
-          switchCaseEnd()
+    switchCases[DataType](id, on, cases,
+      (dataType) => {
+        if (isNullable)
+          condIfSetNonNull(id)
+        attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
+      },
+      (dataType) => if (switchBytesOnlyAsRaw) {
+        dataType match {
+          case t: BytesType =>
+            attrParse2(RawIdentifier(id), dataType, io, rep, false, defEndian, Some(assignType))
+          case _ =>
+            attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
+        }
+      } else {
+        attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
       }
-    }
-
-    // Pass 2: else clause, if it is there
-    cases.foreach { case (condition, dataType) =>
-      condition match {
-        case SwitchType.ELSE_CONST =>
-          switchElseStart()
-          if (switchBytesOnlyAsRaw) {
-            dataType match {
-              case t: BytesType =>
-                attrParse2(RawIdentifier(id), dataType, io, extraAttrs, rep, false)
-              case _ =>
-                attrParse2(id, dataType, io, extraAttrs, rep, false)
-            }
-          } else {
-            attrParse2(id, dataType, io, extraAttrs, rep, false)
-          }
-          switchElseEnd()
-        case _ =>
-          // ignore normal case clauses
-      }
-    }
-
-    switchEnd()
+    )
   }
 
   def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
@@ -252,40 +183,19 @@ trait EveryReadIsExpression extends LanguageCompiler with ObjectOrientedLanguage
     }
   }
 
-  def attrDebugStart(attrName: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
-  def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
-
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit
   def handleAssignmentSimple(id: Identifier, expr: String): Unit
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
 
-  def parseExpr(dataType: DataType, io: String): String
+  def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
   def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String
-  def userTypeDebugRead(id: String): Unit = {}
+  def userTypeDebugRead(id: String): Unit = ???
 
-  def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr): Unit = {
-    if (debug)
+  def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
+    if (config.readStoresPos)
       attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }
-
-  def switchStart(id: Identifier, on: Ast.expr): Unit
-  def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)
-  def switchCaseStart(condition: Ast.expr): Unit
-  def switchCaseEnd(): Unit
-  def switchElseStart(): Unit
-  def switchElseEnd(): Unit = switchCaseEnd()
-  def switchEnd(): Unit
-
-  /**
-    * Controls parsing of typeless (BytesType) alternative in switch case. If true,
-    * then target language does not support storing both bytes array and true object
-    * in the same variable, so we'll use workaround: bytes array will be read as
-    * _raw_ variable (which would be used anyway for all other cases as well). If
-    * false (which is default), we'll store *both* true objects and bytes array in
-    * the same variable.
-    */
-  def switchBytesOnlyAsRaw = false
 }

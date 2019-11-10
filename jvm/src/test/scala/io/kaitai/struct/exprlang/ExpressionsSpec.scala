@@ -48,6 +48,34 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("0b1010_1_010") should be (IntNum(0xaa))
     }
 
+    it("parses simple float") {
+      Expressions.parse("1.2345") should be (FloatNum(1.2345))
+    }
+
+    it("parses float with positive exponent") {
+      Expressions.parse("123e4") should be (FloatNum(123e4))
+    }
+
+    it("parses float with positive exponent with plus sign") {
+      Expressions.parse("123e+4") should be (FloatNum(123e4))
+    }
+
+    it("parses float with negative exponent") {
+      Expressions.parse("123e-7") should be (FloatNum(123e-7))
+    }
+
+    it("parses float + non-integral part with positive exponent") {
+      Expressions.parse("1.2345e7") should be (FloatNum(1.2345e7))
+    }
+
+    it("parses float + non-integral part with positive exponent with plus sign") {
+      Expressions.parse("123.45e+7") should be (FloatNum(123.45e7))
+    }
+
+    it("parses float + non-integral part with negative exponent") {
+      Expressions.parse("123.45e-7") should be (FloatNum(123.45e-7))
+    }
+
     it("parses 1 + 2") {
       Expressions.parse("1 + 2") should be (BinOp(IntNum(1), Add, IntNum(2)))
     }
@@ -103,8 +131,39 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("~(7+3)") should be (UnaryOp(Invert, BinOp(IntNum(7), Add, IntNum(3))))
     }
 
+    // Enums
     it("parses port::http") {
       Expressions.parse("port::http") should be (EnumByLabel(identifier("port"), identifier("http")))
+    }
+
+    it("parses some_type::port::http") {
+      Expressions.parse("some_type::port::http") should be (
+        EnumByLabel(
+          identifier("port"),
+          identifier("http"),
+          typeId(absolute = false, Seq("some_type"))
+        )
+      )
+    }
+
+    it("parses parent_type::child_type::port::http") {
+      Expressions.parse("parent_type::child_type::port::http") should be (
+        EnumByLabel(
+          identifier("port"),
+          identifier("http"),
+          typeId(absolute = false, Seq("parent_type", "child_type"))
+        )
+      )
+    }
+
+    it("parses ::parent_type::child_type::port::http") {
+      Expressions.parse("::parent_type::child_type::port::http") should be (
+        EnumByLabel(
+          identifier("port"),
+          identifier("http"),
+          typeId(absolute = true, Seq("parent_type", "child_type"))
+        )
+      )
     }
 
     it("parses port::http.to_i + 8000 == 8080") {
@@ -143,6 +202,36 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("truer") should be (Name(identifier("truer")))
     }
 
+    // Boolean operations
+    it("parses not foo") {
+      Expressions.parse("not foo") should be (
+        UnaryOp(
+          Ast.unaryop.Not,
+          Name(identifier("foo"))
+        )
+      )
+    }
+
+    it("parses note_len") {
+      Expressions.parse("note_len") should be (Name(identifier("note_len")))
+    }
+
+    it("parses notnot") {
+      Expressions.parse("notnot") should be (Name(identifier("notnot")))
+    }
+
+    it("parses not not true") {
+      Expressions.parse("not not true") should be (
+        UnaryOp(
+          Ast.unaryop.Not,
+          UnaryOp(
+            Ast.unaryop.Not,
+            Bool(true)
+          )
+        )
+      )
+    }
+
     // String literals
     it("parses simple string") {
       Expressions.parse("\"abc\"") should be (Str("abc"))
@@ -174,23 +263,57 @@ class ExpressionsSpec extends FunSpec {
 
     // Casts
     it("parses 123.as<u4>") {
-      Expressions.parse("123.as<u4>") should be (CastToType(IntNum(123),identifier("u4")))
+      Expressions.parse("123.as<u4>") should be (
+        CastToType(IntNum(123), typeId(false, Seq("u4")))
+      )
     }
 
     it("parses (123).as<u4>") {
-      Expressions.parse("(123).as<u4>") should be (CastToType(IntNum(123),identifier("u4")))
+      Expressions.parse("(123).as<u4>") should be (
+        CastToType(IntNum(123), typeId(false, Seq("u4")))
+      )
     }
 
     it("parses \"str\".as<x>") {
-      Expressions.parse("\"str\".as<x>") should be (CastToType(Str("str"),identifier("x")))
+      Expressions.parse("\"str\".as<x>") should be (
+        CastToType(Str("str"), typeId(false, Seq("x")))
+      )
     }
 
     it("parses foo.as<x>") {
-      Expressions.parse("foo.as<x>") should be (CastToType(Name(identifier("foo")),identifier("x")))
+      Expressions.parse("foo.as<x>") should be (
+        CastToType(Name(identifier("foo")), typeId(false, Seq("x")))
+      )
     }
 
     it("parses foo.as < x  >  ") {
-      Expressions.parse("foo.as < x  >  ") should be (CastToType(Name(identifier("foo")),identifier("x")))
+      Expressions.parse("foo.as < x  >  ") should be (
+        CastToType(Name(identifier("foo")), typeId(false, Seq("x")))
+      )
+    }
+
+    it("parses foo.as<bar::baz>") {
+      Expressions.parse("foo.as<bar::baz>") should be (
+        CastToType(Name(identifier("foo")), typeId(false, Seq("bar", "baz")))
+      )
+    }
+
+    it("parses foo.as<::bar::baz>") {
+      Expressions.parse("foo.as<::bar::baz>") should be (
+        CastToType(Name(identifier("foo")), typeId(true, Seq("bar", "baz")))
+      )
+    }
+
+    it("parses foo.as<bar[]>") {
+      Expressions.parse("foo.as<bar[]>") should be (
+        CastToType(Name(identifier("foo")), typeId(false, Seq("bar"), true))
+      )
+    }
+
+    it("parses foo.as<::bar::baz[]>") {
+      Expressions.parse("foo.as<::bar::baz[]>") should be (
+        CastToType(Name(identifier("foo")), typeId(true, Seq("bar", "baz"), true))
+      )
     }
 
     it("parses foo.as") {
@@ -207,6 +330,52 @@ class ExpressionsSpec extends FunSpec {
       )
     }
 
+    // sizeof keyword
+    it("parses sizeof<foo>") {
+      Expressions.parse("sizeof<foo>") should be (
+        ByteSizeOfType(typeId(false, Seq("foo")))
+      )
+    }
+
+    it("parses sizeof<foo::bar>") {
+      Expressions.parse("sizeof<foo::bar>") should be (
+        ByteSizeOfType(typeId(false, Seq("foo", "bar")))
+      )
+    }
+
+    it("parses sizeof<::foo::bar>") {
+      Expressions.parse("sizeof<::foo::bar>") should be (
+        ByteSizeOfType(typeId(true, Seq("foo", "bar")))
+      )
+    }
+
+    it("parses sizeof<foo") {
+      Expressions.parse("sizeof<foo") should be (
+        Compare(
+          Name(identifier("sizeof")),
+          Lt,
+          Name(identifier("foo"))
+        )
+      )
+    }
+
+    // bitsizeof keyword
+    it("parses bitsizeof<foo>") {
+      Expressions.parse("bitsizeof<foo>") should be (
+        BitSizeOfType(typeId(false, Seq("foo")))
+      )
+    }
+
+    it("parses bitsizeof<foo") {
+      Expressions.parse("bitsizeof<foo") should be (
+        Compare(
+          Name(identifier("bitsizeof")),
+          Lt,
+          Name(identifier("foo"))
+        )
+      )
+    }
+
     // Attribute / method call
     it("parses 123.to_s") {
       Expressions.parse("123.to_s") should be (Attribute(IntNum(123),identifier("to_s")))
@@ -214,6 +383,10 @@ class ExpressionsSpec extends FunSpec {
 
     it("parses 123.4.to_s") {
       Expressions.parse("123.4.to_s") should be (Attribute(FloatNum(123.4),identifier("to_s")))
+    }
+
+    it("parses foo.bar") {
+      Expressions.parse("foo.bar") should be (Attribute(Name(identifier("foo")),identifier("bar")))
     }
   }
 }

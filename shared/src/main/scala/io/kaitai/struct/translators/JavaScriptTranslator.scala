@@ -4,15 +4,34 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaScriptCompiler
 
 class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
+    s"new Uint8Array([${elts.map(translate).mkString(", ")}])"
+
+  /**
+    * JavaScript rendition of common control character that would use hex form,
+    * not octal. "Octal" control character string literals might be accepted
+    * in non-strict JS mode, but in strict mode only hex or unicode are ok.
+    * Here we'll use hex, as they are shorter.
+    *
+    * @see https://github.com/kaitai-io/kaitai_struct/issues/279
+    * @param code character code to represent
+    * @return string literal representation of given code
+    */
+  override def strLiteralGenericCC(code: Char): String =
+    "\\x%02x".format(code.toInt)
+
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"Math.floor(${translate(left)} / ${translate(right)})"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${JavaScriptCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
+      case (_: IntType, _: IntType, Ast.operator.RShift) =>
+        s"(${translate(left)} >>> ${translate(right)})"
       case _ =>
         super.numericBinOp(left, op, right)
     }
@@ -21,6 +40,8 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def doLocalName(s: String) = {
     s match {
       case "_" => s
+      case Identifier.SWITCH_ON => "on"
+      case Identifier.INDEX => "i"
       case _ => s"this.${doName(s)}"
     }
   }
@@ -41,7 +62,7 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"(${JavaScriptCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
@@ -65,6 +86,20 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     */
   override def boolToInt(v: expr): String =
     s"(${translate(v)} | 0)"
+
+  /**
+    * Converts a float to an integer in JavaScript. There are many methods to
+    * do so, here we use the fastest one, but it requires ES6+. OTOH, it is
+    * relatively easy to add compatibility polyfill for non-supporting environments
+    * (see MDN page).
+    *
+    * @see http://stackoverflow.com/a/596503/487064
+    * @see https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Math/trunc
+    * @param v float expression to convert
+    * @return string rendition of conversion
+    */
+  override def floatToInt(v: expr): String =
+    s"Math.trunc(${translate(v)})"
 
   override def intToStr(i: expr, base: expr): String =
     s"(${translate(i)}).toString(${translate(base)})"

@@ -1,0 +1,39 @@
+{
+  "author": {
+    "name": "Kaitai team",
+    "url": "https://github.com/orgs/kaitai-io/people"
+  },
+  "bugs": {
+    "url": "https://github.com/kaitai-io/kaitai_struct/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Kaitai Struct Compiler",
+  "homepage": "https://github.com/kaitai-io/kaitai_struct_compiler#readme",
+  "keywords": [
+    "kaitai",
+    "struct",
+    "compiler",
+    "binary",
+    "parsing",
+    "stream",
+    "runtime",
+    "file",
+    "format",
+    "structure",
+    "forenics",
+    "reversing",
+    "reverse-engineering"
+  ],
+  "license": "GPL-3.0",
+  "main": "kaitai-struct-compiler.js",
+  "name": "kaitai-struct-compiler",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaitai-io/kaitai_struct_compiler.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "0.8.0-SNAPSHOT.3"
+}

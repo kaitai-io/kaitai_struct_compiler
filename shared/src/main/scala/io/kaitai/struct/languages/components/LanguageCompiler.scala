@@ -1,18 +1,20 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.BaseTranslator
+import io.kaitai.struct.translators.AbstractTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
 import scala.collection.mutable.ListBuffer
 
 abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
-  config: RuntimeConfig
-) {
-  val translator: BaseTranslator
+  val config: RuntimeConfig
+) extends SwitchOps with ValidateOps
+  with ExtraAttrs {
+
+  val translator: AbstractTranslator
 
   /**
     * @return compilation results as a map: keys are file names, values are
@@ -39,7 +41,18 @@ abstract class LanguageCompiler(
     */
   def innerEnums: Boolean = true
 
-  def debug = config.debug
+  /**
+    * Determines whether the language needs docstrings to be generated
+    * inside classes and methods (true, Python-style) or outside them
+    * (false, JavaDoc-style, majority of other languages). Affects calling
+    * sequence of rendering methods.
+    *
+    * @return true if language needs docstrings to be generated
+    * inside classes and methods, false otherwise
+    */
+  def innerDocstrings: Boolean = false
+
+  def debug: Boolean = !config.autoRead && config.readStoresPos
 
   def indent: String
   def outFileName(topClassName: String): String
@@ -61,27 +74,36 @@ abstract class LanguageCompiler(
   def classFooter(name: List[String]): Unit
   def classForwardDeclaration(name: List[String]): Unit = {}
 
-  def classConstructorHeader(name: List[String], parentClassName: List[String], rootClassName: List[String]): Unit
+  def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit
   def classConstructorFooter: Unit
 
-  def classDestructorHeader(name: List[String], parentTypeName: List[String], topClassName: List[String]): Unit = {}
+  def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {}
   def classDestructorFooter: Unit = {}
 
-  def attributeDeclaration(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
-  def attributeReader(attrName: Identifier, attrType: DataType, condSpec: ConditionalSpec): Unit
+  def runRead(): Unit
+  def runReadCalc(): Unit
+  def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit
+  def readFooter(): Unit
+
+  def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
+  def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
   def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
-  def attrParse(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit
+  def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit
+  def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit
+  def attrInit(attr: AttrLikeSpec): Unit = {}
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
-  def funcWriteHeader(curClass: ClassSpec): Unit = ???
-  def funcWriteFooter(curClass: ClassSpec): Unit = ???
-  def attrWrite(attr: AttrLikeSpec, id: Identifier, extraAttrs: ListBuffer[AttrSpec]): Unit = ???
+  def writeHeader(endian: Option[FixedEndian]): Unit = ???
+  def writeFooter(): Unit = ???
+  def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[FixedEndian]): Unit = ???
+  def runWriteCalc(): Unit = ???
 
-  def funcCheckHeader(curClass: ClassSpec): Unit = ???
-  def funcCheckFooter(curClass: ClassSpec): Unit = ???
+  def checkHeader(): Unit = ???
+  def checkFooter(): Unit = ???
   def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = ???
 
+  // TODO: delete
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
 
   def condIfSetNull(instName: Identifier): Unit = {}
@@ -107,16 +129,17 @@ abstract class LanguageCompiler(
   def popPos(io: String): Unit
   def alignToByte(io: String): Unit
 
+  def instanceDeclHeader(className: List[String]): Unit = {}
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
-  def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, condSpec: ConditionalSpec) = attributeDeclaration(attrName, attrType, condSpec)
-  def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit
+  def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = attributeDeclaration(attrName, attrType, isNullable)
+  def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit
   def instanceFooter: Unit
-  def instanceCheckCacheAndReturn(instName: InstanceIdentifier): Unit
-  def instanceReturn(instName: InstanceIdentifier): Unit
-  def instanceCalculate(instName: InstanceIdentifier, dataType: DataType, value: Ast.expr)
+  def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit
+  def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit
+  def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr)
 
-  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, String)]): Unit
+  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit
 
   /**
     * Outputs class' attributes sequence identifiers as some sort of an ordered sequence,

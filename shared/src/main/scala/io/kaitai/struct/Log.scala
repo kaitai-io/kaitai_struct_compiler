@@ -25,6 +25,8 @@ object Log {
     "value",
     "parent",
     "type_resolve",
+    "type_valid",
+    "seq_sizes",
     "import"
   )
 
@@ -32,6 +34,8 @@ object Log {
   var typeProcValue: Logger = NullLogger
   var typeProcParent: Logger = NullLogger
   var typeResolve: Logger = NullLogger
+  var typeValid: Logger = NullLogger
+  var seqSizes: Logger = NullLogger
   var importOps: Logger = NullLogger
 
   def initFromVerboseFlag(subsystems: Seq[String]): Unit = {
@@ -43,6 +47,8 @@ object Log {
       case "value" => typeProcValue = ConsoleLogger
       case "parent" => typeProcParent = ConsoleLogger
       case "type_resolve" => typeResolve = ConsoleLogger
+      case "type_valid" => typeValid = ConsoleLogger
+      case "seq_sizes" => seqSizes = ConsoleLogger
       case "import" => importOps = ConsoleLogger
     }
   }

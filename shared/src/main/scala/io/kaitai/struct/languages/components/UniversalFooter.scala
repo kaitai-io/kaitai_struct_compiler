@@ -15,10 +15,12 @@ trait UniversalFooter extends LanguageCompiler {
 
   def classFooter(name: String): Unit = universalFooter
   def classConstructorFooter: Unit = universalFooter
-  override def funcWriteFooter(curClass: ClassSpec): Unit = universalFooter
-  override def funcCheckFooter(curClass: ClassSpec): Unit = universalFooter
+  override def readFooter: Unit = universalFooter
+  override def writeFooter: Unit = universalFooter
+  override def checkFooter: Unit = universalFooter
   def condRepeatExprFooter = universalFooter
   def condRepeatEosFooter: Unit = universalFooter
+  def condRepeatEosFooter2: Unit = universalFooter
   def condIfFooter(expr: expr): Unit = universalFooter
   def instanceFooter: Unit = universalFooter
 }

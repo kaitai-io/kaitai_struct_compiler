@@ -27,6 +27,10 @@ import fastparse.StringReprOps
 object Expressions {
 
   val NAME: P[Ast.identifier] = Lexical.identifier
+  val TYPE_NAME: P[Ast.typeId] = P("::".!.? ~ NAME.rep(1, "::") ~ ("[" ~ "]").!.?).map {
+    case (first, names: Seq[Ast.identifier], arrayStr) =>
+      Ast.typeId(first.nonEmpty, names.map((el) => el.name), arrayStr.nonEmpty)
+  }
   val INT_NUMBER = Lexical.integer
   val FLOAT_NUMBER = Lexical.floatnumber
   val STRING: P[String] = Lexical.stringliteral
@@ -43,7 +47,7 @@ object Expressions {
     case Seq(x) => x
     case xs => Ast.expr.BoolOp(Ast.boolop.And, xs)
   }
-  val not_test: P[Ast.expr] = P( ("not" ~ not_test).map(Ast.expr.UnaryOp(Ast.unaryop.Not, _)) | comparison )
+  val not_test: P[Ast.expr] = P( (kw("not") ~ not_test).map(Ast.expr.UnaryOp(Ast.unaryop.Not, _)) | comparison )
   val comparison: P[Ast.expr] = P( expr ~ (comp_op ~ expr).? ).map{
     case (lhs, None) => lhs
     case (lhs, Some(chunks)) =>
@@ -114,6 +118,8 @@ object Expressions {
       "[" ~ list ~ "]" |
 //      "{" ~ dictorsetmaker ~ "}" |
       enumByName |
+      byteSizeOfType |
+      bitSizeOfType |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
       NAME.map((x) => x.name match {
         case "true" => Ast.expr.Bool(true)
@@ -130,7 +136,7 @@ object Expressions {
   val trailer: P[Ast.expr => Ast.expr] = {
     val call = P("(" ~ arglist ~ ")").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Call(lhs, args)}
     val slice = P("[" ~ test ~ "]").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Subscript(lhs, args)}
-    val cast = P( "." ~ "as" ~ "<" ~ NAME ~ ">" ).map(
+    val cast = P( "." ~ "as" ~ "<" ~ TYPE_NAME ~ ">" ).map(
       typeName => (lhs: Ast.expr) => Ast.expr.CastToType(lhs, typeName)
     )
     val attr = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id))
@@ -156,19 +162,39 @@ object Expressions {
 
   val testlist1: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") )
 
-  val enumByName: P[Ast.expr.EnumByLabel] = P( (NAME) ~ "::" ~ (NAME) ).map {
-    case(enumName, enumLabel) => Ast.expr.EnumByLabel(enumName, enumLabel)
+  val enumByName: P[Ast.expr.EnumByLabel] = P("::".!.? ~ NAME.rep(2, "::")).map {
+    case (first, names: Seq[Ast.identifier]) =>
+      val isAbsolute = first.nonEmpty
+      val (enumName, enumLabel) = names.takeRight(2) match {
+        case Seq(a, b) => (a, b)
+      }
+      val typePath = names.dropRight(2)
+      if (typePath.isEmpty) {
+        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.EmptyTypeId)
+      } else {
+        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.typeId(isAbsolute, typePath.map(_.name)))
+      }
   }
 
+  val byteSizeOfType: P[Ast.expr.ByteSizeOfType] =
+    P("sizeof" ~ "<" ~ TYPE_NAME ~ ">").map(typeName => Ast.expr.ByteSizeOfType(typeName))
+  val bitSizeOfType: P[Ast.expr.BitSizeOfType] =
+    P("bitsizeof" ~ "<" ~ TYPE_NAME ~ ">").map(typeName => Ast.expr.BitSizeOfType(typeName))
+
   val topExpr: P[Ast.expr] = P( test ~ End )
+
+  val topExprList: P[Seq[Ast.expr]] = P(testlist1 ~ End)
 
   class ParseException(val src: String, val failure: Parsed.Failure)
     extends RuntimeException(failure.msg)
 
-  def parse(src: String): Ast.expr = {
-    val r = Expressions.topExpr.parse(src)
+  def parse(src: String): Ast.expr = realParse(src, topExpr)
+  def parseList(src: String): Seq[Ast.expr] = realParse(src, topExprList)
+
+  private def realParse[T](src: String, parser: P[T]): T = {
+    val r = parser.parse(src.trim)
     r match {
-      case Parsed.Success(value, index) => value
+      case Parsed.Success(value, _) => value
       case f: Parsed.Failure =>
         throw new ParseException(src, f)
     }

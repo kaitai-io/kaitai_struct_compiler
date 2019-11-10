@@ -12,7 +12,7 @@ class SpecsValueTypeDerive(specs: ClassSpecs) {
       Log.typeProcValue.info(() => s"### SpecsValueTypeDerive: iteration #$iterNum")
       specs.foreach { case (specName, spec) =>
         Log.typeProcValue.info(() => s"#### $specName")
-        val thisChanged = new ValueTypesDeriver(spec).run()
+        val thisChanged = new ValueTypesDeriver(specs, spec).run()
         Log.typeProcValue.info(() => ".... => " + (if (thisChanged) "changed" else "no changes"))
         hasChanged |= thisChanged
       }

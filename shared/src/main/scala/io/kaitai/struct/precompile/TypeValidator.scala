@@ -1,36 +1,44 @@
 package io.kaitai.struct.precompile
 
-import io.kaitai.struct.ClassTypeProvider
+import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.TypeDetector
+import io.kaitai.struct.translators.{ExpressionValidator, TypeDetector}
 
 import scala.reflect.ClassTag
 
 /**
   * Validates all expressions used inside the given ClassSpec to use expected types.
+  * Also ensures that all expressions usage of types (in typecasting operator,
+  * enums, sizeof operator, etc) matches loaded classes layout & names.
+  * @param specs bundle of class specifications (used only to find external references)
   * @param topClass class to start check with
   */
-class TypeValidator(topClass: ClassSpec) {
-  val provider = new ClassTypeProvider(topClass)
-  val detector = new TypeDetector(provider)
+class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
+  val provider = new ClassTypeProvider(specs, topClass)
+  val detector = new ExpressionValidator(provider)
 
   /**
     * Starts the check from top-level class.
     */
-  def run(): Unit =
-    validateClass(topClass)
+  def run(): Unit = specs.forEachTopLevel { (specName, curClass) =>
+    Log.typeValid.info(() => s"validating top level class '$specName'")
+    provider.topClass = curClass
+    curClass.forEachRec(validateClass)
+  }
 
   /**
     * Performs validation of a single ClassSpec: would validate
     * sequence attributes (`seq`), instances (`instances`) and all
     * nested subtypes (`types`) recursively. `doc` and `enums` are
     * not checked, as they contain no expressions.
+    *
     * @param curClass class to check
     */
   def validateClass(curClass: ClassSpec): Unit = {
+    Log.typeValid.info(() => s"validateClass(${curClass.nameAsStr})")
     provider.nowClass = curClass
 
     curClass.seq.foreach(validateAttr)
@@ -38,14 +46,10 @@ class TypeValidator(topClass: ClassSpec) {
     curClass.instances.foreach { case (_, inst) =>
       inst match {
         case pis: ParseInstanceSpec =>
-          validateAttr(pis)
+          validateParseInstance(pis)
         case vis: ValueInstanceSpec =>
-          // TODO
+          validateValueInstance(vis)
       }
-    }
-
-    curClass.types.foreach { case (_, nestedClass) =>
-      validateClass(nestedClass)
     }
   }
 
@@ -55,6 +59,8 @@ class TypeValidator(topClass: ClassSpec) {
     * @param attr attribute to check
     */
   def validateAttr(attr: AttrLikeSpec) {
+    Log.typeValid.info(() => s"validateAttr(${attr.id.humanReadable})")
+
     val path = attr.path
 
     attr.cond.ifExpr.foreach((ifExpr) =>
@@ -74,13 +80,49 @@ class TypeValidator(topClass: ClassSpec) {
     validateDataType(attr.dataType, path)
   }
 
+  def validateParseInstance(pis: ParseInstanceSpec): Unit = {
+    validateAttr(pis)
+
+    Log.typeValid.info(() => s"validateParseInstance(${pis.id.humanReadable})")
+
+    pis.io match {
+      case Some(io) => checkAssertObject(io, KaitaiStreamType, "IO stream", pis.path, "io")
+      case None => // all good
+    }
+
+    pis.pos match {
+      case Some(pos) => checkAssert[IntType](pos, "integer", pis.path, "pos")
+      case None => // all good
+    }
+  }
+
+  def validateValueInstance(vis: ValueInstanceSpec): Unit = {
+    try {
+      detector.validate(vis.value)
+    } catch {
+      case err: ExpressionError =>
+        throw new ErrorInInput(err, vis.path ++ List("value"))
+    }
+  }
+
   /**
     * Validates single non-composite data type, checking all expressions
     * inside data type definition.
+    *
     * @param dataType data type to check
     * @param path original .ksy path to make error messages more meaningful
     */
   def validateDataType(dataType: DataType, path: List[String]) {
+    // validate args vs params
+    dataType match {
+      case ut: UserType =>
+        // we only validate non-opaque types, opaque are unverifiable by definition
+        if (!ut.isOpaque)
+          validateArgsVsParams(ut.args, ut.classSpec.get.params, path ++ List("type"))
+      case _ =>
+        // no args or params in non-user types
+    }
+
     dataType match {
       case blt: BytesLimitType =>
         checkAssert[IntType](blt.size, "integer", path, "size")
@@ -97,17 +139,46 @@ class TypeValidator(topClass: ClassSpec) {
 
   def validateSwitchType(st: SwitchType, path: List[String]) {
     val onType = detector.detectType(st.on)
+    detector.validate(st.on)
     st.cases.foreach { case (caseExpr, caseType) =>
       val casePath = path ++ List("type", "cases", caseExpr.toString)
       if (caseExpr != SwitchType.ELSE_CONST) {
         try {
           TypeDetector.assertCompareTypes(onType, detector.detectType(caseExpr), Ast.cmpop.Eq)
+          detector.validate(caseExpr)
         } catch {
           case tme: TypeMismatchError =>
             throw new YAMLParseException(tme.getMessage, casePath)
+          case err: Throwable =>
+            throw new ErrorInInput(err, casePath)
         }
       }
       validateDataType(caseType, casePath)
+    }
+  }
+
+  /**
+    * Validates that arguments given for a certain type match list of parameters
+    * declared for that type.
+    * @param args arguments given in invocation
+    * @param params parameters declared in a user type
+    * @param path path where invocation happens
+    * @return
+    */
+  def validateArgsVsParams(args: Seq[Ast.expr], params: List[ParamDefSpec], path: List[String]): Unit = {
+    if (args.size != params.size)
+      throw YAMLParseException.invalidParamCount(params.size, args.size, path)
+
+    args.indices.foreach { (i) =>
+      val arg = args(i)
+      val param = params(i)
+      val tArg = detector.detectType(arg)
+      detector.validate(arg)
+      val tParam = param.dataType
+
+      if (!TypeDetector.canAssign(tArg, tParam)) {
+        throw YAMLParseException.paramMismatch(i, tArg, param.id.humanReadable, tParam, path)
+      }
     }
   }
 
@@ -134,11 +205,64 @@ class TypeValidator(topClass: ClassSpec) {
     try {
       detector.detectType(expr) match {
         case _: T => // good
+        case st: SwitchType =>
+          st.combinedType match {
+            case _: T => // good
+            case actual =>
+              throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
+          }
         case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
       }
+      detector.validate(expr)
     } catch {
+      case err: InvalidIdentifier =>
+        throw new ErrorInInput(err, path ++ List(pathKey))
       case err: ExpressionError =>
-        throw new YAMLParseException(err.getMessage, path ++ List(pathKey))
+        throw new ErrorInInput(err, path ++ List(pathKey))
+    }
+  }
+
+  /**
+    * Checks that expression's type conforms to a given datatype, otherwise
+    * throw a human-readable exception, with some pointers that would help
+    * finding the expression in source .ksy.
+    *
+    * This version works with case objects.
+    *
+    * @param expr expression to check
+    * @param expectStr string to include
+    * @param path path to expression base
+    * @param pathKey key that contains expression in given path
+    */
+  def checkAssertObject(
+    expr: Ast.expr,
+    expected: Object,
+    expectStr: String,
+    path: List[String],
+    pathKey: String
+  ): Unit = {
+    try {
+      val detected = detector.detectType(expr)
+      if (detected == expected) {
+        // good
+      } else {
+        detected match {
+          case st: SwitchType =>
+            val combinedType = st.combinedType
+            if (combinedType == expected) {
+              // good
+            } else {
+              throw YAMLParseException.exprType(expectStr, combinedType, path ++ List(pathKey))
+            }
+          case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
+        }
+      }
+      detector.validate(expr)
+    } catch {
+      case err: InvalidIdentifier =>
+        throw new ErrorInInput(err, path ++ List(pathKey))
+      case err: ExpressionError =>
+        throw new ErrorInInput(err, path ++ List(pathKey))
     }
   }
 }

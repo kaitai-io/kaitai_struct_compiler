@@ -10,6 +10,8 @@ import io.kaitai.struct.{RuntimeConfig, Utils}
 class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + Utils.hexEscapeByteArray(arr) + "\""
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
+    s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
   // http://php.net/manual/en/language.types.string.php#language.types.string.syntax.double
   override val asciiCharQuoteMap: Map[Char, String] = Map(
@@ -41,13 +43,14 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     }
   }
 
-  override def userTypeField(value: expr, attrName: String): String =
+  override def anyField(value: expr, attrName: String): String =
     s"${translate(value)}->${doName(attrName)}"
 
   override def doLocalName(s: String) = {
     s match {
       case Identifier.ITERATOR => "$_"
       case Identifier.ITERATOR2 => "$_buf"
+      case Identifier.INDEX => "$i"
       case _ => s"$$this->${doName(s)}"
     }
   }
@@ -62,7 +65,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
@@ -80,6 +83,9 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def boolToInt(v: expr): String =
     s"intval(${translate(v)})"
 
+  override def floatToInt(v: expr): String =
+    s"intval(${translate(v)})"
+
   override def intToStr(i: expr, base: expr): String = {
     val baseStr = translate(base)
     baseStr match {
@@ -91,6 +97,8 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"${PHPCompiler.kstreamName}::bytesToStr($bytesExpr, ${translate(encoding)})"
+  override def bytesLength(b: Ast.expr): String =
+    s"strlen(${translate(b)})"
   override def strLength(s: expr): String =
     s"strlen(${translate(s)})"
   override def strReverse(s: expr): String =
