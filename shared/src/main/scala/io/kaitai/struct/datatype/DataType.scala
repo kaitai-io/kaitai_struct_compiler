@@ -164,11 +164,13 @@ object DataType {
     override def isOwning = false
   }
 
-  case class ArrayType(elType: DataType) extends ComplexDataType {
+  abstract sealed class ArrayType(val elType: DataType) extends ComplexDataType
+
+  case class ArrayTypeInStream(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = true
     override def asNonOwning: CalcArrayType = CalcArrayType(elType)
   }
-  case class CalcArrayType(elType: DataType) extends ComplexDataType {
+  case class CalcArrayType(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = false
   }
 

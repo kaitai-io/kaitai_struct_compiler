@@ -457,7 +457,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       })
       case t: EnumType => "int"
 
-      case ArrayType(_) => "array"
+      case _: ArrayType => "array"
 
       case KaitaiStructType | CalcKaitaiStructType => kstructName
       case KaitaiStreamType => kstreamName
@@ -480,7 +480,7 @@ object PHPCompiler extends LanguageCompilerStatic
 
   override def kstructName: String = "\\Kaitai\\Struct\\Struct"
 
-  override def ksErrorName(err: KSError): String = ???
+  override def ksErrorName(err: KSError): String = "\\Kaitai\\Struct\\" + err.name
 
   def types2classRel(names: List[String]) = names.map(type2class).mkString("\\")
 }

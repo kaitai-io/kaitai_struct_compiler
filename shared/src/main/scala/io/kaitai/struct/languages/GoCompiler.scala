@@ -298,7 +298,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, ${expression(repeatExpr)})")
-    out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))}, ${expression(repeatExpr)})")
+    out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayTypeInStream(dataType))}, ${expression(repeatExpr)})")
     out.puts(s"for i := range ${privateMemberName(id)} {")
     out.inc
   }
@@ -579,7 +579,7 @@ object GoCompiler extends LanguageCompilerStatic
       })
       case t: EnumType => types2class(t.enumSpec.get.name)
 
-      case ArrayType(inType) => s"[]${kaitaiType2NativeType(inType)}"
+      case at: ArrayType => s"[]${kaitaiType2NativeType(at.elType)}"
 
       case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }

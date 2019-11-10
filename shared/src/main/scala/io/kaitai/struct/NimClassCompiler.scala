@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian, InheritedEndian}
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
@@ -263,7 +263,7 @@ object NimClassCompiler extends LanguageCompilerStatic {
       case t: UserType => listToNim(t.name)
       case EnumType(name, _) => listToNim(name)
 
-      case ArrayType(inType) => s"seq[${ksToNim(inType)}]"
+      case at: ArrayType => s"seq[${ksToNim(at.elType)}]"
 
       case st: SwitchType => ksToNim(st.combinedType)
     }

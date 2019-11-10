@@ -48,7 +48,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
         attr.name match {
           case "to_i" => floatToInt(value)
         }
-      case ArrayType(_) | CalcArrayType(_) =>
+      case _: ArrayType =>
         attr.name match {
           case "first" => arrayFirst(value)
           case "last" => arrayLast(value)

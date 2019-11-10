@@ -21,7 +21,7 @@ trait AttrLikeSpec extends MemberSpec {
 
   override def dataTypeComposite: DataType = {
     if (isArray) {
-      ArrayType(dataType)
+      ArrayTypeInStream(dataType)
     } else {
       dataType
     }

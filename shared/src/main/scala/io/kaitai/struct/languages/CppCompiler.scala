@@ -326,7 +326,7 @@ class CppCompiler(
 
   override def attrInit(attr: AttrLikeSpec): Unit = {
     attr.dataTypeComposite match {
-      case _: UserType | _: ArrayType | KaitaiStreamType =>
+      case _: UserType | _: ArrayTypeInStream | KaitaiStreamType =>
         // data type will be pointer to user type, std::vector or stream, so we need to init it
         outSrc.puts(s"${privateMemberName(attr.id)} = $nullPtr;")
       case _ =>
@@ -414,7 +414,7 @@ class CppCompiler(
   }
 
   def needsDestruction(t: DataType): Boolean = t match {
-    case _: UserType | _: ArrayType | KaitaiStructType | AnyType => true
+    case _: UserType | _: ArrayTypeInStream | KaitaiStructType | AnyType => true
     case _ => false
   }
 
@@ -1018,7 +1018,7 @@ object CppCompiler extends LanguageCompilerStatic
           t.name
         })
 
-      case ArrayType(inType) => config.pointers match {
+      case ArrayTypeInStream(inType) => config.pointers match {
         case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
         case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
       }

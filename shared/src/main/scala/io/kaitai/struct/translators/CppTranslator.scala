@@ -102,8 +102,9 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     '\b' -> "\\b"
   )
 
-  override def doArrayLiteral(t: DataType, values: Seq[expr]): String =
+  override def doArrayLiteral(t: DataType, values: Seq[expr]): String = {
     throw new RuntimeException("C++ literal arrays are not implemented yet")
+  }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "std::string(\"" + Utils.hexEscapeByteArray(arr) + "\", " + arr.length + ")"

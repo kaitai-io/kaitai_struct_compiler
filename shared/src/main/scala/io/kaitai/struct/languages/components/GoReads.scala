@@ -120,7 +120,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
 
         val extraType = rep match {
           case NoRepeat => byteType
-          case _ => ArrayType(byteType)
+          case _ => ArrayTypeInStream(byteType)
         }
 
         this match {
