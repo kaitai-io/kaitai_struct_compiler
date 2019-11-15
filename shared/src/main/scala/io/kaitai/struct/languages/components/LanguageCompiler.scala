@@ -9,7 +9,7 @@ import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 import scala.collection.mutable.ListBuffer
 
 abstract class LanguageCompiler(
-  typeProvider: ClassTypeProvider,
+  val typeProvider: ClassTypeProvider,
   val config: RuntimeConfig
 ) extends SwitchOps with ValidateOps
   with ExtraAttrs {
@@ -119,6 +119,9 @@ abstract class LanguageCompiler(
 
   def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
   def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
+
+  def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {}
+  def condRepeatCommonFooter: Unit = {}
 
   def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
 
