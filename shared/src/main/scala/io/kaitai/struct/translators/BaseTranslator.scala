@@ -141,6 +141,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doByteSizeOfType(typeName)
       case Ast.expr.BitSizeOfType(typeName) =>
         doBitSizeOfType(typeName)
+      case Ast.expr.CodeLiteral(code) =>
+        code
     }
   }
 
