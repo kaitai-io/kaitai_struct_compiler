@@ -136,7 +136,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       val paramsRelay = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
 
-      if (config.readWrite) {
+      if (config.readWrite && !config.autoRead) {// when autoRead is true, it doesn't make sense to generate this constructor because there would be no _io to read from
         out.puts(s"public ${type2class(name)}(${paramsArg.stripPrefix(", ")}) {")
         out.inc
         out.puts(s"this(null, null, null$paramsRelay);")
