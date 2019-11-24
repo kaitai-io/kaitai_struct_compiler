@@ -287,7 +287,7 @@ class ClassCompiler(
     * Compiles validation procedure for one attribute after it was parsed.
     * @param attr attribute to validate
     */
-  def compileValidate(attr: AttrSpec): Unit =
+  def compileValidate(attr: AttrLikeSpec): Unit =
     attr.valid.foreach(valid => lang.attrValidate(attr.id, attr, valid))
 
   /**
@@ -328,8 +328,9 @@ class ClassCompiler(
         lang.attrParseIfHeader(instName, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
-      case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, endian)
+      case pi: ParseInstanceSpec =>
+        lang.attrParse(pi, instName, endian)
+        compileValidate(pi)
     }
 
     lang.instanceSetCalculated(instName)

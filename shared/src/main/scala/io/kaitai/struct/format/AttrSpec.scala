@@ -15,6 +15,7 @@ case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 trait AttrLikeSpec extends MemberSpec {
   def dataType: DataType
   def cond: ConditionalSpec
+  def valid: Option[ValidationSpec]
   def doc: DocSpec
 
   def isArray: Boolean = cond.repeat != NoRepeat

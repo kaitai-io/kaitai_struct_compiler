@@ -24,7 +24,8 @@ case class ParseInstanceSpec(
   dataType: DataType,
   cond: ConditionalSpec,
   pos: Option[Ast.expr],
-  io: Option[Ast.expr]
+  io: Option[Ast.expr],
+  valid: Option[ValidationSpec]
 ) extends InstanceSpec(_doc) with AttrLikeSpec {
   override def isLazy = true
 }
@@ -64,13 +65,18 @@ object InstanceSpec {
           None
         )
       case None =>
-        // normal positional instance
+        // normal parse instance
+        // TODO: perform proper validation of parse instance keys
+        // ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS_PARSE_INST, path, Some("parse instance"))
+
         val pos = ParseUtils.getOptValueExpression(srcMap, "pos", path)
         val io = ParseUtils.getOptValueExpression(srcMap, "io", path)
 
         val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io")
         val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef, id)
-        ParseInstanceSpec(id, path, a.doc, a.dataType, a.cond, pos, io)
+        val valid = srcMap.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
+
+        ParseInstanceSpec(id, path, a.doc, a.dataType, a.cond, pos, io, valid)
     }
   }
 }
