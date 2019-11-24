@@ -328,12 +328,13 @@ class ClassCompiler(
         lang.attrParseIfHeader(instName, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
+        lang.instanceSetCalculated(instName)
       case pi: ParseInstanceSpec =>
         lang.attrParse(pi, instName, endian)
+        lang.instanceSetCalculated(instName)
         compileValidate(pi)
     }
 
-    lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
   }
