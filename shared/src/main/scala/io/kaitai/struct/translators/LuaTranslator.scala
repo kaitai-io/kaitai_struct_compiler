@@ -25,7 +25,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def strLiteralUnicode(code: Char): String =
     "\\u{%04x}".format(code.toInt)
 
-  override def doSubscript(container: Ast.expr, idx: Ast.expr): String = {
+  override def arraySubscript(container: Ast.expr, idx: Ast.expr): String = {
     // Lua indexes start at 1, so we need to offset them
     val fixedIdx = idx match {
       case Ast.expr.IntNum(n) => Ast.expr.IntNum(n + 1)

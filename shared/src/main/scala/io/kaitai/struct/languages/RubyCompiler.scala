@@ -109,7 +109,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("else")
     out.inc
-    out.puts("raise Kaitai::Struct::Stream::UndecidedEndiannessError")
+    out.puts(s"raise ${ksErrorName(UndecidedEndiannessError)}.new(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\")")
     out.dec
     out.puts("end")
   }
@@ -152,15 +152,13 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts("##")
 
-    doc.summary.foreach((summary) => out.putsLines("# ", summary))
+    doc.summary.foreach(summary => out.putsLines("# ", summary))
 
-    doc.ref match {
+    doc.ref.foreach {
       case TextRef(text) =>
         out.putsLines("# ", s"@see '' $text", "  ")
       case UrlRef(url, text) =>
         out.putsLines("# ", s"@see $url $text", "  ")
-      case NoRef =>
-        // do nothing
     }
   }
 
@@ -209,6 +207,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
+    val ioName = s"_io_${idToStr(id)}"
 
     val args = rep match {
       case RepeatEos | RepeatUntil(_) => s"$memberName.last"
@@ -216,8 +215,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat => s"$memberName"
     }
 
-    out.puts(s"io = $kstreamName.new($args)")
-    "io"
+    out.puts(s"$ioName = $kstreamName.new($args)")
+    ioName
   }
 
   override def useIO(ioEx: expr): String = {
@@ -453,11 +452,25 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
+  override def ksErrorName(err: KSError): String = RubyCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"raise $errName.new($errArgsStr) if not ${translator.translate(checkExpr)}")
+  }
+
   def types2class(names: List[String]) = names.map(type2class).mkString("::")
 }
 
 object RubyCompiler extends LanguageCompilerStatic
-  with StreamStructNames {
+  with StreamStructNames
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -465,6 +478,10 @@ object RubyCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "EOFError"
+    case _ => s"Kaitai::Struct::${err.name}"
+  }
 
   def inverseEnumName(enumName: String) = s"I__$enumName"
 }

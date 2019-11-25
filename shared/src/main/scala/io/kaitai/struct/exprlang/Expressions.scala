@@ -118,6 +118,8 @@ object Expressions {
       "[" ~ list ~ "]" |
 //      "{" ~ dictorsetmaker ~ "}" |
       enumByName |
+      byteSizeOfType |
+      bitSizeOfType |
       STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
       NAME.map((x) => x.name match {
         case "true" => Ast.expr.Bool(true)
@@ -173,6 +175,11 @@ object Expressions {
         Ast.expr.EnumByLabel(enumName, enumLabel, Ast.typeId(isAbsolute, typePath.map(_.name)))
       }
   }
+
+  val byteSizeOfType: P[Ast.expr.ByteSizeOfType] =
+    P("sizeof" ~ "<" ~ TYPE_NAME ~ ">").map(typeName => Ast.expr.ByteSizeOfType(typeName))
+  val bitSizeOfType: P[Ast.expr.BitSizeOfType] =
+    P("bitsizeof" ~ "<" ~ TYPE_NAME ~ ">").map(typeName => Ast.expr.BitSizeOfType(typeName))
 
   val topExpr: P[Ast.expr] = P( test ~ End )
 

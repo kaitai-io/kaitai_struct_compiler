@@ -65,6 +65,7 @@ object MetaSpec {
     "license",
     "file-extension",
     "xref",
+    "tags",
     "application"
   )
 

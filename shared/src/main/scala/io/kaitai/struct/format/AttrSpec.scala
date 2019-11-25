@@ -15,13 +15,14 @@ case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 trait AttrLikeSpec extends MemberSpec {
   def dataType: DataType
   def cond: ConditionalSpec
+  def valid: Option[ValidationSpec]
   def doc: DocSpec
 
   def isArray: Boolean = cond.repeat != NoRepeat
 
   override def dataTypeComposite: DataType = {
     if (isArray) {
-      ArrayType(dataType)
+      ArrayTypeInStream(dataType)
     } else {
       dataType
     }
@@ -66,6 +67,7 @@ case class AttrSpec(
   id: Identifier,
   dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
+  valid: Option[ValidationSpec] = None,
   doc: DocSpec = DocSpec.EMPTY
 ) extends AttrLikeSpec with MemberSpec {
   override def isLazy = false
@@ -115,6 +117,7 @@ object AttrSpec {
     "consume",
     "include",
     "eos-error",
+    "valid",
     "repeat"
   )
 
@@ -178,6 +181,18 @@ object AttrSpec {
     val padRight = ParseUtils.getOptValueInt(srcMap, "pad-right", path)
     val enum = ParseUtils.getOptValueStr(srcMap, "enum", path)
     val parent = ParseUtils.getOptValueExpression(srcMap, "parent", path)
+    val valid = srcMap.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
+
+    // Convert value of `contents` into validation spec and merge it in, if possible
+    val valid2: Option[ValidationSpec] = (contents, valid) match {
+      case (None, _) => valid
+      case (Some(byteArray), None) =>
+        Some(ValidationEq(Ast.expr.List(
+          byteArray.map(x => Ast.expr.IntNum(x & 0xff))
+        )))
+      case (Some(_), Some(_)) =>
+        throw new YAMLParseException(s"`contents` and `valid` can't be used together", path)
+    }
 
     val typObj = srcMap.get("type")
 
@@ -220,7 +235,7 @@ object AttrSpec {
 
     ParseUtils.ensureLegalKeys(srcMap, legalKeys, path)
 
-    AttrSpec(path, id, dataType, ConditionalSpec(ifExpr, repeatSpec), doc)
+    AttrSpec(path, id, dataType, ConditionalSpec(ifExpr, repeatSpec), valid2, doc)
   }
 
   def parseContentSpec(c: Any, path: List[String]): Array[Byte] = {

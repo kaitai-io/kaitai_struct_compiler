@@ -44,13 +44,20 @@ trait CommonReads extends LanguageCompiler {
     if (config.readStoresPos)
       attrDebugEnd(id, attr.dataType, io, NoRepeat)
 
-    // More position management after parsing for ParseInstanceSpecs
+    // More position management + set calculated flag after parsing for ParseInstanceSpecs
     attr match {
       case pis: ParseInstanceSpec =>
+        // Restore position, if applicable
         if (pis.pos.isDefined)
           popPos(io)
+
+        // Mark parse instance as calculated
+        instanceSetCalculated(pis.id)
       case _ => // no seeking required for sequence attributes
     }
+
+    // Run validations (still inside "if", if applicable)
+    attrValidateAll(attr)
 
     attrParseIfFooter(attr.cond.ifExpr)
   }
@@ -86,4 +93,11 @@ trait CommonReads extends LanguageCompiler {
 
   def attrDebugStart(attrName: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
   def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
+
+  /**
+    * Runs all validation procedures requested for an attribute.
+    * @param attr attribute to run validations for
+    */
+  def attrValidateAll(attr: AttrLikeSpec) =
+    attr.valid.foreach(valid => attrValidate(attr.id, attr, valid))
 }

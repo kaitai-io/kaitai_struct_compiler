@@ -1,5 +1,8 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.datatype.DataType.{UserType, UserTypeInstream}
+import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.format
 import io.kaitai.struct.formats.JavaKSYParser
 import org.scalatest.FunSpec
 import org.scalatest.Matchers._
@@ -63,6 +66,46 @@ class AttrSpec$Test extends FunSpec {
     it ("fails to parse bogus array element") {
       the [YAMLParseException] thrownBy tryOne("[1, 2, [3]]") should
         have message("/test/2: unable to parse fixed content in array: List(3)")
+    }
+  }
+
+  describe("AttrSpec.fromYaml2") {
+    it("parses user type") {
+      val src = Map(
+        "id" -> "foo",
+        "type" -> "bar"
+      )
+      val spec = AttrSpec.fromYaml2(src, List(), MetaSpec.OPAQUE, NamedIdentifier("foo"))
+
+      spec.id should be(NamedIdentifier("foo"))
+      val dataType = spec.dataType.asInstanceOf[UserType]
+      dataType.name should be(List("bar"))
+    }
+
+    it("parses user type with 1 argument") {
+      val src = Map(
+        "id" -> "foo",
+        "type" -> "bar(5)"
+      )
+      val spec = AttrSpec.fromYaml2(src, List(), MetaSpec.OPAQUE, NamedIdentifier("foo"))
+
+      spec.id should be(NamedIdentifier("foo"))
+      val dataType = spec.dataType.asInstanceOf[UserType]
+      dataType.name should be(List("bar"))
+      dataType.args should be(Seq(Ast.expr.IntNum(5)))
+    }
+
+    it("parses user type with 1 argument in parenthesis") {
+      val src = Map(
+        "id" -> "foo",
+        "type" -> "bar((5))"
+      )
+      val spec = AttrSpec.fromYaml2(src, List(), MetaSpec.OPAQUE, NamedIdentifier("foo"))
+
+      spec.id should be(NamedIdentifier("foo"))
+      val dataType = spec.dataType.asInstanceOf[UserType]
+      dataType.name should be(List("bar"))
+      dataType.args should be(Seq(Ast.expr.IntNum(5)))
     }
   }
 }

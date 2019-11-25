@@ -130,6 +130,8 @@ object ParseUtils {
         srcList.zipWithIndex.map { case (element, idx) =>
           convertFunc(element, pathField ++ List(idx.toString))
         }
+      case Some(singleObject: T) =>
+        List(singleObject)
       case None =>
         List()
       case unknown =>

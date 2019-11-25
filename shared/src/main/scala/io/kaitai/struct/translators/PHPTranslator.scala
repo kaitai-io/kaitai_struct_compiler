@@ -65,7 +65,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
@@ -97,8 +97,20 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"${PHPCompiler.kstreamName}::bytesToStr($bytesExpr, ${translate(encoding)})"
+
   override def bytesLength(b: Ast.expr): String =
     s"strlen(${translate(b)})"
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"ord(${translate(container)}[${translate(idx)}])"
+  override def bytesFirst(b: Ast.expr): String =
+    s"ord(${translate(b)}[0])"
+  override def bytesLast(b: Ast.expr): String =
+    s"ord(${translate(b)}[${bytesLength(b)} - 1])"
+  override def bytesMin(b: Ast.expr): String =
+    s"${PHPCompiler.kstreamName}::byteArrayMin(${translate(b)})"
+  override def bytesMax(b: Ast.expr): String =
+    s"${PHPCompiler.kstreamName}::byteArrayMax(${translate(b)})"
+
   override def strLength(s: expr): String =
     s"strlen(${translate(s)})"
   override def strReverse(s: expr): String =

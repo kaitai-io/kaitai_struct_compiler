@@ -1,12 +1,12 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, _}
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{RustTranslator, TypeDetector}
+import io.kaitai.struct.translators.RustTranslator
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -201,7 +201,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           className
         } else {
           val pkgName = type2classAbs(name.init)
-	  val className = type2class(name.last)
+          val className = type2class(name.last)
           importList.add(s"$pkgName::$className")
           s"$pkgName::$className"
         }
@@ -333,7 +333,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
-	
+
         s"Box::new(${translator.types2classAbs(t.classSpec.get.name)}::new(self.stream, self, _root)?)"
     }
   }
@@ -357,7 +357,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val onType = translator.detectType(on)
 
     switchIfs = onType match {
-      case _: ArrayType | _: BytesType => true
+      case _: ArrayTypeInStream | _: BytesType => true
       case _ => false
     }
 
@@ -371,8 +371,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expression(
       Ast.expr.Compare(
         NAME_SWITCH_ON,
-	Ast.cmpop.Eq,
-	condition
+        Ast.cmpop.Eq,
+        condition
       )
     )
 
@@ -521,15 +521,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case t: UserType => t.classSpec match {
         case Some(cs) => s"Box<${type2class(cs.name)}>"
-	case None => s"Box<${type2class(t.name)}>"
+        case None => s"Box<${type2class(t.name)}>"
       }
       
       case t: EnumType => t.enumSpec match {
         case Some(cs) => s"Box<${type2class(cs.name)}>"
-	case None => s"Box<${type2class(t.name)}>"
+        case None => s"Box<${type2class(t.name)}>"
       }
 
-      case ArrayType(inType) => s"Vec<${kaitaiType2NativeType(inType)}>"
+      case at: ArrayType => s"Vec<${kaitaiType2NativeType(at.elType)}>"
 
       case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
       case KaitaiStructType | CalcKaitaiStructType => s"Option<Box<KaitaiStruct>>"
@@ -565,7 +565,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: UserType => "Default::default()"
       case t: EnumType => "Default::default()"
 
-      case ArrayType(inType) => "vec!()"
+      case ArrayTypeInStream(inType) => "vec!()"
 
       case KaitaiStreamType => "None"
       case KaitaiStructType => "None"
@@ -579,11 +579,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def type2classAbs(names: List[String]) =
     names.mkString("::")
+
+  override def ksErrorName(err: KSError): String = RustCompiler.ksErrorName(err)
 }
 
 object RustCompiler extends LanguageCompilerStatic
   with StreamStructNames
-  with UpperCamelCaseClasses {
+  with UpperCamelCaseClasses
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -591,6 +594,7 @@ object RustCompiler extends LanguageCompilerStatic
 
   override def kstructName = "&Option<Box<KaitaiStruct>>"
   override def kstreamName = "&mut S"
+  override def ksErrorName(err: KSError): String = ???
 
   def types2class(typeName: Ast.typeId) = {
     typeName.names.map(type2class).mkString(

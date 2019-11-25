@@ -36,8 +36,6 @@ trait EveryReadIsExpression
       attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
-      case FixedBytesType(c, _) =>
-        attrFixedContentsParse(id, c)
       case t: UserType =>
         attrUserTypeParse(id, t, io, rep, defEndian)
       case t: BytesType =>
@@ -110,7 +108,7 @@ trait EveryReadIsExpression
 
         val extraType = rep match {
           case NoRepeat => byteType
-          case _ => ArrayType(byteType)
+          case _ => ArrayTypeInStream(byteType)
         }
 
         this match {

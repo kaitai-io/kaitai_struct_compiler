@@ -102,8 +102,9 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     '\b' -> "\\b"
   )
 
-  override def doArrayLiteral(t: DataType, values: Seq[expr]): String =
+  override def doArrayLiteral(t: DataType, values: Seq[expr]): String = {
     throw new RuntimeException("C++ literal arrays are not implemented yet")
+  }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "std::string(\"" + Utils.hexEscapeByteArray(arr) + "\", " + arr.length + ")"
@@ -143,7 +144,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     }
   }
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}->at(${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
@@ -190,6 +191,26 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     s"${CppCompiler.kstreamName}::bytes_to_str($bytesExpr, ${translate(encoding)})"
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.length()"
+
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"${translate(container)}[${translate(idx)}]"
+  override def bytesFirst(b: Ast.expr): String = {
+    config.cppConfig.stdStringFrontBack match {
+      case true => s"${translate(b)}.front()"
+      case false => s"${translate(b)}[0]"
+    }
+  }
+  override def bytesLast(b: Ast.expr): String = {
+    config.cppConfig.stdStringFrontBack match {
+      case true => s"${translate(b)}.back()"
+      case false => s"${translate(b)}[${translate(b)}.length() - 1]"
+    }
+  }
+  override def bytesMin(b: Ast.expr): String =
+    s"${CppCompiler.kstreamName}::byte_array_min(${translate(b)})"
+  override def bytesMax(b: Ast.expr): String =
+    s"${CppCompiler.kstreamName}::byte_array_max(${translate(b)})"
+
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =

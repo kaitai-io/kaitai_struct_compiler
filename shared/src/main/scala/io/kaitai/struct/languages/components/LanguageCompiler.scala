@@ -11,7 +11,7 @@ import scala.collection.mutable.ListBuffer
 abstract class LanguageCompiler(
   typeProvider: ClassTypeProvider,
   val config: RuntimeConfig
-) extends SwitchOps
+) extends SwitchOps with ValidateOps
   with ExtraAttrs {
 
   val translator: AbstractTranslator
@@ -94,6 +94,7 @@ abstract class LanguageCompiler(
   def attrInit(attr: AttrLikeSpec): Unit = {}
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
+  // TODO: delete
   def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
 
   def condIfSetNull(instName: Identifier): Unit = {}

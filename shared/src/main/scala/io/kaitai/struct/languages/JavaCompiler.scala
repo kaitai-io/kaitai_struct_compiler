@@ -2,14 +2,14 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{JavaTranslator, TypeDetector}
+import io.kaitai.struct.translators.JavaTranslator
 
-class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
     with UpperCamelCaseClasses
@@ -19,6 +19,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalDoc
     with AllocateIOLocalVar
     with FixedContentsUsingArrayByteLiteral
+    with SwitchIfOps
     with NoNeedForFullClassPath {
   import JavaCompiler._
 
@@ -26,12 +27,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   // Preprocess fromFileClass and make import
   val fromFileClass = {
-    val pos = config.javaFromFileClass.lastIndexOf('.')
+    val pos = config.java.fromFileClass.lastIndexOf('.')
     if (pos < 0) {
-      config.javaFromFileClass
+      // If relative "fromFileClass", then just use it as is
+      config.java.fromFileClass
     } else {
-      importList.add(config.javaFromFileClass)
-      config.javaFromFileClass.substring(pos + 1)
+      // If absolute "fromFileClass", add relevant import + use relative
+      importList.add(config.java.fromFileClass)
+      config.java.fromFileClass.substring(pos + 1)
     }
   }
 
@@ -42,16 +45,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String =
-    s"src/${config.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
+    s"src/${config.java.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
 
   override def outImports(topClass: ClassSpec) =
     "\n" + importList.toList.map((x) => s"import $x;").mkString("\n") + "\n"
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"// $headerComment")
-    if (!config.javaPackage.isEmpty) {
+    if (!config.java.javaPackage.isEmpty) {
       outHeader.puts
-      outHeader.puts(s"package ${config.javaPackage};")
+      outHeader.puts(s"package ${config.java.javaPackage};")
     }
 
     // Used in every class
@@ -91,7 +94,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // fromFile helper makes no sense for inherited endianness structures:
     // they require endianness to be parsed anyway
-    if (!isInheritedEndian && !config.javaFromFileClass.isEmpty && typeProvider.nowClass.params.isEmpty) {
+    if (!isInheritedEndian && !config.java.fromFileClass.isEmpty && typeProvider.nowClass.params.isEmpty) {
       out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
       out.inc
       out.puts(s"return new ${type2class(name)}(new $fromFileClass(fileName));")
@@ -206,15 +209,13 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts( "/**")
 
-    doc.summary.foreach((summary) => out.putsLines(" * ", summary))
+    doc.summary.foreach(summary => out.putsLines(" * ", summary))
 
-    doc.ref match {
+    doc.ref.foreach {
       case TextRef(text) =>
         out.putsLines(" * ", "@see \"" + text + "\"")
       case ref: UrlRef =>
         out.putsLines(" * ", s"@see ${ref.toAhref}")
-      case NoRef =>
-        // no reference => output nothing
     }
 
     out.puts( " */")
@@ -347,7 +348,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}();")
     out.puts("{")
     out.inc
     out.puts("int i = 0;")
@@ -372,7 +373,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>(((Number) (${expression(repeatExpr)})).intValue());")
-    out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}(((Number) (${expression(repeatExpr)})).intValue());")
+    out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}(((Number) (${expression(repeatExpr)})).intValue());")
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
 
@@ -386,7 +387,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
+    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}();")
     out.puts("{")
     out.inc
     out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_")};")
@@ -477,31 +478,105 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String): Unit =
     out.puts(s"$id._read();")
 
-  /**
-    * Designates switch mode. If false, we're doing real switch-case for this
-    * attribute. If true, we're doing if-based emulation.
-    */
-  var switchIfs = false
+  override def switchCasesRender[T](
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, T],
+    normalCaseProc: T => Unit,
+    elseCaseProc: T => Unit
+  ): Unit = {
+    // Java has a stupid limitation of being unable to match nulls in switch.
+    // If our type is nullable, we'll do an extra check. For now, we're only
+    // doing this workaround for enums.
+
+    val onType = typeProvider._currentSwitchType.get
+    val isNullable = onType match {
+      case _: EnumType => true
+      case _ => false
+    }
+
+    if (isNullable) {
+      val nameSwitchStr = expression(NAME_SWITCH_ON)
+      out.puts("{")
+      out.inc
+      out.puts(s"${kaitaiType2JavaType(onType)} $nameSwitchStr = ${expression(on)};")
+      out.puts(s"if ($nameSwitchStr != null) {")
+      out.inc
+
+      super.switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
+
+      out.dec
+      cases.get(SwitchType.ELSE_CONST) match {
+        case Some(result) =>
+          out.puts("} else {")
+          out.inc
+          elseCaseProc(result)
+          out.dec
+          out.puts("}")
+        case None =>
+          out.puts("}")
+      }
+
+      out.dec
+      out.puts("}")
+    } else {
+      super.switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
+    }
+  }
+
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: EnumType | _: StrType => false
+    case _ => true
+  }
+
+  //<editor-fold desc="switching: true version">
 
   val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    val onType = translator.detectType(on)
-    typeProvider._currentSwitchType = Some(onType)
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    out.puts(s"switch (${expression(on)}) {")
 
-    // Determine switching mode for this construct based on type
-    switchIfs = onType match {
-      case _: IntType | _: EnumType | _: StrType => false
-      case _ => true
+  override def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    // Java is very specific about what can be used as "condition" in "case
+    // condition:".
+    val condStr = condition match {
+      case enumByLabel: Ast.expr.EnumByLabel =>
+        // If switch is over a enum, only literal enum values are supported,
+        // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
+        value2Const(enumByLabel.label.name)
+      case _ =>
+        expression(condition)
     }
 
-    if (switchIfs) {
-      out.puts("{")
-      out.inc
-      out.puts(s"${kaitaiType2JavaType(onType)} ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
-    } else {
-      out.puts(s"switch (${expression(on)}) {")
-    }
+    out.puts(s"case $condStr: {")
+    out.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+    out.puts("break;")
+    out.dec
+    out.puts("}")
+  }
+
+  override def switchElseStart(): Unit = {
+    out.puts("default: {")
+    out.inc
+  }
+
+  override def switchEnd(): Unit = {
+    out.puts("}")
+  }
+
+  //</editor-fold>
+
+  //<editor-fold desc="switching: emulation with ifs">
+
+  override def switchIfStart(id: Identifier, on: expr, onType: DataType): Unit = {
+    out.puts("{")
+    out.inc
+    out.puts(s"${kaitaiType2JavaType(onType)} ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
   }
 
   def switchCmpExpr(condition: Ast.expr): String =
@@ -513,62 +588,32 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       )
     )
 
-  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"if (${switchCmpExpr(condition)}) {")
-      out.inc
-    } else {
-      switchCaseStart(condition)
-    }
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    out.puts(s"if (${switchCmpExpr(condition)}) {")
+    out.inc
   }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"else if (${switchCmpExpr(condition)}) {")
-      out.inc
-    } else {
-      // Java is very specific about what can be used as "condition" in "case
-      // condition:".
-      val condStr = condition match {
-        case enumByLabel: Ast.expr.EnumByLabel =>
-          // If switch is over a enum, only literal enum values are supported,
-          // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
-          value2Const(enumByLabel.label.name)
-        case _ =>
-          expression(condition)
-      }
-
-      out.puts(s"case $condStr: {")
-      out.inc
-    }
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"else if (${switchCmpExpr(condition)}) {")
+    out.inc
   }
 
-  override def switchCaseEnd(): Unit = {
-    if (switchIfs) {
-      out.dec
-      out.puts("}")
-    } else {
-      out.puts("break;")
-      out.dec
-      out.puts("}")
-    }
-  }
-
-  override def switchElseStart(): Unit = {
-    if (switchIfs) {
-      out.puts("else {")
-      out.inc
-    } else {
-      out.puts("default: {")
-      out.inc
-    }
-  }
-
-  override def switchEnd(): Unit = {
-    if (switchIfs)
-      out.dec
+  override def switchIfCaseEnd(): Unit = {
+    out.dec
     out.puts("}")
   }
+
+  override def switchIfElseStart(): Unit = {
+    out.puts("else {")
+    out.inc
+  }
+
+  override def switchIfEnd(): Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  //</editor-fold>
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
@@ -667,6 +712,26 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def publicMemberName(id: Identifier) = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => config.java.endOfStreamErrorClass
+    case _ => s"KaitaiStream.${err.name}"
+  }
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    out.inc
+    out.puts(s"throw new $errName($errArgsStr);")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object JavaCompiler extends LanguageCompilerStatic
@@ -724,7 +789,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
-      case ArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
+      case ArrayTypeInStream(_) | CalcArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
 
       case st: SwitchType => kaitaiType2JavaTypePrim(st.combinedType)
     }
@@ -768,7 +833,8 @@ object JavaCompiler extends LanguageCompilerStatic
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
-      case ArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
+      case ArrayTypeInStream(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
+      case CalcArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
       case st: SwitchType => kaitaiType2JavaTypeBoxed(st.combinedType)
     }

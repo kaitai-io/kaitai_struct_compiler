@@ -18,7 +18,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   with CommonLiterals
   with CommonOps
   with CommonArraysAndCast[TranslatorResult]
-  with CommonMethods[TranslatorResult] {
+  with CommonMethods[TranslatorResult]
+  with ByteArraysAsTrueArrays[TranslatorResult] {
 
   import io.kaitai.struct.languages.GoCompiler._
 
@@ -85,7 +86,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case ctt: Ast.expr.CastToType =>
         doCastOrArray(ctt)
       case Ast.expr.Subscript(container, idx) =>
-        trSubscript(container, idx)
+        arraySubscript(container, idx)
       case Ast.expr.Name(name: Ast.identifier) =>
         trLocalName(name.name)
       case Ast.expr.List(elts) =>
@@ -194,7 +195,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       "_buf"
   }
 
-  def trSubscript(container: Ast.expr, idx: Ast.expr) =
+  def arraySubscript(container: Ast.expr, idx: Ast.expr) =
     ResultString(s"${translate(container)}[${translate(idx)}]")
 
   def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
@@ -413,6 +414,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultLocalVar(v1)
   }
 
+  def outTransform(id: ResultLocalVar, expr: String): ResultLocalVar = {
+    out.puts(s"${resToStr(id)} = $expr")
+    id
+  }
+
   private
   var localVarNum = 0
 
@@ -436,4 +442,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     out.dec
     out.puts("}")
   }
+
+  override def byteSizeOfValue(attrName: String, valType: DataType): TranslatorResult =
+    trIntLiteral(CommonSizeOf.bitToByteSize(CommonSizeOf.getBitsSizeOfType(attrName, valType)))
 }

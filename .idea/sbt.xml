@@ -8,14 +8,12 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/js" />
-            <option value="$PROJECT_DIR$/js/project" />
             <option value="$PROJECT_DIR$/jvm" />
-            <option value="$PROJECT_DIR$/jvm/project" />
             <option value="$PROJECT_DIR$/project" />
             <option value="$PROJECT_DIR$/shared" />
           </set>
         </option>
-        <option name="sbtVersion" value="1.1.0-RC4" />
+        <option name="sbtVersion" value="1.2.7" />
         <option name="useSbtShell" value="true" />
       </SbtProjectSettings>
     </option>

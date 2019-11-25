@@ -67,7 +67,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     case _ => super.unaryOp(op)
   }
 
-  override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
+  override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(${translate(ifTrue)} if ${translate(condition)} else ${translate(ifFalse)})"
