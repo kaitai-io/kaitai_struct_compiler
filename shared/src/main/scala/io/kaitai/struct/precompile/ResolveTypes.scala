@@ -122,14 +122,19 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
   }
 
   def resolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
-    //    Console.println(s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
-    val res = realResolveEnumSpec(curClass, typeName)
-    //    Console.println("   => " + (res match {
-    //      case None => "???"
-    //      case Some(x) => x.name.mkString("|")
-    //    }))
+    Log.enumResolve.info(() => s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
 
-    res
+    val res = realResolveEnumSpec(curClass, typeName)
+    res match {
+      case None => {
+        Log.enumResolve.info(() => s"    => ???")
+        res
+      }
+      case Some(x) => {
+        Log.enumResolve.info(() => s"    => ${x.nameAsStr}")
+        res
+      }
+    }
   }
 
   private def realResolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
