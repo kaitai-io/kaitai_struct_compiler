@@ -278,17 +278,9 @@ class ClassCompiler(
       if (wasUnaligned && !nowUnaligned)
         lang.alignToByte(lang.normalIO)
       lang.attrParse(attr, attr.id, defEndian)
-      compileValidate(attr)
       wasUnaligned = nowUnaligned
     }
   }
-
-  /**
-    * Compiles validation procedure for one attribute after it was parsed.
-    * @param attr attribute to validate
-    */
-  def compileValidate(attr: AttrLikeSpec): Unit =
-    attr.valid.foreach(valid => lang.attrValidate(attr.id, attr, valid))
 
   /**
     * Compiles all enums specifications for a given type.
@@ -331,8 +323,6 @@ class ClassCompiler(
         lang.instanceSetCalculated(instName)
       case pi: ParseInstanceSpec =>
         lang.attrParse(pi, instName, endian)
-        lang.instanceSetCalculated(instName)
-        compileValidate(pi)
     }
 
     lang.instanceReturn(instName, dataType)
