@@ -512,7 +512,7 @@ class CppCompiler(
     outSrc.puts(s"std::streampos _pos = $io->pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    outSrc.puts(s"$io->seek(${expression(pos)});")
+    outSrc.puts(s"$io->seek(kaitai::to_signed(${expression(pos)}));")
 
   override def popPos(io: String): Unit =
     outSrc.puts(s"$io->seek(_pos);")
@@ -659,7 +659,7 @@ class CppCompiler(
       case t: ReadableType =>
         s"$io->read_${t.apiCall(defEndian)}()"
       case blt: BytesLimitType =>
-        s"$io->read_bytes(${expression(blt.size)})"
+        s"$io->read_bytes(kaitai::to_signed(${expression(blt.size)}))"
       case _: BytesEosType =>
         s"$io->read_bytes_full()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
