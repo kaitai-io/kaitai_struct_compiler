@@ -187,7 +187,7 @@ class CppCompiler(
     outSrc.puts(s"${types2class(name)}::$classNameBrief($paramsArg" +
       s"$tIo $pIo, " +
       s"$tParent $pParent, " +
-      s"$tRoot $pRoot$endianSuffixSrc) : $kstructName($pIo) {"
+      s"$tRoot ${commentIfUnused(pRoot, name == rootClassName)}$endianSuffixSrc) : $kstructName($pIo) {"
     )
     outSrc.inc
 
@@ -1076,4 +1076,12 @@ object CppCompiler extends LanguageCompilerStatic
     components.map(type2class).mkString("::")
 
   def type2class(name: String) = name + "_t"
+
+  def commentIfUnused(paramName: String, useCondition: Boolean): String = {
+    if (useCondition) {
+      s"/* $paramName */"
+    } else {
+      paramName
+    }
+  }
 }
