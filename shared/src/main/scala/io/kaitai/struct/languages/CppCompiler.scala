@@ -573,7 +573,7 @@ class CppCompiler(
     importListHdr.add("vector")
 
     val lenVar = s"l_${idToStr(id)}"
-    outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
+    outSrc.puts(s"size_t $lenVar = ${expression(repeatExpr)};")
     if (needRaw) {
       val rawId = privateMemberName(RawIdentifier(id))
       outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
@@ -584,7 +584,7 @@ class CppCompiler(
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts(s"${privateMemberName(id)}->reserve($lenVar);")
-    outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
+    outSrc.puts(s"for (size_t i = 0; i < $lenVar; i++) {")
     outSrc.inc
   }
 
