@@ -146,7 +146,10 @@ class TypeDetector(provider: TypeProvider) {
 
     valType match {
       case KaitaiStructType | CalcKaitaiStructType =>
-        throw new MethodNotFoundError(attr.name, valType)
+        attr.name match {
+          case Identifier.PARENT => CalcKaitaiStructType
+          case _ => throw new MethodNotFoundError(attr.name, valType)
+        }
       case t: UserType =>
         t.classSpec match {
           case Some(tt) => provider.determineType(tt, attr.name)
