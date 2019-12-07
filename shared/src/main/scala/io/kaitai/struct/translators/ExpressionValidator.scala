@@ -78,6 +78,10 @@ class ExpressionValidator(val provider: TypeProvider)
     validate(value)
     // TODO: check that field exists
   }
+  override def kaitaiStructField(value: Ast.expr, name: String): Unit = {
+    validate(value)
+    // TODO: check that field exists
+  }
 
   override def strLength(s: Ast.expr): Unit = validate(s)
   override def strReverse(s: Ast.expr): Unit = validate(s)

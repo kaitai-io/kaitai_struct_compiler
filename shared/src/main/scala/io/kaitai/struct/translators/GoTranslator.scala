@@ -317,6 +317,22 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       ResultString(s"$valueStr.$call")
     }
   }
+  def kaitaiStructField(value: Ast.expr, name: String): TranslatorResult = {
+    val valueStr = translate(value)
+
+    val (call, twoOuts) = name match {
+      case Identifier.ROOT |
+           Identifier.PARENT |
+           Identifier.IO =>
+        (specialName(name), false)
+    }
+
+    if (twoOuts) {
+      outVarCheckRes(s"$valueStr.$call()")
+    } else {
+      ResultString(s"$valueStr.$call")
+    }
+  }
 
   override def strLength(s: Ast.expr): TranslatorResult = {
     importList.add("unicode/utf8")
