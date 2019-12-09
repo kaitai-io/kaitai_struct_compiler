@@ -160,8 +160,23 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
           case Some(upClass) =>
             resolveEnumSpec(upClass, typeName)
           case None =>
-            // No luck at all
-            None
+            // Check this class if it's top-level class
+            if (curClass.name.head == firstName) {
+              resolveEnumSpec(curClass, restNames)
+            } else {
+              // Check if top-level specs has this name
+              // If there's None => no luck at all
+              val resolvedTop = specs.get(firstName)
+              resolvedTop match {
+                case None => None
+                case Some(classSpec) => if (restNames.isEmpty) {
+                  // resolved everything, but this points to a type name, not enum name
+                  None
+                } else {
+                  resolveEnumSpec(classSpec, restNames)
+                }
+              }
+            }
         }
     }
   }
