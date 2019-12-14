@@ -12,18 +12,18 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
 
     attr.cond.repeat match {
       case RepeatEos =>
-        condRepeatEosHeader2(id, io, attr.dataType, needRaw(attr.dataType))
+        condRepeatCommonHeader(id, io, attr.dataType, needRaw(attr.dataType))
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
-        condRepeatEosFooter2
+        condRepeatCommonFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
         attrArraySizeCheck(id, repeatExpr)
-        condRepeatExprHeader2(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
+        condRepeatCommonHeader(id, io, attr.dataType, needRaw(attr.dataType))
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
-        condRepeatExprFooter
+        condRepeatCommonFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
-        condRepeatUntilHeader(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
+        condRepeatCommonHeader(id, io, attr.dataType, needRaw(attr.dataType))
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
-        condRepeatUntilFooter(id, io, attr.dataType, needRaww(attr.dataType), untilExpr)
+        condRepeatCommonFooter
       case NoRepeat =>
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
     }

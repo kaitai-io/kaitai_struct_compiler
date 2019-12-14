@@ -17,17 +17,17 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 
     attr.cond.repeat match {
       case RepeatEos =>
-        condRepeatEosHeader2(id, io, attr.dataType, needRaww(attr.dataType))
+        condRepeatCommonHeader(id, io, attr.dataType, needRaww(attr.dataType))
         attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
-        condRepeatEosFooter2
+        condRepeatCommonFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
-        condRepeatExprHeader2(id, io, attr.dataType, needRaww(attr.dataType), repeatExpr)
+        condRepeatCommonHeader(id, io, attr.dataType, needRaww(attr.dataType))
         attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
-        condRepeatExprFooter
+        condRepeatCommonFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
-        condRepeatUntilHeader(id, io, attr.dataType, needRaww(attr.dataType), untilExpr)
+        condRepeatCommonHeader(id, io, attr.dataType, needRaww(attr.dataType))
         attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
-        condRepeatUntilFooter(id, io, attr.dataType, needRaww(attr.dataType), untilExpr)
+        condRepeatCommonFooter
       case NoRepeat =>
         attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
     }
@@ -267,8 +267,4 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case _ => false
     }
   }
-
-  def condRepeatEosHeader2(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit
-  def condRepeatEosFooter2: Unit
-  def condRepeatExprHeader2(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit
 }
