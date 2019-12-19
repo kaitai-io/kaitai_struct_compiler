@@ -5,7 +5,9 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 sealed trait ValidationSpec
 
 case class ValidationEq(value: Ast.expr) extends ValidationSpec
-case class ValidationRange(min: Option[Ast.expr], max: Option[Ast.expr]) extends ValidationSpec
+case class ValidationMin(min: Ast.expr) extends ValidationSpec
+case class ValidationMax(max: Ast.expr) extends ValidationSpec
+case class ValidationRange(min: Ast.expr, max: Ast.expr) extends ValidationSpec
 case class ValidationAnyOf(values: List[Ast.expr]) extends ValidationSpec
 case class ValidationExpr(checkExpr: Ast.expr) extends ValidationSpec
 
@@ -22,15 +24,21 @@ object ValidationEq {
 object ValidationRange {
   val LEGAL_KEYS = Set("min", "max")
 
-  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationRange] = {
+  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationSpec] = {
     val minExprOpt = ParseUtils.getOptValueExpression(src, "min", path)
     val maxExprOpt = ParseUtils.getOptValueExpression(src, "max", path)
 
     (minExprOpt, maxExprOpt) match {
       case (None, None) => None
-      case (_, _) =>
+      case (Some(minExpr), None) =>
         ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
-        Some(ValidationRange(minExprOpt, maxExprOpt))
+        Some(ValidationMin(minExpr))
+      case (None, Some(maxExpr)) =>
+        ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
+        Some(ValidationMax(maxExpr))
+      case (Some(minExpr), Some(maxExpr)) =>
+        ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
+        Some(ValidationRange(minExpr, maxExpr))
     }
   }
 }
