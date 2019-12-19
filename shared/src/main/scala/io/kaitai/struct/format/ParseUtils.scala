@@ -187,6 +187,15 @@ object ParseUtils {
     }
   }
 
+  def asExpression(src: Any, path: List[String]): Ast.expr = {
+    try {
+      Expressions.parse(asStr(src, path))
+    } catch {
+      case epe: Expressions.ParseException =>
+        throw YAMLParseException.expression(epe, path)
+    }
+  }
+
   def asMap(src: Any, path: List[String]): Map[Any, Any] = {
     src match {
       case srcMap: Map[Any, Any] =>
