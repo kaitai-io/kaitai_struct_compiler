@@ -10,12 +10,18 @@ sealed trait KSError {
 
 object KSError {
   val RE_VALIDATION_NOT_EQUAL = "^ValidationNotEqualError<(.*)>$".r
+  val RE_VALIDATION_LESS_THAN = "^ValidationLessThanError<(.*)>$".r
+  val RE_VALIDATION_GREATER_THAN = "^ValidationGreaterThanError<(.*)>$".r
 
   def fromName(name: String): KSError = name match {
     case "EndOfStreamError" => EndOfStreamError
     case "UndecidedEndiannessError" => UndecidedEndiannessError
     case RE_VALIDATION_NOT_EQUAL(dataTypeStr) =>
       ValidationNotEqualError(DataType.pureFromString(dataTypeStr))
+    case RE_VALIDATION_LESS_THAN(dataTypeStr) =>
+      ValidationLessThanError(DataType.pureFromString(dataTypeStr))
+    case RE_VALIDATION_GREATER_THAN(dataTypeStr) =>
+      ValidationGreaterThanError(DataType.pureFromString(dataTypeStr))
   }
 }
 
@@ -25,6 +31,22 @@ object KSError {
   */
 case class ValidationNotEqualError(dt: DataType) extends KSError {
   def name = "ValidationNotEqualError"
+}
+
+/**
+  * Error to be thrown when validation fails with actual < min.
+  * @param dt data type used in validation process
+  */
+case class ValidationLessThanError(dt: DataType) extends KSError {
+  def name = "ValidationLessThanError"
+}
+
+/**
+  * Error to be thrown when validation fails with actual > max.
+  * @param dt data type used in validation process
+  */
+case class ValidationGreaterThanError(dt: DataType) extends KSError {
+  def name = "ValidationGreaterThanError"
 }
 
 /**
