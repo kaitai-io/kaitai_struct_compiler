@@ -19,6 +19,29 @@ trait ValidateOps extends ExceptionNames {
       case ValidationRange(min, max) =>
         attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataTypeComposite))
         attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataTypeComposite))
+      case ValidationAnyOf(values) =>
+        val bigOrExpr = Ast.expr.BoolOp(
+          Ast.boolop.Or,
+          values.map(expected =>
+            Ast.expr.Compare(
+              Ast.expr.Name(attrId.toAstIdentifier),
+              Ast.cmpop.Eq,
+              expected
+            )
+          )
+        )
+
+        attrValidateExpr(
+          attrId,
+          attr.dataTypeComposite,
+          checkExpr = bigOrExpr,
+          errName = ksErrorName(ValidationNotAnyOfError(attr.dataTypeComposite)),
+          errArgs = List(
+            Ast.expr.Name(attrId.toAstIdentifier),
+            Ast.expr.Name(IoIdentifier.toAstIdentifier),
+            Ast.expr.Str(attr.path.mkString("/", "/", ""))
+          )
+        )
     }
   }
 
