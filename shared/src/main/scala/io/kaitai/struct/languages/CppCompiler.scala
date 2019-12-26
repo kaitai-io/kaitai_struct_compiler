@@ -956,8 +956,15 @@ class CppCompiler(
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "std::ifstream::failure"
     case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
-    case ValidationNotEqualError(dt) =>
-      s"kaitai::validation_not_equal_error<${kaitaiType2NativeType(dt, true)}>"
+    case validationErr: ValidationError =>
+      val cppType = kaitaiType2NativeType(validationErr.dt, true)
+      val cppErrName = validationErr match {
+        case _: ValidationNotEqualError => "validation_not_equal_error"
+        case _: ValidationLessThanError => "validation_less_than_error"
+        case _: ValidationGreaterThanError => "validation_greater_than_error"
+        case _: ValidationNotAnyOfError => "validation_not_any_of_error"
+      }
+      s"kaitai::$cppErrName<$cppType>"
   }
 
   override def attrValidateExpr(
