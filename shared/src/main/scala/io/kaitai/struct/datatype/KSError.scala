@@ -27,34 +27,40 @@ object KSError {
 }
 
 /**
-  * Error to be thrown when validation on equality fails.
+  * Error to be thrown when validation fails. All such errors have a data type.
   * @param dt data type used in validation process
   */
-case class ValidationNotEqualError(dt: DataType) extends KSError {
+abstract class ValidationError(val dt: DataType) extends KSError
+
+/**
+  * Error to be thrown when validation on equality fails.
+  * @param _dt data type used in validation process
+  */
+case class ValidationNotEqualError(_dt: DataType) extends ValidationError(_dt) {
   def name = "ValidationNotEqualError"
 }
 
 /**
   * Error to be thrown when validation fails with actual < min.
-  * @param dt data type used in validation process
+  * @param _dt data type used in validation process
   */
-case class ValidationLessThanError(dt: DataType) extends KSError {
+case class ValidationLessThanError(_dt: DataType) extends ValidationError(_dt) {
   def name = "ValidationLessThanError"
 }
 
 /**
   * Error to be thrown when validation fails with actual > max.
-  * @param dt data type used in validation process
+  * @param _dt data type used in validation process
   */
-case class ValidationGreaterThanError(dt: DataType) extends KSError {
+case class ValidationGreaterThanError(_dt: DataType) extends ValidationError(_dt) {
   def name = "ValidationGreaterThanError"
 }
 
 /**
   * Error to be thrown when validation fails with actual being not any item of the list.
-  * @param dt data type used in validation process
+  * @param _dt data type used in validation process
   */
-case class ValidationNotAnyOfError(dt: DataType) extends KSError {
+case class ValidationNotAnyOfError(_dt: DataType) extends ValidationError(_dt) {
   def name = "ValidationNotAnyOfError"
 }
 
