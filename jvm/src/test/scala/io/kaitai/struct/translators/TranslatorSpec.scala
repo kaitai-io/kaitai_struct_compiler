@@ -21,7 +21,8 @@ class TranslatorSpec extends FunSuite {
   // less and more than 32 Bit signed int
   everybody("1000000000", "1000000000")
   everybodyExcept("100000000000", "100000000000", Map[LanguageCompilerStatic, String](
-      JavaCompiler -> "100000000000L"
+    CppCompiler -> "100000000000LL",
+    JavaCompiler -> "100000000000L"
   ))
 
   // Float literals
