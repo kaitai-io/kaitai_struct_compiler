@@ -103,7 +103,12 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
   )
 
   override def doArrayLiteral(t: DataType, values: Seq[expr]): String = {
-    throw new RuntimeException("C++ literal arrays are not implemented yet")
+    if (config.cppConfig.useListInitializers) {
+      s"std::vector<${CppCompiler.kaitaiType2NativeType(config.cppConfig, t)}>" +
+        "{" + values.map((value) => translate(value)).mkString(", ") + "}"
+    } else {
+      throw new RuntimeException("C++ literal arrays are not implemented yet")
+    }
   }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
