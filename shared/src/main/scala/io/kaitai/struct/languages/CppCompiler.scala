@@ -54,9 +54,9 @@ class CppCompiler(
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")
     outSrcHeader.puts
-    outSrcHeader.puts("#include <memory>")
-    outSrcHeader.puts("#include \"" + outFileName(topClassName) + ".h\"")
-    outSrcHeader.puts
+
+    importListSrc.add("memory")
+    importListSrc.add(outFileName(topClassName) + ".h")
 
     if (config.cppConfig.usePragmaOnce) {
       outHdrHeader.puts("#pragma once")
@@ -67,9 +67,8 @@ class CppCompiler(
     outHdrHeader.puts
     outHdrHeader.puts(s"// $headerComment")
     outHdrHeader.puts
-    outHdrHeader.puts("#include \"kaitai/kaitaistruct.h\"")
-    outHdrHeader.puts
 
+    importListHdr.add("kaitai/kaitaistruct.h")
     importListHdr.add("stdint.h")
 
     config.cppConfig.pointers match {
@@ -153,6 +152,16 @@ class CppCompiler(
     outHdr.puts(s"class ${types2class(name)};")
   }
 
+  def importDataType(dt: DataType) = {
+    dt match {
+      case ut: UserType =>
+        val classSpec = ut.classSpec.get
+        if (classSpec.isTopLevel)
+          importListSrc.add(outFileName(classSpec.name.head) + ".h")
+      case _ => // no extra imports required
+    }
+  }
+
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val (endianSuffixHdr, endianSuffixSrc)  = if (isHybrid) {
       (", int p_is_le = -1", ", int p_is_le")
@@ -160,9 +169,10 @@ class CppCompiler(
       ("", "")
     }
 
-    val paramsArg = Utils.join(params.map((p) =>
+    val paramsArg = Utils.join(params.map { case (p) =>
+      importDataType(p.dataType)
       s"${kaitaiType2NativeType(p.dataType)} ${paramName(p.id)}"
-    ), "", ", ", ", ")
+    }, "", ", ", ", ")
 
     val classNameBrief = types2class(List(name.last))
 
@@ -175,6 +185,9 @@ class CppCompiler(
     val tIo = kaitaiType2NativeType(KaitaiStreamType)
     val tParent = kaitaiType2NativeType(parentType)
     val tRoot = kaitaiType2NativeType(CalcUserType(rootClassName, None))
+
+    // Parent type might be declared somewhere else - in this case we need to include it
+    importDataType(parentType)
 
     outHdr.puts
     outHdr.puts(s"$classNameBrief($paramsArg" +
@@ -1023,7 +1036,6 @@ object CppCompiler extends LanguageCompilerStatic
         case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
       }
       case CalcArrayType(inType) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
-
       case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {
         case RawPointers => s"$kstructName*"
