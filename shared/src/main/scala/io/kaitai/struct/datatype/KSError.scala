@@ -9,19 +9,20 @@ sealed trait KSError {
 }
 
 object KSError {
-  val RE_VALIDATION_NOT_EQUAL = "^ValidationNotEqualError<(.*)>$".r
-  val RE_VALIDATION_LESS_THAN = "^ValidationLessThanError<(.*)>$".r
-  val RE_VALIDATION_GREATER_THAN = "^ValidationGreaterThanError<(.*)>$".r
+  val RE_EXCEPTION_WITH_TYPE = "^(.*)<(.*)>$".r
 
   def fromName(name: String): KSError = name match {
     case "EndOfStreamError" => EndOfStreamError
     case "UndecidedEndiannessError" => UndecidedEndiannessError
-    case RE_VALIDATION_NOT_EQUAL(dataTypeStr) =>
-      ValidationNotEqualError(DataType.pureFromString(dataTypeStr))
-    case RE_VALIDATION_LESS_THAN(dataTypeStr) =>
-      ValidationLessThanError(DataType.pureFromString(dataTypeStr))
-    case RE_VALIDATION_GREATER_THAN(dataTypeStr) =>
-      ValidationGreaterThanError(DataType.pureFromString(dataTypeStr))
+    case RE_EXCEPTION_WITH_TYPE(excName, dataTypeStr) =>
+      val dataType = DataType.pureFromString(dataTypeStr)
+      val excClass = excName match {
+        case "ValidationNotEqualError" => ValidationNotEqualError
+        case "ValidationLessThanError" => ValidationLessThanError
+        case "ValidationGreaterThanError" => ValidationGreaterThanError
+        case "ValidationNotAnyOfError" => ValidationNotAnyOfError
+      }
+      excClass(dataType)
   }
 }
 
@@ -47,6 +48,14 @@ case class ValidationLessThanError(dt: DataType) extends KSError {
   */
 case class ValidationGreaterThanError(dt: DataType) extends KSError {
   def name = "ValidationGreaterThanError"
+}
+
+/**
+  * Error to be thrown when validation fails with actual being not any item of the list.
+  * @param dt data type used in validation process
+  */
+case class ValidationNotAnyOfError(dt: DataType) extends KSError {
+  def name = "ValidationNotAnyOfError"
 }
 
 /**
