@@ -22,8 +22,8 @@ class CppCompiler(
     with EveryReadIsExpression {
   import CppCompiler._
 
-  val importListSrc = new ImportList
-  val importListHdr = new ImportList
+  val importListSrc = new CppImportList
+  val importListHdr = new CppImportList
 
   override val translator = new CppTranslator(typeProvider, importListSrc, config)
   val outSrcHeader = new StringLanguageOutputWriter(indent)
@@ -34,13 +34,10 @@ class CppCompiler(
   override def results(topClass: ClassSpec): Map[String, String] = {
     val fn = topClass.nameAsStr
     Map(
-      s"$fn.cpp" -> (outSrcHeader.result + importListToStr(importListSrc) + outSrc.result),
-      s"$fn.h" -> (outHdrHeader.result + importListToStr(importListHdr) + outHdr.result)
+      s"$fn.cpp" -> (outSrcHeader.result + importListSrc.result + outSrc.result),
+      s"$fn.h" -> (outHdrHeader.result + importListHdr.result + outHdr.result)
     )
   }
-
-  private def importListToStr(importList: ImportList): String =
-    importList.toList.map((x) => s"#include <$x>").mkString("", "\n", "\n")
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -55,8 +52,8 @@ class CppCompiler(
     outSrcHeader.puts(s"// $headerComment")
     outSrcHeader.puts
 
-    importListSrc.add("memory")
-    importListSrc.add(outFileName(topClassName) + ".h")
+    importListSrc.addSystem("memory")
+    importListSrc.addLocal(outFileName(topClassName) + ".h")
 
     if (config.cppConfig.usePragmaOnce) {
       outHdrHeader.puts("#pragma once")
@@ -68,12 +65,12 @@ class CppCompiler(
     outHdrHeader.puts(s"// $headerComment")
     outHdrHeader.puts
 
-    importListHdr.add("kaitai/kaitaistruct.h")
-    importListHdr.add("stdint.h")
+    importListHdr.addKaitai("kaitai/kaitaistruct.h")
+    importListHdr.addSystem("stdint.h")
 
     config.cppConfig.pointers match {
       case SharedPointers | UniqueAndRawPointers =>
-        importListHdr.add("memory")
+        importListHdr.addSystem("memory")
       case RawPointers =>
         // no extra includes
     }
@@ -157,7 +154,7 @@ class CppCompiler(
       case ut: UserType =>
         val classSpec = ut.classSpec.get
         if (classSpec.isTopLevel)
-          importListSrc.add(outFileName(classSpec.name.head) + ".h")
+          importListSrc.addLocal(outFileName(classSpec.name.head) + ".h")
       case _ => // no extra imports required
     }
   }
@@ -258,7 +255,7 @@ class CppCompiler(
     outSrc.puts
     outSrc.puts("if (m__is_le == -1) {")
     outSrc.inc
-    importListSrc.add("kaitai/exceptions.h")
+    importListSrc.addKaitai("kaitai/exceptions.h")
     outSrc.puts(s"throw ${ksErrorName(UndecidedEndiannessError)}" +
       "(\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\");")
     outSrc.dec
@@ -483,7 +480,7 @@ class CppCompiler(
         val procClass = name.map((x) => type2class(x)).mkString("::")
         val procName = s"_process_${idToStr(varSrc)}"
 
-        importListSrc.add(name.last + ".h")
+        importListSrc.addLocal(name.last + ".h")
 
         outSrc.puts(s"$procClass $procName(${args.map(expression).mkString(", ")});")
         outSrc.puts(s"$destName = $procName.decode($srcName);")
@@ -556,7 +553,7 @@ class CppCompiler(
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    importListHdr.add("vector")
+    importListHdr.addSystem("vector")
 
     if (needRaw) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
@@ -583,7 +580,7 @@ class CppCompiler(
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    importListHdr.add("vector")
+    importListHdr.addSystem("vector")
 
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
@@ -611,7 +608,7 @@ class CppCompiler(
   }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    importListHdr.add("vector")
+    importListHdr.addSystem("vector")
 
     if (needRaw) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
@@ -707,7 +704,7 @@ class CppCompiler(
           case SharedPointers =>
             s"std::make_shared<${types2class(t.name)}>($addParams$io$addArgs)"
           case UniqueAndRawPointers =>
-            importListSrc.add("memory")
+            importListSrc.addSystem("memory")
             // C++14
             //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
             s"std::unique_ptr<${types2class(t.name)}>(new ${types2class(t.name)}($addParams$io$addArgs))"
@@ -975,7 +972,7 @@ class CppCompiler(
     errArgs: List[Ast.expr]
   ): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    importListSrc.add("kaitai/exceptions.h")
+    importListSrc.addKaitai("kaitai/exceptions.h")
     outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
     outSrc.inc
     outSrc.puts(s"throw $errName($errArgsStr);")
