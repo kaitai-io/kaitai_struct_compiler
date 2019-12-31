@@ -60,6 +60,7 @@ abstract class LanguageCompiler(
   def type2class(className: String): String
   def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}
+  def importFile(file: String): Unit = {}
 
   /**
     * Outputs declaration of "opaque class", i.e. class that will be referred to in this file, but

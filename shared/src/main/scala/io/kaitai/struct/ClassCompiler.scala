@@ -43,6 +43,8 @@ class ClassCompiler(
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
+    curClass.meta.imports.foreach(file => lang.importFile(file))
+
     if (!lang.innerDocstrings)
       compileClassDoc(curClass)
     lang.classHeader(curClass.name)
