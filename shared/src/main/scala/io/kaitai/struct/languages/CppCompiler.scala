@@ -32,10 +32,10 @@ class CppCompiler(
   val outHdr = new StringLanguageOutputWriter(indent)
 
   override def results(topClass: ClassSpec): Map[String, String] = {
-    val fn = topClass.nameAsStr
+    val className = topClass.nameAsStr
     Map(
-      s"$fn.cpp" -> (outSrcHeader.result + importListSrc.result + outSrc.result),
-      s"$fn.h" -> (outHdrHeader.result + importListHdr.result + outHdr.result)
+      outFileNameSource(className) -> (outSrcHeader.result + importListSrc.result + outSrc.result),
+      outFileNameHeader(className) -> (outHdrHeader.result + importListHdr.result + outHdr.result)
     )
   }
 
@@ -47,13 +47,15 @@ class CppCompiler(
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = topClassName
+  def outFileNameSource(className: String): String = outFileName(className) + ".cpp"
+  def outFileNameHeader(className: String): String = outFileName(className) + ".h"
 
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")
     outSrcHeader.puts
 
     importListSrc.addSystem("memory")
-    importListSrc.addLocal(outFileName(topClassName) + ".h")
+    importListSrc.addLocal(outFileNameHeader(topClassName))
 
     if (config.cppConfig.usePragmaOnce) {
       outHdrHeader.puts("#pragma once")
@@ -107,9 +109,13 @@ class CppCompiler(
     }
   }
 
+  override def importFile(file: String): Unit = {
+    importListHdr.addLocal(outFileNameHeader(file))
+  }
+
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     classForwardDeclaration(classSpec.name)
-    outSrc.puts("#include \"" + outFileName(classSpec.name.head) + ".h\"")
+    importListSrc.addLocal(outFileNameHeader(classSpec.name.head))
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -154,7 +160,7 @@ class CppCompiler(
       case ut: UserType =>
         val classSpec = ut.classSpec.get
         if (classSpec.isTopLevel)
-          importListSrc.addLocal(outFileName(classSpec.name.head) + ".h")
+          importListSrc.addLocal(outFileNameHeader(classSpec.name.head))
       case _ => // no extra imports required
     }
   }
@@ -480,7 +486,7 @@ class CppCompiler(
         val procClass = name.map((x) => type2class(x)).mkString("::")
         val procName = s"_process_${idToStr(varSrc)}"
 
-        importListSrc.addLocal(name.last + ".h")
+        importListSrc.addLocal(outFileNameHeader(name.last))
 
         outSrc.puts(s"$procClass $procName(${args.map(expression).mkString(", ")});")
         outSrc.puts(s"$destName = $procName.decode($srcName);")
