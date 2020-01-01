@@ -54,6 +54,17 @@ class ClassCompiler(
     // Forward declarations for recursive types
     curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(List(typeName)) }
 
+    // Forward declarations for params which reference types external to this type
+    curClass.params.foreach((paramDefSpec) =>
+      paramDefSpec.dataType match {
+        case ut: UserType =>
+          val externalTypeName = ut.classSpec.get.name
+          if (externalTypeName.head != curClass.name.head) {
+            lang.classForwardDeclaration(externalTypeName)
+          }
+      }
+    )
+
     if (lang.innerEnums)
       compileEnums(curClass)
 
