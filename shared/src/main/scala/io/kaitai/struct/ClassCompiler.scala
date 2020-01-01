@@ -62,6 +62,7 @@ class ClassCompiler(
           if (externalTypeName.head != curClass.name.head) {
             lang.classForwardDeclaration(externalTypeName)
           }
+        case _ => // no forward declarations needed
       }
     )
 
