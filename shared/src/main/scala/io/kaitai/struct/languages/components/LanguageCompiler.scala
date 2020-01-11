@@ -154,7 +154,8 @@ abstract class LanguageCompiler(
   def instanceDeclHeader(className: List[String]): Unit = {}
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
-  def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = attributeDeclaration(attrName, attrType, isNullable)
+  def instanceDeclaration(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit =
+    attributeDeclaration(instName, attrType, isNullable)
   def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit
