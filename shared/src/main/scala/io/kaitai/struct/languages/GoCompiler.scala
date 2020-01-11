@@ -452,9 +452,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"${calculatedFlagForName(attrName)} bool")
-    out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
+  override def instanceDeclaration(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"${calculatedFlagForName(instName)} bool")
+    out.puts(s"${idToStr(instName)} ${kaitaiType2NativeType(attrType)}")
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
