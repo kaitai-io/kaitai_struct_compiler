@@ -353,19 +353,19 @@ class JavaMain(config: CLIConfig) {
       Console.err.println(ex.getMessage)
     ex match {
       case ype: YAMLParseException =>
-        CompileError("(main)", ype.path, ype.msg)
+        CompileError(srcFile, ype.path, None, None, ype.msg)
       case e: ErrorInInput =>
         val file = e.file.getOrElse(srcFile)
         val msg = Option(e.getCause) match {
           case Some(cause) => cause.getMessage
           case None => e.getMessage
         }
-        CompileError(file, e.path, msg)
+        CompileError(file, e.path, None, None, msg)
       case ypr: YAMLParserError =>
         val file = ypr.file.getOrElse(srcFile)
-        CompileError(file, List(), ex.getMessage)
+        CompileError(file, List(), ypr.line, ypr.col, ypr.msg)
       case _ =>
-        CompileError(srcFile, List(), ex.getMessage)
+        CompileError(srcFile, List(), None, None, ex.getMessage)
     }
   }
 }
