@@ -356,7 +356,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit =
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id->_read();")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {

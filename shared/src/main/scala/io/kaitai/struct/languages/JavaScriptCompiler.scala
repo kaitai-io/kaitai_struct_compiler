@@ -404,7 +404,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit = {
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
     out.puts(s"$id._read();")
   }
 
