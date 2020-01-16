@@ -45,7 +45,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String =
-    s"src/${config.java.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
+    s"${config.java.javaPackage.replace('.', '/')}/${type2class(topClassName)}.java"
 
   override def outImports(topClass: ClassSpec) =
     "\n" + importList.toList.map((x) => s"import $x;").mkString("\n") + "\n"

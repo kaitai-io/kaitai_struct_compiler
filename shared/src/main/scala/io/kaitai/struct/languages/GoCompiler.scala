@@ -30,7 +30,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def indent: String = "\t"
   override def outFileName(topClassName: String): String =
-    s"src/${config.goPackage}/$topClassName.go"
+    s"${config.goPackage}/$topClassName.go"
 
   override def outImports(topClass: ClassSpec): String = {
     val imp = importList.toList
