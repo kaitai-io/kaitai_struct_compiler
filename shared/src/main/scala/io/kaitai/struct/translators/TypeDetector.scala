@@ -354,6 +354,7 @@ object TypeDetector {
         case (_: IntType, _: IntType) => CalcIntType
         case (_: NumericType, _: NumericType) => CalcFloatType
         case (_: BytesType, _: BytesType) => CalcBytesType
+        case (_: StrType, _: StrType) => CalcStrType
         case (t1: UserType, t2: UserType) =>
           // Two user types can differ in reserved size and/or processing, but that doesn't matter in case of
           // type combining - we treat them the same as long as they result in same class spec or have same
