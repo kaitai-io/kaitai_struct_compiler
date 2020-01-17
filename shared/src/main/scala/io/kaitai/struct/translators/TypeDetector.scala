@@ -228,6 +228,7 @@ class TypeDetector(provider: TypeProvider) {
         (objType, methodName.name) match {
           case (_: StrType, "substring") => CalcStrType
           case (_: StrType, "to_i") => CalcIntType
+          case (_: BytesType, "to_s") => CalcStrType
           case _ =>
             throw new MethodNotFoundError(methodName.name, objType)
         }
