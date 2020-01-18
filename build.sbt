@@ -217,7 +217,7 @@ lazy val buildNpmJsFileTask = Def.task {
        |}));
      """.stripMargin
 
-  val targetFile = new File(s"js/npm/${name.value}.js")
+  val targetFile = new File(s"js/npm/${NAME}.js")
   println(s"buildNpmJsFile: writing $targetFile with AMD exports")
   IO.write(targetFile, fileWithExports, UTF8)
   Seq(targetFile)
