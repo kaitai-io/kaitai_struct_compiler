@@ -741,8 +741,14 @@ class CppCompiler(
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit =
-    outSrc.puts(s"$id->_read();")
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
+    val expr = if (assignType != dataType) {
+      s"static_cast<${kaitaiType2NativeType(dataType)}>($id)"
+    } else {
+      id
+    }
+    outSrc.puts(s"$expr->_read();")
+  }
 
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
     case _: IntType | _: EnumType => false

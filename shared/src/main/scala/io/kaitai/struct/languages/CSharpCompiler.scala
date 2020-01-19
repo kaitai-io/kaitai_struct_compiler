@@ -394,8 +394,14 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit =
-    out.puts(s"$id._read();")
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
+    val expr = if (assignType != dataType) {
+      s"((${kaitaiType2NativeType(dataType)}) ($id))"
+    } else {
+      id
+    }
+    out.puts(s"$expr._read();")
+  }
 
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
     case _: IntType | _: EnumType | _: StrType => false
