@@ -45,16 +45,21 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def classHeader(name: List[String], parentClass: Option[String]): Unit = {
     val nsPart = name.dropRight(1)
-    val ns = if (nsPart.nonEmpty) {
-      config.phpNamespace + "\\" + types2classRel(nsPart)
+    val ns = if (config.phpNamespace.nonEmpty) {
+      if (nsPart.nonEmpty) {
+        config.phpNamespace + "\\" + types2classRel(nsPart)
+      } else {
+        config.phpNamespace
+      }
+    } else if (nsPart.nonEmpty) {
+      types2classRel(nsPart)
     } else {
-      config.phpNamespace
+      ""
     }
-    if (ns.nonEmpty) {
-      out.puts
-      out.puts(s"namespace $ns;")
-    }
+    val space = if (ns.nonEmpty) " " else ""
     out.puts
+    out.puts(s"namespace $ns$space{")
+    out.inc
 
     val ext = parentClass match {
       case Some(x) => s" extends $x"
@@ -65,7 +70,12 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def classFooter(name: List[String]): Unit = universalFooter
+  override def classFooter(name: List[String]): Unit = {
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+  }
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     typeProvider.nowClass.meta.endian match {
@@ -400,12 +410,13 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
-    classHeader(curClass ::: List(enumName), None)
+    val name = curClass ::: List(enumName)
+    classHeader(name, None)
     enumColl.foreach { case (id, label) =>
       universalDoc(label.doc)
       out.puts(s"const ${value2Const(label.name)} = $id;")
     }
-    universalFooter
+    classFooter(name)
   }
 
   def value2Const(label: String) = label.toUpperCase
