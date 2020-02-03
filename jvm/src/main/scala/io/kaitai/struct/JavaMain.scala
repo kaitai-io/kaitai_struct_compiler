@@ -58,7 +58,7 @@ object JavaMain {
       }
 
       opt[Unit]('w', "read-write")  action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(readWrite = true))
+        c.copy(runtime = c.runtime.copy(readWrite = true, autoRead = false))
       } text("generate read-write support in classes (default: read-only)")
 
       opt[File]('d', "outdir") valueName("<directory>") action { (x, c) =>
