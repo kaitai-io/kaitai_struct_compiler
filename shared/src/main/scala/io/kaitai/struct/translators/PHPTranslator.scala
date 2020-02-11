@@ -116,7 +116,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def strReverse(s: expr): String =
     s"strrev(${translate(s)})"
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"${PHPCompiler.kstreamName}::substring(${translate(s)}, ${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"

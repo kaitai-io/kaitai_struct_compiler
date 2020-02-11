@@ -110,7 +110,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def strReverse(s: Ast.expr): String =
     s"${translate(s)}.reverse"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s)}[${translate(from)}, (${translate(to)} - 1)]"
+    s"${translate(s)}[${translate(from)}..(${translate(to)} - 1)]"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}.first"

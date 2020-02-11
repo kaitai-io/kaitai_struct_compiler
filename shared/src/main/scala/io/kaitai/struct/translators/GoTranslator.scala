@@ -345,7 +345,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def strToInt(s: Ast.expr, base: Ast.expr): TranslatorResult = {
     importList.add("strconv")
-    ResultString(s"strconv.ParseInt(${translate(s)}, ${translate(base)}, 0)")
+    outVarCheckRes(s"strconv.ParseInt(${translate(s)}, ${translate(base)}, 0)")
   }
 
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): TranslatorResult = {
