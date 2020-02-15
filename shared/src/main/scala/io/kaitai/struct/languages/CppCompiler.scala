@@ -1082,7 +1082,8 @@ object CppCompiler extends LanguageCompilerStatic
   def combineSwitchType(st: SwitchType): DataType = {
     val ct1 = TypeDetector.combineTypes(
       st.cases.filterNot {
-        case (caseExpr, _) => caseExpr == SwitchType.ELSE_CONST
+        case (caseExpr, _: BytesType) => caseExpr == SwitchType.ELSE_CONST
+        case _ => false
       }.values
     )
     if (st.isOwning) {
