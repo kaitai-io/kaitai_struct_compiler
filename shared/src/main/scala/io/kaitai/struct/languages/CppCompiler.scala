@@ -488,7 +488,9 @@ class CppCompiler(
 
         importListSrc.addLocal(outFileNameHeader(name.last))
 
-        outSrc.puts(s"$procClass $procName(${args.map(expression).mkString(", ")});")
+        val argList = args.map(expression).mkString(", ")
+        var argListInParens = if (argList.nonEmpty) s"($argList)" else ""
+        outSrc.puts(s"$procClass $procName$argListInParens;")
         outSrc.puts(s"$destName = $procName.decode($srcName);")
     }
   }
