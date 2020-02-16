@@ -343,8 +343,17 @@ class ClassCompiler(
     lang.instanceFooter
   }
 
-  def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit =
-    lang.instanceDeclaration(instName, instSpec.dataTypeComposite, instSpec.isNullable)
+  def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit = {
+    val isNullable = if (lang.switchBytesOnlyAsRaw) {
+      instSpec match {
+        case pi: ParseInstanceSpec => pi.isNullableSwitchRaw
+        case i => i.isNullable
+      }
+    } else {
+      instSpec.isNullable
+    }
+    lang.instanceDeclaration(instName, instSpec.dataTypeComposite, isNullable)
+  }
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =
     lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
