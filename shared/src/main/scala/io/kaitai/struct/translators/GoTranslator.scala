@@ -42,17 +42,14 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         trStringLiteral(s)
       case Ast.expr.Bool(n) =>
         trBoolLiteral(n)
-      case Ast.expr.BoolOp(op, values) =>
-        trBooleanOp(op, values)
-      case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
-        (detectType(left), detectType(right), op) match {
-          case (_: NumericType, _: NumericType, _) =>
-            trNumericBinOp(left, op, right)
-          case (_: StrType, _: StrType, Ast.operator.Add) =>
-            trStrConcat(left, right)
-          case (ltype, rtype, _) =>
-            throw new TypeMismatchError(s"can't do $ltype $op $rtype")
-        }
+      case Ast.expr.EnumById(enumType, id, inType) =>
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
+        trEnumById(enumSpec.name, translate(id))
+      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
+        trEnumByLabel(enumSpec.name, label.name)
+      case Ast.expr.Name(name: Ast.identifier) =>
+        trLocalName(name.name)
       case Ast.expr.UnaryOp(op, operand) =>
         ResultString(unaryOp(op) + (operand match {
           case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
@@ -60,8 +57,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case _ =>
             s"(${translate(operand)})"
         }))
-      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
-        trIfExp(condition, ifTrue, ifFalse)
       case Ast.expr.Compare(left, op, right) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
@@ -77,24 +72,29 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case (ltype, rtype) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
-      case Ast.expr.EnumById(enumType, id, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
-        trEnumById(enumSpec.name, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
-        trEnumByLabel(enumSpec.name, label.name)
-      case ctt: Ast.expr.CastToType =>
-        doCastOrArray(ctt)
+      case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
+        (detectType(left), detectType(right), op) match {
+          case (_: NumericType, _: NumericType, _) =>
+            trNumericBinOp(left, op, right)
+          case (_: StrType, _: StrType, Ast.operator.Add) =>
+            trStrConcat(left, right)
+          case (ltype, rtype, _) =>
+            throw new TypeMismatchError(s"can't do $ltype $op $rtype")
+        }
+      case Ast.expr.BoolOp(op, values) =>
+        trBooleanOp(op, values)
+      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
+        trIfExp(condition, ifTrue, ifFalse)
       case Ast.expr.Subscript(container, idx) =>
         arraySubscript(container, idx)
-      case Ast.expr.Name(name: Ast.identifier) =>
-        trLocalName(name.name)
-      case Ast.expr.List(elts) =>
-        doGuessArrayLiteral(elts)
       case call: Ast.expr.Attribute =>
         translateAttribute(call)
       case call: Ast.expr.Call =>
         translateCall(call)
+      case Ast.expr.List(elts) =>
+        doGuessArrayLiteral(elts)
+      case ctt: Ast.expr.CastToType =>
+        doCastOrArray(ctt)
     }
   }
 
