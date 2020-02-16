@@ -25,7 +25,7 @@ class CppCompiler(
   val importListSrc = new CppImportList
   val importListHdr = new CppImportList
 
-  override val translator = new CppTranslator(typeProvider, importListSrc, config)
+  override val translator = new CppTranslator(typeProvider, importListSrc, importListHdr, config)
   val outSrcHeader = new StringLanguageOutputWriter(indent)
   val outHdrHeader = new StringLanguageOutputWriter(indent)
   val outSrc = new StringLanguageOutputWriter(indent)

@@ -12,7 +12,7 @@ import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.CppImportList
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
-class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
+class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, importListHdr: CppImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
 
   /**
@@ -105,6 +105,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, config
 
   override def doArrayLiteral(t: DataType, values: Seq[expr]): String = {
     if (config.cppConfig.useListInitializers) {
+      importListHdr.addSystem("vector")
       s"std::vector<${CppCompiler.kaitaiType2NativeType(config.cppConfig, t)}>" +
         "{" + values.map((value) => translate(value)).mkString(", ") + "}"
     } else {
