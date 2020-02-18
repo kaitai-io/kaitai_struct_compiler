@@ -450,7 +450,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"func (this *${types2class(className)}) ${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
     out.inc
     translator.returnRes = Some(dataType match {
-      case _: IntType => "0"
+      case _: NumericType => "0"
       case _: BooleanType => "false"
       case _: StrType => "\"\""
       case _ => "nil"
