@@ -262,7 +262,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
     val ioProps = io match {
       case None => ""
-      case Some(x) => s"start: $x.pos, ioOffset: $x._byteOffset"
+      case Some(x) => s"start: $x.pos, ioOffset: $x.byteOffset"
     }
 
     val enumNameProps = attrType match {
