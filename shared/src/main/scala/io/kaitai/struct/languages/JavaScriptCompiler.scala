@@ -264,7 +264,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def alignToByte(io: String): Unit =
     out.puts(s"$io.alignToByte();")
 
-  override def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, io: Option[String], rep: RepeatSpec): Unit = {
     val debugName = attrDebugName(attrId, rep, false)
 
     val ioProps = io match {
@@ -283,7 +283,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrDebugArrInit(id: Identifier, attrType: DataType): Unit =
     out.puts(s"this._debug.${idToStr(id)}.arr = [];")
 
-  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, io: String, rep: RepeatSpec): Unit = {
     val debugName = attrDebugName(attrId, rep, true)
 
     out.puts(s"$debugName.end = $io.pos;")
