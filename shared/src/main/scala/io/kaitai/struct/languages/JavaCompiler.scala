@@ -74,16 +74,25 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       ""
     }
 
+    val iface = if (config.readStoresPos) {
+      "implements PositionInfo "
+    } else {
+      ""
+    }
+
     out.puts(
       s"public ${staticStr}class ${type2class(name)} " +
-      s"extends ${JavaCompiler.kstructNameFull(config)} {"
+      s"extends ${JavaCompiler.kstructNameFull(config)} $iface{"
     )
     out.inc
 
     if (config.readStoresPos) {
       out.puts("public final Map<String, Span> _spans = new HashMap<String, Span>();")
+      out.puts("@Override")
+      out.puts("public final Map<String, Span> _spans() { return this._spans; }")
       out.puts
 
+      importList.add("io.kaitai.struct.PositionInfo")
       importList.add("io.kaitai.struct.Span")
       importList.add("java.util.HashMap")
       importList.add("java.util.List")
