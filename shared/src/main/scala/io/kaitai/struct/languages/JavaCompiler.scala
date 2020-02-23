@@ -2,7 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, NeedRaw}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, Endianness, EndOfStreamError, FixedEndian, InheritedEndian, KSError, NeedRaw}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -219,6 +219,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     out.puts( " */")
+  }
+
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
+    out.puts(s"{// ${idToStr(id)}")
+    out.inc
+    super.attrParse(attr, id, defEndian)
+    out.dec
+    out.puts("}")
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
