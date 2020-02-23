@@ -403,7 +403,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def normalIO: String = "self._io"
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val varStr = privateMemberName(varName)
     val ioName = s"_io_${idToStr(varName)}"
 

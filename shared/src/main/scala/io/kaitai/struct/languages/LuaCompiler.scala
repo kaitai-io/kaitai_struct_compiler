@@ -415,7 +415,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchIfEnd(): Unit =
     out.puts("end")
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val varStr = privateMemberName(varName)
 
     val args = getRawIdExpr(varName, rep)

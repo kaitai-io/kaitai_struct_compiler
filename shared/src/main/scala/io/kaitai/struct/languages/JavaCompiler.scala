@@ -428,7 +428,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
@@ -437,7 +437,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     importList.add("io.kaitai.struct.ByteBufferKaitaiStream")
-    out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args);")
+    out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args, $currentIo.offset());")
     ioName
   }
 
