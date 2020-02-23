@@ -238,20 +238,20 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcName = privateMemberName(varSrc)
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
-        s"$kstreamName.processXor($srcName, ${expression(xorValue)})"
+        s"$kstreamName.processXor($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        s"$kstreamName.processZlib($srcName)"
+        s"$kstreamName.processZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$kstreamName.processRotateLeft($srcName, $expr, 1)"
+        s"$kstreamName.processRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val namespace = name.init.mkString(".")
         val procClass = namespace +
@@ -259,7 +259,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
           type2class(name.last)
         val procName = s"_process_${idToStr(varSrc)}"
         out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
-        s"$procName.decode($srcName)"
+        s"$procName.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
   }
@@ -270,14 +270,21 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = s"_io_$javaName"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$javaName.get($javaName.size() - 1)"
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-      case NoRepeat => javaName
+      case _ => getRawIdExpr(varName, rep)
     }
 
     importList.add("io.kaitai.struct.ByteBufferKaitaiStream")
     out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = idToStr(varName)
+    rep match {
+      case NoRepeat => memberName
+      case _ => s"$memberName.get($memberName.size() - 1)"
+    }
   }
 
   override def useIO(ioEx: expr): String = {

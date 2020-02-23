@@ -209,7 +209,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcName = privateMemberName(varSrc)
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
@@ -217,7 +217,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        s"$kstreamName.$procName($srcName, ${expression(xorValue)})"
+        s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
         throw new RuntimeException("Lua zlib not supported")
       case ProcessRotate(isLeft, rotValue) =>
@@ -226,16 +226,25 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$kstreamName.process_rotate_left($srcName, $expr, 1)"
+        s"$kstreamName.process_rotate_left($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procName = s"_process_${idToStr(varSrc)}"
 
         importList.add("require(\"" + s"${name.last}" + "\")")
 
         out.puts(s"local $procName = ${types2class(name)}(${args.map(expression).mkString(", ")})")
-        s"$procName:decode($srcName)"
+        s"$procName:decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i]"
+      case _ => s"$memberName[#$memberName]"
+    }
   }
 
   override def useIO(ioEx: Ast.expr): String = {
@@ -380,11 +389,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val varStr = privateMemberName(varName)
 
-    val args = rep match {
-      case RepeatEos | RepeatUntil(_) => s"$varStr[#$varStr]"
-      case RepeatExpr(_) => s"$varStr[i]"
-      case NoRepeat => varStr
-    }
+    val args = getRawIdExpr(varName, rep)
 
     importList.add("local stringstream = require(\"string_stream\")")
     out.puts(s"local _io = $kstreamName(stringstream($args))")

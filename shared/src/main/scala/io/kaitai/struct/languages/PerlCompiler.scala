@@ -167,7 +167,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcName = privateMemberName(varSrc)
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
@@ -175,17 +175,17 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        s"$kstreamName::$procName($srcName, ${expression(xorValue)})"
+        s"$kstreamName::$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
         importList.add("Compress::Zlib")
-        s"Compress::Zlib::uncompress($srcName)"
+        s"Compress::Zlib::uncompress($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$kstreamName::process_rotate_left($srcName, $expr, 1)"
+        s"$kstreamName::process_rotate_left($srcExpr, $expr, 1)"
     }
     handleAssignment(varDest, expr, rep, false)
   }
@@ -194,16 +194,23 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatEos => s"$memberName[-1]"
-      case RepeatExpr(_) => s"$memberName[$$i]"
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-      case NoRepeat => s"$memberName"
+      case _ => getRawIdExpr(id, rep)
     }
 
     val ioName = s"$$io_${idToStr(id)}"
 
     out.puts(s"my $ioName = $kstreamName->new($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[$$i]"
+      case _ => s"$memberName[-1]"
+    }
   }
 
   override def useIO(ioEx: expr): String = {

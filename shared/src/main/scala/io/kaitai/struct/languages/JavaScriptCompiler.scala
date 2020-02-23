@@ -190,7 +190,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcName = getRawIdExpr(varSrc, rep)
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
@@ -198,16 +198,16 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        s"$kstreamName.$procName($srcName, ${expression(xorValue)})"
+        s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        s"$kstreamName.processZlib($srcName)"
+        s"$kstreamName.processZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$kstreamName.processRotateLeft($srcName, $expr, 1)"
+        s"$kstreamName.processRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val nameInit = name.init
         val pkgName = if (nameInit.isEmpty) "" else nameInit.mkString("-") + "/"
@@ -216,7 +216,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
         importList.add(s"$pkgName$procClass")
 
         out.puts(s"var _process = new $procClass(${args.map(expression).mkString(", ")});")
-        s"_process.decode($srcName)"
+        s"_process.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
   }
@@ -227,14 +227,19 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
     val ioName = s"_io_$langName"
 
-    val args = rep match {
-      case RepeatEos | RepeatUntil(_) => s"$memberCall[$memberCall.length - 1]"
-      case RepeatExpr(_) => s"$memberCall[i]"
-      case NoRepeat => memberCall
-    }
+    val args = getRawIdExpr(varName, rep)
 
     out.puts(s"var $ioName = new $kstreamName($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i]"
+      case _ => s"$memberName[$memberName.length - 1]"
+    }
   }
 
   override def useIO(ioEx: expr): String = {

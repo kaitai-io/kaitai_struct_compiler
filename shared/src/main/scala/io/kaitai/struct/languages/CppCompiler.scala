@@ -463,7 +463,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcName = privateMemberName(varSrc)
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
@@ -471,16 +471,16 @@ class CppCompiler(
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        s"$kstreamName::$procName($srcName, ${expression(xorValue)})"
+        s"$kstreamName::$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        s"$kstreamName::process_zlib($srcName)"
+        s"$kstreamName::process_zlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$kstreamName::process_rotate_left($srcName, $expr)"
+        s"$kstreamName::process_rotate_left($srcExpr, $expr)"
       case ProcessCustom(name, args) =>
         val procClass = name.map((x) => type2class(x)).mkString("::")
         val procName = s"_process_${idToStr(varSrc)}"
@@ -490,7 +490,7 @@ class CppCompiler(
         val argList = args.map(expression).mkString(", ")
         var argListInParens = if (argList.nonEmpty) s"($argList)" else ""
         outSrc.puts(s"$procClass $procName$argListInParens;")
-        s"$procName.decode($srcName)"
+        s"$procName.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
   }
@@ -500,9 +500,8 @@ class CppCompiler(
     val ioId = IoStorageIdentifier(id)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-      case NoRepeat => memberName
+      case _ => getRawIdExpr(id, rep)
     }
 
     val newStream = s"new $kstreamName($args)"
@@ -519,6 +518,14 @@ class CppCompiler(
     }
 
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case _ => s"$memberName->at($memberName->size() - 1)"
+    }
   }
 
   override def useIO(ioEx: Ast.expr): String = {

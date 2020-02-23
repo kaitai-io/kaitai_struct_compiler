@@ -197,25 +197,25 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcName = privateMemberName(varSrc)
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
-        s"$normalIO.ProcessXor($srcName, ${expression(xorValue)})"
+        s"$normalIO.ProcessXor($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        s"$normalIO.ProcessZlib($srcName)"
+        s"$normalIO.ProcessZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$normalIO.ProcessRotateLeft($srcName, $expr, 1)"
+        s"$normalIO.ProcessRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = types2class(name)
         val procName = s"_process_${idToStr(varSrc)}"
         out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
-        s"$procName.Decode($srcName)"
+        s"$procName.Decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
   }
@@ -226,13 +226,20 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = s"io_$privateVarName"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$privateVarName[$privateVarName.Count - 1]"
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-      case NoRepeat => privateVarName
+      case _ => getRawIdExpr(varName, rep)
     }
 
     out.puts(s"var $ioName = new $kstreamName($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case _ => s"$memberName[$memberName.Count - 1]"
+    }
   }
 
   override def useIO(ioEx: expr): String = {

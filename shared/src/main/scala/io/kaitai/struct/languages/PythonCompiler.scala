@@ -182,7 +182,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcName = privateMemberName(varSrc)
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
@@ -190,17 +190,17 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        s"$kstreamName.$procName($srcName, ${expression(xorValue)})"
+        s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
         importList.add("import zlib")
-        s"zlib.decompress($srcName)"
+        s"zlib.decompress($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$kstreamName.process_rotate_left($srcName, $expr, 1)"
+        s"$kstreamName.process_rotate_left($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = if (name.length == 1) {
           val onlyName = name.head
@@ -214,7 +214,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
 
         out.puts(s"_process = $procClass(${args.map(expression).mkString(", ")})")
-        s"_process.decode($srcName)"
+        s"_process.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
   }
@@ -225,14 +225,19 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val varStr = privateMemberName(varName)
     val ioName = s"_io_${idToStr(varName)}"
 
-    val args = rep match {
-      case RepeatEos | RepeatUntil(_) => s"$varStr[-1]"
-      case RepeatExpr(_) => s"$varStr[i]"
-      case NoRepeat => varStr
-    }
+    val args = getRawIdExpr(varName, rep)
 
     out.puts(s"$ioName = $kstreamName(BytesIO($args))")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i]"
+      case _ => s"$memberName[-1]"
+    }
   }
 
   override def useIO(ioEx: expr): String = {

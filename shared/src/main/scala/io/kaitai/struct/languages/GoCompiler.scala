@@ -196,28 +196,28 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcName = privateMemberName(varSrc)
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
         translator.detectType(xorValue) match {
           case _: IntType =>
-            s"kaitai.ProcessXOR($srcName, []byte{${expression(xorValue)}})"
+            s"kaitai.ProcessXOR($srcExpr, []byte{${expression(xorValue)}})"
           case _: BytesType =>
-            s"kaitai.ProcessXOR($srcName, ${expression(xorValue)})"
+            s"kaitai.ProcessXOR($srcExpr, ${expression(xorValue)})"
         }
       case ProcessZlib =>
-        translator.resToStr(translator.outVarCheckRes(s"kaitai.ProcessZlib($srcName)"))
+        translator.resToStr(translator.outVarCheckRes(s"kaitai.ProcessZlib($srcExpr)"))
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"kaitai.ProcessRotateLeft($srcName, int($expr))"
+        s"kaitai.ProcessRotateLeft($srcExpr, int($expr))"
       case ProcessCustom(name, args) =>
         // TODO(jchw): This hack is necessary because Go tests fail catastrophically otherwise...
-        s"$srcName"
+        s"$srcExpr"
     }
     handleAssignment(varDest, ResultString(expr), rep, false)
   }
@@ -228,15 +228,23 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$javaName[len($javaName) - 1]"
       case RepeatUntil(_) => translator.specialName(Identifier.ITERATOR2)
-      case NoRepeat => javaName
+      case _ => getRawIdExpr(varName, rep)
     }
 
     importList.add("bytes")
 
     out.puts(s"$ioName := kaitai.NewStream(bytes.NewReader($args))")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i]"
+      case _ => s"$memberName[len($memberName) - 1]"
+    }
   }
 
   override def useIO(ioEx: Ast.expr): String = {
