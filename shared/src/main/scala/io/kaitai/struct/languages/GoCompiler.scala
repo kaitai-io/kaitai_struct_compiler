@@ -195,32 +195,31 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         translator.detectType(xorValue) match {
           case _: IntType =>
-            out.puts(s"$destName = kaitai.ProcessXOR($srcName, []byte{${expression(xorValue)}})")
+            s"kaitai.ProcessXOR($srcName, []byte{${expression(xorValue)}})"
           case _: BytesType =>
-            out.puts(s"$destName = kaitai.ProcessXOR($srcName, ${expression(xorValue)})")
+            s"kaitai.ProcessXOR($srcName, ${expression(xorValue)})"
         }
       case ProcessZlib =>
-        out.puts(s"$destName, err = kaitai.ProcessZlib($srcName)")
-        translator.outAddErrCheck()
+        translator.resToStr(translator.outVarCheckRes(s"kaitai.ProcessZlib($srcName)"))
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = kaitai.ProcessRotateLeft($srcName, int($expr))")
+        s"kaitai.ProcessRotateLeft($srcName, int($expr))"
       case ProcessCustom(name, args) =>
         // TODO(jchw): This hack is necessary because Go tests fail catastrophically otherwise...
-        out.puts(s"$destName = $srcName")
+        s"$srcName"
     }
+    handleAssignment(varDest, ResultString(expr), rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {

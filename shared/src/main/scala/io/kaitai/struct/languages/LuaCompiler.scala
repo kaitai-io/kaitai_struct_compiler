@@ -208,17 +208,16 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)})")
+        s"$kstreamName.$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
         throw new RuntimeException("Lua zlib not supported")
       case ProcessRotate(isLeft, rotValue) =>
@@ -227,15 +226,16 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName.process_rotate_left($srcName, $expr, 1)")
+        s"$kstreamName.process_rotate_left($srcName, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procName = s"_process_${idToStr(varSrc)}"
 
         importList.add("require(\"" + s"${name.last}" + "\")")
 
         out.puts(s"local $procName = ${types2class(name)}(${args.map(expression).mkString(", ")})")
-        out.puts(s"$destName = $procName:decode($srcName)")
+        s"$procName:decode($srcName)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def useIO(ioEx: Ast.expr): String = {

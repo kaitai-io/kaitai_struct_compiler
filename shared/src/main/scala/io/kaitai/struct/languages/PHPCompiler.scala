@@ -194,34 +194,34 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents($contents);")
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        out.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
+        s"$kstreamName::$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName::processZlib($srcName);")
+        s"$kstreamName::processZlib($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName::processRotateLeft($srcName, $expr, 1);")
+        s"$kstreamName::processRotateLeft($srcName, $expr, 1)"
       case ProcessCustom(name, args) =>
         val isAbsolute = name.length > 1
         val procClass = name.map((x) => type2class(x)).mkString(
           if (isAbsolute) "\\" else "", "\\", ""
         )
         out.puts(s"$$_process = new $procClass(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = $$_process->decode($srcName);")
+        s"$$_process->decode($srcName)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {

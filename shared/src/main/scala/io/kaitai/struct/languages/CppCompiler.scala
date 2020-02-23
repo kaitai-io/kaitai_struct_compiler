@@ -462,26 +462,25 @@ class CppCompiler(
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        outSrc.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
+        s"$kstreamName::$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
-        outSrc.puts(s"$destName = $kstreamName::process_zlib($srcName);")
+        s"$kstreamName::process_zlib($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        outSrc.puts(s"$destName = $kstreamName::process_rotate_left($srcName, $expr);")
+        s"$kstreamName::process_rotate_left($srcName, $expr)"
       case ProcessCustom(name, args) =>
         val procClass = name.map((x) => type2class(x)).mkString("::")
         val procName = s"_process_${idToStr(varSrc)}"
@@ -491,8 +490,9 @@ class CppCompiler(
         val argList = args.map(expression).mkString(", ")
         var argListInParens = if (argList.nonEmpty) s"($argList)" else ""
         outSrc.puts(s"$procClass $procName$argListInParens;")
-        outSrc.puts(s"$destName = $procName.decode($srcName);")
+        s"$procName.decode($srcName)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {

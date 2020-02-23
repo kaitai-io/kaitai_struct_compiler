@@ -181,27 +181,26 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)})")
+        s"$kstreamName.$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
         importList.add("import zlib")
-        out.puts(s"$destName = zlib.decompress($srcName)")
+        s"zlib.decompress($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName.process_rotate_left($srcName, $expr, 1)")
+        s"$kstreamName.process_rotate_left($srcName, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = if (name.length == 1) {
           val onlyName = name.head
@@ -215,8 +214,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
 
         out.puts(s"_process = $procClass(${args.map(expression).mkString(", ")})")
-        out.puts(s"$destName = _process.decode($srcName)")
+        s"_process.decode($srcName)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def normalIO: String = "self._io"

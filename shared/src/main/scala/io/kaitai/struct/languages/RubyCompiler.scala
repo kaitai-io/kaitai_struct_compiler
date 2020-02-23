@@ -177,32 +177,32 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = $normalIO.ensure_fixed_contents($contents)")
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
 
-    out.puts(proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)})"
+        s"$kstreamName::$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
         importList.add("zlib")
-        s"$destName = Zlib::Inflate.inflate($srcName)"
+        s"Zlib::Inflate.inflate($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$destName = $kstreamName::process_rotate_left($srcName, $expr, 1)"
+        s"$kstreamName::process_rotate_left($srcName, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = name.map((x) => type2class(x)).mkString("::")
         out.puts(s"_process = $procClass.new(${args.map(expression).mkString(", ")})")
-        s"$destName = _process.decode($srcName)"
-    })
+        s"_process.decode($srcName)"
+    }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {

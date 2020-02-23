@@ -189,26 +189,25 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
       s"$normalIO.ensureFixedContents($contents);")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcName = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)});")
+        s"$kstreamName.$procName($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName.processZlib($srcName);")
+        s"$kstreamName.processZlib($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+        s"$kstreamName.processRotateLeft($srcName, $expr, 1)"
       case ProcessCustom(name, args) =>
         val nameInit = name.init
         val pkgName = if (nameInit.isEmpty) "" else nameInit.mkString("-") + "/"
@@ -217,8 +216,9 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
         importList.add(s"$pkgName$procClass")
 
         out.puts(s"var _process = new $procClass(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = _process.decode($srcName);")
+        s"_process.decode($srcName)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {

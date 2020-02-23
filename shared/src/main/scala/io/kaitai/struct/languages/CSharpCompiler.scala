@@ -196,28 +196,28 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents($contents);")
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"$destName = $normalIO.ProcessXor($srcName, ${expression(xorValue)});")
+        s"$normalIO.ProcessXor($srcName, ${expression(xorValue)})"
       case ProcessZlib =>
-        out.puts(s"$destName = $normalIO.ProcessZlib($srcName);")
+        s"$normalIO.ProcessZlib($srcName)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $normalIO.ProcessRotateLeft($srcName, $expr, 1);")
+        s"$normalIO.ProcessRotateLeft($srcName, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = types2class(name)
         val procName = s"_process_${idToStr(varSrc)}"
         out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = $procName.Decode($srcName);")
+        s"$procName.Decode($srcName)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
