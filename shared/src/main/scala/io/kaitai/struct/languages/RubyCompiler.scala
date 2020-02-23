@@ -241,7 +241,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def alignToByte(io: String): Unit =
     out.puts(s"$io.align_to_byte")
 
-  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
       val name = attrId match {
         case _: RawIdentifier | _: SpecialIdentifier => return
@@ -258,7 +258,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, io: String, rep: RepeatSpec): Unit = {
     val name = attrId match {
       case _: RawIdentifier | _: SpecialIdentifier => return
       case _ => idToStr(attrId)
