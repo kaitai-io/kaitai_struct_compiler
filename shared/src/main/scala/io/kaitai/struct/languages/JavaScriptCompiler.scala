@@ -221,7 +221,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val langName = idToStr(varName)
     val memberCall = privateMemberName(varName)
 

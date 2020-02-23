@@ -276,7 +276,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val javaName = idToStr(varName)
 
     val ioName = s"_io_$javaName"
@@ -287,7 +287,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     importList.add("io.kaitai.struct.ByteBufferKaitaiStream")
-    out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args);")
+    out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args, $currentIo.offset());")
     ioName
   }
 
