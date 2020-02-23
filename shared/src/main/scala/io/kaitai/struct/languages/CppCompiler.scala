@@ -567,12 +567,15 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
     importListHdr.addSystem("vector")
 
-    if (needRaw) {
+    if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
       outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+    }
+    if (needRaw.level >= 2) {
+      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts("{")
@@ -594,18 +597,23 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
     importListHdr.addSystem("vector")
 
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
-    if (needRaw) {
+    if (needRaw.level >= 1) {
       val rawId = privateMemberName(RawIdentifier(id))
       outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
       outSrc.puts(s"$rawId->reserve($lenVar);")
       val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
       outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType)};")
       outSrc.puts(s"$ioId->reserve($lenVar);")
+    }
+    if (needRaw.level >= 2) {
+      val rawId = privateMemberName(RawIdentifier(RawIdentifier(id)))
+      outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
+      outSrc.puts(s"$rawId->reserve($lenVar);")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts(s"${privateMemberName(id)}->reserve($lenVar);")
@@ -622,12 +630,15 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     importListHdr.addSystem("vector")
 
-    if (needRaw) {
+    if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
       outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+    }
+    if (needRaw.level >= 2) {
+      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts("{")
@@ -663,7 +674,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)}->push_back($wrappedTempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     outSrc.puts("i++;")
     outSrc.dec

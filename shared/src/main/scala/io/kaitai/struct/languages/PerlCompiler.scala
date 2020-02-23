@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, NeedRaw}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -235,9 +235,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
     out.puts(s"while (!$io->is_eof()) {")
     out.inc
@@ -246,9 +248,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
     val nVar = s"$$n_${idToStr(id)}"
     out.puts(s"my $nVar = ${expression(repeatExpr)};")
@@ -259,9 +263,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)}[$$i] = $expr;")
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
     out.puts("do {")
     out.inc
@@ -277,7 +283,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"push @{${privateMemberName(id)}}, $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} until (${expression(untilExpr)});")

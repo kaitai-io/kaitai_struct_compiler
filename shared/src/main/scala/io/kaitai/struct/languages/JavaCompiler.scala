@@ -2,7 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, NeedRaw}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -352,9 +352,11 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new ArrayList<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}();")
     out.puts("{")
     out.inc
@@ -377,9 +379,11 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>(((Number) (${expression(repeatExpr)})).intValue());")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new ArrayList<byte[]>(((Number) (${expression(repeatExpr)})).intValue());")
     out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}(((Number) (${expression(repeatExpr)})).intValue());")
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
@@ -391,9 +395,11 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new ArrayList<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}();")
     out.puts("{")
     out.inc
@@ -415,7 +421,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.add($tempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("i++;")
     out.dec

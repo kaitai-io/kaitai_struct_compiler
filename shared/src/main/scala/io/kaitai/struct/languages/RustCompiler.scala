@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, NeedRaw}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
@@ -57,7 +57,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = type2class(classSpec.name.last)
     val pkg = type2classAbs(classSpec.name)
-    
+
     importList.add(s"$pkg::$name")
   }
 
@@ -77,7 +77,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"impl KaitaiStruct for ${type2class(name)} {")
     out.inc
-    
+
     // Parameter names
     val pIo = paramName(IoIdentifier)
     val pParent = paramName(ParentIdentifier)
@@ -113,7 +113,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def runReadCalc(): Unit = {
-  
+
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
@@ -146,7 +146,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-  
+
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -253,9 +253,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
     out.puts(s"while !$io.isEof() {")
     out.inc
@@ -269,9 +271,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     super.condRepeatEosFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    if (needRaw)
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = vec!();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = vec!();")
     out.puts(s"${privateMemberName(id)} = vec!();")
     out.puts(s"for i in 0..${expression(repeatExpr)} {")
     out.inc
@@ -281,9 +285,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.push($expr);")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
-    if (needRaw)
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = vec!();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = vec!();")
     out.puts(s"${privateMemberName(id)} = vec!();")
     out.puts("while {")
     out.inc
@@ -299,7 +305,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.append($expr);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"!(${expression(untilExpr)})")
     out.dec
@@ -465,7 +471,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"enum $enumClass {")
     out.inc
-    
+
     enumColl.foreach { case (id, label) =>
       universalDoc(label.doc)
       out.puts(s"${value2Const(label.name)},")
@@ -501,7 +507,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
   override def paramName(id: Identifier): String = s"${idToStr(id)}"
-    
+
   def kaitaiType2NativeType(attrType: DataType): String = {
     attrType match {
       case Int1Type(false) => "u8"
@@ -530,7 +536,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case Some(cs) => s"Box<${type2class(cs.name)}>"
         case None => s"Box<${type2class(t.name)}>"
       }
-      
+
       case t: EnumType => t.enumSpec match {
         case Some(cs) => s"Box<${type2class(cs.name)}>"
         case None => s"Box<${type2class(t.name)}>"
@@ -540,11 +546,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
       case KaitaiStructType | CalcKaitaiStructType => s"Option<Box<KaitaiStruct>>"
-      
+
       case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
   }
-  
+
   def kaitaiType2Default(attrType: DataType): String = {
     attrType match {
       case Int1Type(false) => "0"
@@ -576,12 +582,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case KaitaiStreamType => "None"
       case KaitaiStructType => "None"
-      
+
       case _: SwitchType => ""
       // TODO
     }
   }
-  
+
   def type2class(names: List[String]) = types2classRel(names)
 
   def type2classAbs(names: List[String]) =

@@ -296,9 +296,11 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
@@ -317,9 +319,11 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new Array(${expression(repeatExpr)});")
     out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = new Array(${expression(repeatExpr)});")
@@ -336,9 +340,11 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = []")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
@@ -353,7 +359,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts(s"${privateMemberName(id)}.push($tmpName);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("i++;")
     out.dec
