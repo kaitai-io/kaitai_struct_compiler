@@ -28,7 +28,7 @@ trait CommonReads extends LanguageCompiler {
     val needsDebug = attrDebugNeeded(id)
 
     if (needsDebug) {
-      attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
+      attrDebugStart(id, attr.dataType, attr.cond.repeat, Some(io), NoRepeat)
       if (attr.cond.repeat != NoRepeat)
         attrDebugArrInit(id, attr.dataType)
     }
@@ -46,7 +46,7 @@ trait CommonReads extends LanguageCompiler {
     }
 
     if (needsDebug)
-      attrDebugEnd(id, attr.dataType, io, NoRepeat)
+      attrDebugEnd(id, attr.dataType, attr.cond.repeat, io, NoRepeat)
 
     // More position management + set calculated flag after parsing for ParseInstanceSpecs
     attr match {
@@ -90,9 +90,9 @@ trait CommonReads extends LanguageCompiler {
 
   def attrParse2(id: Identifier, dataType: DataType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], assignType: Option[DataType] = None): Unit
 
-  def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrName: Identifier, attrType: DataType, attrRep: RepeatSpec, io: Option[String], repeat: RepeatSpec): Unit = {}
   def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit = {}
-  def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugEnd(attrName: Identifier, attrType: DataType, attrRep: RepeatSpec, io: String, repeat: RepeatSpec): Unit = {}
 
   def attrDebugNeeded(attrId: Identifier): Boolean = false
 
