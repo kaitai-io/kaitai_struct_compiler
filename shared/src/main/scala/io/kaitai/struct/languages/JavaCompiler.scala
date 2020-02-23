@@ -322,6 +322,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts( " */")
   }
 
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
+    out.puts(s"{// ${idToStr(id)}")
+    out.inc
+    super.attrParse(attr, id, defEndian)
+    out.dec
+    out.puts("}")
+  }
+
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
     out.puts("if (_is_le) {")
     out.inc
