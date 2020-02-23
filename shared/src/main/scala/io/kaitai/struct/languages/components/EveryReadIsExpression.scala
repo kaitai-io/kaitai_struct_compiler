@@ -320,7 +320,7 @@ trait EveryReadIsExpression
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (attrDebugNeeded(instName))
-      attrDebugStart(instName, dataType, None, NoRepeat)
+      attrDebugStart(instName, dataType, NoRepeat, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }
 }
