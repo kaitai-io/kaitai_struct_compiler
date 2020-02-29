@@ -156,9 +156,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def universalDoc(doc: DocSpec): Unit = {
     if (doc.summary.isDefined) {
       out.puts
-      out.puts("/*")
-      doc.summary.foreach((summary) => out.putsLines(" * ", summary))
-      out.puts(" */")
+      doc.summary.foreach((summary) => out.putsLines("/// ", summary))
     }
   }
 
