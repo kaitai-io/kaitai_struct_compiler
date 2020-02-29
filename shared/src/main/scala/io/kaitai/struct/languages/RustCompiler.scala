@@ -139,9 +139,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case ParentIdentifier | RootIdentifier | IoIdentifier =>
         // just ignore it for now
       case IoIdentifier =>
-        out.puts(s"     stream: ${kaitaiType2NativeType(attrType)},")
+        out.inc
+        out.puts(s"stream: ${kaitaiType2NativeType(attrType)},")
+        out.dec
       case _ =>
-        out.puts(s"    pub ${idToStr(attrName)}: ${kaitaiType2NativeType(attrType)},")
+        out.inc
+        out.puts(s"pub ${idToStr(attrName)}: ${kaitaiType2NativeType(attrType)},")
+        out.dec
     }
   }
 
@@ -423,7 +427,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchEnd(): Unit = universalFooter
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"    pub ${idToStr(attrName)}: Option<${kaitaiType2NativeType(attrType)}>,")
+    out.inc
+    out.puts(s"pub ${idToStr(attrName)}: Option<${kaitaiType2NativeType(attrType)}>,")
+    out.dec
   }
 
   override def instanceDeclHeader(className: List[String]): Unit = {
