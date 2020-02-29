@@ -159,7 +159,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
-    out.puts("if ($this->_m__is_le) {")
+    out.puts("if self._is_le {")
     out.inc
     leProc()
     out.dec
