@@ -664,6 +664,4 @@ object CSharpCompiler extends LanguageCompilerStatic
     case EndOfStreamError => "EndOfStreamException"
     case _ => err.name
   }
-
-  override def type2class(name: String): String = Utils.upperCamelCase(name)
 }
