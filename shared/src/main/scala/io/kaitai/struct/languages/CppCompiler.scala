@@ -877,9 +877,9 @@ class CppCompiler(
     outHdr.puts("};")
   }
 
-  def value2Const(enumName: String, label: String) = (enumName + "_" + label).toUpperCase
+  def value2Const(enumName: String, label: String) = Utils.upperUnderscoreCase(enumName + "_" + label)
 
-  def defineName(className: String) = className.toUpperCase + "_H_"
+  def defineName(className: String) = Utils.upperUnderscoreCase(className) + "_H_"
 
   /**
     * Returns name of a member that stores "calculated flag" for a given lazy
@@ -905,10 +905,10 @@ class CppCompiler(
     id match {
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
       case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
-      case si: SpecialIdentifier => si.name
-      case ni: NamedIdentifier => ni.name
+      case si: SpecialIdentifier => Utils.lowerUnderscoreCase(si.name)
+      case ni: NamedIdentifier => Utils.lowerUnderscoreCase(ni.name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case ni: InstanceIdentifier => ni.name
+      case ni: InstanceIdentifier => Utils.lowerUnderscoreCase(ni.name)
     }
   }
 
@@ -1106,5 +1106,5 @@ object CppCompiler extends LanguageCompilerStatic
   def types2class(components: List[String]) =
     components.map(type2class).mkString("::")
 
-  def type2class(name: String) = name + "_t"
+  def type2class(name: String) = Utils.lowerCamelCase(name) + "_t"
 }
