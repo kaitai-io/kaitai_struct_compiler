@@ -468,7 +468,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  def value2Const(label: String) = label.toUpperCase
+  def value2Const(label: String) = Utils.upperUnderscoreCase(label)
 
   def idToStr(id: Identifier): String = {
     id match {

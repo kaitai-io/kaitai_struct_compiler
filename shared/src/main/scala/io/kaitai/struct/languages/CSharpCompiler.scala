@@ -142,7 +142,7 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
       "private"
     }
     val suffix = endian match {
-      case Some(e) => s"${e.toSuffix.toUpperCase}"
+      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
       case None => ""
     }
     out.puts(s"$readAccessAndType void _read$suffix()")

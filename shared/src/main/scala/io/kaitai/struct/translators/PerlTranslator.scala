@@ -76,8 +76,8 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doEnumByLabel(enumType: List[String], label: String): String = {
     val enumClass = PerlCompiler.types2class(enumType.init)
     val enumClassWithScope = if (enumClass.isEmpty) "" else s"$enumClass::"
-    val enumName = enumType.last.toUpperCase
-    s"$$$enumClassWithScope${enumName}_${label.toUpperCase}"
+    val enumName = Utils.upperUnderscoreCase(enumType.last)
+    s"$$$enumClassWithScope${enumName}_${Utils.upperUnderscoreCase(label)}"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually

@@ -138,7 +138,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
     val suffix = endian match {
-      case Some(e) => e.toSuffix.toUpperCase
+      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
       case None => ""
     }
     out.puts(s"${type2class(typeProvider.nowClass.name.last)}.prototype._read$suffix = function() {")
@@ -537,7 +537,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts
   }
 
-  def enumValue(enumName: String, label: String) = label.toUpperCase
+  def enumValue(enumName: String, label: String) = Utils.upperUnderscoreCase(label)
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
     //val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")

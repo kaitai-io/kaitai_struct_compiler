@@ -429,7 +429,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
 
-  def value2Const(s: String) = s.toUpperCase
+  def value2Const(s: String) = Utils.upperUnderscoreCase(s)
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
     val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
@@ -438,11 +438,11 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = {
     id match {
-      case NamedIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerUnderscoreCase(name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case si: SpecialIdentifier => si.name
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
-      case InstanceIdentifier(name) => name
+      case InstanceIdentifier(name) => Utils.lowerUnderscoreCase(name)
     }
   }
 

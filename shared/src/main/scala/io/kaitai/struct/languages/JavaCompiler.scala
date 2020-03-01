@@ -188,7 +188,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
       "private"
     }
     val suffix = endian match {
-      case Some(e) => s"${e.toSuffix.toUpperCase}"
+      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
       case None => ""
     }
     out.puts(s"$readAccessAndType void _read$suffix() {")
@@ -701,7 +701,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public static String[] _seqFields = new String[] { $seqStr };")
   }
 
-  def value2Const(s: String) = s.toUpperCase
+  def value2Const(s: String) = Utils.upperUnderscoreCase(s)
 
   def long2str(l: Long): String = {
     if (l.isValidInt) {

@@ -140,7 +140,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
     val suffix = endian match {
-      case Some(e) => s"${e.toSuffix.toUpperCase}"
+      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
       case None => ""
     }
     val access = if (config.autoRead) "private" else "public"
@@ -419,7 +419,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     classFooter(name)
   }
 
-  def value2Const(label: String) = label.toUpperCase
+  def value2Const(label: String) = Utils.upperUnderscoreCase(label)
 
   def idToStr(id: Identifier): String = {
     id match {

@@ -137,7 +137,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
 
   override def doEnumByLabel(enumType: List[String], label: String): String =
     CppCompiler.types2class(enumType.dropRight(1)) + "::" +
-      (enumType.last + "_" + label).toUpperCase
+      Utils.upperUnderscoreCase(enumType.last + "_" + label)
   override def doEnumById(enumType: List[String], id: String): String =
     s"static_cast<${CppCompiler.types2class(enumType)}>($id)"
 
