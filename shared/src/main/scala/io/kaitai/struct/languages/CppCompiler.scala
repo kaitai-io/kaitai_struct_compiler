@@ -1106,5 +1106,5 @@ object CppCompiler extends LanguageCompilerStatic
   def types2class(components: List[String]) =
     components.map(type2class).mkString("::")
 
-  def type2class(name: String) = Utils.lowerCamelCase(name) + "_t"
+  def type2class(name: String) = Utils.lowerUnderscoreCase(name) + "_t"
 }
