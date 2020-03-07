@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.datatype._
-import io.kaitai.struct.datatype.DataType.{SwitchType, UserTypeFromBytes}
+import io.kaitai.struct.datatype.DataType.{SwitchType, UserTypeFromBytes, BytesType}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
@@ -83,11 +83,22 @@ trait CommonReads extends LanguageCompiler {
 
   def attrParse2(id: Identifier, dataType: DataType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], assignType: Option[DataType] = None): Unit
 
-  def needRaw(dataType: DataType): Boolean = {
-    dataType match {
+  def needRaw(dataType: DataType): NeedRaw = {
+    val rawIo = dataType match {
       case _: UserTypeFromBytes => true
       case st: SwitchType => st.hasSize
       case _ => false
+    }
+    val rawProcess = dataType match {
+      case bt: BytesType => bt.process.nonEmpty
+      case utfb: UserTypeFromBytes => utfb.bytes.process.nonEmpty
+      case _ => false
+    }
+    (rawIo, rawProcess) match {
+      case (true, false) => RawIo
+      case (false, true) => RawProcess
+      case (true, true) => RawIoProcess
+      case _ => NotRaw
     }
   }
 

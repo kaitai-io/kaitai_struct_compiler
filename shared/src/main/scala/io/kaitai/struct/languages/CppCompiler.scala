@@ -462,26 +462,25 @@ class CppCompiler(
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        outSrc.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
+        s"$kstreamName::$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        outSrc.puts(s"$destName = $kstreamName::process_zlib($srcName);")
+        s"$kstreamName::process_zlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        outSrc.puts(s"$destName = $kstreamName::process_rotate_left($srcName, $expr);")
+        s"$kstreamName::process_rotate_left($srcExpr, $expr)"
       case ProcessCustom(name, args) =>
         val procClass = name.map((x) => type2class(x)).mkString("::")
         val procName = s"_process_${idToStr(varSrc)}"
@@ -491,8 +490,9 @@ class CppCompiler(
         val argList = args.map(expression).mkString(", ")
         var argListInParens = if (argList.nonEmpty) s"($argList)" else ""
         outSrc.puts(s"$procClass $procName$argListInParens;")
-        outSrc.puts(s"$destName = $procName.decode($srcName);")
+        s"$procName.decode($srcExpr)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
@@ -500,9 +500,8 @@ class CppCompiler(
     val ioId = IoStorageIdentifier(id)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-      case NoRepeat => memberName
+      case _ => getRawIdExpr(id, rep)
     }
 
     val newStream = s"new $kstreamName($args)"
@@ -519,6 +518,14 @@ class CppCompiler(
     }
 
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case _ => s"$memberName->at($memberName->size() - 1)"
+    }
   }
 
   override def useIO(ioEx: Ast.expr): String = {
@@ -560,12 +567,15 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
     importListHdr.addSystem("vector")
 
-    if (needRaw) {
+    if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
       outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+    }
+    if (needRaw.level >= 2) {
+      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts("{")
@@ -587,18 +597,23 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
     importListHdr.addSystem("vector")
 
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
-    if (needRaw) {
+    if (needRaw.level >= 1) {
       val rawId = privateMemberName(RawIdentifier(id))
       outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
       outSrc.puts(s"$rawId->reserve($lenVar);")
       val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
       outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType)};")
       outSrc.puts(s"$ioId->reserve($lenVar);")
+    }
+    if (needRaw.level >= 2) {
+      val rawId = privateMemberName(RawIdentifier(RawIdentifier(id)))
+      outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
+      outSrc.puts(s"$rawId->reserve($lenVar);")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts(s"${privateMemberName(id)}->reserve($lenVar);")
@@ -615,12 +630,15 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     importListHdr.addSystem("vector")
 
-    if (needRaw) {
+    if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
       outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+    }
+    if (needRaw.level >= 2) {
+      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts("{")
@@ -656,7 +674,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)}->push_back($wrappedTempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     outSrc.puts("i++;")
     outSrc.dec
