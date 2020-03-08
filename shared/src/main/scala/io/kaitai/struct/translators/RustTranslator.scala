@@ -72,7 +72,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case "10" =>
         s"${translate(s)}.parse().unwrap()"
       case _ =>
-        "panic!(\"Converting from string to int in base {} is unimplemented\"" + translate(base) + ")"
+        "panic!(\"Converting from string to int in base {} is unimplemented\", " + translate(base) + ")"
     }
 
   override def enumToInt(v: expr, et: EnumType): String =
