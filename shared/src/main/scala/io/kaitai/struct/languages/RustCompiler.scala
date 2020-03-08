@@ -182,7 +182,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        s"$kstreamName::$procName($srcExpr, ${expression(xorValue)});"
+        s"$kstreamName::$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
         s"$kstreamName::processZlib($srcExpr);"
       case ProcessRotate(isLeft, rotValue) =>
@@ -191,7 +191,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$kstreamName::processRotateLeft($srcExpr, $expr, 1);"
+        s"$kstreamName::processRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = if (name.length == 1) {
           val onlyName = name.head
@@ -206,7 +206,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
 
         out.puts(s"let _process = $procClass::new(${args.map(expression).mkString(", ")});")
-        s"_process.decode($srcExpr);"
+        s"_process.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
   }
