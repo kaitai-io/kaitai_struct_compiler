@@ -1071,10 +1071,7 @@ object CppCompiler extends LanguageCompilerStatic
         case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
         case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
       }
-      case CalcArrayType(inType) => config.pointers match {
-        case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
-        case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
-      }
+      case CalcArrayType(inType) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
       case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {
         case RawPointers => s"$kstructName*"
