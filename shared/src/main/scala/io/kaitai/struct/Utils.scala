@@ -1,7 +1,6 @@
 package io.kaitai.struct
 
 import java.nio.charset.Charset
-import java.util.Locale
 
 import scala.collection.mutable.ListBuffer
 
@@ -51,7 +50,7 @@ object Utils {
     * @return same string in `UPPER_UNDER_SCORE` case.
     */
   def upperUnderscoreCase(s: String): String =
-    s.toUpperCase(Locale.ROOT)
+    Platform.toUpperLocaleInsensitive(s)
 
   /**
     * Converts string to `lower_under_score` case. Given that currently
