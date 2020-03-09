@@ -203,7 +203,7 @@ class CppCompiler(
     outSrc.puts(s"${types2class(name)}::$classNameBrief($paramsArg" +
       s"$tIo $pIo, " +
       s"$tParent $pParent, " +
-      s"$tRoot $pRoot$endianSuffixSrc) : $kstructName($pIo) {"
+      s"$tRoot ${commentIfUnused(pRoot, name == rootClassName)}$endianSuffixSrc) : $kstructName($pIo) {"
     )
     outSrc.inc
 
@@ -537,7 +537,7 @@ class CppCompiler(
     outSrc.puts(s"std::streampos _pos = $io->pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    outSrc.puts(s"$io->seek(${expression(pos)});")
+    outSrc.puts(s"$io->seek(kaitai::to_signed(${expression(pos)}));")
 
   override def popPos(io: String): Unit =
     outSrc.puts(s"$io->seek(_pos);")
@@ -601,7 +601,7 @@ class CppCompiler(
     importListHdr.addSystem("vector")
 
     val lenVar = s"l_${idToStr(id)}"
-    outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
+    outSrc.puts(s"size_t $lenVar = ${expression(repeatExpr)};")
     if (needRaw.level >= 1) {
       val rawId = privateMemberName(RawIdentifier(id))
       outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
@@ -617,7 +617,7 @@ class CppCompiler(
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts(s"${privateMemberName(id)}->reserve($lenVar);")
-    outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
+    outSrc.puts(s"for (size_t i = 0; i < $lenVar; i++) {")
     outSrc.inc
   }
 
@@ -695,7 +695,7 @@ class CppCompiler(
       case t: ReadableType =>
         s"$io->read_${t.apiCall(defEndian)}()"
       case blt: BytesLimitType =>
-        s"$io->read_bytes(${expression(blt.size)})"
+        s"$io->read_bytes(kaitai::to_signed(${expression(blt.size)}))"
       case _: BytesEosType =>
         s"$io->read_bytes_full()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
@@ -1124,5 +1124,12 @@ object CppCompiler extends LanguageCompilerStatic
   def types2class(components: List[String]) =
     components.map(type2class).mkString("::")
 
+  def commentIfUnused(paramName: String, useCondition: Boolean): String = {
+    if (useCondition) {
+      s"/* $paramName */"
+    } else {
+      paramName
+    }
+  }
   def type2class(name: String) = Utils.lowerUnderscoreCase(name) + "_t"
 }
