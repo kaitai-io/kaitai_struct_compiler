@@ -217,7 +217,7 @@ lazy val buildNpmJsFileTask = Def.task {
        |}));
      """.stripMargin
 
-  val targetFile = new File(s"js/npm/${name.value}.js")
+  val targetFile = new File(s"js/npm/${NAME}.js")
   println(s"buildNpmJsFile: writing $targetFile with AMD exports")
   IO.write(targetFile, fileWithExports, UTF8)
   Seq(targetFile)
@@ -235,7 +235,7 @@ lazy val buildNpmPackageTask = Def.task {
   val packageJsonTmpl = IO.read(new File("js/package.json"), UTF8)
   val packageJsonContents = packageJsonTmpl.replaceFirst(
     "\"version\": \".*?\"",
-    "\"version\": \"" + version.value + "\""
+    "\"version\": \"" + version.value.replace("-SNAPSHOT", ".0-SNAPSHOT") + "\""
   )
 
   IO.write(packageJsonFile, packageJsonContents, UTF8)

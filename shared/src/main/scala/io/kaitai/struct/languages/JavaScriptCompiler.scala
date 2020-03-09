@@ -138,7 +138,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
     val suffix = endian match {
-      case Some(e) => e.toSuffix.toUpperCase
+      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
       case None => ""
     }
     out.puts(s"${type2class(typeProvider.nowClass.name.last)}.prototype._read$suffix = function() {")
@@ -189,26 +189,25 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
       s"$normalIO.ensureFixedContents($contents);")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)});")
+        s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName.processZlib($srcName);")
+        s"$kstreamName.processZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+        s"$kstreamName.processRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val nameInit = name.init
         val pkgName = if (nameInit.isEmpty) "" else nameInit.mkString("-") + "/"
@@ -217,8 +216,9 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
         importList.add(s"$pkgName$procClass")
 
         out.puts(s"var _process = new $procClass(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = _process.decode($srcName);")
+        s"_process.decode($srcExpr)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
@@ -227,14 +227,19 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
     val ioName = s"_io_$langName"
 
-    val args = rep match {
-      case RepeatEos | RepeatUntil(_) => s"$memberCall[$memberCall.length - 1]"
-      case RepeatExpr(_) => s"$memberCall[i]"
-      case NoRepeat => memberCall
-    }
+    val args = getRawIdExpr(varName, rep)
 
     out.puts(s"var $ioName = new $kstreamName($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i]"
+      case _ => s"$memberName[$memberName.length - 1]"
+    }
   }
 
   override def useIO(ioEx: expr): String = {
@@ -262,7 +267,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
     val ioProps = io match {
       case None => ""
-      case Some(x) => s"start: $x.pos, ioOffset: $x._byteOffset"
+      case Some(x) => s"start: $x.pos, ioOffset: $x.byteOffset"
     }
 
     val enumNameProps = attrType match {
@@ -291,9 +296,11 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
@@ -312,9 +319,11 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new Array(${expression(repeatExpr)});")
     out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = new Array(${expression(repeatExpr)});")
@@ -331,9 +340,11 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = []")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
@@ -348,7 +359,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts(s"${privateMemberName(id)}.push($tmpName);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("i++;")
     out.dec
@@ -404,7 +415,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit = {
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
     out.puts(s"$id._read();")
   }
 
@@ -537,7 +548,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts
   }
 
-  def enumValue(enumName: String, label: String) = label.toUpperCase
+  def enumValue(enumName: String, label: String) = Utils.upperUnderscoreCase(label)
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
     //val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")

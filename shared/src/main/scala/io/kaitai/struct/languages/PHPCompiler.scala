@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError, NeedRaw}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
@@ -45,16 +45,21 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def classHeader(name: List[String], parentClass: Option[String]): Unit = {
     val nsPart = name.dropRight(1)
-    val ns = if (nsPart.nonEmpty) {
-      config.phpNamespace + "\\" + types2classRel(nsPart)
+    val ns = if (config.phpNamespace.nonEmpty) {
+      if (nsPart.nonEmpty) {
+        config.phpNamespace + "\\" + types2classRel(nsPart)
+      } else {
+        config.phpNamespace
+      }
+    } else if (nsPart.nonEmpty) {
+      types2classRel(nsPart)
     } else {
-      config.phpNamespace
+      ""
     }
-    if (ns.nonEmpty) {
-      out.puts
-      out.puts(s"namespace $ns;")
-    }
+    val space = if (ns.nonEmpty) " " else ""
     out.puts
+    out.puts(s"namespace $ns$space{")
+    out.inc
 
     val ext = parentClass match {
       case Some(x) => s" extends $x"
@@ -65,7 +70,12 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def classFooter(name: List[String]): Unit = universalFooter
+  override def classFooter(name: List[String]): Unit = {
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+  }
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     typeProvider.nowClass.meta.endian match {
@@ -130,7 +140,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
     val suffix = endian match {
-      case Some(e) => s"${e.toSuffix.toUpperCase}"
+      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
       case None => ""
     }
     val access = if (config.autoRead) "private" else "public"
@@ -184,34 +194,34 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents($contents);")
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        out.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
+        s"$kstreamName::$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName::processZlib($srcName);")
+        s"$kstreamName::processZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName::processRotateLeft($srcName, $expr, 1);")
+        s"$kstreamName::processRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val isAbsolute = name.length > 1
         val procClass = name.map((x) => type2class(x)).mkString(
           if (isAbsolute) "\\" else "", "\\", ""
         )
         out.puts(s"$$_process = new $procClass(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = $$_process->decode($srcName);")
+        s"$$_process->decode($srcExpr)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
@@ -219,13 +229,20 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = s"$$_io_${idToStr(id)}"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"end($memberName)"
       case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
-      case NoRepeat => memberName
+      case _ => getRawIdExpr(id, rep)
     }
 
     out.puts(s"$ioName = new $kstreamName($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case _ => s"end($memberName)"
+    }
   }
 
   override def useIO(ioEx: Ast.expr): String = {
@@ -250,9 +267,11 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
     out.puts("$i = 0;")
     out.puts(s"while (!$io->isEof()) {")
@@ -268,9 +287,11 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     super.condRepeatEosFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    if (needRaw)
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
     out.puts(s"$$n = ${expression(repeatExpr)};")
     out.puts("for ($i = 0; $i < $n; $i++) {")
@@ -281,9 +302,11 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}[] = $expr;")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
-    if (needRaw)
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
     out.puts("$i = 0;")
     out.puts("do {")
@@ -296,7 +319,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}[] = $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("$i++;")
     out.dec
@@ -356,7 +379,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit =
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id->_read();")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
@@ -400,15 +423,16 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
-    classHeader(curClass ::: List(enumName), None)
+    val name = curClass ::: List(enumName)
+    classHeader(name, None)
     enumColl.foreach { case (id, label) =>
       universalDoc(label.doc)
       out.puts(s"const ${value2Const(label.name)} = $id;")
     }
-    universalFooter
+    classFooter(name)
   }
 
-  def value2Const(label: String) = label.toUpperCase
+  def value2Const(label: String) = Utils.upperUnderscoreCase(label)
 
   def idToStr(id: Identifier): String = {
     id match {

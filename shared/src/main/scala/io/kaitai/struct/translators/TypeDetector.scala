@@ -146,7 +146,10 @@ class TypeDetector(provider: TypeProvider) {
 
     valType match {
       case KaitaiStructType | CalcKaitaiStructType =>
-        throw new MethodNotFoundError(attr.name, valType)
+        attr.name match {
+          case Identifier.PARENT => CalcKaitaiStructType
+          case _ => throw new MethodNotFoundError(attr.name, valType)
+        }
       case t: UserType =>
         t.classSpec match {
           case Some(tt) => provider.determineType(tt, attr.name)
@@ -225,6 +228,7 @@ class TypeDetector(provider: TypeProvider) {
         (objType, methodName.name) match {
           case (_: StrType, "substring") => CalcStrType
           case (_: StrType, "to_i") => CalcIntType
+          case (_: BytesType, "to_s") => CalcStrType
           case _ =>
             throw new MethodNotFoundError(methodName.name, objType)
         }
@@ -350,6 +354,7 @@ object TypeDetector {
         case (_: IntType, _: IntType) => CalcIntType
         case (_: NumericType, _: NumericType) => CalcFloatType
         case (_: BytesType, _: BytesType) => CalcBytesType
+        case (_: StrType, _: StrType) => CalcStrType
         case (t1: UserType, t2: UserType) =>
           // Two user types can differ in reserved size and/or processing, but that doesn't matter in case of
           // type combining - we treat them the same as long as they result in same class spec or have same
@@ -432,6 +437,7 @@ object TypeDetector {
         case (_, AnyType) => true
         case (_: IntType, _: IntType) => true
         case (_: FloatType, _: FloatType) => true
+        case (_: BytesType, _: BytesType) => true
         case (_: BooleanType, _: BooleanType) => true
         case (_: StrType, _: StrType) => true
         case (_: UserType, KaitaiStructType) => true

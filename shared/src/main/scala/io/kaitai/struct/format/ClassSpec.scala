@@ -9,9 +9,15 @@ import scala.collection.mutable
   * Type that we use when we want to refer to a class specification or something
   * close, but not (yet) that well defined.
   */
-sealed trait ClassSpecLike
-case object UnknownClassSpec extends ClassSpecLike
-case object GenericStructClassSpec extends ClassSpecLike
+sealed trait ClassSpecLike {
+  def toDataType: DataType
+}
+case object UnknownClassSpec extends ClassSpecLike {
+  override def toDataType: DataType = CalcKaitaiStructType
+}
+case object GenericStructClassSpec extends ClassSpecLike {
+  override def toDataType: DataType = CalcKaitaiStructType
+}
 
 sealed trait Sized
 case object DynamicSized extends Sized
@@ -53,10 +59,13 @@ case class ClassSpec(
 
   var seqSize: Sized = NotCalculatedSized
 
-  def parentType: DataType = parentClass match {
-    case UnknownClassSpec | GenericStructClassSpec => CalcKaitaiStructType
-    case t: ClassSpec => CalcUserType(t.name, None)
+  def toDataType: DataType = {
+    val cut = CalcUserType(name, None)
+    cut.classSpec = Some(this)
+    cut
   }
+
+  def parentType: DataType = parentClass.toDataType
 
   /**
     * Recursively traverses tree of types starting from this type, calling

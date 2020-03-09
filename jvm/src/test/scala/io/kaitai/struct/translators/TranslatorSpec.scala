@@ -5,7 +5,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.{ClassSpec, FixedSized}
 import io.kaitai.struct.languages._
-import io.kaitai.struct.languages.components.LanguageCompilerStatic
+import io.kaitai.struct.languages.components.{CppImportList, LanguageCompilerStatic}
 import io.kaitai.struct.{ImportList, RuntimeConfig, StringLanguageOutputWriter}
 import org.scalatest.{FunSuite, Tag}
 import org.scalatest.Matchers._
@@ -21,7 +21,8 @@ class TranslatorSpec extends FunSuite {
   // less and more than 32 Bit signed int
   everybody("1000000000", "1000000000")
   everybodyExcept("100000000000", "100000000000", Map[LanguageCompilerStatic, String](
-      JavaCompiler -> "100000000000L"
+    CppCompiler -> "100000000000LL",
+    JavaCompiler -> "100000000000L"
   ))
 
   // Float literals
@@ -604,7 +605,7 @@ class TranslatorSpec extends FunSuite {
     val goOutput = new StringLanguageOutputWriter("  ")
 
     val langs = Map[LanguageCompilerStatic, AbstractTranslator with TypeDetector](
-      CppCompiler -> new CppTranslator(tp, new ImportList(), RuntimeConfig()),
+      CppCompiler -> new CppTranslator(tp, new CppImportList(), new CppImportList(), RuntimeConfig()),
       CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
       GoCompiler -> new GoTranslator(goOutput, tp, new ImportList()),
       JavaCompiler -> new JavaTranslator(tp, new ImportList()),

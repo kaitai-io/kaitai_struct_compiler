@@ -14,7 +14,7 @@ object Main {
     * into it, launches recursive loading of imports into this container,
     * and then runs precompilation on every class that happens to be there
     * after imports.
-    * @param specs ClassSpecs container with first class loaded into it
+    * @param specs [[ClassSpecs]] container with first type loaded into it
     * @param config runtime configuration to be passed to precompile step
     * @return a future that will resolve when both imports and precompilations
     *         are complete; modifies given container by loading extra classes
@@ -24,12 +24,32 @@ object Main {
     new LoadImports(specs).processClass(specs.firstSpec, LoadImports.BasePath).map { (allSpecs) =>
       Log.importOps.info(() => s"imports done, got: ${specs.keys} (async=$allSpecs)")
 
-      specs.foreach { case (_, classSpec) =>
-        precompile(specs, classSpec, config)
-      }
+      precompile(specs, config)
     }
   }
 
+  /**
+    * Runs precompilation steps on every type in the given [[ClassSpecs]] collection,
+    * using provided configuration.
+    *
+    * @param specs [[ClassSpecs]] container with all types loaded into it
+    * @param config runtime configuration to be passed to precompile steps
+    */
+  def precompile(specs: ClassSpecs, config: RuntimeConfig): Unit = {
+    specs.foreach { case (_, classSpec) =>
+      precompile(specs, classSpec, config)
+    }
+  }
+
+  /**
+    * Does all precompiles steps on a single [[ClassSpec]] using provided configuration.
+    * See individual precompile steps invocations for more in-depth description of
+    * what each step includes.
+    *
+    * @param classSpecs [[ClassSpecs]] container with all types loaded into it
+    * @param topClass one top type to precompile
+    * @param config runtime configuration to be passed to precompile steps
+    */
   def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Unit = {
     classSpecs.foreach { case (_, curClass) => MarkupClassNames.markupClassNames(curClass) }
     val opaqueTypes = topClass.meta.opaqueTypes.getOrElse(config.opaqueTypes)

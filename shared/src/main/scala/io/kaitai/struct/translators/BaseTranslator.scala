@@ -174,6 +174,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def doName(s: String): String
   def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String =
     anyField(value, attrName)
+  def kaitaiStructField(value: Ast.expr, name: String): String =
+    anyField(value, name)
 
   def doEnumByLabel(enumTypeAbs: List[String], label: String): String
   def doEnumById(enumTypeAbs: List[String], id: String): String

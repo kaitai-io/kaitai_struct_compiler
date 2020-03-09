@@ -59,7 +59,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)
-    s"$enumClass::${label.toUpperCase}"
+    s"$enumClass::${Utils.upperUnderscoreCase(label)}"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
@@ -116,7 +116,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def strReverse(s: expr): String =
     s"strrev(${translate(s)})"
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"${PHPCompiler.kstreamName}::substring(${translate(s)}, ${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"

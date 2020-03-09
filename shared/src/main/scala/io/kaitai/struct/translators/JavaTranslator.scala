@@ -56,7 +56,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${enumClass(enumTypeAbs)}.${label.toUpperCase}"
+    s"${enumClass(enumTypeAbs)}.${Utils.upperUnderscoreCase(label)}"
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     s"${enumClass(enumTypeAbs)}.byId($id)"
 

@@ -6,5 +6,5 @@
 
 cd js/npm
 echo "//registry.npmjs.org/:_authToken=$NPM_API_KEY" >$HOME/.npmrc
-npm publish --tag next
+npm publish --tag next || exit 1
 rm ~/.npmrc

@@ -9,9 +9,10 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CppCompiler
-import io.kaitai.struct.{ImportList, RuntimeConfig, Utils}
+import io.kaitai.struct.languages.components.CppImportList
+import io.kaitai.struct.{RuntimeConfig, Utils}
 
-class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
+class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, importListHdr: CppImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
 
   /**
@@ -103,7 +104,20 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
   )
 
   override def doArrayLiteral(t: DataType, values: Seq[expr]): String = {
-    throw new RuntimeException("C++ literal arrays are not implemented yet")
+    if (config.cppConfig.useListInitializers) {
+      importListHdr.addSystem("vector")
+      val cppElType = CppCompiler.kaitaiType2NativeType(config.cppConfig, t)
+      val rawInit = s"new std::vector<$cppElType>{" + values.map((value) => translate(value)).mkString(", ") + "}"
+      config.cppConfig.pointers match {
+        case RawPointers =>
+          rawInit
+        case UniqueAndRawPointers =>
+          s"std::unique_ptr<std::vector<$cppElType>>($rawInit)"
+        // TODO: C++14
+      }
+    } else {
+      throw new RuntimeException("C++ literal arrays are not implemented yet")
+    }
   }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
@@ -130,7 +144,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
 
   override def doEnumByLabel(enumType: List[String], label: String): String =
     CppCompiler.types2class(enumType.dropRight(1)) + "::" +
-      (enumType.last + "_" + label).toUpperCase
+      Utils.upperUnderscoreCase(enumType.last + "_" + label)
   override def doEnumById(enumType: List[String], id: String): String =
     s"static_cast<${CppCompiler.types2class(enumType)}>($id)"
 
@@ -225,12 +239,12 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
   override def arraySize(a: expr): String =
     s"${translate(a)}->size()"
   override def arrayMin(a: expr): String = {
-    importListSrc.add("algorithm")
+    importListSrc.addSystem("algorithm")
     val v = translate(a)
     s"*std::min_element($v->begin(), $v->end())"
   }
   override def arrayMax(a: expr): String = {
-    importListSrc.add("algorithm")
+    importListSrc.addSystem("algorithm")
     val v = translate(a)
     s"*std::max_element($v->begin(), $v->end())"
   }

@@ -142,7 +142,7 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
       "private"
     }
     val suffix = endian match {
-      case Some(e) => s"${e.toSuffix.toUpperCase}"
+      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
       case None => ""
     }
     out.puts(s"$readAccessAndType void _read$suffix()")
@@ -196,28 +196,28 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents($contents);")
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"$destName = $normalIO.ProcessXor($srcName, ${expression(xorValue)});")
+        s"$normalIO.ProcessXor($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        out.puts(s"$destName = $normalIO.ProcessZlib($srcName);")
+        s"$normalIO.ProcessZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $normalIO.ProcessRotateLeft($srcName, $expr, 1);")
+        s"$normalIO.ProcessRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = types2class(name)
         val procName = s"_process_${idToStr(varSrc)}"
         out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = $procName.Decode($srcName);")
+        s"$procName.Decode($srcExpr)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
@@ -226,13 +226,20 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = s"io_$privateVarName"
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$privateVarName[$privateVarName.Count - 1]"
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-      case NoRepeat => privateVarName
+      case _ => getRawIdExpr(varName, rep)
     }
 
     out.puts(s"var $ioName = new $kstreamName($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case _ => s"$memberName[$memberName.Count - 1]"
+    }
   }
 
   override def useIO(ioEx: expr): String = {
@@ -267,11 +274,14 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condIfFooter(expr: expr): Unit = fileFooter(null)
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
     importList.add("System.Collections.Generic")
 
-    if (needRaw)
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new List<byte[]>();")
+
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayTypeInStream(dataType))}();")
     out.puts("{")
     out.inc
@@ -292,11 +302,13 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: expr): Unit = {
     importList.add("System.Collections.Generic")
 
-    if (needRaw)
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>((int) (${expression(repeatExpr)}));")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new List<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayTypeInStream(dataType))}((int) (${expression(repeatExpr)}));")
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++)")
     out.puts("{")
@@ -309,11 +321,13 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatExprFooter: Unit = fileFooter(null)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     importList.add("System.Collections.Generic")
 
-    if (needRaw)
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayTypeInStream(dataType))}();")
     out.puts("{")
     out.inc
@@ -333,7 +347,7 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.Add($tempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("i++;")
     out.dec
@@ -394,8 +408,14 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit =
-    out.puts(s"$id._read();")
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
+    val expr = if (assignType != dataType) {
+      s"((${kaitaiType2NativeType(dataType)}) ($id))"
+    } else {
+      id
+    }
+    out.puts(s"$expr._read();")
+  }
 
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
     case _: IntType | _: EnumType | _: StrType => false
@@ -658,6 +678,4 @@ object CSharpCompiler extends LanguageCompilerStatic
     case EndOfStreamError => "EndOfStreamException"
     case _ => err.name
   }
-
-  override def type2class(name: String): String = Utils.upperCamelCase(name)
 }

@@ -315,6 +315,11 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
           case _ =>
             affectedVars(value)
         }
+      case Ast.expr.Call(func, args) =>
+        val fromFunc = func match {
+          case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) => affectedVars(obj)
+        }
+        fromFunc ::: affectedVars(Ast.expr.List(args))
       case Ast.expr.Subscript(value, idx) =>
         affectedVars(value) ++ affectedVars(idx)
       case SwitchType.ELSE_CONST =>
