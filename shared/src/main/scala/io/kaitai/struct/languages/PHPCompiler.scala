@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError, NeedRaw}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError, NeedRaw, UndecidedEndiannessError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
@@ -125,7 +125,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts("if (is_null($this->_m__is_le)) {")
     out.inc
-    out.puts("throw new \\RuntimeException(\"Unable to decide on endianness\");")
+    out.puts(s"throw new ${PHPCompiler.ksErrorName(UndecidedEndiannessError)};")
     out.dec
     out.puts("} else if ($this->_m__is_le) {")
     out.inc
@@ -489,6 +489,21 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def ksErrorName(err: KSError): String = PHPCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    out.inc
+    out.puts(s"throw new $errName($errArgsStr);")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object PHPCompiler extends LanguageCompilerStatic
@@ -504,7 +519,7 @@ object PHPCompiler extends LanguageCompilerStatic
 
   override def kstructName: String = "\\Kaitai\\Struct\\Struct"
 
-  override def ksErrorName(err: KSError): String = "\\Kaitai\\Struct\\" + err.name
+  override def ksErrorName(err: KSError): String = "\\Kaitai\\Struct\\Error\\" + err.name
 
   def types2classRel(names: List[String]) = names.map(type2class).mkString("\\")
 }
