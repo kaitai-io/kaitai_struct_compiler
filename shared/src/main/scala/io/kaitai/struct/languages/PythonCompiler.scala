@@ -534,12 +534,5 @@ object PythonCompiler extends LanguageCompilerStatic
     case _ => s"kaitaistruct.${err.name}"
   }
 
-  def types2class(name: List[String]): String = {
-    if (name.size > 1) {
-      val path = name.drop(1).map(x => type2class(x)).mkString(".")
-      s"self._root.$path"
-    } else {
-      type2class(name.head)
-    }
-  }
+  def types2class(name: List[String]): String = name.map(x => type2class(x)).mkString(".")
 }
