@@ -97,5 +97,5 @@ case class RuntimeConfig(
   dotNetNamespace: String = "Kaitai",
   phpNamespace: String = "",
   pythonPackage: String = "",
-  nimModule: String = "kaitai_struct/runtime/nim/kaitai"
+  nimModule: String = "kaitai_struct_nim_runtime"
 )

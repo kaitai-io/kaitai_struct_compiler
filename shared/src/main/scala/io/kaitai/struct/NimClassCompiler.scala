@@ -29,7 +29,6 @@ class NimClassCompiler(
     out.puts
     compileProcs(topClass)
 
-
     CompileLog.SpecSuccess(
       "",
       List(CompileLog.FileSuccess(
