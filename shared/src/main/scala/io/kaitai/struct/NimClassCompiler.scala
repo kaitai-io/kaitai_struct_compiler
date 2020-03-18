@@ -161,7 +161,7 @@ class NimClassCompiler(
     out.puts
     out.puts(s"proc fromFile*(_: typedesc[$t], filename: string): owned $t =")
     out.inc
-    out.puts(s"$t.read(newKaitaiStream(filename), nil, nil)")
+    out.puts(s"$t.read(newKaitaiFileStream(filename), nil, nil)")
     out.dec
     out.puts
     out.puts(s"proc `=destroy`(x: var ${t}Obj) =")
@@ -254,7 +254,7 @@ object NimClassCompiler extends LanguageCompilerStatic {
       case CalcFloatType => "float64"
 
       case _: StrType => "string"
-      case _: BytesType => "seq[byte]"
+      case _: BytesType => "string"
 
       case KaitaiStructType | CalcKaitaiStructType => "ref RootObj"
       case KaitaiStreamType => "KaitaiStream"

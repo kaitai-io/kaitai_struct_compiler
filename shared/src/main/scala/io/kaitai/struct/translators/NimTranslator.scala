@@ -74,7 +74,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String =
     s"@[${value.map((v) => translate(v)).mkString(", ")}].mapIt(${ksToNim(t)}(it))"
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"@[${arr.mkString(", ")}].mapIt(toByte(it))"
+    s"@[${arr.mkString(", ")}].mapIt(it.toByte).toString"
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"@[${elts.map(translate).mkString(", ")}]"
   override def arrayFirst(a: expr): String = s"${translate(a)}[0]"
