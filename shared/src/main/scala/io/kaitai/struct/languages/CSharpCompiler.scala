@@ -121,7 +121,7 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts(s"if (${privateMemberName(EndianIdentifier)} == null) {")
     out.inc
-    out.puts("throw new Exception(\"Unable to decide on endianness\");")
+    out.puts(s"throw new ${ksErrorName(UndecidedEndiannessError)}();")
     importList.add("System")
     out.dec
     out.puts(s"} else if (${privateMemberName(EndianIdentifier)} == true) {")
