@@ -106,10 +106,8 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def strLength(s: expr): String =
     s"${translate(s)}.Length"
 
-  // FIXME: This is not fully Unicode aware, but might be better than nothing.
-  // http://stackoverflow.com/a/228060/2055163
   override def strReverse(s: expr): String =
-    s"new string(Array.Reverse(${translate(s)}.ToCharArray()))"
+    s"${CSharpCompiler.kstreamName}.StringReverse(${translate(s)})"
 
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.Substring(${translate(from)}, ${translate(to)} - ${translate(from)})"
