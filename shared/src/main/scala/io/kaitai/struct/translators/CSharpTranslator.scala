@@ -114,6 +114,13 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.Substring(${translate(from)}, ${translate(to)} - ${translate(from)})"
 
+  override def bytesLength(b: Ast.expr): String =
+    s"${translate(b)}.Length"
+  override def bytesLast(b: Ast.expr): String = {
+    val v = translate(b)
+    s"$v[$v.Length - 1]"
+  }
+
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String = {
