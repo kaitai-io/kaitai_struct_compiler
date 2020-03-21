@@ -12,6 +12,8 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
+
+    importList.add("System.Collections.Generic")
     s"new List<$nativeType> { $commaStr }"
   }
 
