@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.NimClassCompiler.ksToNim
+import io.kaitai.struct.languages.NimCompiler.ksToNim
 
 class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   // Members declared in io.kaitai.struct.translators.BaseTranslator
