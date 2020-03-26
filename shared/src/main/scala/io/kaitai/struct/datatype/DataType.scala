@@ -397,42 +397,51 @@ object DataType {
     case Some(dt) => pureFromString(dt)
   }
 
-  def pureFromString(dt: String): DataType = dt match {
-    case "bytes" => CalcBytesType
-    case "u1" => Int1Type(false)
-    case "s1" => Int1Type(true)
-    case RePureIntType(signStr, widthStr) =>
-      IntMultiType(
-        signStr match {
-          case "s" => true
-          case "u" => false
-        },
+  def pureFromString(dt: String): DataType = {
+    val arraySuffix = "[]"
+    val (isArray, singleId) = (dt.endsWith(arraySuffix), dt.stripSuffix(arraySuffix))
+    val singleType = singleId match {
+      case "bytes" => CalcBytesType
+      case "u1" => Int1Type(false)
+      case "s1" => Int1Type(true)
+      case RePureIntType(signStr, widthStr) =>
+        IntMultiType(
+          signStr match {
+            case "s" => true
+            case "u" => false
+          },
+          widthStr match {
+            case "2" => Width2
+            case "4" => Width4
+            case "8" => Width8
+          },
+          None
+        )
+      case RePureFloatType(widthStr) =>
+        FloatMultiType(
+          widthStr match {
+            case "4" => Width4
+            case "8" => Width8
+          },
+          None
+        )
+      case ReBitType(widthStr) =>
         widthStr match {
-          case "2" => Width2
-          case "4" => Width4
-          case "8" => Width8
-        },
-        None
-      )
-    case RePureFloatType(widthStr) =>
-      FloatMultiType(
-        widthStr match {
-          case "4" => Width4
-          case "8" => Width8
-        },
-        None
-      )
-    case ReBitType(widthStr) =>
-      widthStr match {
-        case "1" => BitsType1
-        case _ => BitsType(widthStr.toInt)
-      }
-    case "str" => CalcStrType
-    case "bool" => CalcBooleanType
-    case "struct" => CalcKaitaiStructType
-    case "io" => KaitaiStreamType
-    case "any" => AnyType
-    case _ => CalcUserType(classNameToList(dt), None)
+          case "1" => BitsType1
+          case _ => BitsType(widthStr.toInt)
+        }
+      case "str" => CalcStrType
+      case "bool" => CalcBooleanType
+      case "struct" => CalcKaitaiStructType
+      case "io" => KaitaiStreamType
+      case "any" => AnyType
+      case _ => CalcUserType(classNameToList(dt), None)
+    }
+    if (isArray) {
+      CalcArrayType(singleType)
+    } else {
+      singleType
+    }
   }
 
   def getEncoding(curEncoding: Option[String], metaDef: MetaSpec, path: List[String]): String = {
