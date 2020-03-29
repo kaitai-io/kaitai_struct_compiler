@@ -36,14 +36,14 @@ class NimClassCompiler(
     nimlang.typeHeader(classNameFlattened(curClass))
 
     val allAttrs: List[MemberSpec] =
-      topClass.seq ++
-      topClass.params ++
+      curClass.seq ++
+      curClass.params ++
       List(
         AttrSpec(List(), IoIdentifier, KaitaiStreamType),
         AttrSpec(List(), RootIdentifier, CalcUserType(topClassName, None)),
-        AttrSpec(List(), ParentIdentifier, topClass.parentType)
+        AttrSpec(List(), ParentIdentifier, curClass.parentType)
       ) ++
-      ExtraAttrs.forClassSpec(topClass, lang)
+      ExtraAttrs.forClassSpec(curClass, lang)
     compileAttrDeclarations(allAttrs)
 
     nimlang.universalFooter

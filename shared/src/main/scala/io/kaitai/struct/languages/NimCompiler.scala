@@ -22,7 +22,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   // Written from scratch
   def imports = importList.toList.map((x) => s"import $x").mkString("\n")
-  def namespaced(names: List[String]): String = camelCase(names.mkString(""), true)
+  def namespaced(names: List[String]): String = names.map(n => camelCase(n, true)).mkString("_")
   def sectionHeader(className: List[String]): Unit = out.puts("### " + namespaced(className) + " ###")
   def typeSectionHeader: Unit = {
     out.puts("type")
@@ -69,7 +69,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val ioName = s"${nimName}Io"
 
-    out.puts(s"$ioName = newKaitaiStringStream($nimName)")
+    out.puts(s"let $ioName = newKaitaiStringStream($nimName)")
     ioName
   }
 
@@ -267,7 +267,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
   override def localTemporaryName(id: Identifier): String = s"t${camelCase(idToStr(id), true)}"
-  override def privateMemberName(id: Identifier): String = s"result.${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = s"${idToStr(id)}"
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
   // Members declared in io.kaitai.struct.languages.components.EveryReadIsExpression
@@ -294,14 +294,15 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.add($tmpName)")
   }
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)} = $expr")
+    out.puts(s"let ${privateMemberName(id)} = $expr")
+    out.puts(s"result.${privateMemberName(id)} = ${privateMemberName(id)}")
   }
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     val expr = dataType match {
       case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
       case blt: BytesLimitType =>
-        s"$io.readBytes(${expression(blt.size)})"
+        s"$io.readBytes(int(${expression(blt.size)}))"
       case _: BytesEosType =>
         s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
@@ -326,7 +327,11 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s", $parent, root$addEndian"
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-        s"${namespaced(t.name)}.read($io$addArgs$addParams)"
+        val concreteName = namespaced(t.classSpec match {
+          case Some(cs) => cs.name
+          case None => t.name
+        })
+        s"${concreteName}.read($io$addArgs$addParams)"
     }
 
     if (assignType != dataType) {
@@ -371,7 +376,7 @@ object NimCompiler extends LanguageCompilerStatic
     }
   }
 
-  def namespaced(names: List[String]): String = camelCase(names.mkString(""), true)
+  def namespaced(names: List[String]): String = names.map(n => camelCase(n, true)).mkString("_")
 
   def ksToNim(attrType: DataType): String = {
     attrType match {
@@ -400,7 +405,11 @@ object NimCompiler extends LanguageCompilerStatic
       case KaitaiStructType | CalcKaitaiStructType => "ref RootObj"
       case KaitaiStreamType => "KaitaiStream"
 
-      case t: UserType => namespaced(t.name)
+      case t: UserType => namespaced(t.classSpec match {
+        case Some(cs) => cs.name
+        case None => t.name
+      })
+
       case EnumType(name, _) => namespaced(name)
 
       case at: ArrayType => s"seq[${ksToNim(at.elType)}]"
