@@ -253,6 +253,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
+  override def doRegexMatchOp(str: String, regex: String): String = {
+    importList.add("regexp")
+    s"matched, _ := regexp.MatchString(`${regex}`, ${trStringLiteral(str)}); matched"
+  }
+
   override def doCast(value: Ast.expr, typeName: DataType): TranslatorResult = ???
 
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) =

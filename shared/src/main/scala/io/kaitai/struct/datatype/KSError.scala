@@ -21,6 +21,7 @@ object KSError {
         case "ValidationLessThanError" => ValidationLessThanError
         case "ValidationGreaterThanError" => ValidationGreaterThanError
         case "ValidationNotAnyOfError" => ValidationNotAnyOfError
+        case "ValidationRegexMatchError" => ValidationRegexMatchError
       }
       excClass(dataType)
   }
@@ -62,6 +63,14 @@ case class ValidationGreaterThanError(_dt: DataType) extends ValidationError(_dt
   */
 case class ValidationNotAnyOfError(_dt: DataType) extends ValidationError(_dt) {
   def name = "ValidationNotAnyOfError"
+}
+
+/**
+  * Error to be thrown when validation fails with actual not matching regex
+  * @param _dt data type used in validation process
+  */
+case class ValidationRegexMatchError(_dt: DataType) extends ValidationError(_dt) {
+  def name = "ValidationRegexMatchError"
 }
 
 /**

@@ -145,6 +145,8 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     case _ => super.unaryOp(op)
   }
 
+  override def doRegexMatchOp(str: String, regex: String): String = s"" //TODO
+
   /**
    * Converts byte array (Seq[Byte]) into decimal-escaped Lua-style literal
    * characters (i.e. like \255).

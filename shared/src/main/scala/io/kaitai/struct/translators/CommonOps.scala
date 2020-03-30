@@ -64,4 +64,7 @@ trait CommonOps extends AbstractTranslator {
     case Ast.unaryop.Minus => "-"
     case Ast.unaryop.Not => "!"
   }
+
+  def doRegexMatchOp(str: String, regex: String): String
+
 }

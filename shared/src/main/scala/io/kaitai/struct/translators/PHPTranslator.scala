@@ -57,6 +57,12 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
 
   override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
+  override def doRegexMatchOp(str: String, regex: String): String = {
+    s"""preg_match(\"${regex}\", ${str})"""
+  }
+
+  override def doRegex(reg: String) : String = s"/" + reg + "/"
+
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)
     s"$enumClass::${Utils.upperUnderscoreCase(label)}"

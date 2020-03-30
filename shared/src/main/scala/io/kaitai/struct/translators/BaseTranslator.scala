@@ -102,6 +102,14 @@ abstract class BaseTranslator(val provider: TypeProvider)
           case (ltype, rtype) =>
             throw new TypeMismatchError(s"can't compare $ltype and $rtype")
         }
+      case Ast.expr.RegexMatch(str: Ast.expr, regex: String) => {
+        detectType(str) match {
+          case (_: StrType) =>
+            doRegexMatchOp(translate(str), doRegex(regex))
+          case _ =>
+            throw new TypeMismatchError(s"regex match need strings")
+        }
+      }
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
           case (_: NumericType, _: NumericType, _) =>
@@ -179,6 +187,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
 
   def doEnumByLabel(enumTypeAbs: List[String], label: String): String
   def doEnumById(enumTypeAbs: List[String], id: String): String
+  def doRegex(reg: String): String = reg
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"

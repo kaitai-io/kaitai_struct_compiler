@@ -50,6 +50,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("std::default::Default")
     importList.add("kaitai_struct::KaitaiStream")
     importList.add("kaitai_struct::KaitaiStruct")
+    importList.add("regex::Regex")
 
     out.puts
   }

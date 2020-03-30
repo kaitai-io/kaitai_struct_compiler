@@ -88,6 +88,13 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
   }
 
+  override def doRegexMatchOp(str: String, regex: String): String = {
+    importList.add("java.util.regex.Pattern")
+    s"Pattern.matches(${regex}, ${str})"
+  }
+
+  override def doRegex(reg: String) : String = doStringLiteral(reg)
+
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}.get((int) ${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =

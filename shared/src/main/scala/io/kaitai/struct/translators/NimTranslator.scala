@@ -31,6 +31,8 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
   override def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} & ${translate(right)}"
 
+  override def doRegexMatchOp(str: String, regex: String): String = s"" //TODO
+
   // Members declared in io.kaitai.struct.translators.CommonMethods
 
   override def unaryOp(op: Ast.unaryop): String = op match {
