@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.languages.NimCompiler.ksToNim
+import io.kaitai.struct.languages.NimCompiler.{ksToNim, namespaced}
 
 class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   // Members declared in io.kaitai.struct.translators.BaseTranslator
@@ -14,14 +14,14 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     importList.add("encodings")
     s"convert($bytesExpr, srcEncoding = ${translate(encoding)})"
   }
-  override def doEnumById(enumTypeAbs: List[String], id: String): String = ""
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = ""
+  override def doEnumById(enumTypeAbs: List[String], id: String): String = s"${namespaced(enumTypeAbs)}($id)"
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${namespaced(enumTypeAbs)}.$label"
   override def doName(s: String): String =
     s match {
       case Identifier.PARENT => "parent"
       case Identifier.IO => "stream"
       case Identifier.ITERATOR2 => "it"
-      case _ => s"${Utils.lowerCamelCase(s)}"
+      case _ => s"this.${Utils.lowerCamelCase(s)}"
     }
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
@@ -86,7 +86,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def floatToInt(v: expr): String = s"int(${translate(v)})"
   override def intToStr(v: expr, base: expr): String = {
     importList.add("strutils")
-    s"intToStr(${translate(v)}.parseInt(${translate(base)}))"
+    s"intToStr(${translate(v)})"
   }
   override def strLength(s: expr): String = s"len(${translate(s)})"
   override def strReverse(s: expr): String = {

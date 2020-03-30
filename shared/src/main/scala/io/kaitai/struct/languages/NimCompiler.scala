@@ -1,9 +1,9 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian, InheritedEndian, KSError, NeedRaw}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
+import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.NimTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
@@ -32,14 +32,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts
   }
-  def typeHeader(typeName: String): Unit = {
-    out.puts(s"${typeName}* = ref ${typeName}Obj")
-    out.puts(s"${typeName}Obj* = object")
-    out.inc
-  }
-  def readProcFooter: Unit = {
-    out.dec
-    out.puts
+  def instanceForwardDeclaration(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
+    out.puts(s"proc ${idToStr(instName).dropRight(4)}*(this: ${namespaced(className)}): ${ksToNim(dataType)}")
   }
   def fromFile(name: List[String]): Unit = {
     val n = namespaced(name)
@@ -91,7 +85,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   // def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
-    out.puts("if isLe:")
+    out.puts("if result.isLe:")
     out.inc
     leProc()
     out.dec
@@ -130,25 +124,29 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
   }
-  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
-    val t = namespaced(name)
-    val p = ksToNim(parentType)
-    val r = namespaced(rootClassName)
-    out.puts(s"proc read*(_: typedesc[$t], io: KaitaiStream, root: $r, parent: $p): $t =")
-    out.inc
-    out.puts(s"result = new($t)")
-    out.puts(s"let root = if root == nil: cast[$r](result) else: root")
-    out.puts(s"result.io = io")
-    out.puts(s"result.root = root")
-    out.puts(s"result.parent = parent")
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"${idToStr(attrName)}*: Option[${ksToNim(attrType)}]")
   }
-  override def classHeader(name: List[String]): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {}
+  override def classHeader(name: List[String]): Unit = {
+    val t = namespaced(name)
+    out.puts(s"${t}* = ref ${t}Obj")
+    out.puts(s"${t}Obj* = object")
+    out.inc
+  }
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)}:")
     out.inc
   }
-  override def classFooter(name: List[String]): Unit = universalFooter
+  override def classFooter(name: List[String]): Unit = {
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        out.puts(s"${idToStr(EndianIdentifier)}: bool")
+      case _ =>
+    }
+    universalFooter
+  }
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
     out.puts(s"${privateMemberName(id)} = newSeq[${ksToNim(dataType)}]()")
     out.puts("block:")
@@ -190,14 +188,15 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
-    val enumClass = namespaced(List(enumName))
-    out.puts(s"$enumClass = enum")
+    val enumClass = namespaced(curClass)
+    out.puts(s"${enumClass}_$enumName* = enum")
     out.inc
     enumColl.foreach { case (id: Long, label: EnumValueSpec) => out.puts(s"${label.name} = $id") }
     out.dec
   }
   override def fileHeader(topClassName: String): Unit = {
     importList.add(config.nimModule)
+    importList.add("options")
   }
   override def indent: String = "  "
   // def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = ???
@@ -208,44 +207,67 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"proc ${idToStr(instName)}(${namespaced(className)}): Option[${ksToNim(dataType)}] = ")
+    out.puts(s"proc ${idToStr(instName).dropRight(4)}(this: ${namespaced(className)}): ${ksToNim(dataType)} = ")
     out.inc
   }
+  override def instanceFooter = {
+    universalFooter
+    out.puts
+  }
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    out.puts(s"return some(${privateMemberName(instName)})")
+    out.puts(s"return get(${privateMemberName(instName)})")
   }
   // def normalIO: String = ???
   override def outFileName(topClassName: String): String = s"$topClassName.nim"
   override def popPos(io: String): Unit = out.puts(s"$io.seek(pos)")
   override def pushPos(io: String): Unit = out.puts(s"let pos = $io.pos()")
-  override def readFooter(): Unit = {}
-  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {}
-  /*
-  def readHeader(className: String, endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
-    val suffix = endian match {
-      case Some(e) => s"${camelCase(e.toSuffix, true)}"
-      case None => ""
-    }
-    out.puts(s"proc read$suffix($className):")
-    out.inc
+  override def readFooter(): Unit = {
+    out.puts("result = this")
+    universalFooter
+    out.puts
   }
-  */
+  override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    val t = namespaced(typeProvider.nowClass.name)
+    val p = ksToNim(typeProvider.nowClass.parentType)
+    val r = namespaced(typeProvider.topClass.name)
+
+    endian match {
+      case None =>
+        out.puts(s"proc read*(_: typedesc[$t], io: KaitaiStream, root: $r, parent: $p): $t =")
+        out.inc
+        out.puts(s"let this = new($t)")
+        out.puts(s"let root = if root == nil: cast[$r](result) else: root")
+        out.puts(s"this.io = io")
+        out.puts(s"this.root = root")
+        out.puts(s"this.parent = parent")
+
+        typeProvider.nowClass.meta.endian match {
+          case Some(_: CalcEndian) =>
+            out.puts(s"result.${idToStr(EndianIdentifier)} = false")
+          case Some(InheritedEndian) =>
+            out.puts(s"result.${idToStr(EndianIdentifier)} = " +
+              s"result.${idToStr(ParentIdentifier)}." +
+              s"${idToStr(EndianIdentifier)}")
+          case _ =>
+        }
+        out.puts
+      case Some(e) =>
+        out.puts
+        out.puts(s"proc read${camelCase(e.toSuffix, true)}(subject: $t) =")
+        out.inc
+    }
+  }
   // def results(topClass: ClassSpec): Map[String, String] = ???
   override def runRead(): Unit = out.puts("read()") // TODO: missing type argument
   override def runReadCalc(): Unit = {
     out.puts
-    out.puts("if isNone(isLe):")
+    out.puts("if result.isLe:")
     out.inc
-
-    out.puts("raise newException(KaitaiError, \"Kaitai Struct error\")")
-    out.dec
-    out.puts("elif isLe:")
-    out.inc
-    out.puts("readLe()")
+    out.puts("readLe(result)")
     out.dec
     out.puts("else:")
     out.inc
-    out.puts("readBe()")
+    out.puts("readBe(result)")
     out.dec
   }
   override def seek(io: String, pos: Ast.expr): Unit = out.puts(s"$io.seek(${expression(pos)})")
@@ -266,8 +288,13 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case RawIdentifier(innerId) => "raw" + camelCase(idToStr(innerId), true)
     }
   }
-  override def localTemporaryName(id: Identifier): String = s"t${camelCase(idToStr(id), true)}"
-  override def privateMemberName(id: Identifier): String = s"${idToStr(id)}"
+  override def localTemporaryName(id: Identifier): String = idToStr(id)
+  override def privateMemberName(id: Identifier): String = {
+    val name = idToStr(id)
+    val prefix = "this"
+    s"$prefix.$name"
+  }
+
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
   // Members declared in io.kaitai.struct.languages.components.EveryReadIsExpression
@@ -294,8 +321,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.add($tmpName)")
   }
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    out.puts(s"let ${privateMemberName(id)} = $expr")
-    out.puts(s"result.${privateMemberName(id)} = ${privateMemberName(id)}")
+    out.puts(s"let ${localTemporaryName(id)} = $expr")
+    if (idToStr(id).endsWith("Inst")) {
+      out.puts(s"${privateMemberName(id)} = some(${localTemporaryName(id)})")
+    } else {
+      out.puts(s"${privateMemberName(id)} = ${localTemporaryName(id)}")
+    }
   }
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     val expr = dataType match {
@@ -318,13 +349,9 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "nil"
             case Some(fp) => translator.translate(fp)
-            case None => "result"
+            case None => "this"
           }
-          val addEndian = t.classSpec.get.meta.endian match {
-            case Some(InheritedEndian) => ", isLe"
-            case _ => ""
-          }
-          s", $parent, root$addEndian"
+          s", this.root, $parent"
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         val concreteName = namespaced(t.classSpec match {
@@ -410,7 +437,7 @@ object NimCompiler extends LanguageCompilerStatic
         case None => t.name
       })
 
-      case EnumType(name, _) => namespaced(name)
+      case t: EnumType => namespaced(t.enumSpec.get.name)
 
       case at: ArrayType => s"seq[${ksToNim(at.elType)}]"
 
