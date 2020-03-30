@@ -21,8 +21,9 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Identifier.PARENT => "parent"
       case Identifier.IO => "stream"
       case Identifier.ITERATOR2 => "it"
-      case _ => s"this.${Utils.lowerCamelCase(s)}"
+      case _ => s"${Utils.lowerCamelCase(s)}"
     }
+  override def doLocalName(s: String): String = "this." + doName(s)
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
   override def arraySubscript(container: expr, idx: expr): String =

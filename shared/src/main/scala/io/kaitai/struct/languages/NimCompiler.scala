@@ -16,14 +16,15 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with FixedContentsUsingArrayByteLiteral
     with UniversalFooter
     with CommonReads
-    with AllocateIOLocalVar {
+    with AllocateIOLocalVar
+    with SwitchOps {
 
   import NimCompiler._
 
   // Written from scratch
   def imports = importList.toList.map((x) => s"import $x").mkString("\n")
   def namespaced(names: List[String]): String = names.map(n => camelCase(n, true)).mkString("_")
-  def sectionHeader(className: List[String]): Unit = out.puts("### " + namespaced(className) + " ###")
+  def sectionHeader(className: List[String]): Unit = out.puts("## " + namespaced(className))
   def typeSectionHeader: Unit = {
     out.puts("type")
     out.inc
@@ -59,11 +60,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
-    val nimName = idToStr(id)
-
-    val ioName = s"${nimName}Io"
-
-    out.puts(s"let $ioName = newKaitaiStringStream($nimName)")
+    val ioName = s"${idToStr(id)}Io"
+    out.puts(s"let $ioName = newKaitaiStringStream(${privateMemberName(id)})")
     ioName
   }
 
@@ -321,11 +319,10 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.add($tmpName)")
   }
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    out.puts(s"let ${localTemporaryName(id)} = $expr")
     if (idToStr(id).endsWith("Inst")) {
-      out.puts(s"${privateMemberName(id)} = some(${localTemporaryName(id)})")
+      out.puts(s"${privateMemberName(id)} = some($expr)")
     } else {
-      out.puts(s"${privateMemberName(id)} = ${localTemporaryName(id)}")
+      out.puts(s"${privateMemberName(id)} = $expr")
     }
   }
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
@@ -369,11 +366,18 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   // Members declared in io.kaitai.struct.languages.components.SwitchOps
-  override def switchCaseEnd(): Unit = {} // TODO
-  override def switchCaseStart(condition: Ast.expr): Unit = {} // TODO
-  override def switchElseStart(): Unit = {} // TODO
-  override def switchEnd(): Unit = {} // TODO
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {} // TODO
+  override def switchCaseEnd(): Unit = universalFooter
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"of ${expression(condition)}:")
+    out.inc
+  }
+  override def switchElseStart(): Unit = {
+    out.puts("else:")
+  }
+  override def switchEnd(): Unit = {}
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    out.puts(s"case ${expression(on)}")
+  }
 }
 
 object NimCompiler extends LanguageCompilerStatic
