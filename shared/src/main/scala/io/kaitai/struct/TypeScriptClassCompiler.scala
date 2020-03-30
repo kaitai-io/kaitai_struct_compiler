@@ -57,12 +57,6 @@ class TypeScriptClassCompiler(
     lang.classFooter(curClass.name)
   }
 
-  override def compileSeqProc(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
-    lang.readHeader(defEndian, seq.isEmpty)
-    compileSeq(seq, defEndian)
-    lang.readFooter()
-  }
-
   override def compileSeq(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
     var wasUnaligned = false
     seq.foreach { (attr) =>

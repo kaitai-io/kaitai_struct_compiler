@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{Endianness, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.{CalcEndian, Endianness, DataType, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -28,10 +28,6 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outImports(topClass: ClassSpec) = {
     val impList = importList.toList
     val quotedImpList = impList.map((x) => s"'$x'")
-    val defineArgs = quotedImpList.mkString(", ")
-    val moduleArgs = quotedImpList.map((x) => s"require($x)").mkString(", ")
-    val argClasses = impList.map((x) => x.split('/').last)
-    val rootArgs = argClasses.map((x) => s"root.$x").mkString(", ")
 
     // the following goes at the top of the file
     "const func = function(KaitaiStream) {"
@@ -93,20 +89,27 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("public _debug!: IDebug;")
     }
 
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        out.puts(s"public _is_le!: boolean;")
+      case _ =>
+        // no _is_le variable
+    }
+
     val endianSuffix = if (isHybrid) {
-      ", _is_le: any"
+      ", _is_le?: any"
     } else {
       ""
     }
 
-    // val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", public ", ", public ", "")
+    val paramsList = Utils.join(params.map((p) => s"${paramName(p.id)}?: ${kaitaiType2NativeType(p.dataType)}"), ", ", ", ", "")
 
     // Parameter names
     val pIo = paramName(IoIdentifier)
     val pParent = paramName(ParentIdentifier)
     val pRoot = paramName(RootIdentifier)
 
-    out.puts(s"constructor(public _io: any, parent: any, root?: any$endianSuffix ) {")
+    out.puts(s"constructor(public _io: any, parent: any, root?: any$endianSuffix$paramsList) {")
     out.inc
     out.puts(s"this.$pParent = parent;")
     out.puts(s"this.$pRoot = root || this;")
@@ -169,22 +172,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    def arr = attrType match {
-      case ArrayType(_) => "[]"
-      case _ => ""
-    }
-
-    val typeof = isUserOrEnumType(attrType) match {
-      case "user" => "typeof "
-      case _ => ""
-    }
-
-    val prototype = isUserOrEnumType(attrType) match {
-      case "user" => ".prototype"
-      case _ => ""
-    }
-
-    out.puts(s"public ${privateMemberName(attrName)}!: $typeof${kaitaiType2NativeType(attrType.asNonOwning, false)}$prototype$arr;")
+    out.puts(s"public ${privateMemberName(attrName).substring(5)}!: ${kaitaiType2NativeType(attrType.asNonOwning, false)};")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -223,7 +211,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    out.puts(s"this.${privateMemberName(attrName)} = " +
+    out.puts(s"${privateMemberName(attrName)} = " +
       s"$normalIO.ensureFixedContents($contents);")
   }
 
@@ -260,8 +248,8 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
-    val langName = s"this.${idToStr(varName)}"
-    val memberCall = s"this.${privateMemberName(varName)}"
+    val langName = idToStr(varName)
+    val memberCall = s"${privateMemberName(varName)}"
 
     val ioName = s"_io_$langName"
 
@@ -281,16 +269,16 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def pushPos(io: String): Unit =
-    out.puts(s"let _pos = this.$io.pos;")
+    out.puts(s"let _pos = $io.pos;")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"this.$io.seek(${expression(pos)});")
+    out.puts(s"$io.seek(${expression(pos)});")
 
   override def popPos(io: String): Unit =
-    out.puts(s"this.$io.seek(_pos);")
+    out.puts(s"$io.seek(_pos);")
 
   override def alignToByte(io: String): Unit =
-    out.puts(s"this.$io.alignToByte();")
+    out.puts(s"$io.alignToByte();")
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], rep: RepeatSpec): Unit = {
     if (!attrDebugNeeded(attrId))
@@ -300,7 +288,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val ioProps = io match {
       case None => ""
-      case Some(x) => s"start: this.$x.pos, ioOffset: this.$x._byteOffset"
+      case Some(x) => s"start: $x.pos, ioOffset: $x._byteOffset"
     }
 
     val enumNameProps = attrType match {
@@ -316,7 +304,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       return
     val debugName = attrDebugName(attrId, rep, true)
 
-    out.puts(s"$debugName.end = this.$io.pos;")
+    out.puts(s"$debugName.end = $io.pos;")
   }
 
   override def condIfHeader(expr: expr): Unit = {
@@ -331,17 +319,17 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     if (needRaw)
-      out.puts(s"this.${privateMemberName(RawIdentifier(id))} = [];")
-    out.puts(s"this.${privateMemberName(id)} = [];")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    out.puts(s"${privateMemberName(id)} = [];")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
-    out.puts("let i = 0;")
-    out.puts(s"while (!this.$io.isEof()) {")
+    out.puts("var i = 0;")
+    out.puts(s"while (!$io.isEof()) {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    out.puts(s"this.${privateMemberName(id)}.push($expr);")
+    out.puts(s"${privateMemberName(id)}.push($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -352,8 +340,8 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"this.${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
-    out.puts(s"this.${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
+    out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = new Array(${expression(repeatExpr)});")
     out.puts(s"for (let i = 0; i < ${expression(repeatExpr)}; i++) {")
@@ -361,7 +349,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    out.puts(s"this.${privateMemberName(id)}[i] = $expr;")
+    out.puts(s"${privateMemberName(id)}[i] = $expr;")
   }
 
   override def condRepeatExprFooter: Unit = {
@@ -371,19 +359,19 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
     if (needRaw)
-      out.puts(s"this.${privateMemberName(RawIdentifier(id))} = []")
-    out.puts(s"this.${privateMemberName(id)} = []")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
+    out.puts(s"${privateMemberName(id)} = []")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
-    out.puts("let i = 0;")
+    out.puts("var i = 0;")
     out.puts("do {")
     out.inc
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
-    out.puts(s"let $tmpName = $expr;")
-    out.puts(s"this.${privateMemberName(id)}.push($tmpName);")
+    out.puts(s"var $tmpName = $expr;")
+    out.puts(s"${privateMemberName(id)}.push($tmpName);")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
@@ -394,7 +382,12 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    out.puts(s"this.${privateMemberName(id)} = $expr;")
+    if (expr.startsWith("["))
+      // ensures that byte arrays are treated appropriately
+      out.puts(s"${privateMemberName(id)} = new Uint8Array($expr);")
+    else {
+      out.puts(s"${privateMemberName(id)} = $expr;")
+    }
   }
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
@@ -403,17 +396,17 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"this.$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
+        s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
       case blt: BytesLimitType =>
-        s"this.$io.readBytes(${expression(blt.size)})"
+        s"$io.readBytes(${expression(blt.size)})"
       case _: BytesEosType =>
-        s"this.$io.readBytesFull()"
+        s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"this.$io.readBytesTerm($terminator, $include, $consume, $eosError)"
+        s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1 =>
-        s"this.$io.readBitsInt(1) != 0"
+        s"$io.readBitsInt(1) != 0"
       case BitsType(width: Int) =>
-        s"this.$io.readBitsInt($width)"
+        s"$io.readBitsInt($width)"
       case t: UserType =>
         val parent = t.forcedParent match {
           case Some(USER_TYPE_NO_PARENT) => "null"
@@ -426,7 +419,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _ => ""
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-        s"new ${types2class(t.classSpec.get.name)}(this.$io, $parent, $root$addEndian$addParams)"
+        s"new ${types2class(t.classSpec.get.name)}($io, $parent, $root$addEndian$addParams)"
     }
   }
 
@@ -444,7 +437,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def userTypeDebugRead(id: String): Unit = {
     val incThis = if (id.startsWith("_t_")) "" else "this."
-    out.puts(s"$incThis$id._read();")
+    out.puts(s"$id._read();")
   }
 
   /**
@@ -470,7 +463,10 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.inc
       out.puts(s"let ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
     } else {
-      out.puts(s"switch (${expression(on)}) {")
+      // makes the typescript compiler happy when expression(on) evaluates to a number literal
+      out.puts(s"var __temp__ = ${expression(on)};")
+      out.puts("switch (__temp__) {")
+      out.inc
     }
   }
 
@@ -497,7 +493,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"else if (${switchCmpExpr(condition)}) {")
       out.inc
     } else {
-      out.puts(s"case ${expression(condition)}:")
+      out.puts(s"case ${expression(condition)}: {")
       out.inc
     }
   }
@@ -509,7 +505,9 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       out.puts("break;")
       out.dec
+      out.puts("}")
     }
+    
   }
 
   override def switchElseStart(): Unit = {
@@ -517,49 +515,52 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("else {")
       out.inc
     } else {
-      out.puts("default:")
+      out.puts("default: {")
       out.inc
     }
   }
 
   override def switchEnd(): Unit = {
-    if (switchIfs)
-      out.dec
+    out.dec
     out.puts("}")
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    def arr = dataType match {
-      case ArrayType(_) => "[]"
-      case _ => ""
-    }
+    // val typeOut = dataType match {
+    //   case SwitchType(_, cases, _) => {
+    //     cases.map(kv => {
+    //       val b = StringBuilder.newBuilder
+    //       if (kv._2.isInstanceOf[UserType]) {
+    //         b.append("typeof ")
+    //         b.append(kaitaiType2NativeType(kv._2, false))
+    //         b.append(".prototype")
+    //       } else {
+    //         b.append(kaitaiType2NativeType(kv._2, false))
+    //       }
+    //       b.toString()
+    //     }).mkString(" | ")
+    //   }
+    //   case otherType => {
+    //     val b = StringBuilder.newBuilder
+    //     if (otherType.isInstanceOf[UserType]) {
+    //       b.append("typeof ")
+    //       b.append(kaitaiType2NativeType(kv._2, false))
+    //       b.append(".prototype")
+    //     } else {
+    //       b.append(kaitaiType2NativeType(kv._2, false))
+    //     }
+    //     b.toString()
+    //   }
+    // }
 
-    val typeof = isUserOrEnumType(dataType) match {
-      case "user" => "typeof "
-      case _ => ""
-    }
-
-    val prototype = if (isUserOrEnumType(dataType) == "user") {
-      ".prototype"
-    } else {
-      ""
-    }
-
-    out.puts(s"private ${privateMemberName(instName)}!: $typeof${kaitaiType2NativeType(dataType, false)}$prototype$arr;")
+    out.puts(s"private ${privateMemberName(instName).substring(5)}!: ${kaitaiType2NativeType(dataType, false)};")
+    // out.puts(s"private ${privateMemberName(instName).substring(5)}!: $typeof${kaitaiType2NativeType(dataType, false)}$prototype$arr;")
     out.puts(s"get ${publicMemberName(instName)}() {")
     out.inc
   }
 
   override def instanceClear(instName: InstanceIdentifier) = {
-    out.puts(s"this.${privateMemberName(instName)}")
-  }
-
-  // override def instanceSetCalculated(instName: InstanceIdentifier) = {
-  //   out.puts(s"this.${privateMemberName(instName)} =  // instanceSetCalculated")
-  // }
-
-  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr) = {
-    out.puts(s"this.${privateMemberName(instName)} = $value");
+    out.puts(s"${privateMemberName(instName)}")
   }
 
   override def instanceFooter: Unit = {
@@ -569,14 +570,14 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"if (this.${privateMemberName(instName)} !== undefined)")
+    out.puts(s"if (${privateMemberName(instName)} !== undefined)")
     out.inc
     instanceReturn(instName, dataType)
     out.dec
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    out.puts(s"return this.${privateMemberName(instName)};")
+    out.puts(s"return ${privateMemberName(instName)};")
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
@@ -621,7 +622,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def privateMemberName(id: Identifier): String = s"${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
 
   override def publicMemberName(id: Identifier): String = {
     id match {
@@ -642,7 +643,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val arrIndexExpr = rep match {
       case NoRepeat => ""
       case _: RepeatExpr => ".arr[i]"
-      case RepeatEos | _: RepeatUntil => s".arr[this.${privateMemberName(attrId)}.length${if (end) " - 1" else ""}]"
+      case RepeatEos | _: RepeatUntil => s".arr[${privateMemberName(attrId)}.length${if (end) " - 1" else ""}]"
     }
 
     s"this._debug.${idToStr(attrId)}$arrIndexExpr"
@@ -659,18 +660,10 @@ object TypeScriptCompiler extends LanguageCompilerStatic
 
   def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
     attrType match {
-      case Int1Type(false) => "number"
-      case IntMultiType(false, Width2, _) => "number"
-      case IntMultiType(false, Width4, _) => "number"
-      case IntMultiType(false, Width8, _) => "number"
-
-      case Int1Type(true) => "number"
-      case IntMultiType(true, Width2, _) => "number"
-      case IntMultiType(true, Width4, _) => "number"
-      case IntMultiType(true, Width8, _) => "number"
-
-      case FloatMultiType(Width4, _) => "number"
-      case FloatMultiType(Width8, _) => "number"
+      // for if/when BigInt support is added in js/ts runtime
+      // case IntMultiType(false, Width8, _) => "BigInt"
+      // case IntMultiType(true, Width8, _) => "number"
+      case _: NumericType => "number"
 
       case BitsType(_) => "number"
 
@@ -682,25 +675,26 @@ object TypeScriptCompiler extends LanguageCompilerStatic
       case _: BytesType => "Uint8Array"
 
       case t: UserType =>
-        types2class(t.classSpec match {
+        s"typeof ${types2class(t.classSpec match {
           case None => t.name
           case Some(cs) => cs.name
-        })
+        })}.prototype"
 
       // for now enums are numbers by default
       case t: EnumType => "number" //types2class(t.enumSpec.get.name)
 
       case ArrayType(inType) =>
-        s"${kaitaiType2NativeType(inType, absolute)}"
+        s"(${kaitaiType2NativeType(inType, absolute)})[]"
 
-      case CalcArrayType(inType) => s"${kaitaiType2NativeType(inType, absolute)}"
+      case CalcArrayType(inType) => s"(${kaitaiType2NativeType(inType, absolute)})[]"
 
       case AnyType => "any"
 
       case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType | CalcKaitaiStructType => "any"
 
-      case st: SwitchType => kaitaiType2NativeType(st.combinedType, absolute)
+      // unfolds and removes duplicates by converting to set
+      case SwitchType(_, cases, _) => cases.map(kv => kaitaiType2NativeType(kv._2, false)).toSet.mkString(" | ")
     }
   }
 
@@ -712,11 +706,4 @@ object TypeScriptCompiler extends LanguageCompilerStatic
   def types2class(types: List[String]): String = types.map(type2class).mkString(".")
 
   override def type2class(name: String): String = Utils.upperCamelCase(name)
-
-  def isUserOrEnumType(inType: DataType): String = inType match {
-    case _: UserType => "user"
-    case _: EnumType => "enum"
-    case ArrayType(innerType) => isUserOrEnumType(innerType)
-    case _ => "other"
-  }
 }

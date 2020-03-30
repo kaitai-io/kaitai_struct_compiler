@@ -1,6 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.Utils
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -66,6 +67,8 @@ class TypeScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
+  override def doCast(value: Ast.expr, typeName: DataType): String = 
+    s"(${translate(value)} as ${TypeScriptCompiler.kaitaiType2NativeType(typeName, false)})"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
