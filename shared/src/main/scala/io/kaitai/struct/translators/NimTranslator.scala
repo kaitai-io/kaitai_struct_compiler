@@ -53,8 +53,8 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Ast.operator.RShift => "shr"
     }
   }
-//  override def doCast(value: Ast.expr, typeName: DataType): String =
-//    s"${NimCompiler.kaitaiType2NimType(typeName)}(${translate(value)})"
+  override def doCast(value: Ast.expr, typeName: DataType): String =
+    s"(${ksToNim(typeName)}(${translate(value)}))"
   override def doIntLiteral(n: BigInt): String = {
     if (n < -9223372036854775808L) {
       s"$n" // too low, no type conversion would help anyway
@@ -72,10 +72,16 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       s"$n" // too high, no type conversion would help anyway
     }
   }
-  override def doArrayLiteral(t: DataType, value: Seq[expr]): String =
-    s"@[${value.map((v) => translate(v)).mkString(", ")}].mapIt(${ksToNim(t)}(it))"
-  override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"@[${arr.mkString(", ")}].mapIt(it.toByte).toString"
+  override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
+    //s"@[${value.map((v) => translate(v)).mkString(", ")}].mapIt(${ksToNim(t)}(it))"
+    s"@[${value.map((v) => translate(v)).mkString(", ")}]"
+  }
+  override def doByteArrayLiteral(arr: Seq[Byte]): String = {
+    //importList.add("sequtils")
+    //s"@[${arr.mkString(", ")}].mapIt(it.toByte).toString"
+    val first = arr.head.toString + "'u8, "
+    s"@[${first + arr.tail.mkString(", ")}].toString"
+  }
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"@[${elts.map(translate).mkString(", ")}]"
   override def arrayFirst(a: expr): String = s"${translate(a)}[0]"

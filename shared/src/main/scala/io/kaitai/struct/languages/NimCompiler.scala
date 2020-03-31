@@ -17,14 +17,14 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalFooter
     with CommonReads
     with AllocateIOLocalVar
-    with SwitchOps {
+    with SwitchOps
+    with UniversalDoc {
 
   import NimCompiler._
 
   // Written from scratch
   def imports = importList.toList.map((x) => s"import $x").mkString("\n")
   def namespaced(names: List[String]): String = names.map(n => camelCase(n, true)).mkString("_")
-  def sectionHeader(className: List[String]): Unit = out.puts("## " + namespaced(className))
   def typeSectionHeader: Unit = {
     out.puts("type")
     out.inc
@@ -44,27 +44,19 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts
   }
-  def destructor(name: List[String]): Unit = {
-    val n = namespaced(name) + "Obj"
-    out.puts(s"proc `=destroy`(x: var $n) =")
-    out.inc
-    out.puts(s"close(x.io)")
-    out.dec
-    out.puts
-  }
+
+  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
+    out.puts("import \"" + classSpec.name.head + "\"")
   override def innerEnums = false
   override val translator: NimTranslator = new NimTranslator(typeProvider, importList)
-
   override def universalFooter: Unit = {
     out.dec
   }
-
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val ioName = s"${idToStr(id)}Io"
     out.puts(s"let $ioName = newKaitaiStringStream(${privateMemberName(id)})")
     ioName
   }
-
 
   // Members declared in io.kaitai.struct.languages.components.SingleOutputFile
   override def outImports(topClass: ClassSpec) =
@@ -79,11 +71,11 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
   override def alignToByte(io: String): Unit = out.puts(s"alignToByte($io)")
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    out.puts(s"result.${idToStr(attrName)} = $normalIO.ensureFixedContents($contents)")
+    out.puts(s"this.${idToStr(attrName)} = $normalIO.ensureFixedContents($contents)")
   }
   // def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
-    out.puts("if result.isLe:")
+    out.puts("if this.isLe:")
     out.inc
     leProc()
     out.dec
@@ -118,7 +110,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     handleAssignment(varDest, expr, rep, false)
   }
-    
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
   }
@@ -128,9 +119,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {}
   override def classHeader(name: List[String]): Unit = {
-    val t = namespaced(name)
-    out.puts(s"${t}* = ref ${t}Obj")
-    out.puts(s"${t}Obj* = object")
+    out.puts(s"${namespaced(name)}* = ref object of KaitaiStruct")
     out.inc
   }
   override def condIfHeader(expr: Ast.expr): Unit = {
@@ -220,38 +209,38 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit = out.puts(s"$io.seek(pos)")
   override def pushPos(io: String): Unit = out.puts(s"let pos = $io.pos()")
   override def readFooter(): Unit = {
-    out.puts("result = this")
     universalFooter
     out.puts
   }
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
     val t = namespaced(typeProvider.nowClass.name)
     val p = ksToNim(typeProvider.nowClass.parentType)
-    val r = namespaced(typeProvider.topClass.name)
+    val r = "KaitaiStruct"
 
     endian match {
       case None =>
         out.puts(s"proc read*(_: typedesc[$t], io: KaitaiStream, root: $r, parent: $p): $t =")
         out.inc
-        out.puts(s"let this = new($t)")
-        out.puts(s"let root = if root == nil: cast[$r](result) else: root")
+        out.puts("template this: untyped = result")
+        out.puts(s"this = new($t)")
+        out.puts(s"let root = if root == nil: cast[$r](this) else: root")
         out.puts(s"this.io = io")
         out.puts(s"this.root = root")
         out.puts(s"this.parent = parent")
 
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
-            out.puts(s"result.${idToStr(EndianIdentifier)} = false")
+            out.puts(s"this.${idToStr(EndianIdentifier)} = false")
           case Some(InheritedEndian) =>
-            out.puts(s"result.${idToStr(EndianIdentifier)} = " +
-              s"result.${idToStr(ParentIdentifier)}." +
+            out.puts(s"this.${idToStr(EndianIdentifier)} = " +
+              s"this.${idToStr(ParentIdentifier)}." +
               s"${idToStr(EndianIdentifier)}")
           case _ =>
         }
         out.puts
       case Some(e) =>
         out.puts
-        out.puts(s"proc read${camelCase(e.toSuffix, true)}(subject: $t) =")
+        out.puts(s"proc read${camelCase(e.toSuffix, true)}(this: $t) =")
         out.inc
     }
   }
@@ -259,13 +248,13 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def runRead(): Unit = out.puts("read()") // TODO: missing type argument
   override def runReadCalc(): Unit = {
     out.puts
-    out.puts("if result.isLe:")
+    out.puts("if this.isLe:")
     out.inc
-    out.puts("readLe(result)")
+    out.puts("readLe(this)")
     out.dec
     out.puts("else:")
     out.inc
-    out.puts("readBe(result)")
+    out.puts("readBe(this)")
     out.dec
   }
   override def seek(io: String, pos: Ast.expr): Unit = out.puts(s"$io.seek(${expression(pos)})")
@@ -274,6 +263,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let io = ${expression(ioEx)}")
     "io"
   }
+
   // Members declared in io.kaitai.struct.languages.components.ObjectOrientedLanguage
   override def idToStr(id: Identifier): String = {
     id match {
@@ -292,7 +282,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val prefix = "this"
     s"$prefix.$name"
   }
-
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
   // Members declared in io.kaitai.struct.languages.components.EveryReadIsExpression
@@ -340,9 +329,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int) =>
         s"$io.readBitsInt($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) {
-          ""
-        } else {
+        val addArgs = {
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "nil"
             case Some(fp) => translator.translate(fp)
@@ -364,8 +351,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       expr
     }
   }
-
-  // Members declared in io.kaitai.struct.languages.components.SwitchOps
   override def switchCaseEnd(): Unit = universalFooter
   override def switchCaseStart(condition: Ast.expr): Unit = {
     out.puts(s"of ${expression(condition)}:")
@@ -373,10 +358,25 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def switchElseStart(): Unit = {
     out.puts("else:")
+    out.inc
   }
-  override def switchEnd(): Unit = {}
+  override def switchEnd(): Unit = {} //out.puts("else: discard")
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"case ${expression(on)}")
+  }
+
+  // Members declared in io.kaitai.struct.languages.components.UniversalDoc
+  override def universalDoc(doc: DocSpec): Unit = {
+    out.puts
+    out.puts( "##[")
+    doc.summary.foreach(summary => out.puts(summary))
+    doc.ref.foreach {
+      case TextRef(text) =>
+        out.puts("@see \"" + text + "\"")
+      case ref: UrlRef =>
+        out.puts(s"@see ${ref.toAhref}")
+    }
+    out.puts( "]##")
   }
 }
 
@@ -433,7 +433,7 @@ object NimCompiler extends LanguageCompilerStatic
       case _: StrType => "string"
       case _: BytesType => "string"
 
-      case KaitaiStructType | CalcKaitaiStructType => "ref RootObj"
+      case KaitaiStructType | CalcKaitaiStructType => "KaitaiStruct"
       case KaitaiStreamType => "KaitaiStream"
 
       case t: UserType => namespaced(t.classSpec match {

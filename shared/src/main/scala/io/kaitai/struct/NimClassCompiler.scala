@@ -21,6 +21,7 @@ class NimClassCompiler(
 
   override def compile: CompileLog.SpecSuccess = {
     lang.fileHeader(classNameFlattened(topClass))
+    compileOpaqueClasses(topClass)
     nimlang.typeSectionHeader
     compileTypes(topClass)
     nimlang.typeSectionFooter
@@ -39,7 +40,7 @@ class NimClassCompiler(
         compileSeqProc(seq, Some(LittleEndian))
         compileSeqProc(seq, Some(BigEndian))
         lang.readHeader(None, false)
-        //compileCalcEndian(ce)
+        compileCalcEndian(ce)
         lang.runReadCalc()
         lang.readFooter()
       case Some(InheritedEndian) =>
@@ -51,12 +52,28 @@ class NimClassCompiler(
     }
   }
 
+  // Must override just to add attribute docstrings
+  override def compileSeq(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
+    var wasUnaligned = false
+    seq.foreach { (attr) =>
+      val nowUnaligned = isUnalignedBits(attr.dataType)
+      if (wasUnaligned && !nowUnaligned)
+        lang.alignToByte(lang.normalIO)
+      lang.attributeDoc(attr.id, attr.doc)
+      lang.attrParse(attr, attr.id, defEndian)
+      wasUnaligned = nowUnaligned
+    }
+  }
+
   override def compileInstances(curClass: ClassSpec) = {
     curClass.instances.foreach { case (instName, instSpec) =>
-      nimlang.instanceForwardDeclaration(curClass.name, instName, instSpec.dataTypeComposite)
-    }
-    curClass.instances.foreach { case (instName, instSpec) =>
       compileInstance(curClass.name, instName, instSpec, curClass.meta.endian)
+    }
+  }
+
+  def compileInstancesForwardDeclaration(curClass: ClassSpec) = {
+    curClass.instances.foreach { case (instName, instSpec) =>
+      nimlang.instanceForwardDeclaration(curClass.name, instName, instSpec.dataTypeComposite)
     }
   }
 
@@ -64,11 +81,8 @@ class NimClassCompiler(
     // Determine datatype
     val dataType = instSpec.dataTypeComposite
 
-    if (!lang.innerDocstrings)
-      compileInstanceDoc(instName, instSpec)
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
-    if (lang.innerDocstrings)
-      compileInstanceDoc(instName, instSpec)
+    compileInstanceDoc(instName, instSpec)
     lang.instanceCheckCacheAndReturn(instName, dataType)
 
     instSpec match {
@@ -86,18 +100,13 @@ class NimClassCompiler(
   }
 
   def compileTypes(curClass: ClassSpec): Unit = {
-    compileTypesRec(curClass)
     provider.nowClass = curClass
     nimlang.classHeader(curClass.name)
 
     val allAttrs: List[MemberSpec] =
       curClass.seq ++
       curClass.params ++
-      List(
-        AttrSpec(List(), IoIdentifier, KaitaiStreamType),
-        AttrSpec(List(), RootIdentifier, CalcUserType(topClassName, None)),
-        AttrSpec(List(), ParentIdentifier, curClass.parentType)
-      ) ++
+      List(AttrSpec(List(), ParentIdentifier, curClass.parentType)) ++
       ExtraAttrs.forClassSpec(curClass, lang)
     compileAttrDeclarations(allAttrs)
 
@@ -108,6 +117,7 @@ class NimClassCompiler(
     nimlang.classFooter(curClass.name)
 
     compileEnums(curClass)
+    compileTypesRec(curClass)
   }
 
   def compileTypesRec(curClass: ClassSpec): Unit = {
@@ -117,19 +127,11 @@ class NimClassCompiler(
   def compileProcs(curClass: ClassSpec): Unit = {
     compileProcsRec(curClass)
     provider.nowClass = curClass
-    nimlang.sectionHeader(curClass.name)
-
-    // instances' procs
-    compileInstances(curClass)
-
-    // read, readLe, readBe
+    compileClassDoc(curClass)
+    compileInstancesForwardDeclaration(curClass)
     compileEagerRead(curClass.seq, curClass.meta.endian)
-
-    // proc fromFile
+    compileInstances(curClass)
     nimlang.fromFile(curClass.name)
-
-    // proc `=destroy`
-    nimlang.destructor(curClass.name)
   }
 
   def compileProcsRec(curClass: ClassSpec): Unit = {
