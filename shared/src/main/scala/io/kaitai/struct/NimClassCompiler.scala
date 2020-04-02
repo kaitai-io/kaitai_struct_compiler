@@ -27,7 +27,7 @@ class NimClassCompiler(
     nimlang.enumTemplate
     nimlang.enumTemplateFooter
 
-    compileEnums(topClass)
+    compileEnumsForAllTypes(topClass)
     compileEnumConstants(topClass)
 
     nimlang.typeSectionHeader
@@ -109,6 +109,16 @@ class NimClassCompiler(
 
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
+  }
+
+  def compileEnumsForAllTypes(curClass: ClassSpec) {
+    provider.nowClass = curClass
+    compileEnums(curClass)
+    compileEnumsForAllTypesRec(curClass)
+  }
+
+  def compileEnumsForAllTypesRec(curClass: ClassSpec) {
+    curClass.types.foreach { case (_, subClass) => compileEnumsForAllTypes(subClass) }
   }
 
   def compileTypes(curClass: ClassSpec): Unit = {
