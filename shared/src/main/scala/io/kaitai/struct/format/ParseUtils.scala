@@ -130,6 +130,8 @@ object ParseUtils {
         srcList.zipWithIndex.map { case (element, idx) =>
           convertFunc(element, pathField ++ List(idx.toString))
         }
+      case Some(singleObject: T) =>
+        List(singleObject)
       case None =>
         List()
       case unknown =>
@@ -182,6 +184,15 @@ object ParseUtils {
         }
       case unknown =>
         throw YAMLParseException.badType("int", unknown, path)
+    }
+  }
+
+  def asExpression(src: Any, path: List[String]): Ast.expr = {
+    try {
+      Expressions.parse(asStr(src, path))
+    } catch {
+      case epe: Expressions.ParseException =>
+        throw YAMLParseException.expression(epe, path)
     }
   }
 

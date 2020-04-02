@@ -5,6 +5,11 @@
 * Expression language:
   * New methods:
     * byte arrays: `length`
+* General compilation improvements:
+  * Support Maven-like directory trees by not adding subdir `src` for outputs of Go+Java anymore,
+    see [#287](https://github.com/kaitai-io/kaitai_struct/issues/287). While this breaks existing
+    builds most likely, it puts those languages in line with all others and adding subdirs is easier
+    for the user than removing some added by Kaitai automatically.
 
 # 0.8 (2018-02-05)
 

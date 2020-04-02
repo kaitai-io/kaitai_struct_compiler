@@ -12,6 +12,9 @@ object YAMLParseException {
   def noKey(path: List[String]): YAMLParseException =
     new YAMLParseException(s"missing mandatory argument `${path.last}`", path)
 
+  def noKeys(path: List[String], expectedKeys: Set[String]): YAMLParseException =
+    new YAMLParseException(s"expected any of ${expectedKeys.toList.sorted.mkString(", ")}, found none", path)
+
   def badType(expected: String, got: Any, path: List[String]): YAMLParseException = {
     val gotStr = got match {
       case null => "null"

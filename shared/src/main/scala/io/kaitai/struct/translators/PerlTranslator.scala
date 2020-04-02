@@ -1,10 +1,11 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.ImportList
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.languages.PerlCompiler
 
 class PerlTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   // http://perldoc.perl.org/perlrebackslash.html#Character-Escapes
@@ -72,11 +73,20 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
   }
 
-  override def doEnumByLabel(enumType: List[String], label: String): String =
-    s"$$${enumType.last.toUpperCase}_${label.toUpperCase}"
+  override def doEnumByLabel(enumType: List[String], label: String): String = {
+    val enumClass = PerlCompiler.types2class(enumType.init)
+    val enumClassWithScope = if (enumClass.isEmpty) "" else s"$enumClass::"
+    val enumName = Utils.upperUnderscoreCase(enumType.last)
+    s"$$$enumClassWithScope${enumName}_${Utils.upperUnderscoreCase(label)}"
+  }
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
+
+  def enumClass(enumTypeAbs: List[String]): String = {
+    val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
+    enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
+  }
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     val opStr = op match {
@@ -93,7 +103,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     doStrCompareOp(left, op, right)
 
-  override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
+  override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"@{${translate(container)}}[${translate(idx)}]"
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"

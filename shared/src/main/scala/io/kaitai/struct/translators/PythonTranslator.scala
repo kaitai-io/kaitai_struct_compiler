@@ -67,7 +67,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     case _ => super.unaryOp(op)
   }
 
-  override def doSubscript(container: Ast.expr, idx: Ast.expr): String =
+  override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(${translate(ifTrue)} if ${translate(condition)} else ${translate(ifFalse)})"
@@ -101,8 +101,21 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"($bytesExpr).decode(${translate(encoding)})"
+
   override def bytesLength(value: Ast.expr): String =
     s"len(${translate(value)})"
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"${PythonCompiler.kstreamName}.byte_array_index(${translate(container)}, ${translate(idx)})"
+  override def bytesFirst(a: Ast.expr): String =
+    bytesSubscript(a, Ast.expr.IntNum(0))
+  override def bytesLast(a: Ast.expr): String =
+    bytesSubscript(a, Ast.expr.IntNum(-1))
+  override def bytesMin(b: Ast.expr): String =
+    s"${PythonCompiler.kstreamName}.byte_array_min(${translate(b)})"
+  override def bytesMax(b: Ast.expr): String =
+    s"${PythonCompiler.kstreamName}.byte_array_max(${translate(b)})"
+
+
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
   override def strReverse(value: Ast.expr): String =

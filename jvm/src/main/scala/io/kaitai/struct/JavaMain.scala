@@ -9,10 +9,10 @@ import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseExcep
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
-import io.kaitai.struct.precompile.ErrorInInput
+import io.kaitai.struct.precompile.{ErrorInInput, YAMLParserError}
 
 object JavaMain {
-  KSVersion.current = BuildInfo.version
+  KSVersion.current = Version.version
 
   case class CLIConfig(
     verbose: Seq[String] = Seq(),
@@ -30,10 +30,10 @@ object JavaMain {
   val CPP_STANDARDS = Set("98", "11")
 
   def parseCommandLine(args: Array[String]): Option[CLIConfig] = {
-    val parser = new scopt.OptionParser[CLIConfig](BuildInfo.name) {
+    val parser = new scopt.OptionParser[CLIConfig](Version.name) {
       override def showUsageOnError = true
 
-      head(BuildInfo.name, BuildInfo.version)
+      head(Version.name, Version.version)
 
       arg[File]("<file>...") unbounded() action { (x, c) =>
         c.copy(srcFiles = c.srcFiles :+ x) } text("source files (.ksy)")
@@ -98,12 +98,12 @@ object JavaMain {
       } text("Go package (Go only, default: none)")
 
       opt[String]("java-package") valueName("<package>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(javaPackage = x))
+        c.copy(runtime = c.runtime.copy(java = c.runtime.java.copy(javaPackage = x)))
       } text("Java package (Java only, default: root package)")
 
       opt[String]("java-from-file-class") valueName("<class>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(javaFromFileClass = x))
-      } text(s"Java class to be invoked in fromFile() helper (default: ${RuntimeConfig().javaFromFileClass})")
+        c.copy(runtime = c.runtime.copy(java = c.runtime.java.copy(fromFileClass = x)))
+      } text(s"Java class to be invoked in fromFile() helper (default: ${RuntimeConfig().java.fromFileClass})")
 
       opt[String]("dotnet-namespace") valueName("<namespace>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(dotNetNamespace = x))
@@ -116,6 +116,10 @@ object JavaMain {
       opt[String]("python-package") valueName("<package>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(pythonPackage = x))
       } text("Python package (Python only, default: root package)")
+
+      opt[String]("nim-module") valueName("<module>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(nimModule = x))
+      } text("Path of Nim runtime module (Nim only, default: kaitai_struct/runtime/nim/kaitai)")
 
       opt[Boolean]("opaque-types") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
@@ -290,8 +294,13 @@ class JavaMain(config: CLIConfig) {
   }
 
   def compileAllLangs(specs: ClassSpecs, config: CLIConfig): Map[String, Map[String, SpecEntry]] = {
-    config.targets.map { lang =>
-      lang -> compileOneLang(specs, lang, s"${config.outDir}/$lang")
+    config.targets.map { langStr =>
+      langStr match {
+        case "go" | "java" =>
+          langStr -> compileOneLang(specs, langStr, s"${config.outDir}/${langStr}/src")
+        case _ =>
+          langStr -> compileOneLang(specs, langStr, s"${config.outDir}/${langStr}")
+      }
     }.toMap
   }
 
@@ -349,16 +358,19 @@ class JavaMain(config: CLIConfig) {
       Console.err.println(ex.getMessage)
     ex match {
       case ype: YAMLParseException =>
-        CompileError("(main)", ype.path, ype.msg)
+        CompileError(srcFile, ype.path, None, None, ype.msg)
       case e: ErrorInInput =>
         val file = e.file.getOrElse(srcFile)
         val msg = Option(e.getCause) match {
           case Some(cause) => cause.getMessage
           case None => e.getMessage
         }
-        CompileError(file, e.path, msg)
+        CompileError(file, e.path, None, None, msg)
+      case ypr: YAMLParserError =>
+        val file = ypr.file.getOrElse(srcFile)
+        CompileError(file, List(), ypr.line, ypr.col, ypr.msg)
       case _ =>
-        CompileError(srcFile, List(), ex.getMessage)
+        CompileError(srcFile, List(), None, None, ex.getMessage)
     }
   }
 }

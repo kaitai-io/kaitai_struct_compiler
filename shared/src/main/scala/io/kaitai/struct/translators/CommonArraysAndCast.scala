@@ -60,7 +60,7 @@ trait CommonArraysAndCast[T] extends TypeDetector {
         castToType match {
           case _: BytesType =>
             doByteArray(array.elts)
-          case ArrayType(elType) =>
+          case ArrayTypeInStream(elType) =>
             doArrayLiteral(elType, array.elts)
           case _ =>
             // No luck, this is some kind of weird cast, not a type enforcement;

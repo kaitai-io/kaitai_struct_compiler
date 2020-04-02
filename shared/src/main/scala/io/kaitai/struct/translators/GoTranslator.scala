@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{ClassSpec, Identifier}
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.precompile.TypeMismatchError
 import io.kaitai.struct.{ImportList, StringLanguageOutputWriter, Utils}
@@ -18,7 +18,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   with CommonLiterals
   with CommonOps
   with CommonArraysAndCast[TranslatorResult]
-  with CommonMethods[TranslatorResult] {
+  with CommonMethods[TranslatorResult]
+  with ByteArraysAsTrueArrays[TranslatorResult] {
 
   import io.kaitai.struct.languages.GoCompiler._
 
@@ -41,16 +42,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         trStringLiteral(s)
       case Ast.expr.Bool(n) =>
         trBoolLiteral(n)
-      case Ast.expr.BoolOp(op, values) =>
-        trBooleanOp(op, values)
-      case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
-        (detectType(left), detectType(right), op) match {
-          case (_: NumericType, _: NumericType, _) =>
-            trNumericBinOp(left, op, right)
-          case (_: StrType, _: StrType, Ast.operator.Add) =>
-            trStrConcat(left, right)
-          case (ltype, rtype, _) =>
-            throw new TypeMismatchError(s"can't do $ltype $op $rtype")
+      case Ast.expr.EnumById(enumType, id, inType) =>
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
+        trEnumById(enumSpec.name, translate(id))
+      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
+        trEnumByLabel(enumSpec.name, label.name)
+      case Ast.expr.Name(name: Ast.identifier) =>
+        if (name.name == Identifier.SIZEOF) {
+          byteSizeOfClassSpec(provider.nowClass)
+        } else {
+          trLocalName(name.name)
         }
       case Ast.expr.UnaryOp(op, operand) =>
         ResultString(unaryOp(op) + (operand match {
@@ -59,8 +61,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case _ =>
             s"(${translate(operand)})"
         }))
-      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
-        trIfExp(condition, ifTrue, ifFalse)
       case Ast.expr.Compare(left, op, right) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
@@ -76,24 +76,33 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case (ltype, rtype) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
-      case Ast.expr.EnumById(enumType, id, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
-        trEnumById(enumSpec.name, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
-        trEnumByLabel(enumSpec.name, label.name)
-      case ctt: Ast.expr.CastToType =>
-        doCastOrArray(ctt)
+      case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
+        (detectType(left), detectType(right), op) match {
+          case (_: NumericType, _: NumericType, _) =>
+            trNumericBinOp(left, op, right)
+          case (_: StrType, _: StrType, Ast.operator.Add) =>
+            trStrConcat(left, right)
+          case (ltype, rtype, _) =>
+            throw new TypeMismatchError(s"can't do $ltype $op $rtype")
+        }
+      case Ast.expr.BoolOp(op, values) =>
+        trBooleanOp(op, values)
+      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
+        trIfExp(condition, ifTrue, ifFalse)
       case Ast.expr.Subscript(container, idx) =>
-        trSubscript(container, idx)
-      case Ast.expr.Name(name: Ast.identifier) =>
-        trLocalName(name.name)
-      case Ast.expr.List(elts) =>
-        doGuessArrayLiteral(elts)
+        arraySubscript(container, idx)
       case call: Ast.expr.Attribute =>
         translateAttribute(call)
       case call: Ast.expr.Call =>
         translateCall(call)
+      case Ast.expr.List(elts) =>
+        doGuessArrayLiteral(elts)
+      case ctt: Ast.expr.CastToType =>
+        doCastOrArray(ctt)
+      case Ast.expr.ByteSizeOfType(typeName) =>
+        doByteSizeOfType(typeName)
+      case Ast.expr.BitSizeOfType(typeName) =>
+        doBitSizeOfType(typeName)
     }
   }
 
@@ -101,6 +110,21 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trFloatLiteral(n: BigDecimal): TranslatorResult = ResultString(doFloatLiteral(n))
   def trStringLiteral(s: String): TranslatorResult = ResultString(doStringLiteral(s))
   def trBoolLiteral(n: Boolean): TranslatorResult = ResultString(doBoolLiteral(n))
+
+  def doByteSizeOfType(typeName: Ast.typeId): TranslatorResult = trIntLiteral(
+    CommonSizeOf.bitToByteSize(
+      CommonSizeOf.getBitsSizeOfType(
+        typeName.nameAsStr, detectCastType(typeName)
+      )
+    )
+  )
+  def doBitSizeOfType(typeName: Ast.typeId): TranslatorResult = trIntLiteral(
+    CommonSizeOf.getBitsSizeOfType(
+      typeName.nameAsStr, detectCastType(typeName)
+    )
+  )
+  def byteSizeOfClassSpec(cs: ClassSpec): TranslatorResult =
+    trIntLiteral(CommonSizeOf.getByteSizeOfClassSpec(cs))
 
   def trBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]) =
     ResultString(doBooleanOp(op, values))
@@ -194,7 +218,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       "_buf"
   }
 
-  def trSubscript(container: Ast.expr, idx: Ast.expr) =
+  def arraySubscript(container: Ast.expr, idx: Ast.expr) =
     ResultString(s"${translate(container)}[${translate(idx)}]")
 
   def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
@@ -316,6 +340,22 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       ResultString(s"$valueStr.$call")
     }
   }
+  def kaitaiStructField(value: Ast.expr, name: String): TranslatorResult = {
+    val valueStr = translate(value)
+
+    val (call, twoOuts) = name match {
+      case Identifier.ROOT |
+           Identifier.PARENT |
+           Identifier.IO =>
+        (specialName(name), false)
+    }
+
+    if (twoOuts) {
+      outVarCheckRes(s"$valueStr.$call()")
+    } else {
+      ResultString(s"$valueStr.$call")
+    }
+  }
 
   override def strLength(s: Ast.expr): TranslatorResult = {
     importList.add("unicode/utf8")
@@ -328,7 +368,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def strToInt(s: Ast.expr, base: Ast.expr): TranslatorResult = {
     importList.add("strconv")
-    ResultString(s"strconv.ParseInt(${translate(s)}, ${translate(base)}, 0)")
+    outVarCheckRes(s"strconv.ParseInt(${translate(s)}, ${translate(base)}, 0)")
   }
 
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): TranslatorResult = {
@@ -413,6 +453,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultLocalVar(v1)
   }
 
+  def outTransform(id: ResultLocalVar, expr: String): ResultLocalVar = {
+    out.puts(s"${resToStr(id)} = $expr")
+    id
+  }
+
   private
   var localVarNum = 0
 
@@ -436,4 +481,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     out.dec
     out.puts("}")
   }
+
+  override def byteSizeOfValue(attrName: String, valType: DataType): TranslatorResult =
+    trIntLiteral(CommonSizeOf.bitToByteSize(CommonSizeOf.getBitsSizeOfType(attrName, valType)))
 }

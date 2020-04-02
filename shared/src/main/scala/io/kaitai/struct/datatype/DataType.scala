@@ -66,7 +66,6 @@ object DataType {
   case object CalcBytesType extends BytesType {
     override def process = None
   }
-  case class FixedBytesType(contents: Array[Byte], override val process: Option[ProcessExpr]) extends BytesType
   case class BytesEosType(
     terminator: Option[Int],
     include: Boolean,
@@ -165,11 +164,13 @@ object DataType {
     override def isOwning = false
   }
 
-  case class ArrayType(elType: DataType) extends ComplexDataType {
+  abstract sealed class ArrayType(val elType: DataType) extends ComplexDataType
+
+  case class ArrayTypeInStream(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = true
     override def asNonOwning: CalcArrayType = CalcArrayType(elType)
   }
-  case class CalcArrayType(elType: DataType) extends ComplexDataType {
+  case class CalcArrayType(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = false
   }
 
@@ -293,7 +294,7 @@ object DataType {
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
   private val ReFloatType = """f(4|8)(le|be)?""".r
   private val ReBitType = """b(\d+)""".r
-  private val ReUserTypeWithArgs = """(.+)\((.*)\)""".r
+  private val ReUserTypeWithArgs = """^([a-z][a-z0-9_]*)\((.*)\)$""".r
 
   def fromYaml(
     dto: Option[String],
@@ -304,7 +305,7 @@ object DataType {
     val r = dto match {
       case None =>
         arg.contents match {
-          case Some(c) => FixedBytesType(c, arg.process)
+          case Some(c) => BytesLimitType(Ast.expr.IntNum(c.length), None, false, None, arg.process)
           case _ => arg.getByteArrayType(path)
         }
       case Some(dt) => dt match {
@@ -421,6 +422,11 @@ object DataType {
         },
         None
       )
+    case ReBitType(widthStr) =>
+      widthStr match {
+        case "1" => BitsType1
+        case _ => BitsType(widthStr.toInt)
+      }
     case "str" => CalcStrType
     case "bool" => CalcBooleanType
     case "struct" => CalcKaitaiStructType

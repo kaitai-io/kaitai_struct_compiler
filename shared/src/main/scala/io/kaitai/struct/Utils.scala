@@ -44,6 +44,27 @@ object Utils {
     }
   }
 
+  /**
+    * Converts string to `UPPER_UNDER_SCORE` case.
+    * @param s original string in `lower_under_score` case.
+    * @return same string in `UPPER_UNDER_SCORE` case.
+    */
+  def upperUnderscoreCase(s: String): String =
+    Platform.toUpperLocaleInsensitive(s)
+
+  /**
+    * Converts string to `lower_under_score` case. Given that currently
+    * original string is using the same case, it is essentially a no-op.
+    * @param s original string in `lower_under_score` case.
+    * @return same string in `lower_under_score` case.
+    */
+  def lowerUnderscoreCase(s: String): String = s
+
+  /**
+    * Converts string to `UpperCamelCase`.
+    * @param s original string in `lower_under_score` case.
+    * @return same string in `UpperCamelCase`.
+    */
   def upperCamelCase(s: String): String = {
     if (s.startsWith("_")) {
       "_" + upperCamelCase(s.substring(1))
@@ -52,6 +73,11 @@ object Utils {
     }
   }
 
+  /**
+    * Converts string to `lowerCamelCase`.
+    * @param s original string in `lower_under_score` case.
+    * @return same string in `lowerCamelCase`.
+    */
   def lowerCamelCase(s: String): String = {
     if (s.startsWith("_")) {
       "_" + lowerCamelCase(s.substring(1))

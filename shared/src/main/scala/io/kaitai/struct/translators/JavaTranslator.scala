@@ -56,7 +56,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${enumClass(enumTypeAbs)}.${label.toUpperCase}"
+    s"${enumClass(enumTypeAbs)}.${Utils.upperUnderscoreCase(label)}"
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     s"${enumClass(enumTypeAbs)}.byId($id)"
 
@@ -88,7 +88,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
   }
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}.get((int) ${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
@@ -108,8 +108,20 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     importList.add("java.nio.charset.Charset")
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
   }
+
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.length"
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"${translate(container)}[${translate(idx)}]"
+  override def bytesFirst(b: Ast.expr): String =
+    s"${translate(b)}[0]"
+  override def bytesLast(b: Ast.expr): String =
+    s"${translate(b)}[(${translate(b)}).length - 1]"
+  override def bytesMin(b: Ast.expr): String =
+    s"${JavaCompiler.kstreamName}.byteArrayMin(${translate(b)})"
+  override def bytesMax(b: Ast.expr): String =
+    s"${JavaCompiler.kstreamName}.byteArrayMax(${translate(b)})"
+
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =

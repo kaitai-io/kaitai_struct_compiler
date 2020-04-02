@@ -5,18 +5,20 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.TypeDetector
+import io.kaitai.struct.translators.{ExpressionValidator, TypeDetector}
 
 import scala.reflect.ClassTag
 
 /**
   * Validates all expressions used inside the given ClassSpec to use expected types.
+  * Also ensures that all expressions usage of types (in typecasting operator,
+  * enums, sizeof operator, etc) matches loaded classes layout & names.
   * @param specs bundle of class specifications (used only to find external references)
   * @param topClass class to start check with
   */
 class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
   val provider = new ClassTypeProvider(specs, topClass)
-  val detector = new TypeDetector(provider)
+  val detector = new ExpressionValidator(provider)
 
   /**
     * Starts the check from top-level class.
@@ -32,6 +34,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
     * sequence attributes (`seq`), instances (`instances`) and all
     * nested subtypes (`types`) recursively. `doc` and `enums` are
     * not checked, as they contain no expressions.
+    *
     * @param curClass class to check
     */
   def validateClass(curClass: ClassSpec): Unit = {
@@ -45,7 +48,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
         case pis: ParseInstanceSpec =>
           validateParseInstance(pis)
         case vis: ValueInstanceSpec =>
-          // TODO
+          validateValueInstance(vis)
       }
     }
   }
@@ -93,6 +96,15 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
     }
   }
 
+  def validateValueInstance(vis: ValueInstanceSpec): Unit = {
+    try {
+      detector.validate(vis.value)
+    } catch {
+      case err: ExpressionError =>
+        throw new ErrorInInput(err, vis.path ++ List("value"))
+    }
+  }
+
   /**
     * Validates single non-composite data type, checking all expressions
     * inside data type definition.
@@ -127,11 +139,13 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
 
   def validateSwitchType(st: SwitchType, path: List[String]) {
     val onType = detector.detectType(st.on)
+    detector.validate(st.on)
     st.cases.foreach { case (caseExpr, caseType) =>
       val casePath = path ++ List("type", "cases", caseExpr.toString)
       if (caseExpr != SwitchType.ELSE_CONST) {
         try {
           TypeDetector.assertCompareTypes(onType, detector.detectType(caseExpr), Ast.cmpop.Eq)
+          detector.validate(caseExpr)
         } catch {
           case tme: TypeMismatchError =>
             throw new YAMLParseException(tme.getMessage, casePath)
@@ -159,6 +173,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
       val arg = args(i)
       val param = params(i)
       val tArg = detector.detectType(arg)
+      detector.validate(arg)
       val tParam = param.dataType
 
       if (!TypeDetector.canAssign(tArg, tParam)) {
@@ -198,6 +213,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
           }
         case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
       }
+      detector.validate(expr)
     } catch {
       case err: InvalidIdentifier =>
         throw new ErrorInInput(err, path ++ List(pathKey))
@@ -241,6 +257,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) {
           case actual => throw YAMLParseException.exprType(expectStr, actual, path ++ List(pathKey))
         }
       }
+      detector.validate(expr)
     } catch {
       case err: InvalidIdentifier =>
         throw new ErrorInInput(err, path ++ List(pathKey))

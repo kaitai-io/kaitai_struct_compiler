@@ -50,13 +50,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)
-    s"$enumClass::${label.toUpperCase}"
+    s"$enumClass::${Utils.upperUnderscoreCase(label)}"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     "if " + translate(condition) +
@@ -72,7 +72,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case "10" =>
         s"${translate(s)}.parse().unwrap()"
       case _ =>
-        "panic!(\"Converting from string to int in base {} is unimplemented\"" + translate(base) + ")"
+        "panic!(\"Converting from string to int in base {} is unimplemented\", " + translate(base) + ")"
     }
 
   override def enumToInt(v: expr, et: EnumType): String =

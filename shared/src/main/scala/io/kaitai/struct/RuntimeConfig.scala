@@ -2,13 +2,21 @@ package io.kaitai.struct
 
 /**
   * C++-specific runtime configuration of the compiler.
+  * @param namespace C++ namespace to generate classes in.
   * @param usePragmaOnce If true, use `#pragma once` in headers. If false (default),
   *                      use `#ifndef`-`#define`-`#endif` guards.
+  * @param stdStringFrontBack If true, allow use of `front()` and `back()` methods
+  *                           on `std::string`. If false, come up with simulation.
+  * @param useListInitializers If true, allows use of list initializers for
+  *                            `std::vector`. Otherwise, throw a fatal unimplemented
+  *                            error.
   * @param pointers Choose which style of pointers to use.
   */
 case class CppRuntimeConfig(
   namespace: List[String] = List(),
   usePragmaOnce: Boolean = false,
+  stdStringFrontBack: Boolean = false,
+  useListInitializers: Boolean = false,
   pointers: CppRuntimeConfig.Pointers = CppRuntimeConfig.RawPointers
 ) {
   /**
@@ -17,6 +25,8 @@ case class CppRuntimeConfig(
     */
   def copyAsCpp98() = copy(
     usePragmaOnce = false,
+    stdStringFrontBack = false,
+    useListInitializers = false,
     pointers = CppRuntimeConfig.RawPointers
   )
 
@@ -26,6 +36,8 @@ case class CppRuntimeConfig(
     */
   def copyAsCpp11() = copy(
     usePragmaOnce = true,
+    stdStringFrontBack = true,
+    useListInitializers = true,
     pointers = CppRuntimeConfig.UniqueAndRawPointers
   )
 }
@@ -36,6 +48,19 @@ object CppRuntimeConfig {
   case object SharedPointers extends Pointers
   case object UniqueAndRawPointers extends Pointers
 }
+
+/**
+  * Java-specific runtime configuration of the compiler.
+  * @param javaPackage Package to generate classes in.
+  * @param fromFileClass Class to be invoked in `fromFile` helper methods.
+  * @param endOfStreamErrorClass Exception class expected to be thrown on
+  *                              end-of-stream errors.
+  */
+case class JavaRuntimeConfig(
+  javaPackage: String = "",
+  fromFileClass: String = "io.kaitai.struct.ByteBufferKaitaiStream",
+  endOfStreamErrorClass: String = "java.nio.BufferUnderflowException",
+)
 
 /**
   * Runtime configuration of the compiler which controls certain aspects of
@@ -55,12 +80,12 @@ object CppRuntimeConfig {
   *                    defined somewhere else. If false, it will be reported as
   *                    precompile error.
   * @param cppConfig C++-specific configuration
+  * @param java Java-specific configuration
   * @param goPackage Go package name
-  * @param javaPackage Java package name
-  * @param javaFromFileClass Java class to be invoked in `fromFile` helper methods
   * @param dotNetNamespace .NET (C#) namespace
   * @param phpNamespace PHP namespace
   * @param pythonPackage Python package name
+  * @param nimModule Path of Nim runtime module
   */
 case class RuntimeConfig(
   autoRead: Boolean = true,
@@ -68,9 +93,9 @@ case class RuntimeConfig(
   opaqueTypes: Boolean = false,
   cppConfig: CppRuntimeConfig = CppRuntimeConfig(),
   goPackage: String = "",
-  javaPackage: String = "",
-  javaFromFileClass: String = "io.kaitai.struct.ByteBufferKaitaiStream",
+  java: JavaRuntimeConfig = JavaRuntimeConfig(),
   dotNetNamespace: String = "Kaitai",
   phpNamespace: String = "",
-  pythonPackage: String = ""
+  pythonPackage: String = "",
+  nimModule: String = "kaitai_struct_nim_runtime"
 )

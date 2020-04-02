@@ -9,9 +9,10 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.CppCompiler
-import io.kaitai.struct.{ImportList, RuntimeConfig, Utils}
+import io.kaitai.struct.languages.components.CppImportList
+import io.kaitai.struct.{RuntimeConfig, Utils}
 
-class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
+class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, importListHdr: CppImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
 
   /**
@@ -102,8 +103,22 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     '\b' -> "\\b"
   )
 
-  override def doArrayLiteral(t: DataType, values: Seq[expr]): String =
-    throw new RuntimeException("C++ literal arrays are not implemented yet")
+  override def doArrayLiteral(t: DataType, values: Seq[expr]): String = {
+    if (config.cppConfig.useListInitializers) {
+      importListHdr.addSystem("vector")
+      val cppElType = CppCompiler.kaitaiType2NativeType(config.cppConfig, t)
+      val rawInit = s"new std::vector<$cppElType>{" + values.map((value) => translate(value)).mkString(", ") + "}"
+      config.cppConfig.pointers match {
+        case RawPointers =>
+          rawInit
+        case UniqueAndRawPointers =>
+          s"std::unique_ptr<std::vector<$cppElType>>($rawInit)"
+        // TODO: C++14
+      }
+    } else {
+      throw new RuntimeException("C++ literal arrays are not implemented yet")
+    }
+  }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "std::string(\"" + Utils.hexEscapeByteArray(arr) + "\", " + arr.length + ")"
@@ -129,7 +144,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
 
   override def doEnumByLabel(enumType: List[String], label: String): String =
     CppCompiler.types2class(enumType.dropRight(1)) + "::" +
-      (enumType.last + "_" + label).toUpperCase
+      Utils.upperUnderscoreCase(enumType.last + "_" + label)
   override def doEnumById(enumType: List[String], id: String): String =
     s"static_cast<${CppCompiler.types2class(enumType)}>($id)"
 
@@ -143,7 +158,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     }
   }
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}->at(${translate(idx)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
@@ -190,6 +205,26 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
     s"${CppCompiler.kstreamName}::bytes_to_str($bytesExpr, ${translate(encoding)})"
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.length()"
+
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"${translate(container)}[${translate(idx)}]"
+  override def bytesFirst(b: Ast.expr): String = {
+    config.cppConfig.stdStringFrontBack match {
+      case true => s"${translate(b)}.front()"
+      case false => s"${translate(b)}[0]"
+    }
+  }
+  override def bytesLast(b: Ast.expr): String = {
+    config.cppConfig.stdStringFrontBack match {
+      case true => s"${translate(b)}.back()"
+      case false => s"${translate(b)}[${translate(b)}.length() - 1]"
+    }
+  }
+  override def bytesMin(b: Ast.expr): String =
+    s"${CppCompiler.kstreamName}::byte_array_min(${translate(b)})"
+  override def bytesMax(b: Ast.expr): String =
+    s"${CppCompiler.kstreamName}::byte_array_max(${translate(b)})"
+
   override def strLength(s: expr): String =
     s"${translate(s)}.length()"
   override def strReverse(s: expr): String =
@@ -204,12 +239,12 @@ class CppTranslator(provider: TypeProvider, importListSrc: ImportList, config: R
   override def arraySize(a: expr): String =
     s"${translate(a)}->size()"
   override def arrayMin(a: expr): String = {
-    importListSrc.add("algorithm")
+    importListSrc.addSystem("algorithm")
     val v = translate(a)
     s"*std::min_element($v->begin(), $v->end())"
   }
   override def arrayMax(a: expr): String = {
-    importListSrc.add("algorithm")
+    importListSrc.addSystem("algorithm")
     val v = translate(a)
     s"*std::max_element($v->begin(), $v->end())"
   }

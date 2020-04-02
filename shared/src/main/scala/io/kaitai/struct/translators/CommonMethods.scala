@@ -1,7 +1,9 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.precompile.TypeMismatchError
 
 abstract trait CommonMethods[T] extends TypeDetector {
@@ -16,12 +18,25 @@ abstract trait CommonMethods[T] extends TypeDetector {
     val attr = call.attr
     val value = call.value
     val valType = detectType(value)
+
+    // Special case: will be compiled as compile-time determined constant
+    if (attr.name == Identifier.SIZEOF)
+      return byteSizeOfValue(value.toString, valType)
+
     valType match {
+      case KaitaiStructType | CalcKaitaiStructType =>
+        attr.name match {
+          case Identifier.PARENT => kaitaiStructField(value, attr.name)
+        }
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
       case _: BytesType =>
         attr.name match {
-          case "length" => bytesLength(value)
+          case "first" => bytesFirst(value)
+          case "last" => bytesLast(value)
+          case "length" | "size" => bytesLength(value)
+          case "min" => bytesMin(value)
+          case "max" => bytesMax(value)
         }
       case _: StrType =>
         attr.name match {
@@ -37,7 +52,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
         attr.name match {
           case "to_i" => floatToInt(value)
         }
-      case ArrayType(inType) =>
+      case _: ArrayType =>
         attr.name match {
           case "first" => arrayFirst(value)
           case "last" => arrayLast(value)
@@ -89,8 +104,14 @@ abstract trait CommonMethods[T] extends TypeDetector {
   }
 
   def userTypeField(ut: UserType, value: Ast.expr, name: String): T
+  def kaitaiStructField(value: Ast.expr, name: String): T
 
-  def bytesLength(b: Ast.expr): T = ???
+  def bytesSubscript(container: Ast.expr, idx: Ast.expr): T
+  def bytesFirst(b: Ast.expr): T
+  def bytesLast(b: Ast.expr): T
+  def bytesLength(b: Ast.expr): T
+  def bytesMin(b: Ast.expr): T
+  def bytesMax(b: Ast.expr): T
 
   def strLength(s: Ast.expr): T
   def strReverse(s: Ast.expr): T
@@ -107,6 +128,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
   def kaitaiStreamEof(value: Ast.expr): T
   def kaitaiStreamPos(value: Ast.expr): T
 
+  def arraySubscript(container: Ast.expr, idx: Ast.expr): T
   def arrayFirst(a: Ast.expr): T
   def arrayLast(a: Ast.expr): T
   def arraySize(a: Ast.expr): T
@@ -116,4 +138,6 @@ abstract trait CommonMethods[T] extends TypeDetector {
   def enumToInt(value: Ast.expr, et: EnumType): T
 
   def boolToInt(value: Ast.expr): T
+
+  def byteSizeOfValue(attrName: String, valType: DataType): T
 }

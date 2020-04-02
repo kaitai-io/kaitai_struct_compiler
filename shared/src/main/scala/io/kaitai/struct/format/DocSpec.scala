@@ -13,38 +13,38 @@ case class UrlRef(url: String, text: String) extends RefSpec {
   def toAhref: String =
     "<a href=\"" + XMLUtils.escape(url) + "\">" + text + "</a>"
 }
-case object NoRef extends RefSpec
 
 case class DocSpec(
   summary: Option[String],
-  ref: RefSpec
+  ref: List[RefSpec]
 ) {
-  def isEmpty: Boolean = summary.isEmpty && ref == NoRef
+  def isEmpty: Boolean = summary.isEmpty && ref.isEmpty
 }
 
 object DocSpec {
-  val EMPTY = DocSpec(None, NoRef)
+  val EMPTY = DocSpec(None, List())
 
   def fromYaml(srcMap: Map[String, Any], path: List[String]): DocSpec = {
     val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
 
-    val docRefOpt = ParseUtils.getOptValueStr(srcMap, "doc-ref", path)
-
-    val refSpec: RefSpec = docRefOpt.map { (docRef) =>
-      if (docRef.startsWith("http://") || docRef.startsWith("https://")) {
-        val splitPoint = docRef.indexOf(' ')
-        if (splitPoint < 0) {
-          UrlRef(docRef, "Source")
-        } else {
-          val url = docRef.substring(0, splitPoint).trim
-          val text = docRef.substring(splitPoint + 1).trim
-          UrlRef(url, text)
-        }
-      } else {
-        TextRef(docRef)
-      }
-    }.getOrElse(NoRef)
+    val docRefs = ParseUtils.getListStr(srcMap, "doc-ref", path)
+    val refSpec = docRefs.map(docRef => parseSingleRefSpec(docRef))
 
     DocSpec(doc, refSpec)
+  }
+
+  def parseSingleRefSpec(docRef: String): RefSpec = {
+    if (docRef.startsWith("http://") || docRef.startsWith("https://")) {
+      val splitPoint = docRef.indexOf(' ')
+      if (splitPoint < 0) {
+        UrlRef(docRef, "Source")
+      } else {
+        val url = docRef.substring(0, splitPoint).trim
+        val text = docRef.substring(splitPoint + 1).trim
+        UrlRef(url, text)
+      }
+    } else {
+      TextRef(docRef)
+    }
   }
 }

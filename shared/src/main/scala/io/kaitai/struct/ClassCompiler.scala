@@ -43,6 +43,8 @@ class ClassCompiler(
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
+    curClass.meta.imports.foreach(file => lang.importFile(file))
+
     if (!lang.innerDocstrings)
       compileClassDoc(curClass)
     lang.classHeader(curClass.name)
@@ -51,6 +53,18 @@ class ClassCompiler(
 
     // Forward declarations for recursive types
     curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(List(typeName)) }
+
+    // Forward declarations for params which reference types external to this type
+    curClass.params.foreach((paramDefSpec) =>
+      paramDefSpec.dataType match {
+        case ut: UserType =>
+          val externalTypeName = ut.classSpec.get.name
+          if (externalTypeName.head != curClass.name.head) {
+            lang.classForwardDeclaration(externalTypeName)
+          }
+        case _ => // no forward declarations needed
+      }
+    )
 
     if (lang.innerEnums)
       compileEnums(curClass)
@@ -320,17 +334,26 @@ class ClassCompiler(
         lang.attrParseIfHeader(instName, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
-      case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, endian)
+        lang.instanceSetCalculated(instName)
+      case pi: ParseInstanceSpec =>
+        lang.attrParse(pi, instName, endian)
     }
 
-    lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
   }
 
-  def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit =
-    lang.instanceDeclaration(instName, instSpec.dataTypeComposite, instSpec.isNullable)
+  def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit = {
+    val isNullable = if (lang.switchBytesOnlyAsRaw) {
+      instSpec match {
+        case pi: ParseInstanceSpec => pi.isNullableSwitchRaw
+        case i => i.isNullable
+      }
+    } else {
+      instSpec.isNullable
+    }
+    lang.instanceDeclaration(instName, instSpec.dataTypeComposite, isNullable)
+  }
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =
     lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)

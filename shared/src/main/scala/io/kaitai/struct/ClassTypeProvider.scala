@@ -22,11 +22,11 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
   override def determineType(inClass: ClassSpec, attrName: String): DataType = {
     attrName match {
       case Identifier.ROOT =>
-        makeUserType(topClass)
+        topClass.toDataType
       case Identifier.PARENT =>
         if (inClass.parentClass == UnknownClassSpec)
           throw new RuntimeException(s"Unable to derive ${Identifier.PARENT} type in ${inClass.name.mkString("::")}")
-        makeUserType(inClass.parentClass)
+        inClass.parentClass.toDataType
       case Identifier.IO =>
         KaitaiStreamType
       case Identifier.ITERATOR =>
@@ -34,6 +34,8 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       case Identifier.SWITCH_ON =>
         currentSwitchType
       case Identifier.INDEX =>
+        CalcIntType
+      case Identifier.SIZEOF =>
         CalcIntType
       case _ =>
         inClass.seq.foreach { el =>
@@ -58,17 +60,6 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     }
   }
 
-  def makeUserType(csl: ClassSpecLike): DataType = {
-    csl match {
-      case GenericStructClassSpec =>
-        KaitaiStructType
-      case cs: ClassSpec =>
-        val ut = CalcUserType(cs.name, None)
-        ut.classSpec = Some(cs)
-        ut
-    }
-  }
-
   override def resolveEnum(inType: Ast.typeId, enumName: String): EnumSpec =
     resolveEnum(resolveClassSpec(inType), enumName)
 
@@ -87,7 +78,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
   }
 
   override def resolveType(typeName: Ast.typeId): DataType =
-    makeUserType(resolveClassSpec(typeName))
+    resolveClassSpec(typeName).toDataType
 
   def resolveClassSpec(typeName: Ast.typeId): ClassSpec =
     resolveClassSpec(

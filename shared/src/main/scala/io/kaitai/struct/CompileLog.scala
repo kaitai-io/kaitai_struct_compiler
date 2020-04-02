@@ -58,12 +58,22 @@ object CompileLog {
   case class CompileError(
     file: String,
     path: List[String],
+    line: Option[Int],
+    col: Option[Int],
     message: String
   ) extends Jsonable {
-    override def toJson: String = JSON.mapToJson(Map(
-      "file" -> file,
-      "path" -> path,
-      "message" -> message
-    ))
+    override def toJson: String = {
+      val result = Seq(
+        "file" -> file,
+        "message" -> message
+      ) ++ (if (path.nonEmpty) {
+        Seq("path" -> path)
+      } else {
+        Seq()
+      }) ++
+        line.map(lineVal => "line" -> lineVal) ++
+        col.map(colVal => "col" -> colVal)
+      JSON.mapToJson(result.toMap)
+    }
   }
 }

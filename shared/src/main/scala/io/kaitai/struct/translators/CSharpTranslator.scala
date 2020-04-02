@@ -12,6 +12,8 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
+
+    importList.add("System.Collections.Generic")
     s"new List<$nativeType> { $commaStr }"
   }
 
@@ -79,7 +81,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"(${CSharpCompiler.kstreamName}.ByteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
@@ -104,13 +106,18 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def strLength(s: expr): String =
     s"${translate(s)}.Length"
 
-  // FIXME: This is not fully Unicode aware, but might be better than nothing.
-  // http://stackoverflow.com/a/228060/2055163
   override def strReverse(s: expr): String =
-    s"new string(Array.Reverse(${translate(s)}.ToCharArray()))"
+    s"${CSharpCompiler.kstreamName}.StringReverse(${translate(s)})"
 
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.Substring(${translate(from)}, ${translate(to)} - ${translate(from)})"
+
+  override def bytesLength(b: Ast.expr): String =
+    s"${translate(b)}.Length"
+  override def bytesLast(b: Ast.expr): String = {
+    val v = translate(b)
+    s"$v[$v.Length - 1]"
+  }
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"

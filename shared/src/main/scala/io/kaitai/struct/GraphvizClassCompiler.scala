@@ -315,6 +315,11 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
           case _ =>
             affectedVars(value)
         }
+      case Ast.expr.Call(func, args) =>
+        val fromFunc = func match {
+          case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) => affectedVars(obj)
+        }
+        fromFunc ::: affectedVars(Ast.expr.List(args))
       case Ast.expr.Subscript(value, idx) =>
         affectedVars(value) ++ affectedVars(idx)
       case SwitchType.ELSE_CONST =>
@@ -407,7 +412,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     dataType match {
       case rt: ReadableType => rt.apiCall(None) // FIXME
       case ut: UserType => type2display(ut.name)
-      case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
+      //case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         val args = ListBuffer[String]()
         if (terminator != 0)

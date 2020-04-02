@@ -36,10 +36,8 @@ trait EveryReadIsExpression
       attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
-      case FixedBytesType(c, _) =>
-        attrFixedContentsParse(id, c)
       case t: UserType =>
-        attrUserTypeParse(id, t, io, rep, defEndian)
+        attrUserTypeParse(id, t, io, rep, defEndian, assignType)
       case t: BytesType =>
         attrBytesTypeParse(id, t, io, rep, isRaw)
       case st: SwitchType =>
@@ -82,7 +80,7 @@ trait EveryReadIsExpression
     handleAssignment(rawId, expr, rep, isRaw)
 
     // apply post-processing
-    dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
+    dataType.process.foreach((proc) => attrProcess(proc, rawId, id, rep))
   }
 
   def parseExprBytes(dataType: BytesType, io: String): String = {
@@ -99,7 +97,7 @@ trait EveryReadIsExpression
     }
   }
 
-  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
+  def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian], assignType: DataType): Unit = {
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
@@ -110,7 +108,7 @@ trait EveryReadIsExpression
 
         val extraType = rep match {
           case NoRepeat => byteType
-          case _ => ArrayType(byteType)
+          case _ => ArrayTypeInStream(byteType)
         }
 
         this match {
@@ -134,11 +132,11 @@ trait EveryReadIsExpression
       rep match {
         case NoRepeat =>
           handleAssignmentSimple(id, expr)
-          userTypeDebugRead(privateMemberName(id))
+          userTypeDebugRead(privateMemberName(id), dataType, assignType)
         case _ =>
           val tempVarName = localTemporaryName(id)
           handleAssignmentTempVar(dataType, tempVarName, expr)
-          userTypeDebugRead(tempVarName)
+          userTypeDebugRead(tempVarName, dataType, assignType)
           handleAssignment(id, tempVarName, rep, false)
       }
     }
@@ -193,7 +191,7 @@ trait EveryReadIsExpression
 
   def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
   def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String
-  def userTypeDebugRead(id: String): Unit = ???
+  def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = ???
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (config.readStoresPos)

@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.CppRuntimeConfig._
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -11,35 +11,33 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
 
 class CppCompiler(
-  typeProvider: ClassTypeProvider,
+  val typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
     with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
+    with SwitchIfOps
     with EveryReadIsExpression {
   import CppCompiler._
 
-  val importListSrc = new ImportList
-  val importListHdr = new ImportList
+  val importListSrc = new CppImportList
+  val importListHdr = new CppImportList
 
-  override val translator = new CppTranslator(typeProvider, importListSrc, config)
+  override val translator = new CppTranslator(typeProvider, importListSrc, importListHdr, config)
   val outSrcHeader = new StringLanguageOutputWriter(indent)
   val outHdrHeader = new StringLanguageOutputWriter(indent)
   val outSrc = new StringLanguageOutputWriter(indent)
   val outHdr = new StringLanguageOutputWriter(indent)
 
   override def results(topClass: ClassSpec): Map[String, String] = {
-    val fn = topClass.nameAsStr
+    val className = topClass.nameAsStr
     Map(
-      s"$fn.cpp" -> (outSrcHeader.result + importListToStr(importListSrc) + outSrc.result),
-      s"$fn.h" -> (outHdrHeader.result + importListToStr(importListHdr) + outHdr.result)
+      outFileNameSource(className) -> (outSrcHeader.result + importListSrc.result + outSrc.result),
+      outFileNameHeader(className) -> (outHdrHeader.result + importListHdr.result + outHdr.result)
     )
   }
-
-  private def importListToStr(importList: ImportList): String =
-    importList.toList.map((x) => s"#include <$x>").mkString("", "\n", "\n")
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -49,13 +47,15 @@ class CppCompiler(
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = topClassName
+  def outFileNameSource(className: String): String = outFileName(className) + ".cpp"
+  def outFileNameHeader(className: String): String = outFileName(className) + ".h"
 
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")
     outSrcHeader.puts
-    outSrcHeader.puts("#include <memory>")
-    outSrcHeader.puts("#include \"" + outFileName(topClassName) + ".h\"")
-    outSrcHeader.puts
+
+    importListSrc.addSystem("memory")
+    importListSrc.addLocal(outFileNameHeader(topClassName))
 
     if (config.cppConfig.usePragmaOnce) {
       outHdrHeader.puts("#pragma once")
@@ -66,14 +66,13 @@ class CppCompiler(
     outHdrHeader.puts
     outHdrHeader.puts(s"// $headerComment")
     outHdrHeader.puts
-    outHdrHeader.puts("#include \"kaitai/kaitaistruct.h\"")
-    outHdrHeader.puts
 
-    importListHdr.add("stdint.h")
+    importListHdr.addKaitai("kaitai/kaitaistruct.h")
+    importListHdr.addSystem("stdint.h")
 
     config.cppConfig.pointers match {
       case SharedPointers | UniqueAndRawPointers =>
-        importListHdr.add("memory")
+        importListHdr.addSystem("memory")
       case RawPointers =>
         // no extra includes
     }
@@ -110,9 +109,13 @@ class CppCompiler(
     }
   }
 
+  override def importFile(file: String): Unit = {
+    importListHdr.addLocal(outFileNameHeader(file))
+  }
+
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     classForwardDeclaration(classSpec.name)
-    outSrc.puts("#include \"" + outFileName(classSpec.name.head) + ".h\"")
+    importListSrc.addLocal(outFileNameHeader(classSpec.name.head))
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -152,6 +155,16 @@ class CppCompiler(
     outHdr.puts(s"class ${types2class(name)};")
   }
 
+  def importDataType(dt: DataType) = {
+    dt match {
+      case ut: UserType =>
+        val classSpec = ut.classSpec.get
+        if (classSpec.isTopLevel)
+          importListSrc.addLocal(outFileNameHeader(classSpec.name.head))
+      case _ => // no extra imports required
+    }
+  }
+
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val (endianSuffixHdr, endianSuffixSrc)  = if (isHybrid) {
       (", int p_is_le = -1", ", int p_is_le")
@@ -159,9 +172,10 @@ class CppCompiler(
       ("", "")
     }
 
-    val paramsArg = Utils.join(params.map((p) =>
+    val paramsArg = Utils.join(params.map { case (p) =>
+      importDataType(p.dataType)
       s"${kaitaiType2NativeType(p.dataType)} ${paramName(p.id)}"
-    ), "", ", ", ", ")
+    }, "", ", ", ", ")
 
     val classNameBrief = types2class(List(name.last))
 
@@ -174,6 +188,9 @@ class CppCompiler(
     val tIo = kaitaiType2NativeType(KaitaiStreamType)
     val tParent = kaitaiType2NativeType(parentType)
     val tRoot = kaitaiType2NativeType(CalcUserType(rootClassName, None))
+
+    // Parent type might be declared somewhere else - in this case we need to include it
+    importDataType(parentType)
 
     outHdr.puts
     outHdr.puts(s"$classNameBrief($paramsArg" +
@@ -244,8 +261,9 @@ class CppCompiler(
     outSrc.puts
     outSrc.puts("if (m__is_le == -1) {")
     outSrc.inc
-    importListSrc.add("stdexcept")
-    outSrc.puts("throw std::runtime_error(\"unable to decide on endianness\");")
+    importListSrc.addKaitai("kaitai/exceptions.h")
+    outSrc.puts(s"throw ${ksErrorName(UndecidedEndiannessError)}" +
+      "(\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\");")
     outSrc.dec
     outSrc.puts("} else if (m__is_le == 1) {")
     outSrc.inc
@@ -310,15 +328,13 @@ class CppCompiler(
     outHdr.puts
     outHdr.puts( "/**")
 
-    doc.summary.foreach((docStr) => outHdr.putsLines(" * ", docStr))
+    doc.summary.foreach(docStr => outHdr.putsLines(" * ", docStr))
 
-    doc.ref match {
+    doc.ref.foreach {
       case TextRef(text) =>
         outHdr.putsLines(" * ", s"\\sa $text")
       case UrlRef(url, text) =>
-        outHdr.putsLines(" * ", s"\\sa $text")
-      case NoRef =>
-        // nothing to output
+        outHdr.putsLines(" * ", s"\\sa $url $text")
     }
 
     outHdr.puts( " */")
@@ -326,7 +342,7 @@ class CppCompiler(
 
   override def attrInit(attr: AttrLikeSpec): Unit = {
     attr.dataTypeComposite match {
-      case _: UserType | _: ArrayType | KaitaiStreamType =>
+      case _: UserType | _: ArrayTypeInStream | KaitaiStreamType =>
         // data type will be pointer to user type, std::vector or stream, so we need to init it
         outSrc.puts(s"${privateMemberName(attr.id)} = $nullPtr;")
       case _ =>
@@ -414,7 +430,7 @@ class CppCompiler(
   }
 
   def needsDestruction(t: DataType): Boolean = t match {
-    case _: UserType | _: ArrayType | KaitaiStructType | AnyType => true
+    case _: UserType | _: ArrayTypeInStream | KaitaiStructType | AnyType => true
     case _ => false
   }
 
@@ -446,35 +462,37 @@ class CppCompiler(
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        outSrc.puts(s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});")
+        s"$kstreamName::$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        outSrc.puts(s"$destName = $kstreamName::process_zlib($srcName);")
+        s"$kstreamName::process_zlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        outSrc.puts(s"$destName = $kstreamName::process_rotate_left($srcName, $expr);")
+        s"$kstreamName::process_rotate_left($srcExpr, $expr)"
       case ProcessCustom(name, args) =>
         val procClass = name.map((x) => type2class(x)).mkString("::")
         val procName = s"_process_${idToStr(varSrc)}"
 
-        importListSrc.add(name.last + ".h")
+        importListSrc.addLocal(outFileNameHeader(name.last))
 
-        outSrc.puts(s"$procClass $procName(${args.map(expression).mkString(", ")});")
-        outSrc.puts(s"$destName = $procName.decode($srcName);")
+        val argList = args.map(expression).mkString(", ")
+        var argListInParens = if (argList.nonEmpty) s"($argList)" else ""
+        outSrc.puts(s"$procClass $procName$argListInParens;")
+        s"$procName.decode($srcExpr)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
@@ -482,9 +500,8 @@ class CppCompiler(
     val ioId = IoStorageIdentifier(id)
 
     val args = rep match {
-      case RepeatEos | RepeatExpr(_) => s"$memberName->at($memberName->size() - 1)"
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-      case NoRepeat => memberName
+      case _ => getRawIdExpr(id, rep)
     }
 
     val newStream = s"new $kstreamName($args)"
@@ -501,6 +518,14 @@ class CppCompiler(
     }
 
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case _ => s"$memberName->at($memberName->size() - 1)"
+    }
   }
 
   override def useIO(ioEx: Ast.expr): String = {
@@ -542,12 +567,15 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    importListHdr.add("vector")
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+    importListHdr.addSystem("vector")
 
-    if (needRaw) {
+    if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
       outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+    }
+    if (needRaw.level >= 2) {
+      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts("{")
@@ -569,18 +597,23 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    importListHdr.add("vector")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
+    importListHdr.addSystem("vector")
 
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
-    if (needRaw) {
+    if (needRaw.level >= 1) {
       val rawId = privateMemberName(RawIdentifier(id))
       outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
       outSrc.puts(s"$rawId->reserve($lenVar);")
       val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
       outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType)};")
       outSrc.puts(s"$ioId->reserve($lenVar);")
+    }
+    if (needRaw.level >= 2) {
+      val rawId = privateMemberName(RawIdentifier(RawIdentifier(id)))
+      outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
+      outSrc.puts(s"$rawId->reserve($lenVar);")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts(s"${privateMemberName(id)}->reserve($lenVar);")
@@ -597,12 +630,15 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    importListHdr.add("vector")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+    importListHdr.addSystem("vector")
 
-    if (needRaw) {
+    if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
       outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+    }
+    if (needRaw.level >= 2) {
+      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
     outSrc.puts("{")
@@ -638,7 +674,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)}->push_back($wrappedTempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     outSrc.puts("i++;")
     outSrc.dec
@@ -694,7 +730,7 @@ class CppCompiler(
           case SharedPointers =>
             s"std::make_shared<${types2class(t.name)}>($addParams$io$addArgs)"
           case UniqueAndRawPointers =>
-            importListSrc.add("memory")
+            importListSrc.addSystem("memory")
             // C++14
             //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
             s"std::unique_ptr<${types2class(t.name)}>(new ${types2class(t.name)}($addParams$io$addArgs))"
@@ -725,81 +761,85 @@ class CppCompiler(
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit =
-    outSrc.puts(s"$id->_read();")
-
-  /**
-    * Designates switch mode. If false, we're doing real switch-case for this
-    * attribute. If true, we're doing if-based emulation.
-    */
-  var switchIfs = false
-
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    val onType = translator.detectType(on)
-
-    // Determine switching mode for this construct based on type
-    switchIfs = onType match {
-      case _: IntType | _: EnumType => false
-      case _ => true
-    }
-
-    if (switchIfs) {
-      outSrc.puts("{")
-      outSrc.inc
-      outSrc.puts(s"${kaitaiType2NativeType(onType)} on = ${expression(on)};")
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
+    val expr = if (assignType != dataType) {
+      s"static_cast<${kaitaiType2NativeType(dataType)}>($id)"
     } else {
-      outSrc.puts(s"switch (${expression(on)}) {")
+      id
     }
+    outSrc.puts(s"$expr->_read();")
   }
 
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: EnumType => false
+    case _ => true
+  }
+
+  //<editor-fold desc="switching: true version">
+
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    outSrc.puts(s"switch (${expression(on)}) {")
+
   override def switchCaseFirstStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      outSrc.puts(s"if (on == ${expression(condition)}) {")
-      outSrc.inc
-    } else {
-      outSrc.puts(s"case ${expression(condition)}: {")
-      outSrc.inc
-    }
+    outSrc.puts(s"case ${expression(condition)}: {")
+    outSrc.inc
   }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      outSrc.puts(s"else if (on == ${expression(condition)}) {")
-      outSrc.inc
-    } else {
-      outSrc.puts(s"case ${expression(condition)}: {")
-      outSrc.inc
-    }
+    outSrc.puts(s"case ${expression(condition)}: {")
+    outSrc.inc
   }
 
   override def switchCaseEnd(): Unit = {
-    if (switchIfs) {
-      outSrc.dec
-      outSrc.puts("}")
-    } else {
-      outSrc.puts("break;")
-      outSrc.dec
-      outSrc.puts("}")
-    }
+    outSrc.puts("break;")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   override def switchElseStart(): Unit = {
-    if (switchIfs) {
-      outSrc.puts("else {")
-      outSrc.inc
-    } else {
-      outSrc.puts("default: {")
-      outSrc.inc
-    }
+    outSrc.puts("default: {")
+    outSrc.inc
   }
 
   override def switchEnd(): Unit =
-    if (switchIfs) {
-      outSrc.dec
-      outSrc.puts("}")
-    } else {
-      outSrc.puts("}")
-    }
+    outSrc.puts("}")
+
+  //</editor-fold>
+
+  //<editor-fold desc="switching: emulation with ifs">
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    outSrc.puts("{")
+    outSrc.inc
+    outSrc.puts(s"${kaitaiType2NativeType(onType)} on = ${expression(on)};")
+  }
+
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    outSrc.puts(s"if (on == ${expression(condition)}) {")
+    outSrc.inc
+  }
+
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    outSrc.puts(s"else if (on == ${expression(condition)}) {")
+    outSrc.inc
+  }
+
+  override def switchIfCaseEnd(): Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
+  override def switchIfElseStart(): Unit = {
+    outSrc.puts("else {")
+    outSrc.inc
+  }
+
+  override def switchIfEnd(): Unit = {
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
+  //</editor-fold>
 
   override def switchBytesOnlyAsRaw = true
 
@@ -855,9 +895,9 @@ class CppCompiler(
     outHdr.puts("};")
   }
 
-  def value2Const(enumName: String, label: String) = (enumName + "_" + label).toUpperCase
+  def value2Const(enumName: String, label: String) = Utils.upperUnderscoreCase(enumName + "_" + label)
 
-  def defineName(className: String) = className.toUpperCase + "_H_"
+  def defineName(className: String) = Utils.upperUnderscoreCase(className) + "_H_"
 
   /**
     * Returns name of a member that stores "calculated flag" for a given lazy
@@ -883,10 +923,10 @@ class CppCompiler(
     id match {
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
       case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
-      case si: SpecialIdentifier => si.name
-      case ni: NamedIdentifier => ni.name
+      case si: SpecialIdentifier => Utils.lowerUnderscoreCase(si.name)
+      case ni: NamedIdentifier => Utils.lowerUnderscoreCase(ni.name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case ni: InstanceIdentifier => ni.name
+      case ni: InstanceIdentifier => Utils.lowerUnderscoreCase(ni.name)
     }
   }
 
@@ -941,9 +981,40 @@ class CppCompiler(
     case UniqueAndRawPointers => s"std::move($expr)"
     case _ => expr
   }
+
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "std::ifstream::failure"
+    case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
+    case validationErr: ValidationError =>
+      val cppType = kaitaiType2NativeType(validationErr.dt, true)
+      val cppErrName = validationErr match {
+        case _: ValidationNotEqualError => "validation_not_equal_error"
+        case _: ValidationLessThanError => "validation_less_than_error"
+        case _: ValidationGreaterThanError => "validation_greater_than_error"
+        case _: ValidationNotAnyOfError => "validation_not_any_of_error"
+      }
+      s"kaitai::$cppErrName<$cppType>"
+  }
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    importListSrc.addKaitai("kaitai/exceptions.h")
+    outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    outSrc.inc
+    outSrc.puts(s"throw $errName($errArgsStr);")
+    outSrc.dec
+    outSrc.puts("}")
+  }
 }
 
-object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
+object CppCompiler extends LanguageCompilerStatic
+  with StreamStructNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -996,12 +1067,11 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
           t.name
         })
 
-      case ArrayType(inType) => config.pointers match {
+      case ArrayTypeInStream(inType) => config.pointers match {
         case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
         case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
       }
       case CalcArrayType(inType) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
-
       case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {
         case RawPointers => s"$kstructName*"
@@ -1032,7 +1102,8 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
   def combineSwitchType(st: SwitchType): DataType = {
     val ct1 = TypeDetector.combineTypes(
       st.cases.filterNot {
-        case (caseExpr, _) => caseExpr == SwitchType.ELSE_CONST
+        case (caseExpr, _: BytesType) => caseExpr == SwitchType.ELSE_CONST
+        case _ => false
       }.values
     )
     if (st.isOwning) {
@@ -1053,5 +1124,5 @@ object CppCompiler extends LanguageCompilerStatic with StreamStructNames {
   def types2class(components: List[String]) =
     components.map(type2class).mkString("::")
 
-  def type2class(name: String) = name + "_t"
+  def type2class(name: String) = Utils.lowerUnderscoreCase(name) + "_t"
 }
