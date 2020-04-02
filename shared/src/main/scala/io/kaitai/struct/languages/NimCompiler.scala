@@ -23,6 +23,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   import NimCompiler._
 
   // Written from scratch
+  def blankLine: Unit = out.puts
   def imports = importList.toList.map((x) => s"import $x").mkString("\n")
   def namespaced(names: List[String]): String = names.map(n => camelCase(n, true)).mkString("_")
   def typeSectionHeader: Unit = {
@@ -176,10 +177,34 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val enumClass = namespaced(curClass)
-    out.puts(s"${enumClass}_$enumName* = enum")
+    out.puts(s"defineEnum(${enumClass}_$enumName)")
+  }
+  def enumFooter: Unit = {
+    universalFooter
+    out.puts
+  }
+  def enumTemplate: Unit = {
+    out.puts("template defineEnum(typ) =")
     out.inc
-    enumColl.foreach { case (id: Long, label: EnumValueSpec) => out.puts(s"${label.name} = $id") }
+    out.puts("type typ* = distinct int64")
+    out.puts("proc `==`*(x, y: typ): bool {.borrow.}")
     out.dec
+  }
+  def enumTemplateFooter: Unit = out.puts
+  def enumHeader: Unit = {
+    out.puts("const")
+    out.inc
+  }
+  def enumConstantsFooter: Unit = {
+    universalFooter
+    out.puts
+  }
+  def enumConstants(curClass: List[String], enumName: String,  enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
+    val enumClass = namespaced(curClass)
+    enumColl.foreach { case (id: Long, label: EnumValueSpec) =>
+      // This hack is needed because the lowest int64 literal is not supported in Nim
+      val const = if (s"$id" == "-9223372036854775808") "low(int64)" else s"$id"
+      out.puts(s"${label.name}* = ${enumClass}_$enumName($const)") }
   }
   override def fileHeader(topClassName: String): Unit = {
     importList.add(config.nimModule)
@@ -262,6 +287,13 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def useIO(ioEx: Ast.expr): String = {
     out.puts(s"let io = ${expression(ioEx)}")
     "io"
+  }
+  override def classForwardDeclaration(name: List[String]): Unit = {
+    val t = namespaced(typeProvider.nowClass.name)
+    val p = ksToNim(typeProvider.nowClass.parentType)
+    val r = "KaitaiStruct"
+
+    out.puts(s"proc read*(_: typedesc[$t], io: KaitaiStream, root: $r, parent: $p): $t")
   }
 
   // Members declared in io.kaitai.struct.languages.components.ObjectOrientedLanguage
@@ -351,6 +383,45 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       expr
     }
   }
+  // Must override to always add an "else" clause (even if its body is "discard") because
+  // Nim enforces that all cases must be covered
+  override def switchCasesRender[T](
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, T],
+    normalCaseProc: (T) => Unit,
+    elseCaseProc: (T) => Unit
+  ): Unit = {
+    switchStart(id, on)
+
+    // Pass 1: only normal case clauses
+    var first = true
+
+    cases.foreach { case (condition, result) =>
+      condition match {
+        case SwitchType.ELSE_CONST =>
+        // skip for now
+        case _ =>
+          if (first) {
+            switchCaseFirstStart(condition)
+            first = false
+          } else {
+            switchCaseStart(condition)
+          }
+          normalCaseProc(result)
+          switchCaseEnd()
+      }
+    }
+
+    // Pass 2: else clause, if it is there
+    cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
+      switchElseStart()
+      elseCaseProc(result)
+      switchElseEnd()
+    }
+    if (cases.get(SwitchType.ELSE_CONST).isEmpty)
+      switchEnd()
+  }
   override def switchCaseEnd(): Unit = universalFooter
   override def switchCaseStart(condition: Ast.expr): Unit = {
     out.puts(s"of ${expression(condition)}:")
@@ -360,7 +431,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("else:")
     out.inc
   }
-  override def switchEnd(): Unit = {} //out.puts("else: discard")
+  override def switchEnd(): Unit = out.puts("else: discard")
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"case ${expression(on)}")
   }
@@ -391,7 +462,7 @@ object NimCompiler extends LanguageCompilerStatic
 
   // Members declared in io.kaitai.struct.languages.components.StreamStructNames
   override def kstreamName: String = "KaitaiStream"
-  override def kstructName: String = "KSTRUCTNAME???"
+  override def kstructName: String = "KaitaiStruct"
   def ksErrorName(err: KSError): String = "KaitaiError" // TODO: maybe add more debugging info
 
   def camelCase(s: String, upper: Boolean): String = {
