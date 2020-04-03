@@ -435,7 +435,7 @@ object DataType {
       case "struct" => CalcKaitaiStructType
       case "io" => KaitaiStreamType
       case "any" => AnyType
-      case _ => CalcUserType(classNameToList(dt), None)
+      case _ => CalcUserType(classNameToList(singleId), None)
     }
     if (isArray) {
       CalcArrayType(singleType)

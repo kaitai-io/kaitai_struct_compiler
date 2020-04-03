@@ -390,6 +390,7 @@ object TypeDetector {
           }
         case (_: UserType, _: ComplexDataType) => CalcKaitaiStructType
         case (_: ComplexDataType, _: UserType) => CalcKaitaiStructType
+        case (a1: ArrayType, a2: ArrayType) => CalcArrayType(combineTypesAndFail(a1.elType, a2.elType))
         case _ => AnyType
       }
     }
@@ -456,6 +457,7 @@ object TypeDetector {
         case (t1: EnumType, t2: EnumType) =>
           // enums are assignable if their enumSpecs match
           t1.enumSpec.get == t2.enumSpec.get
+        case (a1: ArrayType, a2: ArrayType) => canAssign(a1.elType, a2.elType)
         case (_, _) => false
       }
     }
