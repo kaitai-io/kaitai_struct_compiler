@@ -36,6 +36,10 @@ class NimClassCompiler(
 
     compileReadsForward(topClass)
     nimlang.blankLine
+
+    compileInstancesForward(topClass)
+    nimlang.blankLine
+
     compileProcs(topClass)
     CompileLog.SpecSuccess(
       classNameFlattened(topClass),
@@ -80,12 +84,6 @@ class NimClassCompiler(
   override def compileInstances(curClass: ClassSpec) = {
     curClass.instances.foreach { case (instName, instSpec) =>
       compileInstance(curClass.name, instName, instSpec, curClass.meta.endian)
-    }
-  }
-
-  def compileInstancesForward(curClass: ClassSpec) = {
-    curClass.instances.foreach { case (instName, instSpec) =>
-      nimlang.instanceForwardDeclaration(curClass.name, instName, instSpec.dataTypeComposite)
     }
   }
 
@@ -169,10 +167,20 @@ class NimClassCompiler(
     curClass.types.foreach { case (_, subClass) => compileReadsForward(subClass) }
   }
 
+  def compileInstancesForward(curClass: ClassSpec): Unit = {
+    provider.nowClass = curClass
+    curClass.instances.foreach { case (instName, instSpec) =>
+      nimlang.instanceForwardDeclaration(curClass.name, instName, instSpec.dataTypeComposite) }
+    compileInstancesForwardRec(curClass)
+  }
+
+  def compileInstancesForwardRec(curClass: ClassSpec): Unit = {
+    curClass.types.foreach { case (_, subClass) => compileInstancesForward(subClass) }
+  }
+
   def compileProcs(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
     compileClassDoc(curClass)
-    compileInstancesForward(curClass)
     compileEagerRead(curClass.seq, curClass.meta.endian)
     compileInstances(curClass)
     nimlang.fromFile(curClass.name)
