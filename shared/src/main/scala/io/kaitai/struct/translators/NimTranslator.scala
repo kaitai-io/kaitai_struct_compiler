@@ -19,7 +19,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doName(s: String): String =
     s match {
       case Identifier.PARENT => "parent"
-      case Identifier.IO => "stream"
+      case Identifier.IO => "io"
       case Identifier.ITERATOR2 => "it"
       case _ => s"${Utils.lowerCamelCase(s)}"
     }

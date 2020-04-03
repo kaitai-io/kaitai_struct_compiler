@@ -136,7 +136,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
-    out.puts(s"${privateMemberName(id)} = newSeq[${ksToNim(dataType)}]()")
+    out.puts(s"${privateMemberName(id)} = newSeqOfCap[${ksToNim(dataType)}]()")
     out.puts("block:")
     out.inc
     out.puts("var i: int")
@@ -153,12 +153,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = newString(${expression(repeatExpr)})")
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = newString(${expression(repeatExpr)})")
-    out.puts(s"${idToStr(id)} = newSeq[${ksToNim(dataType)}](${expression(repeatExpr)})")
+    out.puts(s"${privateMemberName(id)} = newSeqOfCap[${ksToNim(dataType)}](${expression(repeatExpr)})")
     out.puts(s"for i in 0 ..< ${expression(repeatExpr)}:")
     out.inc
   }
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"${privateMemberName(id)} = newSeq[${ksToNim(dataType)}]()")
+    out.puts(s"${privateMemberName(id)} = newSeqOfCap[${ksToNim(dataType)}]()")
     out.puts("block:")
     out.inc
     out.puts(s"${ksToNim(dataType)} ${translator.doName("_")};")
@@ -231,8 +231,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   // def normalIO: String = ???
   override def outFileName(topClassName: String): String = s"$topClassName.nim"
-  override def popPos(io: String): Unit = out.puts(s"$io.seek(pos)")
   override def pushPos(io: String): Unit = out.puts(s"let pos = $io.pos()")
+  override def popPos(io: String): Unit = out.puts(s"$io.seek(pos)")
   override def readFooter(): Unit = {
     universalFooter
     out.puts
@@ -282,7 +282,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("readBe(this)")
     out.dec
   }
-  override def seek(io: String, pos: Ast.expr): Unit = out.puts(s"$io.seek(${expression(pos)})")
+  override def seek(io: String, pos: Ast.expr): Unit = out.puts(s"$io.seek(int(${expression(pos)}))")
   // def type2class(className: String): String = ???
   override def useIO(ioEx: Ast.expr): String = {
     out.puts(s"let io = ${expression(ioEx)}")
