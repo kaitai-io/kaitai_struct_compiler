@@ -354,6 +354,7 @@ object TypeDetector {
         case (_: IntType, _: IntType) => CalcIntType
         case (_: NumericType, _: NumericType) => CalcFloatType
         case (_: BytesType, _: BytesType) => CalcBytesType
+        case (_: BooleanType, _: BooleanType) => CalcBooleanType
         case (_: StrType, _: StrType) => CalcStrType
         case (t1: UserType, t2: UserType) =>
           // Two user types can differ in reserved size and/or processing, but that doesn't matter in case of
@@ -389,6 +390,8 @@ object TypeDetector {
               }
           }
         case (_: UserType, _: ComplexDataType) => CalcKaitaiStructType
+        case (t1: EnumType, t2: EnumType) =>
+          if (t1.enumSpec.get == t2.enumSpec.get) EnumType(t1.name, CalcIntType) else AnyType
         case (_: ComplexDataType, _: UserType) => CalcKaitaiStructType
         case (a1: ArrayType, a2: ArrayType) => CalcArrayType(combineTypesAndFail(a1.elType, a2.elType))
         case _ => AnyType
