@@ -44,7 +44,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Ast.operator.Add => "+"
       case Ast.operator.Sub => "-"
       case Ast.operator.Mult => "*"
-      case Ast.operator.Div => "/"
+      case Ast.operator.Div => "div"
       case Ast.operator.Mod => "%%%"
       case Ast.operator.BitAnd => "and"
       case Ast.operator.BitOr => "or"
