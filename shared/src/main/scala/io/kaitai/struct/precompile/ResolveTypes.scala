@@ -2,7 +2,7 @@ package io.kaitai.struct.precompile
 
 import io.kaitai.struct.Log
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType.{EnumType, SwitchType, UserType}
+import io.kaitai.struct.datatype.DataType.{EnumType, SwitchType, UserType, ArrayType}
 import io.kaitai.struct.format._
 
 /**
@@ -49,6 +49,8 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
         st.cases.foreach { case (caseName, ut) =>
           resolveUserType(curClass, ut, path ++ List("type", "cases", caseName.toString))
         }
+      case at: ArrayType =>
+        resolveUserType(curClass, at.elType, path)
       case _ =>
         // not a user type, nothing to resolve
     }
