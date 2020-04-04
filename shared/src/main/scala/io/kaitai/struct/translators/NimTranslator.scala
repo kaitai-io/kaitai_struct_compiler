@@ -29,7 +29,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
 
-  override def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} & ${translate(right)}"
+  override def strConcat(left: Ast.expr, right: Ast.expr): String = "($" + s"${translate(left)} & " + "$" + s"${translate(right)})"
 
   // Members declared in io.kaitai.struct.translators.CommonMethods
 
@@ -37,6 +37,11 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     case Ast.unaryop.Invert => "not"
     case Ast.unaryop.Minus => "-"
     case Ast.unaryop.Not => "not"
+  }
+
+  override def booleanOp(op: Ast.boolop): String = op match {
+      case Ast.boolop.And => "and"
+      case Ast.boolop.Or => "or"
   }
 
   override def binOp(op: Ast.operator): String = {
@@ -104,7 +109,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"reversed(${translate(s)})"
   }
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substr(${translate(from)}, ${translate(to)})"
+    s"${translate(s)}.substr(${translate(from)}, ${translate(to)} - 1)"
   override def strToInt(s: expr, base: expr): String =
-    s"${translate(s)}.parseInt(${translate(base)}"
+    s"${translate(s)}.parseInt(${translate(base)})"
 }
