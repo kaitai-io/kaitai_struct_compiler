@@ -55,7 +55,7 @@ class TypeScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   }
 
   override def doEnumByLabel(enumType: List[String], label: String): String =
-    s"${TypeScriptCompiler.types2class(enumType)}.${label.toUpperCase}"
+    s"${TypeScriptCompiler.types2class(enumType)}.${Utils.upperUnderscoreCase(label)}"
   override def doEnumById(enumTypeAbs: List[String], label: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     label
@@ -63,11 +63,11 @@ class TypeScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"(${TypeScriptCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
 
-  override def doSubscript(container: expr, idx: expr): String =
+  override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: DataType): String = 
+  override def doCast(value: Ast.expr, typeName: DataType): String =
     s"(${translate(value)} as ${TypeScriptCompiler.kaitaiType2NativeType(typeName, false)})"
 
   // Predefined methods of various types

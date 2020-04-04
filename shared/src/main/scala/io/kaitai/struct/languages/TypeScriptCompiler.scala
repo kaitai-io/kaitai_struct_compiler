@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, Endianness, DataType, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -9,7 +9,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.TypeScriptTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
-class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class TypeScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with UpperCamelCaseClasses
@@ -17,6 +17,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalDoc
     with AllocateIOLocalVar
     with EveryReadIsExpression
+    with SwitchIfOps
     with FixedContentsUsingArrayByteLiteral {
   import TypeScriptCompiler._
 
@@ -156,7 +157,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
     val suffix = endian match {
-      case Some(e) => e.toSuffix.toUpperCase
+      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
       case None => ""
     }
     out.puts(s"public _read$suffix() {")
@@ -183,20 +184,15 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     doc.summary.foreach((summary) => out.putsLines(" * ", summary))
 
     // http://usejsdoc.org/tags-see.html
-    doc.ref match {
+    doc.ref.foreach {
       case TextRef(text) =>
         out.putsLines(" * ", s"@see $text")
       case UrlRef(url, text) =>
         out.putsLines(" * ", s"@see {@link $url|$text}")
-      case NoRef =>
     }
 
     out.puts( " */")
   }
-
-  // override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
-  //   out.puts(s"this.meta[${privateMemberName(id)}] = '$attr'")
-  // }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
     out.puts("if (this._is_le) {")
@@ -215,26 +211,25 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"$normalIO.ensureFixedContents($contents);")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)});")
+        s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName.processZlib($srcName);")
+        s"$kstreamName.processZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+        s"$kstreamName.processRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val nameInit = name.init
         val pkgName = if (nameInit.isEmpty) "" else nameInit.mkString("-") + "/"
@@ -243,8 +238,9 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         importList.add(s"$pkgName$procClass")
 
         out.puts(s"let _process = new $procClass(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = _process.decode($srcName);")
+        s"_process.decode($srcExpr)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
@@ -253,14 +249,19 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val ioName = s"_io_$langName"
 
-    val args = rep match {
-      case RepeatEos | RepeatUntil(_) => s"$memberCall[$memberCall.length - 1]"
-      case RepeatExpr(_) => s"$memberCall[i]"
-      case NoRepeat => memberCall
-    }
+    val args = getRawIdExpr(varName, rep)
 
     out.puts(s"let $ioName = new $kstreamName($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i]"
+      case _ => s"$memberName[$memberName.length - 1]"
+    }
   }
 
   override def useIO(ioEx: expr): String = {
@@ -288,7 +289,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val ioProps = io match {
       case None => ""
-      case Some(x) => s"start: $x.pos, ioOffset: $x._byteOffset"
+      case Some(x) => s"start: $x.pos, ioOffset: $x.byteOffset"
     }
 
     val enumNameProps = attrType match {
@@ -317,9 +318,11 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
@@ -338,9 +341,11 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new Array(${expression(repeatExpr)});")
     out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = new Array(${expression(repeatExpr)});")
@@ -357,9 +362,11 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    if (needRaw)
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
     out.puts(s"${privateMemberName(id)} = []")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
@@ -374,7 +381,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.push($tmpName);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("i++;")
     out.dec
@@ -435,42 +442,58 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit = {
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
     val incThis = if (id.startsWith("_t_")) "" else "this."
     out.puts(s"$id._read();")
   }
 
-  /**
-    * Designates switch mode. If false, we're doing real switch-case for this
-    * attribute. If true, we're doing if-based emulation.
-    */
-  var switchIfs = false
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: BooleanType | _: EnumType | _: StrType => false
+    case _ => true
+  }
+
+  //<editor-fold desc="switching: true version">
+
+  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+    out.puts(s"switch (${expression(on)} {")
+
+  override def switchCaseFirstStart(condition: Ast.expr): Unit =
+    switchCaseStart(condition)
+
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+      out.puts(s"case ${expression(condition)}: {")
+      out.inc
+  }
+
+  override def switchCaseEnd(): Unit = {
+      out.puts("break;")
+      out.dec
+      out.puts("}")
+  }
+
+  override def switchElseStart(): Unit = {
+      out.puts("default: {")
+      out.inc
+  }
+
+  override def switchEnd(): Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  //</editor-fold>
+
+  //<editor-fold desc="switching: emulation with ifs">
 
   val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    val onType = translator.detectType(on)
-    typeProvider._currentSwitchType = Some(onType)
-
-    // Determine switching mode for this construct based on type
-    switchIfs = onType match {
-      case _: IntType | _: BooleanType | _: EnumType | _: StrType => false
-      case _ => true
-    }
-
-    if (switchIfs) {
-      out.puts("{")
-      out.inc
-      out.puts(s"let ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
-    } else {
-      // makes the typescript compiler happy when expression(on) evaluates to a number literal
-      out.puts(s"var __temp__ = ${expression(on)};")
-      out.puts("switch (__temp__) {")
-      out.inc
-    }
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    out.puts("{")
+    out.inc
+    out.puts(s"let ${expression(NAME_SWITCH_ON)} = ${expression(on)}")
   }
 
-  def switchCmpExpr(condition: Ast.expr): String =
+  private def switchCmpExpr(condition: Ast.expr): String =
     expression(
       Ast.expr.Compare(
         NAME_SWITCH_ON,
@@ -479,82 +502,35 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       )
     )
 
-  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"if (${switchCmpExpr(condition)}) {")
-      out.inc
-    } else {
-      switchCaseStart(condition)
-    }
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    out.puts(s"if (${switchCmpExpr(condition)}) {")
+    out.inc
   }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
-    if (switchIfs) {
-      out.puts(s"else if (${switchCmpExpr(condition)}) {")
-      out.inc
-    } else {
-      out.puts(s"case ${expression(condition)}: {")
-      out.inc
-    }
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"else if (${switchCmpExpr(condition)}) {")
+    out.inc
   }
 
-  override def switchCaseEnd(): Unit = {
-    if (switchIfs) {
-      out.dec
-      out.puts("}")
-    } else {
-      out.puts("break;")
-      out.dec
-      out.puts("}")
-    }
-    
-  }
-
-  override def switchElseStart(): Unit = {
-    if (switchIfs) {
-      out.puts("else {")
-      out.inc
-    } else {
-      out.puts("default: {")
-      out.inc
-    }
-  }
-
-  override def switchEnd(): Unit = {
+  override def switchIfCaseEnd(): Unit = {
     out.dec
     out.puts("}")
   }
 
-  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    // val typeOut = dataType match {
-    //   case SwitchType(_, cases, _) => {
-    //     cases.map(kv => {
-    //       val b = StringBuilder.newBuilder
-    //       if (kv._2.isInstanceOf[UserType]) {
-    //         b.append("typeof ")
-    //         b.append(kaitaiType2NativeType(kv._2, false))
-    //         b.append(".prototype")
-    //       } else {
-    //         b.append(kaitaiType2NativeType(kv._2, false))
-    //       }
-    //       b.toString()
-    //     }).mkString(" | ")
-    //   }
-    //   case otherType => {
-    //     val b = StringBuilder.newBuilder
-    //     if (otherType.isInstanceOf[UserType]) {
-    //       b.append("typeof ")
-    //       b.append(kaitaiType2NativeType(kv._2, false))
-    //       b.append(".prototype")
-    //     } else {
-    //       b.append(kaitaiType2NativeType(kv._2, false))
-    //     }
-    //     b.toString()
-    //   }
-    // }
+  override def switchIfElseStart(): Unit = {
+    out.puts("else {")
+    out.inc
+  }
 
+  override def switchIfEnd(): Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  //</editor-fold>
+
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"private ${privateMemberName(instName).substring(5)}!: ${kaitaiType2NativeType(dataType, false)};")
-    // out.puts(s"private ${privateMemberName(instName).substring(5)}!: $typeof${kaitaiType2NativeType(dataType, false)}$prototype$arr;")
     out.puts(s"get ${publicMemberName(instName)}() {")
     out.inc
   }
@@ -605,7 +581,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  def enumValue(enumName: String, label: String) = label.toUpperCase
+  def enumValue(enumName: String, label: String) = Utils.upperUnderscoreCase(label)
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
     val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
@@ -633,6 +609,23 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
+  override def ksErrorName(err: KSError): String = TypeScriptCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    out.inc
+    out.puts(s"throw new $errName($errArgsStr);")
+    out.dec
+    out.puts("}")
+  }
+
   private
   def attrDebugNeeded(attrId: Identifier) = attrId match {
     case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
@@ -652,7 +645,8 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
 object TypeScriptCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
-  with StreamStructNames {
+  with StreamStructNames
+  with ExceptionNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
@@ -683,8 +677,8 @@ object TypeScriptCompiler extends LanguageCompilerStatic
       // for now enums are numbers by default
       case t: EnumType => "number" //types2class(t.enumSpec.get.name)
 
-      case ArrayType(inType) =>
-        s"(${kaitaiType2NativeType(inType, absolute)})[]"
+      case at: ArrayType =>
+        s"(${kaitaiType2NativeType(at.elType, absolute)})[]"
 
       case CalcArrayType(inType) => s"(${kaitaiType2NativeType(inType, absolute)})[]"
 
@@ -704,6 +698,11 @@ object TypeScriptCompiler extends LanguageCompilerStatic
   override def kstructName: String = ???
 
   def types2class(types: List[String]): String = types.map(type2class).mkString(".")
+
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => s"KaitaiStream.EOFError"
+    case _ => s"KaitaiStream.${err.name}"
+  }
 
   override def type2class(name: String): String = Utils.upperCamelCase(name)
 }
