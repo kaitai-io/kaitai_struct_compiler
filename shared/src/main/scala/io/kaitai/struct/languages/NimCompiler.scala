@@ -136,11 +136,10 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
-    out.puts(s"${privateMemberName(id)} = newSeqOfCap[${ksToNim(dataType)}]()")
     out.puts("block:")
     out.inc
     out.puts("var i: int")
-    out.puts(s"while not $io.eof:")
+    out.puts(s"while not $io.isEof:")
     out.inc
   }
   override def condRepeatEosFooter: Unit = {
@@ -153,12 +152,10 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = newString(${expression(repeatExpr)})")
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = newString(${expression(repeatExpr)})")
-    out.puts(s"${privateMemberName(id)} = newSeqOfCap[${ksToNim(dataType)}](${expression(repeatExpr)})")
     out.puts(s"for i in 0 ..< ${expression(repeatExpr)}:")
     out.inc
   }
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"${privateMemberName(id)} = newSeqOfCap[${ksToNim(dataType)}]()")
     out.puts("block:")
     out.inc
     out.puts(s"${ksToNim(dataType)} ${translator.doName("_")};")
