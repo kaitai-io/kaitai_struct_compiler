@@ -446,6 +446,7 @@ object TypeDetector {
         case (_: StrType, _: StrType) => true
         case (_: UserType, KaitaiStructType) => true
         case (_: UserType, CalcKaitaiStructType) => true
+        case (KaitaiStructType, CalcKaitaiStructType) => true
         case (t1: UserType, t2: UserType) =>
           (t1.classSpec, t2.classSpec) match {
             case (None, None) =>
