@@ -41,7 +41,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
     s"${str}.match ${regex}"
   }
 
-  override def doRegex(regex: String) : String = s"/" + regex + "/"
+  override def doRegexLiteral(regex: String) : String = s"/" + regex + "/"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s":${enumTypeAbs.last}_$label"

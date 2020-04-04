@@ -105,7 +105,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case Ast.expr.RegexMatch(str: Ast.expr, regex: String) => {
         detectType(str) match {
           case (_: StrType) =>
-            doRegexMatchOp(translate(str), doRegex(regex))
+            doRegexMatchOp(translate(str), doRegexFullLine(regex))
           case _ =>
             throw new TypeMismatchError(s"regex match need strings")
         }
@@ -187,7 +187,6 @@ abstract class BaseTranslator(val provider: TypeProvider)
 
   def doEnumByLabel(enumTypeAbs: List[String], label: String): String
   def doEnumById(enumTypeAbs: List[String], id: String): String
-  def doRegex(reg: String): String = reg
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
@@ -207,4 +206,6 @@ abstract class BaseTranslator(val provider: TypeProvider)
   // for the language
   def anyField(value: Ast.expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
+
+   def doRegexMatchOp(str: String, regex: String): String
 }

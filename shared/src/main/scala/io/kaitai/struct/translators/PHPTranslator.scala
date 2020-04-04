@@ -61,7 +61,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     s"""preg_match(\"${regex}\", ${str})"""
   }
 
-  override def doRegex(reg: String) : String = s"/" + reg + "/"
+  override def doRegexLiteral(reg: String) : String = s"/" + reg + "/"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)

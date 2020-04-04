@@ -77,4 +77,7 @@ trait CommonLiterals {
     '"' -> "\\\"",
     '\\' -> "\\\\"
   )
+
+  def doRegexLiteral(reg: String): String = reg
+  def doRegexFullLine(regex: String) : String = doRegexLiteral("""\A""" + regex + """\Z""")
 }

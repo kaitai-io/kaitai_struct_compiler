@@ -75,10 +75,8 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     translate(v)
 
   override def doRegexMatchOp(str: String, regex: String): String = {
-    s"RegExp(${regex}).test(${str})"
+    s"/${regex}/.exec(${str})"
   }
-
-  override def doRegex(reg: String) : String = doStringLiteral(reg)
 
   /**
     * Converts a boolean (true or false) to integer (1 or 0, respectively) in

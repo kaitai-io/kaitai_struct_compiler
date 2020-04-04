@@ -163,7 +163,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     s"std::regex_match(${str}, std::regex(${regex}))"
   }
 
-  override def doRegex(reg: String): String = doStringLiteral(reg)
+  override def doRegexLiteral(reg: String): String = doStringLiteral(reg)
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}->at(${translate(idx)})"

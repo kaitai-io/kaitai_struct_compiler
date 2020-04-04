@@ -83,7 +83,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"new Regex(${regex}).IsMatch(${str})"
   }
 
-  override def doRegex(reg: String) : String = doStringLiteral(reg)
+  override def doRegexLiteral(reg: String) : String = doStringLiteral(reg)
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"(${CSharpCompiler.kstreamName}.ByteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"

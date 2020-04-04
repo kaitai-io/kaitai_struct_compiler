@@ -93,7 +93,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"Pattern.matches(${regex}, ${str})"
   }
 
-  override def doRegex(reg: String) : String = doStringLiteral(reg)
+  override def doRegexLiteral(reg: String) : String = doStringLiteral(reg)
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}.get((int) ${translate(idx)})"

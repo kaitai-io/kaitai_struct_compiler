@@ -73,14 +73,6 @@ object ValidationRegex {
   val LEGAL_KEYS = Set("regex")
 
   def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationRegex] =
-    /*val regex = ParseUtils.getOptValueExpression(src, "regex", path)
-    regex match {
-      case Some(regexCt) => 
-        ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
-        Some((ValidationRegex(Ast.expr.Str(regexCt))))
-      case None => None
-    }
-  }*/
     ParseUtils.getOptValueStr(src, "regex", path).map { case eqExpr =>
       ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
       ValidationRegex(eqExpr)

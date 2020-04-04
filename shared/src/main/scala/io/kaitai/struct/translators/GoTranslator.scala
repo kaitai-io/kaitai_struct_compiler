@@ -85,6 +85,14 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case (ltype, rtype, _) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
+      case Ast.expr.RegexMatch(str: Ast.expr, regex: String) => {
+        detectType(str) match {
+          case (_: StrType) =>
+            doRegexMatchOp(translate(str), doRegexFullLine(regex))
+          case _ =>
+            throw new TypeMismatchError(s"regex match need strings")
+        }
+      }
       case Ast.expr.BoolOp(op, values) =>
         trBooleanOp(op, values)
       case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
@@ -253,9 +261,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  override def doRegexMatchOp(str: String, regex: String): String = {
+  def doRegexMatchOp(str: String, regex: String): TranslatorResult = {
     importList.add("regexp")
-    s"matched, _ := regexp.MatchString(`${regex}`, ${trStringLiteral(str)}); matched"
+    outVarCheckRes(s"regexp.MatchString(`${regex}`, ${trStringLiteral(str)})")
   }
 
   override def doCast(value: Ast.expr, typeName: DataType): TranslatorResult = ???
