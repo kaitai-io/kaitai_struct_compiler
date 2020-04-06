@@ -167,7 +167,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = {}")
     out.puts(s"${privateMemberName(id)} = {}")
-    out.puts("local i = 1")
+    out.puts("local i = 0")
     out.puts(s"while not $io:is_eof() do")
     out.inc
   }
@@ -183,7 +183,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = {}")
     out.puts(s"${privateMemberName(id)} = {}")
-    out.puts(s"for i = 1, ${expression(repeatExpr)} do")
+    out.puts(s"for i = 0, ${expression(repeatExpr)} - 1 do")
     out.inc
   }
   override def condRepeatExprFooter: Unit = {
@@ -197,7 +197,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = {}")
     out.puts(s"${privateMemberName(id)} = {}")
-    out.puts("local i = 1")
+    out.puts("local i = 0")
     out.puts("while true do")
     out.inc
   }
@@ -248,7 +248,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(varName)
     rep match {
       case NoRepeat => memberName
-      case RepeatExpr(_) => s"$memberName[i]"
+      case RepeatExpr(_) => s"$memberName[i + 1]"
       case _ => s"$memberName[#$memberName]"
     }
   }
@@ -317,13 +317,13 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     s"_t_${idToStr(id)}"
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}[i] = $expr")
+    out.puts(s"${privateMemberName(id)}[i + 1] = $expr")
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}[i] = $expr")
+    out.puts(s"${privateMemberName(id)}[i + 1] = $expr")
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
     out.puts(s"$tmpName = $expr")
-    out.puts(s"${privateMemberName(id)}[i] = $tmpName")
+    out.puts(s"${privateMemberName(id)}[i + 1] = $tmpName")
   }
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")

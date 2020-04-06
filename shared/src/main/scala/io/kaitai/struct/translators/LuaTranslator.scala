@@ -27,12 +27,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String = {
     // Lua indexes start at 1, so we need to offset them
-    val fixedIdx = idx match {
-      case Ast.expr.IntNum(n) => Ast.expr.IntNum(n + 1)
-      case _ => idx
-    }
-
-    s"${translate(container)}[${translate(fixedIdx)}]"
+    s"${translate(container)}[${translate(idx)} + 1]"
   }
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(((${translate(condition)}) and (${translate(ifTrue)})) or (${translate(ifFalse)}))"
@@ -94,6 +89,25 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     importList.add("local str_decode = require(\"string_decode\")")
 
     s"str_decode.decode($bytesExpr, ${translate(encoding)})"
+  }
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String = {
+    s"string.byte(${translate(container)}, ${translate(idx)} + 1)"
+  }
+  override def bytesFirst(a: Ast.expr): String =
+    s"string.byte(${translate(a)}, 1)"
+  override def bytesLast(a: Ast.expr): String = {
+    val table = translate(a)
+    s"string.byte(${table}, #${table})"
+  }
+  override def bytesMin(a: Ast.expr): String = {
+    importList.add("local utils = require(\"utils\")")
+
+    s"utils.byte_array_min(${translate(a)})"
+  }
+  override def bytesMax(a: Ast.expr): String ={
+    importList.add("local utils = require(\"utils\")")
+
+    s"utils.byte_array_max(${translate(a)})"
   }
   override def strLength(s: Ast.expr): String =
     s"string.len(${translate(s)})"
