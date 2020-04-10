@@ -199,6 +199,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case Identifier.ITERATOR |
            Identifier.ITERATOR2 =>
         ResultString(specialName(s))
+      case Identifier.INDEX => ResultString("i")
 
       case _ =>
         if (provider.isLazy(s)) {
