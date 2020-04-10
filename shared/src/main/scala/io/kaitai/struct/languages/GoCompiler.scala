@@ -285,7 +285,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = make([][]byte, 0);")
     //out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))})")
-    out.puts(s"for {")
+    out.puts(s"for i := 1;; i++ {")
     out.inc
 
     val eofVar = translator.allocateLocalVar()
@@ -325,7 +325,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, 0);")
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = make([][]byte, 0);")
-    out.puts("for {")
+    out.puts(s"for i := 1;; i++ {")
     out.inc
   }
 
