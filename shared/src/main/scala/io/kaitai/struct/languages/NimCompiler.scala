@@ -115,7 +115,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
   }
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"${idToStr(attrName)}*: Option[${ksToNim(attrType)}]")
+    attrType match {
+      case _: BytesType => out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
+      case _: StrType => out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
+      case _: ArrayType => out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
+      case _ => out.puts(s"${idToStr(attrName)}*: Option[${ksToNim(attrType)}]")
+    }
   }
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {}
@@ -149,27 +154,26 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
     if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = newString(${expression(repeatExpr)})")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = newString(${expression(repeatExpr)})")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = newSeq[string](${expression(repeatExpr)})")
+//    if (needRaw.level >= 2)
+//      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = newString(${expression(repeatExpr)})")
     out.puts(s"for i in 0 ..< ${expression(repeatExpr)}:")
     out.inc
   }
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
     out.puts("block:")
     out.inc
-    out.puts(s"${ksToNim(dataType)} ${translator.doName("_")};")
     out.puts("var i: int")
     out.puts("while true:")
     out.inc
   }
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(repeatExpr)}:")
     out.inc
     out.puts("break")
     out.dec
     out.puts("inc i")
+    out.dec
     out.dec
   }
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
@@ -210,10 +214,15 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def indent: String = "  "
   // def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = ???
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"if isSome(${privateMemberName(instName)}):")
-    out.inc
-    instanceReturn(instName, dataType)
-    out.dec
+    dataType match {
+      case _: ArrayType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
+      case _: StrType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
+      case _: BytesType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
+      case _ => out.puts(s"if isSome(${privateMemberName(instName)}):")
+    }
+      out.inc
+      instanceReturn(instName, dataType)
+      out.dec
   }
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"proc ${idToStr(instName).dropRight(4)}(this: ${namespaced(className)}): ${ksToNim(dataType)} = ")
@@ -224,7 +233,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    out.puts(s"return get(${privateMemberName(instName)})")
+    attrType match {
+      case _: ArrayType => out.puts(s"return ${privateMemberName(instName)}")
+      case _: StrType => out.puts(s"return ${privateMemberName(instName)}")
+      case _: BytesType => out.puts(s"return ${privateMemberName(instName)}")
+      case _ => out.puts(s"return get(${privateMemberName(instName)})")
+    }
   }
   // def normalIO: String = ???
   override def outFileName(topClassName: String): String = s"$topClassName.nim"
@@ -237,15 +251,21 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
     val t = namespaced(typeProvider.nowClass.name)
     val p = ksToNim(typeProvider.nowClass.parentType)
-    val r = "KaitaiStruct"
+    val r = namespaced(typeProvider.topClass.name)
+    val paramsArg = Utils.join(typeProvider.nowClass.params.map((p) =>
+      s"${paramName(p.id)}: any"
+    ), ", ", ", ", "")
 
     endian match {
       case None =>
-        out.puts(s"proc read*(_: typedesc[$t], io: KaitaiStream, root: $r, parent: $p): $t =")
+        out.puts(s"proc read*(_: typedesc[$t], io: KaitaiStream, root: KaitaiStruct, parent: $p$paramsArg): $t =")
         out.inc
         out.puts("template this: untyped = result")
         out.puts(s"this = new($t)")
-        out.puts(s"let root = if root == nil: cast[$r](this) else: root")
+        // The cast in the if clause is used to bypass semantic analysis
+        // The cast in the else clause should be a normal type conversion instead,
+        // but for some reason it doesn't work. Needs further investigation
+        out.puts(s"let root = if root == nil: cast[$r](this) else: cast[$r](root)")
         out.puts(s"this.io = io")
         out.puts(s"this.root = root")
         out.puts(s"this.parent = parent")
@@ -288,9 +308,11 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classForwardDeclaration(name: List[String]): Unit = {
     val t = namespaced(typeProvider.nowClass.name)
     val p = ksToNim(typeProvider.nowClass.parentType)
-    val r = "KaitaiStruct"
+    val paramsArg = Utils.join(typeProvider.nowClass.params.map((p) =>
+      s"${paramName(p.id)}: any"
+    ), ", ", ", ", "")
 
-    out.puts(s"proc read*(_: typedesc[$t], io: KaitaiStream, root: $r, parent: $p): $t")
+    out.puts(s"proc read*(_: typedesc[$t], io: KaitaiStream, root: KaitaiStruct, parent: $p$paramsArg): $t")
   }
 
   // Members declared in io.kaitai.struct.languages.components.ObjectOrientedLanguage
@@ -337,11 +359,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.add($tmpName)")
   }
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    if (idToStr(id).endsWith("Inst")) {
-      out.puts(s"${privateMemberName(id)} = some($expr)")
-    } else {
-      out.puts(s"${privateMemberName(id)} = $expr")
-    }
+    out.puts(s"${privateMemberName(id)} = $expr")
   }
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     val expr = dataType match {
@@ -430,7 +448,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def switchEnd(): Unit = out.puts("else: discard")
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    out.puts(s"case ${expression(on)}")
+    // A tiny bit hacky, might come up with a better solution
+    val expr = translator.detectType(on) match {
+      case _: IntType => s"ord(${expression(on)})"
+      case _ => s"${expression(on)}"
+    }
+    out.puts(s"case $expr")
   }
 
   // Members declared in io.kaitai.struct.languages.components.UniversalDoc
@@ -510,9 +533,7 @@ object NimCompiler extends LanguageCompilerStatic
       })
 
       case t: EnumType => namespaced(t.enumSpec.get.name)
-
       case at: ArrayType => s"seq[${ksToNim(at.elType)}]"
-
       case st: SwitchType => ksToNim(st.combinedType)
     }
   }

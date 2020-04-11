@@ -3,10 +3,11 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.languages.NimCompiler.{ksToNim, namespaced}
+import io.kaitai.struct.languages.NimCompiler.{ksToNim, namespaced, camelCase}
 
 class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   // Members declared in io.kaitai.struct.translators.BaseTranslator
@@ -18,12 +19,23 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${namespaced(enumTypeAbs)}($label)"
   override def doName(s: String): String =
     s match {
+      case Identifier.ROOT => "root"
       case Identifier.PARENT => "parent"
       case Identifier.IO => "io"
-      case Identifier.ITERATOR2 => "it"
-      case _ => s"${Utils.lowerCamelCase(s)}"
+      case Identifier.ITERATOR => "it"
+      case Identifier.ITERATOR2 => "buf"
+      case Identifier.INDEX => "i"
+      case Identifier.SWITCH_ON => "on"
+      case Identifier.IS_LE => "isLe"
+      case Identifier.SIZEOF => "size"
+      case _ => s"${camelCase(s, false)}"
     }
-  override def doLocalName(s: String): String = "this." + doName(s)
+  override def doLocalName(s: String): String =
+    s match {
+      case Identifier.INDEX => doName(s)
+      case Identifier.ROOT => s"${ksToNim(provider.determineType(Identifier.ROOT))}(this.${doName(s)})"
+      case _ => s"this.${doName(s)}"
+    }
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
   override def arraySubscript(container: expr, idx: expr): String =
@@ -61,20 +73,16 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doCast(value: Ast.expr, typeName: DataType): String =
     s"(${ksToNim(typeName)}(${translate(value)}))"
   override def doIntLiteral(n: BigInt): String = {
-    if (n < -9223372036854775808L) {
-      s"$n" // too low, no type conversion would help anyway
-    } else if (n <= -2147483649L) {
-      s"$n'i64" // -9223372036854775808..–2147483649
-    } else if (n <= 2147483647L) {
-      s"$n" // -2147483648..2147483647
-    } else if (n <= 4294967295L) {
-      s"$n'u32" // 2147483648..4294967295
-    } else if (n <= 9223372036854775807L) {
-      s"$n'i64" // 4294967296..9223372036854775807
-    } else if (n <= Utils.MAX_UINT64) {
-      s"$n'u64" // 9223372036854775808..18446744073709551615
-    } else {
-      s"$n" // too high, no type conversion would help anyway
+    if (n < -9223372036854775808L) { // too low, no type conversion would help anyway
+      s"$n"
+    } else if (n <= -2147483649L) { // -9223372036854775808..–2147483649
+      s"$n'i64"
+    } else if (n <= 2147483647L) { // -2147483648..2147483647
+      s"$n"
+    } else if (n <= Utils.MAX_UINT64) { // 2147483648..18446744073709551615
+      s"$n'u64"
+    } else { // too high, no type conversion would help anyway
+      s"$n"
     }
   }
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
