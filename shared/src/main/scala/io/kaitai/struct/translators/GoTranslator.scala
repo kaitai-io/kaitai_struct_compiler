@@ -199,6 +199,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case Identifier.ITERATOR |
            Identifier.ITERATOR2 =>
         ResultString(specialName(s))
+      case Identifier.INDEX => ResultString("i")
 
       case _ =>
         if (provider.isLazy(s)) {
@@ -438,10 +439,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultLocalVar(v)
   }
 
-  def userType(dataType: UserType, io: String) = {
+  def userType(t: UserType, io: String) = {
     val v = allocateLocalVar()
-    out.puts(s"${localVarName(v)} := new(${GoCompiler.types2class(dataType.classSpec.get.name)})")
-    out.puts(s"err = ${localVarName(v)}.Read($io, this, this._root)")
+    val parent = t.forcedParent match {
+      case Some(USER_TYPE_NO_PARENT) => "nil"
+      case Some(fp) => translate(fp)
+      case None => "this"
+    }
+    val root = if (t.isOpaque) "nil" else "this._root"
+    val addParams = t.args.map((a) => translate(a)).mkString(", ")
+    out.puts(s"${localVarName(v)} := New${GoCompiler.types2class(t.classSpec.get.name)}($addParams)")
+    out.puts(s"err = ${localVarName(v)}.Read($io, $parent, $root)")
     outAddErrCheck()
     ResultLocalVar(v)
   }
