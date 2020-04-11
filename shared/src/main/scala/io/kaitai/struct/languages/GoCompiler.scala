@@ -72,7 +72,19 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {}
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
+    val paramsArg = params.map((p) =>
+      s"${paramName(p.id)} ${kaitaiType2NativeType(p.dataType)}"
+    ).mkString(", ")
+    out.puts(s"func New${types2class(name)}($paramsArg) *${types2class(name)} {")
+    out.inc
+    out.puts(s"return &${types2class(name)}{")
+    out.inc
+    params.foreach(p => out.puts(s"${idToStr(p.id)}: ${paramName(p.id)},"))
+    out.dec
+    out.puts("}")
+    universalFooter
+  }
 
   override def classConstructorFooter: Unit = {}
 
@@ -536,6 +548,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
+
+  override def paramName(id: Identifier): String = Utils.lowerCamelCase(id.humanReadable)
 
   def calculatedFlagForName(id: Identifier) = s"_f_${idToStr(id)}"
 
