@@ -74,15 +74,15 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doCast(value: Ast.expr, typeName: DataType): String =
     s"(${ksToNim(typeName)}(${translate(value)}))"
   override def doIntLiteral(n: BigInt): String = {
-    if (n < -9223372036854775808L) { // too low, no type conversion would help anyway
-      s"$n"
-    } else if (n <= -2147483649L) { // -9223372036854775808..–2147483649
+    if (n <= -2147483649L) { // -9223372036854775808..–2147483649
       s"$n'i64"
     } else if (n <= 2147483647L) { // -2147483648..2147483647
       s"$n"
-    } else if (n <= Utils.MAX_UINT64) { // 2147483648..18446744073709551615
+    } else if (n <= 9223372036854775807L) { // 2147483648..9223372036854775807
+      s"$n'i64"
+    } else if (n <= Utils.MAX_UINT64) { // 9223372036854775807..18446744073709551615
       s"$n'u64"
-    } else { // too high, no type conversion would help anyway
+    } else {
       s"$n"
     }
   }
