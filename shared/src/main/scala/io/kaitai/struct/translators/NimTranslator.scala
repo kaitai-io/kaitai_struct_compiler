@@ -16,7 +16,8 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"convert($bytesExpr, srcEncoding = ${translate(encoding)})"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String): String = s"${namespaced(enumTypeAbs)}($id)"
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${namespaced(enumTypeAbs)}($label)"
+//  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${namespaced(enumTypeAbs)}($label)"
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${enumTypeAbs.head}.$label"
   override def doName(s: String): String =
     s match {
       case Identifier.ROOT => "root"
@@ -86,12 +87,9 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     }
   }
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    //s"@[${value.map((v) => translate(v)).mkString(", ")}].mapIt(${ksToNim(t)}(it))"
     s"@[${value.map((v) => translate(v)).mkString(", ")}]"
   }
   override def doByteArrayLiteral(arr: Seq[Byte]): String = {
-    //importList.add("sequtils")
-    //s"@[${arr.mkString(", ")}].mapIt(it.toByte).toString"
     val first = s"${arr.head}'i8"
     if (arr.size == 0)
       s"@[]"
