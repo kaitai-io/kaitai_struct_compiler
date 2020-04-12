@@ -15,7 +15,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UpperCamelCaseClasses
     with FixedContentsUsingArrayByteLiteral
     with UniversalFooter
-    with CommonReads
     with AllocateIOLocalVar
     with SwitchOps
     with UniversalDoc {
@@ -212,7 +211,10 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("options")
   }
   override def indent: String = "  "
-  // def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = ???
+  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
+    val cast = s"${ksToNim(dataType)}(${expression(value)})"
+    handleAssignmentSimple(instName, cast)
+  }
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     dataType match {
       case _: ArrayType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
