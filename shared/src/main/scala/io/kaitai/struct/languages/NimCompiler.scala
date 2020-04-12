@@ -69,6 +69,9 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = "KaitaiError" // TODO: maybe add more debugging info
 
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
+  override def importFile(file: String): Unit = {
+    importList.add(file)
+  }
   override def alignToByte(io: String): Unit = out.puts(s"alignToByte($io)")
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
     out.puts(s"this.${idToStr(attrName)} = $normalIO.ensureFixedContents($contents)")
@@ -363,6 +366,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr")
   }
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = {}
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     val expr = dataType match {
       case t: ReadableType =>
@@ -400,6 +404,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       expr
     }
   }
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {} // TODO
+
   // Must override to always add an "else" clause (even if its body is "discard") because
   // Nim enforces that all cases must be covered
   override def switchCasesRender[T](
