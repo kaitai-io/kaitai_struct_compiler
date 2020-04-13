@@ -87,9 +87,13 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     beProc()
     out.dec
   }
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcExpr = privateMemberName(varSrc)
 
+  // Works but is crappily written; I want to rewrite this later XXX
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = rep match {
+      case RepeatEos | RepeatExpr(_) | RepeatUntil(_) => privateMemberName(varSrc) + "[i]"
+      case NoRepeat => privateMemberName(varSrc)
+    }
     val expr = proc match {
       case ProcessXor(xorValue) =>
         s"$srcExpr.processXor(${expression(xorValue)})"
@@ -101,7 +105,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$srcExpr.processRotateLeft($expr, 1)"
+        s"$srcExpr.processRotateLeft(int($expr))"
       case ProcessCustom(name, args) =>
         val namespace = name.init.mkString("/")
         val procPath = namespace + (if (namespace.nonEmpty) "/" else "") + name.last
@@ -141,28 +145,21 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
-    out.puts("block:")
-    out.inc
-    out.puts("var i: int")
     out.puts(s"while not $io.isEof:")
     out.inc
   }
   override def condRepeatEosFooter: Unit = {
-    out.puts("inc i")
-    out.dec
     out.dec
   }
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = newSeq[seq[byte]](${expression(repeatExpr)})")
+//    if (needRaw.level >= 1)
+//      out.puts(s"${privateMemberName(RawIdentifier(id))} = newSeq[$t]($r)")
 //    if (needRaw.level >= 2)
 //      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = newString(${expression(repeatExpr)})")
     out.puts(s"for i in 0 ..< ${expression(repeatExpr)}:")
     out.inc
   }
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    out.puts("block:")
-    out.inc
     out.puts("var i: int")
     out.puts("while true:")
     out.inc
@@ -173,7 +170,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("break")
     out.dec
     out.puts("inc i")
-    out.dec
     out.dec
   }
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {

@@ -86,14 +86,14 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     }
   }
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    s"@[${value.map((v) => translate(v)).mkString(", ")}]"
+    val contents = value.map(v => s"${ksToNim(t)}(${translate(v)})").mkString(", ")
+    s"@[$contents]"
   }
   override def doByteArrayLiteral(arr: Seq[Byte]): String = {
-    val first = s"${arr.head}'u8"
     if (arr.size == 0)
       s"@[]"
     else
-      s"@[${first + ", " + arr.tail.mkString(", ")}]"
+      "@[" + arr.mkString("'u8, ") + "'u8]"
   }
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"@[${elts.map(translate).mkString(", ")}]"
@@ -106,7 +106,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def floatToInt(v: expr): String = s"int(${translate(v)})"
   override def intToStr(v: expr, base: expr): String = {
     importList.add("strutils")
-    s"intToStr(${translate(v)})"
+    s"intToStr(int(${translate(v)}))"
   }
   override def strLength(s: expr): String = s"len(${translate(s)})"
   override def strReverse(s: expr): String = {
