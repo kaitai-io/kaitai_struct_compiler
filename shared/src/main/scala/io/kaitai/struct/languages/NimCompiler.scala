@@ -103,13 +103,11 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$srcExpr.processRotateLeft($expr, 1)"
       case ProcessCustom(name, args) =>
-        val namespace = name.init.mkString(".")
-        val procClass = namespace +
-          (if (namespace.nonEmpty) "." else "") +
-          type2class(name.last)
-        val procName = s"process_${idToStr(varSrc)}"
-        out.puts(s"let $procName = $procClass(${args.map(expression).mkString(", ")})")
-        s"$procName.decode($srcExpr)"
+        val namespace = name.init.mkString("/")
+        val procPath = namespace + (if (namespace.nonEmpty) "/" else "") + name.last
+        val procName = camelCase(name.last, false)
+        importList.add(config.nimOpaque + procPath)
+        s"$procName($srcExpr, ${args.map(expression).mkString(", ")})"
     }
     handleAssignment(varDest, expr, rep, false)
   }
@@ -305,7 +303,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
   override def seek(io: String, pos: Ast.expr): Unit = out.puts(s"$io.seek(int(${expression(pos)}))")
-  // def type2class(className: String): String = ???
   override def useIO(ioEx: Ast.expr): String = {
     out.puts(s"let io = ${expression(ioEx)}")
     "io"
