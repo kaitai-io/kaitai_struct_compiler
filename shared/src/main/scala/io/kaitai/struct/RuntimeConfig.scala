@@ -99,5 +99,5 @@ case class RuntimeConfig(
   phpNamespace: String = "",
   pythonPackage: String = "",
   nimModule: String = "kaitai_struct_nim_runtime",
-  nimOpaque: String = "../../spec/nim/opaque/"
+  nimOpaque: String = "../../tests/spec/nim/opaque/"
 )
