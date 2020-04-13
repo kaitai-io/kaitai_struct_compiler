@@ -12,8 +12,7 @@ import io.kaitai.struct.languages.NimCompiler.{ksToNim, namespaced, camelCase}
 class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   // Members declared in io.kaitai.struct.translators.BaseTranslator
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
-    importList.add("encodings")
-    s"convert($bytesExpr, srcEncoding = ${translate(encoding)})"
+    s"encode($bytesExpr, ${translate(encoding)})"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String): String = s"${namespaced(enumTypeAbs)}($id)"
 //  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${namespaced(enumTypeAbs)}($label)"
@@ -90,11 +89,11 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"@[${value.map((v) => translate(v)).mkString(", ")}]"
   }
   override def doByteArrayLiteral(arr: Seq[Byte]): String = {
-    val first = s"${arr.head}'i8"
+    val first = s"${arr.head}'u8"
     if (arr.size == 0)
       s"@[]"
     else
-      s"@[${first + ", " + arr.tail.mkString(", ")}].toString"
+      s"@[${first + ", " + arr.tail.mkString(", ")}]"
   }
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"@[${elts.map(translate).mkString(", ")}]"

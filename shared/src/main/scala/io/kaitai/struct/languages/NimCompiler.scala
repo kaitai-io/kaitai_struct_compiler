@@ -54,7 +54,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val ioName = s"${idToStr(id)}Io"
-    out.puts(s"let $ioName = newKaitaiStringStream(${privateMemberName(id)})")
+    out.puts(s"let $ioName = newKaitaiStream(${privateMemberName(id)})")
     ioName
   }
 
@@ -154,7 +154,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
     if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = newSeq[string](${expression(repeatExpr)})")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = newSeq[seq[byte]](${expression(repeatExpr)})")
 //    if (needRaw.level >= 2)
 //      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = newString(${expression(repeatExpr)})")
     out.puts(s"for i in 0 ..< ${expression(repeatExpr)}:")
@@ -527,7 +527,7 @@ object NimCompiler extends LanguageCompilerStatic
       case CalcFloatType => "float64"
 
       case _: StrType => "string"
-      case _: BytesType => "string"
+      case _: BytesType => "seq[byte]"
 
       case KaitaiStructType | CalcKaitaiStructType => "KaitaiStruct"
       case KaitaiStreamType => "KaitaiStream"
