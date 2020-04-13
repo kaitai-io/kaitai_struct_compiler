@@ -123,7 +123,7 @@ object JavaMain {
 
       opt[String]("nim-opaque") valueName("<module>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(nimOpaque = x))
-      } text("Directory of opaque Nim modules (Nim only, default: ../../tests/spec/nim/opaque/)")
+      } text("Directory of opaque Nim modules (Nim only, default: directory of generated module)")
 
       opt[Boolean]("opaque-types") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
