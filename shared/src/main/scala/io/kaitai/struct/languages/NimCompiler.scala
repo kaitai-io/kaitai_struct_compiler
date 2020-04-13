@@ -88,7 +88,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcExpr = idToStr(varSrc)
+    val srcExpr = privateMemberName(varSrc)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
@@ -108,7 +108,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           (if (namespace.nonEmpty) "." else "") +
           type2class(name.last)
         val procName = s"process_${idToStr(varSrc)}"
-        out.puts(s"$procName = $procClass(${args.map(expression).mkString(", ")})")
+        out.puts(s"let $procName = $procClass(${args.map(expression).mkString(", ")})")
         s"$procName.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
