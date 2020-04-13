@@ -86,7 +86,7 @@ case class JavaRuntimeConfig(
   * @param phpNamespace PHP namespace
   * @param pythonPackage Python package name
   * @param nimModule Path of Nim runtime module
-  * @param nimOpaque Directory of opaque Nim modules - used for custom processing routines and more
+  * @param nimOpaque Directory of opaque Nim modules
   */
 case class RuntimeConfig(
   autoRead: Boolean = true,

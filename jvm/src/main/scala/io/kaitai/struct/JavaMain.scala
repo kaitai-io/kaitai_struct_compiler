@@ -119,7 +119,11 @@ object JavaMain {
 
       opt[String]("nim-module") valueName("<module>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(nimModule = x))
-      } text("Path of Nim runtime module (Nim only, default: kaitai_struct/runtime/nim/kaitai)")
+      } text("Path of Nim runtime module (Nim only, default: kaitai_struct_nim_runtime)")
+
+      opt[String]("nim-opaque") valueName("<module>") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(nimOpaque = x))
+      } text("Directory of opaque Nim modules (Nim only, default: ../../tests/spec/nim/opaque/)")
 
       opt[Boolean]("opaque-types") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
