@@ -8,7 +8,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.NimTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
-class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
     with EveryReadIsExpression
@@ -16,7 +16,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with FixedContentsUsingArrayByteLiteral
     with UniversalFooter
     with AllocateIOLocalVar
-    with SwitchOps
+    with SwitchIfOps
     with UniversalDoc {
 
   import NimCompiler._
@@ -145,21 +145,24 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+    out.puts("block:")
+    out.inc
+    out.puts("var i: int")
     out.puts(s"while not $io.isEof:")
     out.inc
   }
   override def condRepeatEosFooter: Unit = {
+    out.puts("inc i")
+    out.dec
     out.dec
   }
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-//    if (needRaw.level >= 1)
-//      out.puts(s"${privateMemberName(RawIdentifier(id))} = newSeq[$t]($r)")
-//    if (needRaw.level >= 2)
-//      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = newString(${expression(repeatExpr)})")
     out.puts(s"for i in 0 ..< ${expression(repeatExpr)}:")
     out.inc
   }
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
+    out.puts("block:")
+    out.inc
     out.puts("var i: int")
     out.puts("while true:")
     out.inc
@@ -170,6 +173,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("break")
     out.dec
     out.puts("inc i")
+    out.dec
     out.dec
   }
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
@@ -399,6 +403,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {} // TODO
 
+  // Members declared in io.kaitai.struct.languages.components.SwitchOps
   // Must override to always add an "else" clause (even if its body is "discard") because
   // Nim enforces that all cases must be covered
   override def switchCasesRender[T](
@@ -456,6 +461,29 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     out.puts(s"case $expr")
   }
+
+  // Members declared in io.kaitai.struct.languages.components.SwitchIfOps
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: EnumType | _: StrType => false
+    case _ => true
+  }
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    out.puts(s"let on = ${expression(on)}")
+  }
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    out.puts(s"if on == ${expression(condition)}:")
+    out.inc
+  }
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"elif on == ${expression(condition)}:")
+    out.inc
+  }
+  override def switchIfCaseEnd(): Unit = out.dec
+  override def switchIfElseStart(): Unit = {
+    out.puts("else:")
+    out.inc
+  }
+  override def switchIfEnd(): Unit = {}
 
   // Members declared in io.kaitai.struct.languages.components.UniversalDoc
   override def universalDoc(doc: DocSpec): Unit = {
