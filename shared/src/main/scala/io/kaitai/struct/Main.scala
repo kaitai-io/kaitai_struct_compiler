@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec}
-import io.kaitai.struct.languages.{GoCompiler, RustCompiler, NimCompiler}
+import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile._
 
@@ -87,6 +87,8 @@ object Main {
         new NimClassCompiler(specs, spec, config)
       case HtmlClassCompiler =>
         new HtmlClassCompiler(specs, spec)
+      case TypeScriptCompiler =>
+        new TypeScriptClassCompiler(specs, spec, config)
       case _ =>
         new ClassCompiler(specs, spec, config, lang)
     }
