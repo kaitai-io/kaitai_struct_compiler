@@ -54,7 +54,7 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val ioName = s"${idToStr(id)}Io"
-    out.puts(s"let $ioName = newKaitaiStream(${privateMemberName(id)})")
+    out.puts(s"let $ioName = newKaitaiStream(${idToStr(id)}Expr)")
     ioName
   }
 
@@ -272,6 +272,7 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"this.io = io")
         out.puts(s"this.root = root")
         out.puts(s"this.parent = parent")
+        typeProvider.nowClass.params.foreach((p) => handleAssignmentSimple(p.id, s"${ksToNim(p.dataType)}(${paramName(p.id)})"))
 
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
@@ -349,19 +350,26 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     expr2
   }
+  def handleAssignmentIterative(id: Identifier, expr: String): Unit = {
+    // Need better design for this XXX
+    val exprName = idToStr(id) + "Expr"
+    out.puts(s"let $exprName = $expr")
+    out.puts(s"${privateMemberName(id)}.add($exprName)")
+  }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.add($expr)")
+    handleAssignmentIterative(id, expr)
   }
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.add($expr)")
+    handleAssignmentIterative(id, expr)
   }
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
-    out.puts(s"let $tmpName = $expr")
-    out.puts(s"${privateMemberName(id)}.add($tmpName)")
+    handleAssignmentIterative(id, expr)
   }
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)} = $expr")
+    // Need better design for this XXX
+    val exprName = idToStr(id) + "Expr"
+    out.puts(s"let $exprName = $expr")
+    out.puts(s"${privateMemberName(id)} = $exprName")
   }
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = {}
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
