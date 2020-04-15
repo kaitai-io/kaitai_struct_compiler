@@ -465,6 +465,14 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"SEQ_FIELDS = [$seqStr]")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("def __repr__(self):")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)}")
+    out.dec
+  }
+
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 
   def idToStr(id: Identifier): String = {
