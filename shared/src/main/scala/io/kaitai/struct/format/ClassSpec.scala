@@ -2,6 +2,7 @@ package io.kaitai.struct.format
 
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
 
 import scala.collection.mutable
 
@@ -30,6 +31,7 @@ case class ClassSpec(
   isTopLevel: Boolean,
   meta: MetaSpec,
   doc: DocSpec,
+  toStringExpr: Option[Ast.expr],
   params: List[ParamDefSpec],
   seq: List[AttrSpec],
   types: Map[String, ClassSpec],
@@ -99,6 +101,7 @@ object ClassSpec {
     "meta",
     "doc",
     "doc-ref",
+    "to-string",
     "params",
     "seq",
     "types",
@@ -115,6 +118,8 @@ object ClassSpec {
     val meta = explicitMeta.fillInDefaults(metaDef)
 
     val doc = DocSpec.fromYaml(srcMap, path)
+
+    val toStringExpr = ParseUtils.getOptValueExpression(srcMap, "to-string", path)
 
     val params: List[ParamDefSpec] = srcMap.get("params") match {
       case Some(value) => paramDefFromYaml(value, path ++ List("params"))
@@ -141,7 +146,7 @@ object ClassSpec {
 
     val cs = ClassSpec(
       path, path.isEmpty,
-      meta, doc,
+      meta, doc, toStringExpr,
       params, seq, types, instances, enums
     )
 
@@ -254,6 +259,7 @@ object ClassSpec {
       true,
       meta = MetaSpec.OPAQUE,
       doc = DocSpec.EMPTY,
+      toStringExpr = None,
       params = List(),
       seq = List(),
       types = Map(),

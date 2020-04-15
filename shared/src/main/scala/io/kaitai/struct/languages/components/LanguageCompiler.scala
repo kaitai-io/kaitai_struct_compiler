@@ -141,6 +141,8 @@ abstract class LanguageCompiler(
     */
   def debugClassSequence(seq: List[AttrSpec]) = {}
 
+  def classToString(toStringExpr: Ast.expr): Unit = {}
+
   def attrParseIfHeader(id: Identifier, ifExpr: Option[Ast.expr]): Unit = {
     ifExpr match {
       case Some(e) =>

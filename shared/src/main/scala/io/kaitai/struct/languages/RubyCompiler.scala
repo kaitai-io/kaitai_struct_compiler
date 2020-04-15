@@ -447,6 +447,15 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"SEQ_FIELDS = [$seqStr]")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("def inspect")
+    out.inc
+    out.puts(translator.translate(toStringExpr))
+    out.dec
+    out.puts("end")
+  }
+
   override def idToStr(id: Identifier): String = {
     id match {
       case NamedIdentifier(name) => Utils.lowerUnderscoreCase(name)
