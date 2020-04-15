@@ -102,6 +102,8 @@ class ClassCompiler(
     compileAttrDeclarations(allAttrs)
     compileAttrReaders(allAttrs)
 
+    curClass.toStringExpr.foreach(expr => lang.classToString(expr))
+
     lang.classFooter(curClass.name)
 
     if (!lang.innerClasses)
