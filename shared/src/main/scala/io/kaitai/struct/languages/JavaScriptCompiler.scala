@@ -555,6 +555,17 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     //out.puts(s"SEQ_FIELDS = [$seqStr]")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    val className = type2class(translator.provider.nowClass.name.last)
+
+    out.puts
+    out.puts(s"${className}.prototype.toString = function() {")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)};")
+    out.dec
+    out.puts("}")
+  }
+
   def idToStr(id: Identifier): String = {
     id match {
       case SpecialIdentifier(name) => name
