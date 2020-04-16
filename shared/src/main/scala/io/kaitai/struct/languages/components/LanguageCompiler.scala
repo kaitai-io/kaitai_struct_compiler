@@ -141,6 +141,13 @@ abstract class LanguageCompiler(
     */
   def debugClassSequence(seq: List[AttrSpec]) = {}
 
+  /**
+    * Generates custom member of the class (typically named `toString()` / `inspect` /
+    * `__repr__` / similar) that gets contents of all important members of the class
+    * as a single string. Usually used for debugging purposes / internal dumping mechanism.
+    * Custom expression to render can be specified with `to-string` type-level KSY key.
+    * @param toStringExpr custom expression in class context to render the string.
+    */
   def classToString(toStringExpr: Ast.expr): Unit = {}
 
   def attrParseIfHeader(id: Identifier, ifExpr: Option[Ast.expr]): Unit = {
