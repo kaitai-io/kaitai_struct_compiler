@@ -54,7 +54,11 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val ioName = s"${idToStr(id)}Io"
-    out.puts(s"let $ioName = newKaitaiStream(${idToStr(id)}Expr)")
+    val arg = rep match {
+      case NoRepeat => idToStr(id) + "Expr"
+      case _ => translator.doName(Identifier.ITERATOR2)
+    }
+    out.puts(s"let $ioName = newKaitaiStream($arg)")
     ioName
   }
 
@@ -157,7 +161,7 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"for i in 0 ..< ${expression(repeatExpr)}:")
+    out.puts(s"for i in 0 ..< int(${expression(repeatExpr)}):")
     out.inc
   }
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
@@ -168,6 +172,7 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
+    typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(repeatExpr)}:")
     out.inc
     out.puts("break")
@@ -352,7 +357,10 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   def handleAssignmentIterative(id: Identifier, expr: String): Unit = {
     // Need better design for this XXX
-    val exprName = idToStr(id) + "Expr"
+    val exprName = id match {
+      case _: RawIdentifier => translator.doName(Identifier.ITERATOR2)
+      case _ => translator.doName(Identifier.ITERATOR)
+    }
     out.puts(s"let $exprName = $expr")
     out.puts(s"${privateMemberName(id)}.add($exprName)")
   }

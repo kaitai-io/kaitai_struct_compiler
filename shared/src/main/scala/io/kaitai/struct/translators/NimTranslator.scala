@@ -32,6 +32,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     }
   override def doLocalName(s: String): String =
     s match {
+      case Identifier.ITERATOR => doName(s)
       case Identifier.INDEX => doName(s)
       case Identifier.ROOT => s"${ksToNim(provider.determineType(Identifier.ROOT))}(this.${doName(s)})"
       case _ => s"this.${doName(s)}"
