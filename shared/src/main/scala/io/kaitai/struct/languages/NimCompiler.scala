@@ -477,12 +477,6 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
 
   // Members declared in io.kaitai.struct.languages.components.SwitchIfOps
-  override def switchRequiresIfs(onType: DataType): Boolean = {
-    onType match {
-      case _: IntType | _: EnumType | _: StrType => false
-      case _ => true
-    }
-  }
   override def switchRequiresIfs(onType: DataType): Boolean = true
   override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
     out.puts("block:")
