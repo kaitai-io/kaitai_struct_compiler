@@ -14,8 +14,9 @@ case class MetaSpec(
   imports: List[String]
 ) extends YAMLPath {
   def fillInDefaults(defSpec: MetaSpec): MetaSpec = {
-    fillInEncoding(defSpec.encoding).
-      fillInEndian(defSpec.endian)
+    fillInEncoding(defSpec.encoding)
+      .fillInEndian(defSpec.endian)
+      .fillInBitEndian(defSpec.bitEndian)
   }
 
   private
@@ -36,6 +37,15 @@ case class MetaSpec(
         this.copy(endian = Some(InheritedEndian))
       case (Some(_), None) =>
         this.copy(endian = defEndian)
+    }
+  }
+
+  def fillInBitEndian(defBitEndian: Option[BitEndianness]): MetaSpec = {
+    (defBitEndian, bitEndian) match {
+      case (None, _) => this
+      case (_, Some(_)) => this
+      case (Some(_), None) =>
+        this.copy(bitEndian = defBitEndian)
     }
   }
 }
