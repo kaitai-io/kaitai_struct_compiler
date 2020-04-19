@@ -25,11 +25,11 @@ class NimClassCompiler(
     compileImports(topClass)
 
     // if there are any enums at all maybe we can detect it and not generate this template
-    nimlang.enumTemplate
-    nimlang.enumTemplateFooter
+//    nimlang.enumTemplate
+//    nimlang.enumTemplateFooter
 
-    compileEnumsForAllTypes(topClass)
-    compileEnumConstants(topClass)
+//    compileEnumsForAllTypes(topClass)
+//    compileEnumConstants(topClass)
 
     nimlang.typeSectionHeader
     compileTypes(topClass)
@@ -120,15 +120,15 @@ class NimClassCompiler(
     curClass.types.foreach { case (_, subClass) => compileImports(subClass) }
   }
 
-  def compileEnumsForAllTypes(curClass: ClassSpec) {
-    provider.nowClass = curClass
-    compileEnums(curClass)
-    compileEnumsForAllTypesRec(curClass)
-  }
-
-  def compileEnumsForAllTypesRec(curClass: ClassSpec) {
-    curClass.types.foreach { case (_, subClass) => compileEnumsForAllTypes(subClass) }
-  }
+//  def compileEnumsForAllTypes(curClass: ClassSpec) {
+//    provider.nowClass = curClass
+//    compileEnums(curClass)
+//    compileEnumsForAllTypesRec(curClass)
+//  }
+//
+//  def compileEnumsForAllTypesRec(curClass: ClassSpec) {
+//    curClass.types.foreach { case (_, subClass) => compileEnumsForAllTypes(subClass) }
+//  }
 
   def compileTypes(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
@@ -146,7 +146,7 @@ class NimClassCompiler(
     }
 
     nimlang.classFooter(curClass.name)
-
+    compileEnums(curClass)
     compileTypesRec(curClass)
   }
 
@@ -154,19 +154,19 @@ class NimClassCompiler(
     curClass.types.foreach { case (_, subClass) => compileTypes(subClass) }
   }
   
-  def compileEnumConstants(curClass: ClassSpec): Unit = {
-    provider.nowClass = curClass
-    curClass.enums.foreach { case(_, enumColl) => {
-      nimlang.enumHeader
-      nimlang.enumConstants(curClass.name, enumColl.name.last, enumColl.sortedSeq) }
-      nimlang.enumFooter
-    }
-    compileEnumConstantsRec(curClass)
-  }
-
-  def compileEnumConstantsRec(curClass: ClassSpec): Unit = {
-    curClass.types.foreach { case (_, subClass) => compileEnumConstants(subClass) }
-  }
+//  def compileEnumConstants(curClass: ClassSpec): Unit = {
+//    provider.nowClass = curClass
+//    curClass.enums.foreach { case(_, enumColl) => {
+//      nimlang.enumHeader
+//      nimlang.enumConstants(curClass.name, enumColl.name.last, enumColl.sortedSeq) }
+//      nimlang.enumFooter
+//    }
+//    compileEnumConstantsRec(curClass)
+//  }
+//
+//  def compileEnumConstantsRec(curClass: ClassSpec): Unit = {
+//    curClass.types.foreach { case (_, subClass) => compileEnumConstants(subClass) }
+//  }
 
   def compileReadsForward(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass

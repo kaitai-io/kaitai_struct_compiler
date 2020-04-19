@@ -181,37 +181,44 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.dec
   }
+  // For this to work, we need a {.lenientCase.} pragma which disables nim's exhaustive case coverage check
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val enumClass = namespaced(curClass)
-    out.puts(s"defineEnum(${enumClass}_$enumName)")
-  }
-  def enumFooter: Unit = {
-    universalFooter
-    out.puts
-  }
-  def enumTemplate: Unit = {
-    out.puts("template defineEnum(typ) =")
+    out.puts(s"${enumClass}_${camelCase(enumName, true)}* = enum")
     out.inc
-    out.puts("type typ* = distinct int64")
-    out.puts("proc `==`*(x, y: typ): bool {.borrow.}")
+    enumColl.foreach { case (id, label) =>
+      val order = if (s"$id" == "-9223372036854775808") "low(int64)" else s"$id"
+      out.puts(s"${label.name} = $order")
+    }
     out.dec
   }
-  def enumTemplateFooter: Unit = out.puts
-  def enumHeader: Unit = {
-    out.puts("const")
-    out.inc
-  }
-  def enumConstantsFooter: Unit = {
-    universalFooter
-    out.puts
-  }
-  def enumConstants(curClass: List[String], enumName: String,  enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
-    val enumClass = namespaced(curClass)
-    enumColl.foreach { case (id: Long, label: EnumValueSpec) =>
-      // This hack is needed because the lowest int64 literal is not supported in Nim
-      val const = if (s"$id" == "-9223372036854775808") "low(int64)" else s"$id"
-      out.puts(s"${label.name}* = ${enumClass}_$enumName($const)") }
-  }
+//  def enumFooter: Unit = {
+//    universalFooter
+//    out.puts
+//  }
+//  def enumTemplate: Unit = {
+//    out.puts("template defineEnum(typ) =")
+//    out.inc
+//    out.puts("type typ* = distinct int64")
+//    out.puts("proc `==`*(x, y: typ): bool {.borrow.}")
+//    out.dec
+//  }
+//  def enumTemplateFooter: Unit = out.puts
+//  def enumHeader: Unit = {
+//    out.puts("const")
+//    out.inc
+//  }
+//  def enumConstantsFooter: Unit = {
+//    universalFooter
+//    out.puts
+//  }
+//  def enumConstants(curClass: List[String], enumName: String,  enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
+//    val enumClass = namespaced(curClass)
+//    enumColl.foreach { case (id: Long, label: EnumValueSpec) =>
+//      // This hack is needed because the lowest int64 literal is not supported in Nim
+//      val const = if (s"$id" == "-9223372036854775808") "low(int64)" else s"$id"
+//      out.puts(s"${label.name}* = ${enumClass}_$enumName($const)") }
+//  }
   override def fileHeader(topClassName: String): Unit = {
     importList.add(config.nimModule)
     importList.add("options")
@@ -422,43 +429,43 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   // Members declared in io.kaitai.struct.languages.components.SwitchOps
   // Must override to always add an "else" clause (even if its body is "discard") because
   // Nim enforces that all cases must be covered
-  override def switchCasesRender[T](
-    id: Identifier,
-    on: Ast.expr,
-    cases: Map[Ast.expr, T],
-    normalCaseProc: (T) => Unit,
-    elseCaseProc: (T) => Unit
-  ): Unit = {
-    switchStart(id, on)
-
-    // Pass 1: only normal case clauses
-    var first = true
-
-    cases.foreach { case (condition, result) =>
-      condition match {
-        case SwitchType.ELSE_CONST =>
-        // skip for now
-        case _ =>
-          if (first) {
-            switchCaseFirstStart(condition)
-            first = false
-          } else {
-            switchCaseStart(condition)
-          }
-          normalCaseProc(result)
-          switchCaseEnd()
-      }
-    }
-
-    // Pass 2: else clause, if it is there
-    cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
-      switchElseStart()
-      elseCaseProc(result)
-      switchElseEnd()
-    }
-    if (cases.get(SwitchType.ELSE_CONST).isEmpty)
-      switchEnd()
-  }
+//  override def switchCasesRender[T](
+//    id: Identifier,
+//    on: Ast.expr,
+//    cases: Map[Ast.expr, T],
+//    normalCaseProc: (T) => Unit,
+//    elseCaseProc: (T) => Unit
+//  ): Unit = {
+//    switchStart(id, on)
+//
+//    // Pass 1: only normal case clauses
+//    var first = true
+//
+//    cases.foreach { case (condition, result) =>
+//      condition match {
+//        case SwitchType.ELSE_CONST =>
+//        // skip for now
+//        case _ =>
+//          if (first) {
+//            switchCaseFirstStart(condition)
+//            first = false
+//          } else {
+//            switchCaseStart(condition)
+//          }
+//          normalCaseProc(result)
+//          switchCaseEnd()
+//      }
+//    }
+//
+//    // Pass 2: else clause, if it is there
+//    cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
+//      switchElseStart()
+//      elseCaseProc(result)
+//      switchElseEnd()
+//    }
+//    if (cases.get(SwitchType.ELSE_CONST).isEmpty)
+//      switchEnd()
+//  }
   override def switchCaseEnd(): Unit = universalFooter
   override def switchCaseStart(condition: Ast.expr): Unit = {
     out.puts(s"of ${expression(condition)}:")
@@ -468,7 +475,8 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("else:")
     out.inc
   }
-  override def switchEnd(): Unit = out.puts("else: discard")
+//  override def switchEnd(): Unit = out.puts("else: discard")
+  override def switchEnd(): Unit = {}
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     // A tiny bit hacky, might come up with a better solution
     val expr = translator.detectType(on) match {
@@ -479,9 +487,11 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   // Members declared in io.kaitai.struct.languages.components.SwitchIfOps
-  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
-    case _: IntType | _: EnumType | _: StrType => false
-    case _ => true
+  override def switchRequiresIfs(onType: DataType): Boolean = {
+    onType match {
+      case _: IntType | _: EnumType | _: StrType => false
+      case _ => true
+    }
   }
   override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
     out.puts(s"let on = ${expression(on)}")
