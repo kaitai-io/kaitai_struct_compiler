@@ -427,64 +427,54 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {} // TODO
 
   // Members declared in io.kaitai.struct.languages.components.SwitchOps
-  // Must override to always add an "else" clause (even if its body is "discard") because
-  // Nim enforces that all cases must be covered
-//  override def switchCasesRender[T](
-//    id: Identifier,
-//    on: Ast.expr,
-//    cases: Map[Ast.expr, T],
-//    normalCaseProc: (T) => Unit,
-//    elseCaseProc: (T) => Unit
-//  ): Unit = {
-//    switchStart(id, on)
-//
-//    // Pass 1: only normal case clauses
-//    var first = true
-//
-//    cases.foreach { case (condition, result) =>
-//      condition match {
-//        case SwitchType.ELSE_CONST =>
-//        // skip for now
-//        case _ =>
-//          if (first) {
-//            switchCaseFirstStart(condition)
-//            first = false
-//          } else {
-//            switchCaseStart(condition)
-//          }
-//          normalCaseProc(result)
-//          switchCaseEnd()
-//      }
-//    }
-//
-//    // Pass 2: else clause, if it is there
-//    cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
-//      switchElseStart()
-//      elseCaseProc(result)
-//      switchElseEnd()
-//    }
-//    if (cases.get(SwitchType.ELSE_CONST).isEmpty)
-//      switchEnd()
-//  }
-  override def switchCaseEnd(): Unit = universalFooter
-  override def switchCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"of ${expression(condition)}:")
-    out.inc
-  }
-  override def switchElseStart(): Unit = {
-    out.puts("else:")
-    out.inc
-  }
-//  override def switchEnd(): Unit = out.puts("else: discard")
-  override def switchEnd(): Unit = {}
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
-    // A tiny bit hacky, might come up with a better solution
-    val expr = translator.detectType(on) match {
-      case _: IntType => s"ord(${expression(on)})"
-      case _ => s"${expression(on)}"
+  override def switchCasesUsingIf[T](
+    id: Identifier,
+    on: Ast.expr,
+    onType: DataType,
+    cases: Map[Ast.expr, T],
+    normalCaseProc: (T) => Unit,
+    elseCaseProc: (T) => Unit
+  ): Unit = {
+    switchIfStart(id, on, onType)
+
+    // Pass 1: only normal case clauses
+    var first = true
+
+    cases.foreach { case (condition, result) =>
+      condition match {
+        case SwitchType.ELSE_CONST =>
+          // skip for now
+        case _ =>
+          if (first) {
+            switchIfCaseFirstStart(condition)
+            first = false
+          } else {
+            switchIfCaseStart(condition)
+          }
+          normalCaseProc(result)
+          switchIfCaseEnd()
+      }
     }
-    out.puts(s"case $expr")
+
+    // Pass 2: else clause, if it is there
+    cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
+      if (cases.size == 1) {
+        elseCaseProc(result)
+      } else {
+        switchIfElseStart()
+        elseCaseProc(result)
+        switchIfElseEnd()
+      }
+    }
+
+    switchIfEnd()
   }
+
+  override def switchCaseEnd(): Unit = universalFooter
+  override def switchCaseStart(condition: Ast.expr): Unit = {}
+  override def switchElseStart(): Unit = {}
+  override def switchEnd(): Unit = {}
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
 
   // Members declared in io.kaitai.struct.languages.components.SwitchIfOps
   override def switchRequiresIfs(onType: DataType): Boolean = {
@@ -493,7 +483,10 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => true
     }
   }
+  override def switchRequiresIfs(onType: DataType): Boolean = true
   override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    out.puts("block:")
+    out.inc
     out.puts(s"let on = ${expression(on)}")
   }
   override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
@@ -509,7 +502,7 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("else:")
     out.inc
   }
-  override def switchIfEnd(): Unit = {}
+  override def switchIfEnd(): Unit = out.dec
 
   // Members declared in io.kaitai.struct.languages.components.UniversalDoc
   override def universalDoc(doc: DocSpec): Unit = {
