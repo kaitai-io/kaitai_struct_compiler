@@ -372,9 +372,9 @@ class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.ReadBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
-      case BitsType1 =>
+      case BitsType1(bitEndian) =>
         s"$io.ReadBitsInt(1) != 0"
-      case BitsType(width: Int) =>
+      case BitsType(width: Int, bitEndian) =>
         s"$io.ReadBitsInt($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
@@ -633,7 +633,7 @@ object CSharpCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType(_) => "ulong"
+      case BitsType(_, _) => "ulong"
 
       case CalcIntType => "int"
       case CalcFloatType => "double"

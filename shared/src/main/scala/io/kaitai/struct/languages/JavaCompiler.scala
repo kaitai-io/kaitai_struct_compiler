@@ -446,9 +446,9 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
-      case BitsType1 =>
+      case BitsType1(bitEndian) =>
         s"$io.readBitsInt(1) != 0"
-      case BitsType(width: Int) =>
+      case BitsType(width: Int, bitEndian) =>
         s"$io.readBitsInt($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) {
@@ -800,7 +800,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType(_) => "long"
+      case BitsType(_, _) => "long"
 
       case _: BooleanType => "boolean"
       case CalcIntType => "int"
@@ -844,7 +844,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "Float"
       case FloatMultiType(Width8, _) => "Double"
 
-      case BitsType(_) => "Long"
+      case BitsType(_, _) => "Long"
 
       case _: BooleanType => "Boolean"
       case CalcIntType => "Integer"

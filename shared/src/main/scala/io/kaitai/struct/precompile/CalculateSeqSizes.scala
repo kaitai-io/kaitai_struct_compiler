@@ -82,8 +82,8 @@ object CalculateSeqSizes {
     */
   def dataTypeBitsSize(dataType: DataType): Sized = {
     dataType match {
-      case BitsType1 => FixedSized(1)
-      case BitsType(width) => FixedSized(width)
+      case BitsType1(_) => FixedSized(1)
+      case BitsType(width, _) => FixedSized(width)
       case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
       case ut: UserTypeInstream => getSeqSize(ut.classSpec.get)
       case _ =>

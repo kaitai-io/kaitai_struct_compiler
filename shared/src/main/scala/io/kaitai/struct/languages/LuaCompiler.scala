@@ -337,9 +337,9 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"$io:read_bytes_full()"
     case BytesTerminatedType(terminator, include, consume, eosError, _) =>
       s"$io:read_bytes_term($terminator, $include, $consume, $eosError)"
-    case BitsType1 =>
+    case BitsType1(bitEndian) =>
       s"$io:read_bits_int(1)"
-    case BitsType(width: Int) =>
+    case BitsType(width: Int, bitEndian) =>
       s"$io:read_bits_int($width)"
     case t: UserType =>
       val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")

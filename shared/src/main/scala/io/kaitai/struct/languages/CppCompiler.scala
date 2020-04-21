@@ -700,9 +700,9 @@ class CppCompiler(
         s"$io->read_bytes_full()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io->read_bytes_term($terminator, $include, $consume, $eosError)"
-      case BitsType1 =>
+      case BitsType1(bitEndian) =>
         s"$io->read_bits_int(1)"
-      case BitsType(width: Int) =>
+      case BitsType(width: Int, bitEndian) =>
         s"$io->read_bits_int($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
@@ -1038,7 +1038,7 @@ object CppCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType(_) => "uint64_t"
+      case BitsType(_, _) => "uint64_t"
 
       case _: BooleanType => "bool"
       case CalcIntType => "int32_t"

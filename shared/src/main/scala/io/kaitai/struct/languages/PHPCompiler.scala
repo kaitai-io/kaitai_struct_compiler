@@ -343,9 +343,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io->readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io->readBytesTerm($terminator, $include, $consume, $eosError)"
-      case BitsType1 =>
+      case BitsType1(bitEndian) =>
         s"$io->readBitsInt(1) != 0"
-      case BitsType(width: Int) =>
+      case BitsType(width: Int, bitEndian) =>
         s"$io->readBitsInt($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")

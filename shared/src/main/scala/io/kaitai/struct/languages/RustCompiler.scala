@@ -326,9 +326,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.read_bytes_full()?"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.read_bytes_term($terminator, $include, $consume, $eosError)?"
-      case BitsType1 =>
+      case BitsType1(bitEndian) =>
         s"$io.read_bits_int(1)? != 0"
-      case BitsType(width: Int) =>
+      case BitsType(width: Int, bitEndian) =>
         s"$io.read_bits_int($width)?"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
@@ -523,7 +523,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case FloatMultiType(Width4, _) => "f32"
       case FloatMultiType(Width8, _) => "f64"
 
-      case BitsType(_) => "u64"
+      case BitsType(_, _) => "u64"
 
       case _: BooleanType => "bool"
       case CalcIntType => "i32"
@@ -566,7 +566,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case FloatMultiType(Width4, _) => "0"
       case FloatMultiType(Width8, _) => "0"
 
-      case BitsType(_) => "0"
+      case BitsType(_, _) => "0"
 
       case _: BooleanType => "false"
       case CalcIntType => "0"

@@ -431,7 +431,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
         s"str($bytesStr$comma$encoding)"
       case EnumType(name, basedOn) =>
         s"${dataTypeName(basedOn)}→${type2display(name)}"
-      case BitsType(width) => s"b$width"
+      case BitsType(width, bitEndian) => s"b$width"
       case _ => dataType.toString
     }
   }

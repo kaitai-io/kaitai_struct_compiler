@@ -399,9 +399,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.ReadBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
-      case BitsType1 =>
+      case BitsType1(bitEndian) =>
         s"$io.ReadBitsInt(1)"
-      case BitsType(width: Int) =>
+      case BitsType(width: Int, bitEndian) =>
         s"$io.ReadBitsInt($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) {
@@ -587,7 +587,7 @@ object GoCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float32"
       case FloatMultiType(Width8, _) => "float64"
 
-      case BitsType(_) => "uint64"
+      case BitsType(_, _) => "uint64"
 
       case _: BooleanType => "bool"
       case CalcIntType => "int"

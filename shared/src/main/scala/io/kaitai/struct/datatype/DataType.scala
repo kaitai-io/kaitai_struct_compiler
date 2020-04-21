@@ -46,8 +46,8 @@ object DataType {
       s"$ch1${width.width}${finalEnd.map(_.toSuffix).getOrElse("")}"
     }
   }
-  case object BitsType1 extends BooleanType
-  case class BitsType(width: Int) extends IntType
+  case class BitsType1(bitEndian: BitEndianness) extends BooleanType
+  case class BitsType(width: Int, bitEndian: BitEndianness) extends IntType
 
   abstract class FloatType extends NumericType
   case object CalcFloatType extends FloatType
@@ -293,7 +293,7 @@ object DataType {
 
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
   private val ReFloatType = """f(4|8)(le|be)?""".r
-  private val ReBitType = """b(\d+)""".r
+  private val ReBitType = """b(\d+)(le|be)?""".r
   private val ReUserTypeWithArgs = """^((?:[a-z][a-z0-9_]*(?:::)?)+)\((.*)\)$""".r
 
   def fromYaml(
@@ -332,14 +332,19 @@ object DataType {
             },
             Endianness.fromString(Option(endianStr), metaDef.endian, dt, path)
           )
-        case ReBitType(widthStr) =>
+        case ReBitType(widthStr, bitEndianStr) =>
           (arg.enumRef, widthStr.toInt) match {
             case (None, 1) =>
               // if we're not inside enum and it's 1-bit type
-              BitsType1
+              BitsType1(
+                BitEndianness.fromString(Option(bitEndianStr), metaDef.bitEndian, dt, path)
+              )
             case (_, width) =>
               // either inside enum (any width) or (width != 1)
-              BitsType(width)
+              BitsType(
+                width,
+                BitEndianness.fromString(Option(bitEndianStr), metaDef.bitEndian, dt, path)
+              )
           }
         case "str" | "strz" =>
           val enc = getEncoding(arg.encoding, metaDef, path)
@@ -427,8 +432,9 @@ object DataType {
         )
       case ReBitType(widthStr) =>
         widthStr match {
-          case "1" => BitsType1
-          case _ => BitsType(widthStr.toInt)
+          // bit endianness is not applicable here (and the dependent code doesn't care about it), so why not assume big endian
+          case "1" => BitsType1(BigBitEndian)
+          case _ => BitsType(widthStr.toInt, BigBitEndian)
         }
       case "str" => CalcStrType
       case "bool" => CalcBooleanType
