@@ -25,6 +25,15 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def strLiteralUnicode(code: Char): String =
     "\\u{%04x}".format(code.toInt)
 
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Div) =>
+        s"math.floor(${translate(left)} / ${translate(right)})"
+      case _ =>
+        super.numericBinOp(left, op, right)
+    }
+  }
+
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String = {
     // Lua indexes start at 1, so we need to offset them
     s"${translate(container)}[${translate(idx)} + 1]"
