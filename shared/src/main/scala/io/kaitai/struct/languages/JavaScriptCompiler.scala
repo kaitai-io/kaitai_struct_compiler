@@ -384,9 +384,9 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1(bitEndian) =>
-        s"$io.readBitsInt(1) != 0"
+        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
-        s"$io.readBitsInt($width)"
+        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
         val parent = t.forcedParent match {
           case Some(USER_TYPE_NO_PARENT) => "null"

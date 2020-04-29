@@ -303,9 +303,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io->read_bytes_term($terminator, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
       case BitsType1(bitEndian) =>
-        s"$io->read_bits_int(1)"
+        s"$io->read_bits_int_${bitEndian.toSuffix}(1)"
       case BitsType(width: Int, bitEndian) =>
-        s"$io->read_bits_int($width)"
+        s"$io->read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) {
           ""
