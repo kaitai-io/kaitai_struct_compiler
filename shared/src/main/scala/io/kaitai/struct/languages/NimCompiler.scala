@@ -398,9 +398,9 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1(bitEndian) =>
-        s"$io.readBitsInt(1) != 0"
+        s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
-        s"$io.readBitsInt($width)"
+        s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}($width)"
       case t: UserType =>
         val addArgs = {
           val parent = t.forcedParent match {
@@ -577,6 +577,8 @@ object NimCompiler extends LanguageCompilerStatic
       case t: EnumType => namespaced(t.enumSpec.get.name)
       case at: ArrayType => s"seq[${ksToNim(at.elType)}]"
       case st: SwitchType => ksToNim(st.combinedType)
+
+      case AnyType => "any"
     }
   }
 }
