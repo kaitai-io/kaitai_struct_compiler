@@ -111,11 +111,10 @@ class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$srcExpr.processRotateLeft(int($expr))"
       case ProcessCustom(name, args) =>
-        val namespace = name.init.mkString("/")
-        val procPath = namespace + (if (namespace.nonEmpty) "/" else "") + name.last
-        val procName = camelCase(name.last, false)
-        importList.add(config.nimOpaque + procPath)
-        s"$procName($srcExpr, ${args.map(expression).mkString(", ")})"
+        val namespace = name.head
+        val procPath = name.mkString(".")
+        importList.add(namespace)
+        s"$procPath($srcExpr, ${args.map(expression).mkString(", ")})"
     }
     handleAssignment(varDest, expr, rep, false)
   }
@@ -578,7 +577,7 @@ object NimCompiler extends LanguageCompilerStatic
       case at: ArrayType => s"seq[${ksToNim(at.elType)}]"
       case st: SwitchType => ksToNim(st.combinedType)
 
-      case AnyType => "any"
+      case AnyType => "KaitaiStruct"
     }
   }
 }
