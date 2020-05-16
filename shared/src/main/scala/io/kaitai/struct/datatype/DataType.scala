@@ -111,6 +111,8 @@ object DataType {
     def isOwning: Boolean
   }
 
+  abstract class StructType extends ComplexDataType
+
   /**
     * Common abstract ancestor for all types which can treated as "user types".
     * Namely, this typically means that this type has a name, may have some
@@ -123,7 +125,7 @@ object DataType {
     val name: List[String],
     val forcedParent: Option[Ast.expr],
     var args: Seq[Ast.expr]
-  ) extends ComplexDataType {
+  ) extends StructType {
     var classSpec: Option[ClassSpec] = None
     def isOpaque = {
       val cs = classSpec.get
@@ -177,11 +179,11 @@ object DataType {
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
 
   case object AnyType extends DataType
-  case object KaitaiStructType extends ComplexDataType {
+  case object KaitaiStructType extends StructType {
     def isOwning = true
     override def asNonOwning: DataType = CalcKaitaiStructType
   }
-  case object CalcKaitaiStructType extends ComplexDataType {
+  case object CalcKaitaiStructType extends StructType {
     def isOwning = false
   }
   case object KaitaiStreamType extends DataType

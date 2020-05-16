@@ -389,10 +389,14 @@ object TypeDetector {
                 CalcKaitaiStructType
               }
           }
-        case (_: UserType, _: ComplexDataType) => CalcKaitaiStructType
+        case (t1: StructType, t2: StructType) =>
+          if (t1.isOwning || t2.isOwning) {
+            KaitaiStructType
+          } else {
+            CalcKaitaiStructType
+          }
         case (t1: EnumType, t2: EnumType) =>
           if (t1.enumSpec.get == t2.enumSpec.get) EnumType(t1.name, CalcIntType) else AnyType
-        case (_: ComplexDataType, _: UserType) => CalcKaitaiStructType
         case (a1: ArrayType, a2: ArrayType) => CalcArrayType(combineTypesAndFail(a1.elType, a2.elType))
         case _ => AnyType
       }
