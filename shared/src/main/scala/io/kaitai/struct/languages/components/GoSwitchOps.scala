@@ -9,7 +9,7 @@ import io.kaitai.struct.translators.GoTranslator
 trait GoSwitchOps extends SwitchOps {
   val translator: GoTranslator
 
-  def switchShouldUseCompareFn(onType: DataType): Option[String]
+  def switchShouldUseCompareFn(onType: DataType): (Option[String], () => Unit)
   def switchCaseStartCompareFn(compareFn: String, switchOn: Ast.expr, condition: Ast.expr): Unit
 
   override def switchCases[T](
@@ -21,9 +21,9 @@ trait GoSwitchOps extends SwitchOps {
   ): Unit = {
     val onType = translator.detectType(on)
     switchShouldUseCompareFn(onType) match {
-      case Some(compareFn: String) =>
-        switchCasesUsingCompareFn(id, on, compareFn, cases, normalCaseProc, elseCaseProc)
-      case None =>
+      case (Some(compareFn: String), compareFnCallback) =>
+        switchCasesUsingCompareFn(id, on, compareFn, compareFnCallback, cases, normalCaseProc, elseCaseProc)
+      case (None, _) =>
         switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
     }
   }
@@ -32,6 +32,7 @@ trait GoSwitchOps extends SwitchOps {
     id: Identifier,
     on: Ast.expr,
     compareFn: String,
+    compareFnCallback: () => Unit,
     cases: Map[Ast.expr, T],
     normalCaseProc: (T) => Unit,
     elseCaseProc: (T) => Unit
@@ -42,6 +43,7 @@ trait GoSwitchOps extends SwitchOps {
       condition match {
         case SwitchType.ELSE_CONST =>
         case _ =>
+          compareFnCallback()
           switchCaseStartCompareFn(compareFn, on, condition)
           normalCaseProc(result)
           switchCaseEnd()

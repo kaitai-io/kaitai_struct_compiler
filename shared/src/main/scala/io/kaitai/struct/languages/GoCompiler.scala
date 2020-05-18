@@ -451,13 +451,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchEnd(): Unit =
     out.puts("}")
 
-  override def switchShouldUseCompareFn(onType: DataType): Option[String] = {
+  override def switchShouldUseCompareFn(onType: DataType): (Option[String], () => Unit) = {
     onType match {
       case _: BytesType =>
-        importList.add("bytes")
-        Some("bytes.Equal")
+        (Some("bytes.Equal"), () => importList.add("bytes"))
       case _ =>
-        None
+        (None, () => {})
     }
   }
 
