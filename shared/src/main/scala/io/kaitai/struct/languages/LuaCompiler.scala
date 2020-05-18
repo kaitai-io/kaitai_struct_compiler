@@ -8,7 +8,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.LuaTranslator
 
-class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class LuaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with AllocateIOLocalVar
     with EveryReadIsExpression
@@ -17,6 +17,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with SingleOutputFile
     with UniversalDoc
     with UniversalFooter
+    with SwitchIfOps
     with UpperCamelCaseClasses {
 
   import LuaCompiler._
@@ -373,23 +374,36 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id:_read()")
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
+  override def switchCaseStart(condition: Ast.expr): Unit = {}
+  override def switchCaseEnd(): Unit = {}
+  override def switchElseStart(): Unit = {}
+  override def switchEnd(): Unit = {}
+
+  override def switchRequiresIfs(onType: DataType): Boolean = true
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit =
     out.puts(s"local _on = ${expression(on)}")
-  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
+
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
     out.puts(s"if _on == ${expression(condition)} then")
     out.inc
   }
-  override def switchCaseStart(condition: Ast.expr): Unit = {
+
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
     out.puts(s"elseif _on == ${expression(condition)} then")
     out.inc
   }
-  override def switchCaseEnd(): Unit =
+
+  override def switchIfCaseEnd(): Unit =
     out.dec
-  override def switchElseStart(): Unit = {
+
+  override def switchIfElseStart(): Unit = {
     out.puts("else")
     out.inc
   }
-  override def switchEnd(): Unit =
+
+  override def switchIfEnd(): Unit =
     out.puts("end")
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {

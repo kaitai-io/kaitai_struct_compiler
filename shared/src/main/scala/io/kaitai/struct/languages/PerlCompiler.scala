@@ -9,13 +9,14 @@ import io.kaitai.struct.languages.components.{ExceptionNames, _}
 import io.kaitai.struct.translators.{PerlTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
-class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class PerlCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
     with UniversalFooter
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
     with FixedContentsUsingArrayByteLiteral
+    with SwitchIfOps
     with EveryReadIsExpression {
 
   import PerlCompiler._
@@ -336,29 +337,36 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
+  override def switchCaseStart(condition: Ast.expr): Unit = {}
+  override def switchCaseEnd(): Unit = {}
+  override def switchElseStart(): Unit = {}
+  override def switchEnd(): Unit = {}
+
+  override def switchRequiresIfs(onType: DataType): Boolean = true
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
     typeProvider._currentSwitchType = Some(translator.detectType(on))
     out.puts(s"my $$_on = ${expression(on)};")
   }
 
-  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
     out.puts(s"if (${expression(onComparisonExpr(condition))}) {")
     out.inc
   }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
     out.puts(s"elsif (${expression(onComparisonExpr(condition))}) {")
     out.inc
   }
+  override def switchIfCaseEnd(): Unit = universalFooter
 
-  override def switchCaseEnd(): Unit = universalFooter
-
-  override def switchElseStart(): Unit = {
+  override def switchIfElseStart(): Unit = {
     out.puts(s"else {")
     out.inc
   }
 
-  override def switchEnd(): Unit = {}
+  override def switchIfEnd(): Unit = {}
 
   /**
     * Generates comparison expression by a given condition expression, comparing
