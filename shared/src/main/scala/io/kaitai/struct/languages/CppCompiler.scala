@@ -992,6 +992,7 @@ class CppCompiler(
         case _: ValidationLessThanError => "validation_less_than_error"
         case _: ValidationGreaterThanError => "validation_greater_than_error"
         case _: ValidationNotAnyOfError => "validation_not_any_of_error"
+        case _: ValidationRegexMatchError => "validation_regex_match_error"
       }
       s"kaitai::$cppErrName<$cppType>"
   }

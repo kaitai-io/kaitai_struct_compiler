@@ -46,6 +46,8 @@ class ExpressionValidator(val provider: TypeProvider)
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         validate(left)
         validate(right)
+      case Ast.expr.RegexMatch(str: Ast.expr, regex: String) =>
+        validate(str)
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         validate(left)
         validate(right)

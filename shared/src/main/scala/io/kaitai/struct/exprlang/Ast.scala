@@ -91,6 +91,7 @@ object Ast {
     case class IfExp(condition: expr, ifTrue: expr, ifFalse: expr) extends expr
 //    case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
+    case class RegexMatch(str: expr, regex: String) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
     case class IntNum(n: BigInt) extends expr
     case class FloatNum(n: BigDecimal) extends expr

@@ -73,6 +73,10 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
   }
 
+  override def doRegexMatchOp(str: String, regex: String): String = {
+    s"${str} ~= m/${regex}/"
+  }
+
   override def doEnumByLabel(enumType: List[String], label: String): String = {
     val enumClass = PerlCompiler.types2class(enumType.init)
     val enumClassWithScope = if (enumClass.isEmpty) "" else s"$enumClass::"

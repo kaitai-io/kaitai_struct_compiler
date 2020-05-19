@@ -72,6 +72,11 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(${translate(ifTrue)} if ${translate(condition)} else ${translate(ifFalse)})"
 
+  override def doRegexMatchOp(str: String, regex: String): String = {
+    importList.add("import re")
+    s"re.match('${regex}', ${str})"
+  }
+
   // Predefined methods of various types
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)

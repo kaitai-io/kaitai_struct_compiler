@@ -74,6 +74,10 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
 
+  override def doRegexMatchOp(str: String, regex: String): String = {
+    s"/${regex}/.exec(${str})"
+  }
+
   /**
     * Converts a boolean (true or false) to integer (1 or 0, respectively) in
     * JavaScript. There are quite a few methods to so, this one is generally

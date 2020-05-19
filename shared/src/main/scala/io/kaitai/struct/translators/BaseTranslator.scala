@@ -102,6 +102,14 @@ abstract class BaseTranslator(val provider: TypeProvider)
           case (ltype, rtype) =>
             throw new TypeMismatchError(s"can't compare $ltype and $rtype")
         }
+      case Ast.expr.RegexMatch(str: Ast.expr, regex: String) => {
+        detectType(str) match {
+          case (_: StrType) =>
+            doRegexMatchOp(translate(str), doRegexFullLine(regex))
+          case _ =>
+            throw new TypeMismatchError(s"regex match need strings")
+        }
+      }
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
           case (_: NumericType, _: NumericType, _) =>
@@ -198,4 +206,6 @@ abstract class BaseTranslator(val provider: TypeProvider)
   // for the language
   def anyField(value: Ast.expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
+
+   def doRegexMatchOp(str: String, regex: String): String
 }

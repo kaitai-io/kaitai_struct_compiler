@@ -10,6 +10,7 @@ case class ValidationMax(max: Ast.expr) extends ValidationSpec
 case class ValidationRange(min: Ast.expr, max: Ast.expr) extends ValidationSpec
 case class ValidationAnyOf(values: List[Ast.expr]) extends ValidationSpec
 case class ValidationExpr(checkExpr: Ast.expr) extends ValidationSpec
+case class ValidationRegex(checkExpr: String) extends ValidationSpec
 
 object ValidationEq {
   val LEGAL_KEYS = Set("eq")
@@ -68,16 +69,29 @@ object ValidationExpr {
     }
 }
 
+object ValidationRegex {
+  val LEGAL_KEYS = Set("regex")
+
+  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationRegex] =
+    ParseUtils.getOptValueStr(src, "regex", path).map { case eqExpr =>
+      ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
+      ValidationRegex(eqExpr)
+    }
+}
+
+
 object ValidationSpec {
   val LEGAL_KEYS =
     ValidationEq.LEGAL_KEYS ++
     ValidationRange.LEGAL_KEYS ++
     ValidationAnyOf.LEGAL_KEYS ++
-    ValidationExpr.LEGAL_KEYS
+    ValidationExpr.LEGAL_KEYS ++
+    ValidationRegex.LEGAL_KEYS
 
   def fromYaml(src: Any, path: List[String]): ValidationSpec = {
     src match {
       case value: String =>
+
         fromString(value, path)
       case x: Boolean =>
         fromString(x.toString, path)
@@ -108,6 +122,9 @@ object ValidationSpec {
     val opt4 = ValidationExpr.fromMap(src, path)
     if (opt4.nonEmpty)
       return opt4.get
+    val opt5 = ValidationRegex.fromMap(src, path)
+    if (opt5.nonEmpty)
+      return opt5.get
 
     // No validation templates matched, check for any bogus keys
     ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
