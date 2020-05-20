@@ -400,7 +400,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
     if (switchIfs) {
-      out.puts(s"elss if ${switchCmpExpr(condition)} {")
+      out.puts(s"else if ${switchCmpExpr(condition)} {")
       out.inc
     } else {
       out.puts(s"${expression(condition)} => {")
