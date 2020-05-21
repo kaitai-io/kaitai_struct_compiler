@@ -8,7 +8,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.NimTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
-class NimCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
     with EveryReadIsExpression

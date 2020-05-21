@@ -8,7 +8,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.LuaTranslator
 
-class LuaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with AllocateIOLocalVar
     with EveryReadIsExpression

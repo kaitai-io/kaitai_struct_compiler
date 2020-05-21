@@ -9,7 +9,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.JavaTranslator
 
-class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
     with UpperCamelCaseClasses

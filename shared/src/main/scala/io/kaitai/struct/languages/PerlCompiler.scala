@@ -9,7 +9,7 @@ import io.kaitai.struct.languages.components.{ExceptionNames, _}
 import io.kaitai.struct.translators.{PerlTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
-class PerlCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
     with UniversalFooter

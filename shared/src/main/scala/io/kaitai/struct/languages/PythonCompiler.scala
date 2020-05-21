@@ -9,7 +9,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.PythonTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils}
 
-class PythonCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with UpperCamelCaseClasses

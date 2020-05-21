@@ -9,7 +9,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CSharpTranslator, TypeDetector}
 
-class CSharpCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with UpperCamelCaseClasses
     with ObjectOrientedLanguage
