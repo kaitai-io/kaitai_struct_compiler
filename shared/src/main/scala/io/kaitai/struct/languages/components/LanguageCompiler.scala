@@ -166,4 +166,7 @@ abstract class LanguageCompiler(
       case None => // ignore
     }
   }
+
+  def blockScopeHeader: Unit = {}
+  def blockScopeFooter: Unit = {}
 }

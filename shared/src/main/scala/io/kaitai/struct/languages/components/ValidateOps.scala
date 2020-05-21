@@ -1,13 +1,18 @@
 package io.kaitai.struct.languages.components
 
+import io.kaitai.struct.ClassTypeProvider
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
+import io.kaitai.struct.translators.AbstractTranslator
 
 /**
   * Common interface for validation operations.
   */
 trait ValidateOps extends ExceptionNames {
+  val translator: AbstractTranslator
+  val typeProvider: ClassTypeProvider
+
   def attrValidate(attrId: Identifier, attr: AttrLikeSpec, valid: ValidationSpec): Unit = {
     valid match {
       case ValidationEq(expected) =>
@@ -42,6 +47,26 @@ trait ValidateOps extends ExceptionNames {
             Ast.expr.Str(attr.path.mkString("/", "/", ""))
           )
         )
+      case ValidationExpr(expr) =>
+        blockScopeHeader
+        typeProvider._currentIteratorType = Some(attr.dataTypeComposite)
+        handleAssignmentTempVar(
+          attr.dataTypeComposite,
+          translator.translate(Ast.expr.Name(Ast.identifier(Identifier.ITERATOR))),
+          translator.translate(Ast.expr.Name(attrId.toAstIdentifier))
+        )
+        attrValidateExpr(
+          attrId,
+          attr.dataTypeComposite,
+          expr,
+          ksErrorName(ValidationExprError(attr.dataTypeComposite)),
+          List(
+            Ast.expr.Name(attrId.toAstIdentifier),
+            Ast.expr.Name(IoIdentifier.toAstIdentifier),
+            Ast.expr.Str(attr.path.mkString("/", "/", ""))
+          )
+        )
+        blockScopeFooter
     }
   }
 
@@ -65,4 +90,8 @@ trait ValidateOps extends ExceptionNames {
   }
 
   def attrValidateExpr(attrId: Identifier, attrType: DataType, checkExpr: Ast.expr, errName: String, errArgs: List[Ast.expr]): Unit = {}
+  def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit
+  def blockScopeHeader: Unit
+  def blockScopeFooter: Unit
+
 }
