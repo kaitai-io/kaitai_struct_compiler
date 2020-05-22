@@ -402,9 +402,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1(bitEndian) =>
-        s"$io.ReadBitsInt(1)"
+        s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1)"
       case BitsType(width: Int, bitEndian) =>
-        s"$io.ReadBitsInt($width)"
+        s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) {
           ""
