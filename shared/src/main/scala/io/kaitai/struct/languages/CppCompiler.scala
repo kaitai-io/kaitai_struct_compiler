@@ -691,12 +691,12 @@ class CppCompiler(
     outSrc.puts(s"${kaitaiType2NativeType(dataType)} $id = $expr;")
 
   override def blockScopeHeader: Unit = {
-    out.puts("{")
-    out.inc
+    outSrc.puts("{")
+    outSrc.inc
   }
   override def blockScopeFooter: Unit = {
-    out.dec
-    out.puts("}")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
