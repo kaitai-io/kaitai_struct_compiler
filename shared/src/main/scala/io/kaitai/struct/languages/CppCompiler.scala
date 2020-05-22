@@ -318,7 +318,8 @@ class CppCompiler(
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning)} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
+    val virtual = if (attrName == ParentIdentifier) "virtual " else ""
+    outHdr.puts(s"$virtual${kaitaiType2NativeType(attrType.asNonOwning)} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
