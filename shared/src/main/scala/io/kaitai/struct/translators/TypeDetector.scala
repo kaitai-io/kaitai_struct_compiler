@@ -396,7 +396,13 @@ object TypeDetector {
             CalcKaitaiStructType
           }
         case (t1: EnumType, t2: EnumType) =>
-          if (t1.enumSpec.get == t2.enumSpec.get) EnumType(t1.name, CalcIntType) else AnyType
+          if (t1.enumSpec.get == t2.enumSpec.get) {
+            val t = EnumType(t1.name, CalcIntType)
+            t.enumSpec = t1.enumSpec
+            t
+          } else {
+            AnyType
+          }
         case (a1: ArrayType, a2: ArrayType) => CalcArrayType(combineTypesAndFail(a1.elType, a2.elType))
         case _ => AnyType
       }
