@@ -417,6 +417,31 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def ksErrorName(err: KSError): String = LuaCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    errName: String,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsCode = errArgs.map(translator.translate)
+    out.puts(s"if not(${translator.translate(checkExpr)}) then")
+    out.inc
+    val msg = errName match {
+      case "ValidationNotEqualError" => {
+        val (expected, actual) = (
+          errArgsCode.lift(0).getOrElse("[expected]"),
+          errArgsCode.lift(1).getOrElse("[actual]")
+        )
+        s""""not equal, expected " ..  $expected .. ", but got " .. $actual"""
+      }
+      case _ => "\"" + errName + "\""
+    }
+    out.puts(s"error($msg)")
+    out.dec
+    out.puts("end")
+  }
 }
 
 object LuaCompiler extends LanguageCompilerStatic
@@ -430,7 +455,7 @@ object LuaCompiler extends LanguageCompilerStatic
 
   override def kstructName: String = "KaitaiStruct"
   override def kstreamName: String = "KaitaiStream"
-  override def ksErrorName(err: KSError): String = ???
+  override def ksErrorName(err: KSError): String = err.name
 
   def types2class(name: List[String]): String =
     name.map(x => type2class(x)).mkString(".")
