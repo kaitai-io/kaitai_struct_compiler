@@ -572,7 +572,6 @@ class CppCompiler(
 
     if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
-      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
     }
     if (needRaw.level >= 2) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
@@ -606,9 +605,6 @@ class CppCompiler(
       val rawId = privateMemberName(RawIdentifier(id))
       outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
       outSrc.puts(s"$rawId->reserve($lenVar);")
-      val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-      outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType)};")
-      outSrc.puts(s"$ioId->reserve($lenVar);")
     }
     if (needRaw.level >= 2) {
       val rawId = privateMemberName(RawIdentifier(RawIdentifier(id)))
@@ -635,7 +631,6 @@ class CppCompiler(
 
     if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
-      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
     }
     if (needRaw.level >= 2) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
