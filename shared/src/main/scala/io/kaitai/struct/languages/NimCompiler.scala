@@ -119,15 +119,10 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
+    out.puts(s"`${idToStr(attrName)}`*: ${ksToNim(attrType)}")
   }
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    attrType match {
-      case _: BytesType => out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
-      case _: StrType => out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
-      case _: ArrayType => out.puts(s"${idToStr(attrName)}*: ${ksToNim(attrType)}")
-      case _ => out.puts(s"${idToStr(attrName)}*: Option[${ksToNim(attrType)}]")
-    }
+    attributeDeclaration(attrName, attrType, isNullable)
   }
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {}
@@ -232,7 +227,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: ArrayType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
       case _: StrType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
       case _: BytesType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
-      case _ => out.puts(s"if isSome(${privateMemberName(instName)}):")
+      case _ => out.puts(s"if ${privateMemberName(instName)} != nil:")
     }
       out.inc
       instanceReturn(instName, dataType)
@@ -247,12 +242,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    attrType match {
-      case _: ArrayType => out.puts(s"return ${privateMemberName(instName)}")
-      case _: StrType => out.puts(s"return ${privateMemberName(instName)}")
-      case _: BytesType => out.puts(s"return ${privateMemberName(instName)}")
-      case _ => out.puts(s"return get(${privateMemberName(instName)})")
-    }
+    out.puts(s"return ${privateMemberName(instName)}")
   }
   // def normalIO: String = ???
   override def outFileName(topClassName: String): String = s"$topClassName.nim"
