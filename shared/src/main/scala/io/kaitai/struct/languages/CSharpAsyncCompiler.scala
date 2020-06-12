@@ -304,7 +304,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>((int) (${expression(repeatExpr)}));")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayTypeInStream(dataType))}((int) (${expression(repeatExpr)}));")
-    out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++)")
+    out.puts(s"for (ulong i = 0; i < ${expression(repeatExpr)}; i++)")
     out.puts("{")
     out.inc
   }
