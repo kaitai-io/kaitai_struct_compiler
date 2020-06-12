@@ -83,12 +83,12 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
 
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
-        out.puts(s"private bool? ${privateMemberName(EndianIdentifier)};")
+        out.puts(s"private ImplicitNullable<bool> ${privateMemberName(EndianIdentifier)};")
       case _ =>
         // no _is_le variable
     }
 
-    val addEndian = if (isHybrid) ", bool? isLe = null" else ""
+    val addEndian = if (isHybrid) ", ImplicitNullable<bool> isLe = null" else ""
 
     val pIo = paramName(IoIdentifier)
     val pParent = paramName(ParentIdentifier)
@@ -653,7 +653,7 @@ object CSharpAsyncCompiler extends LanguageCompilerStatic
     val r = kaitaiType2NativeType(t)
     if (isNullable) {
       t match {
-        case _: NumericType | _: BooleanType => s"$r?"
+        case _: NumericType | _: BooleanType => s"ImplicitNullable<$r>"
         case _ => r
       }
     } else {
