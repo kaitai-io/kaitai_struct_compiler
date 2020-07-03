@@ -371,7 +371,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
-          ""
+          ", this"
         } else {
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "null"
