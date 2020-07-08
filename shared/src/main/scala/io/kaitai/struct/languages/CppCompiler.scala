@@ -370,13 +370,13 @@ class CppCompiler(
       outSrc.inc
     }
 
-    val (innerType, hasRaw) = attr.dataType match {
-      case ut: UserTypeFromBytes => (ut, true)
-      case st: SwitchType => (st.combinedType, st.hasSize)
-      case t => (t, false)
+    val needRaw = this.needRaw(attr.dataType)
+    val innerType = attr.dataType match {
+      case st: SwitchType => st.combinedType
+      case t => t
     }
 
-    destructMember(id, innerType, attr.isArray, hasRaw, hasRaw)
+    destructMember(id, innerType, attr.isArray, needRaw)
 
     if (checks.nonEmpty) {
       outSrc.dec
@@ -384,20 +384,25 @@ class CppCompiler(
     }
   }
 
-  def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, hasRaw: Boolean, hasIO: Boolean): Unit = {
+  def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, needRaw: NeedRaw): Unit = {
     if (isArray) {
       if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
         // raw is std::vector<string>*, no need to delete its contents, but we
         // need to clean up the vector pointer itself
-        if (hasRaw)
+        if (needRaw.level >= 1) {
           outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
 
-        // IO is std::vector<kstream*>*, needs destruction of both members
-        // and the vector pointer itself
-        if (hasIO) {
-          val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-          destructVector(s"$kstreamName*", ioVar)
-          outSrc.puts(s"delete $ioVar;")
+          // IO is std::vector<kstream*>*, needs destruction of both members
+          // and the vector pointer itself
+          if (needRaw.hasIO) {
+            val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
+            destructVector(s"$kstreamName*", ioVar)
+            outSrc.puts(s"delete $ioVar;")
+          }
+        }
+        if (needRaw.level >= 2) {
+          // m__raw__raw_* is also std::vector<string>*, we just clean up the vector pointer
+          outSrc.puts(s"delete ${privateMemberName(RawIdentifier(RawIdentifier(id)))};")
         }
 
         // main member contents
@@ -418,10 +423,10 @@ class CppCompiler(
         outSrc.puts(s"delete ${privateMemberName(id)};")
       }
     } else {
-      // raw is just a string, no need to cleanup => we ignore `hasRaw`
+      // raw is just a string, no need to cleanup => we ignore `needRaw.hasRaw`
 
-      // but hasIO is important
-      if (hasIO)
+      // but needRaw.hasIO is important
+      if (needRaw.hasIO)
         outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
 
       if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers && needsDestruction(innerType))
@@ -572,7 +577,9 @@ class CppCompiler(
 
     if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
-      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+      if (needRaw.hasIO) {
+        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+      }
     }
     if (needRaw.level >= 2) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
@@ -606,9 +613,11 @@ class CppCompiler(
       val rawId = privateMemberName(RawIdentifier(id))
       outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
       outSrc.puts(s"$rawId->reserve($lenVar);")
-      val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-      outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType)};")
-      outSrc.puts(s"$ioId->reserve($lenVar);")
+      if (needRaw.hasIO) {
+        val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
+        outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType)};")
+        outSrc.puts(s"$ioId->reserve($lenVar);")
+      }
     }
     if (needRaw.level >= 2) {
       val rawId = privateMemberName(RawIdentifier(RawIdentifier(id)))
@@ -635,7 +644,9 @@ class CppCompiler(
 
     if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
-      outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+      if (needRaw.hasIO) {
+        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+      }
     }
     if (needRaw.level >= 2) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
