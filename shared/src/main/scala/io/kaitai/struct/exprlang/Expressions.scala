@@ -65,7 +65,7 @@ object Expressions {
   val Eq = op("==", Ast.cmpop.Eq)
   val GtE = op(">=", Ast.cmpop.GtE)
   val LtE = op("<=", Ast.cmpop.LtE)
-  val NotEq = op("<>" | "!=", Ast.cmpop.NotEq)
+  val NotEq = op("!=", Ast.cmpop.NotEq)
   val comp_op = P( LtE|GtE|Eq|Gt|Lt|NotEq )
   val Add = op("+", Ast.operator.Add)
   val Sub = op("-", Ast.operator.Sub)
