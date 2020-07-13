@@ -167,11 +167,23 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
-    out.puts
-    doc.summary.foreach { summary =>
+    doc.summary.foreach { line =>
+      val splitLine = line.split(" ")
+      var tmpCond = 0
+      var restLine = ""
+      for (word <- splitLine) {
+        if (word.charAt(0) == '+' && tmpCond == 0) {
+          out.puts("["+ word.drop(1) +"]")
+        }
+        else {
+          tmpCond = 1
+          restLine.concat(word + " ")
+        }
+      }
+
       out.puts("/// <summary>")
-      out.putsLines("/// ", XMLUtils.escape(summary))
-      out.puts("/// </summary>")
+      out.putsLines("/// ", XMLUtils.escape(restLine))
+      out.puts("/// </summary>")     
     }
 
     doc.ref.foreach { docRef =>
