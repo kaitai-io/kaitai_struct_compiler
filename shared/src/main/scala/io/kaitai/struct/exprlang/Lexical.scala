@@ -27,9 +27,10 @@ object Lexical {
 
   val wscomment = P( (CharsWhile(" \n".toSet, min = 1) | "\\\n").rep )
 
-  val namePart = P( letter | digit | "_" )
+  val nameStart = P( letter | "_" )
+  val namePart  = P( letter | digit | "_" )
   val identifier: P[Ast.identifier] =
-    P( (letter|"_") ~ namePart.rep ).!.map(Ast.identifier)
+    P( nameStart ~ namePart.rep ).!.map(Ast.identifier)
   val letter     = P( lowercase | uppercase )
   val lowercase  = P( CharIn('a' to 'z') )
   val uppercase  = P( CharIn('A' to 'Z') )
@@ -86,8 +87,8 @@ object Lexical {
     | fixed ~ exponent.?      // Ex.: 4.E2, .4e+2, 4.2e-0
   ).!.map(BigDecimal(_))
   val fixed = P(
-      digit.rep ~ "." ~ digit.rep(1)  // Ex.: 4.2, .42
-    | digit.rep(1) ~ "." ~ !namePart  // Ex.: 42.
+      digit.rep ~ "." ~ digit.rep(1)                // Ex.: 4.2, .42
+    | digit.rep(1) ~ "." ~ !(wscomment ~ nameStart) // Ex.: 42., but not '42.abc' or '42.  def'
   )
   val exponent: P0 = P( ("e" | "E") ~ ("+" | "-").? ~ digit.rep(1) )
 
