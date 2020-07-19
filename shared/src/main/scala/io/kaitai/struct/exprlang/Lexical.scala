@@ -23,12 +23,14 @@ object WsApi extends fastparse.WhitespaceApi.Wrapper(Lexical.wscomment)
  */
 object Lexical {
   import fastparse.all._
-  def kw(s: String) = s ~ !(letter | digit | "_")
+  def kw(s: String) = s ~ !namePart
 
   val wscomment = P( (CharsWhile(" \n".toSet, min = 1) | "\\\n").rep )
 
+  val nameStart = P( letter | "_" )
+  val namePart  = P( letter | digit | "_" )
   val identifier: P[Ast.identifier] =
-    P( (letter|"_") ~ (letter | digit | "_").rep ).!.map(Ast.identifier)
+    P( nameStart ~ namePart.rep ).!.map(Ast.identifier)
   val letter     = P( lowercase | uppercase )
   val lowercase  = P( CharIn('a' to 'z') )
   val uppercase  = P( CharIn('A' to 'Z') )
@@ -80,11 +82,14 @@ object Lexical {
   val bindigit: P0 = P( "0" | "1" | "_" )
   val hexdigit: P0 = P( digit | CharIn('a' to 'f', 'A' to 'F') | "_" )
 
-  val floatnumber: P[BigDecimal] = P( exponentfloat | pointfloat )
-  val pointfloat: P[BigDecimal] = P( intpart.? ~ fraction | intpart ~ "." ).!.map(BigDecimal(_))
-  val exponentfloat: P[BigDecimal] = P( (pointfloat | intpart) ~ exponent ).!.map(BigDecimal(_))
-  val intpart: P[BigDecimal] = P( digit.rep(1) ).!.map(BigDecimal(_))
-  val fraction: P0 = P( "." ~ digit.rep(1) )
+  val floatnumber: P[BigDecimal] = P(
+      digit.rep(1) ~ exponent // Ex.: 4E2, 4E+2, 4e-2
+    | fixed ~ exponent.?      // Ex.: 4.E2, .4e+2, 4.2e-0
+  ).!.map(BigDecimal(_))
+  val fixed = P(
+      digit.rep ~ "." ~ digit.rep(1)                // Ex.: 4.2, .42
+    | digit.rep(1) ~ "." ~ !(wscomment ~ nameStart) // Ex.: 42., but not '42.abc' or '42.  def'
+  )
   val exponent: P0 = P( ("e" | "E") ~ ("+" | "-").? ~ digit.rep(1) )
 
   /**
