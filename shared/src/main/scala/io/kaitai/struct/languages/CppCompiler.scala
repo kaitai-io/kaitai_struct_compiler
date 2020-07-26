@@ -518,7 +518,11 @@ class CppCompiler(
       case _ =>
         val localIO = s"io_${idToStr(id)}"
         outSrc.puts(s"$kstreamName* $localIO = $newStream;")
-        outSrc.puts(s"${privateMemberName(ioId)}->push_back($localIO);")
+        if (config.cppConfig.pointers == CppRuntimeConfig.UniqueAndRawPointers) {
+          outSrc.puts(s"${privateMemberName(ioId)}->emplace_back($localIO);")
+        } else {
+          outSrc.puts(s"${privateMemberName(ioId)}->push_back($localIO);")
+        }
         localIO
     }
 
@@ -578,7 +582,7 @@ class CppCompiler(
     if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
       if (needRaw.hasIO) {
-        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(OwnedKaitaiStreamType)};")
       }
     }
     if (needRaw.level >= 2) {
@@ -615,7 +619,7 @@ class CppCompiler(
       outSrc.puts(s"$rawId->reserve($lenVar);")
       if (needRaw.hasIO) {
         val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-        outSrc.puts(s"$ioId = ${newVector(KaitaiStreamType)};")
+        outSrc.puts(s"$ioId = ${newVector(OwnedKaitaiStreamType)};")
         outSrc.puts(s"$ioId->reserve($lenVar);")
       }
     }
@@ -645,7 +649,7 @@ class CppCompiler(
     if (needRaw.level >= 1) {
       outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
       if (needRaw.hasIO) {
-        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(KaitaiStreamType)};")
+        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(OwnedKaitaiStreamType)};")
       }
     }
     if (needRaw.level >= 2) {
@@ -1093,7 +1097,10 @@ object CppCompiler extends LanguageCompilerStatic
         case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
       }
       case CalcArrayType(inType) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
-      case OwnedKaitaiStreamType => s"$kstreamName*"
+      case OwnedKaitaiStreamType => config.pointers match {
+        case RawPointers => s"$kstreamName*"
+        case UniqueAndRawPointers => s"std::unique_ptr<$kstreamName>"
+      }
       case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {
         case RawPointers => s"$kstructName*"
