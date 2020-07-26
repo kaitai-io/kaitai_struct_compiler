@@ -31,6 +31,10 @@ trait AttrLikeSpec extends MemberSpec {
   override def isNullable: Boolean = {
     if (cond.ifExpr.isDefined) {
       true
+    } else if (isArray) {
+      // for potential future languages using null flags (like C++)
+      // and having switchBytesOnlyAsRaw = false (unlike C++)
+      false
     } else {
       dataType match {
         case st: SwitchType =>
@@ -44,6 +48,8 @@ trait AttrLikeSpec extends MemberSpec {
   def isNullableSwitchRaw: Boolean = {
     if (cond.ifExpr.isDefined) {
       true
+    } else if (isArray) {
+      false
     } else {
       dataType match {
         case st: SwitchType =>

@@ -41,11 +41,13 @@ trait EveryReadIsExpression
       case t: BytesType =>
         attrBytesTypeParse(id, t, io, rep, isRaw)
       case st: SwitchType =>
-        val isNullable = if (switchBytesOnlyAsRaw) {
+        // nullability of a single switch-type element doesn't affect the nullability of the whole array,
+        // see https://github.com/kaitai-io/kaitai_struct/issues/494
+        val isNullable = rep == NoRepeat && (if (switchBytesOnlyAsRaw) {
           st.isNullableSwitchRaw
         } else {
           st.isNullable
-        }
+        })
 
         attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, isNullable, st.combinedType)
       case t: StrFromBytesType =>
