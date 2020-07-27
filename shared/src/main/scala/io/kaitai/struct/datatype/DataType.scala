@@ -131,16 +131,6 @@ object DataType {
       val cs = classSpec.get
       cs.isTopLevel || cs.meta.isOpaque
     }
-
-    override def asNonOwning: UserType = {
-      if (!isOwning) {
-        this
-      } else {
-        val r = CalcUserType(name, forcedParent, args)
-        r.classSpec = classSpec
-        r
-      }
-    }
   }
   case class UserTypeInstream(
     _name: List[String],
@@ -148,6 +138,11 @@ object DataType {
     _args: Seq[Ast.expr] = Seq()
   ) extends UserType(_name, _forcedParent, _args) {
     def isOwning = true
+    override def asNonOwning: UserType = {
+      val r = CalcUserType(name, forcedParent, args)
+      r.classSpec = classSpec
+      r
+    }
   }
   case class UserTypeFromBytes(
     _name: List[String],
@@ -157,12 +152,26 @@ object DataType {
     override val process: Option[ProcessExpr]
   ) extends UserType(_name, _forcedParent, _args) with Processing {
     override def isOwning = true
+    override def asNonOwning: UserType = {
+      val r = CalcUserTypeFromBytes(name, forcedParent, args, bytes, process)
+      r.classSpec = classSpec
+      r
+    }
   }
   case class CalcUserType(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
     _args: Seq[Ast.expr] = Seq()
   ) extends UserType(_name, _forcedParent, _args) {
+    override def isOwning = false
+  }
+  case class CalcUserTypeFromBytes(
+    _name: List[String],
+    _forcedParent: Option[Ast.expr],
+    _args: Seq[Ast.expr] = Seq(),
+    bytes: BytesType,
+    override val process: Option[ProcessExpr]
+  ) extends UserType(_name, _forcedParent, _args) with Processing {
     override def isOwning = false
   }
 
