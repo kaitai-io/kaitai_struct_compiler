@@ -24,7 +24,7 @@ class ValueTypesDeriver(specs: ClassSpecs, topClass: ClassSpec) {
             vi.dataType match {
               case None =>
                 try {
-                  val viType = detector.detectType(vi.value).asNonOwning
+                  val viType = detector.detectType(vi.value)
                   vi.dataType = Some(viType)
                   Log.typeProcValue.info(() => s"${instName.name} derived type: $viType")
                   hasChanged = true
