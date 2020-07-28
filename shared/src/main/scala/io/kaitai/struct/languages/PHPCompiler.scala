@@ -483,7 +483,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case _: ArrayType => "array"
 
-      case KaitaiStructType | CalcKaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
       case KaitaiStreamType => kstreamName
     }
   }

@@ -545,7 +545,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case at: ArrayType => s"Vec<${kaitaiType2NativeType(at.elType)}>"
 
       case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
-      case KaitaiStructType | CalcKaitaiStructType => s"Option<Box<KaitaiStruct>>"
+      case KaitaiStructType | CalcKaitaiStructType(_) => s"Option<Box<KaitaiStruct>>"
 
       case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }

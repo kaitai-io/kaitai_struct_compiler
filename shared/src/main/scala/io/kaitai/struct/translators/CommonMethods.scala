@@ -24,7 +24,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
       return byteSizeOfValue(value.toString, valType)
 
     valType match {
-      case KaitaiStructType | CalcKaitaiStructType =>
+      case KaitaiStructType | CalcKaitaiStructType(_) =>
         attr.name match {
           case Identifier.PARENT => kaitaiStructField(value, attr.name)
         }

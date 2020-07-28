@@ -209,9 +209,9 @@ object DataType {
   case object AnyType extends DataType
   case object KaitaiStructType extends StructType {
     def isOwning = true
-    override def asNonOwning(isOwningInExpr: Boolean = false): DataType = CalcKaitaiStructType
+    override def asNonOwning(isOwningInExpr: Boolean = false): DataType = CalcKaitaiStructType(isOwningInExpr)
   }
-  case object CalcKaitaiStructType extends StructType {
+  case class CalcKaitaiStructType(override val isOwningInExpr: Boolean = false) extends StructType {
     def isOwning = false
   }
   case object KaitaiStreamType extends DataType
@@ -469,7 +469,7 @@ object DataType {
         }
       case "str" => CalcStrType
       case "bool" => CalcBooleanType
-      case "struct" => CalcKaitaiStructType
+      case "struct" => CalcKaitaiStructType()
       case "io" => KaitaiStreamType
       case "any" => AnyType
       case _ => CalcUserType(classNameToList(singleId), None)

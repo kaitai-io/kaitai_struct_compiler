@@ -1107,7 +1107,7 @@ object CppCompiler extends LanguageCompilerStatic
         case SharedPointers => s"std::shared_ptr<$kstructName>"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstructName>"
       }
-      case CalcKaitaiStructType => config.pointers match {
+      case CalcKaitaiStructType(_) => config.pointers match {
         case RawPointers => s"$kstructName*"
         case SharedPointers => s"std::shared_ptr<$kstructName>"
         case UniqueAndRawPointers => s"$kstructName*"

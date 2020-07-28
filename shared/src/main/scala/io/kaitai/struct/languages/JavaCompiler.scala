@@ -817,7 +817,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case AnyType => "Object"
       case KaitaiStreamType => kstreamName
-      case KaitaiStructType | CalcKaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
 
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
@@ -861,7 +861,7 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case AnyType => "Object"
       case KaitaiStreamType => kstreamName
-      case KaitaiStructType | CalcKaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
 
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)

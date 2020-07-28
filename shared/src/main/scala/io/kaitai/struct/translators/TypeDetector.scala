@@ -145,9 +145,9 @@ class TypeDetector(provider: TypeProvider) {
       return CalcIntType
 
     valType match {
-      case KaitaiStructType | CalcKaitaiStructType =>
+      case KaitaiStructType | CalcKaitaiStructType(_) =>
         attr.name match {
-          case Identifier.PARENT => CalcKaitaiStructType
+          case Identifier.PARENT => CalcKaitaiStructType()
           case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case t: UserType =>
@@ -369,7 +369,7 @@ object TypeDetector {
                 if (t1.isOwning || t2.isOwning) {
                   KaitaiStructType
                 } else {
-                  CalcKaitaiStructType
+                  CalcKaitaiStructType()
                 }
               }
             case (Some(cs1), Some(cs2)) =>
@@ -379,21 +379,21 @@ object TypeDetector {
                 if (t1.isOwning || t2.isOwning) {
                   KaitaiStructType
                 } else {
-                  CalcKaitaiStructType
+                  CalcKaitaiStructType()
                 }
               }
             case (_, _) =>
               if (t1.isOwning || t2.isOwning) {
                 KaitaiStructType
               } else {
-                CalcKaitaiStructType
+                CalcKaitaiStructType()
               }
           }
         case (t1: StructType, t2: StructType) =>
           if (t1.isOwning || t2.isOwning) {
             KaitaiStructType
           } else {
-            CalcKaitaiStructType
+            CalcKaitaiStructType()
           }
         case (t1: EnumType, t2: EnumType) =>
           if (t1.enumSpec.get == t2.enumSpec.get) {
@@ -455,8 +455,8 @@ object TypeDetector {
         case (_: BooleanType, _: BooleanType) => true
         case (_: StrType, _: StrType) => true
         case (_: UserType, KaitaiStructType) => true
-        case (_: UserType, CalcKaitaiStructType) => true
-        case (KaitaiStructType, CalcKaitaiStructType) => true
+        case (_: UserType, _: CalcKaitaiStructType) => true
+        case (KaitaiStructType, _: CalcKaitaiStructType) => true
         case (t1: UserType, t2: UserType) =>
           (t1.classSpec, t2.classSpec) match {
             case (None, None) =>
