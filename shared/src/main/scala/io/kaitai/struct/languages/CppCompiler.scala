@@ -898,6 +898,17 @@ class CppCompiler(
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit =
     outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
 
+  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
+    if (config.readStoresPos)
+      attrDebugStart(instName, dataType, None, NoRepeat)
+    val valExpr = expression(value)
+    val isOwningInExpr = dataType match {
+      case ct: ComplexDataType => ct.isOwningInExpr
+      case _ => false
+    }
+    handleAssignmentSimple(instName, if (isOwningInExpr) s"$valExpr.get()" else valExpr)
+  }
+
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val enumClass = types2class(List(enumName))
 
@@ -990,7 +1001,7 @@ class CppCompiler(
           case st: SwitchType =>
             nonOwningPointer(attrName, combineSwitchType(st))
           case t: ComplexDataType =>
-            if (t.isOwningInExpr) {
+            if (t.isOwning) {
               s"${privateMemberName(attrName)}.get()"
             } else {
               privateMemberName(attrName)

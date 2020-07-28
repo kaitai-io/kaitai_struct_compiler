@@ -99,24 +99,34 @@ class TypeDetector(provider: TypeProvider) {
           case other => throw new TypeMismatchError(s"unable to switch over $other")
         }
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
-        (detectType(container) match {
+        detectType(container) match {
           case ArrayTypeInStream(elType: DataType) =>
             detectType(idx) match {
-              case _: IntType => elType
+              case _: IntType => elType.asNonOwning(
+                elType match {
+                  case ct: ComplexDataType => ct.isOwning
+                  case _ => false
+                }
+              )
               case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
             }
           case CalcArrayType(elType: DataType, _) =>
             detectType(idx) match {
-              case _: IntType => elType
+              case _: IntType => elType.asNonOwning(
+                elType match {
+                  case ct: ComplexDataType => ct.isOwning
+                  case _ => false
+                }
+              )
               case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
             }
           case _: BytesType => Int1Type(false)
           case cntType => throw new TypeMismatchError(s"unable to apply operation [] to $cntType")
-        }).asNonOwning()
+        }
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
-        detectAttributeType(value, attr).asNonOwning()
+        detectAttributeType(value, attr)
       case call: Ast.expr.Call =>
-        detectCallType(call).asNonOwning()
+        detectCallType(call).asNonOwning() // we have no methods that can return owning types yet, but it's probably safer to treat them as user type attributes
       case Ast.expr.List(values: Seq[Ast.expr]) =>
         detectArrayType(values) match {
           case Int1Type(_) => CalcBytesType
@@ -152,7 +162,7 @@ class TypeDetector(provider: TypeProvider) {
         }
       case t: UserType =>
         t.classSpec match {
-          case Some(tt) => provider.determineType(tt, attr.name)
+          case Some(tt) => provider.determineType(tt, attr.name).asNonOwning()
           case None => throw new TypeUndecidedError(s"expression '$value' has undecided type '${t.name}' (while asking for attribute '${attr.name}')")
         }
       case _: BytesType =>
@@ -180,8 +190,18 @@ class TypeDetector(provider: TypeProvider) {
         }
       case ArrayTypeInStream(_) | CalcArrayType(_, _) =>
         val inType = valType match {
-          case ArrayTypeInStream(inType) => inType
-          case CalcArrayType(inType, _) => inType
+          case ArrayTypeInStream(inType) => inType.asNonOwning(
+            inType match {
+              case ct: ComplexDataType => ct.isOwning
+              case _ => false
+            }
+          )
+          case CalcArrayType(inType, _) => inType.asNonOwning(
+            inType match {
+              case ct: ComplexDataType => ct.isOwning
+              case _ => false
+            }
+          )
           case _ => throw new TypeMismatchError(s"Unexpected type for arrays ${valType}.");
         }
 
