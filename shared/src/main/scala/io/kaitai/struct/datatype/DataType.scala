@@ -156,7 +156,7 @@ object DataType {
   ) extends UserType(_name, _forcedParent, _args) {
     def isOwning = true
     override def asNonOwning(isOwningInExpr: Boolean = false): UserType = {
-      val r = CalcUserType(name, forcedParent, args)
+      val r = CalcUserType(name, forcedParent, args, isOwningInExpr)
       r.classSpec = classSpec
       r
     }
@@ -170,7 +170,7 @@ object DataType {
   ) extends UserType(_name, _forcedParent, _args) with Processing {
     override def isOwning = true
     override def asNonOwning(isOwningInExpr: Boolean = false): UserType = {
-      val r = CalcUserTypeFromBytes(name, forcedParent, args, bytes, process)
+      val r = CalcUserTypeFromBytes(name, forcedParent, args, bytes, process, isOwningInExpr)
       r.classSpec = classSpec
       r
     }
@@ -178,7 +178,8 @@ object DataType {
   case class CalcUserType(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
-    _args: Seq[Ast.expr] = Seq()
+    _args: Seq[Ast.expr] = Seq(),
+    override val isOwningInExpr: Boolean = false
   ) extends UserType(_name, _forcedParent, _args) {
     override def isOwning = false
   }
@@ -187,7 +188,8 @@ object DataType {
     _forcedParent: Option[Ast.expr],
     _args: Seq[Ast.expr] = Seq(),
     bytes: BytesType,
-    override val process: Option[ProcessExpr]
+    override val process: Option[ProcessExpr],
+    override val isOwningInExpr: Boolean = false
   ) extends UserType(_name, _forcedParent, _args) with Processing {
     override def isOwning = false
   }
@@ -196,9 +198,9 @@ object DataType {
 
   case class ArrayTypeInStream(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = true
-    override def asNonOwning(isOwningInExpr: Boolean = false): CalcArrayType = CalcArrayType(elType)
+    override def asNonOwning(isOwningInExpr: Boolean = false): CalcArrayType = CalcArrayType(elType, isOwningInExpr)
   }
-  case class CalcArrayType(_elType: DataType) extends ArrayType(_elType) {
+  case class CalcArrayType(_elType: DataType, override val isOwningInExpr: Boolean = false) extends ArrayType(_elType) {
     override def isOwning: Boolean = false
   }
 
