@@ -57,7 +57,7 @@ class TypeDetector(provider: TypeProvider) {
         val t = EnumType(List(enumType.name), CalcIntType)
         t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
-      case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name).asNonOwning
+      case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name).asNonOwning()
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
         (t, op) match {
@@ -112,11 +112,11 @@ class TypeDetector(provider: TypeProvider) {
             }
           case _: BytesType => Int1Type(false)
           case cntType => throw new TypeMismatchError(s"unable to apply operation [] to $cntType")
-        }).asNonOwning
+        }).asNonOwning()
       case Ast.expr.Attribute(value: Ast.expr, attr: Ast.identifier) =>
-        detectAttributeType(value, attr).asNonOwning
+        detectAttributeType(value, attr).asNonOwning()
       case call: Ast.expr.Call =>
-        detectCallType(call).asNonOwning
+        detectCallType(call).asNonOwning()
       case Ast.expr.List(values: Seq[Ast.expr]) =>
         detectArrayType(values) match {
           case Int1Type(_) => CalcBytesType

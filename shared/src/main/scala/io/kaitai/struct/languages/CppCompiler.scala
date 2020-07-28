@@ -318,7 +318,7 @@ class CppCompiler(
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning)} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
+    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning())} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -659,7 +659,7 @@ class CppCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${translator.doName("_")};")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -876,10 +876,10 @@ class CppCompiler(
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${publicMemberName(instName)}();")
+    outHdr.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${publicMemberName(instName)}();")
 
     outSrc.puts
-    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning, true)} ${types2class(className)}::${publicMemberName(instName)}() {")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning(), true)} ${types2class(className)}::${publicMemberName(instName)}() {")
     outSrc.inc
   }
 
@@ -990,7 +990,7 @@ class CppCompiler(
           case st: SwitchType =>
             nonOwningPointer(attrName, combineSwitchType(st))
           case t: ComplexDataType =>
-            if (t.isOwning) {
+            if (t.isOwningInExpr) {
               s"${privateMemberName(attrName)}.get()"
             } else {
               privateMemberName(attrName)
@@ -1138,7 +1138,7 @@ object CppCompiler extends LanguageCompilerStatic
     if (st.isOwning) {
       ct1
     } else {
-      ct1.asNonOwning
+      ct1.asNonOwning()
     }
   }
 
