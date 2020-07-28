@@ -221,7 +221,12 @@ object DataType {
     var enumSpec: Option[EnumSpec] = None
   }
 
-  case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, DataType], isOwning: Boolean = true) extends ComplexDataType {
+  case class SwitchType(
+    on: Ast.expr,
+    cases: Map[Ast.expr, DataType],
+    isOwning: Boolean = true,
+    override val isOwningInExpr: Boolean = false
+  ) extends ComplexDataType {
     def combinedType: DataType = TypeDetector.combineTypes(cases.values)
 
     /**
@@ -259,7 +264,7 @@ object DataType {
         t.isInstanceOf[UserTypeFromBytes] || t.isInstanceOf[BytesType]
       )
 
-    override def asNonOwning(isOwningInExpr: Boolean = false): DataType = SwitchType(on, cases, false)
+    override def asNonOwning(isOwningInExpr: Boolean = false): DataType = SwitchType(on, cases, false, isOwningInExpr)
   }
 
   object SwitchType {
