@@ -110,22 +110,21 @@ object DataType {
       */
     def isOwning: Boolean
     /**
-      * @return If true, this type acts like an owning type in expressions. However,
-      *         this does not always mean that this type is the primary owner
-      *         of the data block (this info is provided by the [[isOwning]] method).
+      * @return If true, this type acts like an owning type in expressions, BUT the
+      *         data block is already owned by another type.
       *
-      *         The only situation when this can be different from [[isOwning]] is
-      *         when subscripting an array with owning inner type. Although the element
+      *         The only situation when this can be `true` is when subscripting
+      *         an array with owning inner type. Although the element
       *         obtained from such an array has the "owning" type (behaves in
-      *         expressions like this), we can't save it in a value instance with
+      *         expressions like that), we can't save it in a value instance with
       *         owning type as well, because the data block representing the element
       *         is already owned by the array, so the instance CAN'T OWN IT too.
       *         So [[isOwning]] = false and [[isOwningInExpr]] = true.
       *
-      *         But if [[isOwning]] == true, [[isOwningInExpr]] can't be false (doesn't
-      *         make sense), so this will be always true for owning types.
+      *         If [[isOwning]] == true, [[isOwningInExpr]] can't be `true` as well,
+      *         this MUST stay `false` in owning types.
       */
-    def isOwningInExpr: Boolean = isOwning
+    def isOwningInExpr: Boolean = false
   }
 
   abstract class StructType extends ComplexDataType
