@@ -34,6 +34,14 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     outHeader.puts(s"// $headerComment")
     outHeader.puts
 
+    outHeader.puts(s"#pragma warning disable 1998 // This async method lacks 'await' operators and will run synchronously. Consider usi ng the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread.")
+    outHeader.puts(s"#pragma warning disable 0675 // Bitwise-or operator used on a sign-extended operand; consider casting to a smaller unsigned type first")
+    outHeader.puts(s"#pragma warning disable IDE0008 // Use explicit type")
+    outHeader.puts(s"#pragma warning disable IDE0047 // Parentheses can be removed")
+    outHeader.puts
+    outHeader.puts(s"#nullable disable")
+    outHeader.puts
+
     var ns = "Kaitai"
     if (!config.dotNetNamespace.isEmpty)
       ns = config.dotNetNamespace
