@@ -119,9 +119,9 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
   override def strReverse(value: Ast.expr): String =
-    s"${translate(value)}[::-1]"
+    s"(${translate(value)})[::-1]"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s)}[${translate(from)}:${translate(to)}]"
+    s"(${translate(s)})[${translate(from)}:${translate(to)}]"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[0]"
