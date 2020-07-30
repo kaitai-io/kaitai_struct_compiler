@@ -152,7 +152,7 @@ class TypeDetector(provider: TypeProvider) {
         }
       case t: UserType =>
         t.classSpec match {
-          case Some(tt) => provider.determineType(tt, attr.name)
+          case Some(tt) => provider.determineType(tt, attr.name).asNonOwning
           case None => throw new TypeUndecidedError(s"expression '$value' has undecided type '${t.name}' (while asking for attribute '${attr.name}')")
         }
       case _: BytesType =>
