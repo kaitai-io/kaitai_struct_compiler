@@ -195,8 +195,13 @@ object DataType {
   case object CalcKaitaiStructType extends StructType {
     def isOwning = false
   }
-  case object KaitaiStreamType extends DataType
-  case object OwnedKaitaiStreamType extends DataType
+  case object OwnedKaitaiStreamType extends ComplexDataType {
+    def isOwning = true
+    override def asNonOwning: DataType = KaitaiStreamType
+  }
+  case object KaitaiStreamType extends ComplexDataType {
+    def isOwning = false
+  }
 
   case class EnumType(name: List[String], basedOn: IntType) extends DataType {
     var enumSpec: Option[EnumSpec] = None

@@ -544,7 +544,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case at: ArrayType => s"Vec<${kaitaiType2NativeType(at.elType)}>"
 
-      case KaitaiStreamType => s"Option<Box<KaitaiStream>>"
+      case KaitaiStreamType | OwnedKaitaiStreamType => s"Option<Box<KaitaiStream>>"
       case KaitaiStructType | CalcKaitaiStructType => s"Option<Box<KaitaiStruct>>"
 
       case st: SwitchType => kaitaiType2NativeType(st.combinedType)
@@ -580,7 +580,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case ArrayTypeInStream(inType) => "vec!()"
 
-      case KaitaiStreamType => "None"
+      case KaitaiStreamType | OwnedKaitaiStreamType => "None"
       case KaitaiStructType => "None"
 
       case _: SwitchType => ""

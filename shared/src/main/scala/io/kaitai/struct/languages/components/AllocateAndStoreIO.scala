@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.DataType.{ArrayTypeInStream, KaitaiStreamType, OwnedKaitaiStreamType}
+import io.kaitai.struct.datatype.DataType.{ArrayTypeInStream, OwnedKaitaiStreamType}
 import io.kaitai.struct.format._
 
 /**
@@ -14,7 +14,7 @@ trait AllocateAndStoreIO extends ExtraAttrs {
   override def extraAttrForIO(id: Identifier, rep: RepeatSpec): List[AttrSpec] = {
     val ioId = IoStorageIdentifier(id)
     val ioType = rep match {
-      case NoRepeat => KaitaiStreamType
+      case NoRepeat => OwnedKaitaiStreamType
       case _ => ArrayTypeInStream(OwnedKaitaiStreamType)
     }
     List(AttrSpec(List(), ioId, ioType))

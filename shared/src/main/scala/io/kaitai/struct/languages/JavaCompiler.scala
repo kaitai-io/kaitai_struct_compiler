@@ -816,7 +816,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case _: BytesType => "byte[]"
 
       case AnyType => "Object"
-      case KaitaiStreamType => kstreamName
+      case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
       case KaitaiStructType | CalcKaitaiStructType => kstructName
 
       case t: UserType => types2class(t.name)
@@ -860,7 +860,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case _: BytesType => "byte[]"
 
       case AnyType => "Object"
-      case KaitaiStreamType => kstreamName
+      case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
       case KaitaiStructType | CalcKaitaiStructType => kstructName
 
       case t: UserType => types2class(t.name)

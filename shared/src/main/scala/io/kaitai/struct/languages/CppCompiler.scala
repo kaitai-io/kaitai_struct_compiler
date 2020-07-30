@@ -385,8 +385,8 @@ class CppCompiler(
   }
 
   def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, needRaw: NeedRaw): Unit = {
-    if (isArray) {
-      if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
+    if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
+      if (isArray) {
         // raw is std::vector<string>*, no need to delete its contents, but we
         // need to clean up the vector pointer itself
         if (needRaw.level >= 1) {
@@ -421,16 +421,16 @@ class CppCompiler(
 
         // main member is a std::vector of something, always needs destruction
         outSrc.puts(s"delete ${privateMemberName(id)};")
+      } else {
+        // raw is just a string, no need to cleanup => we ignore `needRaw.hasRaw`
+
+        // but needRaw.hasIO is important
+        if (needRaw.hasIO)
+          outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
+
+        if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers && needsDestruction(innerType))
+          outSrc.puts(s"delete ${privateMemberName(id)};")
       }
-    } else {
-      // raw is just a string, no need to cleanup => we ignore `needRaw.hasRaw`
-
-      // but needRaw.hasIO is important
-      if (needRaw.hasIO)
-        outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
-
-      if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers && needsDestruction(innerType))
-        outSrc.puts(s"delete ${privateMemberName(id)};")
     }
   }
 
@@ -1101,7 +1101,7 @@ object CppCompiler extends LanguageCompilerStatic
         case RawPointers => s"$kstreamName*"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstreamName>"
       }
-      case KaitaiStreamType => s"$kstreamName*"
+      case KaitaiStreamType | OwnedKaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {
         case RawPointers => s"$kstructName*"
         case SharedPointers => s"std::shared_ptr<$kstructName>"

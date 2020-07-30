@@ -60,7 +60,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
           case "min" => arrayMin(value)
           case "max" => arrayMax(value)
         }
-      case KaitaiStreamType =>
+      case KaitaiStreamType | OwnedKaitaiStreamType =>
         attr.name match {
           case "size" => kaitaiStreamSize(value)
           case "eof" => kaitaiStreamEof(value)
