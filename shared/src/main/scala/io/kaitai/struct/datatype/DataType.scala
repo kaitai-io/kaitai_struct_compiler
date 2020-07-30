@@ -196,7 +196,7 @@ object DataType {
     def isOwning = false
   }
   case object KaitaiStreamType extends DataType
-  case object OwningKaitaiStreamType extends DataType
+  case object OwnedKaitaiStreamType extends DataType
 
   case class EnumType(name: List[String], basedOn: IntType) extends DataType {
     var enumSpec: Option[EnumSpec] = None
