@@ -509,15 +509,26 @@ class CppCompiler(
       case _ => getRawIdExpr(id, rep)
     }
 
-    val newStream = s"new $kstreamName($args)"
+    val newStreamRaw = s"new $kstreamName($args)"
 
     val ioName = rep match {
       case NoRepeat =>
+        val newStream = (
+          if (config.cppConfig.pointers != CppRuntimeConfig.RawPointers)
+            s"${kaitaiType2NativeType(OwnedKaitaiStreamType)}($newStreamRaw)"
+          else
+            newStreamRaw
+        )
         outSrc.puts(s"${privateMemberName(ioId)} = $newStream;")
-        privateMemberName(ioId)
+        config.cppConfig.pointers match {
+          case RawPointers =>
+            privateMemberName(ioId)
+          case UniqueAndRawPointers =>
+            s"${privateMemberName(ioId)}.get()"
+        }
       case _ =>
         val localIO = s"io_${idToStr(id)}"
-        outSrc.puts(s"$kstreamName* $localIO = $newStream;")
+        outSrc.puts(s"$kstreamName* $localIO = $newStreamRaw;")
         if (config.cppConfig.pointers == CppRuntimeConfig.UniqueAndRawPointers) {
           outSrc.puts(s"${privateMemberName(ioId)}->emplace_back($localIO);")
         } else {
@@ -1101,7 +1112,7 @@ object CppCompiler extends LanguageCompilerStatic
         case RawPointers => s"$kstreamName*"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstreamName>"
       }
-      case KaitaiStreamType | OwnedKaitaiStreamType => s"$kstreamName*"
+      case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {
         case RawPointers => s"$kstructName*"
         case SharedPointers => s"std::shared_ptr<$kstructName>"
