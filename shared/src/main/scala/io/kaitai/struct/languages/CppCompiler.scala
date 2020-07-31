@@ -400,30 +400,39 @@ class CppCompiler(
   }
 
   def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, needRaw: NeedRaw): Unit = {
+    def destructWithSafeguard(ptr: String): Unit = {
+      outSrc.puts(s"if ($ptr) delete $ptr;")
+    }
     if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
       if (isArray) {
         // raw is std::vector<string>*, no need to delete its contents, but we
         // need to clean up the vector pointer itself
         if (needRaw.level >= 1) {
-          outSrc.puts(s"delete ${privateMemberName(RawIdentifier(id))};")
+          destructWithSafeguard(privateMemberName(RawIdentifier(id)))
 
           // IO is std::vector<kstream*>*, needs destruction of both members
           // and the vector pointer itself
           if (needRaw.hasIO) {
             val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
+            outSrc.puts(s"if ($ioVar) {")
+            outSrc.inc
             destructVector(s"$kstreamName*", ioVar)
             outSrc.puts(s"delete $ioVar;")
+            outSrc.dec
+            outSrc.puts(s"}")
           }
         }
         if (needRaw.level >= 2) {
           // m__raw__raw_* is also std::vector<string>*, we just clean up the vector pointer
-          outSrc.puts(s"delete ${privateMemberName(RawIdentifier(RawIdentifier(id)))};")
+          destructWithSafeguard(privateMemberName(RawIdentifier(RawIdentifier(id))))
         }
+
+        val arrVar = privateMemberName(id)
+        outSrc.puts(s"if ($arrVar) {")
+        outSrc.inc
 
         // main member contents
         if (needsDestruction(innerType)) {
-          val arrVar = privateMemberName(id)
-
           // C++ specific substitution: AnyType results from generic struct + raw bytes
           // so we would assume that only generic struct needs to be cleaned up
           val realType = innerType match {
@@ -435,16 +444,18 @@ class CppCompiler(
         }
 
         // main member is a std::vector of something, always needs destruction
-        outSrc.puts(s"delete ${privateMemberName(id)};")
+        outSrc.puts(s"delete $arrVar;")
+        outSrc.dec
+        outSrc.puts(s"}")
       } else {
         // raw is just a string, no need to cleanup => we ignore `needRaw.hasRaw`
 
         // but needRaw.hasIO is important
         if (needRaw.hasIO)
-          outSrc.puts(s"delete ${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))};")
+          destructWithSafeguard(privateMemberName(IoStorageIdentifier(RawIdentifier(id))))
 
-        if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers && needsDestruction(innerType))
-          outSrc.puts(s"delete ${privateMemberName(id)};")
+        if (needsDestruction(innerType))
+          destructWithSafeguard(privateMemberName(id))
       }
     }
   }
