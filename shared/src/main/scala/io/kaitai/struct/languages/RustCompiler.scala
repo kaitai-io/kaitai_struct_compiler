@@ -108,7 +108,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def runRead(): Unit = {
+  override def runRead(name: List[String]): Unit = {
 
   }
 

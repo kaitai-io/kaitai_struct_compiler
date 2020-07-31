@@ -253,8 +253,23 @@ class CppCompiler(
 
   override def classDestructorFooter = classConstructorFooter
 
-  override def runRead(): Unit = {
+  override def runRead(name: List[String]): Unit = {
+    val wrapToTryCatch = (config.cppConfig.pointers == CppRuntimeConfig.RawPointers);
+    if (wrapToTryCatch) {
+      outSrc.puts
+      outSrc.puts("try {")
+      outSrc.inc
+    }
     outSrc.puts("_read();")
+    if (wrapToTryCatch) {
+      outSrc.dec
+      outSrc.puts("} catch(...) {")
+      outSrc.inc
+      outSrc.puts(s"this->~${types2class(List(name.last))}();")
+      outSrc.puts("throw;")
+      outSrc.dec
+      outSrc.puts("}")
+    }
   }
 
   override def runReadCalc(): Unit = {

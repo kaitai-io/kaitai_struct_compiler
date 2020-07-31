@@ -100,7 +100,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def runRead(): Unit =
+  override def runRead(name: List[String]): Unit =
     out.puts("self:_read()")
   override def runReadCalc(): Unit = {
     out.puts
