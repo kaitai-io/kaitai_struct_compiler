@@ -400,36 +400,42 @@ class CppCompiler(
   }
 
   def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, needRaw: NeedRaw): Unit = {
-    def destructWithSafeguard(ptr: String): Unit = {
-      outSrc.puts(s"if ($ptr) delete $ptr;")
+    def destructWithSafeguardHeader(ptr: String): Unit = {
+      outSrc.puts(s"if ($ptr) {")
+      outSrc.inc
+    }
+    def destructWithSafeguardFooter(ptr: String): Unit = {
+      outSrc.puts(s"delete $ptr; $ptr = $nullPtr;")
+      outSrc.dec
+      outSrc.puts("}")
+    }
+    def destructWithSafeguardSimple(ptr: String): Unit = {
+      destructWithSafeguardHeader(ptr)
+      destructWithSafeguardFooter(ptr)
     }
     if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
       if (isArray) {
         // raw is std::vector<string>*, no need to delete its contents, but we
         // need to clean up the vector pointer itself
         if (needRaw.level >= 1) {
-          destructWithSafeguard(privateMemberName(RawIdentifier(id)))
+          destructWithSafeguardSimple(privateMemberName(RawIdentifier(id)))
 
           // IO is std::vector<kstream*>*, needs destruction of both members
           // and the vector pointer itself
           if (needRaw.hasIO) {
             val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-            outSrc.puts(s"if ($ioVar) {")
-            outSrc.inc
+            destructWithSafeguardHeader(ioVar)
             destructVector(s"$kstreamName*", ioVar)
-            outSrc.puts(s"delete $ioVar;")
-            outSrc.dec
-            outSrc.puts(s"}")
+            destructWithSafeguardFooter(ioVar)
           }
         }
         if (needRaw.level >= 2) {
           // m__raw__raw_* is also std::vector<string>*, we just clean up the vector pointer
-          destructWithSafeguard(privateMemberName(RawIdentifier(RawIdentifier(id))))
+          destructWithSafeguardSimple(privateMemberName(RawIdentifier(RawIdentifier(id))))
         }
 
         val arrVar = privateMemberName(id)
-        outSrc.puts(s"if ($arrVar) {")
-        outSrc.inc
+        destructWithSafeguardHeader(arrVar)
 
         // main member contents
         if (needsDestruction(innerType)) {
@@ -444,18 +450,16 @@ class CppCompiler(
         }
 
         // main member is a std::vector of something, always needs destruction
-        outSrc.puts(s"delete $arrVar;")
-        outSrc.dec
-        outSrc.puts(s"}")
+        destructWithSafeguardFooter(arrVar)
       } else {
         // raw is just a string, no need to cleanup => we ignore `needRaw.hasRaw`
 
         // but needRaw.hasIO is important
         if (needRaw.hasIO)
-          destructWithSafeguard(privateMemberName(IoStorageIdentifier(RawIdentifier(id))))
+          destructWithSafeguardSimple(privateMemberName(IoStorageIdentifier(RawIdentifier(id))))
 
         if (needsDestruction(innerType))
-          destructWithSafeguard(privateMemberName(id))
+          destructWithSafeguardSimple(privateMemberName(id))
       }
     }
   }
