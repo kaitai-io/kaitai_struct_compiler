@@ -88,7 +88,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classConstructorFooter: Unit = {}
 
-  override def runRead(): Unit = {
+  override def runRead(name: List[String]): Unit = {
     out.puts("this.Read()")
   }
 
@@ -598,8 +598,8 @@ object GoCompiler extends LanguageCompilerStatic
       case _: BytesType => "[]byte"
 
       case AnyType => "interface{}"
-      case KaitaiStreamType => "*" + kstreamName
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
+      case KaitaiStreamType | OwnedKaitaiStreamType => "*" + kstreamName
 
       case t: UserType => "*" + types2class(t.classSpec match {
         case Some(cs) => cs.name

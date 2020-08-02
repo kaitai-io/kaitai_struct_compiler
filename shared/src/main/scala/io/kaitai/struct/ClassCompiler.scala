@@ -133,7 +133,7 @@ class ClassCompiler(
     compileInit(curClass)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     if (lang.config.autoRead)
-      lang.runRead()
+      lang.runRead(curClass.name)
     lang.classConstructorFooter
   }
 

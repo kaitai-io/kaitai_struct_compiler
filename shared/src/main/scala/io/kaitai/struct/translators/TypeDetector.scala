@@ -210,7 +210,7 @@ class TypeDetector(provider: TypeProvider) {
           case "size" => CalcIntType
           case _ => throw new MethodNotFoundError(attr.name, valType)
         }
-      case KaitaiStreamType =>
+      case KaitaiStreamType | OwnedKaitaiStreamType =>
         attr.name match {
           case "size" => CalcIntType
           case "pos" => CalcIntType

@@ -292,7 +292,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
   // def results(topClass: ClassSpec): Map[String, String] = ???
-  override def runRead(): Unit = out.puts("read()") // TODO: missing type argument
+  override def runRead(name: List[String]): Unit = out.puts("read()") // TODO: missing type argument
   override def runReadCalc(): Unit = {
     out.puts
     out.puts("if this.isLe:")
@@ -556,7 +556,7 @@ object NimCompiler extends LanguageCompilerStatic
       case _: BytesType => "seq[byte]"
 
       case KaitaiStructType | CalcKaitaiStructType(_) => "KaitaiStruct"
-      case KaitaiStreamType => "KaitaiStream"
+      case KaitaiStreamType | OwnedKaitaiStreamType => "KaitaiStream"
 
       case t: UserType => namespaced(t.classSpec match {
         case Some(cs) => cs.name
