@@ -245,16 +245,16 @@ class CppCompiler(
 
   override def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {
     outHdr.puts(s"~${types2class(List(name.last))}();")
-    outHdr.puts("void _cleanUp();")
+    outHdr.puts("void _clean_up();")
 
     outSrc.puts
     outSrc.puts(s"${types2class(name)}::~${types2class(List(name.last))}() {")
     outSrc.inc
-    outSrc.puts("_cleanUp();")
+    outSrc.puts("_clean_up();")
     outSrc.dec
     outSrc.puts("}")
     outSrc.puts
-    outSrc.puts(s"void ${types2class(name)}::_cleanUp() {")
+    outSrc.puts(s"void ${types2class(name)}::_clean_up() {")
     outSrc.inc
   }
 
@@ -272,7 +272,7 @@ class CppCompiler(
       outSrc.dec
       outSrc.puts("} catch(...) {")
       outSrc.inc
-      outSrc.puts("_cleanUp();")
+      outSrc.puts("_clean_up();")
       outSrc.puts("throw;")
       outSrc.dec
       outSrc.puts("}")
