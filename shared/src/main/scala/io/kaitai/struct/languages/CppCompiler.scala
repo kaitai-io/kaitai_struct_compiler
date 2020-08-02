@@ -272,7 +272,7 @@ class CppCompiler(
       outSrc.dec
       outSrc.puts("} catch(...) {")
       outSrc.inc
-      outSrc.puts(s"// this->~${types2class(List(name.last))}();")
+      outSrc.puts("_cleanUp();")
       outSrc.puts("throw;")
       outSrc.dec
       outSrc.puts("}")
