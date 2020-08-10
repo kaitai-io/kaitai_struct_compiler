@@ -30,7 +30,20 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"math.floor(${translate(left)} / ${translate(right)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        op match {
+          case Ast.operator.BitAnd =>
+            s"bit.band(${translate(left)}, ${translate(right)})"
+          case Ast.operator.BitOr =>
+            s"bit.bor(${translate(left)}, ${translate(right)})"
+          case Ast.operator.BitXor =>
+            s"bit.bxor(${translate(left)}, ${translate(right)})"
+          case Ast.operator.LShift =>
+            s"bit.lshift(${translate(left)}, ${translate(right)})"
+          case Ast.operator.RShift =>
+            s"bit.rshift(${translate(left)}, ${translate(right)})"
+          case _ =>
+            super.numericBinOp(left, op, right)
+        }
     }
   }
 
