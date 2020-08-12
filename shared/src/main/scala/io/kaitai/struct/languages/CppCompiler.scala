@@ -109,6 +109,7 @@ class CppCompiler(
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+    classForwardDeclaration(classSpec.name)
     importListHdr.addLocal(outFileNameHeader(classSpec.name.head))
   }
 
