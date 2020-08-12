@@ -54,7 +54,6 @@ class CppCompiler(
     outSrcHeader.puts(s"// $headerComment")
     outSrcHeader.puts
 
-    importListSrc.addSystem("memory")
     importListSrc.addLocal(outFileNameHeader(topClassName))
 
     if (config.cppConfig.usePragmaOnce) {
@@ -109,13 +108,8 @@ class CppCompiler(
     }
   }
 
-  override def importFile(file: String): Unit = {
-    importListHdr.addLocal(outFileNameHeader(file))
-  }
-
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
-    classForwardDeclaration(classSpec.name)
-    importListSrc.addLocal(outFileNameHeader(classSpec.name.head))
+    importListHdr.addLocal(outFileNameHeader(classSpec.name.head))
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -802,7 +796,6 @@ class CppCompiler(
           case SharedPointers =>
             s"std::make_shared<${types2class(t.name)}>($addParams$io$addArgs)"
           case UniqueAndRawPointers =>
-            importListSrc.addSystem("memory")
             // C++14
             //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
             s"std::unique_ptr<${types2class(t.name)}>(new ${types2class(t.name)}($addParams$io$addArgs))"
