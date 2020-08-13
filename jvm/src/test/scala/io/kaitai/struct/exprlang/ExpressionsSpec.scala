@@ -389,4 +389,47 @@ class ExpressionsSpec extends FunSpec {
       Expressions.parse("foo.bar") should be (Attribute(Name(identifier("foo")),identifier("bar")))
     }
   }
+
+  describe("Expressions.parseTypeRef") {
+    describe("parses local type refs") {
+      it("some_type") {
+        Expressions.parseTypeRef("some_type") should be (List("some_type"), List())
+      }
+      it("with spaces: '  some_type  '") {
+        Expressions.parseTypeRef("  some_type  ") should be (List("some_type"), List())
+      }
+      it("some_type(1+2,data)") {
+        Expressions.parseTypeRef("some_type(1+2,data)") should be (List("some_type"), List(
+          BinOp(IntNum(1), Add, IntNum(2)),
+          Name(identifier("data"))
+        ))
+      }
+      it("with spaces: ' some_type ( 1 + 2 , data ) '") {
+        Expressions.parseTypeRef(" some_type ( 1 + 2 , data ) ") should be (List("some_type"), List(
+          BinOp(IntNum(1), Add, IntNum(2)),
+          Name(identifier("data"))
+        ))
+      }
+    }
+    describe("parses path type refs") {
+      it("some::type") {
+        Expressions.parseTypeRef("some::type") should be (List("some", "type"), List())
+      }
+      it("with spaces: '  some  ::  type  '") {
+        Expressions.parseTypeRef("  some  ::  type  ") should be (List("some", "type"), List())
+      }
+      it("some::type(1+2,data)") {
+        Expressions.parseTypeRef("some::type(1+2,data)") should be (List("some", "type"), List(
+          BinOp(IntNum(1), Add, IntNum(2)),
+          Name(identifier("data"))
+        ))
+      }
+      it("with spaces: ' some :: type ( 1 + 2 , data ) '") {
+        Expressions.parseTypeRef(" some :: type ( 1 + 2 , data ) ") should be (List("some", "type"), List(
+          BinOp(IntNum(1), Add, IntNum(2)),
+          Name(identifier("data"))
+        ))
+      }
+    }
+  }
 }

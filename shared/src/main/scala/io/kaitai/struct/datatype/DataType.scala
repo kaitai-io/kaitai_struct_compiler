@@ -312,7 +312,6 @@ object DataType {
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
   private val ReFloatType = """f(4|8)(le|be)?""".r
   private val ReBitType = """b(\d+)(le|be)?""".r
-  private val ReUserTypeWithArgs = """^((?:[a-z][a-z0-9_]*::)*[a-z][a-z0-9_]*)\((.*)\)$""".r
 
   def fromYaml(
     dto: Option[String],
@@ -377,11 +376,7 @@ object DataType {
           val bat = arg2.getByteArrayType(path)
           StrFromBytesType(bat, enc)
         case _ =>
-          val (arglessType, args) = dt match {
-            case ReUserTypeWithArgs(typeStr, argsStr) => (typeStr, Expressions.parseList(argsStr))
-            case _ => (dt, List())
-          }
-          val dtl = classNameToList(arglessType)
+          val (dtl, args) = Expressions.parseTypeRef(dt)
           if (arg.size.isEmpty && !arg.sizeEos && arg.terminator.isEmpty) {
             if (arg.process.isDefined)
               throw KSYParseError(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path).toException

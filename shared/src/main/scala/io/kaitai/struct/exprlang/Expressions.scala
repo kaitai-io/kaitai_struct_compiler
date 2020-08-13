@@ -185,11 +185,25 @@ object Expressions {
 
   val topExprList: P[Seq[Ast.expr]] = P(testlist1 ~ End)
 
+  val typeRef: P[(List[String], Seq[Ast.expr])] = P(Start ~ NAME.rep(1, "::") ~ ("(" ~ testlist1 ~ ")").? ~ End).map {
+    case (path, None)       => (path.map(n => n.toString).toList, List())
+    case (path, Some(args)) => (path.map(n => n.toString).toList, args)
+  }
+
   class ParseException(val src: String, val failure: Parsed.Failure)
     extends RuntimeException(failure.msg)
 
   def parse(src: String): Ast.expr = realParse(src, topExpr)
   def parseList(src: String): Seq[Ast.expr] = realParse(src, topExprList)
+  /**
+   * Parse string with reference tu user-type definition, optionally in full path format
+   * and optional arguments.
+   * 
+   * @param src Type reference as string
+   * @return Tuple with path to type and type arguments. If arguments are not provided,
+   *         corresponding list is empty. List with path always contains at least one element
+   */
+  def parseTypeRef(src: String): (List[String], Seq[Ast.expr]) = realParse(src, typeRef)
 
   private def realParse[T](src: String, parser: P[T]): T = {
     val r = parser.parse(src.trim)
