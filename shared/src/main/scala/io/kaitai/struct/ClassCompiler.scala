@@ -47,6 +47,7 @@ class ClassCompiler(
 
     if (!lang.innerDocstrings)
       compileClassDoc(curClass)
+    lang.classAnnotation(curClass)
     lang.classHeader(curClass.name)
     if (lang.innerDocstrings)
       compileClassDoc(curClass)
@@ -92,14 +93,17 @@ class ClassCompiler(
 
     // Attributes declarations and readers
     val allAttrs: List[MemberSpec] =
-      curClass.seq ++
-      curClass.params ++
       List(
         AttrSpec(List(), RootIdentifier, CalcUserType(topClassName, None)),
         AttrSpec(List(), ParentIdentifier, curClass.parentType)
       ) ++
       ExtraAttrs.forClassSpec(curClass, lang)
+    compileIndexedAttrDeclarations(curClass.seq)
+    compileIndexedAttrDeclarations(curClass.params)
     compileAttrDeclarations(allAttrs)
+
+    compileIndexedAttrReaders(curClass.seq)
+    compileIndexedAttrReaders(curClass.params)
     compileAttrReaders(allAttrs)
 
     curClass.toStringExpr.foreach(expr => lang.classToString(expr))
@@ -192,12 +196,7 @@ class ClassCompiler(
     */
   def compileAttrDeclarations(attrs: List[MemberSpec]): Unit = {
     attrs.foreach { (attr) =>
-      val isNullable = if (lang.switchBytesOnlyAsRaw) {
-        attr.isNullableSwitchRaw
-      } else {
-        attr.isNullable
-      }
-      lang.attributeDeclaration(attr.id, attr.dataTypeComposite, isNullable)
+      lang.attributeDeclaration(attr.id, attr.dataTypeComposite, isNullable(attr))
     }
   }
 
@@ -211,12 +210,45 @@ class ClassCompiler(
       // FIXME: Python should have some form of attribute docs too
       if (!attr.doc.isEmpty && !lang.innerDocstrings)
         lang.attributeDoc(attr.id, attr.doc)
-      val isNullable = if (lang.switchBytesOnlyAsRaw) {
-        attr.isNullableSwitchRaw
-      } else {
-        attr.isNullable
-      }
-      lang.attributeReader(attr.id, attr.dataTypeComposite, isNullable)
+      lang.attributeReader(attr.id, attr.dataTypeComposite, isNullable(attr))
+    }
+  }
+
+  /**
+    * Iterates over a given list of attributes and generates attribute
+    * declarations for each of them, additionally annotate each field.
+    *
+    * @param attrs attribute list to traverse
+    */
+  def compileIndexedAttrDeclarations(attrs: List[MemberSpec]): Unit = {
+    attrs.zipWithIndex.foreach { case (attr, index) =>
+      lang.attributeAnnotation(index, attr)
+      lang.attributeDeclaration(attr.id, attr.dataTypeComposite, isNullable(attr))
+    }
+  }
+
+  /**
+    * Iterates over a given list of attributes and generates attribute
+    * readers (AKA getters) for each of them, additionally annotate each
+    * getter.
+    *
+    * @param attrs attribute list to traverse
+    */
+  def compileIndexedAttrReaders(attrs: List[MemberSpec]): Unit = {
+    attrs.zipWithIndex.foreach { case (attr, index) =>
+      // FIXME: Python should have some form of attribute docs too
+      if (!attr.doc.isEmpty && !lang.innerDocstrings)
+        lang.attributeDoc(attr.id, attr.doc)
+      lang.attributeAnnotation(index, attr)
+      lang.attributeReader(attr.id, attr.dataTypeComposite, isNullable(attr))
+    }
+  }
+
+  def isNullable(attr: MemberSpec): Boolean = {
+    if (lang.switchBytesOnlyAsRaw) {
+      attr.isNullableSwitchRaw
+    } else {
+      attr.isNullable
     }
   }
 
@@ -326,6 +358,7 @@ class ClassCompiler(
 
     if (!lang.innerDocstrings)
       compileInstanceDoc(instName, instSpec)
+    lang.instanceAnnotation(instName, instSpec, true)
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     if (lang.innerDocstrings)
       compileInstanceDoc(instName, instSpec)
@@ -354,6 +387,7 @@ class ClassCompiler(
     } else {
       instSpec.isNullable
     }
+    lang.instanceAnnotation(instName, instSpec, false)
     lang.instanceDeclaration(instName, instSpec.dataTypeComposite, isNullable)
   }
 
