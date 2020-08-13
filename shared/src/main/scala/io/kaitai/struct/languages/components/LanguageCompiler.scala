@@ -84,6 +84,14 @@ abstract class LanguageCompiler(
   def externalTypeDeclaration(extType: ExternalType): Unit = {}
 
   def classDoc(name: List[String], doc: DocSpec): Unit = {}
+  /**
+   * Generates additional meta-information for attribute, such as annotations in Java
+   * or attributes in C#. That annotations appears between documentation and main body
+   * of class.
+   *
+   * @param spec Specification of type
+   */
+  def classAnnotation(spec: ClassSpec): Unit = {}
   def classHeader(name: List[String]): Unit
   def classFooter(name: List[String]): Unit
   def classForwardDeclaration(name: List[String]): Unit = {}
@@ -114,6 +122,15 @@ abstract class LanguageCompiler(
     */
   def readFooter(): Unit
 
+  /**
+   * Generates additional meta-information for an attribute or type parameter,
+   * such as annotations in Java or attributes in C#.
+   *
+   * @param index Sequential index of `seq` attribute/parameter in type, started from 0.
+   *        Attributes and parameters have independent indexes
+   * @param attr Specification of attribute
+   */
+  def attributeAnnotation(index: Int, attr: MemberSpec): Unit = {}
   def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
   def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
   def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = ???
@@ -179,6 +196,15 @@ abstract class LanguageCompiler(
 
   def addChildIO(io: String, childIO: String): Unit = ???
 
+  /**
+   * Generates additional meta-information for instance, such as annotations in Java
+   * or attributes in C#.
+   *
+   * @param instName Name of instance
+   * @param spec Specification of instance
+   * @param getter If `true`, method called for annotate value getter, otherwise for annotate storage variable
+   */
+  def instanceAnnotation(instName: InstanceIdentifier, spec: InstanceSpec, getter: Boolean): Unit = {}
   def instanceDeclHeader(className: List[String]): Unit = {}
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
