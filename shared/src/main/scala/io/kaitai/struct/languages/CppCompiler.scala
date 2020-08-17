@@ -239,8 +239,10 @@ class CppCompiler(
   }
 
   override def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {
-    outHdr.puts(s"~${types2class(List(name.last))}();")
+    ensureMode(PrivateAccess)
     outHdr.puts("void _clean_up();")
+    ensureMode(PublicAccess)
+    outHdr.puts(s"~${types2class(List(name.last))}();")
 
     outSrc.puts
     outSrc.puts(s"${types2class(name)}::~${types2class(List(name.last))}() {")
