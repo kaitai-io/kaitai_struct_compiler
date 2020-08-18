@@ -312,8 +312,6 @@ class CppCompiler(
   override def readFooter(): Unit = {
     outSrc.dec
     outSrc.puts("}")
-
-    ensureMode(PublicAccess)
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
