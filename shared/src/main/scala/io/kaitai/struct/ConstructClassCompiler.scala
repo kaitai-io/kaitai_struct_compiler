@@ -15,6 +15,8 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   val translator = new ConstructTranslator(provider, importList)
 
   override def compile: CompileLog.SpecSuccess = {
+    out.puts(s"# $headerComment")
+    out.puts
     out.puts("from construct import *")
     out.puts("from construct.lib import *")
     out.puts
