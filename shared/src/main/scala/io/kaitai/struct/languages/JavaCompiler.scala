@@ -686,12 +686,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     if (enumColl.size > 1) {
       enumColl.dropRight(1).foreach { case (id, label) =>
-        out.puts(s"${value2Const(label)}(${long2str(id)}),")
+        out.puts(s"${value2Const(label)}(${translator.doIntLiteral(id)}),")
       }
     }
     enumColl.last match {
       case (id, label) =>
-        out.puts(s"${value2Const(label)}(${long2str(id)});")
+        out.puts(s"${value2Const(label)}(${translator.doIntLiteral(id)});")
     }
 
     out.puts
@@ -721,14 +721,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   def value2Const(s: String) = Utils.upperUnderscoreCase(s)
-
-  def long2str(l: Long): String = {
-    if (l.isValidInt) {
-      l.toString()
-    } else {
-      l.toString() + "L"
-    }
-  }
 
   def idToStr(id: Identifier): String = {
     id match {
