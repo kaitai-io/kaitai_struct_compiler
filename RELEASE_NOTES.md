@@ -3,6 +3,8 @@
 * New targets support:
   * Python with [Construct library](https://construct.readthedocs.io)
 * Expression language:
+  * Forced byte array and true array literals (see [#371](https://github.com/kaitai-io/kaitai_struct/issues/371)) and
+    empty typed array literals (see [#372](https://github.com/kaitai-io/kaitai_struct/issues/372))
   * New methods:
     * byte arrays: `length`
 * General compilation improvements:
@@ -10,6 +12,18 @@
     see [#287](https://github.com/kaitai-io/kaitai_struct/issues/287). While this breaks existing
     builds most likely, it puts those languages in line with all others and adding subdirs is easier
     for the user than removing some added by Kaitai automatically.
+  * Better error messages (see [#488](https://github.com/kaitai-io/kaitai_struct/issues/488))
+  * Support for .ksy files with UTF8 BOM (see [#499](https://github.com/kaitai-io/kaitai_struct/issues/499))
+  * Error messages are routed to stderr rather than stdout (see [#509](https://github.com/kaitai-io/kaitai_struct/issues/509))
+* Major bugfixes:
+  * `enum` support with `params` (see [#413](https://github.com/kaitai-io/kaitai_struct/issues/413))
+  * Java: more consistent closure of underlying IO streams on forced
+    `close()` (see
+    [#497](https://github.com/kaitai-io/kaitai_struct/issues/497))
+* Infrastructure updates:
+  * Kaitai Struct compiler available as Gradle/Maven plugin
+  * KSY language reference replaced with documentation generated from JSON schema
+  * https://formats.kaitai.io/ is rebuilt automatically with CI/CD
 
 # 0.8 (2018-02-05)
 
