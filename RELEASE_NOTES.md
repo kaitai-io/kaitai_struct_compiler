@@ -2,6 +2,9 @@
 
 * New targets support:
   * Python with [Construct library](https://construct.readthedocs.io)
+* New KSY language features:
+  * `doc-ref` supports list of references (see [#269](https://github.com/kaitai-io/kaitai_struct/issues/269))
+  * `meta/tags` allows specification of multiple tags to allow better navigation in the format gallery (see [#572](https://github.com/kaitai-io/kaitai_struct/issues/572))
 * Expression language:
   * Forced byte array and true array literals (see [#371](https://github.com/kaitai-io/kaitai_struct/issues/371)) and
     empty typed array literals (see [#372](https://github.com/kaitai-io/kaitai_struct/issues/372))
@@ -15,15 +18,28 @@
   * Better error messages (see [#488](https://github.com/kaitai-io/kaitai_struct/issues/488))
   * Support for .ksy files with UTF8 BOM (see [#499](https://github.com/kaitai-io/kaitai_struct/issues/499))
   * Error messages are routed to stderr rather than stdout (see [#509](https://github.com/kaitai-io/kaitai_struct/issues/509))
+  * `--debug` mode split into `--no-auto-read` and `--read-pos` (see [#332](https://github.com/kaitai-io/kaitai_struct/issues/332))
+  * `--no-auto-read` implemented for C++
+  * C++: official Windows and Visual C++ support
+  * Typecasting (`.as<foo>`) works for value instances (see [#463](https://github.com/kaitai-io/kaitai_struct/issues/463))
 * Major bugfixes:
   * `enum` support with `params` (see [#413](https://github.com/kaitai-io/kaitai_struct/issues/413))
-  * Java: more consistent closure of underlying IO streams on forced
-    `close()` (see
-    [#497](https://github.com/kaitai-io/kaitai_struct/issues/497))
+  * `enum` with undefined values in enum list never crashes a parser (see [#523](https://github.com/kaitai-io/kaitai_struct/issues/523) for Python, [#300](https://github.com/kaitai-io/kaitai_struct/issues/300) for Java)
+  * Substring `not` cannot be used in expressions (see [#556](https://github.com/kaitai-io/kaitai_struct/issues/556))
+  * Bit-sized integers were not accounted for properly in `repeat: eos` (see [#548](https://github.com/kaitai-io/kaitai_struct/issues/548))
+  * Java: more consistent closure of underlying IO streams on forced `close()` (see [#497](https://github.com/kaitai-io/kaitai_struct/issues/497))
+  * Python: work around circular dependencies generation
+* Tooling around the compiler updates:
+  * Kaitai Struct compiler available [as Maven
+    plugin](https://github.com/valery1707/kaitai-maven-plugin) and [as
+    Gradle plugin](https://github.com/valery1707/kaitai-gradle-plugin)
 * Infrastructure updates:
-  * Kaitai Struct compiler available as Gradle/Maven plugin
+  * Unstable binary builds are available for all platforms after every CI build at Bintray (see [#63](https://github.com/kaitai-io/kaitai_struct/issues/63))
   * KSY language reference replaced with documentation generated from JSON schema
   * https://formats.kaitai.io/ is rebuilt automatically with CI/CD
+  * Brand new modular CI/CD system for compiler, underlying
+    CI-agnostic, working on multiple different OSes in parallel
+    (Linux, Windows, macOS) and showing status at https://ci.kaitai.io/
 
 # 0.8 (2018-02-05)
 
