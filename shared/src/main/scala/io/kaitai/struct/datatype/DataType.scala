@@ -447,7 +447,7 @@ object DataType {
           },
           None
         )
-      case ReBitType(widthStr) =>
+      case ReBitType(widthStr, bitEndianStr) =>
         widthStr match {
           // bit endianness is not applicable here (and the dependent code doesn't care about it), so why not assume big endian
           case "1" => BitsType1(BigBitEndian)
