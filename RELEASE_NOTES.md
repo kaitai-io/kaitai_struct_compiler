@@ -5,52 +5,52 @@
   * HTML - intended for documentation, preliminary support
   * Nim - entry-level support (51% tests pass score)
 * New KSY language features:
-  * `doc-ref` supports list of references (see [#269](https://github.com/kaitai-io/kaitai_struct/issues/269))
-  * `meta/tags` allows specification of multiple tags to allow better navigation in the format gallery (see [#572](https://github.com/kaitai-io/kaitai_struct/issues/572))
-  * Allow accessing nested types using `::` syntax: `foo::bar` (see [#275](https://github.com/kaitai-io/kaitai_struct/issues/275))
-  * Implement parsed data validations using `valid` key (see [#435](https://github.com/kaitai-io/kaitai_struct/issues/435))
-  * Implement compile-time `sizeof` and `bitsizeof` operators (see [#84](https://github.com/kaitai-io/kaitai_struct/issues/84))
+  * `doc-ref` supports list of references ([#269](https://github.com/kaitai-io/kaitai_struct/issues/269))
+  * `meta/tags` allows specification of multiple tags to allow better navigation in the format gallery ([#572](https://github.com/kaitai-io/kaitai_struct/issues/572))
+  * Allow accessing nested types using `::` syntax: `foo::bar` ([#275](https://github.com/kaitai-io/kaitai_struct/issues/275))
+  * Implement parsed data validations using `valid` key ([#435](https://github.com/kaitai-io/kaitai_struct/issues/435))
+  * Implement compile-time `sizeof` and `bitsizeof` operators ([#84](https://github.com/kaitai-io/kaitai_struct/issues/84))
 * Expression language:
-  * Forced byte array and true array literals (see [#371](https://github.com/kaitai-io/kaitai_struct/issues/371)) and
-    empty typed array literals (see [#372](https://github.com/kaitai-io/kaitai_struct/issues/372))
+  * Forced byte array and true array literals ([#371](https://github.com/kaitai-io/kaitai_struct/issues/371)) and
+    empty typed array literals ([#372](https://github.com/kaitai-io/kaitai_struct/issues/372))
   * New methods:
     * byte arrays: `length`
-  * Allow pure types for type casting: `.as<u2>`, `.as<str>` (see [#463](https://github.com/kaitai-io/kaitai_struct/issues/463))
+  * Allow pure types for type casting: `.as<u2>`, `.as<str>` ([#463](https://github.com/kaitai-io/kaitai_struct/issues/463))
 * General compilation improvements:
   * Support Maven-like directory trees by not adding subdir `src` for outputs of Go+Java anymore,
     see [#287](https://github.com/kaitai-io/kaitai_struct/issues/287). While this breaks existing
     builds most likely, it puts those languages in line with all others and adding subdirs is easier
     for the user than removing some added by Kaitai automatically.
-  * Better error messages (see [#488](https://github.com/kaitai-io/kaitai_struct/issues/488))
-  * Support for .ksy files with UTF-8 BOM (see [#499](https://github.com/kaitai-io/kaitai_struct/issues/499))
-  * Error messages are routed to stderr rather than stdout (see [#509](https://github.com/kaitai-io/kaitai_struct/issues/509))
-  * `--debug` mode split into `--no-auto-read` and `--read-pos` (see [#332](https://github.com/kaitai-io/kaitai_struct/issues/332))
+  * Better error messages ([#488](https://github.com/kaitai-io/kaitai_struct/issues/488))
+  * Support for .ksy files with UTF-8 BOM ([#499](https://github.com/kaitai-io/kaitai_struct/issues/499))
+  * Error messages are routed to stderr rather than stdout ([#509](https://github.com/kaitai-io/kaitai_struct/issues/509))
+  * `--debug` mode split into `--no-auto-read` and `--read-pos` ([#332](https://github.com/kaitai-io/kaitai_struct/issues/332))
   * `--no-auto-read` implemented for C++
   * C++: official Windows and Visual C++ support
-  * Fix case conversions to be locale-independent (see [#708](https://github.com/kaitai-io/kaitai_struct/issues/708))
+  * Fix case conversions to be locale-independent ([#708](https://github.com/kaitai-io/kaitai_struct/issues/708))
 * Major bugfixes:
   * `params/type` - add support for:
     * specific user types
-    * `enum`s (see [#413](https://github.com/kaitai-io/kaitai_struct/issues/413))
+    * `enum`s ([#413](https://github.com/kaitai-io/kaitai_struct/issues/413))
     * byte arrays (`bytes`)
     * arrays (`u2[]`, `struct[]`, etc.)
-  * `enum` with undefined values in enum list never crashes a parser (see [#523](https://github.com/kaitai-io/kaitai_struct/issues/523) for Python, [#300](https://github.com/kaitai-io/kaitai_struct/issues/300) for Java)
+  * `enum` with undefined values in enum list never crashes a parser ([#523](https://github.com/kaitai-io/kaitai_struct/issues/523) for Python, [#300](https://github.com/kaitai-io/kaitai_struct/issues/300) for Java)
   * Fix coercing different string/bytearray/enum/boolean types (e.g. parsed from stream and created from literal value) in conditional op (`? :`) or array literal
-  * Substring `not` cannot be used in expressions (see [#556](https://github.com/kaitai-io/kaitai_struct/issues/556))
-  * Bit-sized integers were not accounted for properly in `repeat: eos` (see [#548](https://github.com/kaitai-io/kaitai_struct/issues/548))
-  * Fix switching with else case `_` only (see [#595](https://github.com/kaitai-io/kaitai_struct/issues/595))
+  * Substring `not` cannot be used in expressions ([#556](https://github.com/kaitai-io/kaitai_struct/issues/556))
+  * Bit-sized integers were not accounted for properly in `repeat: eos` ([#548](https://github.com/kaitai-io/kaitai_struct/issues/548))
+  * Fix switching with else case `_` only ([#595](https://github.com/kaitai-io/kaitai_struct/issues/595))
   * C++: fix all known memory leaks
-  * C++: fix absolute imports (see [#794](https://github.com/kaitai-io/kaitai_struct/issues/794))
-  * Java: more consistent closure of underlying IO streams on forced `close()` (see [#497](https://github.com/kaitai-io/kaitai_struct/issues/497))
-  * Java: fix reading user types in type-switching in `--no-auto-read` mode (see [#204](https://github.com/kaitai-io/kaitai_struct/issues/204))
+  * C++: fix absolute imports ([#794](https://github.com/kaitai-io/kaitai_struct/issues/794))
+  * Java: more consistent closure of underlying IO streams on forced `close()` ([#497](https://github.com/kaitai-io/kaitai_struct/issues/497))
+  * Java: fix reading user types in type-switching in `--no-auto-read` mode ([#204](https://github.com/kaitai-io/kaitai_struct/issues/204))
   * Python: work around circular dependencies generation
-  * PHP: fix invalid `namespace` declarations when no `--php-namespace` specified (see [#637](https://github.com/kaitai-io/kaitai_struct/issues/637))
+  * PHP: fix invalid `namespace` declarations when no `--php-namespace` specified ([#637](https://github.com/kaitai-io/kaitai_struct/issues/637))
 * Tooling around the compiler updates:
   * Kaitai Struct compiler available [as Maven
     plugin](https://github.com/valery1707/kaitai-maven-plugin) and [as
     Gradle plugin](https://github.com/valery1707/kaitai-gradle-plugin)
 * Infrastructure updates:
-  * Unstable binary builds are available for all platforms after every CI build at Bintray (see [#63](https://github.com/kaitai-io/kaitai_struct/issues/63))
+  * Unstable binary builds are available for all platforms after every CI build at Bintray ([#63](https://github.com/kaitai-io/kaitai_struct/issues/63))
   * KSY language reference replaced with documentation generated from JSON schema
   * https://formats.kaitai.io/ is rebuilt automatically with CI/CD
   * Brand new modular CI/CD system for compiler, underlying
