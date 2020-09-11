@@ -478,11 +478,11 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attrId: Identifier,
     attrType: DataType,
     checkExpr: Ast.expr,
-    errName: String,
+    err: KSError,
     errArgs: List[Ast.expr]
   ): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"raise $errName.new($errArgsStr) if not ${translator.translate(checkExpr)}")
+    out.puts(s"raise ${ksErrorName(err)}.new($errArgsStr) if not ${translator.translate(checkExpr)}")
   }
 
   def types2class(names: List[String]) = names.map(type2class).mkString("::")

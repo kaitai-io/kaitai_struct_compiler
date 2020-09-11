@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, NeedRaw}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError, NeedRaw}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -422,21 +422,21 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attrId: Identifier,
     attrType: DataType,
     checkExpr: Ast.expr,
-    errName: String,
+    err: KSError,
     errArgs: List[Ast.expr]
   ): Unit = {
     val errArgsCode = errArgs.map(translator.translate)
     out.puts(s"if not(${translator.translate(checkExpr)}) then")
     out.inc
-    val msg = errName match {
-      case "ValidationNotEqualError" => {
+    val msg = err match {
+      case _: ValidationNotEqualError => {
         val (expected, actual) = (
           errArgsCode.lift(0).getOrElse("[expected]"),
           errArgsCode.lift(1).getOrElse("[actual]")
         )
         s""""not equal, expected " ..  $expected .. ", but got " .. $actual"""
       }
-      case _ => "\"" + errName + "\""
+      case _ => "\"" + ksErrorName(err) + "\""
     }
     out.puts(s"error($msg)")
     out.dec

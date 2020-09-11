@@ -1067,14 +1067,14 @@ class CppCompiler(
     attrId: Identifier,
     attrType: DataType,
     checkExpr: Ast.expr,
-    errName: String,
+    err: KSError,
     errArgs: List[Ast.expr]
   ): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
     importListSrc.addKaitai("kaitai/exceptions.h")
     outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
     outSrc.inc
-    outSrc.puts(s"throw $errName($errArgsStr);")
+    outSrc.puts(s"throw ${ksErrorName(err)}($errArgsStr);")
     outSrc.dec
     outSrc.puts("}")
   }
