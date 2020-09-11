@@ -555,6 +555,26 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   def calculatedFlagForName(id: Identifier) = s"_f_${idToStr(id)}"
 
   override def ksErrorName(err: KSError): String = GoCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    err: KSError,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if !(${translator.translate(checkExpr)}) {")
+    out.inc
+    val errInst = s"kaitai.New${err.name}($errArgsStr)"
+    val noValueAndErr = translator.returnRes match {
+      case None => errInst
+      case Some(r) => s"$r, $errInst"
+    }
+    out.puts(s"return $noValueAndErr")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object GoCompiler extends LanguageCompilerStatic
