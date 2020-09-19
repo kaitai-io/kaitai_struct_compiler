@@ -447,11 +447,6 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("java.util.ArrayList")
   }
 
-  override def condRepeatEosHeader2(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    out.puts(s"for (int i = 0; i < ${privateMemberName(id)}.size(); i++) {")
-    out.inc
-  }
-
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)}.add($expr);")
   }
@@ -468,16 +463,16 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>(((Number) (${expression(repeatExpr)})).intValue());")
     out.puts(s"${idToStr(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}(((Number) (${expression(repeatExpr)})).intValue());")
-
-    importList.add("java.util.ArrayList")
-    condRepeatExprHeader2(id, io, dataType, needRaw, repeatExpr)
-  }
-
-  override def condRepeatExprHeader2(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
 
     importList.add("java.util.ArrayList")
+  }
+
+  // used for all repetitions in _write() and _check()
+  override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
+    out.puts(s"for (int i = 0; i < ${privateMemberName(id)}.size(); i++) {")
+    out.inc
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
@@ -490,7 +485,7 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayType(dataType))}();")
     out.puts("{")
     out.inc
-    out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName("_")};")
+    out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName(Identifier.ITERATOR)};")
     out.puts("int i = 0;")
     out.puts("do {")
     out.inc
