@@ -9,7 +9,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.JavaTranslator
 
-class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with SingleOutputFile
     with UpperCamelCaseClasses
@@ -854,6 +854,12 @@ class JavaCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     importList.add("io.kaitai.struct.ConsistencyError")
   }
+
+  def blockScopeHeader: Unit = {
+    out.puts("{")
+    out.inc
+  }
+  def blockScopeFooter: Unit = universalFooter
 
   def value2Const(s: String) = s.toUpperCase
 

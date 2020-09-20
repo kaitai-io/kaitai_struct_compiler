@@ -9,7 +9,7 @@ import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 import scala.collection.mutable.ListBuffer
 
 abstract class LanguageCompiler(
-  typeProvider: ClassTypeProvider,
+  val typeProvider: ClassTypeProvider,
   val config: RuntimeConfig
 ) extends SwitchOps with ValidateOps
   with ExtraAttrs {

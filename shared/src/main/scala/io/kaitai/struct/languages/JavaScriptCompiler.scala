@@ -9,7 +9,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.JavaScriptTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
-class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with UpperCamelCaseClasses

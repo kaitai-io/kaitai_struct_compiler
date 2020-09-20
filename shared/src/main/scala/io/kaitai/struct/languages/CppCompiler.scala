@@ -11,7 +11,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
 
 class CppCompiler(
-  val typeProvider: ClassTypeProvider,
+  typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage

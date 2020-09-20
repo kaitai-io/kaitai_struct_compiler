@@ -21,6 +21,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
         condRepeatCommonFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
+        attrAssertUntilCond(idToName(id), attr.dataType, untilExpr, idToMsg(id))
         condRepeatCommonHeader(id, io, attr.dataType, needRaw(attr.dataType))
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
         condRepeatCommonFooter
@@ -146,6 +147,28 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
     )
   }
 
+  def attrAssertUntilCond(name: Ast.expr, dataType: DataType, untilExpr: Ast.expr, msg: String): Unit = {
+    blockScopeHeader
+    handleAssignmentTempVar(
+      dataType,
+      translator.doName(Identifier.ITERATOR),
+      translator.translate(
+        Ast.expr.Attribute(
+          name,
+          Ast.identifier("last")
+        )
+      )
+    )
+    typeProvider._currentIteratorType = Some(dataType)
+    attrBasicCheck(
+      translator.translate(Ast.expr.UnaryOp(Ast.unaryop.Not, untilExpr)),
+      translator.translate(Ast.expr.Str(dataType.toString)),
+      translator.translate(Ast.expr.Str(translator.translate(untilExpr))),
+      msg
+    )
+    blockScopeFooter
+  }
+
   def attrAssertEqual(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
     attrAssertCmp(actual, Ast.cmpop.NotEq, expected, msg)
 
@@ -162,4 +185,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
       translator.translate(expected),
       msg
     )
+
+  def blockScopeHeader: Unit
+  def blockScopeFooter: Unit
 }
