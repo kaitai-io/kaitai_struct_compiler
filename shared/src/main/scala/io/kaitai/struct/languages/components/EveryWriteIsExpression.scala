@@ -59,7 +59,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case t: StrFromBytesType =>
         attrStrTypeWrite(id, t, io, rep, isRaw)
       case t: EnumType =>
-        val expr = translator.enumToInt(Ast.expr.Name(Ast.identifier(idToStr(id))), t)
+        val expr = translator.enumToInt(Ast.expr.CodeLiteral(writeExprAsString(id, rep, isRaw)), t)
         val exprType = internalEnumIntType(t.basedOn)
         attrPrimitiveWrite(io, expr, t.basedOn, defEndian, Some(exprType))
       case _ =>
@@ -76,19 +76,6 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case _ =>
         translator.arraySubscript(
           Ast.expr.Name(Ast.identifier(idToStr(id))),
-          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
-        )
-    }
-  }
-
-  def writeExprAsExpr(id: Identifier, rep: RepeatSpec, isRaw: Boolean): Ast.expr = {
-    val astId = Ast.expr.Name(Ast.identifier(idToStr(id)))
-    rep match {
-      case NoRepeat =>
-        astId
-      case _ =>
-        Ast.expr.Subscript(
-          astId,
           Ast.expr.Name(Ast.identifier(Identifier.INDEX))
         )
     }
@@ -123,7 +110,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
   }
 
   def attrStrTypeWrite(id: Identifier, t: StrFromBytesType, io: String, rep: RepeatSpec, isRaw: Boolean) = {
-    val expr = translator.strToBytes(writeExprAsExpr(id, rep, isRaw), Ast.expr.Str(t.encoding))
+    val expr = translator.strToBytes(Ast.expr.CodeLiteral(writeExprAsString(id, rep, isRaw)), Ast.expr.Str(t.encoding))
     attrPrimitiveWrite(io, expr, t.bytes, None)
 
     t.bytes match {
