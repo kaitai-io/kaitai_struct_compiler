@@ -41,6 +41,8 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     outHeader.puts(s"#pragma warning disable IDE1006 // Naming rule violation: Prefix 'M_' is not expected")
     outHeader.puts(s"#pragma warning disable IDE0044 // Make field readonly")
     outHeader.puts(s"#pragma warning disable CA1819 // Properties should not return arrays")
+    outHeader.puts(s"#pragma warning disable IDE0060 // Remove unused parameter") 
+    outHeader.puts(s"#pragma warning disable CA1801 // Remove the parameter or use it in the method body") 
     outHeader.puts
     outHeader.puts(s"#nullable disable")
     outHeader.puts
@@ -66,6 +68,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
   override def classHeader(name: String): Unit = {
     importList.add("System")
     importList.add("Kaitai.Async")
+    importList.add("System.Threading")
     importList.add("System.Threading.Tasks")
 
     out.puts(s"public partial class ${type2class(name)} : $kstructName")
@@ -144,11 +147,11 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     out.dec
     out.puts(s"} else if (${privateMemberName(EndianIdentifier)} == true) {")
     out.inc
-    out.puts("await ReadLEAsync();")
+    out.puts("await ReadLEAsync(cancellationToken);")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts("await ReadBEAsync();")
+    out.puts("await ReadBEAsync(cancellationToken);")
     out.dec
     out.puts("}")
   }
@@ -158,7 +161,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
       case Some(e) => s"${e.toSuffix.toUpperCase}"
       case None => ""
     }
-    out.puts(s"public async Task<${type2class(_className)}> Read${suffix}Async()")
+    out.puts(s"public async Task<${type2class(_className)}> Read${suffix}Async(CancellationToken cancellationToken = default)")
     out.puts("{")
     out.inc
   }
@@ -273,10 +276,10 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     out.puts(s"long _pos = $io.Pos;")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"await $io.SeekAsync(${expression(pos)});")
+    out.puts(s"await $io.SeekAsync(${expression(pos)}, cancellationToken);")
 
   override def popPos(io: String): Unit =
-    out.puts(s"await $io.SeekAsync(_pos);")
+    out.puts(s"await $io.SeekAsync(_pos, cancellationToken);")
 
   override def alignToByte(io: String): Unit =
     out.puts(s"$io.AlignToByte();")
@@ -305,7 +308,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     out.puts("{")
     out.inc
     out.puts("var i = 0;")
-    out.puts(s"while (! await $io.IsEofAsync()) {")
+    out.puts(s"while (! await $io.IsEofAsync(cancellationToken)) {")
     out.inc
   }
 
@@ -380,17 +383,17 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"await $io.Read${Utils.capitalize(t.apiCall(defEndian))}Async()"
+        s"await $io.Read${Utils.capitalize(t.apiCall(defEndian))}Async(cancellationToken)"
       case blt: BytesLimitType =>
-        s"await $io.ReadBytesAsync(${expression(blt.size)})"
+        s"await $io.ReadBytesAsync(${expression(blt.size)}, cancellationToken)"
       case _: BytesEosType =>
-        s"await $io.ReadBytesFullAsync()"
+        s"await $io.ReadBytesFullAsync(cancellationToken)"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"await $io.ReadBytesTermAsync($terminator, $include, $consume, $eosError)"
+        s"await $io.ReadBytesTermAsync($terminator, $include, $consume, $eosError, cancellationToken)"
       case BitsType1 =>
-        s"await $io.ReadBitsIntAsync(1) != 0"
+        s"await $io.ReadBitsIntAsync(1, cancellationToken) != 0"
       case BitsType(width: Int) =>
-        s"await $io.ReadBitsIntAsync($width)"
+        s"await $io.ReadBitsIntAsync($width, cancellationToken)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
@@ -407,7 +410,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
           }
           s", $parent, ${privateMemberName(RootIdentifier)}$addEndian"
         }
-        s"await (new ${types2class(t.name)}($addParams$io$addArgs)).ReadAsync()"
+        s"await (new ${types2class(t.name)}($addParams$io$addArgs)).ReadAsync(cancellationToken)"
     }
   }
 
@@ -424,7 +427,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
   }
 
   override def userTypeDebugRead(id: String): Unit =
-    out.puts(s"await $id.ReadAsync();")
+    out.puts(s"await $id.ReadAsync(cancellationToken);")
 
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
     case _: IntType | _: EnumType | _: StrType => false
@@ -521,13 +524,13 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     out.puts("{")
     out.inc
     instanceCheckCacheAndReturn(instName, dataType)
-    out.puts(s"return  Get${publicMemberName(instName)}().GetAwaiter().GetResult();")
+    out.puts(s"return  Get${publicMemberName(instName)}(CancellationToken.None).GetAwaiter().GetResult();")
     out.dec
     out.puts("}")
     out.dec
     out.puts("}")
 
-    out.puts(s"public async Task<${kaitaiType2NativeTypeNullable(dataType, isNullable)}> Get${publicMemberName(instName)}()")
+    out.puts(s"public async Task<${kaitaiType2NativeTypeNullable(dataType, isNullable)}> Get${publicMemberName(instName)}(CancellationToken cancellationToken = default)")
     out.puts("{")
     out.inc
   }
