@@ -1,7 +1,7 @@
 # 0.9 (TBD)
 
 * New targets support:
-  * Python with [Construct library](https://construct.readthedocs.io)
+  * Python with [Construct](https://construct.readthedocs.io) library
   * HTML - intended for documentation, preliminary support
   * Nim - entry-level support (51% tests pass score)
 * New KSY language features:
@@ -41,6 +41,7 @@
   * Fix case conversions to be locale-independent ([#708](https://github.com/kaitai-io/kaitai_struct/issues/708))
 * Runtime API changes:
   * Add exceptions `Validation{Not{Equal,AnyOf},{Less,Greater}Than,Expr}Error` inheriting from common ancestor `ValidationFailedError` - thrown on failed validations defined with `valid` or `contents` key ([#435](https://github.com/kaitai-io/kaitai_struct/issues/435))
+  * Add method `read_bits_int_le` for parsing little-endian bit-sized integers ([docs](https://doc.kaitai.io/user_guide.html#bit-ints-le))
   * Deprecated classes and methods:
     * ~~`ensure_fixed_contents`~~ &xrarr; explicit `if` that asserts `readBytes(n)` to be equal to the expected `n`-byte array (throwing `ValidationNotEqualError` if it fails)
     * ~~`UnexpectedDataError`~~ &xrarr; `ValidationNotEqualError`
