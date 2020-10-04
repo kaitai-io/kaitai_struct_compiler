@@ -30,20 +30,32 @@
   * Support for .ksy files with UTF-8 BOM ([#499](https://github.com/kaitai-io/kaitai_struct/issues/499))
   * Error messages are routed to stderr rather than stdout ([#509](https://github.com/kaitai-io/kaitai_struct/issues/509))
   * `--debug` mode split into `--no-auto-read` and `--read-pos` ([#332](https://github.com/kaitai-io/kaitai_struct/issues/332))
+  * C++: add C++11 mode
+    * Add `--cpp-standard` CLI option: pass `--cpp-standard 11` to enable C++11 mode (`98` is default)
+    * C++11 target:
+      * uses `#pragma once` (instead of `#ifndef FOO_H_` header guards)
+      * uses `std::unique_ptr<foo>` for owning pointers, raw pointers `foo*` for non-owning
+      * supports array literals
   * `--no-auto-read` implemented for C++
   * C++: official Windows and Visual C++ support
   * Fix case conversions to be locale-independent ([#708](https://github.com/kaitai-io/kaitai_struct/issues/708))
+* Runtime API changes:
+  * Add exceptions `Validation{Not{Equal,AnyOf},{Less,Greater}Than,Expr}Error` inheriting from common ancestor `ValidationFailedError` - thrown on failed validations defined with `valid` or `contents` key ([#435](https://github.com/kaitai-io/kaitai_struct/issues/435))
+  * Deprecated classes and methods:
+    * ~~`ensure_fixed_contents`~~ &xrarr; explicit `if` that asserts `readBytes(n)` to be equal to the expected `n`-byte array (throwing `ValidationNotEqualError` if it fails)
+    * ~~`UnexpectedDataError`~~ &xrarr; `ValidationNotEqualError`
+    * ~~`read_bits_int`~~ &xrarr; `read_bits_int_be`
 * Major bugfixes:
   * `params/type` - add support for:
     * specific user types
-    * `enum`s ([#413](https://github.com/kaitai-io/kaitai_struct/issues/413))
+    * `enum` types ([#413](https://github.com/kaitai-io/kaitai_struct/issues/413))
     * byte arrays (`bytes`)
     * arrays (`u2[]`, `struct[]`, etc.)
   * `enum` with undefined values in enum list never crashes a parser ([#523](https://github.com/kaitai-io/kaitai_struct/issues/523) for Python, [#300](https://github.com/kaitai-io/kaitai_struct/issues/300) for Java)
   * Fix coercing different string/bytearray/enum/boolean types (e.g. parsed from stream and created from literal value) in conditional op (`? :`) or array literal
   * Substring `not` cannot be used in expressions ([#556](https://github.com/kaitai-io/kaitai_struct/issues/556))
   * Bit-sized integers were not accounted for properly in `repeat: eos` ([#548](https://github.com/kaitai-io/kaitai_struct/issues/548))
-  * Fix switching with else case `_` only ([#595](https://github.com/kaitai-io/kaitai_struct/issues/595))
+  * Fix switching with else case (`_: foo`) only ([#595](https://github.com/kaitai-io/kaitai_struct/issues/595))
   * C++: fix all known memory leaks
   * C++: fix absolute imports ([#794](https://github.com/kaitai-io/kaitai_struct/issues/794))
   * Java: more consistent closure of underlying IO streams on forced `close()` ([#497](https://github.com/kaitai-io/kaitai_struct/issues/497))
