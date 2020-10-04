@@ -69,7 +69,7 @@
     Gradle plugin](https://github.com/valery1707/kaitai-gradle-plugin)
 * Infrastructure updates:
   * Unstable binary builds are available for all platforms after every CI build at Bintray ([#63](https://github.com/kaitai-io/kaitai_struct/issues/63))
-  * KSY language reference replaced with documentation generated from JSON schema
+  * KSY language reference replaced with [documentation](https://doc.kaitai.io/ksy_diagram.html) generated from JSON schema
   * https://formats.kaitai.io/ is rebuilt automatically with CI/CD
   * Brand new modular CI/CD system for compiler, underlying
     CI-agnostic, working on multiple different OSes in parallel
