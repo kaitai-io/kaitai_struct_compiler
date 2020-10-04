@@ -12,7 +12,7 @@
   * Implement compile-time `sizeof` and `bitsizeof` operators ([#84](https://github.com/kaitai-io/kaitai_struct/issues/84))
     * Type-based: `sizeof<u4>`, `bitsizeof<b13>`, `sizeof<user_type>`
     * Value-based: `file_header._sizeof`, `flags._bitsizeof` (`file_header`, `flags` are fields defined in the current type)
-  * Implement little-endian bit-sized integers ([#155](https://github.com/kaitai-io/kaitai_struct/issues/155#issuecomment-613733627))
+  * Implement little-endian bit-sized integers ([docs](https://doc.kaitai.io/user_guide.html#bit-ints-le))
     * Support choosing endianness using `le` / `be` suffix: `type: b12le`, `type: b1be`
     * Add `meta/bit-endian` key for selecting default bit endianness (`le` / `be`)
 * Expression language:
