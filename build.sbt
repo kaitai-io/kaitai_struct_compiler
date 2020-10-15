@@ -8,7 +8,7 @@ import sbt.Keys._
 resolvers += Resolver.sonatypeRepo("public")
 
 val NAME = "kaitai-struct-compiler"
-val VERSION = "0.9-SNAPSHOT"
+val VERSION = "0.9"
 val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby"
 val UTF8 = Charset.forName("UTF-8")
 
