@@ -1,4 +1,4 @@
-# 0.9 (TBD)
+# 0.9 (2020-10-16)
 
 * New targets support:
   * Python with [Construct](https://construct.readthedocs.io) library
