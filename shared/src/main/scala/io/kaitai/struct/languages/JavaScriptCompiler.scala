@@ -42,7 +42,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       indent + "} else {\n" +
       indent * 2 + s"root.${types2class(topClass.name)} = factory($rootArgs);\n" +
       indent + "}\n" +
-      s"}(this, function (${argClasses.mkString(", ")}) {"
+      s"}(typeof self !== 'undefined' ? self : this, function (${argClasses.mkString(", ")}) {"
   }
 
   override def fileHeader(topClassName: String): Unit = {
