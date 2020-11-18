@@ -21,9 +21,9 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     '@' -> "\\@",
     '%' -> "\\%",
 
-    '\7' -> "\\a",
+    '\u0007' -> "\\a",
     '\f' -> "\\f",
-    '\33' -> "\\e",
+    '\u001b' -> "\\e",
     '\b' -> "\\b"
 
     // \v is available since 5.10, but according to documentation

@@ -23,10 +23,10 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
     '\\' -> "\\\\",
 
     '#' -> "\\#",
-    '\7' -> "\\a",
+    '\u0007' -> "\\a",
     '\f' -> "\\f",
-    '\13' -> "\\v",
-    '\33' -> "\\e",
+    '\u000b' -> "\\v",
+    '\u001b' -> "\\e",
     '\b' -> "\\b"
   )
 

@@ -29,10 +29,10 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
-    '\0' -> "\\0",
-    '\7' -> "\\a",
+    '\u0000' -> "\\0",
+    '\u0007' -> "\\a",
     '\f' -> "\\f",
-    '\13' -> "\\v",
+    '\u000b' -> "\\v",
     '\b' -> "\\b"
   )
 

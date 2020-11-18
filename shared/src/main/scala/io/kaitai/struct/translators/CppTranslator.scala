@@ -79,7 +79,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     * @return string as C++ string literal
     */
   override def doStringLiteral(s: String): String = {
-    val lenSuffix = if (s.contains("\0")) {
+    val lenSuffix = if (s.contains("\u0000")) {
       ", " + s.getBytes(CHARSET_UTF8).length
     } else {
       ""
@@ -97,9 +97,9 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
-    '\7' -> "\\a",
+    '\u0007' -> "\\a",
     '\f' -> "\\f",
-    '\13' -> "\\v",
+    '\u000b' -> "\\v",
     '\b' -> "\\b"
   )
 

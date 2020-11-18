@@ -25,8 +25,8 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     '$' -> "\\$",
 
     '\f' -> "\\f",
-    '\13' -> "\\v",
-    '\33' -> "\\e"
+    '\u000b' -> "\\v",
+    '\u001b' -> "\\e"
   )
 
   override def strLiteralUnicode(code: Char): String =

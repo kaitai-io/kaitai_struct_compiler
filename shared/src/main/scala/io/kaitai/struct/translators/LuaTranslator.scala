@@ -15,11 +15,11 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
-    '\7' -> "\\a",
+    '\u0007' -> "\\a",
     '\b' -> "\\b",
-    '\13' -> "\\v",
+    '\u000b' -> "\\v",
     '\f' -> "\\f",
-    '\33' -> "\\027"
+    '\u001b' -> "\\027"
   )
 
   override def strLiteralUnicode(code: Char): String =

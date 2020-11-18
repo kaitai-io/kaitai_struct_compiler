@@ -30,9 +30,9 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
-    '\7' -> "\\a",
+    '\u0007' -> "\\a",
     '\f' -> "\\f",
-    '\13' -> "\\v",
+    '\u000b' -> "\\v",
     '\b' -> "\\b"
   )
 
