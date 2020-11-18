@@ -25,7 +25,7 @@ lazy val compiler = crossProject.in(file(".")).
     organization := "io.kaitai",
     version := sys.env.getOrElse("KAITAI_STRUCT_VERSION", VERSION),
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.12.4",
+    scalaVersion := "2.12.12",
 
     // Repo publish options
     publishTo := version { (v: String) =>
