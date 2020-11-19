@@ -1,5 +1,6 @@
 # Kaitai Struct: compiler
 
+![Build Status](https://img.shields.io/github/workflow/status/kaitai-io/kaitai_struct_compiler/test)
 [![Maven Central](https://img.shields.io/maven-central/v/io.kaitai/kaitai-struct-compiler_2.12)](https://search.maven.org/artifact/io.kaitai/kaitai-struct-compiler_2.12)
 
 [![npm@latest](https://img.shields.io/npm/v/kaitai-struct-compiler/latest)](https://www.npmjs.com/package/kaitai-struct/v/latest)
