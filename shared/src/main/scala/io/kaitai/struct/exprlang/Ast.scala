@@ -79,17 +79,18 @@ object Ast {
             case operator.BitXor => Some(leftValue ^ rightValue)
             case operator.BitAnd => Some(leftValue & rightValue)
           }
+        case expr.Group(expr) => expr.evaluateIntConst
         case _ => None
       }
     }
   }
 
-  object expr{
+  object expr {
     case class BoolOp(op: boolop, values: Seq[expr]) extends expr
     case class BinOp(left: expr, op: operator, right: expr) extends expr
     case class UnaryOp(op: unaryop, operand: expr) extends expr
     case class IfExp(condition: expr, ifTrue: expr, ifFalse: expr) extends expr
-//    case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
+    // case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
     case class IntNum(n: BigInt) extends expr
@@ -106,10 +107,13 @@ object Ast {
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
+
+    /** Wraps `expr` into parentheses. Multiple nested groups merge into the one group */
+    case class Group(expr: expr) extends expr
   }
 
   sealed trait boolop
-  object boolop{
+  object boolop {
     case object And extends boolop
     case object Or extends boolop
   }
