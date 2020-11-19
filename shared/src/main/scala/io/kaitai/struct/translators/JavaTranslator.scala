@@ -15,7 +15,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     } else {
       n.toString
     }
-    val suffix = if (n > Int.MaxValue) "L" else ""
+    val suffix = if (n < Int.MinValue || n > Int.MaxValue) "L" else ""
 
     s"$literal$suffix"
   }
