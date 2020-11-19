@@ -14,7 +14,7 @@ import io.kaitai.struct.precompile.{ErrorInInput, YAMLParserError}
 object JavaMain {
   KSVersion.current = Version.version
 
-  case class CLIConfig(
+  class CLIConfig(
     verbose: Seq[String] = Seq(),
     srcFiles: Seq[File] = Seq(),
     outDir: File = new File("."),

@@ -12,7 +12,7 @@ package io.kaitai.struct
   *                            error.
   * @param pointers Choose which style of pointers to use.
   */
-case class CppRuntimeConfig(
+class CppRuntimeConfig(
   namespace: List[String] = List(),
   usePragmaOnce: Boolean = false,
   stdStringFrontBack: Boolean = false,
@@ -56,7 +56,7 @@ object CppRuntimeConfig {
   * @param endOfStreamErrorClass Exception class expected to be thrown on
   *                              end-of-stream errors.
   */
-case class JavaRuntimeConfig(
+class JavaRuntimeConfig(
   javaPackage: String = "",
   fromFileClass: String = "io.kaitai.struct.ByteBufferKaitaiStream",
   endOfStreamErrorClass: String = "java.nio.BufferUnderflowException",
@@ -88,7 +88,7 @@ case class JavaRuntimeConfig(
   * @param nimModule Path of Nim runtime module
   * @param nimOpaque Directory of opaque Nim modules
   */
-case class RuntimeConfig(
+class RuntimeConfig(
   autoRead: Boolean = true,
   readStoresPos: Boolean = false,
   opaqueTypes: Boolean = false,
