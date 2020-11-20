@@ -73,7 +73,7 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
     libraryDependencies ++= Seq(
       "com.github.scopt" %%% "scopt" % "4.1.0",
       "com.lihaoyi" %%% "fastparse" % "2.3.3",
-      "org.yaml" % "snakeyaml" % "1.28"
+      "org.yaml" % "snakeyaml" % "2.0"
     )
   ).
   jvmSettings(
