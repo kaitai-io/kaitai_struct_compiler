@@ -10,6 +10,12 @@ import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
+    // When we deal with large positive numbers we can't just write it as is,
+    // because `long` is signed and java compiler would complain us about this.
+    // But in many cases we can treat `long` as unsigned and work with it
+    // accordingly. In that cases we can write it in the hexadecimal form.
+    // Of course, if `n > Long.MaxValue * 2 + 1` we'll still get out of range error
+    // TODO: Convert real big numbers to BigInteger
     val literal = if (n > Long.MaxValue) {
       "0x" + n.toString(16)
     } else {
