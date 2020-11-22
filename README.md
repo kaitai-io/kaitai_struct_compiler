@@ -2,6 +2,7 @@
 
 ![Build Status](https://img.shields.io/github/workflow/status/kaitai-io/kaitai_struct_compiler/test)
 [![Maven Central](https://img.shields.io/maven-central/v/io.kaitai/kaitai-struct-compiler_2.12)](https://search.maven.org/artifact/io.kaitai/kaitai-struct-compiler_2.12)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkaitai-io%2Fkaitai_struct_compiler.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkaitai-io%2Fkaitai_struct_compiler?ref=badge_shield)
 
 [![npm@latest](https://img.shields.io/npm/v/kaitai-struct-compiler/latest)](https://www.npmjs.com/package/kaitai-struct/v/latest)
 [![npm@next](https://img.shields.io/npm/v/kaitai-struct-compiler/next)](https://www.npmjs.com/package/kaitai-struct-compiler/v/next)
@@ -32,6 +33,9 @@ If you're looking for information on:
   development — see the [developer memo](http://doc.kaitai.io/developers.html).
 
 ## Licensing
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkaitai-io%2Fkaitai_struct_compiler.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkaitai-io%2Fkaitai_struct_compiler?ref=badge_large)
 
 ### Main code
 
