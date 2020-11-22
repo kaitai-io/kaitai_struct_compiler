@@ -70,6 +70,9 @@ lazy val compiler = crossProject.in(file(".")).
     ),
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
+    // o - causes test results to be written back to sbt, which usually displays it on the standard output
+    // Suppress all other notification events except failures so it is easy to see only failures
+    testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oNCXELOPQRM"),
 
     // Universal: add extra files (formats repo) for distribution, removing
     // .git special files and various dirty/backup files that git normally
