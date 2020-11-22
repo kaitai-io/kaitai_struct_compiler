@@ -19,3 +19,10 @@ jobs:
         java-version: ${{ matrix.java }}
     - name: Run tests
       run: sbt test
+    - name: Publish Unit Test Results
+      uses: EnricoMi/publish-unit-test-result-action@v1.5
+      if: always()
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        files: target/test_out/**/*.xml
+
