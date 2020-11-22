@@ -70,6 +70,7 @@ lazy val compiler = crossProject.in(file(".")).
     ),
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
+    testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o"),
 
     // Universal: add extra files (formats repo) for distribution, removing
     // .git special files and various dirty/backup files that git normally
