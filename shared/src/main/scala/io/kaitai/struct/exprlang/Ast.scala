@@ -54,6 +54,7 @@ object Ast {
     }
     def evaluate: Option[value] = this match {
       case expr.IntNum(x) => Some(value.Int(x))
+      case expr.Bool(x) => Some(value.Bool(x))
 
       case expr.UnaryOp(op, expr.IntNum(operand)) =>
         Some(value.Int(op match {
@@ -61,6 +62,7 @@ object Ast {
           case unaryop.Not => return None
           case unaryop.Minus  => -operand
         }))
+      case expr.UnaryOp(unaryop.Not, expr.Bool(operand)) => Some(value.Bool(!operand))
 
       case expr.BinOp(left, op, right) =>
         val leftValue = left.evaluate match {
@@ -83,6 +85,53 @@ object Ast {
           case operator.BitXor => leftValue ^ rightValue
           case operator.BitAnd => leftValue & rightValue
         }))
+
+      case expr.BoolOp(op, values) =>
+        Some(value.Bool(values.foldLeft(true)((acc, right) => {
+          val rightValue = right.evaluate match {
+            case Some(value.Bool(x)) => x
+            case _ => return None;
+          }
+          op match {
+            case boolop.And => acc && rightValue
+            case boolop.Or  => acc || rightValue
+          }
+        })))
+
+      case expr.Compare(left, op, right) =>
+        val leftValue = left.evaluate match {
+          case Some(x) => x
+          case _ => return None
+        }
+        val rightValue = right.evaluate match {
+          case Some(x) => x
+          case _ => return None
+        }
+        Some(value.Bool((op, leftValue, rightValue) match {
+          case (cmpop.Eq, value.Int(l),  value.Int(r) ) => l == r
+          case (cmpop.Eq, value.Bool(l), value.Bool(r)) => l == r
+
+          case (cmpop.NotEq, value.Int(l),  value.Int(r) ) => l != r
+          case (cmpop.NotEq, value.Bool(l), value.Bool(r)) => l != r
+
+          case (cmpop.Lt,  value.Int(l), value.Int(r)) => l < r
+          case (cmpop.LtE, value.Int(l), value.Int(r)) => l <= r
+          case (cmpop.Gt,  value.Int(l), value.Int(r)) => l > r
+          case (cmpop.GtE, value.Int(l), value.Int(r)) => l >= r
+
+          case _ => return None
+        }))
+
+      case expr.IfExp(condition, ifTrue, ifFalse) => condition.evaluate match {
+        case Some(value.Bool(cond)) =>
+          if (cond) {
+            ifTrue.evaluate
+          } else {
+            ifFalse.evaluate
+          }
+        case _ => return None
+      }
+
       case _ => None
     }
   }
@@ -93,6 +142,7 @@ object Ast {
     case class UnaryOp(op: unaryop, operand: expr) extends expr
     case class IfExp(condition: expr, ifTrue: expr, ifFalse: expr) extends expr
     // case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
+    /** Represents `X < Y`, `X > Y` and so on. */
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
     case class IntNum(n: BigInt) extends expr
@@ -112,8 +162,10 @@ object Ast {
   }
 
   sealed trait boolop
-  object boolop{
+  object boolop {
+    /** Boolean conjunction. Applicable only to `Boolean`s */
     case object And extends boolop
+    /** Boolean disjunction. Applicable only to `Boolean`s */
     case object Or extends boolop
   }
 
@@ -155,6 +207,8 @@ object Ast {
   /** Result of the AST evaluation */
   sealed trait value
   object value {
+    /** AST node evaluated to the logical value */
+    case class Bool(value: Boolean) extends value
     /** AST node evaluated to the numerical value */
     case class Int(value: BigInt) extends value
   }
