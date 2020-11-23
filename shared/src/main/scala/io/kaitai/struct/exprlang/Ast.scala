@@ -132,6 +132,17 @@ object Ast {
         case _ => return None
       }
 
+      case expr.List(list) => Some(value.List(list.map(_.evaluate)))
+      case expr.Subscript(container, index) =>
+        val idx = index.evaluate match {
+          case Some(value.Int(x)) if x >= 0 => x
+          case _ => return None
+        }
+        container.evaluate match {
+          case Some(value.List(list)) if idx < list.length => list(idx.toInt)
+          case _ => None
+        }
+
       case _ => None
     }
   }
@@ -156,6 +167,7 @@ object Ast {
     case class CastToType(value: expr, typeName: typeId) extends expr
     case class ByteSizeOfType(typeName: typeId) extends expr
     case class BitSizeOfType(typeName: typeId) extends expr
+    /** Represents `X[Y]`. */
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
@@ -211,5 +223,7 @@ object Ast {
     case class Bool(value: Boolean) extends value
     /** AST node evaluated to the numerical value */
     case class Int(value: BigInt) extends value
+    /** AST node evaluated to the array */
+    case class List(list: Seq[Option[value]]) extends value
   }
 }
