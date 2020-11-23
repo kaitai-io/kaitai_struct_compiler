@@ -55,6 +55,7 @@ object Ast {
     def evaluate: Option[value] = this match {
       case expr.IntNum(x) => Some(value.Int(x))
       case expr.Bool(x) => Some(value.Bool(x))
+      case expr.Str(x) => Some(value.Str(x))
 
       case expr.UnaryOp(op, expr.IntNum(operand)) =>
         Some(value.Int(op match {
@@ -66,25 +67,29 @@ object Ast {
 
       case expr.BinOp(left, op, right) =>
         val leftValue = left.evaluate match {
-          case Some(value.Int(x)) => x
+          case Some(x) => x
           case _ => return None
         }
         val rightValue = right.evaluate match {
-          case Some(value.Int(x)) => x
+          case Some(x) => x
           case _ => return None
         }
-        Some(value.Int(op match {
-          case operator.Add => leftValue + rightValue
-          case operator.Sub => leftValue - rightValue
-          case operator.Mult => leftValue * rightValue
-          case operator.Div => leftValue / rightValue
-          case operator.Mod => leftValue % rightValue
-          case operator.LShift => leftValue << rightValue.toInt
-          case operator.RShift => leftValue >> rightValue.toInt
-          case operator.BitOr => leftValue | rightValue
-          case operator.BitXor => leftValue ^ rightValue
-          case operator.BitAnd => leftValue & rightValue
-        }))
+        Some((op, leftValue, rightValue) match {
+          case (operator.Add, value.Str(l), value.Str(r)) => value.Str(l + r)
+
+          case (operator.Add, value.Int(l), value.Int(r)) => value.Int(l + r)
+          case (operator.Sub, value.Int(l), value.Int(r)) => value.Int(l - r)
+          case (operator.Mult, value.Int(l), value.Int(r)) => value.Int(l * r)
+          case (operator.Div, value.Int(l), value.Int(r)) => value.Int(l / r)
+          case (operator.Mod, value.Int(l), value.Int(r)) => value.Int(l % r)
+          case (operator.LShift, value.Int(l), value.Int(r)) => value.Int(l << r.toInt)
+          case (operator.RShift, value.Int(l), value.Int(r)) => value.Int(l >> r.toInt)
+          case (operator.BitOr, value.Int(l), value.Int(r)) => value.Int(l | r)
+          case (operator.BitXor, value.Int(l), value.Int(r)) => value.Int(l ^ r)
+          case (operator.BitAnd, value.Int(l), value.Int(r)) => value.Int(l & r)
+
+          case _ => return None
+        })
 
       case expr.BoolOp(op, values) =>
         Some(value.Bool(values.foldLeft(true)((acc, right) => {
@@ -110,14 +115,21 @@ object Ast {
         Some(value.Bool((op, leftValue, rightValue) match {
           case (cmpop.Eq, value.Int(l),  value.Int(r) ) => l == r
           case (cmpop.Eq, value.Bool(l), value.Bool(r)) => l == r
+          case (cmpop.Eq, value.Str(l),  value.Str(r)) => l == r
 
           case (cmpop.NotEq, value.Int(l),  value.Int(r) ) => l != r
           case (cmpop.NotEq, value.Bool(l), value.Bool(r)) => l != r
+          case (cmpop.NotEq, value.Str(l),  value.Str(r)) => l != r
 
           case (cmpop.Lt,  value.Int(l), value.Int(r)) => l < r
           case (cmpop.LtE, value.Int(l), value.Int(r)) => l <= r
           case (cmpop.Gt,  value.Int(l), value.Int(r)) => l > r
           case (cmpop.GtE, value.Int(l), value.Int(r)) => l >= r
+
+          case (cmpop.Lt,  value.Str(l), value.Str(r)) => l < r
+          case (cmpop.LtE, value.Str(l), value.Str(r)) => l <= r
+          case (cmpop.Gt,  value.Str(l), value.Str(r)) => l > r
+          case (cmpop.GtE, value.Str(l), value.Str(r)) => l >= r
 
           case _ => return None
         }))
@@ -223,6 +235,8 @@ object Ast {
     case class Bool(value: Boolean) extends value
     /** AST node evaluated to the numerical value */
     case class Int(value: BigInt) extends value
+    /** AST node evaluated to the string value */
+    case class Str(value: String) extends value
     /** AST node evaluated to the array */
     case class List(list: Seq[Option[value]]) extends value
   }
