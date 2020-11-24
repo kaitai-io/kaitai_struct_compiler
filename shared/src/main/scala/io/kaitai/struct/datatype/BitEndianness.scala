@@ -26,15 +26,15 @@ object BitEndianness {
     }
   }
 
-  def fromString(s: Option[String], defBitEndian: Option[BitEndianness], dt: String, path: List[String]): BitEndianness = s match {
-    case Some("le") => LittleBitEndian
-    case Some("be") => BigBitEndian
-    case None =>
-      defBitEndian match {
-        case Some(e) => e
-        case None =>
-          BigBitEndian
-          // TODO: take `endian` as `bit-endian` default instead of assuming `be`
-      }
-  }
+  def fromString(s: Option[String], defBitEndian: Option[BitEndianness], dt: String, path: List[String]): BitEndianness =
+    fromYaml(s, path) match {
+      case Some(endian) => endian
+      case None =>
+        defBitEndian match {
+          case Some(e) => e
+          case None =>
+            BigBitEndian
+            // TODO: take `endian` as `bit-endian` default instead of assuming `be`
+        }
+    }
 }
