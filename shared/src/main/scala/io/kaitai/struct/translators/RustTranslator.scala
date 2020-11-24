@@ -48,9 +48,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
 
   override def doName(s: String) = s
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
+  override def doEnumVariant(enumTypeAbs: List[String], variant: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)
-    s"$enumClass::${Utils.upperUnderscoreCase(label)}"
+    s"$enumClass::${Utils.upperUnderscoreCase(variant)}"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually

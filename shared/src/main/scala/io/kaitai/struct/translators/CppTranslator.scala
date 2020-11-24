@@ -142,9 +142,9 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     case _ => s"$s()"
   }
 
-  override def doEnumByLabel(enumType: List[String], label: String): String =
+  override def doEnumVariant(enumType: List[String], variant: String): String =
     CppCompiler.types2class(enumType.dropRight(1)) + "::" +
-      Utils.upperUnderscoreCase(enumType.last + "_" + label)
+      Utils.upperUnderscoreCase(enumType.last + "_" + variant)
   override def doEnumById(enumType: List[String], id: String): String =
     s"static_cast<${CppCompiler.types2class(enumType)}>($id)"
 

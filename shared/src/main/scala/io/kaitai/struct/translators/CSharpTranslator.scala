@@ -58,8 +58,8 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
       s"${Utils.upperCamelCase(s)}"
     }
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${enumClass(enumTypeAbs)}.${Utils.upperCamelCase(label)}"
+  override def doEnumVariant(enumTypeAbs: List[String], variant: String): String =
+    s"${enumClass(enumTypeAbs)}.${Utils.upperCamelCase(variant)}"
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     s"((${enumClass(enumTypeAbs)}) $id)"
 

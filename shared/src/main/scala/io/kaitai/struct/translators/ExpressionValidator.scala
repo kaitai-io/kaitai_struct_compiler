@@ -32,9 +32,9 @@ class ExpressionValidator(val provider: TypeProvider)
       case Ast.expr.EnumById(enumType, id, inType) =>
         provider.resolveEnum(inType, enumType.name)
         validate(id)
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+      case Ast.expr.EnumVariant(enumType, variant, inType) =>
         provider.resolveEnum(inType, enumType.name)
-        // TODO: check that label belongs to that enum
+        // TODO: check that variant belongs to that enum
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
           CommonSizeOf.getByteSizeOfClassSpec(provider.nowClass)
