@@ -97,7 +97,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doInternalName(id: Identifier): String =
     PerlCompiler.privateMemberName(id)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
     if (isExternal) {
       importList.add(PerlCompiler.type2class(enumSpec.name.head))
@@ -105,7 +105,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     val enumClass = PerlCompiler.types2class(enumSpec.name.init)
     val enumClassWithScope = if (enumClass.isEmpty) "" else s"$enumClass::"
     val enumName = Utils.upperUnderscoreCase(enumSpec.name.last)
-    s"$$$enumClassWithScope${enumName}_${Utils.upperUnderscoreCase(label)}"
+    s"$$$enumClassWithScope${enumName}_${Utils.upperUnderscoreCase(variant)}"
   }
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually

@@ -68,7 +68,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       case _: Ast.expr.Bool => false
       case Ast.expr.EnumById(_, id, _) =>
         userExprDependsOnIo(id)
-      case _: Ast.expr.EnumByLabel => false
+      case _: Ast.expr.EnumVariant => false
       case n: Ast.expr.Name =>
         val t = getArrayItemType(translator.detectType(n))
         if (t == KaitaiStreamType || t == OwnedKaitaiStreamType) {

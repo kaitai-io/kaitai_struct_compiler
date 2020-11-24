@@ -359,8 +359,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doInternalName(id: Identifier): String =
     s"${doLocalName(idToStr(id))}"
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    s"${RustCompiler.types2class(enumSpec.name)}::${Utils.upperCamelCase(label)}"
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String =
+    s"${RustCompiler.types2class(enumSpec.name)}::${Utils.upperCamelCase(variant)}"
 
   override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = {
     val lt = detectType(left)
