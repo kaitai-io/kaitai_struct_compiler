@@ -61,9 +61,9 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case Ast.expr.EnumById(enumType, id, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
         doEnumById(enumSpec.name, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+      case Ast.expr.EnumVariant(enumType, variant, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumByLabel(enumSpec.name, label.name)
+        doEnumVariant(enumSpec.name, variant.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
           byteSizeOfClassSpec(provider.nowClass)
@@ -185,7 +185,16 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def kaitaiStructField(value: Ast.expr, name: String): String =
     anyField(value, name)
 
-  def doEnumByLabel(enumTypeAbs: List[String], label: String): String
+  /**
+    * Translates reference to the enum variant into target language
+    *
+    * @param enumTypeAbs Absolute path to the enum definition. Contains at least one element.
+    *        The last element in the path is the enum name itself, other -- types in which it is defined
+    * @param variant Enum variant
+    *
+    * @return String in the target language with reference to the enum variant
+    */
+  def doEnumVariant(enumTypeAbs: List[String], variant: String): String
   def doEnumById(enumTypeAbs: List[String], id: String): String
 
   // Predefined methods of various types

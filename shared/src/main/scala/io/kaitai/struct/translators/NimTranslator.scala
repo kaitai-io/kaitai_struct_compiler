@@ -15,8 +15,8 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"""encode($bytesExpr, "$encoding")"""
   }
   override def doEnumById(enumTypeAbs: List[String], id: String): String = s"${namespaced(enumTypeAbs)}($id)"
-//  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${namespaced(enumTypeAbs)}($label)"
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${enumTypeAbs.head}.$label"
+//  override def doEnumVariant(enumTypeAbs: List[String], variant: String): String = s"${namespaced(enumTypeAbs)}($variant)"
+  override def doEnumVariant(enumTypeAbs: List[String], variant: String): String = s"${enumTypeAbs.head}.$variant"
   override def doName(s: String): String =
     s match {
       case Identifier.ROOT => "root"

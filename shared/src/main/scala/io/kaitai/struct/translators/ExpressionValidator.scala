@@ -34,10 +34,10 @@ class ExpressionValidator(val provider: TypeProvider)
       case Ast.expr.EnumById(enumType, id, inType) =>
         provider.resolveEnum(inType, enumType.name)
         validate(id)
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+      case Ast.expr.EnumVariant(enumType, variant, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        if (!enumSpec.map.values.exists(_.name == label.name)) {
-          throw new EnumMemberNotFoundError(label.name, enumType.name, enumSpec.path.mkString("/"))
+        if (!enumSpec.map.values.exists(_.name == variant.name)) {
+          throw new EnumMemberNotFoundError(variant.name, enumType.name, enumSpec.path.mkString("/"))
         }
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
