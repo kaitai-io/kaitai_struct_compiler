@@ -66,8 +66,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doInternalName(id: Identifier): String =
     JavaCompiler.privateMemberName(id)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    s"${enumClass(enumSpec.name)}.${Utils.upperUnderscoreCase(label)}"
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String =
+    s"${enumClass(enumSpec.name)}.${Utils.upperUnderscoreCase(variant)}"
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"${enumClass(enumSpec.name)}.byId($id)"
 

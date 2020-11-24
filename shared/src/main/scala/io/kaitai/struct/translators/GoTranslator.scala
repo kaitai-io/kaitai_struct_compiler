@@ -72,9 +72,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case Ast.expr.EnumById(enumType, id, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
         trEnumById(enumSpec.name, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+      case Ast.expr.EnumVariant(enumType, variant, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        trEnumByLabel(enumSpec.name, label.name)
+        trEnumVariant(enumSpec.name, variant.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
           byteSizeOfClassSpec(provider.nowClass)
@@ -275,8 +275,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultLocalVar(v1)
   }
 
-  def trEnumByLabel(enumTypeAbs: List[String], label: String) =
-    ResultString(GoCompiler.enumToStr(enumTypeAbs, label))
+  def trEnumVariant(enumTypeAbs: List[String], variant: String) =
+    ResultString(GoCompiler.enumToStr(enumTypeAbs, variant))
   def trEnumById(enumTypeAbs: List[String], id: String) =
     ResultString(s"${types2class(enumTypeAbs)}($id)")
 

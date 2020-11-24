@@ -38,8 +38,8 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"""encode($bytesExpr, ${doStringLiteral(encoding)})"""
   }
   override def doEnumById(enumSpec: EnumSpec, id: String): String = s"${namespaced(enumSpec.name)}($id)"
-//  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = s"${namespaced(enumSpec.name)}($label)"
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = s"${enumSpec.name.head}.$label"
+//  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String = s"${namespaced(enumSpec.name)}($variant)"
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String = s"${enumSpec.name.head}.$variant"
   override def doName(s: String): String =
     s match {
       case Identifier.ROOT => "root"

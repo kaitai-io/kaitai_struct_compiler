@@ -58,13 +58,13 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def doInternalName(id: Identifier): String =
     JavaScriptCompiler.privateMemberName(id)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
     if (isExternal) {
       val className = JavaScriptCompiler.type2class(enumSpec.name.head)
       importList.add(s"./$className")
     }
-    s"${JavaScriptCompiler.types2class(enumSpec.name, isExternal)}.${Utils.upperUnderscoreCase(label)}"
+    s"${JavaScriptCompiler.types2class(enumSpec.name, isExternal)}.${Utils.upperUnderscoreCase(variant)}"
   }
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
