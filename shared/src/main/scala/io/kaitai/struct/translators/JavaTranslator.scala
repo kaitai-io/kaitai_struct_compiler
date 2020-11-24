@@ -57,8 +57,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def doEnumVariant(enumTypeAbs: List[String], variant: String): String =
     s"${enumClass(enumTypeAbs)}.${Utils.upperUnderscoreCase(variant)}"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"${enumClass(enumTypeAbs)}.byId($id)"
+  override def doEnumCast(enumTypeAbs: List[String], value: String): String =
+    s"${enumClass(enumTypeAbs)}.byId($value)"
 
   def enumClass(enumTypeAbs: List[String]): String = {
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
