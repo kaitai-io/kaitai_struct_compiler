@@ -74,9 +74,9 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     val enumClass = types2classAbs(enumSpec.name)
     s"$enumClass::${Utils.upperUnderscoreCase(variant)}"
   }
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    id
+    value
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"

@@ -107,9 +107,9 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     val enumName = Utils.upperUnderscoreCase(enumSpec.name.last)
     s"$$$enumClassWithScope${enumName}_${Utils.upperUnderscoreCase(variant)}"
   }
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    id
+    value
 
   def enumClass(enumTypeAbs: List[String]): String = {
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)

@@ -84,8 +84,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
 
   override def doEnumVariant(enumSpec: EnumSpec, variant: String): String =
     RubyCompiler.enumValue(enumSpec.name.last, variant)
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumSpec.name)}, $id)"
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
+    s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumSpec.name)}, $value)"
 
   def enumDirectMap(enumTypeAndName: List[String]): String = {
     val enumTypeAbs = enumTypeAndName.dropRight(1)

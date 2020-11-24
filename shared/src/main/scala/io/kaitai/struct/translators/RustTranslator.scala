@@ -394,8 +394,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     // FIXME: figure out a better solution
     super.genericBinOp(left, op, right, extPrec)
 
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    s"($id as i64).try_into()?"
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
+    s"($value as i64).try_into()?"
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${remove_deref(translate(container))}[${translate(idx)} as usize]"
@@ -438,7 +438,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def translate(v: Ast.expr): String = {
     v match {
-      case Ast.expr.EnumById(enumType, id, inType) =>
+      case Ast.expr.EnumCast(enumType, id, inType) =>
         id match {
           case ifExp: Ast.expr.IfExp =>
             val enumSpec = provider.resolveEnum(inType, enumType.name)
