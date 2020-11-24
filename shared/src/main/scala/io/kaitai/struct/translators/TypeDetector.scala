@@ -54,7 +54,7 @@ class TypeDetector(provider: TypeProvider) {
         val t = EnumType(inType.names.toList :+ enumType.name, CalcIntType)
         t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
-      case Ast.expr.EnumById(enumType, _, inType) =>
+      case Ast.expr.EnumCast(enumType, _, inType) =>
         val t = EnumType(List(enumType.name), CalcIntType)
         t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
