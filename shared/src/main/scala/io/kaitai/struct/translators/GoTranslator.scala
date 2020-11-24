@@ -69,9 +69,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         trInterpolatedStringLiteral(s)
       case Ast.expr.Bool(n) =>
         trBoolLiteral(n)
-      case Ast.expr.EnumById(enumType, id, inType) =>
+      case Ast.expr.EnumCast(enumType, value, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        trEnumById(enumSpec.name, translate(id))
+        trEnumCast(enumSpec.name, translate(value))
       case Ast.expr.EnumVariant(enumType, variant, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
         trEnumVariant(enumSpec.name, variant.name)
@@ -277,8 +277,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   def trEnumVariant(enumTypeAbs: List[String], variant: String) =
     ResultString(GoCompiler.enumToStr(enumTypeAbs, variant))
-  def trEnumById(enumTypeAbs: List[String], id: String) =
-    ResultString(s"${types2class(enumTypeAbs)}($id)")
+  def trEnumCast(enumTypeAbs: List[String], value: String) =
+    ResultString(s"${types2class(enumTypeAbs)}($value)")
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = {
     op match {

@@ -66,8 +66,8 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       case Ast.expr.InterpolatedStr(values: Seq[Ast.expr]) =>
         values.exists(v => userExprDependsOnIo(v))
       case _: Ast.expr.Bool => false
-      case Ast.expr.EnumById(_, id, _) =>
-        userExprDependsOnIo(id)
+      case Ast.expr.EnumCast(_, value, _) =>
+        userExprDependsOnIo(value)
       case _: Ast.expr.EnumVariant => false
       case n: Ast.expr.Name =>
         val t = getArrayItemType(translator.detectType(n))

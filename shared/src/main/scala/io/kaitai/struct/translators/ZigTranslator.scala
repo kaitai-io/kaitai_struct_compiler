@@ -120,10 +120,10 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
     et.enumSpec = Some(enumSpec)
     s"${ZigCompiler.kaitaiType2NativeType(et, importList, provider.nowClass)}.$label"
   }
-  override def doEnumById(enumSpec: EnumSpec, id: String): String = {
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String = {
     val et = EnumType(enumSpec.name, CalcIntType)
     et.enumSpec = Some(enumSpec)
-    s"@as(${ZigCompiler.kaitaiType2NativeType(et, importList, provider.nowClass)}, @enumFromInt($id))"
+    s"@as(${ZigCompiler.kaitaiType2NativeType(et, importList, provider.nowClass)}, @enumFromInt($value))"
   }
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
