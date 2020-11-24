@@ -345,7 +345,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         affectedVars(left) ++ affectedVars(right)
       case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) | Ast.expr.Str(_) | Ast.expr.Bool(_) =>
         List()
-      case _: Ast.expr.EnumByLabel =>
+      case _: Ast.expr.EnumVariant =>
         List()
       case Ast.expr.EnumById(_, id, _) =>
         affectedVars(id)
