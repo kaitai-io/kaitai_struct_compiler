@@ -31,9 +31,9 @@ class ExpressionValidator(val provider: TypeProvider)
            _: Ast.expr.FloatNum |
            _: Ast.expr.Str |
            _: Ast.expr.Bool => // all simple literals are good and valid
-      case Ast.expr.EnumById(enumType, id, inType) =>
+      case Ast.expr.EnumCast(enumType, value, inType) =>
         provider.resolveEnum(inType, enumType.name)
-        validate(id)
+        validate(value)
       case Ast.expr.EnumVariant(enumType, variant, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
         if (!enumSpec.map.values.exists(_.name == variant.name)) {
