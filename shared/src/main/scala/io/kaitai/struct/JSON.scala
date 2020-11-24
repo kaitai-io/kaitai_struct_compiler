@@ -23,7 +23,7 @@ object JSON extends CommonLiterals {
       case v: Int => v.toString
       case v: String => stringToJson(v)
       case v: List[_] => listToJson(v)
-      case v: Map[String, _] => mapToJson(v)
+      case v: Map[_, _] => mapToJson(v)
     }
   }
 
@@ -33,9 +33,9 @@ object JSON extends CommonLiterals {
   def listToJson(obj: List[_]): String =
     "[" + obj.map((x) => stringify(x)).mkString(",") + "]"
 
-  def mapToJson(obj: Map[String, _]): String = {
+  def mapToJson(obj: Map[_, _]): String = {
     val kvs = obj.map { case (k, v) =>
-      stringToJson(k) + ": " + stringify(v)
+      stringToJson(k.toString) + ": " + stringify(v)
     }
     "{" + kvs.mkString(",") + "}"
   }

@@ -22,7 +22,7 @@ object JavaScriptKSYParser {
 
   def yamlJavascriptToScala(src: Any): Any = {
     src match {
-      case array: js.Array[AnyRef] =>
+      case array: js.Array[_] =>
         array.toList.map(yamlJavascriptToScala)
       case _: String | _: Int | _: Double | _: Boolean =>
         src
