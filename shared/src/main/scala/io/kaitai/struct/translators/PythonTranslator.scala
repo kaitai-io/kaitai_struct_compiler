@@ -104,12 +104,12 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
   override def doInternalName(id: Identifier): String =
     PythonCompiler.privateMemberName(id)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
     if (isExternal) {
       PythonCompiler.externalTypeDeclaration(ExternalEnum(enumSpec), importList, config)
     }
-    s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.$label"
+    s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.$variant"
   }
   override def doEnumById(enumSpec: EnumSpec, id: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)

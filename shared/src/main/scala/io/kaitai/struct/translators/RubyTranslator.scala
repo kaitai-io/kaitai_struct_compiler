@@ -82,8 +82,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def doInternalName(id: Identifier): String =
     RubyCompiler.privateMemberName(id)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    RubyCompiler.enumValue(enumSpec.name.last, label)
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String =
+    RubyCompiler.enumValue(enumSpec.name.last, variant)
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumSpec.name)}, $id)"
 

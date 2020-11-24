@@ -115,7 +115,7 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
     }
   }
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+  override def doEnumVariant(enumSpec: EnumSpec, label: String): String = {
     val et = EnumType(enumSpec.name, CalcIntType)
     et.enumSpec = Some(enumSpec)
     s"${ZigCompiler.kaitaiType2NativeType(et, importList, provider.nowClass)}.$label"

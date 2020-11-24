@@ -347,7 +347,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         List()
       case Ast.expr.InterpolatedStr(exprs) =>
         exprs.flatMap(affectedVars).toList
-      case _: Ast.expr.EnumByLabel =>
+      case _: Ast.expr.EnumVariant =>
         List()
       case Ast.expr.EnumById(_, id, _) =>
         affectedVars(id)
