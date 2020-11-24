@@ -66,9 +66,9 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
     }
     s"${JavaScriptCompiler.types2class(enumSpec.name, isExternal)}.${Utils.upperUnderscoreCase(variant)}"
   }
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    id
+    value
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
     s"(${JavaScriptCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"

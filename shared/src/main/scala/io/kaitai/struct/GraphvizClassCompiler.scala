@@ -349,8 +349,8 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         exprs.flatMap(affectedVars).toList
       case _: Ast.expr.EnumVariant =>
         List()
-      case Ast.expr.EnumById(_, id, _) =>
-        affectedVars(id)
+      case Ast.expr.EnumCast(_, value, _) =>
+        affectedVars(value)
       case Ast.expr.Attribute(value, attr) =>
         if (attr.name == Identifier.SIZEOF) {
           val vars = value match {

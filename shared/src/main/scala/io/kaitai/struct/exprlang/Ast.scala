@@ -84,7 +84,13 @@ object Ast {
       * KSY file.
       */
     case class EnumVariant(enumName: identifier, variant: identifier, inType: typeId = EmptyTypeId) extends expr
-    case class EnumById(enumName: identifier, id: expr, inType: typeId = EmptyTypeId) extends expr
+    /**
+      * Transformation of the `value` expression into the `enumName` type,
+      * defined in the type `inType`. Unlike other nodes this node never
+      * parsed from the expression language, because at parse time any
+      * identifier can represent an enum and actual resolution performed later
+      */
+    case class EnumCast(enumName: identifier, value: expr, inType: typeId = EmptyTypeId) extends expr
 
     case class Attribute(value: expr, attr: identifier) extends expr
     case class CastToType(value: expr, typeName: typeId) extends expr

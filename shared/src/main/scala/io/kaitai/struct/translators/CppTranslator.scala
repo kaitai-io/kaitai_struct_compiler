@@ -161,8 +161,8 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     CppCompiler.types2class(enumSpec.name.dropRight(1)) + "::" +
       Utils.upperUnderscoreCase(enumSpec.name.last + "_" + variant)
   }
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    s"static_cast<${CppCompiler.types2class(enumSpec.name)}>($id)"
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
+    s"static_cast<${CppCompiler.types2class(enumSpec.name)}>($value)"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int) = {
     if (op == Ast.cmpop.Eq || op == Ast.cmpop.NotEq) {
