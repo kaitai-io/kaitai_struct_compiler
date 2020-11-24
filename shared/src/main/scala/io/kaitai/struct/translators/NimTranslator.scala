@@ -14,7 +14,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     s"""encode($bytesExpr, "$encoding")"""
   }
-  override def doEnumById(enumTypeAbs: List[String], id: String): String = s"${namespaced(enumTypeAbs)}($id)"
+  override def doEnumCast(enumTypeAbs: List[String], value: String): String = s"${namespaced(enumTypeAbs)}($value)"
 //  override def doEnumVariant(enumTypeAbs: List[String], variant: String): String = s"${namespaced(enumTypeAbs)}($variant)"
   override def doEnumVariant(enumTypeAbs: List[String], variant: String): String = s"${enumTypeAbs.head}.$variant"
   override def doName(s: String): String =
