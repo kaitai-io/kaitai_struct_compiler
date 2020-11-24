@@ -219,7 +219,7 @@ lazy val buildNpmJsFileTask = Def.task {
        |
        |$compiledFileContents
        |
-       |return exports.io.kaitai.struct.MainJs;
+       |return exports.MainJs;
        |
        |}));
      """.stripMargin
