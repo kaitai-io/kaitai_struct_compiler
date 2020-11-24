@@ -136,12 +136,12 @@ object ParseUtils {
   ): List[T] = {
     val pathField = path ++ List(field)
     src.get(field) match {
-      case Some(srcList: List[Any]) =>
+      case Some(srcList: List[_]) =>
         srcList.zipWithIndex.map { case (element, idx) =>
           convertFunc(element, pathField ++ List(idx.toString))
         }
-      case Some(singleObject: T) =>
-        List(singleObject)
+      case Some(singleObject) =>
+        List(convertFunc(singleObject, pathField))
       case None =>
         List()
       case unknown =>
@@ -221,14 +221,14 @@ object ParseUtils {
   def asMapStrStr(src: Any, path: List[String]): Map[String, String] =
     anyMapToStrStrMap(asMap(src, path), path)
 
-  def anyMapToStrMap(anyMap: Map[Any, Any], path: List[String]): Map[String, Any] = {
+  def anyMapToStrMap[V](anyMap: Map[_, V], path: List[String]): Map[String, V] = {
     anyMap.map { case (key, value) =>
       val keyStr = asStr(key, path)
       keyStr -> value
     }
   }
 
-  def anyMapToStrStrMap(anyMap: Map[Any, Any], path: List[String]): Map[String, String] = {
+  def anyMapToStrStrMap(anyMap: Map[_, _], path: List[String]): Map[String, String] = {
     anyMap.map { case (key, value) =>
       val keyStr = asStr(key, path)
       val valueStr = asStr(value, path ++ List(keyStr))

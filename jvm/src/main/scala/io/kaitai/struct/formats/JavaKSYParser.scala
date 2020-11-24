@@ -82,9 +82,9 @@ object JavaKSYParser {
 
   def yamlJavaToScala(src: Any): Any = {
     src match {
-      case jlist: JList[AnyRef] =>
+      case jlist: JList[_] =>
         jlist.asScala.toList.map(yamlJavaToScala)
-      case jmap: JMap[String, AnyRef] =>
+      case jmap: JMap[_, _] =>
         jmap.asScala.toMap.view.mapValues(yamlJavaToScala).toMap
       case _: String =>
         src
