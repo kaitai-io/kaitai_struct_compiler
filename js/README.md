@@ -54,6 +54,12 @@ Our [examples repository](https://github.com/kaitai-io/kaitai_struct_examples) c
 
 ## Plugging in
 
+> :information_source: Before the version 0.11.0 the `kaitai-struct-compiler`
+> module returned a _compiler constructor_ (called `KaitaiStructCompiler`) and
+> you would use it as `(new KaitaiStructCompiler()).compile(...)`, but since
+> 0.11.0 release it returns the _compiler object_ itself and you just need to
+> do `KaitaiStructCompiler.compile(...)`. Make sure to adapt your code.
+
 We publish the compiler as a [UMD module](https://github.com/umdjs/umd), so it works from various environments, including server-side (e.g. Node.js) and client-side (e.g. web browser) ones.
 
 Note: currently we don't publish the compiler as standard ES module. This will probably change in the future. If you need ES module, please comment on [this issue](https://github.com/kaitai-io/kaitai_struct/issues/180).
@@ -61,8 +67,7 @@ Note: currently we don't publish the compiler as standard ES module. This will p
 ### node
 
 ```javascript
-var KaitaiStructCompiler = require("kaitai-struct-compiler");
-var compiler = new KaitaiStructCompiler();
+var compiler = require("kaitai-struct-compiler");
 ```
 
 ### browser using script tags
@@ -70,7 +75,7 @@ var compiler = new KaitaiStructCompiler();
 ```html
 <script src="node_modules/kaitai-struct-compiler/kaitai-struct-compiler.js"></script>
 <script>
-    var compiler = new KaitaiStructCompiler();
+    var compiler = KaitaiStructCompiler;
 </script>
 ```
 
@@ -85,8 +90,8 @@ var compiler = new KaitaiStructCompiler();
         }
     });
 
-    require(['kaitai-struct-compiler'], function(KaitaiStructCompiler){
-        var compiler = new KaitaiStructCompiler();
+    require(['kaitai-struct-compiler'], function(compiler){
+        // ...
     });
 </script>
 ```
@@ -204,5 +209,5 @@ Kaitai Struct compiler in JavaScript depends on the following libraries:
 
 Note that these clauses only apply only to compiler itself, not `.ksy`
 input files that one supplies in normal process of compilation, nor to
-compiler's output files — that consitutes normal usage process and you
+compiler's output files — that constitutes normal usage process and you
 obviously keep copyright to both.
