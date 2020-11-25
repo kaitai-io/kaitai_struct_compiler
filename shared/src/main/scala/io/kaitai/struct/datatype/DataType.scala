@@ -28,7 +28,7 @@ sealed trait DataType {
   * Kaitai Struct type system.
   */
 object DataType {
-  abstract class IntWidth(val width: Int)
+  abstract sealed class IntWidth(val width: Int)
   case object Width1 extends IntWidth(1)
   case object Width2 extends IntWidth(2)
   case object Width4 extends IntWidth(4)
@@ -60,7 +60,7 @@ object DataType {
   case class BitsType1(bitEndian: BitEndianness) extends BooleanType
   case class BitsType(width: Int, bitEndian: BitEndianness) extends IntType
 
-  abstract class FloatType extends NumericType
+  abstract sealed class FloatType extends NumericType
   case object CalcFloatType extends FloatType
   case class FloatMultiType(width: IntWidth, endian: Option[FixedEndian]) extends FloatType with ReadableType {
     override def apiCall(defEndian: Option[FixedEndian]): String = {
@@ -73,7 +73,7 @@ object DataType {
     def process: Option[ProcessExpr]
   }
 
-  abstract class BytesType extends DataType with Processing
+  abstract sealed class BytesType extends DataType with Processing
   case object CalcBytesType extends BytesType {
     override def process = None
   }
@@ -98,7 +98,7 @@ object DataType {
     override val process: Option[ProcessExpr]
   ) extends BytesType
 
-  abstract class StrType extends DataType
+  abstract sealed class StrType extends DataType
   case object CalcStrType extends StrType
   /**
     * A type that have the `str` and `strz` built-in Kaitai types.
@@ -155,7 +155,7 @@ object DataType {
     def isOwningInExpr: Boolean = false
   }
 
-  abstract class StructType extends ComplexDataType
+  abstract sealed class StructType extends ComplexDataType
 
   /**
     * Common abstract ancestor for all types which can treated as "user types".
@@ -165,7 +165,7 @@ object DataType {
     * @param forcedParent optional parent enforcement expression
     * @param args parameters passed into this type as extra arguments
     */
-  abstract class UserType(
+  abstract sealed class UserType(
     val name: List[String],
     val forcedParent: Option[Ast.expr],
     var args: Seq[Ast.expr]
