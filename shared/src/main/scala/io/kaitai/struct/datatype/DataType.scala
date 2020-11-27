@@ -230,7 +230,24 @@ object DataType {
     override def isOwning = false
   }
 
-  abstract sealed class ArrayType(val elType: DataType) extends ComplexDataType
+  abstract sealed class ArrayType(val elType: DataType) extends ComplexDataType {
+    /**
+      * Returns non-owning (reference) type of the array elements.
+      *
+      * This is type of getters of individual array elements:
+      * - [] (index)
+      * - min
+      * - max
+      * - first
+      * - last
+      */
+    def elementNonOwningType: DataType = elType.asNonOwning(
+      elType match {
+        case ct: ComplexDataType => ct.isOwning
+        case _ => false
+      }
+    )
+  }
 
   case class ArrayTypeInStream(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = true
