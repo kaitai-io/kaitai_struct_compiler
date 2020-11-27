@@ -80,43 +80,46 @@ object CalculateSeqSizes {
     * Determines how many bits occupies given data type.
     *
     * @param dataType data type to analyze
-    * @return number of bits or None, if it's impossible to determine a priori
+    * @return number of bits or [[DynamicSized]], if it's impossible to determine a priori
     */
   def dataTypeBitsSize(dataType: DataType): Sized = {
     dataType match {
       case BitsType1(_) => FixedSized(1)
-      case BitsType(width, _) => FixedSized(width)
-      case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
-      case ut: UserTypeInstream => getSeqSize(ut.classSpec.get)
-      case _ =>
-        dataTypeByteSize(dataType) match {
-          case FixedSized(x) => FixedSized(x * 8)
-          case otherSize => otherSize
-        }
-    }
-  }
+      case CalcBooleanType => DynamicSized
 
-  /**
-    * Determines how many bytes occupies a given data type.
-    *
-    * @param dataType data type to analyze
-    * @return number of bytes or None, if it's impossible to determine a priori
-    */
-  def dataTypeByteSize(dataType: DataType): Sized = {
-    dataType match {
-      case _: Int1Type => FixedSized(1)
-      case IntMultiType(_, width, _) => FixedSized(width.width)
-      case FloatMultiType(width, _) => FixedSized(width.width)
+      case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
+
+      case ut: UserTypeInstream => getSeqSize(ut.classSpec.get)
+      case ut: UserTypeFromBytes => dataTypeBitsSize(ut.bytes)
+      case ut: CalcUserTypeFromBytes => dataTypeBitsSize(ut.bytes)
+      case _: StructType => DynamicSized
+
+      case BitsType(width, _) => FixedSized(width)
+      case Int1Type(_) => FixedSized(8)
+      case IntMultiType(_, width, _) => FixedSized(width.width * 8)
+      case CalcIntType => DynamicSized
+
+      case FloatMultiType(width, _) => FixedSized(width.width * 8)
+      case CalcFloatType => DynamicSized
+
       case _: BytesEosType => DynamicSized
       case blt: BytesLimitType => blt.size.evaluateIntConst match {
-        case Some(x) => FixedSized(x.toInt)
+        case Some(x) => FixedSized(x.toInt * 8)
         case None => DynamicSized
       }
       case _: BytesTerminatedType => DynamicSized
-      case StrFromBytesType(basedOn, _, _) => dataTypeByteSize(basedOn)
-      case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
-      case cutb: CalcUserTypeFromBytes => dataTypeByteSize(cutb.bytes)
+      case CalcBytesType => DynamicSized
+
+      case StrFromBytesType(basedOn, _, _) => dataTypeBitsSize(basedOn)
+      case CalcStrType => DynamicSized
+
       case st: SwitchType => DynamicSized // FIXME: it's really possible get size if st.hasSize
+
+      case OwnedKaitaiStreamType | KaitaiStreamType => DynamicSized
+
+      // TODO: Add special type or attribute to ArrayType for arrays of known size
+      case _: ArrayType => DynamicSized
+      case AnyType => DynamicSized
     }
   }
 }
