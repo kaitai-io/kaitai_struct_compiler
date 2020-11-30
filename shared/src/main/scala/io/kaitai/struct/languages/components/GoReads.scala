@@ -112,23 +112,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
   def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
-        // we have a fixed buffer, thus we shall create separate IO for it
-        val rawId = RawIdentifier(id)
-        val byteType = knownSizeType.bytes
-
-        attrParse2(rawId, byteType, io, rep, true, defEndian)
-
-        val extraType = rep match {
-          case NoRepeat => byteType
-          case _ => ArrayTypeInStream(byteType)
-        }
-
-        this match {
-          case thisStore: AllocateAndStoreIO =>
-            thisStore.allocateIO(rawId, rep)
-          case thisLocal: AllocateIOLocalVar =>
-            thisLocal.allocateIO(rawId, rep)
-        }
+        createSubstreamBuffered(id, knownSizeType.bytes, io, rep, defEndian)
       case _: UserTypeInstream =>
         // no fixed buffer, just use regular IO
         io

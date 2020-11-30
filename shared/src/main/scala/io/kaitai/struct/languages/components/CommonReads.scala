@@ -1,6 +1,7 @@
 package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.datatype._
+import io.kaitai.struct.datatype.DataType.{ArrayTypeInStream, BytesType}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
@@ -104,4 +105,40 @@ trait CommonReads extends LanguageCompiler {
     */
   def attrValidateAll(attr: AttrLikeSpec) =
     attr.valid.foreach(valid => attrValidate(attr.id, attr, valid))
+
+  /**
+    * Creates a substream by reading bytes that will comprise the stream first into a buffer in
+    * memory, and then wrapping that buffer as a new stream.
+    *
+    * @param id Identifier of a member that this stream is for
+    * @param byteType Underlying bytes type
+    * @param io Parent stream to derive substream from
+    * @param rep Repeat specification for underlying bytes type
+    * @param defEndian Default endianness specification
+    *
+    * @return string reference to a freshly created substream
+    */
+  def createSubstreamBuffered(
+    id: Identifier,
+    byteType: BytesType,
+    io: String,
+    rep: RepeatSpec,
+    defEndian: Option[FixedEndian]
+  ): String = {
+    val rawId = RawIdentifier(id)
+
+    attrParse2(rawId, byteType, io, rep, true, defEndian)
+
+    val extraType = rep match {
+      case NoRepeat => byteType
+      case _ => ArrayTypeInStream(byteType)
+    }
+
+    this match {
+      case thisStore: AllocateAndStoreIO =>
+        thisStore.allocateIO(rawId, rep)
+      case thisLocal: AllocateIOLocalVar =>
+        thisLocal.allocateIO(rawId, rep)
+    }
+  }
 }

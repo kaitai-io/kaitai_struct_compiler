@@ -171,33 +171,6 @@ trait EveryReadIsExpression
   def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String =
     createSubstreamBuffered(id, blt, io, rep, defEndian)
 
-  /**
-    * Creates a substream by reading bytes that will comprise the stream first into a buffer in
-    * memory, and then wrapping that buffer as a new stream.
-    * @param id identifier of a member that this stream is for
-    * @param byteType underlying bytes type
-    * @param io parent stream to derive substream from
-    * @param rep repeat specification for underlying bytes type
-    * @param defEndian default endianness specification
-    * @return string reference to a freshly created substream
-    */
-  def createSubstreamBuffered(id: Identifier, byteType: BytesType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
-    val rawId = RawIdentifier(id)
-
-    attrParse2(rawId, byteType, io, rep, true, defEndian)
-
-    val extraType = rep match {
-      case NoRepeat => byteType
-      case _ => ArrayTypeInStream(byteType)
-    }
-
-    this match {
-      case thisStore: AllocateAndStoreIO =>
-        thisStore.allocateIO(rawId, rep)
-      case thisLocal: AllocateIOLocalVar =>
-        thisLocal.allocateIO(rawId, rep)
-    }
-  }
 
   def attrSwitchTypeParse(
     id: Identifier,
