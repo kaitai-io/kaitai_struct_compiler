@@ -100,14 +100,9 @@ class TypeDetector(provider: TypeProvider) {
         }
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         (detectType(container) match {
-          case ArrayTypeInStream(elType: DataType) =>
+          case t: ArrayType =>
             detectType(idx) match {
-              case _: IntType => elType
-              case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
-            }
-          case CalcArrayType(elType: DataType) =>
-            detectType(idx) match {
-              case _: IntType => elType
+              case _: IntType => t.elType
               case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
             }
           case _: BytesType => Int1Type(false)
@@ -178,15 +173,9 @@ class TypeDetector(provider: TypeProvider) {
           case "to_i" => CalcIntType
           case _ => throw new MethodNotFoundError(attr.name, valType)
         }
-      case ArrayTypeInStream(_) | CalcArrayType(_) =>
-        val inType = valType match {
-          case ArrayTypeInStream(inType) => inType
-          case CalcArrayType(inType) => inType
-          case _ => throw new TypeMismatchError(s"Unexpected type for arrays ${valType}.");
-        }
-
+      case t: ArrayType =>
         attr.name match {
-          case "first" | "last" | "min" | "max" => inType
+          case "first" | "last" | "min" | "max" => t.elType
           case "size" => CalcIntType
           case _ => throw new MethodNotFoundError(attr.name, valType)
         }
