@@ -87,19 +87,15 @@ abstract trait CommonMethods[T] extends TypeDetector {
     * @return result of translation as [[T]]
     */
   def translateCall(call: Ast.expr.Call): T = {
-    val func = call.func
+    val obj  = call.obj
     val args = call.args
-
-    func match {
-      case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
-        val objType = detectType(obj)
-        (objType, methodName.name) match {
-          // TODO: check argument quantity
-          case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
-          case (_: StrType, "to_i") => strToInt(obj, args(0))
-          case (_: BytesType, "to_s") => bytesToStr(obj, args(0))
-          case _ => throw new TypeMismatchError(s"don't know how to call method '$methodName' of object type '$objType'")
-        }
+    val objType = detectType(call.obj)
+    (objType, call.methodName.name) match {
+      // TODO: check argument quantity
+      case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
+      case (_: StrType, "to_i") => strToInt(obj, args(0))
+      case (_: BytesType, "to_s") => bytesToStr(obj, args(0))
+      case _ => throw new TypeMismatchError(s"don't know how to call method '${call.methodName}' of object type '$objType'")
     }
   }
 

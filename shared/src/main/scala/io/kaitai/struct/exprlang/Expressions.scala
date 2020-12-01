@@ -134,13 +134,20 @@ object Expressions {
   val list = P( list_contents ).map(Ast.expr.List(_))
 
   val trailer: P[Ast.expr => Ast.expr] = {
-    val call = P("(" ~ arglist ~ ")").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Call(lhs, args)}
+    val call = P("(" ~ arglist ~ ")")
     val slice = P("[" ~ test ~ "]").map{ case (args) => (lhs: Ast.expr) => Ast.expr.Subscript(lhs, args)}
     val cast = P( "." ~ "as" ~ "<" ~ TYPE_NAME ~ ">" ).map(
       typeName => (lhs: Ast.expr) => Ast.expr.CastToType(lhs, typeName)
     )
-    val attr = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id))
-    P( call | slice | cast | attr )
+    // Returns function that accept lsh expression and returns Attribute or Call
+    // node depending on existence of parameters
+    val attr = P("." ~ NAME ~ call.?).map{
+      case (id, args) => (lhs: Ast.expr) => args match {
+        case Some(args) => Ast.expr.Call(lhs, id, args)
+        case None => Ast.expr.Attribute(lhs, id)
+      }
+    }
+    P( slice | cast | attr )
   }
 
   val exprlist: P[Seq[Ast.expr]] = P( expr.rep(1, sep = ",") ~ ",".? )
