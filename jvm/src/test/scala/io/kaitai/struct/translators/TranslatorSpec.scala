@@ -596,6 +596,14 @@ class TranslatorSpec extends FunSuite {
   // sizeof of fixed user type
   everybody("bitsizeof<block>", "56", CalcIntType)
 
+  /**
+    * Checks translation of expression `src` into target languages
+    *
+    * @param src Kaitai struct expression to translate
+    * @param tp Type model that provides information about used user-defined types in expression
+    * @param expType Expected type that should be detected by translator
+    * @param expOut Map with expected outputs of each language
+    */
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
     var eo: Option[Ast.expr] = None
     test(s"_expr:$src") {
@@ -622,7 +630,6 @@ class TranslatorSpec extends FunSuite {
       test(s"$langName:$src", Tag(langName), Tag(src)) {
         eo match {
           case Some(e) =>
-            val tr: AbstractTranslator with TypeDetector = langs(langObj)
             expOut.get(langObj) match {
               case Some(expResult) =>
                 tr.detectType(e) should be(expType)
@@ -633,7 +640,7 @@ class TranslatorSpec extends FunSuite {
                 }
                 actResult2 should be(expResult)
               case None =>
-                fail("no expected result")
+                fail(s"no expected result, but result is ${tr.translate(e)}")
             }
           case None =>
             fail("expression didn't parse")
