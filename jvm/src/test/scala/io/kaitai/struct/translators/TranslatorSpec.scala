@@ -67,7 +67,7 @@ class TranslatorSpec extends FunSuite {
                     |tmp1""".stripMargin,
     JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
-    LuaCompiler -> "2 < 3 and \"foo\" or \"bar\"",
+    LuaCompiler -> "utils.box_unwrap(2 < 3 and utils.box_wrap(\"foo\") or \"bar\")",
     PerlCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     PHPCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     PythonCompiler -> "u\"foo\" if 2 < 3 else u\"bar\"",
