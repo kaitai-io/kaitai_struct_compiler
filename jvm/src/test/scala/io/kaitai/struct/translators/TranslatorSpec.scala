@@ -232,7 +232,7 @@ class TranslatorSpec extends FunSuite {
   full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\", 7)",
     CSharpCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
-    GoCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
+    GoCompiler -> "[]uint8{34, 0, 10, 64, 65, 66, 92}",
     JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
     JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
     LuaCompiler -> "\"\\034\\000\\010\\064\\065\\066\\092\"",
@@ -245,7 +245,7 @@ class TranslatorSpec extends FunSuite {
   full("[255, 0, 255]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\xFF\\x00\\xFF\", 3)",
     CSharpCompiler -> "new byte[] { 255, 0, 255 }",
-    GoCompiler -> "\"\\xFF\\x00\\xFF\"",
+    GoCompiler -> "[]uint8{255, 0, 255}",
     JavaCompiler -> "new byte[] { -1, 0, -1 }",
     JavaScriptCompiler -> "[255, 0, 255]",
     LuaCompiler -> "\"\\255\\000\\255\"",
@@ -257,7 +257,7 @@ class TranslatorSpec extends FunSuite {
 
   full("[0, 1, 2].length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\x00\\x01\\x02\", 3).length()",
-    GoCompiler -> "len(\"\\x00\\x01\\x02\")",
+    GoCompiler -> "len([]uint8{0, 1, 2})",
     JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
     LuaCompiler -> "string.len(\"str\")",
     PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
