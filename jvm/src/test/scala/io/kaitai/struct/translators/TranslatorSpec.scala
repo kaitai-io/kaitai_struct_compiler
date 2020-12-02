@@ -466,10 +466,10 @@ class TranslatorSpec extends FunSuite {
 
   // casts
   full("other.as<block>.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
-    CppCompiler -> "static_cast<block_t*>(other())->bar()",
-    CSharpCompiler -> "((Block) (Other)).Bar",
-    GoCompiler -> "this.Other.(Block).Bar",
-    JavaCompiler -> "((Block) (other())).bar()",
+    CppCompiler -> "static_cast<top_class_t::block_t*>(other())->bar()",
+    CSharpCompiler -> "((TopClass.Block) (Other)).Bar",
+    GoCompiler -> "this.Other.(TopClass.Block).Bar",
+    JavaCompiler -> "((TopClass.Block) (other())).bar()",
     JavaScriptCompiler -> "this.other.bar",
     LuaCompiler -> "self.other.bar",
     PerlCompiler -> "$self->other()->bar()",
@@ -479,10 +479,10 @@ class TranslatorSpec extends FunSuite {
   ))
 
   full("other.as<block::innerblock>.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
-    CppCompiler -> "static_cast<block_t::innerblock_t*>(other())->baz()",
-    CSharpCompiler -> "((Block.Innerblock) (Other)).Baz",
-    GoCompiler -> "this.Other.(Block.Innerblock).Baz",
-    JavaCompiler -> "((Block.Innerblock) (other())).baz()",
+    CppCompiler -> "static_cast<top_class_t::block_t::innerblock_t*>(other())->baz()",
+    CSharpCompiler -> "((TopClass.Block.Innerblock) (Other)).Baz",
+    GoCompiler -> "this.Other.(TopClass.Block.Innerblock).Baz",
+    JavaCompiler -> "((TopClass.Block.Innerblock) (other())).baz()",
     JavaScriptCompiler -> "this.other.baz",
     LuaCompiler -> "self.other.baz",
     PerlCompiler -> "$self->other()->baz()",
