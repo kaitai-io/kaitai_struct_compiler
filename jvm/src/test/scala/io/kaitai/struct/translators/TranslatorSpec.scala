@@ -22,6 +22,7 @@ class TranslatorSpec extends FunSuite {
   everybody("1000000000", "1000000000")
   everybodyExcept("100000000000", "100000000000", Map[LanguageCompilerStatic, String](
     CppCompiler -> "100000000000LL",
+    GoCompiler -> "int64(100000000000)",
     JavaCompiler -> "100000000000L"
   ))
 
