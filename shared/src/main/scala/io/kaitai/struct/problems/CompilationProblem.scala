@@ -69,8 +69,8 @@ object KSYParseError {
   def withText(text: String, path: List[String]): CompilationProblemException =
     KSYParseError(text, path).toException
 
-  def noKey(path: List[String]) =
-    withText(s"missing mandatory argument `${path.last}`", path)
+  def noKey(field: String, path: List[String]) =
+    withText(s"missing mandatory argument `$field`", path)
 
   def noKeys(path: List[String], expectedKeys: Set[String]) =
     withText(s"expected any of ${expectedKeys.toList.sorted.mkString(", ")}, found none", path)

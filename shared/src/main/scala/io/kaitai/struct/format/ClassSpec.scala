@@ -181,7 +181,7 @@ object ClassSpec {
     if (path.isEmpty) {
       explicitMeta.id match {
         case None =>
-          throw KSYParseError.withText("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
+          throw KSYParseError.withText("no `meta/id` encountered in top-level class spec", path ++ List("meta"))
         case Some(id) =>
           cs.name = List(id)
       }
