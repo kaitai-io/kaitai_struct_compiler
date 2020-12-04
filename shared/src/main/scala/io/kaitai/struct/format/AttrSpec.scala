@@ -222,7 +222,7 @@ object AttrSpec {
             )
           case switchMap: Map[Any, Any] =>
             val switchMapStr = ParseUtils.anyMapToStrMap(switchMap, path)
-            parseSwitch(switchMapStr, path, metaDef, yamlAttrArgs)
+            parseSwitch(switchMapStr, path ++ List("type"), metaDef, yamlAttrArgs)
           case unknown =>
             throw KSYParseError.withText(s"expected map or string, found $unknown", path ++ List("type"))
         }
