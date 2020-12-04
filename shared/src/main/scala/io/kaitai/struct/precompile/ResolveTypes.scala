@@ -39,12 +39,12 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
   def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Unit = {
     dataType match {
       case ut: UserType =>
-        ut.classSpec = resolveUserType(curClass, ut.name, path)
+        ut.classSpec = resolveUserType(curClass, ut.name, path ++ List("type"))
       case et: EnumType =>
         et.enumSpec = resolveEnumSpec(curClass, et.name)
         if (et.enumSpec.isEmpty) {
           val err = new EnumNotFoundError(et.name.mkString("::"), curClass)
-          throw KSYParseError.withText(err.getMessage, path)
+          throw KSYParseError.withText(err.getMessage, path ++ List("enum"))
         }
       case st: SwitchType =>
         st.cases.foreach { case (caseName, ut) =>
