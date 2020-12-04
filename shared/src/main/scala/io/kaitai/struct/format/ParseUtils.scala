@@ -90,7 +90,7 @@ object ParseUtils {
       Expressions.parse(getValueStr(src, field, path))
     } catch {
       case epe: Expressions.ParseException =>
-        throw KSYParseError.expression(epe, path)
+        throw KSYParseError.expression(epe, path ++ List(field))
     }
   }
 
@@ -99,7 +99,7 @@ object ParseUtils {
       getOptValueStr(src, field, path).map(Expressions.parse)
     } catch {
       case epe: Expressions.ParseException =>
-        throw KSYParseError.expression(epe, path)
+        throw KSYParseError.expression(epe, path ++ List(field))
     }
   }
 
