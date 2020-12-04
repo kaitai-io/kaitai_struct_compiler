@@ -167,14 +167,13 @@ object AttrSpec {
       fromYaml2(srcMap, path, metaDef, id)
     } catch {
       case (epe: Expressions.ParseException) =>
-        throw KSYParseError.expression(epe, path)
+        throw KSYParseError.expression(epe, path ++ List("type"))
     }
   }
 
   def fromYaml2(srcMap: Map[String, Any], path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
     val doc = DocSpec.fromYaml(srcMap, path)
-    val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path), path)
-    // TODO: add proper path propagation
+    val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path), path ++ List("process"))
     val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))
     val size = ParseUtils.getOptValueExpression(srcMap, "size", path)
     val sizeEos = ParseUtils.getOptValueBool(srcMap, "size-eos", path).getOrElse(false)

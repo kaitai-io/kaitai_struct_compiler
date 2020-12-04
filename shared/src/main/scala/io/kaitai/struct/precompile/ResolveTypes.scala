@@ -46,13 +46,13 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
   def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Iterable[CompilationProblem] = {
     dataType match {
       case ut: UserType =>
-        val (resClassSpec, problems) = resolveUserType(curClass, ut.name, path)
+        val (resClassSpec, problems) = resolveUserType(curClass, ut.name, path ++ List("type"))
         ut.classSpec = resClassSpec
         problems
       case et: EnumType =>
         et.enumSpec = resolveEnumSpec(curClass, et.name)
         if (et.enumSpec.isEmpty) {
-          Some(EnumNotFoundErr(et.name, curClass, path))
+          Some(EnumNotFoundErr(et.name, curClass, path ++ List("enum")))
         } else {
           None
         }
