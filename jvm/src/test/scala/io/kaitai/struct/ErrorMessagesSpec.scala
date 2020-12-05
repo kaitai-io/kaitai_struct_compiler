@@ -3,14 +3,14 @@ package io.kaitai.struct
 import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.KSVersion
 import io.kaitai.struct.formats.JavaKSYParser
-import org.scalatest.FunSuite
-import org.scalatest.Matchers._
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers._
 
 import java.io._
 import java.nio.charset.Charset
 import scala.collection.mutable
 
-class ErrorMessagesSpec extends FunSuite {
+class ErrorMessagesSpec extends AnyFunSuite {
   // required, because this class is the sole entry point and this test needs
   // version info
   KSVersion.current = Version.version

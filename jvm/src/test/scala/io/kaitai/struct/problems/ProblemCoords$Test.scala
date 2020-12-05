@@ -1,9 +1,9 @@
 package io.kaitai.struct.problems
 
-import org.scalatest.FunSpec
-import org.scalatest.Matchers._
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers._
 
-class ProblemCoords$Test extends FunSpec {
+class ProblemCoords$Test extends AnyFunSpec {
   describe("ProblemCoords.message") {
     it("full message works") {
       val pc = ProblemCoords(

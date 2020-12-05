@@ -1,8 +1,9 @@
 package io.kaitai.struct
 
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class LanguageOutputWriterSpec extends FunSpec with Matchers {
+class LanguageOutputWriterSpec extends AnyFunSpec with Matchers {
   describe("StringLanguageOutputWriter") {
     describe("puts") {
       val out = new StringLanguageOutputWriter("\t")
