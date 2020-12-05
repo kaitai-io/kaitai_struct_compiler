@@ -31,7 +31,7 @@ object JavaMain {
 
   def parseCommandLine(args: Array[String]): Option[CLIConfig] = {
     val parser = new scopt.OptionParser[CLIConfig](Version.name) {
-      override def showUsageOnError = true
+      override def showUsageOnError = Some(true)
 
       head(Version.name, Version.version)
 

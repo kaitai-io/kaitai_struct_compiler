@@ -4,8 +4,6 @@ import java.nio.file.Files
 
 import com.typesafe.sbt.packager.linux.{LinuxPackageMapping, LinuxSymlink}
 import sbt.Keys._
-// shadow sbt-scalajs' crossProject and CrossType from Scala.js 0.6.x
-import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 resolvers += Resolver.sonatypeRepo("public")
 
@@ -59,7 +57,7 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
     sourceGenerators in Compile += generateVersionTask.taskValue, // update automatically on every rebuild
 
     libraryDependencies ++= Seq(
-      "com.github.scopt" %%% "scopt" % "3.6.0",
+      "com.github.scopt" %%% "scopt" % "4.0.1",
       "com.lihaoyi" %%% "fastparse" % "2.3.0",
       "org.yaml" % "snakeyaml" % "1.28"
     )
