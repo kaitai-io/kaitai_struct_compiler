@@ -4,6 +4,8 @@ import java.nio.file.Files
 
 import com.typesafe.sbt.packager.linux.{LinuxPackageMapping, LinuxSymlink}
 import sbt.Keys._
+// shadow sbt-scalajs' crossProject and CrossType from Scala.js 0.6.x
+import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 
@@ -19,7 +21,8 @@ lazy val root = project.in(file(".")).
     publishLocal := {}
   )
 
-lazy val compiler = crossProject.in(file(".")).
+lazy val compiler = crossProject(JSPlatform, JVMPlatform).
+  in(file(".")).
   enablePlugins(JavaAppPackaging).
   settings(
     organization := "io.kaitai",
