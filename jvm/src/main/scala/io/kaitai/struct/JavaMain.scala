@@ -186,25 +186,25 @@ object JavaMain {
     // we need to decode it as well.
     //
     // Linux, from IDE:
-    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.11/classes/
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.12/classes/
     //
     // Linux, from stage:
-    // $HOME/git/kaitai_struct/compiler/jvm/target/universal/stage/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // $HOME/git/kaitai_struct/compiler/jvm/target/universal/stage/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Linux, from "sbt compilerJVM/run"
-    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.11/classes/
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.12/classes/
     //
     // Linux, from universal, custom install path:
-    // /tmp/a%20b/kaitai-struct-compiler-0.7-SNAPSHOT/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // /tmp/a%20b/kaitai-struct-compiler-0.10-SNAPSHOT/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Linux, from Debian install:
-    // /usr/share/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // /usr/share/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Windows, default install path:
-    // /C:/Program%20Files/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // /C:/Program%20Files/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Windows, custom install path with spaces and non-latin chars:
-    // /G:/%d0%b3%d0%b4%d0%b5-%d1%82%d0%be%20%d1%82%d0%b0%d0%bc/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // /G:/%d0%b3%d0%b4%d0%b5-%d1%82%d0%be%20%d1%82%d0%b0%d0%bc/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
 
     val fStr = classOf[JavaMain].getProtectionDomain.getCodeSource.getLocation.getPath
     Log.importOps.info(() => s"home path: location = $fStr")
