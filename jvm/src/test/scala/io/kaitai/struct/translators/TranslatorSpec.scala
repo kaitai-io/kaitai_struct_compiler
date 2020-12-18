@@ -22,6 +22,7 @@ class TranslatorSpec extends FunSuite {
   everybody("1000000000", "1000000000")
   everybodyExcept("100000000000", "100000000000", Map[LanguageCompilerStatic, String](
     CppCompiler -> "100000000000LL",
+    GoCompiler -> "int64(100000000000)",
     JavaCompiler -> "100000000000L"
   ))
 
@@ -35,6 +36,7 @@ class TranslatorSpec extends FunSuite {
 
   everybodyExcept("3 / 2", "(3 / 2)", Map(
     JavaScriptCompiler -> "Math.floor(3 / 2)",
+    LuaCompiler -> "math.floor(3 / 2)",
     PerlCompiler -> "int(3 / 2)",
     PHPCompiler -> "intval(3 / 2)",
     PythonCompiler -> "3 // 2"
@@ -44,6 +46,7 @@ class TranslatorSpec extends FunSuite {
 
   everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", Map(
     JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
+    LuaCompiler -> "math.floor((1 + 2) / (7 * 8))",
     PerlCompiler -> "int((1 + 2) / (7 * 8))",
     PHPCompiler -> "intval((1 + 2) / (7 * 8))",
     PythonCompiler -> "(1 + 2) // (7 * 8)"
@@ -65,7 +68,7 @@ class TranslatorSpec extends FunSuite {
                     |tmp1""".stripMargin,
     JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
-    LuaCompiler -> "2 < 3 and \"foo\" or \"bar\"",
+    LuaCompiler -> "utils.box_unwrap(2 < 3 and utils.box_wrap(\"foo\") or \"bar\")",
     PerlCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     PHPCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
     PythonCompiler -> "u\"foo\" if 2 < 3 else u\"bar\"",
@@ -229,7 +232,7 @@ class TranslatorSpec extends FunSuite {
   full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\", 7)",
     CSharpCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
-    GoCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
+    GoCompiler -> "[]uint8{34, 0, 10, 64, 65, 66, 92}",
     JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
     JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
     LuaCompiler -> "\"\\034\\000\\010\\064\\065\\066\\092\"",
@@ -242,7 +245,7 @@ class TranslatorSpec extends FunSuite {
   full("[255, 0, 255]", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\xFF\\x00\\xFF\", 3)",
     CSharpCompiler -> "new byte[] { 255, 0, 255 }",
-    GoCompiler -> "\"\\xFF\\x00\\xFF\"",
+    GoCompiler -> "[]uint8{255, 0, 255}",
     JavaCompiler -> "new byte[] { -1, 0, -1 }",
     JavaScriptCompiler -> "[255, 0, 255]",
     LuaCompiler -> "\"\\255\\000\\255\"",
@@ -254,7 +257,7 @@ class TranslatorSpec extends FunSuite {
 
   full("[0, 1, 2].length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"\\x00\\x01\\x02\", 3).length()",
-    GoCompiler -> "len(\"\\x00\\x01\\x02\")",
+    GoCompiler -> "len([]uint8{0, 1, 2})",
     JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
     LuaCompiler -> "string.len(\"str\")",
     PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
@@ -464,10 +467,10 @@ class TranslatorSpec extends FunSuite {
 
   // casts
   full("other.as<block>.bar", FooBarProvider, CalcStrType, Map[LanguageCompilerStatic, String](
-    CppCompiler -> "static_cast<block_t*>(other())->bar()",
-    CSharpCompiler -> "((Block) (Other)).Bar",
-    GoCompiler -> "this.Other.(Block).Bar",
-    JavaCompiler -> "((Block) (other())).bar()",
+    CppCompiler -> "static_cast<top_class_t::block_t*>(other())->bar()",
+    CSharpCompiler -> "((TopClass.Block) (Other)).Bar",
+    GoCompiler -> "this.Other.(TopClass.Block).Bar",
+    JavaCompiler -> "((TopClass.Block) (other())).bar()",
     JavaScriptCompiler -> "this.other.bar",
     LuaCompiler -> "self.other.bar",
     PerlCompiler -> "$self->other()->bar()",
@@ -477,10 +480,10 @@ class TranslatorSpec extends FunSuite {
   ))
 
   full("other.as<block::innerblock>.baz", FooBarProvider, CalcIntType, Map[LanguageCompilerStatic, String](
-    CppCompiler -> "static_cast<block_t::innerblock_t*>(other())->baz()",
-    CSharpCompiler -> "((Block.Innerblock) (Other)).Baz",
-    GoCompiler -> "this.Other.(Block.Innerblock).Baz",
-    JavaCompiler -> "((Block.Innerblock) (other())).baz()",
+    CppCompiler -> "static_cast<top_class_t::block_t::innerblock_t*>(other())->baz()",
+    CSharpCompiler -> "((TopClass.Block.Innerblock) (Other)).Baz",
+    GoCompiler -> "this.Other.(TopClass.Block.Innerblock).Baz",
+    JavaCompiler -> "((TopClass.Block.Innerblock) (other())).baz()",
     JavaScriptCompiler -> "this.other.baz",
     LuaCompiler -> "self.other.baz",
     PerlCompiler -> "$self->other()->baz()",
@@ -596,6 +599,14 @@ class TranslatorSpec extends FunSuite {
   // sizeof of fixed user type
   everybody("bitsizeof<block>", "56", CalcIntType)
 
+  /**
+    * Checks translation of expression `src` into target languages
+    *
+    * @param src KS expression to translate
+    * @param tp Type model that provides information about used user-defined types in expression
+    * @param expType Expected type that should be detected by [[TypeDetector]]
+    * @param expOut Map with expected outputs for each language
+    */
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
     var eo: Option[Ast.expr] = None
     test(s"_expr:$src") {
@@ -622,7 +633,6 @@ class TranslatorSpec extends FunSuite {
       test(s"$langName:$src", Tag(langName), Tag(src)) {
         eo match {
           case Some(e) =>
-            val tr: AbstractTranslator with TypeDetector = langs(langObj)
             expOut.get(langObj) match {
               case Some(expResult) =>
                 tr.detectType(e) should be(expType)
@@ -633,7 +643,7 @@ class TranslatorSpec extends FunSuite {
                 }
                 actResult2 should be(expResult)
               case None =>
-                fail("no expected result")
+                fail(s"no expected result, but actual result is ${tr.translate(e)}")
             }
           case None =>
             fail("expression didn't parse")
