@@ -602,10 +602,10 @@ class TranslatorSpec extends FunSuite {
   /**
     * Checks translation of expression `src` into target languages
     *
-    * @param src Kaitai struct expression to translate
+    * @param src KS expression to translate
     * @param tp Type model that provides information about used user-defined types in expression
-    * @param expType Expected type that should be detected by translator
-    * @param expOut Map with expected outputs of each language
+    * @param expType Expected type that should be detected by [[TypeDetector]]
+    * @param expOut Map with expected outputs for each language
     */
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
     var eo: Option[Ast.expr] = None
@@ -643,7 +643,7 @@ class TranslatorSpec extends FunSuite {
                 }
                 actResult2 should be(expResult)
               case None =>
-                fail(s"no expected result, but result is ${tr.translate(e)}")
+                fail(s"no expected result, but actual result is ${tr.translate(e)}")
             }
           case None =>
             fail("expression didn't parse")
