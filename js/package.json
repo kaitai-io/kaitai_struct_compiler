@@ -33,6 +33,7 @@
     "url": "git+https://github.com/kaitai-io/kaitai_struct_compiler.git"
   },
   "scripts": {
+    "postinstall": "node warn-about-constructor-bc-break.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "version": "OVERRIDDEN BY /build.sbt"
