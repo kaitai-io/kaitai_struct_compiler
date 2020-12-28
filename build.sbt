@@ -9,7 +9,7 @@ resolvers += Resolver.sonatypeRepo("public")
 
 val NAME = "kaitai-struct-compiler"
 val VERSION = "0.10-SNAPSHOT"
-val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby"
+val TARGET_LANGS = "C++/STL, C#, Go, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby"
 val UTF8 = Charset.forName("UTF-8")
 
 lazy val root = project.in(file(".")).
