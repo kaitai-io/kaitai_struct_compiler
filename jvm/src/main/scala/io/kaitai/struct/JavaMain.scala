@@ -1,6 +1,7 @@
 package io.kaitai.struct
 
-import java.io.{File, FileWriter}
+import java.io.{File, FileWriter, FileOutputStream, OutputStreamWriter}
+import java.nio.charset.StandardCharsets
 import java.net.URLDecoder
 
 import io.kaitai.struct.CompileLog._
@@ -350,9 +351,9 @@ class JavaMain(config: CLIConfig) {
       val parentPath = outPath.getParentFile
       parentPath.mkdirs
 
-      val fw = new FileWriter(outPath)
-      fw.write(file.contents)
-      fw.close()
+      val osw = new OutputStreamWriter(new FileOutputStream(outPath), StandardCharsets.UTF_8)
+      osw.write(file.contents)
+      osw.close()
     }
     res
   }

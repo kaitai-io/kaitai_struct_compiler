@@ -1,7 +1,7 @@
 package io.kaitai.struct.formats
 
 import java.io._
-import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 import java.util.{List => JList, Map => JMap}
 
 import io.kaitai.struct.JavaMain.CLIConfig
@@ -35,7 +35,7 @@ object JavaKSYParser {
     // which screws up encoding on some systems and screws up reading
     // UTF-8 files with BOM
     val fis = new FileInputStream(yamlFilename)
-    val isr = new InputStreamReader(fis, Charset.forName("UTF-8"))
+    val isr = new InputStreamReader(fis, StandardCharsets.UTF_8)
     val br = new BufferedReader(isr)
     try {
       val scalaSrc = readerToYaml(br)
