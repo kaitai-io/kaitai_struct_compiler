@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import java.io.{File, FileWriter, FileOutputStream, OutputStreamWriter}
+import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
 import java.net.URLDecoder
 
