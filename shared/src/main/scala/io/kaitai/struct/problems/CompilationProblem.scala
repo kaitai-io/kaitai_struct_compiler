@@ -10,7 +10,7 @@ import io.kaitai.struct.format.{Identifier, KSVersion}
   * Abstract top-level trait common to all problems which might be raised during
   * precompilation / compilation process in a Kaitai Struct compiler.
   */
-abstract class CompilationProblem extends Jsonable {
+sealed abstract class CompilationProblem extends Jsonable {
   def severity: ProblemSeverity
   def coords: ProblemCoords
   def text: String
