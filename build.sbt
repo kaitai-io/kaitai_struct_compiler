@@ -157,6 +157,10 @@ lazy val compiler = crossProject.in(file(".")).
     wixProductUpgradeId := "63e85f5f-7680-4b3e-9bb9-dea0f70e970a",
     wixProductLicense := Some(new File("shared/src/windows/License.rtf")),
 
+    rpmVendor := "Kaitai Project",
+    rpmUrl := Some("https://kaitai.io/"),
+    rpmLicense := Some("GPLv3+"),
+
     maintainer in Windows := "Kaitai Project",
     maintainer in Debian := "Mikhail Yakshin <greycat@kaitai.io>"
   ).
