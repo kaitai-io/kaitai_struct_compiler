@@ -1,5 +1,7 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.problems.CompilationProblem
+
 import scala.collection.mutable
 import scala.concurrent.Future
 
@@ -40,9 +42,8 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
     * and all subtypes stored in these elements, recursively.
     *
     * @param proc function to execute on every encountered type.
-    * @tparam R mandates that function must return a list of this type.
     */
-  def mapRec[R](proc: (ClassSpec) => Iterable[R]): Iterable[R] =
+  def mapRec(proc: (ClassSpec) => Iterable[CompilationProblem]): Iterable[CompilationProblem] =
     mapTopLevel((_, typeSpec) => typeSpec.mapRec(proc))
 
   /**
@@ -50,15 +51,10 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
     * ClassSpecs.
     *
     * @param proc function to execute on every encountered type.
-    * @tparam R mandates that function must return a list of this type.
     */
-  def mapTopLevel[R](proc: (String, ClassSpec) => Iterable[R]): Iterable[R] = {
+  def mapTopLevel(proc: (String, ClassSpec) => Iterable[CompilationProblem]): Iterable[CompilationProblem] = {
     flatMap { case (specName, typeSpec) =>
-      //      try {
-      proc(specName, typeSpec)
-      //      } catch {
-      // TODO: try to emit more specific error, with a reference to current file
-      //      }
+      proc(specName, typeSpec).map(problem => problem.localizedInFile(specName))
     }
   }
 
