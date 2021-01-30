@@ -38,25 +38,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       case Identifier.SIZEOF =>
         CalcIntType
       case _ =>
-        inClass.seq.foreach { el =>
-          if (el.id == NamedIdentifier(attrName))
-            return el.dataTypeComposite
-        }
-        inClass.params.foreach { el =>
-          if (el.id == NamedIdentifier(attrName))
-            return el.dataType
-        }
-        inClass.instances.get(InstanceIdentifier(attrName)) match {
-          case Some(i: ValueInstanceSpec) =>
-            val dt = i.dataTypeOpt match {
-              case Some(t) => t
-              case None => throw new TypeUndecidedError(attrName)
-            }
-            return dt
-          case Some(i: ParseInstanceSpec) => return i.dataTypeComposite
-          case None => // do nothing
-        }
-        throw new FieldNotFoundError(attrName, inClass)
+        resolveMember(inClass, attrName).dataTypeComposite
     }
   }
 

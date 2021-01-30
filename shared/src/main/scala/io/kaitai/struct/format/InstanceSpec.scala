@@ -2,6 +2,7 @@ package io.kaitai.struct.format
 
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.{Ast, Expressions}
+import io.kaitai.struct.precompile.TypeUndecidedError
 
 sealed abstract class InstanceSpec(val doc: DocSpec) extends MemberSpec {
   def dataTypeComposite: DataType
@@ -15,7 +16,12 @@ case class ValueInstanceSpec(
   ifExpr: Option[Ast.expr],
   var dataTypeOpt: Option[DataType]
 ) extends InstanceSpec(_doc) {
-  override def dataType: DataType = dataTypeOpt.get
+  override def dataType: DataType = {
+    dataTypeOpt match {
+      case Some(t) => t
+      case None => throw new TypeUndecidedError(id.name)
+    }
+  }
   override def dataTypeComposite = dataTypeOpt.get
   override def isNullable: Boolean = ifExpr.isDefined
   override def isNullableSwitchRaw: Boolean = isNullable
