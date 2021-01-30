@@ -60,6 +60,31 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     }
   }
 
+  /**
+    * Attempts to resolve a member (seq attribute, parameter, instance) by given name.
+    * @param inClass type specification to search member in
+    * @param attrName name of a member to search for
+    * @return member spec if found, or throws an exception
+    */
+  def resolveMember(inClass: ClassSpec, attrName: String): MemberSpec = {
+    inClass.seq.foreach { el =>
+      if (el.id == NamedIdentifier(attrName))
+        return el
+    }
+    inClass.params.foreach { el =>
+      if (el.id == NamedIdentifier(attrName))
+        return el
+    }
+    inClass.instances.get(InstanceIdentifier(attrName)) match {
+      case Some(i: ValueInstanceSpec) =>
+        return i
+      case Some(i: ParseInstanceSpec) =>
+        return i
+      case None => // do nothing
+    }
+    throw new FieldNotFoundError(attrName, inClass)
+  }
+
   override def resolveEnum(inType: Ast.typeId, enumName: String): EnumSpec =
     resolveEnum(resolveClassSpec(inType), enumName)
 
