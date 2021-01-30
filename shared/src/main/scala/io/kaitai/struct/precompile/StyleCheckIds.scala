@@ -3,7 +3,7 @@ import io.kaitai.struct.ClassTypeProvider
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{ClassSpec, ClassSpecs, MemberSpec}
+import io.kaitai.struct.format.{AttrSpec, ClassSpec, ClassSpecs, MemberSpec}
 import io.kaitai.struct.problems.{CompilationProblem, ProblemCoords, StyleWarningSizeLen}
 
 class StyleCheckIds(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileStep {
@@ -19,22 +19,25 @@ class StyleCheckIds(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileSt
   }
 
   def getSizeRefProblems(spec: ClassSpec): Iterable[CompilationProblem] = {
-    spec.seq.flatMap(attr =>
-      getSizeReference(spec, attr.dataType).flatMap(sizeRefAttr => {
-        val existingName = sizeRefAttr.id.humanReadable
-        val goodName = s"len_${attr.id.humanReadable}"
-        if (existingName != goodName) {
-          Some(StyleWarningSizeLen(
-            goodName,
-            existingName,
-            attr.id.humanReadable,
-            ProblemCoords(path = Some(sizeRefAttr.path ++ List("id")))
-          ))
-        } else {
-          None
-        }
-      })
-    )
+    spec.seq.flatMap(attr => getSizeRefProblem(spec, attr)) ++
+      spec.instances.flatMap { case (_, instance) => getSizeRefProblem(spec, instance) }
+  }
+
+  def getSizeRefProblem(spec: ClassSpec, attr: MemberSpec): Option[CompilationProblem] = {
+    getSizeReference(spec, attr.dataType).flatMap(sizeRefAttr => {
+      val existingName = sizeRefAttr.id.humanReadable
+      val goodName = s"len_${attr.id.humanReadable}"
+      if (existingName != goodName) {
+        Some(StyleWarningSizeLen(
+          goodName,
+          existingName,
+          attr.id.humanReadable,
+          ProblemCoords(path = Some(sizeRefAttr.path ++ List("id")))
+        ))
+      } else {
+        None
+      }
+    })
   }
 
   def getSizeReference(spec: ClassSpec, dataType: DataType): Option[MemberSpec] = {
