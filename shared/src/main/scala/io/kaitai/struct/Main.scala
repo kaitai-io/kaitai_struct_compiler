@@ -62,9 +62,12 @@ object Main {
     new CalculateSeqSizes(classSpecs).run()
     val typeValidatorProblems = new TypeValidator(classSpecs, topClass).run()
 
+    // Warnings
+    val styleWarnings = new StyleCheckIds(classSpecs, topClass).run()
+
     topClass.parentClass = GenericStructClassSpec
 
-    typeValidatorProblems
+    typeValidatorProblems ++ styleWarnings
   }
 
   /**

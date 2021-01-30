@@ -153,3 +153,10 @@ case class ParamMismatchError(idx: Int, argType: DataType, paramName: String, pa
     copy(fileName = Some(fileName))
   override def severity: ProblemSeverity = ProblemSeverity.Error
 }
+
+case class StyleWarningSizeLen(goodName: String, badName: String, becauseOfName: String, coords: ProblemCoords) extends CompilationProblem {
+  override def text = s"use `$goodName` instead of `$badName`, given that it's only used as a byte size of `$becauseOfName` (see https://doc.kaitai.io/ksy_style_guide.html#attr-id)"
+  override def localizedInFile(fileName: String): CompilationProblem =
+    copy(coords = coords.copy(file = Some(fileName)))
+  override def severity: ProblemSeverity = ProblemSeverity.Warning
+}
