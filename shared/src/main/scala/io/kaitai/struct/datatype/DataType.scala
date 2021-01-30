@@ -2,6 +2,7 @@ package io.kaitai.struct.datatype
 
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format._
+import io.kaitai.struct.problems.KSYParseError
 import io.kaitai.struct.translators.TypeDetector
 
 sealed trait DataType {
@@ -300,7 +301,7 @@ object DataType {
           case (None, false) =>
             Map()
           case (Some(_), true) =>
-            throw new YAMLParseException("can't have both `size` and `size-eos` defined", path)
+            throw KSYParseError("can't have both `size` and `size-eos` defined", path).toException
         }
       }
 
@@ -383,7 +384,7 @@ object DataType {
           val dtl = classNameToList(arglessType)
           if (arg.size.isEmpty && !arg.sizeEos && arg.terminator.isEmpty) {
             if (arg.process.isDefined)
-              throw new YAMLParseException(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path)
+              throw KSYParseError(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path).toException
             UserTypeInstream(dtl, arg.parent, args)
           } else {
             val bat = arg.getByteArrayType(path)
@@ -401,7 +402,7 @@ object DataType {
         r match {
           case numType: IntType => EnumType(classNameToList(enumName), numType)
           case _ =>
-            throw new YAMLParseException(s"tried to resolve non-integer $r to enum", path)
+            throw KSYParseError(s"tried to resolve non-integer $r to enum", path).toException
         }
       case None =>
         r
@@ -471,7 +472,7 @@ object DataType {
     curEncoding.orElse(metaDef.encoding) match {
       case Some(enc) => enc
       case None =>
-        throw new YAMLParseException("string type, but no encoding found", path)
+        throw KSYParseError("string type, but no encoding found", path).toException
     }
   }
 

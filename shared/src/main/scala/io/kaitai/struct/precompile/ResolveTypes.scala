@@ -2,8 +2,9 @@ package io.kaitai.struct.precompile
 
 import io.kaitai.struct.Log
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType.{EnumType, SwitchType, UserType, ArrayType}
+import io.kaitai.struct.datatype.DataType.{ArrayType, EnumType, SwitchType, UserType}
 import io.kaitai.struct.format._
+import io.kaitai.struct.problems.KSYParseError
 
 /**
   * A collection of methods that resolves user types and enum types, i.e.
@@ -43,7 +44,7 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
         et.enumSpec = resolveEnumSpec(curClass, et.name)
         if (et.enumSpec.isEmpty) {
           val err = new EnumNotFoundError(et.name.mkString("::"), curClass)
-          throw new YAMLParseException(err.getMessage, path)
+          throw KSYParseError.withText(err.getMessage, path)
         }
       case st: SwitchType =>
         st.cases.foreach { case (caseName, ut) =>
@@ -70,7 +71,7 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
         } else {
           // Opaque types are disabled => that is an error
           val err = new TypeNotFoundError(typeName.mkString("::"), curClass)
-          throw new YAMLParseException(err.getMessage, path)
+          throw KSYParseError.withText(err.getMessage, path)
         }
       case Some(x) =>
         Log.typeResolve.info(() => s"    => ${x.nameAsStr}")

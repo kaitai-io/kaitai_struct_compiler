@@ -1,9 +1,10 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec}
-import io.kaitai.struct.languages.{GoCompiler, RustCompiler, NimCompiler}
+import io.kaitai.struct.languages.{GoCompiler, NimCompiler, RustCompiler}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile._
+import io.kaitai.struct.problems.CompilationProblem
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -20,7 +21,7 @@ object Main {
     *         are complete; modifies given container by loading extra classes
     *         into it and modifying classes itself by precompilation step
     */
-  def importAndPrecompile(specs: ClassSpecs, config: RuntimeConfig): Future[Unit] = {
+  def importAndPrecompile(specs: ClassSpecs, config: RuntimeConfig): Future[Iterable[CompilationProblem]] = {
     new LoadImports(specs).processClass(specs.firstSpec, LoadImports.BasePath).map { (allSpecs) =>
       Log.importOps.info(() => s"imports done, got: ${specs.keys} (async=$allSpecs)")
 
@@ -34,9 +35,10 @@ object Main {
     *
     * @param specs [[ClassSpecs]] container with all types loaded into it
     * @param config runtime configuration to be passed to precompile steps
+    * @return a list of compilation problems encountered during precompilation steps
     */
-  def precompile(specs: ClassSpecs, config: RuntimeConfig): Unit = {
-    specs.foreach { case (_, classSpec) =>
+  def precompile(specs: ClassSpecs, config: RuntimeConfig): Iterable[CompilationProblem] = {
+    specs.flatMap { case (_, classSpec) =>
       precompile(specs, classSpec, config)
     }
   }
@@ -49,17 +51,20 @@ object Main {
     * @param classSpecs [[ClassSpecs]] container with all types loaded into it
     * @param topClass one top type to precompile
     * @param config runtime configuration to be passed to precompile steps
+    * @return a list of compilation problems encountered during precompilation steps
     */
-  def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Unit = {
+  def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Iterable[CompilationProblem] = {
     classSpecs.foreach { case (_, curClass) => MarkupClassNames.markupClassNames(curClass) }
     val opaqueTypes = topClass.meta.opaqueTypes.getOrElse(config.opaqueTypes)
     new ResolveTypes(classSpecs, opaqueTypes).run()
     new ParentTypes(classSpecs).run()
     new SpecsValueTypeDerive(classSpecs).run()
     new CalculateSeqSizes(classSpecs).run()
-    new TypeValidator(classSpecs, topClass).run()
+    val typeValidatorProblems = new TypeValidator(classSpecs, topClass).run()
 
     topClass.parentClass = GenericStructClassSpec
+
+    typeValidatorProblems
   }
 
   /**

@@ -3,6 +3,7 @@ package io.kaitai.struct.format
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.problems.KSYParseError
 
 import scala.collection.mutable
 
@@ -72,12 +73,29 @@ case class ClassSpec(
   /**
     * Recursively traverses tree of types starting from this type, calling
     * certain function for every type, starting from this one.
+    *
+    * @param proc function to execute on every encountered type.
     */
   def forEachRec(proc: (ClassSpec) => Unit): Unit = {
     proc.apply(this)
     types.foreach { case (_, typeSpec) =>
       typeSpec.forEachRec(proc)
     }
+  }
+
+  /**
+    * Recursively traverses tree of types starting from this type, calling
+    * certain function for every type, starting from this one.
+    *
+    * @param proc function to execute on every encountered type.
+    * @tparam R mandates that function must return a list of this type.
+    */
+  def mapRec[R](proc: (ClassSpec) => Iterable[R]): Iterable[R] = {
+    val r1 = proc.apply(this)
+    val r2 = types.flatMap { case (_, typeSpec) =>
+      typeSpec.mapRec(proc)
+    }
+    r1 ++ r2
   }
 
   override def equals(obj: Any): Boolean = obj match {
@@ -154,7 +172,7 @@ object ClassSpec {
     if (path.isEmpty) {
       explicitMeta.id match {
         case None =>
-          throw new YAMLParseException("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
+          throw KSYParseError.withText("no `meta/id` encountered in top-level class spec", path ++ List("meta", "id"))
         case Some(id) =>
           cs.name = List(id)
       }
@@ -172,7 +190,7 @@ object ClassSpec {
         // FIXME: checkDupSeqIds(params)
         params
       case unknown =>
-        throw new YAMLParseException(s"expected array, found $unknown", path)
+        throw KSYParseError.withText(s"expected array, found $unknown", path)
     }
   }
 
@@ -185,7 +203,7 @@ object ClassSpec {
         checkDupSeqIds(seq)
         seq
       case unknown =>
-        throw new YAMLParseException(s"expected array, found $unknown", path)
+        throw KSYParseError.withText(s"expected array, found $unknown", path)
     }
   }
 
@@ -215,7 +233,7 @@ object ClassSpec {
   private def checkDupId(prevAttrOpt: Option[AttrSpec], id: String, nowAttr: YAMLPath) {
     prevAttrOpt match {
       case Some(prevAttr) =>
-        throw new YAMLParseException(
+        throw KSYParseError.withText(
           s"duplicate attribute ID '$id', previously defined at /${prevAttr.pathStr}",
           nowAttr.path
         )

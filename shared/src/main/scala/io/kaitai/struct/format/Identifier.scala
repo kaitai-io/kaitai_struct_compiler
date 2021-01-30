@@ -1,6 +1,7 @@
 package io.kaitai.struct.format
 
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.problems.KSYParseError
 
 /**
   * Common abstract container for all identifiers that Kaitai Struct deals with.
@@ -70,7 +71,7 @@ object Identifier {
       case ReIdentifier() =>
         // name is valid, everything's fine
       case _ =>
-        throw YAMLParseException.invalidId(id, entity, path)
+        throw KSYParseError.invalidId(id, entity, path)
     }
   }
 

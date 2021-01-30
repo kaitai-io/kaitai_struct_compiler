@@ -3,14 +3,13 @@ package io.kaitai.struct
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
 import java.net.URLDecoder
-
 import io.kaitai.struct.CompileLog._
 import io.kaitai.struct.JavaMain.CLIConfig
-import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion}
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
-import io.kaitai.struct.precompile.{ErrorInInput, YAMLParserError}
+import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException, ErrorInInput}
 
 object JavaMain {
   KSVersion.current = Version.version
@@ -281,21 +280,27 @@ class JavaMain(config: CLIConfig) {
 
   private def compileOneInput(srcFile: String) = {
     Log.fileOps.info(() => s"parsing $srcFile...")
-    val specs = JavaKSYParser.localFileToSpecs(srcFile, config)
+    val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(srcFile, config)
 
-    val output: Map[String, Map[String, SpecEntry]] = config.targets match {
-      case Seq(lang) =>
-        // single target, just use target directory as is
-        val out = compileOneLang(specs, lang, config.outDir.toString)
-        Map(lang -> out)
-      case _ =>
-        // multiple targets, use additional directories
-        compileAllLangs(specs, config)
+    specsOpt match {
+      case Some(specs) =>
+        val output: Map[String, Map[String, SpecEntry]] = config.targets match {
+          case Seq(lang) =>
+            // single target, just use target directory as is
+            val out = compileOneLang(specs, lang, config.outDir.toString)
+            Map(lang -> out)
+          case _ =>
+            // multiple targets, use additional directories
+            compileAllLangs(specs, config)
+        }
+        InputSuccess(
+          specs.firstSpec.nameAsStr,
+          output,
+          precompileProblems
+        )
+      case None =>
+        InputFailure(precompileProblems)
     }
-    InputSuccess(
-      specs.firstSpec.nameAsStr,
-      output
-    )
   }
 
   def compileAllLangs(specs: ClassSpecs, config: CLIConfig): Map[String, Map[String, SpecEntry]] = {
@@ -358,24 +363,16 @@ class JavaMain(config: CLIConfig) {
     res
   }
 
-  private def exceptionToCompileError(ex: Throwable, srcFile: String): CompileError = {
+  private def exceptionToCompileError(ex: Throwable, srcFile: String): CompilationProblem = {
     if (!config.jsonOutput)
       Console.err.println(ex.getMessage)
+
     ex match {
-      case ype: YAMLParseException =>
-        CompileError(srcFile, ype.path, None, None, ype.msg)
-      case e: ErrorInInput =>
-        val file = e.file.getOrElse(srcFile)
-        val msg = Option(e.getCause) match {
-          case Some(cause) => cause.getMessage
-          case None => e.getMessage
-        }
-        CompileError(file, e.path, None, None, msg)
-      case ypr: YAMLParserError =>
-        val file = ypr.file.getOrElse(srcFile)
-        CompileError(file, List(), ypr.line, ypr.col, ypr.msg)
+      case cpe: CompilationProblemException =>
+        cpe.problem
       case _ =>
-        CompileError(srcFile, List(), None, None, ex.getMessage)
+        // TODO: have a dedicated class instead of ErrorInInput
+        ErrorInInput(ex, List(), Some(srcFile))
     }
   }
 }

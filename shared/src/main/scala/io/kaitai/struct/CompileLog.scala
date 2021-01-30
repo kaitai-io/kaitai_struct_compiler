@@ -1,5 +1,7 @@
 package io.kaitai.struct
 
+import io.kaitai.struct.problems.CompilationProblem
+
 /**
   * Namespace for all the objects related to compilation results.
   */
@@ -10,14 +12,15 @@ object CompileLog {
 
   sealed trait InputEntry extends Jsonable with CanHasErrors
 
-  case class InputFailure(errors: List[CompileError]) extends InputEntry {
+  case class InputFailure(errors: Iterable[CompilationProblem]) extends InputEntry {
     override def toJson: String = JSON.mapToJson(Map("errors" -> errors))
     override def hasErrors = true
   }
 
   case class InputSuccess(
     firstSpecName: String,
-    output: Map[String, Map[String, SpecEntry]]
+    output: Map[String, Map[String, SpecEntry]],
+    problems: Iterable[CompilationProblem]
   ) extends InputEntry {
     override def toJson: String = JSON.mapToJson(Map(
       "firstSpecName" -> firstSpecName,
@@ -31,7 +34,7 @@ object CompileLog {
   /** Compilation result of a single [[io.kaitai.struct.format.ClassSpec]] into a single target language. */
   sealed trait SpecEntry extends Jsonable with CanHasErrors
 
-  case class SpecFailure(errors: List[CompileError]) extends SpecEntry {
+  case class SpecFailure(errors: List[CompilationProblem]) extends SpecEntry {
     override def toJson: String = JSON.mapToJson(Map("errors" -> errors))
     override def hasErrors: Boolean = true
   }
@@ -53,27 +56,5 @@ object CompileLog {
   ) extends Jsonable {
     override def toString = s"FileSuccess(fileName=$fileName)"
     override def toJson: String = JSON.mapToJson(Map("fileName" -> fileName))
-  }
-
-  case class CompileError(
-    file: String,
-    path: List[String],
-    line: Option[Int],
-    col: Option[Int],
-    message: String
-  ) extends Jsonable {
-    override def toJson: String = {
-      val result = Seq(
-        "file" -> file,
-        "message" -> message
-      ) ++ (if (path.nonEmpty) {
-        Seq("path" -> path)
-      } else {
-        Seq()
-      }) ++
-        line.map(lineVal => "line" -> lineVal) ++
-        col.map(colVal => "col" -> colVal)
-      JSON.mapToJson(result.toMap)
-    }
   }
 }

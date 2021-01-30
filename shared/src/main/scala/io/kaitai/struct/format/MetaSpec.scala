@@ -1,6 +1,7 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.datatype.{CalcEndian, Endianness, BitEndianness, InheritedEndian}
+import io.kaitai.struct.datatype.{BitEndianness, CalcEndian, Endianness, InheritedEndian}
+import io.kaitai.struct.problems.KSYParseError
 
 case class MetaSpec(
   path: List[String],
@@ -88,7 +89,7 @@ object MetaSpec {
     ParseUtils.getOptValueStr(srcMap, "ks-version", path).foreach { (verStr) =>
       val ver = KSVersion.fromStr(verStr)
       if (ver > KSVersion.current)
-        throw YAMLParseException.incompatibleVersion(ver, KSVersion.current, path)
+        throw KSYParseError.incompatibleVersion(ver, KSVersion.current, path)
     }
 
     val endian: Option[Endianness] = Endianness.fromYaml(srcMap.get("endian"), path)

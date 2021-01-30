@@ -1,8 +1,6 @@
 package io.kaitai.struct.datatype
 
-import io.kaitai.struct.datatype.DataType.SwitchType
-import io.kaitai.struct.exprlang.{Ast, Expressions}
-import io.kaitai.struct.format.{ParseUtils, YAMLParseException}
+import io.kaitai.struct.problems.KSYParseError
 
 sealed abstract class BitEndianness {
   def toSuffix: String
@@ -21,10 +19,10 @@ object BitEndianness {
       case Some("le") => Some(LittleBitEndian)
       case Some("be") => Some(BigBitEndian)
       case Some(s) =>
-        throw new YAMLParseException(
+        throw KSYParseError(
           s"unable to parse bit endianness: expected `le` or `be`, found $s",
           path ++ List("bit-endian")
-        )
+        ).toException
     }
   }
 

@@ -1,5 +1,7 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.problems.KSYParseError
+
 case class EnumValueSpec(name: String, doc: DocSpec)
 
 object EnumValueSpec {
@@ -12,7 +14,7 @@ object EnumValueSpec {
       case srcMap: Map[Any, Any] =>
         fromMap(ParseUtils.anyMapToStrMap(srcMap, path), path)
       case _ =>
-        throw YAMLParseException.badType("string or map", src, path)
+        throw KSYParseError.badType("string or map", src, path)
     }
   }
 
