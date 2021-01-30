@@ -48,7 +48,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
         }
         inClass.instances.get(InstanceIdentifier(attrName)) match {
           case Some(i: ValueInstanceSpec) =>
-            val dt = i.dataType match {
+            val dt = i.dataTypeOpt match {
               case Some(t) => t
               case None => throw new TypeUndecidedError(attrName)
             }

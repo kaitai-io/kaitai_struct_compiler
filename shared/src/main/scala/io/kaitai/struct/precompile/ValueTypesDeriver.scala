@@ -22,11 +22,11 @@ class ValueTypesDeriver(specs: ClassSpecs, topClass: ClassSpec) {
       case (instName, inst) =>
         inst match {
           case vi: ValueInstanceSpec =>
-            vi.dataType match {
+            vi.dataTypeOpt match {
               case None =>
                 try {
                   val viType = detector.detectType(vi.value)
-                  vi.dataType = Some(viType)
+                  vi.dataTypeOpt = Some(viType)
                   Log.typeProcValue.info(() => s"${instName.name} derived type: $viType")
                   hasChanged = true
                 } catch {

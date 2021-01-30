@@ -3,19 +3,22 @@ package io.kaitai.struct.format
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 
-sealed abstract class InstanceSpec(val doc: DocSpec) extends YAMLPath {
+sealed abstract class InstanceSpec(val doc: DocSpec) extends MemberSpec {
   def dataTypeComposite: DataType
   def isNullable: Boolean
 }
 case class ValueInstanceSpec(
+  id: InstanceIdentifier,
   path: List[String],
   private val _doc: DocSpec,
   value: Ast.expr,
   ifExpr: Option[Ast.expr],
-  var dataType: Option[DataType]
+  var dataTypeOpt: Option[DataType]
 ) extends InstanceSpec(_doc) {
-  override def dataTypeComposite = dataType.get
+  override def dataType: DataType = dataTypeOpt.get
+  override def dataTypeComposite = dataTypeOpt.get
   override def isNullable: Boolean = ifExpr.isDefined
+  override def isNullableSwitchRaw: Boolean = isNullable
 }
 case class ParseInstanceSpec(
   id: InstanceIdentifier,
@@ -58,6 +61,7 @@ object InstanceSpec {
         val ifExpr = ParseUtils.getOptValueExpression(srcMap, "if", path)
 
         ValueInstanceSpec(
+          id,
           path,
           DocSpec.fromYaml(srcMap, path),
           value2,
