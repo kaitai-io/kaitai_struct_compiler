@@ -91,10 +91,17 @@ class StyleCheckIds(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileSt
   }
 
   def getDirectAttrReference(spec: ClassSpec, expr: Ast.expr): Option[MemberSpec] = {
-    expr match {
-      case Ast.expr.Name(attrId) =>
-        Some(provider.resolveMember(spec, attrId.name))
-      case _ =>
+    try {
+      expr match {
+        case Ast.expr.Name(attrId) =>
+          Some(provider.resolveMember(spec, attrId.name))
+        case _ =>
+          None
+      }
+    } catch {
+      case _: InvalidIdentifier | _: FieldNotFoundError =>
+        // if this is indeed an error, we have checked that and reported on precompile error check stages
+        // no need to investigate a warning anymore
         None
     }
   }
