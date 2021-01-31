@@ -305,12 +305,12 @@ class JavaMain(config: CLIConfig) {
 
   def compileAllLangs(specs: ClassSpecs, config: CLIConfig): Map[String, Map[String, SpecEntry]] = {
     config.targets.map { langStr =>
-      langStr match {
+      langStr -> (langStr match {
         case "go" | "java" =>
-          langStr -> compileOneLang(specs, langStr, s"${config.outDir}/${langStr}/src")
+          compileOneLang(specs, langStr, s"${config.outDir}/${langStr}/src")
         case _ =>
-          langStr -> compileOneLang(specs, langStr, s"${config.outDir}/${langStr}")
-      }
+          compileOneLang(specs, langStr, s"${config.outDir}/${langStr}")
+      })
     }.toMap
   }
 
