@@ -154,16 +154,33 @@ case class ParamMismatchError(idx: Int, argType: DataType, paramName: String, pa
   override def severity: ProblemSeverity = ProblemSeverity.Error
 }
 
-case class StyleWarningSizeLen(goodName: String, badName: String, becauseOfName: String, coords: ProblemCoords) extends CompilationProblem {
-  override def text = s"use `$goodName` instead of `$badName`, given that it's only used as a byte size of `$becauseOfName` (see https://doc.kaitai.io/ksy_style_guide.html#attr-id)"
-  override def localizedInFile(fileName: String): CompilationProblem =
-    copy(coords = coords.copy(file = Some(fileName)))
+abstract class StyleWarning(val coords: ProblemCoords) extends CompilationProblem {
+  /**
+    * @return main warning text, without references to the style guide
+    */
+  def warningText: String
+
+  /**
+    * @return reference to a particular anchor in a KSY style guide (without "#" and full URL prepending that)
+    */
+  def styleGuideAnchor: String
+
   override def severity: ProblemSeverity = ProblemSeverity.Warning
+  override def text = s"$warningText (see https://doc.kaitai.io/ksy_style_guide.html#$styleGuideAnchor)"
 }
 
-case class StyleWarningRepeatExprNum(goodName: String, badName: String, becauseOfName: String, coords: ProblemCoords) extends CompilationProblem {
-  override def text = s"use `$goodName` instead of `$badName`, given that it's only used as repeat count of `$becauseOfName` (see https://doc.kaitai.io/ksy_style_guide.html#attr-id)"
+case class StyleWarningSizeLen(goodName: String, badName: String, becauseOfName: String, override val coords: ProblemCoords) extends StyleWarning(coords) {
+  override def warningText = s"use `$goodName` instead of `$badName`, given that it's only used as a byte size of `$becauseOfName`"
+  override def styleGuideAnchor = "attr-id"
+
   override def localizedInFile(fileName: String): CompilationProblem =
     copy(coords = coords.copy(file = Some(fileName)))
-  override def severity: ProblemSeverity = ProblemSeverity.Warning
+}
+
+case class StyleWarningRepeatExprNum(goodName: String, badName: String, becauseOfName: String, override val coords: ProblemCoords) extends StyleWarning(coords) {
+  override def warningText = s"use `$goodName` instead of `$badName`, given that it's only used as repeat count of `$becauseOfName`"
+  override def styleGuideAnchor = "attr-id"
+
+  override def localizedInFile(fileName: String): CompilationProblem =
+    copy(coords = coords.copy(file = Some(fileName)))
 }
