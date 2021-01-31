@@ -3,8 +3,8 @@ import io.kaitai.struct.ClassTypeProvider
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{AttrSpec, ClassSpec, ClassSpecs, MemberSpec}
-import io.kaitai.struct.problems.{CompilationProblem, ProblemCoords, StyleWarningSizeLen}
+import io.kaitai.struct.format._
+import io.kaitai.struct.problems._
 
 class StyleCheckIds(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileStep {
   val provider = new ClassTypeProvider(specs, topClass)
@@ -15,12 +15,25 @@ class StyleCheckIds(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileSt
   def processType(spec: ClassSpec): Iterable[CompilationProblem] = {
     provider.nowClass = spec
     val sizeRefProblems = getSizeRefProblems(spec)
-    sizeRefProblems
+    val repeatExprRefProblems = getRepeatExprRefProblems(spec)
+    sizeRefProblems ++ repeatExprRefProblems
   }
 
   def getSizeRefProblems(spec: ClassSpec): Iterable[CompilationProblem] = {
     spec.seq.flatMap(attr => getSizeRefProblem(spec, attr)) ++
       spec.instances.flatMap { case (_, instance) => getSizeRefProblem(spec, instance) }
+  }
+
+  def getRepeatExprRefProblems(spec: ClassSpec): Iterable[CompilationProblem] = {
+    spec.seq.flatMap(attr => getRepeatExprRefProblem(spec, attr)) ++
+      spec.instances.flatMap { case (_, instance) =>
+        instance match {
+          case pis: ParseInstanceSpec =>
+            getRepeatExprRefProblem(spec, pis)
+          case _: ValueInstanceSpec =>
+            None
+        }
+      }
   }
 
   def getSizeRefProblem(spec: ClassSpec, attr: MemberSpec): Option[CompilationProblem] = {
@@ -40,12 +53,38 @@ class StyleCheckIds(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileSt
     })
   }
 
+  def getRepeatExprRefProblem(spec: ClassSpec, attr: AttrLikeSpec): Option[CompilationProblem] = {
+    getRepeatExprReference(spec, attr).flatMap(repeatExprRefAttr => {
+      val existingName = repeatExprRefAttr.id.humanReadable
+      val goodName = s"num_${attr.id.humanReadable}"
+      if (existingName != goodName) {
+        Some(StyleWarningRepeatExprNum(
+          goodName,
+          existingName,
+          attr.id.humanReadable,
+          ProblemCoords(path = Some(repeatExprRefAttr.path ++ List("id")))
+        ))
+      } else {
+        None
+      }
+    })
+  }
+
   def getSizeReference(spec: ClassSpec, dataType: DataType): Option[MemberSpec] = {
     dataType match {
       case blt: BytesLimitType =>
         getDirectAttrReference(spec, blt.size)
       case ult: UserTypeFromBytes =>
         getSizeReference(spec, ult.bytes)
+      case _ =>
+        None
+    }
+  }
+
+  def getRepeatExprReference(spec: ClassSpec, attr: AttrLikeSpec): Option[MemberSpec] = {
+    attr.cond.repeat match {
+      case RepeatExpr(expr) =>
+        getDirectAttrReference(spec, expr)
       case _ =>
         None
     }
