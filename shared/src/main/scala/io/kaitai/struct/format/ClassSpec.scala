@@ -28,6 +28,7 @@ case object StartedCalculationSized extends Sized
 case class FixedSized(n: Int) extends Sized
 
 case class ClassSpec(
+  fileName: Option[String],
   path: List[String],
   isTopLevel: Boolean,
   meta: MetaSpec,
@@ -127,7 +128,7 @@ object ClassSpec {
     "enums"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaSpec): ClassSpec = {
+  def fromYaml(src: Any, fileName: Option[String], path: List[String], metaDef: MetaSpec): ClassSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
@@ -148,7 +149,7 @@ object ClassSpec {
       case None => List()
     }
     val types: Map[String, ClassSpec] = srcMap.get("types") match {
-      case Some(value) => typesFromYaml(value, path ++ List("types"), meta)
+      case Some(value) => typesFromYaml(value, fileName, path ++ List("types"), meta)
       case None => Map()
     }
     val instances: Map[InstanceIdentifier, InstanceSpec] = srcMap.get("instances") match {
@@ -163,7 +164,7 @@ object ClassSpec {
     checkDupSeqInstIds(seq, instances)
 
     val cs = ClassSpec(
-      path, path.isEmpty,
+      fileName, path, path.isEmpty,
       meta, doc, toStringExpr,
       params, seq, types, instances, enums
     )
@@ -242,11 +243,11 @@ object ClassSpec {
     }
   }
 
-  def typesFromYaml(src: Any, path: List[String], metaDef: MetaSpec): Map[String, ClassSpec] = {
+  def typesFromYaml(src: Any, fileName: Option[String], path: List[String], metaDef: MetaSpec): Map[String, ClassSpec] = {
     val srcMap = ParseUtils.asMapStr(src, path)
     srcMap.map { case (typeName, body) =>
       Identifier.checkIdentifierSource(typeName, "type", path ++ List(typeName))
-      typeName -> ClassSpec.fromYaml(body, path ++ List(typeName), metaDef)
+      typeName -> ClassSpec.fromYaml(body, fileName, path ++ List(typeName), metaDef)
     }
   }
 
@@ -269,12 +270,13 @@ object ClassSpec {
     }
   }
 
-  def fromYaml(src: Any): ClassSpec = fromYaml(src, List(), MetaSpec.OPAQUE)
+  def fromYaml(src: Any, fileName: Option[String]): ClassSpec = fromYaml(src, fileName, List(), MetaSpec.OPAQUE)
 
   def opaquePlaceholder(typeName: List[String]): ClassSpec = {
     val placeholder = ClassSpec(
-      List(),
-      true,
+      fileName = None,
+      path = List(),
+      isTopLevel = true,
       meta = MetaSpec.OPAQUE,
       doc = DocSpec.EMPTY,
       toStringExpr = None,

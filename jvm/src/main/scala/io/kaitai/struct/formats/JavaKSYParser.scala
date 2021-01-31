@@ -49,7 +49,7 @@ object JavaKSYParser {
     val br = new BufferedReader(isr)
     try {
       val scalaSrc = readerToYaml(br)
-      ClassSpec.fromYaml(scalaSrc)
+      ClassSpec.fromYaml(scalaSrc, Some(yamlFilename))
     } catch {
       case marked: MarkedYAMLException =>
         val mark = marked.getProblemMark

@@ -15,7 +15,7 @@ object JavaScriptKSYParser {
     */
   def yamlToSpecs(yaml: Any, importer: JavaScriptImporter, config: RuntimeConfig): Future[ClassSpecs] = {
     val yamlScala = yamlJavascriptToScala(yaml)
-    val firstSpec = ClassSpec.fromYaml(yamlScala)
+    val firstSpec = ClassSpec.fromYaml(yamlScala, None)
     val specs = new JavaScriptClassSpecs(importer, firstSpec)
     Main.importAndPrecompile(specs, config).map((_) => specs)
   }
