@@ -4,7 +4,7 @@ import fastparse.StringReprOps
 import io.kaitai.struct.{JSON, Jsonable, Utils}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Expressions
-import io.kaitai.struct.format.{Identifier, KSVersion}
+import io.kaitai.struct.format.{ClassSpec, Identifier, KSVersion}
 
 /**
   * Abstract top-level trait common to all problems which might be raised during
@@ -16,6 +16,17 @@ sealed abstract class CompilationProblem extends Jsonable {
   def text: String
   def message = s"${coords.message}: ${severity.message}: $text"
   def localizedInFile(fileName: String): CompilationProblem
+
+  /**
+    * @param typeSpec type spec this problem is firing about
+    * @return copy of exception with problem localized to a file containing specific type, if necessary
+    */
+  def localizedInType(typeSpec: ClassSpec): CompilationProblem = {
+    coords.file match {
+      case Some(_) => this
+      case None => localizedInFile(typeSpec.fileNameAsStr)
+    }
+  }
 
   def toException = CompilationProblemException(this)
 

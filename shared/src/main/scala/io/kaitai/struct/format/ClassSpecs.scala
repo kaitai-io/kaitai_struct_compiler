@@ -1,6 +1,6 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.problems.CompilationProblem
+import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException}
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -29,11 +29,12 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
     */
   def forEachTopLevel[R](proc: (String, ClassSpec) => Unit): Unit = {
     foreach { case (specName, typeSpec) =>
-//      try {
+      try {
         proc(specName, typeSpec)
-//      } catch {
-        // TODO: try to emit more specific error, with a reference to current file
-//      }
+      } catch {
+        case cpe: CompilationProblemException =>
+          throw cpe.localizedInType(typeSpec)
+      }
     }
   }
 
@@ -54,7 +55,7 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
     */
   def mapTopLevel(proc: (String, ClassSpec) => Iterable[CompilationProblem]): Iterable[CompilationProblem] = {
     flatMap { case (specName, typeSpec) =>
-      proc(specName, typeSpec).map(problem => problem.localizedInFile(specName))
+      proc(specName, typeSpec).map(problem => problem.localizedInType(typeSpec))
     }
   }
 

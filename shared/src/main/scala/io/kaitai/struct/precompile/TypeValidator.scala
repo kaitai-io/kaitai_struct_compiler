@@ -27,7 +27,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileSt
   def run(): Iterable[CompilationProblem] = specs.mapTopLevel { (specName, curClass) =>
     Log.typeValid.info(() => s"validating top level class '$specName'")
     provider.topClass = curClass
-    curClass.mapRec(validateClass).map(problem => problem.localizedInFile(specName))
+    curClass.mapRec(validateClass).map(problem => problem.localizedInType(curClass))
   }
 
   /**

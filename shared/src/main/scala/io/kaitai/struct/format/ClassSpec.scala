@@ -53,7 +53,13 @@ case class ClassSpec(
     * @return Absolute name of class as string, components separated by
     *         double colon operator `::`
     */
-  def nameAsStr = name.mkString("::")
+  def nameAsStr: String = name.mkString("::")
+
+  /**
+    * @return Name of the file this type originates from, or, worst case,
+    *         if filename is unknown, name of the type.
+    */
+  def fileNameAsStr: String = fileName.getOrElse(nameAsStr)
 
   /**
     * The class specification that this class is nested into, if it exists.
