@@ -1,6 +1,6 @@
 root = true
 
-[*.scala,*.json,*.sbt,*.md,*.yml]
+[*.{scala,json,sbt,md,yml}]
 charset = utf-8
 end_of_line = lf
 indent_size = 2
