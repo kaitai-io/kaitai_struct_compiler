@@ -22,7 +22,7 @@ case class ValueInstanceSpec(
       case None => throw new TypeUndecidedError(id.name)
     }
   }
-  override def dataTypeComposite = dataTypeOpt.get
+  override def dataTypeComposite = dataType
   override def isNullable: Boolean = ifExpr.isDefined
   override def isNullableSwitchRaw: Boolean = isNullable
 }
