@@ -41,8 +41,8 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     outHeader.puts(s"#pragma warning disable IDE1006 // Naming rule violation: Prefix 'M_' is not expected")
     outHeader.puts(s"#pragma warning disable IDE0044 // Make field readonly")
     outHeader.puts(s"#pragma warning disable CA1819 // Properties should not return arrays")
-    outHeader.puts(s"#pragma warning disable IDE0060 // Remove unused parameter") 
-    outHeader.puts(s"#pragma warning disable CA1801 // Remove the parameter or use it in the method body") 
+    outHeader.puts(s"#pragma warning disable IDE0060 // Remove unused parameter")
+    outHeader.puts(s"#pragma warning disable CA1801 // Remove the parameter or use it in the method body")
     outHeader.puts
     outHeader.puts(s"#nullable disable")
     outHeader.puts
@@ -89,7 +89,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
 
   override def classFooter(name: String): Unit = fileFooter(name)
 
-  
+
   private var _className: String = null
 
   override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
@@ -197,7 +197,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
 
       out.puts("/// <summary>")
       out.putsLines("/// ", XMLUtils.escape(restLine))
-      out.puts("/// </summary>")     
+      out.puts("/// </summary>")
     }
 
     doc.ref.foreach { docRef =>
@@ -437,6 +437,55 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
   //<editor-fold desc="switching: true version">
 
   val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
+
+  override def switchCasesRender[T](
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, T],
+    normalCaseProc: (T) => Unit,
+    elseCaseProc: (T) => Unit
+  ): Unit = {
+    switchStart(id, on)
+
+    // Pass 1: only normal case clauses
+    var first = true
+
+    cases.foreach { case (condition, result) =>
+      condition match {
+        case SwitchType.ELSE_CONST =>
+        // skip for now
+        case _ =>
+          if (first) {
+            switchCaseFirstStart(condition)
+            first = false
+          } else {
+            switchCaseStart(condition)
+          }
+          normalCaseProc(result)
+          switchCaseEnd()
+      }
+    }
+
+    // Pass 2: else clause, if it is there
+    cases.get(SwitchType.ELSE_CONST) match {
+      case Some(result) => {
+        switchElseStart()
+        elseCaseProc(result)
+        switchElseEnd()
+      }
+      case None =>{
+        switchElseStart()
+        out.puts(s"""throw new InvalidOperationException("Default switch branch hit in \\"${id.humanReadable}\\"")""");
+        switchElseEnd()
+
+        // TODO signaling error from compiler would be best but cannot be done yet
+        // https://github.com/kaitai-io/kaitai_struct/issues/208
+        // throw new RuntimeException(s"Switch default must be explicitly defined (${id.humanReadable}).")
+      }
+    }
+
+    switchEnd()
+  }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
     out.puts(s"switch (${expression(on)}) {")
