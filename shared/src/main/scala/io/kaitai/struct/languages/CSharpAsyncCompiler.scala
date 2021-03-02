@@ -297,7 +297,14 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     out.inc
   }
 
-  override def condIfFooter(expr: expr): Unit = fileFooter(null)
+  override def condIfFooter(expr: expr): Unit = {
+    out.puts("}")
+    out.puts("else {")
+    out.inc
+    out.puts(s"""throw new InvalidOperationException("Else branch hit on condition \\"${expr}\\"")""");
+    out.dec
+    out.puts("}")
+  }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
     importList.add("System.Collections.Generic")
