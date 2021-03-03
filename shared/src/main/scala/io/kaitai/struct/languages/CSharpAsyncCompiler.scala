@@ -301,7 +301,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     out.puts("}")
     out.puts("else {")
     out.inc
-    out.puts(s"""throw new InvalidOperationException("Else branch hit on condition \\"${expr}\\"")""");
+    out.puts(s"""throw new InvalidOperationException("Else branch hit on condition \\"${expr}\\"");""");
     out.dec
     out.puts("}")
   }
@@ -482,7 +482,7 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
       }
       case None =>{
         switchElseStart()
-        out.puts(s"""throw new InvalidOperationException("Default switch branch hit in \\"${id.humanReadable}\\"")""");
+        out.puts(s"""throw new InvalidOperationException("Default switch branch hit in \\"${id.humanReadable}\\"");""");
         switchElseEnd()
 
         // TODO signaling error from compiler would be best but cannot be done yet
