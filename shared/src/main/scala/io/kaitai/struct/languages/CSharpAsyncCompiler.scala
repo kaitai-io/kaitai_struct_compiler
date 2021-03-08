@@ -298,8 +298,10 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
   }
 
   override def condIfFooter(expr: expr): Unit = {
+    out.dec
     out.puts("}")
-    out.puts("else {")
+    out.puts("else")
+    out.puts("{")
     out.inc
     out.puts(s"""throw new InvalidOperationException("Else branch hit on condition \\"${expr}\\"");""");
     out.dec
