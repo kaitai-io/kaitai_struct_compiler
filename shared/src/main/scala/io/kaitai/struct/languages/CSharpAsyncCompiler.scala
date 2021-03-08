@@ -297,7 +297,9 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     out.inc
   }
 
-  override def condIfFooter(expr: expr): Unit = {
+  override def condIfFooter(expr: expr): Unit = fileFooter(null)
+
+  override def condIfFooterWithErrorSignalingElse(expr: expr): Unit = {
     out.dec
     out.puts("}")
     out.puts("else")
@@ -678,6 +680,68 @@ class CSharpAsyncCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCo
     out.puts(s"throw new $errName($errArgsStr);")
     out.dec
     out.puts("}")
+  }
+
+  // based on CommonReads.attrParse
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
+    attrParseIfHeader(id, attr.cond.ifExpr)
+
+    // Manage IO & seeking for ParseInstances
+    val io = attr match {
+      case pis: ParseInstanceSpec =>
+        val io = pis.io match {
+          case None => normalIO
+          case Some(ex) => useIO(ex)
+        }
+        pis.pos.foreach { pos =>
+          pushPos(io)
+          seek(io, pos)
+        }
+        io
+      case _ =>
+        // no seeking required for sequence attributes
+        normalIO
+    }
+
+    if (config.readStoresPos)
+      attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
+
+    defEndian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        attrParseHybrid(
+          () => attrParse0(id, attr, io, Some(LittleEndian)),
+          () => attrParse0(id, attr, io, Some(BigEndian))
+        )
+      case None =>
+        attrParse0(id, attr, io, None)
+      case Some(fe: FixedEndian) =>
+        attrParse0(id, attr, io, Some(fe))
+    }
+
+    if (config.readStoresPos)
+      attrDebugEnd(id, attr.dataType, io, NoRepeat)
+
+    // More position management + set calculated flag after parsing for ParseInstanceSpecs
+    attr match {
+      case pis: ParseInstanceSpec =>
+        // Restore position, if applicable
+        if (pis.pos.isDefined)
+          popPos(io)
+
+        // Mark parse instance as calculated
+        instanceSetCalculated(pis.id)
+      case _ => // no seeking required for sequence attributes
+    }
+
+    // Run validations (still inside "if", if applicable)
+    attrValidateAll(attr)
+
+    attr match {
+      // close if for parse instances
+      case pis: ParseInstanceSpec => attrParseIfFooter(attr.cond.ifExpr)
+      // signal error everywhere else in case that condition is not true
+      case _ => attrParseIfFooterWithErrorSignalingElse(attr.cond.ifExpr)
+    }
   }
 }
 

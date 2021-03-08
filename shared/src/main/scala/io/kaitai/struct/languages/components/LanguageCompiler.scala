@@ -103,6 +103,9 @@ abstract class LanguageCompiler(
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter(expr: Ast.expr): Unit
 
+  // allows generating footer that signals error
+  def condIfFooterWithErrorSignalingElse(expr: Ast.expr): Unit = condIfFooter(expr)
+
   def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit
   def condRepeatEosFooter: Unit
 
@@ -154,6 +157,13 @@ abstract class LanguageCompiler(
   def attrParseIfFooter(ifExpr: Option[Ast.expr]): Unit = {
     ifExpr match {
       case Some(e) => condIfFooter(e)
+      case None => // ignore
+    }
+  }
+
+  def attrParseIfFooterWithErrorSignalingElse(ifExpr: Option[Ast.expr]): Unit = {
+    ifExpr match {
+      case Some(e) => condIfFooterWithErrorSignalingElse(e)
       case None => // ignore
     }
   }
