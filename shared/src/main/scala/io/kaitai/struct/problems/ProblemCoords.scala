@@ -29,7 +29,7 @@ case class ProblemCoords(
     Seq("file" -> ProblemCoords.formatFileName(file)) ++
       line.map(lineVal => "line" -> lineVal) ++
       col.map(colVal => "col" -> colVal) ++
-      path.map(pathVal => "path" -> path)
+      path.map(pathVal => "path" -> pathVal)
   }
 }
 
