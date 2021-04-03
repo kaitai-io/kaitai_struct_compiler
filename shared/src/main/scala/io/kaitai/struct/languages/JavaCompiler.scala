@@ -242,7 +242,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
-        s"$kstreamName.processXor($srcExpr, ${expression(xorValue)})"
+        val xorValueStr = translator.detectType(xorValue) match {
+          case _: IntType => translator.doCast(xorValue, Int1Type(true))
+          case _ => expression(xorValue)
+        }
+        s"$kstreamName.processXor($srcExpr, $xorValueStr)"
       case ProcessZlib =>
         s"$kstreamName.processZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
@@ -451,7 +455,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
+        s"$io.readBytesTerm((byte) $terminator, $include, $consume, $eosError)"
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
