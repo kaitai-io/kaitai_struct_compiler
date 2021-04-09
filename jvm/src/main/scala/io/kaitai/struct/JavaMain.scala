@@ -264,6 +264,14 @@ class JavaMain(config: CLIConfig) {
             InputFailure(List(exceptionToCompileError(ex, srcFile.toString)))
         }
       }
+      if (!config.jsonOutput) {
+        val problems = log match {
+          case InputFailure(errors) => errors
+          case InputSuccess(firstSpecName, output, precompileProblems) => precompileProblems
+        }
+        problems.foreach { (p) => Console.err.println(p.message) }
+      }
+
       srcFile.toString -> log
     }.toMap
 
@@ -278,7 +286,7 @@ class JavaMain(config: CLIConfig) {
   private def logsHaveErrors(logs: Map[String, InputEntry]): Boolean =
     logs.values.map(_.hasErrors).max
 
-  private def compileOneInput(srcFile: String) = {
+  private def compileOneInput(srcFile: String): InputEntry = {
     Log.fileOps.info(() => s"parsing $srcFile...")
     val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(srcFile, config)
 
@@ -333,7 +341,11 @@ class JavaMain(config: CLIConfig) {
         case ex: Throwable =>
           if (config.throwExceptions)
             ex.printStackTrace()
-          SpecFailure(List(exceptionToCompileError(ex, classSpec.nameAsStr)))
+          val p = exceptionToCompileError(ex, classSpec.nameAsStr)
+          if (!config.jsonOutput) {
+            Console.err.println(p.message)
+          }
+          SpecFailure(List(p))
       }
       classSpec.nameAsStr -> res
     }.toMap
@@ -364,9 +376,6 @@ class JavaMain(config: CLIConfig) {
   }
 
   private def exceptionToCompileError(ex: Throwable, srcFile: String): CompilationProblem = {
-    if (!config.jsonOutput)
-      Console.err.println(ex.getMessage)
-
     ex match {
       case cpe: CompilationProblemException =>
         cpe.problem
