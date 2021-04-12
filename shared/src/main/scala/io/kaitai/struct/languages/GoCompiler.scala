@@ -522,12 +522,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts(")")
   }
-  val builtin: List[String] = List("var", "const", "type", "package", "import", "func",
-    "return", "defer", "go", "select", "interface", "struct",
-    "break", "case", "continue", "for", "fallthrough", "else", "if", "switch", "goto", "default",
-    "chan", "type", "map", "range", "panic")
 
-  def excludeKeyword(name: String): String = if (builtin.contains(name)) s"${name}_" else name
+  // From https://golang.org/ref/spec#Keywords, sorted alphabetically
+  val reservedWords: List[String] = List(
+    // Reserved words
+    "break", "case", "chan", "const", "continue",
+    "default", "defer", "else", "fallthrough", "for",
+    "func", "go", "goto", "if", "import",
+    "interface", "map", "package", "range", "return",
+    "select", "struct", "switch", "type", "var",
+  )
+
+  def excludeKeyword(name: String): String = if (reservedWords.contains(name)) s"${name}_" else name
+
+
   def idToStr(id: Identifier): String = {
     id match {
       case SpecialIdentifier(name) => name
