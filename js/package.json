@@ -35,5 +35,5 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "OVERRIDEN BY /build.sbt"
+  "version": "OVERRIDDEN BY /build.sbt"
 }
