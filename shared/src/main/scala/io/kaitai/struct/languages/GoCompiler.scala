@@ -525,12 +525,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(")")
   }
 
+  // From https://golang.org/ref/spec#Keywords, sorted alphabetically
+  val reservedWords: List[String] = List(
+    // Reserved words
+    "break", "case", "chan", "const", "continue",
+    "default", "defer", "else", "fallthrough", "for",
+    "func", "go", "goto", "if", "import",
+    "interface", "map", "package", "range", "return",
+    "select", "struct", "switch", "type", "var",
+  )
+
+  def excludeKeyword(name: String): String = if (reservedWords.contains(name)) s"${name}_" else name
+
+
   def idToStr(id: Identifier): String = {
     id match {
       case SpecialIdentifier(name) => name
       case NamedIdentifier(name) => Utils.upperCamelCase(name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case InstanceIdentifier(name) => excludeKeyword(Utils.lowerCamelCase(name))
       case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
       case IoStorageIdentifier(innerId) => "_io_" + idToStr(innerId)
     }
@@ -552,7 +565,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
-  override def paramName(id: Identifier): String = Utils.lowerCamelCase(id.humanReadable)
+  override def paramName(id: Identifier): String = excludeKeyword(Utils.lowerCamelCase(id.humanReadable))
 
   def calculatedFlagForName(id: Identifier) = s"_f_${idToStr(id)}"
 
