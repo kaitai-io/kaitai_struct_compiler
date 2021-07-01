@@ -33,7 +33,7 @@ trait EveryReadIsExpression
     val assignType = assignTypeOpt.getOrElse(dataType)
 
     if (config.readStoresPos && rep != NoRepeat)
-      attrDebugStart(id, dataType, Some(io), rep)
+      attrDebugStart(id, dataType, NoRepeat, Some(io), rep)
 
     dataType match {
       case t: UserType =>
@@ -62,7 +62,7 @@ trait EveryReadIsExpression
     }
 
     if (config.readStoresPos && rep != NoRepeat)
-      attrDebugEnd(id, dataType, io, rep)
+      attrDebugEnd(id, dataType, NoRepeat, io, rep)
   }
 
   def attrBytesTypeParse(
@@ -115,9 +115,9 @@ trait EveryReadIsExpression
 
         this match {
           case thisStore: AllocateAndStoreIO =>
-            thisStore.allocateIO(rawId, rep)
+            thisStore.allocateIO(rawId, rep, io)
           case thisLocal: AllocateIOLocalVar =>
-            thisLocal.allocateIO(rawId, rep)
+            thisLocal.allocateIO(rawId, rep, io)
         }
       case _: UserTypeInstream =>
         // no fixed buffer, just use regular IO
@@ -197,7 +197,7 @@ trait EveryReadIsExpression
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (config.readStoresPos)
-      attrDebugStart(instName, dataType, None, NoRepeat)
+      attrDebugStart(instName, dataType, NoRepeat, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }
 }

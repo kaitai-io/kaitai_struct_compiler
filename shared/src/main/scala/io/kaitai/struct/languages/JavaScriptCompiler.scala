@@ -221,7 +221,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val langName = idToStr(varName)
     val memberCall = privateMemberName(varName)
 
@@ -259,7 +259,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def alignToByte(io: String): Unit =
     out.puts(s"$io.alignToByte();")
 
-  override def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, io: Option[String], rep: RepeatSpec): Unit = {
     if (!attrDebugNeeded(attrId))
       return
 
@@ -278,7 +278,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$debugName = { $ioProps${if (ioProps != "" && enumNameProps != "") ", " else ""}$enumNameProps };")
   }
 
-  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, io: String, rep: RepeatSpec): Unit = {
     if (!attrDebugNeeded(attrId))
       return
     val debugName = attrDebugName(attrId, rep, true)

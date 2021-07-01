@@ -27,7 +27,7 @@ trait CommonReads extends LanguageCompiler {
     }
 
     if (config.readStoresPos)
-      attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
+      attrDebugStart(id, attr.dataType, attr.cond.repeat, Some(io), NoRepeat)
 
     defEndian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
@@ -42,7 +42,7 @@ trait CommonReads extends LanguageCompiler {
     }
 
     if (config.readStoresPos)
-      attrDebugEnd(id, attr.dataType, io, NoRepeat)
+      attrDebugEnd(id, attr.dataType, attr.cond.repeat, io, NoRepeat)
 
     // More position management + set calculated flag after parsing for ParseInstanceSpecs
     attr match {
@@ -102,8 +102,8 @@ trait CommonReads extends LanguageCompiler {
     }
   }
 
-  def attrDebugStart(attrName: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
-  def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrName: Identifier, attrType: DataType, attrRep: RepeatSpec, io: Option[String], repeat: RepeatSpec): Unit = {}
+  def attrDebugEnd(attrName: Identifier, attrType: DataType, attrRep: RepeatSpec, io: String, repeat: RepeatSpec): Unit = {}
 
   /**
     * Runs all validation procedures requested for an attribute.
