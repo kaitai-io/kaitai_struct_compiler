@@ -335,6 +335,9 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         }
       case Ast.expr.List(elts) =>
         elts.flatMap(affectedVars).toList
+      case Ast.expr.CastToType(expr, _) => affectedVars(expr)
+      case Ast.expr.ByteSizeOfType(_) | Ast.expr.BitSizeOfType(_) =>
+        List()
     }
   }
 

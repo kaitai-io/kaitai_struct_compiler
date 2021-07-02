@@ -57,6 +57,11 @@ object Endianness {
   def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String, path: List[String]): Option[FixedEndian] = s match {
     case Some("le") => Some(LittleEndian)
     case Some("be") => Some(BigEndian)
+    case Some(s) =>
+      throw new YAMLParseException(
+        s"unable to parse endianness: expected `le` or `be`, found $s",
+        path ++ List("endian")
+      )
     case None =>
       defaultEndian match {
         case Some(e: FixedEndian) => Some(e)

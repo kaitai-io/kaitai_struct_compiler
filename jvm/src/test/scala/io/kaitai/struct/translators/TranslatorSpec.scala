@@ -712,7 +712,9 @@ class TranslatorSpec extends FunSuite {
     }
 
     override def determineType(inClass: ClassSpec, name: String): DataType = {
-      (inClass.name.last, name) match {
+      // It is fine to suppress non-exhaustive warning because test has only
+      // specified variants
+      ((inClass.name.last, name): @unchecked) match {
         case ("block", "bar") => CalcStrType
         case ("block", "inner") => userType(List("top_class", "block", "innerblock"))
         case ("innerblock", "baz") => CalcIntType

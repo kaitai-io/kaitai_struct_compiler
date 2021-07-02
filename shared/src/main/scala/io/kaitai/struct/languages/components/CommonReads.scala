@@ -111,4 +111,34 @@ trait CommonReads extends LanguageCompiler {
     */
   def attrValidateAll(attr: AttrLikeSpec) =
     attr.valid.foreach(valid => attrValidate(attr.id, attr, valid))
+
+  /**
+    * Allocates new IO for type with known size
+    *
+    * @param id name of attribute for read
+    * @param bytes specifies properties of the returned sub-stream
+    * @param io name of the parent stream from which
+    * @param rep specifies the repeat pattern for the attribute
+    *
+    * @return string with allocated sub-stream name
+    */
+  def allocateSubstream(
+    id: Identifier,
+    bytes: BytesType,
+    io: String,
+    rep: RepeatSpec,
+  ): String = {
+    // we have a fixed buffer, thus we shall create separate IO for it
+    val rawId = RawIdentifier(id)
+
+    // Default endianness isn't required for the BytesType
+    attrParse2(rawId, bytes, io, rep, true, None)
+
+    this match {
+      case thisStore: AllocateAndStoreIO =>
+        thisStore.allocateIO(rawId, rep)
+      case thisLocal: AllocateIOLocalVar =>
+        thisLocal.allocateIO(rawId, rep)
+    }
+  }
 }

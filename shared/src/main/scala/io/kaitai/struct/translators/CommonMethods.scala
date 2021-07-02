@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.precompile.TypeMismatchError
+import io.kaitai.struct.precompile.MethodNotFoundError
 
 abstract trait CommonMethods[T] extends TypeDetector {
   /**
@@ -27,6 +27,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
       case KaitaiStructType | CalcKaitaiStructType =>
         attr.name match {
           case Identifier.PARENT => kaitaiStructField(value, attr.name)
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
@@ -37,20 +38,24 @@ abstract trait CommonMethods[T] extends TypeDetector {
           case "length" | "size" => bytesLength(value)
           case "min" => bytesMin(value)
           case "max" => bytesMax(value)
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: StrType =>
         attr.name match {
           case "length" => strLength(value)
           case "reverse" => strReverse(value)
           case "to_i" => strToInt(value, Ast.expr.IntNum(10))
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: IntType =>
         attr.name match {
           case "to_s" => intToStr(value, Ast.expr.IntNum(10))
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: FloatType =>
         attr.name match {
           case "to_i" => floatToInt(value)
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: ArrayType =>
         attr.name match {
@@ -59,23 +64,26 @@ abstract trait CommonMethods[T] extends TypeDetector {
           case "size" => arraySize(value)
           case "min" => arrayMin(value)
           case "max" => arrayMax(value)
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case KaitaiStreamType | OwnedKaitaiStreamType =>
         attr.name match {
           case "size" => kaitaiStreamSize(value)
           case "eof" => kaitaiStreamEof(value)
           case "pos" => kaitaiStreamPos(value)
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case et: EnumType =>
         attr.name match {
           case "to_i" => enumToInt(value, et)
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: BooleanType =>
         attr.name match {
           case "to_i" => boolToInt(value)
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
+      case _ => throw new MethodNotFoundError(attr.name, valType)
     }
   }
 
@@ -98,7 +106,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
           case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
           case (_: StrType, "to_i") => strToInt(obj, args(0))
           case (_: BytesType, "to_s") => bytesToStr(obj, args(0))
-          case _ => throw new TypeMismatchError(s"don't know how to call method '$methodName' of object type '$objType'")
+          case _ => throw new MethodNotFoundError(methodName.name, objType)
         }
     }
   }
