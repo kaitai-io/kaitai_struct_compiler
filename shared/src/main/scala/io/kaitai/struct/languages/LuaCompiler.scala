@@ -38,7 +38,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"-- $headerComment")
     outHeader.puts("--")
-    outHeader.puts("-- This file is compatible with Lua 5.3")
+    outHeader.puts("-- This file is compatible with Lua 5.1")
     outHeader.puts
 
     importList.add("local class = require(\"class\")")
