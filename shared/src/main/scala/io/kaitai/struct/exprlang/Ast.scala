@@ -91,7 +91,17 @@ object Ast {
     case class IfExp(condition: expr, ifTrue: expr, ifFalse: expr) extends expr
 //    case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
-    case class Call(func: expr, args: Seq[expr]) extends expr
+    /**
+      * Represents function call on some expression:
+      * ```
+      * <obj>.<methodName>(<args>)
+      * ```
+      *
+      * @param obj expression on which method is called
+      * @param methodName method to call
+      * @param args method arguments
+      */
+    case class Call(obj: expr, methodName: identifier, args: Seq[expr]) extends expr
     case class IntNum(n: BigInt) extends expr
     case class FloatNum(n: BigDecimal) extends expr
     case class Str(s: String) extends expr
