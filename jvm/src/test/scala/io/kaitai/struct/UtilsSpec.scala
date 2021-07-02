@@ -2,14 +2,15 @@ package io.kaitai.struct
 
 import java.util.Locale
 
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
 /**
   * Checks that our string case conversion utilities perform well in all locales.
   * To test with different locale than you have set up in your system, pass JVM
   * options, e.g. `-Duser.language=tr -Duser.country=TR`.
   */
-class UtilsSpec extends FunSpec with Matchers {
+class UtilsSpec extends AnyFunSpec with Matchers {
   val simpleStr = "foo_bar"
   val internalId = "_foo_bar"
   val allLetters = "a_b_c_d_e_f_g_h_i_j_k_l_m_n_o_p_q_r_s_t_u_v_w_x_y_z"

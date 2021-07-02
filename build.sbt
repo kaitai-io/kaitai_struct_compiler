@@ -19,7 +19,8 @@ lazy val root = project.in(file(".")).
     publishLocal := {}
   )
 
-lazy val compiler = crossProject.in(file(".")).
+lazy val compiler = crossProject(JSPlatform, JVMPlatform).
+  in(file(".")).
   enablePlugins(JavaAppPackaging).
   settings(
     organization := "io.kaitai",
@@ -56,9 +57,9 @@ lazy val compiler = crossProject.in(file(".")).
     sourceGenerators in Compile += generateVersionTask.taskValue, // update automatically on every rebuild
 
     libraryDependencies ++= Seq(
-      "com.github.scopt" %%% "scopt" % "3.6.0",
-      "com.lihaoyi" %%% "fastparse" % "1.0.0",
-      "org.yaml" % "snakeyaml" % "1.25"
+      "com.github.scopt" %%% "scopt" % "4.0.1",
+      "com.lihaoyi" %%% "fastparse" % "2.3.2",
+      "org.yaml" % "snakeyaml" % "1.28"
     )
   ).
   jvmSettings(
@@ -66,7 +67,9 @@ lazy val compiler = crossProject.in(file(".")).
 
     mainClass in Compile := Some("io.kaitai.struct.JavaMain"),
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+      "org.scalatest" %% "scalatest-funspec" % "3.2.7" % "test",
+      "org.scalatest" %% "scalatest-funsuite" % "3.2.7" % "test",
+      "org.scalatest" %% "scalatest-shouldmatchers" % "3.2.7" % "test",
     ),
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
@@ -219,7 +222,7 @@ lazy val buildNpmJsFileTask = Def.task {
        |
        |$compiledFileContents
        |
-       |return exports.io.kaitai.struct.MainJs;
+       |return exports.MainJs;
        |
        |}));
      """.stripMargin
@@ -235,9 +238,11 @@ lazy val buildNpmPackageTask = Def.task {
   val licenseFile = new File("js/npm/LICENSE")
   val readMeFile = new File("js/npm/README.md")
   val packageJsonFile = new File("js/npm/package.json")
+  val warnFile = new File("js/npm/warn-about-constructor-bc-break.js")
 
   Files.copy(new File("LICENSE").toPath, licenseFile.toPath)
   Files.copy(new File("js/README.md").toPath, readMeFile.toPath)
+  Files.copy(new File("js/warn-about-constructor-bc-break.js").toPath, warnFile.toPath)
 
   val packageJsonTmpl = IO.read(new File("js/package.json"), UTF8)
   val packageJsonContents = packageJsonTmpl.replaceFirst(
@@ -250,6 +255,7 @@ lazy val buildNpmPackageTask = Def.task {
   Seq(
     licenseFile,
     readMeFile,
-    packageJsonFile
+    packageJsonFile,
+    warnFile,
   )
 }

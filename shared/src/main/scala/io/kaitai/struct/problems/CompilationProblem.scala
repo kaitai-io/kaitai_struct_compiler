@@ -1,6 +1,5 @@
 package io.kaitai.struct.problems
 
-import fastparse.StringReprOps
 import io.kaitai.struct.{JSON, Jsonable, Utils}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Expressions
@@ -97,7 +96,7 @@ object KSYParseError {
 
   def expression(epe: Expressions.ParseException, path: List[String]) = {
     val f = epe.failure
-    val pos = StringReprOps.prettyIndex(f.extra.input, f.index)
+    val pos = f.extra.input.prettyIndex(f.index)
 
     // Try to diagnose most common errors and provide a friendly suggestion
     val lookup2 = Utils.safeLookup(epe.src, f.index, 2)
@@ -109,11 +108,11 @@ object KSYParseError {
       None
     }).map((x) => s", did you mean '$x'?").getOrElse("")
 
-    f.extra.traced.expected
+    val expected = f.extra.trace().msg.replaceAll("\n", "\\n")
 
     withText(
       s"parsing expression '${epe.src}' failed on $pos, " +
-        s"expected ${f.extra.traced.expected.replaceAll("\n", "\\n")}$suggestion",
+        s"expected $expected$suggestion",
       path
     )
   }
