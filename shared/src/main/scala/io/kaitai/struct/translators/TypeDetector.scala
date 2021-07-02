@@ -100,14 +100,9 @@ class TypeDetector(provider: TypeProvider) {
         }
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         (detectType(container) match {
-          case ArrayTypeInStream(elType: DataType) =>
+          case arr: ArrayType =>
             detectType(idx) match {
-              case _: IntType => elType
-              case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
-            }
-          case CalcArrayType(elType: DataType) =>
-            detectType(idx) match {
-              case _: IntType => elType
+              case _: IntType => arr.elType
               case idxType => throw new TypeMismatchError(s"unable to index an array using $idxType")
             }
           case _: BytesType => Int1Type(false)
