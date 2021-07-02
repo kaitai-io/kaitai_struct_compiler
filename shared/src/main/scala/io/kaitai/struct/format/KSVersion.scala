@@ -53,6 +53,15 @@ case class KSVersion(nums: List[Int]) extends Ordered[KSVersion] {
     val v1 :: v2 :: v3 :: _ = nums ++ List.fill(3 - nums.size)(0)
     "%d.%03d_%03d".format(v1, v2, v3)
   }
+
+  /**
+    * Dumps a version as a tuple of ints in Python syntax,
+    * that is 1.2.3 becomes "(1, 2, 3)".
+    * There are no limitations on the number of version components or the range
+    * of values for each component.
+    * @return version as a tuple of ints in Python syntax
+    */
+  def toPythonTuple: String = nums.mkString("(", ", ", ")")
 }
 
 object KSVersion {
