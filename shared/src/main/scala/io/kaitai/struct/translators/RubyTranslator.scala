@@ -37,10 +37,10 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
     }
   }
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s":${enumTypeAbs.last}_$label"
-  override def doEnumById(enumType: List[String], id: String): String =
-    s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumType)}, $id)"
+  override def doEnumVariant(enumTypeAbs: List[String], variant: String): String =
+    s":${enumTypeAbs.last}_$variant"
+  override def doEnumCast(enumType: List[String], value: String): String =
+    s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumType)}, $value)"
 
   def enumDirectMap(enumTypeAndName: List[String]): String = {
     val enumTypeAbs = enumTypeAndName.dropRight(1)

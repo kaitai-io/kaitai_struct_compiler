@@ -438,7 +438,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${inverseEnumName(enumConst)} = $enumConst.invert")
   }
 
-  def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
+  def enumValue(enumName: String, variant: String) = translator.doEnumVariant(List(enumName), variant)
 
   def value2Const(s: String) = Utils.upperUnderscoreCase(s)
 

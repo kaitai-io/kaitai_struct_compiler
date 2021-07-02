@@ -52,10 +52,10 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   }
   override def doName(s: String) = s
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${PythonCompiler.types2class(enumTypeAbs)}.$label"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumTypeAbs)}, $id)"
+  override def doEnumVariant(enumTypeAbs: List[String], variant: String): String =
+    s"${PythonCompiler.types2class(enumTypeAbs)}.$variant"
+  override def doEnumCast(enumTypeAbs: List[String], value: String): String =
+    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumTypeAbs)}, $value)"
 
   override def booleanOp(op: Ast.boolop) = op match {
     case Ast.boolop.Or => "or"

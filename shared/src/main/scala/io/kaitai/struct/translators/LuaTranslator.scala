@@ -59,10 +59,10 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   }
   override def doName(s: String): String =
     s
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${LuaCompiler.types2class(enumTypeAbs)}.$label"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"${LuaCompiler.types2class(enumTypeAbs)}($id)"
+  override def doEnumVariant(enumTypeAbs: List[String], variant: String): String =
+    s"${LuaCompiler.types2class(enumTypeAbs)}.$variant"
+  override def doEnumCast(enumTypeAbs: List[String], value: String): String =
+    s"${LuaCompiler.types2class(enumTypeAbs)}($value)"
 
   // This is very hacky because integers and booleans cannot be compared
   override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
