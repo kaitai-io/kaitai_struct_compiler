@@ -71,6 +71,8 @@ class ExpressionValidator(val provider: TypeProvider)
         CommonSizeOf.getBitsSizeOfType(typeName.nameAsStr, detectCastType(typeName))
       case Ast.expr.BitSizeOfType(typeName) =>
         CommonSizeOf.getBitsSizeOfType(typeName.nameAsStr, detectCastType(typeName))
+      case Ast.expr.Group(nested) =>
+        validate(nested)
     }
   }
 

@@ -108,13 +108,14 @@ object Expressions {
     case (lhs, trailers) =>
       trailers.foldLeft(lhs)((l, t) => t(l))
   }
+  val group: P[Ast.expr] = ("(" ~ test ~ ")").map(expr => Ast.expr.Group(expr));
   val atom: P[Ast.expr] = {
     val empty_list = ("[" ~ "]").map(_ => Ast.expr.List(Nil))
 //    val empty_dict = ("{" ~ "}").map(_ => Ast.expr.Dict(Nil, Nil))
     P(
       empty_list |
 //      empty_dict |
-      "(" ~ test ~ ")" |
+      group |
       "[" ~ list ~ "]" |
 //      "{" ~ dictorsetmaker ~ "}" |
       enumByName |
