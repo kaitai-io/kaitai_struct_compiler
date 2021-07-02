@@ -376,7 +376,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatEosFooter: Unit = {
-    out.puts("i++;")
+    out.puts("i = i + 1;")
     out.dec
     out.puts("}")
     out.dec
@@ -427,7 +427,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts("i++;")
+    out.puts("i = i + 1;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
     out.dec
