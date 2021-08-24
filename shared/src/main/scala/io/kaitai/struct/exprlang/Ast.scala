@@ -49,40 +49,115 @@ object Ast {
       *         variable
       */
     def evaluateIntConst: Option[BigInt] = {
-      this match {
-        case expr.IntNum(x) =>
-          Some(x)
-        case expr.UnaryOp(op, operand) =>
-          operand.evaluateIntConst.map(opValue =>
-            op match {
-              case unaryop.Invert => ~opValue
-              case unaryop.Not => return None // TODO?
-              case unaryop.Minus => -opValue
-            }
-          )
-        case expr.BinOp(left, op, right) =>
-          val leftValue = left.evaluateIntConst match {
-            case Some(x) => x
-            case None => return None
-          }
-          val rightValue = right.evaluateIntConst match {
-            case Some(x) => x
-            case None => return None
-          }
-          op match {
-            case operator.Add => Some(leftValue + rightValue)
-            case operator.Sub => Some(leftValue - rightValue)
-            case operator.Mult => Some(leftValue * rightValue)
-            case operator.Div => Some(leftValue / rightValue)
-            case operator.Mod => Some(leftValue % rightValue)
-            case operator.LShift => Some(leftValue << rightValue.toInt)
-            case operator.RShift => Some(leftValue >> rightValue.toInt)
-            case operator.BitOr => Some(leftValue | rightValue)
-            case operator.BitXor => Some(leftValue ^ rightValue)
-            case operator.BitAnd => Some(leftValue & rightValue)
-          }
+      this.evaluate match {
+        case Some(value.Int(x)) => Some(x)
         case _ => None
       }
+    }
+    def evaluate: Option[value] = this match {
+      case expr.IntNum(x) => Some(value.Int(x))
+      case expr.Bool(x) => Some(value.Bool(x))
+      case expr.Str(x) => Some(value.Str(x))
+
+      case expr.UnaryOp(op, expr.IntNum(operand)) =>
+        Some(value.Int(op match {
+          case unaryop.Invert => ~operand
+          case unaryop.Not => return None
+          case unaryop.Minus  => -operand
+        }))
+      case expr.UnaryOp(unaryop.Not, expr.Bool(operand)) => Some(value.Bool(!operand))
+
+      case expr.BinOp(left, op, right) =>
+        val leftValue = left.evaluate match {
+          case Some(x) => x
+          case _ => return None
+        }
+        val rightValue = right.evaluate match {
+          case Some(x) => x
+          case _ => return None
+        }
+        Some((op, leftValue, rightValue) match {
+          case (operator.Add, value.Str(l), value.Str(r)) => value.Str(l + r)
+
+          case (operator.Add, value.Int(l), value.Int(r)) => value.Int(l + r)
+          case (operator.Sub, value.Int(l), value.Int(r)) => value.Int(l - r)
+          case (operator.Mult, value.Int(l), value.Int(r)) => value.Int(l * r)
+          case (operator.Div, value.Int(l), value.Int(r)) => value.Int(l / r)
+          case (operator.Mod, value.Int(l), value.Int(r)) => value.Int(l % r)
+          case (operator.LShift, value.Int(l), value.Int(r)) => value.Int(l << r.toInt)
+          case (operator.RShift, value.Int(l), value.Int(r)) => value.Int(l >> r.toInt)
+          case (operator.BitOr, value.Int(l), value.Int(r)) => value.Int(l | r)
+          case (operator.BitXor, value.Int(l), value.Int(r)) => value.Int(l ^ r)
+          case (operator.BitAnd, value.Int(l), value.Int(r)) => value.Int(l & r)
+
+          case _ => return None
+        })
+
+      case expr.BoolOp(op, values) =>
+        Some(value.Bool(values.foldLeft(true)((acc, right) => {
+          val rightValue = right.evaluate match {
+            case Some(value.Bool(x)) => x
+            case _ => return None;
+          }
+          op match {
+            case boolop.And => acc && rightValue
+            case boolop.Or  => acc || rightValue
+          }
+        })))
+
+      case expr.Compare(left, op, right) =>
+        val leftValue = left.evaluate match {
+          case Some(x) => x
+          case _ => return None
+        }
+        val rightValue = right.evaluate match {
+          case Some(x) => x
+          case _ => return None
+        }
+        Some(value.Bool((op, leftValue, rightValue) match {
+          case (cmpop.Eq, value.Int(l),  value.Int(r) ) => l == r
+          case (cmpop.Eq, value.Bool(l), value.Bool(r)) => l == r
+          case (cmpop.Eq, value.Str(l),  value.Str(r)) => l == r
+
+          case (cmpop.NotEq, value.Int(l),  value.Int(r) ) => l != r
+          case (cmpop.NotEq, value.Bool(l), value.Bool(r)) => l != r
+          case (cmpop.NotEq, value.Str(l),  value.Str(r)) => l != r
+
+          case (cmpop.Lt,  value.Int(l), value.Int(r)) => l < r
+          case (cmpop.LtE, value.Int(l), value.Int(r)) => l <= r
+          case (cmpop.Gt,  value.Int(l), value.Int(r)) => l > r
+          case (cmpop.GtE, value.Int(l), value.Int(r)) => l >= r
+
+          case (cmpop.Lt,  value.Str(l), value.Str(r)) => l < r
+          case (cmpop.LtE, value.Str(l), value.Str(r)) => l <= r
+          case (cmpop.Gt,  value.Str(l), value.Str(r)) => l > r
+          case (cmpop.GtE, value.Str(l), value.Str(r)) => l >= r
+
+          case _ => return None
+        }))
+
+      case expr.IfExp(condition, ifTrue, ifFalse) => condition.evaluate match {
+        case Some(value.Bool(cond)) =>
+          if (cond) {
+            ifTrue.evaluate
+          } else {
+            ifFalse.evaluate
+          }
+        case _ => return None
+      }
+
+      case expr.List(list) => Some(value.List(list.map(_.evaluate)))
+      case expr.Subscript(container, index) =>
+        val idx = index.evaluate match {
+          case Some(value.Int(x)) if x >= 0 => x
+          case _ => return None
+        }
+        container.evaluate match {
+          case Some(value.List(list)) if idx < list.length => list(idx.toInt)
+          case _ => None
+        }
+
+      case _ => None
     }
   }
 
@@ -91,7 +166,8 @@ object Ast {
     case class BinOp(left: expr, op: operator, right: expr) extends expr
     case class UnaryOp(op: unaryop, operand: expr) extends expr
     case class IfExp(condition: expr, ifTrue: expr, ifFalse: expr) extends expr
-//    case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
+    // case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
+    /** Represents `X < Y`, `X > Y` and so on. */
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
     case class IntNum(n: BigInt) extends expr
@@ -105,14 +181,17 @@ object Ast {
     case class CastToType(value: expr, typeName: typeId) extends expr
     case class ByteSizeOfType(typeName: typeId) extends expr
     case class BitSizeOfType(typeName: typeId) extends expr
+    /** Represents `X[Y]`. */
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
   }
 
   sealed trait boolop
-  object boolop{
+  object boolop {
+    /** Boolean conjunction. Applicable only to `Boolean`s */
     case object And extends boolop
+    /** Boolean disjunction. Applicable only to `Boolean`s */
     case object Or extends boolop
   }
 
@@ -123,7 +202,7 @@ object Ast {
     case object Mult  extends operator
     case object Div  extends operator
     case object Mod  extends operator
-//    case object Pow  extends operator
+    // case object Pow  extends operator
     case object LShift  extends operator
     case object RShift  extends operator
     case object BitOr  extends operator
@@ -133,8 +212,11 @@ object Ast {
 
   sealed trait unaryop
   object unaryop {
+    /** Bitwise negation operator. Applicable only to `IntNum`s */
     case object Invert extends unaryop
+    /** Boolean negation operator. Applicable only to `Boolean`s */
     case object Not extends unaryop
+    /** Arithmetic negation operator. Applicable only to `IntNum`s / `FloatNum`s */
     case object Minus extends unaryop
   }
 
@@ -146,6 +228,19 @@ object Ast {
     case object LtE extends cmpop
     case object Gt extends cmpop
     case object GtE extends cmpop
+  }
+
+  /** Result of the AST evaluation */
+  sealed trait value
+  object value {
+    /** AST node evaluated to the logical value */
+    case class Bool(value: Boolean) extends value
+    /** AST node evaluated to the numerical value */
+    case class Int(value: BigInt) extends value
+    /** AST node evaluated to the string value */
+    case class Str(value: String) extends value
+    /** AST node evaluated to the array */
+    case class List(list: Seq[Option[value]]) extends value
   }
 
   case class TypeWithArguments(typeName: typeId, arguments: expr.List)
