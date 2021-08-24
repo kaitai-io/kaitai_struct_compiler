@@ -376,14 +376,24 @@ object DataType {
           val bat = arg2.getByteArrayType(path)
           StrFromBytesType(bat, enc)
         case _ =>
-          val (dtl, args) = Expressions.parseTypeRef(dt)
+          val typeWithArgs = Expressions.parseTypeRef(dt)
           if (arg.size.isEmpty && !arg.sizeEos && arg.terminator.isEmpty) {
             if (arg.process.isDefined)
               throw KSYParseError(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path).toException
-            UserTypeInstream(dtl, arg.parent, args)
+            UserTypeInstream(
+              typeWithArgs.typeName.names.toList,
+              arg.parent,
+              typeWithArgs.arguments.elts
+            )
           } else {
             val bat = arg.getByteArrayType(path)
-            UserTypeFromBytes(dtl, arg.parent, args, bat, arg.process)
+            UserTypeFromBytes(
+              typeWithArgs.typeName.names.toList,
+              arg.parent,
+              typeWithArgs.arguments.elts,
+              bat,
+              arg.process
+            )
           }
       }
     }

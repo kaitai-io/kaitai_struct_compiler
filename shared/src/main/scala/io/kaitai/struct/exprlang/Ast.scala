@@ -1,5 +1,7 @@
 package io.kaitai.struct.exprlang
 
+import io.kaitai.struct.exprlang.Ast.expr.List
+
 /**
   * Loosely based on /pythonparse/shared/src/main/scala/pythonparse/
   * from FastParse, Copyright (c) 2014 Li Haoyi (haoyi.sg@gmail.com)
@@ -145,4 +147,6 @@ object Ast {
     case object Gt extends cmpop
     case object GtE extends cmpop
   }
+
+  case class TypeWithArguments(typeName: typeId, arguments: expr.List)
 }
