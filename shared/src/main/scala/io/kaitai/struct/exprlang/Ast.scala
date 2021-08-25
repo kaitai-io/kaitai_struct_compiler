@@ -78,18 +78,18 @@ object Ast {
         }
         Some((op, leftValue, rightValue) match {
           case (operator.Add, value.Str(l), value.Str(r)) => value.Str(l + r)
-
-          case (operator.Add, value.Int(l), value.Int(r)) => value.Int(l + r)
-          case (operator.Sub, value.Int(l), value.Int(r)) => value.Int(l - r)
-          case (operator.Mult, value.Int(l), value.Int(r)) => value.Int(l * r)
-          case (operator.Div, value.Int(l), value.Int(r)) => value.Int(l / r)
-          case (operator.Mod, value.Int(l), value.Int(r)) => value.Int(l % r)
-          case (operator.LShift, value.Int(l), value.Int(r)) => value.Int(l << r.toInt)
-          case (operator.RShift, value.Int(l), value.Int(r)) => value.Int(l >> r.toInt)
-          case (operator.BitOr, value.Int(l), value.Int(r)) => value.Int(l | r)
-          case (operator.BitXor, value.Int(l), value.Int(r)) => value.Int(l ^ r)
-          case (operator.BitAnd, value.Int(l), value.Int(r)) => value.Int(l & r)
-
+          case (_, value.Int(l), value.Int(r)) => value.Int(op match {
+            case operator.Add => l + r
+            case operator.Sub => l - r
+            case operator.Mult => l * r
+            case operator.Div => l / r
+            case operator.Mod => l % r
+            case operator.LShift => l << r.toInt
+            case operator.RShift => l >> r.toInt
+            case operator.BitOr => l | r
+            case operator.BitXor => l ^ r
+            case operator.BitAnd => l & r
+          })
           case _ => return None
         })
 
