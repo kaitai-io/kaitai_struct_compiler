@@ -83,7 +83,9 @@ object Ast {
             case operator.Sub => l - r
             case operator.Mult => l * r
             case operator.Div => l / r
-            case operator.Mod => l % r
+            case operator.Mod =>
+              val res = l % r
+              if (res < 0) res + r else res
             case operator.LShift => l << r.toInt
             case operator.RShift => l >> r.toInt
             case operator.BitOr => l | r

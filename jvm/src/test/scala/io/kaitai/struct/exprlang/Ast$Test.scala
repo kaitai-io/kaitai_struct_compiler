@@ -21,6 +21,10 @@ class Ast$Test extends FunSpec {
       Expressions.parse("(-3 + 7) * 8 / 2").evaluateIntConst should be(Some(16))
     }
 
+    it ("considers `-5 % 3` constant") {
+      Expressions.parse("-5 % 3").evaluateIntConst should be(Some(1))
+    }
+
     it ("considers `[3, 1, 4][2]` constant") {
       Expressions.parse("[3, 1, 4][2]").evaluateIntConst should be(Some(4))
     }
