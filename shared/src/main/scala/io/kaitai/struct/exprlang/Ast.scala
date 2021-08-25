@@ -99,7 +99,7 @@ object Ast {
         Some(value.Bool(values.foldLeft(true)((acc, right) => {
           val rightValue = right.evaluate match {
             case Some(value.Bool(x)) => x
-            case _ => return None;
+            case _ => return None
           }
           op match {
             case boolop.And => acc && rightValue
