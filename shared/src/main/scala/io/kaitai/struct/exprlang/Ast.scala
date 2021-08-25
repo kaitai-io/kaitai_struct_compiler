@@ -62,8 +62,8 @@ object Ast {
       case expr.UnaryOp(op, expr.IntNum(operand)) =>
         Some(value.Int(op match {
           case unaryop.Invert => ~operand
-          case unaryop.Not => return None
           case unaryop.Minus  => -operand
+          case _ => return None
         }))
       case expr.UnaryOp(unaryop.Not, expr.Bool(operand)) => Some(value.Bool(!operand))
 
