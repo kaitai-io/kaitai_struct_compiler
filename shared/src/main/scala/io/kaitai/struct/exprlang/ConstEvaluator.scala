@@ -2,16 +2,25 @@ package io.kaitai.struct.exprlang
 
 import io.kaitai.struct.exprlang.Ast._
 
+/**
+  * Namespace which holds a bunch of methods and case classes related to
+  * evaluation of constant expressions, e.g. it can predict that `1 + 2`
+  * will be always constant and equal to `3`, and anything with a variable
+  * in it is potentially non-constant.
+  *
+  * Evaluators below are relatively naive: expect no complex logic or symbolic
+  * simplification of expressions here: something like `x - x`, which is
+  * known to be always 0, will still report it as "potentially variable".
+  */
 object ConstEvaluator {
   /**
-    * Evaluates the expression, if it's possible to get a static integer
-    * constant as the result of evaluation (i.e. if it does not involve any
-    * variables or anything like that). Expect no complex logic or symbolic
-    * simplification of expressions here: something like "x - x", which is
-    * known to be always 0, will still report it as "None".
+    * Evaluates the expression, if it's possible to get an integer constant
+    * as the result of evaluation (i.e. if it does not involve any variables
+    * or anything like that).
     *
+    * @param ex expression to evaluate.
     * @return integer result of evaluation if it's constant or None, if it's
-    *         variable
+    *         variable or potentially variable.
     */
   def evaluateIntConst(ex: Ast.expr): Option[BigInt] = {
     evaluate(ex) match {
@@ -20,6 +29,15 @@ object ConstEvaluator {
     }
   }
 
+  /**
+    * Evaluates the expression, if it's possible to get a constant as the result
+    * of evaluation (i.e. if it does not involve any variables or anything like
+    * that).
+    *
+    * @param ex expression to evaluate.
+    * @return [[value]] container or None, if the result is variable or potentially
+    *         variable.
+    */
   def evaluate(ex: Ast.expr): Option[value] = ex match {
     case expr.IntNum(x) => Some(value.Int(x))
     case expr.Bool(x) => Some(value.Bool(x))
