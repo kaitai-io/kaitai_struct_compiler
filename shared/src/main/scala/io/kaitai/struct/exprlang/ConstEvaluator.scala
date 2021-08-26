@@ -24,7 +24,7 @@ object ConstEvaluator {
     */
   def evaluateIntConst(ex: Ast.expr): Option[BigInt] = {
     evaluate(ex) match {
-      case Some(value.Int(x)) => Some(x)
+      case value.Int(x) => Some(x)
       case _ => None
     }
   }
@@ -35,32 +35,25 @@ object ConstEvaluator {
     * that).
     *
     * @param ex expression to evaluate.
-    * @return [[value]] container or None, if the result is variable or potentially
-    *         variable.
+    * @return [[value]] container.
     */
-  def evaluate(ex: Ast.expr): Option[value] = ex match {
-    case expr.IntNum(x) => Some(value.Int(x))
-    case expr.Bool(x) => Some(value.Bool(x))
-    case expr.Str(x) => Some(value.Str(x))
+  def evaluate(ex: Ast.expr): value = ex match {
+    case expr.IntNum(x) => value.Int(x)
+    case expr.Bool(x) => value.Bool(x)
+    case expr.Str(x) => value.Str(x)
 
     case expr.UnaryOp(op, expr.IntNum(operand)) =>
-      Some(value.Int(op match {
+      value.Int(op match {
         case unaryop.Invert => ~operand
-        case unaryop.Minus  => -operand
-        case _ => return None
-      }))
-    case expr.UnaryOp(unaryop.Not, expr.Bool(operand)) => Some(value.Bool(!operand))
+        case unaryop.Minus => -operand
+        case _ => return value.NonConst
+      })
+    case expr.UnaryOp(unaryop.Not, expr.Bool(operand)) => value.Bool(!operand)
 
     case expr.BinOp(left, op, right) =>
-      val leftValue = evaluate(left) match {
-        case Some(x) => x
-        case _ => return None
-      }
-      val rightValue = evaluate(right) match {
-        case Some(x) => x
-        case _ => return None
-      }
-      Some((op, leftValue, rightValue) match {
+      val leftValue = evaluate(left)
+      val rightValue = evaluate(right)
+      (op, leftValue, rightValue) match {
         case (operator.Add, value.Str(l), value.Str(r)) => value.Str(l + r)
         case (_, value.Int(l), value.Int(r)) => value.Int(op match {
           case operator.Add => l + r
@@ -76,38 +69,32 @@ object ConstEvaluator {
           case operator.BitXor => l ^ r
           case operator.BitAnd => l & r
         })
-        case _ => return None
-      })
+        case _ => value.NonConst
+      }
 
     case expr.BoolOp(op, values) =>
-      Some(value.Bool(values.foldLeft(true)((acc, right) => {
+      value.Bool(values.foldLeft(true)((acc, right) => {
         val rightValue = evaluate(right) match {
-          case Some(value.Bool(x)) => x
-          case _ => return None
+          case value.Bool(x) => x
+          case _ => return value.NonConst
         }
         op match {
           case boolop.And => acc && rightValue
-          case boolop.Or  => acc || rightValue
+          case boolop.Or => acc || rightValue
         }
-      })))
+      }))
 
     case expr.Compare(left, op, right) =>
-      val leftValue = evaluate(left) match {
-        case Some(x) => x
-        case _ => return None
-      }
-      val rightValue = evaluate(right) match {
-        case Some(x) => x
-        case _ => return None
-      }
-      Some(value.Bool((op, leftValue, rightValue) match {
-        case (cmpop.Eq, value.Int(l),  value.Int(r) ) => l == r
+      val leftValue = evaluate(left)
+      val rightValue = evaluate(right)
+      value.Bool((op, leftValue, rightValue) match {
+        case (cmpop.Eq, value.Int(l), value.Int(r) ) => l == r
         case (cmpop.Eq, value.Bool(l), value.Bool(r)) => l == r
-        case (cmpop.Eq, value.Str(l),  value.Str(r)) => l == r
+        case (cmpop.Eq, value.Str(l), value.Str(r)) => l == r
 
-        case (cmpop.NotEq, value.Int(l),  value.Int(r) ) => l != r
+        case (cmpop.NotEq, value.Int(l), value.Int(r) ) => l != r
         case (cmpop.NotEq, value.Bool(l), value.Bool(r)) => l != r
-        case (cmpop.NotEq, value.Str(l),  value.Str(r)) => l != r
+        case (cmpop.NotEq, value.Str(l), value.Str(r)) => l != r
 
         case (cmpop.Lt,  value.Int(l), value.Int(r)) => l < r
         case (cmpop.LtE, value.Int(l), value.Int(r)) => l <= r
@@ -119,36 +106,44 @@ object ConstEvaluator {
         case (cmpop.Gt,  value.Str(l), value.Str(r)) => l > r
         case (cmpop.GtE, value.Str(l), value.Str(r)) => l >= r
 
-        case _ => return None
-      }))
+        case _ => return value.NonConst
+      })
 
     case expr.IfExp(condition, ifTrue, ifFalse) => evaluate(condition) match {
-      case Some(value.Bool(cond)) =>
+      case value.Bool(cond) =>
         if (cond) {
           evaluate(ifTrue)
         } else {
           evaluate(ifFalse)
         }
-      case _ => None
+      case _ => value.NonConst
     }
 
-    case expr.List(list) => Some(value.List(list.map(evaluate)))
+    case expr.List(list) => value.List(list.map(evaluate))
     case expr.Subscript(container, index) =>
       val idx = evaluate(index) match {
-        case Some(value.Int(x)) if x >= 0 => x
-        case _ => return None
+        case value.Int(x) if x >= 0 => x
+        case _ => return value.NonConst
       }
       evaluate(container) match {
-        case Some(value.List(list)) if idx < list.length => list(idx.toInt)
-        case _ => None
+        case value.List(list) if idx < list.length => list(idx.toInt)
+        case _ => value.NonConst
       }
 
-    case _ => None
+    case _ => value.NonConst
   }
 
-  /** Result of the AST evaluation */
+  /**
+    * Result of the AST evaluation.
+    *
+    * Represents either a known-to-be constant value of certain type, or knowledge that this
+    * expression is non-constant.
+    * */
   sealed trait value
   object value {
+    /** Result known to potentially non-constant */
+    case object NonConst extends value
+
     /** AST node evaluated to the logical value */
     case class Bool(value: Boolean) extends value
     /** AST node evaluated to the numerical value */
@@ -156,6 +151,6 @@ object ConstEvaluator {
     /** AST node evaluated to the string value */
     case class Str(value: String) extends value
     /** AST node evaluated to the array */
-    case class List(list: Seq[Option[value]]) extends value
+    case class List(list: Seq[value]) extends value
   }
 }
