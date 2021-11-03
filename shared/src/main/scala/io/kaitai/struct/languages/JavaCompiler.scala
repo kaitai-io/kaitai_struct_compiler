@@ -202,6 +202,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
+    if (!attrName.toAstIdentifier.name.startsWith("_")) {
+      out.puts(s"public ${kaitaiType2JavaType(attrType, isNullable)} get${idToStrCap(attrName)}() { return ${idToStr(attrName)}(); }")
+    }
     out.puts(s"public ${kaitaiType2JavaType(attrType, isNullable)} ${idToStr(attrName)}() { return ${idToStr(attrName)}; }")
   }
 
@@ -725,6 +728,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   def value2Const(s: String) = Utils.upperUnderscoreCase(s)
+
+  def idToStrCap(id: Identifier): String = {
+    idToStr(id).capitalize
+  }
 
   def idToStr(id: Identifier): String = {
     id match {
