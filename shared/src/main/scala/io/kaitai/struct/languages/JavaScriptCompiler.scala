@@ -94,6 +94,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"function ${type2class(name.last)}(_io, _parent, _root$endianSuffix$paramsList) {")
     out.inc
+    out.puts(s"this.__type = '${type2class(name.last)}';")
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
     out.puts("this._root = _root || this;")
