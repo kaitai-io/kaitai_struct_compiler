@@ -38,6 +38,17 @@ class TypescriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"// $headerComment")
     outHeader.puts
+
+    if (config.readStoresPos) {
+      outHeader.puts("interface DebugPosition {")
+      outHeader.inc
+      outHeader.puts("start: number;")
+      outHeader.puts("end: number;")
+      outHeader.puts("ioOffset: number;")
+      outHeader.dec
+      outHeader.puts("}")
+      outHeader.puts
+    }
   }
 
   override def fileFooter(name: String): Unit = {
@@ -73,10 +84,29 @@ class TypescriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${if (name.length == 1) "declare " else ""}class ${shortClassName} {")
     out.inc
     out.puts("constructor(io: any, parent?: any, root?: any);");
+
+    if (!config.autoRead) {
+      out.puts("_read(): void;")
+    }
     out.puts(s"__type: '${shortClassName}';")
+    out.puts("_io: any;")
+    out.puts
   }
 
+  val fieldsForDebug = scala.collection.mutable.ListBuffer[(String, Boolean)]()
+
   override def classFooter(name: List[String]): Unit = {
+    if (config.readStoresPos) {
+      out.puts
+      out.puts("_debug: {")
+      out.inc
+      fieldsForDebug.foreach({ case (field, isEnum) => {
+        out.puts(s"${field}: DebugPosition${if (isEnum) " & { enumName: string; }" else ""};")
+      }})
+      out.dec
+      out.puts("};")
+      fieldsForDebug.clear()
+    }
     out.dec
     out.puts("}")
     endNamespace(name.init)
@@ -85,20 +115,8 @@ class TypescriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def kaitaiType2NativeType(attrType: DataType): String = {
     attrType match {
-      case _: Int1Type |
-           _: IntMultiType |
-           _: IntMultiType |
-           _: IntMultiType |
-           _: IntMultiType |
-           _: IntMultiType |
-           _: IntMultiType |
-           _: FloatMultiType |
-           _: BitsType |
-           CalcIntType |
-           CalcFloatType => "number"
-
+      case _: NumericType => "number"
       case _: BooleanType => "boolean"
-
       case _: StrType => "string"
       case _: BytesType => "Uint8Array"
 
@@ -115,7 +133,8 @@ class TypescriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case at: ArrayType => s"${kaitaiType2NativeType(at.elType)}[]"
 
       case KaitaiStreamType | OwnedKaitaiStreamType => "any"
-      case KaitaiStructType | CalcKaitaiStructType => "any"
+      case _: StructType => "any"
+      case AnyType => "any"
 
       case st: SwitchType => s"${st.cases.values.map(kaitaiType2NativeType).mkString(" | ")} | undefined"
     }
@@ -126,7 +145,9 @@ class TypescriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case ParentIdentifier | RootIdentifier | IoIdentifier =>
       // just ignore it for now
       case _ =>
-        out.puts(s"${idToStr(attrName)}: ${kaitaiType2NativeType(attrType)};")
+        val fieldName = idToStr(attrName)
+        out.puts(s"${fieldName}: ${kaitaiType2NativeType(attrType)};")
+        fieldsForDebug.append((fieldName, attrType.isInstanceOf[EnumType]))
     }
   }
 
@@ -147,6 +168,11 @@ class TypescriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(" */")
   }
+
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
+  }
+
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = {}
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     beginNamespace(curClass)
@@ -317,8 +343,6 @@ object TypescriptCompiler extends LanguageCompilerStatic
                           ): LanguageCompiler = new TypescriptCompiler(tp, config)
 
   override def kstreamName: String = "KaitaiStream"
-
-  // FIXME: probably KaitaiStruct will emerge some day in JavaScript runtime, but for now it is unused
   override def kstructName: String = ???
 
   override def ksErrorName(err: KSError): String = err match {
