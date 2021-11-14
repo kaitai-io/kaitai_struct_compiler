@@ -122,7 +122,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"`${idToStr(attrName)}`*: ${ksToNim(attrType)}")
   }
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    attributeDeclaration(attrName, attrType, isNullable)
+    out.puts(s"`${idToStr(attrName)}`: ${ksToNim(attrType)}")
+    out.puts(s"`${instanceFlagIdentifier(attrName)}`: bool")
   }
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {}
@@ -223,15 +224,13 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentSimple(instName, cast)
   }
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    dataType match {
-      case _: ArrayType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
-      case _: StrType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
-      case _: BytesType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
-      case _ => out.puts(s"if ${privateMemberName(instName)} != nil:")
-    }
-      out.inc
-      instanceReturn(instName, dataType)
-      out.dec
+    //out.puts(s"if not ${privateMemberName(instanceFlagIdentifier(instName))}:")
+    val flag = instanceFlagIdentifier(instName)
+    out.puts(s"if not this.$flag:")
+    out.inc
+    out.puts(s"this.$flag = true")
+    instanceReturn(instName, dataType)
+    out.dec
   }
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"proc ${idToStr(instName).dropRight(4)}(this: ${namespaced(className)}): ${ksToNim(dataType)} = ")
@@ -500,6 +499,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     out.puts( "]##")
   }
+
+  def instanceFlagIdentifier(id: InstanceIdentifier) = s"${idToStr(id)}Flag"
 }
 
 object NimCompiler extends LanguageCompilerStatic
