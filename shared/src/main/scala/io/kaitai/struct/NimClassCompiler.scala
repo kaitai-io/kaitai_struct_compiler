@@ -106,7 +106,7 @@ class NimClassCompiler(
         lang.attrParse(pi, instName, endian)
     }
 
-    lang.instanceCheckCacheAndReturn(instName, dataType)
+    lang.instanceReturn(instName, dataType)
     lang.instanceFooter
   }
 

@@ -224,12 +224,9 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentSimple(instName, cast)
   }
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    //out.puts(s"if not ${privateMemberName(instanceFlagIdentifier(instName))}:")
-    val flag = instanceFlagIdentifier(instName)
-    out.puts(s"if not this.$flag:")
+    out.puts(s"if this.${instanceFlagIdentifier(instName)}:")
     out.inc
-    out.puts(s"this.$flag = true")
-    instanceReturn(instName, dataType)
+    out.puts(s"return ${privateMemberName(instName)}")
     out.dec
   }
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
@@ -241,6 +238,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+    out.puts(s"this.${instanceFlagIdentifier(instName)} = true")
     out.puts(s"return ${privateMemberName(instName)}")
   }
   // def normalIO: String = ???
