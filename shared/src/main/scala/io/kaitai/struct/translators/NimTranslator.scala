@@ -100,7 +100,10 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     if (arr.size == 0)
       s"@[]"
     else
-      "@[" + arr.mkString("'u8, ") + "'u8]"
+      "@[" + arr.map(b => {
+        val ub: Int = b & 0xff
+        ub
+      }).mkString("'u8, ") + "'u8]"
   }
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"@[${elts.map(translate).mkString(", ")}]"
