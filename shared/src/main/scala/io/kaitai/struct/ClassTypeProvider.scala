@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundError, TypeUndecidedError}
+import io.kaitai.struct.precompile.{EnumNotFoundError, ExpressionError, FieldNotFoundError, TypeNotFoundError, TypeUndecidedError}
 import io.kaitai.struct.translators.TypeProvider
 
 class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends TypeProvider {
@@ -22,8 +22,6 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     * `cases.<case>` contexts and refers to the value of `switch-on` expression.
     */
   var _currentSwitchType: Option[DataType] = None
-  def currentIteratorType: DataType = _currentIteratorType.get
-  def currentSwitchType: DataType = _currentSwitchType.get
 
   override def determineType(attrName: String): DataType = {
     determineType(nowClass, attrName)
@@ -39,14 +37,20 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
         topClass.toDataType
       case Identifier.PARENT =>
         if (inClass.parentClass == UnknownClassSpec)
-          throw new RuntimeException(s"Unable to derive ${Identifier.PARENT} type in ${inClass.name.mkString("::")}")
+          throw new ExpressionError(s"Unable to derive '${Identifier.PARENT}' type in '${inClass.nameAsStr}'")
         inClass.parentClass.toDataType
       case Identifier.IO =>
         KaitaiStreamType
       case Identifier.ITERATOR =>
-        currentIteratorType
+        _currentIteratorType match {
+          case Some(value) => value
+          case None => throw new ExpressionError(s"Context variable '$attrName' is available only in the 'repeat-until' and 'valid/expr' attributes")
+        }
       case Identifier.SWITCH_ON =>
-        currentSwitchType
+        _currentSwitchType match {
+          case Some(value) => value
+          case None => throw new ExpressionError(s"Context variable '$attrName' is available only in the 'cases.<case>' expressions")
+        }
       case Identifier.INDEX =>
         CalcIntType
       case Identifier.SIZEOF =>
