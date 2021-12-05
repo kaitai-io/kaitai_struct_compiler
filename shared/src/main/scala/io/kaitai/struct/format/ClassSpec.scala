@@ -37,7 +37,26 @@ case object GenericStructClassSpec extends ClassSpecLike {
   * Type that represent result of the `_sizeof` special property and `sizeof<>`
   * meta-function.
   */
-sealed trait Sized
+sealed trait Sized {
+  /**
+    * Combines two sizes into one object which covers both size requirements
+    *
+    * @param other Size to combine with
+    */
+  final def or(other: Sized): Sized = {
+    (this, other) match {
+      case (FixedSized(l), FixedSized(r)) if l == r => FixedSized(l)
+      case (FixedSized(_), FixedSized(_)) => DynamicSized
+
+      case (FixedSized(_), DynamicSized) => DynamicSized
+      case (DynamicSized, FixedSized(_)) => DynamicSized
+
+      case (DynamicSized, DynamicSized) => DynamicSized
+
+      // other combinations should produce an error
+    }
+  }
+}
 /**
   * The size of type have no constant value. The examples is built-in unsized
   * types: `str`, `strz`, and `bytes`. Those types has no natural size in contrary
