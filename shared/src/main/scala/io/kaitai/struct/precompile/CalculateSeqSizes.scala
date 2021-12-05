@@ -95,7 +95,23 @@ object CalculateSeqSizes {
     var seqPos: Option[Int] = Some(0)
     curClass.seq.foreach { attr =>
       val sizeElement = dataTypeBitsSize(attr.dataType)
-      val sizeContainer = sizeMultiply(sizeElement, attr.cond.repeat, attr.path)
+      val size = sizeMultiply(sizeElement, attr.cond.repeat, attr.path)
+      val sizeContainer = attr.cond.ifExpr match {
+        case Some(expr) => expr.evaluateBoolConst match {
+          case Some(true) => {
+            //TODO: add user visible warning
+            Log.seqSizes.warn(() => s"${attr.path}: condition is always `true`")
+            size
+          }
+          case Some(false) => {
+            //TODO: add user visible warning
+            Log.seqSizes.warn(() => s"${attr.path}: condition is always `false`")
+            FixedSized(0)
+          }
+          case None => DynamicSized
+        }
+        case None => size
+      }
 
       op(attr, seqPos, sizeElement, sizeContainer)
 
