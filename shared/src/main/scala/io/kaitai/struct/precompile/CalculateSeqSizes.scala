@@ -5,6 +5,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
+import io.kaitai.struct.problems.KSYParseError
 
 class CalculateSeqSizes(specs: ClassSpecs) {
   def run(): Unit = {
@@ -13,21 +14,45 @@ class CalculateSeqSizes(specs: ClassSpecs) {
 }
 
 object CalculateSeqSizes {
-  def sizeMultiply(sizeElement: Sized, repeat: RepeatSpec) = {
-    sizeElement match {
-      case FixedSized(elementSize) =>
-        repeat match {
-          case NoRepeat =>
-            sizeElement
-          case RepeatExpr(expr) =>
-            expr.evaluateIntConst match {
-              case Some(count) => FixedSized(elementSize * count.toInt)
-              case None => DynamicSized
-            }
-          case _: RepeatUntil | RepeatEos =>
-            DynamicSized
+  def sizeMultiply(sizeElement: Sized, repeat: RepeatSpec, path: List[String]): Sized = {
+    repeat match {
+      case NoRepeat => sizeElement
+
+      case RepeatExpr(expr) => (expr.evaluateIntConst, sizeElement) match {
+        case (Some(count), _) if count < 0 =>
+          throw KSYParseError.withText(s"negative count of repetitions: ${count}", path)
+
+        case (Some(count), _) if count == 0 => {
+          //TODO: add user visible warning
+          Log.seqSizes.warn(() => s"repetition count expression ${expr} is always `0`, no iterations will be performed")
+          FixedSized(0)
         }
-      case _ => sizeElement
+        case (Some(count), FixedSized(size)) => FixedSized(size * count.toInt)//FIXME: toInt is a potential footgun
+
+        case (_, FixedSized(0)) => FixedSized(0)
+        case (_, _) => DynamicSized
+      }
+
+      case RepeatUntil(expr) => expr.evaluateBoolConst match {
+        case Some(false) =>
+          throw KSYParseError.withText("infinity cycle: stop condition is always `false`", path)
+
+        case Some(true) => {
+          //TODO: add user visible warning
+          Log.seqSizes.warn(() => s"expression ${expr} is always `true`, cycle will be stopped after first iteration")
+          sizeElement
+        }
+
+        case None => sizeElement match {
+          case FixedSized(0) => FixedSized(0)
+          case _ => DynamicSized
+        }
+      }
+
+      case RepeatEos => sizeElement match {
+        case FixedSized(0) => FixedSized(0)
+        case _ => DynamicSized
+      }
     }
   }
 
@@ -70,7 +95,7 @@ object CalculateSeqSizes {
     var seqPos: Option[Int] = Some(0)
     curClass.seq.foreach { attr =>
       val sizeElement = dataTypeBitsSize(attr.dataType)
-      val sizeContainer = sizeMultiply(sizeElement, attr.cond.repeat)
+      val sizeContainer = sizeMultiply(sizeElement, attr.cond.repeat, attr.path)
 
       op(attr, seqPos, sizeElement, sizeContainer)
 

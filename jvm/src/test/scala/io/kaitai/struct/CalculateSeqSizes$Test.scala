@@ -5,7 +5,9 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.{DynamicSized, FixedSized, MetaSpec, NamedIdentifier, Sized, YamlAttrArgs}
+import io.kaitai.struct.format.{RepeatSpec, NoRepeat, RepeatExpr, RepeatUntil, RepeatEos}
 import io.kaitai.struct.precompile.CalculateSeqSizes
+import io.kaitai.struct.problems.CompilationProblemException
 
 import scala.collection.immutable.SortedMap
 
@@ -84,6 +86,10 @@ class CalculateSeqSizes$Test extends AnyFunSpec {
         Expressions.parse(condition) -> parse(Some(typeName), None, None, None)
       }
     ))
+  }
+
+  private def repeat(size: Sized, repeat: RepeatSpec): Sized = {
+    CalculateSeqSizes.sizeMultiply(size, repeat, List())
   }
 
   describe("CalculateSeqSizes") {
@@ -211,6 +217,82 @@ class CalculateSeqSizes$Test extends AnyFunSpec {
           "1" -> "strz",
           "_" -> "strz",
         )) should be (DynamicSized)
+      }
+    }
+
+    describe("repeat") {
+      it("no repeat does not change calculated size") {
+        repeat(FixedSized(42), NoRepeat) should be (FixedSized(42))
+        repeat(DynamicSized,   NoRepeat) should be (DynamicSized)
+      }
+
+      it("`repeat-expr: <negative count>` produces compilation error") {
+        intercept[CompilationProblemException] {
+          repeat(FixedSized(0), RepeatExpr(Ast.expr.IntNum(-1)))
+        }.getMessage() should be ("(main): /:\n\terror: negative count of repetitions: -1\n")
+
+        intercept[CompilationProblemException] {
+          repeat(FixedSized(42), RepeatExpr(Ast.expr.IntNum(-1)))
+        }.getMessage() should be ("(main): /:\n\terror: negative count of repetitions: -1\n")
+
+        intercept[CompilationProblemException] {
+          repeat(DynamicSized, RepeatExpr(Ast.expr.IntNum(-1)))
+        }.getMessage() should be ("(main): /:\n\terror: negative count of repetitions: -1\n")
+      }
+
+      it("`repeat-expr: <zero count>` produces FixedSized(0)") {
+        repeat(FixedSized(42), RepeatExpr(Ast.expr.IntNum(0))) should be (FixedSized(0))
+        repeat(DynamicSized,   RepeatExpr(Ast.expr.IntNum(0))) should be (FixedSized(0))
+      }
+
+      it("`repeat-expr: <positive count>` multiplies size") {
+        repeat(FixedSized(42), RepeatExpr(Ast.expr.IntNum(1))) should be (FixedSized(42))
+        repeat(DynamicSized,   RepeatExpr(Ast.expr.IntNum(1))) should be (DynamicSized)
+
+        repeat(FixedSized(42), RepeatExpr(Ast.expr.IntNum(2))) should be (FixedSized(84))
+        repeat(DynamicSized,   RepeatExpr(Ast.expr.IntNum(2))) should be (DynamicSized)
+      }
+
+      it("`repeat-until: <falsy expression>` produces compilation error") {
+        intercept[CompilationProblemException] {
+          repeat(FixedSized(0), RepeatUntil(Ast.expr.Bool(false)))
+        }.getMessage() should be ("(main): /:\n\terror: infinity cycle: stop condition is always `false`\n")
+
+        intercept[CompilationProblemException] {
+          repeat(FixedSized(42), RepeatUntil(Ast.expr.Bool(false)))
+        }.getMessage() should be ("(main): /:\n\terror: infinity cycle: stop condition is always `false`\n")
+
+        intercept[CompilationProblemException] {
+          repeat(DynamicSized, RepeatUntil(Ast.expr.Bool(false)))
+        }.getMessage() should be ("(main): /:\n\terror: infinity cycle: stop condition is always `false`\n")
+      }
+
+      it("`repeat-until: <truly expression>` returns the same size") {
+        repeat(FixedSized(42), RepeatUntil(Ast.expr.Bool(true))) should be (FixedSized(42))
+        repeat(DynamicSized,   RepeatUntil(Ast.expr.Bool(true))) should be (DynamicSized)
+      }
+
+      it("`repeat-until: <any expression>` produces DynamicSized") {
+        val x = Ast.expr.Name(Ast.identifier("x"))
+
+        repeat(FixedSized(42), RepeatUntil(x)) should be (DynamicSized)
+        repeat(DynamicSized,   RepeatUntil(x)) should be (DynamicSized)
+      }
+
+      it("FixedSize(0) always produce FixedSize(0)") {
+        val x = Ast.expr.Name(Ast.identifier("x"))
+
+        repeat(FixedSized(0), NoRepeat) should be (FixedSized(0))
+
+        repeat(FixedSized(0), RepeatExpr(Ast.expr.IntNum(0))) should be (FixedSized(0))
+        repeat(FixedSized(0), RepeatExpr(Ast.expr.IntNum(1))) should be (FixedSized(0))
+        repeat(FixedSized(0), RepeatExpr(Ast.expr.IntNum(2))) should be (FixedSized(0))
+        repeat(FixedSized(0), RepeatExpr(x)) should be (FixedSized(0))
+
+        repeat(FixedSized(0), RepeatUntil(Ast.expr.Bool(true))) should be (FixedSized(0))
+        repeat(FixedSized(0), RepeatUntil(x)) should be (FixedSized(0))
+
+        repeat(FixedSized(0), RepeatEos) should be (FixedSized(0))
       }
     }
   }
