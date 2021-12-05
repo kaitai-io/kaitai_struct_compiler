@@ -31,6 +31,12 @@ object CalculateSeqSizes {
     }
   }
 
+  /**
+    * Calculates size of the specified class instance for use in the `_sizeof`
+    * special property and `sizeof<>` meta-function.
+    *
+    * @param curClass
+    */
   def getSeqSize(curClass: ClassSpec): Sized = {
     curClass.seqSize match {
       case DynamicSized | _: FixedSized =>
