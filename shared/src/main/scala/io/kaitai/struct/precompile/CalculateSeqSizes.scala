@@ -119,7 +119,12 @@ object CalculateSeqSizes {
       case StrFromBytesType(basedOn, _, _) => dataTypeBitsSize(basedOn)
       case CalcStrType => DynamicSized
 
-      case st: SwitchType => DynamicSized // FIXME: it's really possible get size if st.hasSize
+      case SwitchType(_, _, cases, _, _) => cases.values.foldLeft[Option[Sized]](None) {
+        case (acc, dataType) => Some(acc match {
+          case None    => dataTypeBitsSize(dataType)
+          case Some(s) => s.or(dataTypeBitsSize(dataType))
+        })
+      }.getOrElse(FixedSized(0))
 
       case OwnedKaitaiStreamType | KaitaiStreamType => DynamicSized
 

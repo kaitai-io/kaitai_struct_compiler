@@ -3,9 +3,11 @@ package io.kaitai.struct
 import io.kaitai.struct.datatype.{BigEndian, BigBitEndian}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{DynamicSized, FixedSized, MetaSpec, Sized, YamlAttrArgs}
+import io.kaitai.struct.exprlang.{Ast, Expressions}
+import io.kaitai.struct.format.{DynamicSized, FixedSized, MetaSpec, NamedIdentifier, Sized, YamlAttrArgs}
 import io.kaitai.struct.precompile.CalculateSeqSizes
+
+import scala.collection.immutable.SortedMap
 
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers._
@@ -71,6 +73,17 @@ class CalculateSeqSizes$Test extends AnyFunSpec {
   /** Helper for testing the `contents` size. */
   private def sizeof(contents: Array[Byte]): Sized = {
     sizeof(None, None, None, Some(contents))
+  }
+
+  /** Helper for testing the `switch-on` types. */
+  private def switchOn(cases: SortedMap[String, String]): Sized = {
+    CalculateSeqSizes.dataTypeBitsSize(SwitchType(
+      NamedIdentifier("body"),
+      Ast.expr.IntNum(0),
+      cases.map { case (condition, typeName) =>
+        Expressions.parse(condition) -> parse(Some(typeName), None, None, None)
+      }
+    ))
   }
 
   describe("CalculateSeqSizes") {
@@ -155,6 +168,50 @@ class CalculateSeqSizes$Test extends AnyFunSpec {
       sizeof(10) should be (FixedSized(10*8))// size: 10
 
       sizeof("abcdef".getBytes()) should be (FixedSized(6*8))// content: 'abcdef'
+    }
+
+    describe("switch-on") {
+      it("has a zero size if no cases present") {
+        switchOn(SortedMap()) should be (FixedSized(0))
+      }
+
+      it("has a fixed size when all cases have the same fixed size") {
+        switchOn(SortedMap(
+          "0" -> "f4be",
+          "1" -> "u4be",
+          "_" -> "s4be",
+        )) should be (FixedSized(4*8))
+      }
+
+      it("has a dynamic size when not all cases have the same size") {
+        switchOn(SortedMap(
+          "0" -> "f4be",
+          "1" -> "u4be",
+          "_" -> "u1",
+        )) should be (DynamicSized)
+      }
+
+      it("has a dynamic size when contains a case with a dynamic size") {
+        // Fixed + Dynamic
+        switchOn(SortedMap(
+          "0" -> "f4be",
+          "1" -> "u4be",
+          "_" -> "strz",
+        )) should be (DynamicSized)
+
+        // Dynamic + Fixed
+        switchOn(SortedMap(
+          "0" -> "strz",
+          "1" -> "u4be",
+          "_" -> "f4be",
+        )) should be (DynamicSized)
+
+        // Dynamic + Dynamic
+        switchOn(SortedMap(
+          "1" -> "strz",
+          "_" -> "strz",
+        )) should be (DynamicSized)
+      }
     }
   }
 }
