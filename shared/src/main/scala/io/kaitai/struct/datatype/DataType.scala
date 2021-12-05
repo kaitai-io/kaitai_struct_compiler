@@ -507,6 +507,13 @@ object DataType {
   private val ReFloatType = """f(4|8)(le|be)?""".r
   private val ReBitType = """b(\d+)(le|be)?""".r
 
+  /**
+    * @param dto Content of the `type` key or the case variant in case of `switch-on` type
+    * @param path YAML path to the type definition, for use in errors
+    * @param metaDef Default properties of the attribute from `meta` section of type definition
+    * @param arg Other properties of the attribute in the KSY definition, such as `size`,
+             `content`, `terminator`, etc.
+    */
   def fromYaml(
     dto: Option[String],
     path: List[String],
@@ -514,12 +521,12 @@ object DataType {
     arg: YamlAttrArgs
   ): DataType = {
     val r = dto match {
-      case None =>
+      case None => // `type:` key is missing in the KSY definition
         arg.contents match {
           case Some(c) => BytesLimitType(Ast.expr.IntNum(c.length), None, false, None, arg.process)
           case _ => arg.getByteArrayType(path)
         }
-      case Some(dt) => dt match {
+      case Some(dt) => dt match {// type: dt
         case "u1" => Int1Type(false)
         case "s1" => Int1Type(true)
         case ReIntType(signStr, widthStr, endianStr) =>

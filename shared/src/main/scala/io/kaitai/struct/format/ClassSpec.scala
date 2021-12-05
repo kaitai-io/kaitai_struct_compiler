@@ -33,10 +33,29 @@ case object GenericStructClassSpec extends ClassSpecLike {
   override def toDataType: DataType = CalcKaitaiStructType()
 }
 
+/**
+  * Type that represent result of the `_sizeof` special property and `sizeof<>`
+  * meta-function.
+  */
 sealed trait Sized
+/**
+  * The size of type have no constant value. The examples is built-in unsized
+  * types: `str`, `strz`, and `bytes`. Those types has no natural size in contrary
+  * to the sized types, such as `u1` or `f4be`.
+  */
 case object DynamicSized extends Sized
+/**
+  * A marker object that indicates that size of the type has not been yet calculated
+  * and calculation should be performed when size will be requested.
+  */
 case object NotCalculatedSized extends Sized
+/**
+  * A marker object that indicates that calculation of the size of the type in the
+  * progress. If that object will be seen during calculation process it is mean that
+  * type is defined recursively.
+  */
 case object StartedCalculationSized extends Sized
+/** The size of type is `n` bits. */
 case class FixedSized(n: Int) extends Sized
 
 case class ClassSpec(
