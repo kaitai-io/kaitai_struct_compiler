@@ -18,35 +18,51 @@ object RepeatSpec {
     val repeatExpr = ParseUtils.getOptValueExpression(srcMap, "repeat-expr", path)
     val repeatUntil = ParseUtils.getOptValueExpression(srcMap, "repeat-until", path)
 
-    repeat match {
-      case None =>
-        (NoRepeat, Set())
-      case Some("until") =>
-        val spec = repeatUntil match {
-          case Some(expr) => RepeatUntil(expr)
-          case None =>
-            throw KSYParseError.withText(
-              "`repeat: until` requires a `repeat-until` expression",
-              path ++ List("repeat")
-            )
-        }
-        (spec, Set("repeat-until"))
-      case Some("expr") =>
-        val spec = repeatExpr match {
-          case Some(expr) => RepeatExpr(expr)
-          case None =>
-            throw KSYParseError.withText(
-              "`repeat: expr` requires a `repeat-expr` expression",
-              path ++ List("repeat")
-            )
-        }
-        (spec, Set("repeat-expr"))
-      case Some("eos") =>
-        (RepeatEos, Set())
-      case Some(other) =>
-        throw KSYParseError.badDictValue(
-          Set("until", "expr", "eos"), other, path ++ List("repeat")
-        )
+    (repeat, repeatExpr, repeatUntil) match {
+      // Only `repeat-x: ...` or nothing
+      case (None, None,        None) => (NoRepeat, Set())
+      case (None, Some(count), None) => (RepeatExpr(count),  Set("repeat-expr"))
+      case (None, None, Some(until)) => (RepeatUntil(until), Set("repeat-until"))
+
+      // Both `repeat: x` and `repeat-x: ...`
+      case (Some("eos"),   None,        None) => (RepeatEos, Set())
+      case (Some("expr"),  Some(count), None) => (RepeatExpr(count),  Set("repeat-expr"))
+      case (Some("until"), None, Some(until)) => (RepeatUntil(until), Set("repeat-until"))
+
+      // Only `repeat: x`
+      case (Some("eos"),   Some(_), Some(_)) |
+           (Some("expr"),  Some(_), Some(_)) |
+           (Some("until"), Some(_), Some(_)) => throw KSYParseError.withText(
+        "either `repeat: eos`, or `repeat-expr`, or `repeat-until` must be specified",
+        path :+ "repeat"
+      )
+      case (Some("expr"),  None, None) => throw KSYParseError.withText(
+        "`repeat: expr` requires a `repeat-expr` key",
+        path :+ "repeat"
+      )
+      case (Some("until"), None, None) => throw KSYParseError.withText(
+        "`repeat: until` requires a `repeat-until` key",
+        path :+ "repeat"
+      )
+
+      // Incompatible combinations
+      case (Some(_), Some(_), _) => throw KSYParseError.withText(
+        "`repeat-expr` requires either a `repeat: expr` or absence of a `repeat` key",
+        path :+ "repeat"
+      )
+      case (Some(_), _, Some(_)) => throw KSYParseError.withText(
+        "`repeat-until` requires either a `repeat: until` or absence of a `repeat` key",
+        path :+ "repeat"
+      )
+      case (_, Some(_), Some(_)) => throw KSYParseError.withText(
+        "either `repeat-expr` or `repeat-until` must be specified",
+        path :+ "repeat-expr"
+      )
+
+      case (Some(other), _, _) => throw KSYParseError.badDictValue(
+        Set("until", "expr", "eos"), other,
+        path :+ "repeat"
+      )
     }
   }
 }
