@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.datatype.{BigEndian, BigBitEndian}
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{DataType, Terminator}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.{DynamicSized, FixedSized, MetaSpec, Sized, YamlAttrArgs}
@@ -39,12 +39,14 @@ class CalculateSeqSizes$Test extends AnyFunSpec {
       YamlAttrArgs(
         size.map(s => Ast.expr.IntNum(s)),
         false,// sizeEos
-        None, // encoding
-        terminator,
-        false,// include
-        false,// consume
-        false,// eosError
+        terminator.map(value => Terminator(
+          value,
+          false,// include
+          false,// consume
+          false,// eosError
+        )),
         None, // padRight
+        None, // encoding
         contents,
         None, // enumRef
         None, // parent
@@ -82,7 +84,7 @@ class CalculateSeqSizes$Test extends AnyFunSpec {
     CalculateSeqSizes.dataTypeBitsSize(SwitchType(
       Ast.expr.IntNum(0),
       cases.map { case (condition, typeName) =>
-        Expressions.parse(condition) -> parse(Some(typeName), None, None, None)
+        Expressions.parse(condition) -> parse(Some(typeName), None, Some(0), None)
       }
     ))
   }
@@ -164,8 +166,9 @@ class CalculateSeqSizes$Test extends AnyFunSpec {
 
       //-----------------------------------------------------------------------
 
-      sizeof("str", 0) should be (DynamicSized)
-      sizeof("strz"  ) should be (DynamicSized)
+      // We do not auto-calculate terminator in our test, so in both cases terminator is necessary
+      sizeof("str",  0) should be (DynamicSized)
+      sizeof("strz", 0) should be (DynamicSized)
 
       //TODO: Uncomment when https://github.com/kaitai-io/kaitai_struct/issues/799
       // will be implemented

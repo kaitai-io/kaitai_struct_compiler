@@ -2,7 +2,7 @@ package io.kaitai.struct.format
 
 import java.nio.charset.Charset
 import io.kaitai.struct.Utils
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{DataType, Terminator}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.{Ast, Expressions}
@@ -82,32 +82,26 @@ case class AttrSpec(
 case class YamlAttrArgs(
   size: Option[Ast.expr],
   sizeEos: Boolean,
-  encoding: Option[String],
-  terminator: Option[Int],
-  include: Boolean,
-  consume: Boolean,
-  eosError: Boolean,
+  terminator: Option[Terminator],
   padRight: Option[Int],
+
+  encoding: Option[String],
   contents: Option[Array[Byte]],
   enumRef: Option[String],
   parent: Option[Ast.expr],
   process: Option[ProcessExpr]
 ) {
   def getByteArrayType(path: List[String]) = {
-    (size, sizeEos) match {
-      case (Some(bs: expr), false) =>
-        BytesLimitType(bs, terminator, include, padRight, process)
-      case (None, true) =>
-        BytesEosType(terminator, include, padRight, process)
-      case (None, false) =>
-        terminator match {
-          case Some(term) =>
-            BytesTerminatedType(term, include, consume, eosError, process)
-          case None =>
-            throw KSYParseError("'size', 'size-eos' or 'terminator' must be specified", path).toException
-        }
-      case (Some(_), true) =>
+    (size, sizeEos, terminator) match {
+      case (None,        true,   until) => BytesEosType(until, padRight, process)
+      case (None,       false, Some(t)) => BytesTerminatedType(t, process)
+      case (None,       false,    None) =>
+        throw KSYParseError("'size', 'size-eos' or 'terminator' must be specified", path).toException
+
+      case (Some(_),     true,       _) =>
         throw KSYParseError("only one of 'size' or 'size-eos' must be specified", path).toException
+      // TODO: Warning or even error, if natural type size is less that `size`
+      case (Some(size), false,   until) => BytesLimitType(size, until, padRight, process)
     }
   }
 }
@@ -181,9 +175,9 @@ object AttrSpec {
     val ifExpr = ParseUtils.getOptValueExpression(srcMap, "if", path)
     val encoding = ParseUtils.getOptValueStr(srcMap, "encoding", path)
     val terminator = ParseUtils.getOptValueInt(srcMap, "terminator", path)
-    val consume = ParseUtils.getOptValueBool(srcMap, "consume", path).getOrElse(true)
-    val include = ParseUtils.getOptValueBool(srcMap, "include", path).getOrElse(false)
-    val eosError = ParseUtils.getOptValueBool(srcMap, "eos-error", path).getOrElse(true)
+    val consume = ParseUtils.getOptValueBool(srcMap, "consume", path)
+    val include = ParseUtils.getOptValueBool(srcMap, "include", path)
+    val eosError = ParseUtils.getOptValueBool(srcMap, "eos-error", path)
     val padRight = ParseUtils.getOptValueInt(srcMap, "pad-right", path)
     val enumOpt = ParseUtils.getOptValueStr(srcMap, "enum", path)
     val parent = ParseUtils.getOptValueExpression(srcMap, "parent", path)
@@ -202,9 +196,30 @@ object AttrSpec {
 
     val typObj = srcMap.get("type")
 
+    val until = (typObj, terminator, consume, include, eosError) match {
+      // "strz" makes terminator = 0 by default
+      case (Some("strz"), None, consume, include, mandatory) => Some(Terminator(
+        0,
+        include.getOrElse(false),
+        consume.getOrElse(true),
+        mandatory.getOrElse(true),
+      ))
+      case (_, Some(value), consume, include, mandatory) => Some(Terminator(
+        value,
+        include.getOrElse(false),
+        consume.getOrElse(true),
+        mandatory.getOrElse(true),
+      ))
+      case (_, None, None, None, None) => None
+      // TODO: Emit warning instead here, but error also an option until warnings is not implemented
+      // case (_, None, _, _, _) =>
+      //   throw KSYParseError.withText("`consume`, `include` or `eos-error` has no effect without `terminator`", path)
+      case (_, None, _, _, _) => None
+    }
+
     val yamlAttrArgs = YamlAttrArgs(
-      size, sizeEos,
-      encoding, terminator, include, consume, eosError, padRight,
+      size, sizeEos, until, padRight,
+      encoding,
       contents, enumOpt, parent, process
     )
 
@@ -304,9 +319,9 @@ object AttrSpec {
     } else {
       (arg.size, arg.sizeEos) match {
         case (Some(sizeValue), false) =>
-          Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, None, false, None, arg.process))
+          Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, None, None, arg.process))
         case (None, true) =>
-          Map(SwitchType.ELSE_CONST -> BytesEosType(None, false, None, arg.process))
+          Map(SwitchType.ELSE_CONST -> BytesEosType(None, None, arg.process))
         case (None, false) =>
           Map()
         case (Some(_), true) =>

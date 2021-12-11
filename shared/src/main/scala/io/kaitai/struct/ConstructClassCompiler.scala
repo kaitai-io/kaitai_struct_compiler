@@ -127,7 +127,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       s"Int${width.width * 8}${signToStr(signed)}${fixedEndianToStr(endianOpt.get)}"
     case FloatMultiType(width, endianOpt) =>
       s"Float${width.width * 8}${fixedEndianToStr(endianOpt.get)}"
-    case BytesEosType(terminator, include, padRight, process) =>
+    case BytesEosType(terminator, padRight, process) =>
       "GreedyBytes"
     case blt: BytesLimitType =>
       attrBytesLimitType(blt)
@@ -135,7 +135,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       attrBytesTerminatedType(btt, "GreedyBytes")
     case StrFromBytesType(bytes, encoding, _) =>
       bytes match {
-        case BytesEosType(terminator, include, padRight, process) =>
+        case BytesEosType(terminator, padRight, process) =>
           s"GreedyString(encoding='$encoding')"
         case blt: BytesLimitType =>
           attrBytesLimitType(blt, s"GreedyString(encoding='$encoding')")
@@ -146,10 +146,10 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       s"LazyBound(lambda: ${types2class(ut.classSpec.get.name)})"
     case utb: UserTypeFromBytes =>
       utb.bytes match {
-        //case BytesEosType(terminator, include, padRight, process) =>
-        case BytesLimitType(size, terminator, include, padRight, process) =>
+        //case BytesEosType(terminator, padRight, process) =>
+        case BytesLimitType(size, terminator, padRight, process) =>
           s"FixedSized(${translator.translate(size)}, LazyBound(lambda: ${types2class(utb.classSpec.get.name)}))"
-        //case BytesTerminatedType(terminator, include, consume, eosError, process) =>
+        //case BytesTerminatedType(terminator, process) =>
         case _ => "???"
       }
     case et: EnumType =>
@@ -162,9 +162,9 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   def attrBytesLimitType(blt: BytesLimitType, subcon: String = "GreedyBytes"): String = {
     val subcon2 = blt.terminator match {
       case None => subcon
-      case Some(term) =>
+      case Some(Terminator(term, include, _, _)) =>
         val termStr = "\\x%02X".format(term & 0xff)
-        s"NullTerminated($subcon, term=b'$termStr', include=${translator.doBoolLiteral(blt.include)})"
+        s"NullTerminated($subcon, term=b'$termStr', include=${translator.doBoolLiteral(include)})"
     }
     val subcon3 = blt.padRight match {
       case None => subcon2
@@ -176,11 +176,11 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def attrBytesTerminatedType(btt: BytesTerminatedType, subcon: String): String = {
-    val termStr = "\\x%02X".format(btt.terminator & 0xff)
+    val termStr = "\\x%02X".format(btt.terminator.value & 0xff)
     s"NullTerminated($subcon, " +
       s"term=b'$termStr', " +
-      s"include=${translator.doBoolLiteral(btt.include)}, " +
-      s"consume=${translator.doBoolLiteral(btt.consume)})"
+      s"include=${translator.doBoolLiteral(btt.terminator.include)}, " +
+      s"consume=${translator.doBoolLiteral(btt.terminator.consume)})"
   }
 
   def attrSwitchType(st: SwitchType): String = {

@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, Terminator}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{GoTranslator, ResultLocalVar, ResultString, TranslatorResult}
@@ -85,14 +85,14 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     }
   }
 
-  def bytesPadTermExpr(id: ResultLocalVar, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+  def bytesPadTermExpr(id: ResultLocalVar, padRight: Option[Int], terminator: Option[Terminator]): String = {
     val expr0 = translator.resToStr(id)
     val expr1 = padRight match {
       case Some(padByte) => s"kaitai.BytesStripRight($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"kaitai.BytesTerminate($expr1, $term, $include)"
+      case Some(Terminator(term, include, _, _)) => s"kaitai.BytesTerminate($expr1, $term, $include)"
       case None => expr1
     }
     expr2
@@ -100,10 +100,10 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
 
   def parseExprBytes(id: ResultLocalVar, dataType: BytesType): ResultLocalVar = {
     dataType match {
-      case BytesEosType(terminator, include, padRight, _) =>
-        translator.outTransform(id, bytesPadTermExpr(id, padRight, terminator, include))
-      case BytesLimitType(_, terminator, include, padRight, _) =>
-        translator.outTransform(id, bytesPadTermExpr(id, padRight, terminator, include))
+      case BytesEosType(terminator, padRight, _) =>
+        translator.outTransform(id, bytesPadTermExpr(id, padRight, terminator))
+      case BytesLimitType(_, terminator, padRight, _) =>
+        translator.outTransform(id, bytesPadTermExpr(id, padRight, terminator))
       case _ =>
         id
     }

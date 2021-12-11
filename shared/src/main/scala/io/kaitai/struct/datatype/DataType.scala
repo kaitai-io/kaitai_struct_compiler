@@ -143,23 +143,18 @@ object DataType {
     override def process = None
   }
   case class BytesEosType(
-    terminator: Option[Int],
-    include: Boolean,
+    terminator: Option[Terminator],
     padRight: Option[Int],
     override val process: Option[ProcessExpr]
   ) extends BytesType
   case class BytesLimitType(
     size: Ast.expr,
-    terminator: Option[Int],
-    include: Boolean,
+    terminator: Option[Terminator],
     padRight: Option[Int],
     override val process: Option[ProcessExpr]
   ) extends BytesType
   case class BytesTerminatedType(
-    terminator: Int,
-    include: Boolean,
-    consume: Boolean,
-    eosError: Boolean,
+    terminator: Terminator,
     override val process: Option[ProcessExpr]
   ) extends BytesType
 
@@ -479,9 +474,9 @@ object DataType {
       } else {
         (arg.size, arg.sizeEos) match {
           case (Some(sizeValue), false) =>
-            Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, None, false, None, arg.process))
+            Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, None, None, arg.process))
           case (None, true) =>
-            Map(SwitchType.ELSE_CONST -> BytesEosType(None, false, None, arg.process))
+            Map(SwitchType.ELSE_CONST -> BytesEosType(None, None, arg.process))
           case (None, false) =>
             Map()
           case (Some(_), true) =>
@@ -513,7 +508,7 @@ object DataType {
     val r = dto match {
       case None => // `type:` key is missing in the KSY definition
         arg.contents match {
-          case Some(c) => BytesLimitType(Ast.expr.IntNum(c.length), None, false, None, arg.process)
+          case Some(c) => BytesLimitType(Ast.expr.IntNum(c.length), None, None, arg.process)
           case _ => arg.getByteArrayType(path)
         }
       case Some(dt) => dt match {// type: dt
@@ -556,15 +551,7 @@ object DataType {
           }
         case "str" | "strz" =>
           val enc = getEncoding(arg.encoding, metaDef, path)
-
-          // "strz" makes terminator = 0 by default
-          val arg2 = if (dt == "strz") {
-            arg.copy(terminator = arg.terminator.orElse(Some(0)))
-          } else {
-            arg
-          }
-
-          val bat = arg2.getByteArrayType(path)
+          val bat = arg.getByteArrayType(path)
           StrFromBytesType(bat, enc, arg.encoding.isEmpty)
         case _ =>
           val typeWithArgs = Expressions.parseTypeRef(dt)
