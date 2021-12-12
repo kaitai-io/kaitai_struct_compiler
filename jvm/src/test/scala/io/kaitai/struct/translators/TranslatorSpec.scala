@@ -151,7 +151,7 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "foo_str"
   ))
 
-  full("foo_block", userOwnedType(List("block")), userOwnedType(List("block")), Map[LanguageCompilerStatic, String](
+  full("foo_block", userOwnedType(List("block")), userBorrowedType(List("block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo_block()",
     CSharpCompiler -> "FooBlock",
     GoCompiler -> "this.FooBlock",
@@ -190,7 +190,7 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "foo.inner.baz"
   ))
 
-  full("_root.foo", userOwnedType(List("top_class", "block")), userOwnedType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
+  full("_root.foo", userOwnedType(List("top_class", "block")), userBorrowedType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "_root()->foo()",
     CSharpCompiler -> "M_Root.Foo",
     GoCompiler -> "this._root.Foo",
@@ -737,6 +737,13 @@ class TranslatorSpec extends FunSuite {
   def userOwnedType(lname: List[String]) = {
     val cs = ClassSpec.opaquePlaceholder(lname)
     val ut = UserTypeInstream(lname, None)
+    ut.classSpec = Some(cs)
+    ut
+  }
+
+  def userBorrowedType(lname: List[String]) = {
+    val cs = ClassSpec.opaquePlaceholder(lname)
+    val ut = CalcUserType(lname, None)
     ut.classSpec = Some(cs)
     ut
   }
