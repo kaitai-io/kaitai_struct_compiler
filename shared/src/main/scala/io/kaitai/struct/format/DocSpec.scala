@@ -2,6 +2,8 @@ package io.kaitai.struct.format
 
 import io.kaitai.struct.XMLUtils
 
+import scala.collection.AbstractMap
+
 sealed trait RefSpec
 case class TextRef(text: String) extends RefSpec
 case class UrlRef(url: String, text: String) extends RefSpec {
@@ -24,7 +26,7 @@ case class DocSpec(
 object DocSpec {
   val EMPTY = DocSpec(None, List())
 
-  def fromYaml(srcMap: Map[String, Any], path: List[String]): DocSpec = {
+  def fromYaml(srcMap: yamlesque.Obj, path: List[String]): DocSpec = {
     val doc = ParseUtils.getOptValueStr(srcMap, "doc", path)
 
     val docRefs = ParseUtils.getListStr(srcMap, "doc-ref", path)

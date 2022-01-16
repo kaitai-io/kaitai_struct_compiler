@@ -83,7 +83,7 @@ object MetaSpec {
     "application"
   )
 
-  def fromYaml(src: Any, path: List[String]): MetaSpec = {
+  def fromYaml(src: yamlesque.Node, path: List[String]): MetaSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
 
     ParseUtils.getOptValueStr(srcMap, "ks-version", path).foreach { (verStr) =>
@@ -92,9 +92,9 @@ object MetaSpec {
         throw KSYParseError.incompatibleVersion(ver, KSVersion.current, path)
     }
 
-    val endian: Option[Endianness] = Endianness.fromYaml(srcMap.get("endian"), path)
+    val endian: Option[Endianness] = Endianness.fromYaml(srcMap.obj.get("endian"), path)
 
-    val bitEndian: Option[BitEndianness] = BitEndianness.fromYaml(srcMap.get("bit-endian"), path)
+    val bitEndian: Option[BitEndianness] = BitEndianness.fromYaml(srcMap.obj.get("bit-endian"), path)
 
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 

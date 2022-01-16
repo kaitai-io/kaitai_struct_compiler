@@ -5,14 +5,14 @@ import io.kaitai.struct.problems.KSYParseError
 case class EnumValueSpec(name: String, doc: DocSpec)
 
 object EnumValueSpec {
-  def fromYaml(src: Any, path: List[String]): EnumValueSpec = {
+  def fromYaml(src: yamlesque.Node, path: List[String]): EnumValueSpec = {
     src match {
-      case name: String =>
+      case yamlesque.Str(name) =>
         fromSimpleName(name, path)
-      case x: Boolean =>
+      case yamlesque.Bool(x) =>
         fromSimpleName(x.toString, path)
-      case srcMap: Map[Any, Any] =>
-        fromMap(ParseUtils.anyMapToStrMap(srcMap, path), path)
+      case obj: yamlesque.Obj =>
+        fromMap(obj, path)
       case _ =>
         throw KSYParseError.badType("string or map", src, path)
     }
@@ -29,7 +29,7 @@ object EnumValueSpec {
     "doc-ref"
   )
 
-  def fromMap(srcMap: Map[String, Any], path: List[String]): EnumValueSpec = {
+  def fromMap(srcMap: yamlesque.Obj, path: List[String]): EnumValueSpec = {
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path, Some("enum value spec"))
 
     val name = ParseUtils.getValueStr(srcMap, "id", path)

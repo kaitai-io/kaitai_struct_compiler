@@ -17,13 +17,13 @@ case class EnumSpec(map: Map[Long, EnumValueSpec]) {
 }
 
 object EnumSpec {
-  def fromYaml(src: Any, path: List[String]): EnumSpec = {
+  def fromYaml(src: yamlesque.Node, path: List[String]): EnumSpec = {
     val srcMap = ParseUtils.asMap(src, path)
-    EnumSpec(srcMap.map { case (id, desc) =>
+    EnumSpec(srcMap.obj.map { case (id, desc) =>
       val idLong = ParseUtils.asLong(id, path)
       val value = EnumValueSpec.fromYaml(desc, path ++ List(idLong.toString))
 
       idLong -> value
-    })
+    }.toMap)
   }
 }

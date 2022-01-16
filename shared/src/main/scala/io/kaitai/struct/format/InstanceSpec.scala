@@ -4,6 +4,8 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.precompile.TypeUndecidedError
 
+import scala.collection.mutable
+
 sealed abstract class InstanceSpec(val doc: DocSpec) extends MemberSpec {
   def dataTypeComposite: DataType
   def isNullable: Boolean
@@ -48,7 +50,7 @@ object InstanceSpec {
     "if"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaSpec, id: InstanceIdentifier): InstanceSpec = {
+  def fromYaml(src: yamlesque.Node, path: List[String], metaDef: MetaSpec, id: InstanceIdentifier): InstanceSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
 
     ParseUtils.getOptValueExpression(srcMap, "value", path) match {
@@ -82,9 +84,9 @@ object InstanceSpec {
         val pos = ParseUtils.getOptValueExpression(srcMap, "pos", path)
         val io = ParseUtils.getOptValueExpression(srcMap, "io", path)
 
-        val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io")
-        val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef, id)
-        val valid = srcMap.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
+        val fakeAttrMap = srcMap.obj.filterKeys((key) => key != "pos" && key != "io")
+        val a = AttrSpec.fromYaml(ParseUtils.mapToYamlObj(fakeAttrMap), path, metaDef, id)
+        val valid = srcMap.obj.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
 
         ParseInstanceSpec(id, path, a.doc, a.dataType, a.cond, pos, io, valid)
     }

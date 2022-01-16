@@ -5,6 +5,8 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.problems.KSYParseError
 import io.kaitai.struct.translators.TypeDetector
 
+import scala.collection.AbstractMap
+
 sealed trait DataType {
   /**
     * @return Data type as non-owning data type. Default implementation
@@ -260,9 +262,9 @@ object DataType {
       "cases"
     )
 
-    def fromYaml1(switchSpec: Map[String, Any], path: List[String]): (String, Map[String, String]) = {
+    def fromYaml1(switchSpec: yamlesque.Obj, path: List[String]): (String, Map[String, String]) = {
       val _on = ParseUtils.getValueStr(switchSpec, "switch-on", path)
-      val _cases: Map[String, String] = switchSpec.get("cases") match {
+      val _cases: Map[String, String] = switchSpec.obj.get("cases") match {
         case None => Map()
         case Some(x) => ParseUtils.asMapStrStr(x, path ++ List("cases"))
       }
@@ -272,7 +274,7 @@ object DataType {
     }
 
     def fromYaml(
-      switchSpec: Map[String, Any],
+      switchSpec: yamlesque.Obj,
       path: List[String],
       metaDef: MetaSpec,
       arg: YamlAttrArgs

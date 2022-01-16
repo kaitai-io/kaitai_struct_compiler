@@ -15,7 +15,7 @@ case class ValidationExpr(checkExpr: Ast.expr) extends ValidationSpec
 object ValidationEq {
   val LEGAL_KEYS = Set("eq")
 
-  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationEq] =
+  def fromMap(src: yamlesque.Obj, path: List[String]): Option[ValidationEq] =
     ParseUtils.getOptValueExpression(src, "eq", path).map { case eqExpr =>
       ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
       ValidationEq(eqExpr)
@@ -25,7 +25,7 @@ object ValidationEq {
 object ValidationRange {
   val LEGAL_KEYS = Set("min", "max")
 
-  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationSpec] = {
+  def fromMap(src: yamlesque.Obj, path: List[String]): Option[ValidationSpec] = {
     val minExprOpt = ParseUtils.getOptValueExpression(src, "min", path)
     val maxExprOpt = ParseUtils.getOptValueExpression(src, "max", path)
 
@@ -47,8 +47,8 @@ object ValidationRange {
 object ValidationAnyOf {
   val LEGAL_KEYS = Set("any-of")
 
-  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationAnyOf] = {
-    if (src.get("any-of").nonEmpty) {
+  def fromMap(src: yamlesque.Obj, path: List[String]): Option[ValidationAnyOf] = {
+    if (src.obj.get("any-of").nonEmpty) {
       ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
       Some(ValidationAnyOf(
         ParseUtils.getList(src, "any-of", ParseUtils.asExpression, path)
@@ -62,7 +62,7 @@ object ValidationAnyOf {
 object ValidationExpr {
   val LEGAL_KEYS = Set("expr")
 
-  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationExpr] =
+  def fromMap(src: yamlesque.Obj, path: List[String]): Option[ValidationExpr] =
     ParseUtils.getOptValueExpression(src, "expr", path).map { case eqExpr =>
       ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
       ValidationExpr(eqExpr)
@@ -76,18 +76,16 @@ object ValidationSpec {
     ValidationAnyOf.LEGAL_KEYS ++
     ValidationExpr.LEGAL_KEYS
 
-  def fromYaml(src: Any, path: List[String]): ValidationSpec = {
+  def fromYaml(src: yamlesque.Node, path: List[String]): ValidationSpec = {
     src match {
-      case value: String =>
+      case yamlesque.Str(value) =>
         fromString(value, path)
-      case x: Boolean =>
+      case yamlesque.Bool(x) =>
         fromString(x.toString, path)
-      case x: Int =>
+      case yamlesque.Num(x) =>
         fromString(x.toString, path)
-      case x: Long =>
-        fromString(x.toString, path)
-      case srcMap: Map[Any, Any] =>
-        fromMap(ParseUtils.anyMapToStrMap(srcMap, path), path)
+      case obj: yamlesque.Obj =>
+        fromMap(obj, path)
       case _ =>
         throw KSYParseError.badType("string or map", src, path)
     }
@@ -96,7 +94,7 @@ object ValidationSpec {
   def fromString(value: String, path: List[String]): ValidationSpec =
     ValidationEq(Expressions.parse(value))
 
-  def fromMap(src: Map[String, Any], path: List[String]): ValidationSpec = {
+  def fromMap(src: yamlesque.Obj, path: List[String]): ValidationSpec = {
     val opt1 = ValidationEq.fromMap(src, path)
     if (opt1.nonEmpty)
       return opt1.get

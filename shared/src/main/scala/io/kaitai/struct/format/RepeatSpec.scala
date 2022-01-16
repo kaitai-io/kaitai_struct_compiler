@@ -3,6 +3,8 @@ package io.kaitai.struct.format
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.problems.KSYParseError
 
+import scala.collection.AbstractMap
+
 sealed trait RepeatSpec
 case class RepeatExpr(expr: Ast.expr) extends RepeatSpec
 case class RepeatUntil(expr: Ast.expr) extends RepeatSpec
@@ -11,7 +13,7 @@ case object NoRepeat extends RepeatSpec
 
 object RepeatSpec {
   def fromYaml(
-    srcMap: Map[String, Any],
+    srcMap: yamlesque.Obj,
     path: List[String]
   ): (RepeatSpec, Set[String]) = {
     val repeat = ParseUtils.getOptValueStr(srcMap, "repeat", path)

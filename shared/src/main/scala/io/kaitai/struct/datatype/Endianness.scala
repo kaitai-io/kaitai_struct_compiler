@@ -5,6 +5,8 @@ import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.ParseUtils
 import io.kaitai.struct.problems.KSYParseError
 
+import scala.collection.AbstractMap
+
 sealed trait Endianness
 
 sealed abstract class FixedEndian extends Endianness {
@@ -22,14 +24,13 @@ case class CalcEndian(on: Ast.expr, cases: Map[Ast.expr, FixedEndian]) extends E
 case object InheritedEndian extends Endianness
 
 object Endianness {
-  def fromYaml(src: Option[Any], path: List[String]): Option[Endianness] = {
+  def fromYaml(src: Option[yamlesque.Node], path: List[String]): Option[Endianness] = {
     src match {
       case None => None
-      case Some("be") => Some(BigEndian)
-      case Some("le") => Some(LittleEndian)
-      case Some(srcMap: Map[Any, Any]) =>
-        val endianMap = ParseUtils.asMapStr(srcMap, path)
-        Some(fromMap(endianMap, path))
+      case Some(yamlesque.Str("be")) => Some(BigEndian)
+      case Some(yamlesque.Str("le")) => Some(LittleEndian)
+      case Some(srcMap: yamlesque.Obj) =>
+        Some(fromMap(srcMap, path))
       case _ =>
         throw KSYParseError.withText(
           s"unable to parse endianness: `le`, `be` or calculated endianness map is expected",
@@ -38,7 +39,7 @@ object Endianness {
     }
   }
 
-  def fromMap(srcMap: Map[String, Any], path: List[String]): CalcEndian = {
+  def fromMap(srcMap: yamlesque.Obj, path: List[String]): CalcEndian = {
     val (_on, _cases) = SwitchType.fromYaml1(srcMap, path)
 
     val on = Expressions.parse(_on)

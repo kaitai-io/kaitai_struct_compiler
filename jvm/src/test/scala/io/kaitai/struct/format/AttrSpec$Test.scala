@@ -72,9 +72,9 @@ class AttrSpec$Test extends FunSpec {
 
   describe("AttrSpec.fromYaml2") {
     it("parses user type") {
-      val src = Map(
-        "id" -> "foo",
-        "type" -> "bar"
+      val src = yamlesque.Obj(
+        "id" -> yamlesque.Str("foo"),
+        "type" -> yamlesque.Str("bar")
       )
       val spec = AttrSpec.fromYaml2(src, List(), MetaSpec.OPAQUE, NamedIdentifier("foo"))
 
@@ -84,9 +84,9 @@ class AttrSpec$Test extends FunSpec {
     }
 
     it("parses user type with 1 argument") {
-      val src = Map(
-        "id" -> "foo",
-        "type" -> "bar(5)"
+      val src = yamlesque.Obj(
+        "id" -> yamlesque.Str("foo"),
+        "type" -> yamlesque.Str("bar(5)")
       )
       val spec = AttrSpec.fromYaml2(src, List(), MetaSpec.OPAQUE, NamedIdentifier("foo"))
 
@@ -97,9 +97,9 @@ class AttrSpec$Test extends FunSpec {
     }
 
     it("parses user type with 1 argument in parenthesis") {
-      val src = Map(
-        "id" -> "foo",
-        "type" -> "bar((5))"
+      val src = yamlesque.Obj(
+        "id" -> yamlesque.Str("foo"),
+        "type" -> yamlesque.Str("bar((5))")
       )
       val spec = AttrSpec.fromYaml2(src, List(), MetaSpec.OPAQUE, NamedIdentifier("foo"))
 

@@ -58,7 +58,7 @@ lazy val compiler = crossProject.in(file(".")).
     libraryDependencies ++= Seq(
       "com.github.scopt" %%% "scopt" % "3.6.0",
       "com.lihaoyi" %%% "fastparse" % "1.0.0",
-      "org.yaml" % "snakeyaml" % "1.25"
+      "io.crashbox" %%% "yamlesque" % "0.2.0"
     )
   ).
   jvmSettings(

@@ -134,35 +134,35 @@ object ClassSpec {
     "enums"
   )
 
-  def fromYaml(src: Any, fileName: Option[String], path: List[String], metaDef: MetaSpec): ClassSpec = {
+  def fromYaml(src: yamlesque.Node, fileName: Option[String], path: List[String], metaDef: MetaSpec): ClassSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
     val metaPath = path ++ List("meta")
-    val explicitMeta = srcMap.get("meta").map(MetaSpec.fromYaml(_, metaPath)).getOrElse(MetaSpec.emptyWithPath(metaPath))
+    val explicitMeta = srcMap.obj.get("meta").map(MetaSpec.fromYaml(_, metaPath)).getOrElse(MetaSpec.emptyWithPath(metaPath))
     val meta = explicitMeta.fillInDefaults(metaDef)
 
     val doc = DocSpec.fromYaml(srcMap, path)
 
     val toStringExpr = ParseUtils.getOptValueExpression(srcMap, "to-string", path)
 
-    val params: List[ParamDefSpec] = srcMap.get("params") match {
+    val params: List[ParamDefSpec] = srcMap.obj.get("params") match {
       case Some(value) => paramDefFromYaml(value, path ++ List("params"))
       case None => List()
     }
-    val seq: List[AttrSpec] = srcMap.get("seq") match {
+    val seq: List[AttrSpec] = srcMap.obj.get("seq") match {
       case Some(value) => seqFromYaml(value, path ++ List("seq"), meta)
       case None => List()
     }
-    val types: Map[String, ClassSpec] = srcMap.get("types") match {
+    val types: Map[String, ClassSpec] = srcMap.obj.get("types") match {
       case Some(value) => typesFromYaml(value, fileName, path ++ List("types"), meta)
       case None => Map()
     }
-    val instances: Map[InstanceIdentifier, InstanceSpec] = srcMap.get("instances") match {
+    val instances: Map[InstanceIdentifier, InstanceSpec] = srcMap.obj.get("instances") match {
       case Some(value) => instancesFromYaml(value, path ++ List("instances"), meta)
       case None => Map()
     }
-    val enums: Map[String, EnumSpec] = srcMap.get("enums") match {
+    val enums: Map[String, EnumSpec] = srcMap.obj.get("enums") match {
       case Some(value) => enumsFromYaml(value, path ++ List("enums"))
       case None => Map()
     }
@@ -188,33 +188,33 @@ object ClassSpec {
     cs
   }
 
-  def paramDefFromYaml(src: Any, path: List[String]): List[ParamDefSpec] = {
+  def paramDefFromYaml(src: yamlesque.Node, path: List[String]): List[ParamDefSpec] = {
     src match {
-      case srcList: List[Any] =>
+      case yamlesque.Arr(srcList) =>
         val params = srcList.zipWithIndex.map { case (attrSrc, idx) =>
           ParamDefSpec.fromYaml(attrSrc, path ++ List(idx.toString), idx)
         }
         // FIXME: checkDupSeqIds(params)
-        params
+        params.toList
       case unknown =>
         throw KSYParseError.withText(s"expected array, found $unknown", path)
     }
   }
 
-  def seqFromYaml(src: Any, path: List[String], metaDef: MetaSpec): List[AttrSpec] = {
+  def seqFromYaml(src: yamlesque.Node, path: List[String], metaDef: MetaSpec): List[AttrSpec] = {
     src match {
-      case srcList: List[Any] =>
+      case yamlesque.Arr(srcList)  =>
         val seq = srcList.zipWithIndex.map { case (attrSrc, idx) =>
           AttrSpec.fromYaml(attrSrc, path ++ List(idx.toString), metaDef, idx)
         }
         checkDupSeqIds(seq)
-        seq
+        seq.toList
       case unknown =>
         throw KSYParseError.withText(s"expected array, found $unknown", path)
     }
   }
 
-  def checkDupSeqIds(seq: List[AttrSpec]): Unit = {
+  def checkDupSeqIds(seq: Iterable[AttrSpec]): Unit = {
     val attrIds = mutable.Map[String, AttrSpec]()
     seq.foreach { (attr) =>
       attr.id match {
@@ -249,34 +249,34 @@ object ClassSpec {
     }
   }
 
-  def typesFromYaml(src: Any, fileName: Option[String], path: List[String], metaDef: MetaSpec): Map[String, ClassSpec] = {
+  def typesFromYaml(src: yamlesque.Node, fileName: Option[String], path: List[String], metaDef: MetaSpec): Map[String, ClassSpec] = {
     val srcMap = ParseUtils.asMapStr(src, path)
-    srcMap.map { case (typeName, body) =>
+    srcMap.obj.map { case (typeName, body) =>
       Identifier.checkIdentifierSource(typeName, "type", path ++ List(typeName))
       typeName -> ClassSpec.fromYaml(body, fileName, path ++ List(typeName), metaDef)
-    }
+    }.toMap
   }
 
-  def instancesFromYaml(src: Any, path: List[String], metaDef: MetaSpec): Map[InstanceIdentifier, InstanceSpec] = {
+  def instancesFromYaml(src: yamlesque.Node, path: List[String], metaDef: MetaSpec): Map[InstanceIdentifier, InstanceSpec] = {
     val srcMap = ParseUtils.asMap(src, path)
-    srcMap.map { case (key, body) =>
+    srcMap.obj.map { case (key, body) =>
       val instName = ParseUtils.asStr(key, path)
       Identifier.checkIdentifierSource(instName, "instance", path ++ List(instName))
       val id = InstanceIdentifier(instName)
       id -> InstanceSpec.fromYaml(body, path ++ List(instName), metaDef, id)
-    }
+    }.toMap
   }
 
-  def enumsFromYaml(src: Any, path: List[String]): Map[String, EnumSpec] = {
+  def enumsFromYaml(src: yamlesque.Node, path: List[String]): Map[String, EnumSpec] = {
     val srcMap = ParseUtils.asMap(src, path)
-    srcMap.map { case (key, body) =>
+    srcMap.obj.map { case (key, body) =>
       val enumName = ParseUtils.asStr(key, path)
       Identifier.checkIdentifierSource(enumName, "enum", path ++ List(enumName))
       enumName -> EnumSpec.fromYaml(body, path ++ List(enumName))
-    }
+    }.toMap
   }
 
-  def fromYaml(src: Any, fileName: Option[String]): ClassSpec = fromYaml(src, fileName, List(), MetaSpec.OPAQUE)
+  def fromYaml(src: yamlesque.Node, fileName: Option[String]): ClassSpec = fromYaml(src, fileName, List(), MetaSpec.OPAQUE)
 
   def opaquePlaceholder(typeName: List[String]): ClassSpec = {
     val placeholder = ClassSpec(

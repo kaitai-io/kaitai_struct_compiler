@@ -13,7 +13,7 @@ case class ParamDefSpec(
 }
 
 object ParamDefSpec {
-  def fromYaml(src: Any, path: List[String], idx: Int): ParamDefSpec = {
+  def fromYaml(src: yamlesque.Node, path: List[String], idx: Int): ParamDefSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     val id = ParseUtils.getValueIdentifier(srcMap, idx, "parameter", path)
     fromYaml(srcMap, path, id)
@@ -27,7 +27,7 @@ object ParamDefSpec {
     "doc-ref"
   )
 
-  def fromYaml(srcMap: Map[String, Any], path: List[String], id: Identifier): ParamDefSpec = {
+  def fromYaml(srcMap: yamlesque.Obj, path: List[String], id: Identifier): ParamDefSpec = {
     val doc = DocSpec.fromYaml(srcMap, path)
     val typeStr = ParseUtils.getOptValueStr(srcMap, "type", path)
     val enumRef = ParseUtils.getOptValueStr(srcMap, "enum", path)

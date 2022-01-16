@@ -8,6 +8,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.problems.KSYParseError
 
+import scala.collection.AbstractMap
 import scala.collection.JavaConversions._
 
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
@@ -147,7 +148,7 @@ object AttrSpec {
     "enum"
   )
 
-  def fromYaml(src: Any, path: List[String], metaDef: MetaSpec, idx: Int): AttrSpec = {
+  def fromYaml(src: yamlesque.Node, path: List[String], metaDef: MetaSpec, idx: Int): AttrSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
     val id = ParseUtils.getOptValueStr(srcMap, "id", path) match {
       case Some(idStr) =>
@@ -162,7 +163,7 @@ object AttrSpec {
     fromYaml(srcMap, path, metaDef, id)
   }
 
-  def fromYaml(srcMap: Map[String, Any], path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
+  def fromYaml(srcMap: yamlesque.Obj, path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
     try {
       fromYaml2(srcMap, path, metaDef, id)
     } catch {
@@ -171,11 +172,11 @@ object AttrSpec {
     }
   }
 
-  def fromYaml2(srcMap: Map[String, Any], path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
+  def fromYaml2(srcMap: yamlesque.Obj, path: List[String], metaDef: MetaSpec, id: Identifier): AttrSpec = {
     val doc = DocSpec.fromYaml(srcMap, path)
     val process = ProcessExpr.fromStr(ParseUtils.getOptValueStr(srcMap, "process", path), path)
     // TODO: add proper path propagation
-    val contents = srcMap.get("contents").map(parseContentSpec(_, path ++ List("contents")))
+    val contents = srcMap.obj.get("contents").map(parseContentSpec(_, path ++ List("contents")))
     val size = ParseUtils.getOptValueExpression(srcMap, "size", path)
     val sizeEos = ParseUtils.getOptValueBool(srcMap, "size-eos", path).getOrElse(false)
     val ifExpr = ParseUtils.getOptValueExpression(srcMap, "if", path)
@@ -187,7 +188,7 @@ object AttrSpec {
     val padRight = ParseUtils.getOptValueInt(srcMap, "pad-right", path)
     val enum = ParseUtils.getOptValueStr(srcMap, "enum", path)
     val parent = ParseUtils.getOptValueExpression(srcMap, "parent", path)
-    val valid = srcMap.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
+    val valid = srcMap.obj.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
 
     // Convert value of `contents` into validation spec and merge it in, if possible
     val valid2: Option[ValidationSpec] = (contents, valid) match {
@@ -200,7 +201,7 @@ object AttrSpec {
         throw KSYParseError.withText(s"`contents` and `valid` can't be used together", path)
     }
 
-    val typObj = srcMap.get("type")
+    val typObj = srcMap.obj.get("type")
 
     val yamlAttrArgs = YamlAttrArgs(
       size, sizeEos,
@@ -216,13 +217,12 @@ object AttrSpec {
         )
       case Some(x) =>
         x match {
-          case simpleType: String =>
+          case yamlesque.Str(simpleType) =>
             DataType.fromYaml(
               Some(simpleType), path, metaDef, yamlAttrArgs
             )
-          case switchMap: Map[Any, Any] =>
-            val switchMapStr = ParseUtils.anyMapToStrMap(switchMap, path)
-            parseSwitch(switchMapStr, path, metaDef, yamlAttrArgs)
+          case switchMap: yamlesque.Obj =>
+            parseSwitch(switchMap, path, metaDef, yamlAttrArgs)
           case unknown =>
             throw KSYParseError.withText(s"expected map or string, found $unknown", path ++ List("type"))
         }
@@ -244,18 +244,18 @@ object AttrSpec {
     AttrSpec(path, id, dataType, ConditionalSpec(ifExpr, repeatSpec), valid2, doc)
   }
 
-  def parseContentSpec(c: Any, path: List[String]): Array[Byte] = {
+  def parseContentSpec(c: yamlesque.Node, path: List[String]): Array[Byte] = {
     c match {
-      case s: String =>
+      case yamlesque.Str(s) =>
         s.getBytes(Charset.forName("UTF-8"))
-      case objects: List[_] =>
+      case yamlesque.Arr(objects) =>
         val bb = new scala.collection.mutable.ArrayBuffer[Byte]
         objects.zipWithIndex.foreach { case (value, idx) =>
           value match {
-            case s: String =>
+            case yamlesque.Str(s) =>
               bb.appendAll(Utils.strToBytes(s))
-            case integer: Integer =>
-              bb.append(Utils.clampIntToByte(integer))
+            case yamlesque.Num(num) =>
+              bb.append(Utils.clampIntToByte(num.toInt))
             case el =>
               throw KSYParseError.withText(s"unable to parse fixed content in array: $el", path ++ List(idx.toString))
           }
@@ -272,7 +272,7 @@ object AttrSpec {
   )
 
   private def parseSwitch(
-    switchSpec: Map[String, Any],
+    switchSpec: yamlesque.Obj,
     path: List[String],
     metaDef: MetaSpec,
     arg: YamlAttrArgs
