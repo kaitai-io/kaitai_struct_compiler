@@ -33,9 +33,9 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def compileClass(cs: ClassSpec): Unit = {
-    cs.types.foreach { case (_, typeSpec) => compileClass(typeSpec) }
-
     cs.enums.foreach { case (_, enumSpec) => compileEnum(enumSpec) }
+
+    cs.types.foreach { case (_, typeSpec) => compileClass(typeSpec) }
 
     out.puts(s"${type2class(cs)} = Struct(")
     out.inc
