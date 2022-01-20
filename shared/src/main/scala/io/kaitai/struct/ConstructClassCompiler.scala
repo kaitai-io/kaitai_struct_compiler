@@ -15,6 +15,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   val translator = new ConstructTranslator(provider, importList)
 
   override def compile: CompileLog.SpecSuccess = {
+    out.puts("# This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild")
     out.puts("from construct import *")
     out.puts("from construct.lib import *")
     out.puts
