@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RubyTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, Constants, RuntimeConfig, Utils}
 
 class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -37,7 +37,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.toList.map((x) => s"require '$x'").mkString("\n") + "\n"
 
   override def fileHeader(topClassName: String): Unit = {
-    outHeader.puts(s"# $headerComment")
+    outHeader.puts(s"# ${Constants.headerComment}")
     outHeader.puts
 
     importList.add("kaitai/struct/struct")

@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.PHPTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, Constants, RuntimeConfig, Utils}
 
 class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -37,7 +37,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def fileHeader(topClassName: String): Unit = {
     out.puts("<?php")
-    out.puts(s"// $headerComment")
+    out.puts(s"// ${Constants.headerComment}")
   }
 
   override def classHeader(name: List[String]): Unit =

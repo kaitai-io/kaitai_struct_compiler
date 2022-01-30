@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RustTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, Constants, RuntimeConfig, Utils}
 
 class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -39,7 +39,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String = s"$topClassName.rs"
 
   override def fileHeader(topClassName: String): Unit = {
-    outHeader.puts(s"// $headerComment")
+    outHeader.puts(s"// ${Constants.headerComment}")
     outHeader.puts
 
     importList.add("std::option::Option")

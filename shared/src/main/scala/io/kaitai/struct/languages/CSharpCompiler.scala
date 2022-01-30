@@ -31,7 +31,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.toList.map((x) => s"using $x;").mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
-    outHeader.puts(s"// $headerComment")
+    outHeader.puts(s"// ${Constants.headerComment}")
     outHeader.puts
 
     var ns = "Kaitai"

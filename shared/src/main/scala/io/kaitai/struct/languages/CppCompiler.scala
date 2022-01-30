@@ -51,7 +51,7 @@ class CppCompiler(
   def outFileNameHeader(className: String): String = outFileName(className) + ".h"
 
   override def fileHeader(topClassName: String): Unit = {
-    outSrcHeader.puts(s"// $headerComment")
+    outSrcHeader.puts(s"// ${Constants.headerComment}")
     outSrcHeader.puts
 
     importListSrc.addLocal(outFileNameHeader(topClassName))
@@ -63,7 +63,7 @@ class CppCompiler(
       outHdrHeader.puts(s"#define ${defineName(topClassName)}")
     }
     outHdrHeader.puts
-    outHdrHeader.puts(s"// $headerComment")
+    outHdrHeader.puts(s"// ${Constants.headerComment}")
     outHdrHeader.puts
 
     importListHdr.addKaitai("kaitai/kaitaistruct.h")

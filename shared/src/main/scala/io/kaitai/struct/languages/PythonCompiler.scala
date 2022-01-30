@@ -1,13 +1,13 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError, NeedRaw}
+import io.kaitai.struct.datatype.{DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, NeedRaw, UndecidedEndiannessError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.PythonTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils}
+import io.kaitai.struct.{ClassTypeProvider, Constants, RuntimeConfig, StringLanguageOutputWriter, Utils}
 
 class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -40,7 +40,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.toList.mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
-    outHeader.puts(s"# $headerComment")
+    outHeader.puts(s"# ${Constants.headerComment}")
     outHeader.puts
 
     importList.add("from pkg_resources import parse_version")

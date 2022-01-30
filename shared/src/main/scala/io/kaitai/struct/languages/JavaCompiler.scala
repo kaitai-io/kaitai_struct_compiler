@@ -51,7 +51,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     "\n" + importList.toList.map((x) => s"import $x;").mkString("\n") + "\n"
 
   override def fileHeader(topClassName: String): Unit = {
-    outHeader.puts(s"// $headerComment")
+    outHeader.puts(s"// ${Constants.headerComment}")
     if (!config.java.javaPackage.isEmpty) {
       outHeader.puts
       outHeader.puts(s"package ${config.java.javaPackage};")
