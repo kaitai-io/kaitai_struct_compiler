@@ -33,6 +33,14 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def compileClass(cs: ClassSpec): Unit = {
+    TypeProcessor.getOpaqueClasses(cs).foreach(import_cs =>
+      if (import_cs != cs) {
+        val name = import_cs.name.head
+        out.puts(s"from $name import *")
+      }
+    )
+    out.puts
+
     cs.types.foreach { case (_, typeSpec) => compileClass(typeSpec) }
 
     cs.enums.foreach { case (_, enumSpec) => compileEnum(enumSpec) }
