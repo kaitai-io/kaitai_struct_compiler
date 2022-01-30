@@ -7,7 +7,9 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 import io.kaitai.struct.translators.ConstructTranslator
 
-class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
+class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig)
+  extends AbstractCompiler {
+
   val out = new StringLanguageOutputWriter(indent)
   val importList = new ImportList
 
@@ -35,7 +37,10 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   def compileClass(cs: ClassSpec): Unit = {
     TypeProcessor.getOpaqueClasses(cs).foreach(import_cs =>
       if (import_cs != cs) {
-        val name = import_cs.name.head
+        var name = import_cs.name.head
+        if (config.pythonPackage.nonEmpty) {
+          name = s"${config.pythonPackage}.$name"
+        }
         out.puts(s"from $name import *")
       }
     )

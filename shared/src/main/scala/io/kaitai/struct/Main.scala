@@ -90,7 +90,7 @@ object Main {
       case RustCompiler =>
         new RustClassCompiler(specs, spec, config)
       case ConstructClassCompiler =>
-        new ConstructClassCompiler(specs, spec)
+        new ConstructClassCompiler(specs, spec, config)
       case NimCompiler =>
         new NimClassCompiler(specs, spec, config)
       case HtmlClassCompiler =>
