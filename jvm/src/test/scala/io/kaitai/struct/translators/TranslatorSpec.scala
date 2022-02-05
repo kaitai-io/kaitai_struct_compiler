@@ -151,7 +151,7 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "foo_str"
   ))
 
-  full("foo_block", userType(List("block")), userType(List("block")), Map[LanguageCompilerStatic, String](
+  full("foo_block", userOwnedType(List("block")), userBorrowedType(List("block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo_block()",
     CSharpCompiler -> "FooBlock",
     GoCompiler -> "this.FooBlock",
@@ -190,7 +190,7 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "foo.inner.baz"
   ))
 
-  full("_root.foo", userType(List("top_class", "block")), userType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
+  full("_root.foo", userOwnedType(List("top_class", "block")), userBorrowedType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "_root()->foo()",
     CSharpCompiler -> "M_Root.Foo",
     GoCompiler -> "this._root.Foo",
@@ -707,14 +707,14 @@ class TranslatorSpec extends FunSuite {
   case object FooBarProvider extends FakeTypeProvider {
     override def determineType(name: String): DataType = {
       name match {
-        case "foo" => userType(List("top_class", "block"))
+        case "foo" => userOwnedType(List("top_class", "block"))
       }
     }
 
     override def determineType(inClass: ClassSpec, name: String): DataType = {
       (inClass.name.last, name) match {
         case ("block", "bar") => CalcStrType
-        case ("block", "inner") => userType(List("top_class", "block", "innerblock"))
+        case ("block", "inner") => userOwnedType(List("top_class", "block", "innerblock"))
         case ("innerblock", "baz") => CalcIntType
       }
     }
@@ -722,21 +722,28 @@ class TranslatorSpec extends FunSuite {
     override def resolveType(typeName: Ast.typeId): DataType = {
       typeName.names match {
         case Seq("top_class") =>
-          userType(List("top_class"))
+          userOwnedType(List("top_class"))
         case Seq("block") |
              Seq("top_class", "block") =>
-          userType(List("top_class", "block"))
+          userOwnedType(List("top_class", "block"))
         case Seq("innerblock") |
              Seq("block", "innerblock") |
              Seq("top_class", "block", "innerblock") =>
-          userType(List("top_class", "block", "innerblock"))
+          userOwnedType(List("top_class", "block", "innerblock"))
       }
     }
   }
 
-  def userType(lname: List[String]) = {
+  def userOwnedType(lname: List[String]) = {
     val cs = ClassSpec.opaquePlaceholder(lname)
     val ut = UserTypeInstream(lname, None)
+    ut.classSpec = Some(cs)
+    ut
+  }
+
+  def userBorrowedType(lname: List[String]) = {
+    val cs = ClassSpec.opaquePlaceholder(lname)
+    val ut = CalcUserType(lname, None)
     ut.classSpec = Some(cs)
     ut
   }
