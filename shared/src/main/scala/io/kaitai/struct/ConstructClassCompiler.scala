@@ -37,7 +37,8 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
 
     cs.enums.foreach { case (_, enumSpec) => compileEnum(enumSpec) }
 
-    out.puts(s"${type2class(cs)} = Struct(")
+    val classname = type2class(cs)
+    out.puts(s"$classname = '$classname' / Struct(")
     out.inc
 
     provider.nowClass = cs
