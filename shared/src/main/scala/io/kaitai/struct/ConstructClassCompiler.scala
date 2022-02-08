@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
+import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic, PythonOps}
 import io.kaitai.struct.translators.ConstructTranslator
 
 class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
@@ -54,7 +54,8 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     }
 
     out.dec
-    out.puts(")")
+    val docStr = PythonOps.compileUniversalDocs(cs.doc)
+    out.puts(if (docStr.isEmpty) ")" else s") * '''$docStr'''")
     out.puts
   }
 
