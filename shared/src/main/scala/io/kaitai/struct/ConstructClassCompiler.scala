@@ -60,7 +60,18 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def compileAttr(attr: AttrLikeSpec): Unit = {
-    out.puts(s"'${idToStr(attr.id)}' / ${compileAttrBody(attr)},")
+    val attrStr = s"'${idToStr(attr.id)}' / ${compileAttrBody(attr)}"
+    val docStr = PythonOps.compileUniversalDocs(attr.doc)
+    if (docStr.isEmpty) {
+      out.puts(s"$attrStr,")
+    } else if (!docStr.contains('\n')) {
+      out.puts(s"$attrStr * '$docStr',")
+    } else {
+      out.puts(s"$attrStr * \\")
+      out.inc
+      out.putsLines("", s"'''$docStr''',")
+      out.dec
+    }
   }
 
   def compileValueInstance(id: Identifier, vis: ValueInstanceSpec): Unit = {
