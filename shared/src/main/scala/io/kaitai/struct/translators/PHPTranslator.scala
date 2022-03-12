@@ -8,6 +8,15 @@ import io.kaitai.struct.languages.PHPCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
 class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
+  override def doIntLiteral(n: BigInt): String = {
+    super.doIntLiteral(if (n >= Long.MinValue && n <= Utils.MAX_UINT64) {
+      n.toLong // output unsigned 64-bit integers as signed (otherwise we would get a float and
+               // lose precision)
+    } else {
+      n
+    })
+  }
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + Utils.hexEscapeByteArray(arr) + "\""
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =

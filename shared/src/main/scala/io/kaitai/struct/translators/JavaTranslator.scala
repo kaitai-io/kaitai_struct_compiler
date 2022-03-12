@@ -19,9 +19,9 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     // the sign (e. g. you pass the value unmodified to something else, or you use only bit operations
     // or Long's "unsigned" methods).
     //
-    // Of course, if `n > Long.MaxValue * 2 + 1` we'll still get out of range error
+    // Of course, if `n > Utils.MAX_UINT64` we'll still get out of range error
     // TODO: Convert real big numbers to BigInteger
-    val literal = if (n > Long.MaxValue) {
+    val literal = if (n > Long.MaxValue && n <= Utils.MAX_UINT64) {
       "0x" + n.toString(16)
     } else {
       n.toString
