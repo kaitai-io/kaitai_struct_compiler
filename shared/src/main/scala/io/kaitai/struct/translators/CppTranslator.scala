@@ -26,7 +26,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     *
     * For reference, ranges of integers that are used in this conversion are:
     *
-    * * int32_t (no suffix): –2147483648..2147483647
+    * * int32_t (no suffix): -2147483648..2147483647
     * * uint32_t (UL): 0..4294967295
     * * int64_t (LL): -9223372036854775808..9223372036854775807
     * * uint64_t (ULL): 0..18446744073709551615
@@ -49,7 +49,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     val suffix = if (n < -9223372036854775808L) {
       "" // too low, no suffix would help anyway
     } else if (n <= -2147483649L) {
-      "LL" // -9223372036854775808..–2147483649
+      "LL" // -9223372036854775808..-2147483649
     } else if (n <= 2147483647L) {
       "" // -2147483648..2147483647
     } else if (n <= 4294967295L) {

@@ -168,7 +168,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     if (n < -9223372036854775808L) {
       s"$n" // too low, no type conversion would help anyway
     } else if (n <= -2147483649L) {
-      s"int64($n)" // -9223372036854775808..–2147483649
+      s"int64($n)" // -9223372036854775808..-2147483649
     } else if (n <= 2147483647L) {
       s"$n" // -2147483648..2147483647
     } else if (n <= 4294967295L) {
