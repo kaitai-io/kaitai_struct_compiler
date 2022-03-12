@@ -26,6 +26,78 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "100000000000L"
   ))
 
+  // 0x7fff_ffff
+  everybody("2147483647", "2147483647")
+  // 0x8000_0000
+  everybodyExcept("2147483648", "2147483648", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "2147483648UL",
+    GoCompiler -> "uint32(2147483648)",
+    JavaCompiler -> "2147483648L",
+  ))
+  // 0xffff_ffff
+  everybodyExcept("4294967295", "4294967295", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "4294967295UL",
+    GoCompiler -> "uint32(4294967295)",
+    JavaCompiler -> "4294967295L",
+  ))
+  // 0x1_0000_0000
+  everybodyExcept("4294967296", "4294967296", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "4294967296LL",
+    GoCompiler -> "int64(4294967296)",
+    JavaCompiler -> "4294967296L",
+  ))
+  // -0x7fff_ffff
+  everybody("-2147483647", "-2147483647")
+  // -0x8000_0000
+  everybodyExcept("-2147483648", "-2147483648", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "(-2147483647 - 1)",
+    LuaCompiler -> "(-2147483647 - 1)",
+    PHPCompiler -> "(-2147483647 - 1)",
+  ))
+  // -0x8000_0001
+  everybodyExcept("-2147483649", "-2147483649", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "-2147483649LL",
+    GoCompiler -> "int64(-2147483649)",
+    JavaCompiler -> "-2147483649L",
+  ))
+
+  // 0x7fff_ffff_ffff_ffff
+  everybodyExcept("9223372036854775807", "9223372036854775807", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "9223372036854775807LL",
+    GoCompiler -> "int64(9223372036854775807)",
+    JavaCompiler -> "9223372036854775807L",
+  ))
+  // 0x8000_0000_0000_0000
+  everybodyExcept("9223372036854775808", "9223372036854775808", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "9223372036854775808ULL",
+    GoCompiler -> "uint64(9223372036854775808)",
+    JavaCompiler -> "0x8000000000000000L",
+    LuaCompiler -> "0x8000000000000000",
+    PHPCompiler -> "(-9223372036854775807 - 1)",
+  ))
+  // 0xffff_ffff_ffff_ffff
+  everybodyExcept("18446744073709551615", "18446744073709551615", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "18446744073709551615ULL",
+    GoCompiler -> "uint64(18446744073709551615)",
+    JavaCompiler -> "0xffffffffffffffffL",
+    LuaCompiler -> "0xffffffffffffffff",
+    PHPCompiler -> "-1",
+  ))
+  // -0x7fff_ffff_ffff_ffff
+  everybodyExcept("-9223372036854775807", "-9223372036854775807", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "-9223372036854775807LL",
+    GoCompiler -> "int64(-9223372036854775807)",
+    JavaCompiler -> "-9223372036854775807L",
+  ))
+  // -0x8000_0000_0000_0000
+  everybodyExcept("-9223372036854775808", "-9223372036854775808", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "(-9223372036854775807LL - 1)",
+    GoCompiler -> "int64(-9223372036854775808)",
+    JavaCompiler -> "-9223372036854775808L",
+    LuaCompiler -> "(-9223372036854775807 - 1)",
+    PHPCompiler -> "(-9223372036854775807 - 1)",
+  ))
+
   // Float literals
   everybody("1.0", "1.0", CalcFloatType)
   everybody("123.456", "123.456", CalcFloatType)

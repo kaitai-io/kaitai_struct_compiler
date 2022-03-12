@@ -6,8 +6,10 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.languages.LuaCompiler
+import io.kaitai.struct.Utils
 
-class LuaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+class LuaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider)
+    with MinSignedIntegers {
   override def doIntLiteral(n: BigInt): String = {
     if (n > Long.MaxValue && n <= Utils.MAX_UINT64) {
       // See <https://www.lua.org/manual/5.4/manual.html#3.1>:

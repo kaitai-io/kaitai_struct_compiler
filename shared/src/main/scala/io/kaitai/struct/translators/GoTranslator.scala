@@ -54,13 +54,18 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         } else {
           trLocalName(name.name)
         }
-      case Ast.expr.UnaryOp(op, operand) =>
-        ResultString(unaryOp(op) + (operand match {
-          case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
-            translate(operand)
+      case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
+        val opStr = unaryOp(op)
+        ResultString((op, inner) match {
+          /** [[doIntLiteral]] has to know when a negative number is being translated - if it
+           * doesn't, the result is things like `-uint32(2147483648)` that will not compile in Go
+           * (the error is "constant -2147483648 overflows uint32") */
+          case (Ast.unaryop.Minus, Ast.expr.IntNum(n)) => translate(Ast.expr.IntNum(-n))
+          case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
+            s"$opStr${translate(inner)}"
           case _ =>
-            s"(${translate(operand)})"
-        }))
+            s"$opStr(${translate(inner)})"
+        })
       case Ast.expr.Compare(left, op, right) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
