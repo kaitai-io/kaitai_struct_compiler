@@ -396,7 +396,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
 
     enumColl.foreach { case (id, label) =>
-      out.puts(s"our ${enumValue(enumName, label.name)} = $id;")
+      out.puts(s"our ${enumValue(enumName, label.name)} = ${translator.doIntLiteral(id)};")
     }
   }
 

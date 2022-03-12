@@ -430,7 +430,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$enumConst = {")
     out.inc
     enumColl.foreach { case (id, label) =>
-      out.puts(s"$id => ${enumValue(enumName, label)},")
+      out.puts(s"${translator.doIntLiteral(id)} => ${enumValue(enumName, label)},")
     }
     out.dec
     out.puts("}")

@@ -293,7 +293,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"${types2class(curClass)}.${type2class(enumName)} = enum.Enum {")
     out.inc
-    enumColl.foreach { case (id, label) => out.puts(s"${label.name} = $id,") }
+    enumColl.foreach { case (id, label) => out.puts(s"${label.name} = ${translator.doIntLiteral(id)},") }
     out.dec
     out.puts("}")
     out.puts

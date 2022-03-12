@@ -529,7 +529,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // Name to ID mapping
     enumColl.foreach { case (id, label) =>
-      out.puts(s"${enumValue(enumName, label.name)}: $id,")
+      out.puts(s"${enumValue(enumName, label.name)}: ${translator.doIntLiteral(id)},")
     }
     out.puts
 

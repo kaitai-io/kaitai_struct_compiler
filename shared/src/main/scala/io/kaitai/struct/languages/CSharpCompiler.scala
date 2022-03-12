@@ -555,7 +555,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
 
     enumColl.foreach { case (id, label) =>
-      out.puts(s"${Utils.upperCamelCase(label)} = $id,")
+      out.puts(s"${Utils.upperCamelCase(label)} = ${translator.doIntLiteral(id)},")
     }
 
     out.dec

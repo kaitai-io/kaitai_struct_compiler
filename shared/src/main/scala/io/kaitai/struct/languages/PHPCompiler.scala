@@ -427,7 +427,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     classHeader(name, None)
     enumColl.foreach { case (id, label) =>
       universalDoc(label.doc)
-      out.puts(s"const ${value2Const(label.name)} = $id;")
+      out.puts(s"const ${value2Const(label.name)} = ${translator.doIntLiteral(id)};")
     }
     classFooter(name)
   }

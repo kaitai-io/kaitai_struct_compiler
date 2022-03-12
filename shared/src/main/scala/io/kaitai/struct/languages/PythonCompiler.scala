@@ -465,7 +465,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts(s"class ${type2class(enumName)}(Enum):")
     out.inc
-    enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = $id") }
+    enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = ${translator.doIntLiteral(id)}") }
     out.dec
   }
 
