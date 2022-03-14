@@ -104,11 +104,11 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("self:_read()")
   override def runReadCalc(): Unit = {
     out.puts
-    out.puts(s"if self._is_le then")
+    out.puts("if self._is_le == true then")
     out.inc
     out.puts("self:_read_le()")
     out.dec
-    out.puts(s"elseif not self._is_le then")
+    out.puts("elseif self._is_le == false then")
     out.inc
     out.puts("self:_read_be()")
     out.dec
