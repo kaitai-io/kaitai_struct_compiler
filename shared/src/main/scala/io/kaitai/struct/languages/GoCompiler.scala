@@ -339,7 +339,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, 0);")
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = make([][]byte, 0);")
-    out.puts(s"for i := 1;; i++ {")
+    out.puts("i := 0")
+	  out.puts("for {")
     out.inc
   }
 
@@ -352,6 +353,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("i++")
     out.puts(s"if ${expression(untilExpr)} {")
     out.inc
     out.puts("break")

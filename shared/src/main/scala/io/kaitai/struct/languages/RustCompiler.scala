@@ -291,6 +291,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = vec!();")
     out.puts(s"${privateMemberName(id)} = vec!();")
+    out.puts("let mut i = 0;")
     out.puts("while {")
     out.inc
   }
@@ -307,6 +308,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("i += 1;")
     out.puts(s"!(${expression(untilExpr)})")
     out.dec
     out.puts("} { }")

@@ -270,6 +270,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
+    out.puts("my $i = 0;")
     out.puts("do {")
     out.inc
   }
@@ -286,6 +287,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts("$i++;")
     out.dec
     out.puts(s"} until (${expression(untilExpr)});")
   }
