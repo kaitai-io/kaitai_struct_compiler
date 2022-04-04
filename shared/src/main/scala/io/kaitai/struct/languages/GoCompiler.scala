@@ -340,7 +340,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = make([][]byte, 0);")
     out.puts("i := 0")
-	  out.puts("for {")
+    out.puts("for {")
     out.inc
   }
 
