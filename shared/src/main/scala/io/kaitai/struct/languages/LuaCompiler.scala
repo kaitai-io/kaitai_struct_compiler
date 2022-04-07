@@ -204,12 +204,12 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts("i = i + 1")
     out.puts(s"if ${expression(untilExpr)} then")
     out.inc
     out.puts("break")
     out.dec
     out.puts("end")
+    out.puts("i = i + 1")
     out.dec
     out.puts("end")
     out.dec

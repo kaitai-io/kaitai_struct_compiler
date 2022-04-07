@@ -353,12 +353,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts("i++")
     out.puts(s"if ${expression(untilExpr)} {")
     out.inc
     out.puts("break")
     out.dec
     out.puts("}")
+    out.puts("i++")
     out.dec
     out.puts("}")
   }

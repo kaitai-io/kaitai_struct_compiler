@@ -333,7 +333,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts("var i = 0;")
     out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
-    out.puts("do {")
+    out.puts("while (true) {")
     out.inc
   }
 
@@ -349,9 +349,12 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts("i++;")
+    out.puts(s"if (${expression(untilExpr)}}) {")
+    out.inc
+    out.puts("break;")
     out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts("}")
+    out.puts("i++;")
     out.dec
     out.puts("}")
   }

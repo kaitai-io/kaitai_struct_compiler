@@ -703,7 +703,7 @@ class CppCompiler(
     outSrc.inc
     outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${translator.doName("_")};")
-    outSrc.puts("do {")
+    outSrc.puts("while (true) {")
     outSrc.inc
   }
 
@@ -734,9 +734,12 @@ class CppCompiler(
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    outSrc.puts("i++;")
+    outSrc.puts(s"if (${expression(untilExpr)}}) {")
+    outSrc.inc
+    outSrc.puts("break;")
     outSrc.dec
-    outSrc.puts(s"} while (!(${expression(untilExpr)}));")
+    outSrc.puts("}")
+    outSrc.puts("i++;")
     outSrc.dec
     outSrc.puts("}")
   }

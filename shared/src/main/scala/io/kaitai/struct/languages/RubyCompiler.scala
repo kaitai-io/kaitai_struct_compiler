@@ -319,7 +319,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
     out.puts(s"${privateMemberName(id)} = []")
     out.puts("i = 0")
-    out.puts("begin")
+    out.puts("while true")
     out.inc
   }
 
@@ -331,9 +331,10 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts(s"break if ${expression(untilExpr)}")
     out.puts("i += 1")
     out.dec
-    out.puts(s"end until ${expression(untilExpr)}")
+    out.puts("end")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
