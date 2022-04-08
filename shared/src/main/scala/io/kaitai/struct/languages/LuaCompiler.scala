@@ -219,7 +219,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        throw new RuntimeException("Lua zlib not supported")
+        s"$kstreamName.process_zlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
