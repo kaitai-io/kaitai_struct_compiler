@@ -3,6 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.ImportList
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.ConstructClassCompiler
 
 class ConstructTranslator(provider: TypeProvider, importList: ImportList) extends PythonTranslator(provider, importList) {
   override def doLocalName(s: String) = {
@@ -21,6 +22,9 @@ class ConstructTranslator(provider: TypeProvider, importList: ImportList) extend
       case _ => s
     }
   }
+
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
+    s"'$label'"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"stream_size(${translate(value)})"
