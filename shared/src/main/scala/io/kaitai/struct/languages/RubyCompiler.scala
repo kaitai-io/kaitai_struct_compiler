@@ -318,6 +318,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
     out.puts(s"${privateMemberName(id)} = []")
+    out.puts(s"${translator.doName(Identifier.ITERATOR)} = nil")
     out.puts("i = 0")
     out.puts("begin")
     out.inc
