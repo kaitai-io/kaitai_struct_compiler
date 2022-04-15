@@ -165,16 +165,16 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"for i in 0 ..< int(${expression(repeatExpr)}):")
     out.inc
   }
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     out.puts("block:")
     out.inc
     out.puts("var i: int")
     out.puts("while true:")
     out.inc
   }
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts(s"if ${expression(repeatExpr)}:")
+    out.puts(s"if ${expression(untilExpr)}:")
     out.inc
     out.puts("break")
     out.dec
