@@ -293,12 +293,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, 0);")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = make([][]byte, 0);")
-    //out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayType(dataType))})")
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+    // slices don't have to be manually initialized in Go: the built-in append()
+    // function works even on `nil` slices (https://go.dev/tour/moretypes/15)
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts(s"for i := 1;; i++ {")
     out.inc
 
@@ -318,27 +318,21 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$name = append($name, $expr)")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, ${expression(repeatExpr)})")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = make([][]byte, ${expression(repeatExpr)})")
-    out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayTypeInStream(dataType))}, ${expression(repeatExpr)})")
-    out.puts(s"for i := range ${privateMemberName(id)} {")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
+    out.puts(s"for i := 0; i < int(${expression(repeatExpr)}); i++ {")
     out.inc
+    // FIXME: Go throws a fatal compile error when the `i` variable is not used (unused variables
+    // can only use the blank identifier `_`, see https://go.dev/doc/effective_go#blank), so we have
+    // to silence it like this. It would be nice to be able to analyze all expressions that appear
+    // in the loop body to decide whether to generate `for _ := range` or `for i := range` here, but
+    // that would be really difficult to do properly in KSC with the current architecture.
+    out.puts("_ = i")
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit = {
-    val name = privateMemberName(id)
-    val expr = translator.resToStr(r)
-    out.puts(s"$name[i] = $expr")
-  }
+  override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit =
+    handleAssignmentRepeatEos(id, r)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = make([][]byte, 0);")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = make([][]byte, 0);")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     out.puts(s"for i := 1;; i++ {")
     out.inc
   }
@@ -350,7 +344,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = append(${privateMemberName(id)}, $tempVar)")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(untilExpr)} {")
     out.inc
