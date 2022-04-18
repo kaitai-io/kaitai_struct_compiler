@@ -281,7 +281,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     "iso8859-3" -> ("charmap.ISO8859_3", IMPORT_CHARMAP),
     "iso8859-4" -> ("charmap.ISO8859_4", IMPORT_CHARMAP),
     "sjis" -> ("japanese.ShiftJIS", "golang.org/x/text/encoding/japanese"),
-    "big5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese")
+    "big5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese"),
+    "utf-16le" -> ("unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
+    "utf-16be" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode")
   )
 
   override def bytesToStr(value: Ast.expr, expr: Ast.expr): TranslatorResult =

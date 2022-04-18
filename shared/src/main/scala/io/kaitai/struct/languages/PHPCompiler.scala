@@ -267,12 +267,15 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
     if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("$i = 0;")
     out.puts(s"while (!$io->isEof()) {")
     out.inc
@@ -287,27 +290,16 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     super.condRepeatEosFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
-    out.puts(s"${privateMemberName(id)} = [];")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     out.puts(s"$$n = ${expression(repeatExpr)};")
     out.puts("for ($i = 0; $i < $n; $i++) {")
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}[] = $expr;")
-  }
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
+    handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
-    out.puts(s"${privateMemberName(id)} = [];")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     out.puts("$i = 0;")
     out.puts("while (1) {")
     out.inc
@@ -319,7 +311,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}[] = $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(untilExpr)} {")
     out.inc

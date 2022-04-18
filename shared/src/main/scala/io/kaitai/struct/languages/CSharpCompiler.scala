@@ -274,15 +274,17 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condIfFooter(expr: expr): Unit = fileFooter(null)
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
     importList.add("System.Collections.Generic")
 
     if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new List<byte[]>();")
-
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayTypeInStream(dataType))}();")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i = 0;")
@@ -302,33 +304,18 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: expr): Unit = {
-    importList.add("System.Collections.Generic")
-
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>((int) (${expression(repeatExpr)}));")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new List<byte[]>((int) (${expression(repeatExpr)}));")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayTypeInStream(dataType))}((int) (${expression(repeatExpr)}));")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++)")
     out.puts("{")
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.Add($expr);")
-  }
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
+    handleAssignmentRepeatEos(id, expr)
 
   override def condRepeatExprFooter: Unit = fileFooter(null)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
-    importList.add("System.Collections.Generic")
-
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new List<byte[]>();")
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayTypeInStream(dataType))}();")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i = 0;")
@@ -347,7 +334,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.Add($tempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if (${expression(untilExpr)}}) {")
     out.inc
