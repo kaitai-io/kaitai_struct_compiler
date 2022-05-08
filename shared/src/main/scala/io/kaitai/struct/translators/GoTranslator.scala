@@ -54,13 +54,18 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         } else {
           trLocalName(name.name)
         }
-      case Ast.expr.UnaryOp(op, operand) =>
-        ResultString(unaryOp(op) + (operand match {
-          case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
-            translate(operand)
+      case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
+        val opStr = unaryOp(op)
+        ResultString((op, inner) match {
+          /** [[doIntLiteral]] has to know when a negative number is being translated - if it
+           * doesn't, the result is things like `-uint32(2147483648)` that will not compile in Go
+           * (the error is "constant -2147483648 overflows uint32") */
+          case (Ast.unaryop.Minus, Ast.expr.IntNum(n)) => translate(Ast.expr.IntNum(-n))
+          case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
+            s"$opStr${translate(inner)}"
           case _ =>
-            s"(${translate(operand)})"
-        }))
+            s"$opStr(${translate(inner)})"
+        })
       case Ast.expr.Compare(left, op, right) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
@@ -168,7 +173,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     if (n < -9223372036854775808L) {
       s"$n" // too low, no type conversion would help anyway
     } else if (n <= -2147483649L) {
-      s"int64($n)" // -9223372036854775808..–2147483649
+      s"int64($n)" // -9223372036854775808..-2147483649
     } else if (n <= 2147483647L) {
       s"$n" // -2147483648..2147483647
     } else if (n <= 4294967295L) {
@@ -276,7 +281,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     "iso8859-3" -> ("charmap.ISO8859_3", IMPORT_CHARMAP),
     "iso8859-4" -> ("charmap.ISO8859_4", IMPORT_CHARMAP),
     "sjis" -> ("japanese.ShiftJIS", "golang.org/x/text/encoding/japanese"),
-    "big5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese")
+    "big5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese"),
+    "utf-16le" -> ("unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
+    "utf-16be" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode")
   )
 
   override def bytesToStr(value: Ast.expr, expr: Ast.expr): TranslatorResult =

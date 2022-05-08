@@ -104,11 +104,11 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("self:_read()")
   override def runReadCalc(): Unit = {
     out.puts
-    out.puts(s"if self._is_le then")
+    out.puts("if self._is_le == true then")
     out.inc
     out.puts("self:_read_le()")
     out.dec
-    out.puts(s"elseif not self._is_le then")
+    out.puts("elseif self._is_le == false then")
     out.inc
     out.puts("self:_read_be()")
     out.dec
@@ -162,12 +162,15 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
     if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = {}")
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = {}")
     out.puts(s"${privateMemberName(id)} = {}")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("local i = 0")
     out.puts(s"while not $io:is_eof() do")
     out.inc
@@ -178,12 +181,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = {}")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = {}")
-    out.puts(s"${privateMemberName(id)} = {}")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     out.puts(s"for i = 0, ${expression(repeatExpr)} - 1 do")
     out.inc
   }
@@ -192,17 +190,12 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, datatype: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = {}")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = {}")
-    out.puts(s"${privateMemberName(id)} = {}")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     out.puts("local i = 0")
     out.puts("while true do")
     out.inc
   }
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(untilExpr)} then")
     out.inc
@@ -226,7 +219,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        throw new RuntimeException("Lua zlib not supported")
+        s"$kstreamName.process_zlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
@@ -293,7 +286,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"${types2class(curClass)}.${type2class(enumName)} = enum.Enum {")
     out.inc
-    enumColl.foreach { case (id, label) => out.puts(s"${label.name} = $id,") }
+    enumColl.foreach { case (id, label) => out.puts(s"${label.name} = ${translator.doIntLiteral(id)},") }
     out.dec
     out.puts("}")
     out.puts
@@ -348,6 +341,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         ""
       } else {
         val parent = t.forcedParent match {
+          case Some(USER_TYPE_NO_PARENT) => "nil"
           case Some(fp) => translator.translate(fp)
           case None => "self"
         }
