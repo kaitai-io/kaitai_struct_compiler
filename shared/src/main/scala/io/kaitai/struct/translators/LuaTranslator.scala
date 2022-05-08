@@ -6,8 +6,28 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.languages.LuaCompiler
+import io.kaitai.struct.Utils
 
-class LuaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+class LuaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider)
+    with MinSignedIntegers {
+  override def doIntLiteral(n: BigInt): String = {
+    if (n > Long.MaxValue && n <= Utils.MAX_UINT64) {
+      // See <https://www.lua.org/manual/5.4/manual.html#3.1>:
+      //
+      // - "A numeric constant (...), if its value fits in an integer or it is a hexadecimal
+      //   constant, it denotes an integer; otherwise (that is, a decimal integer numeral that
+      //   overflows), it denotes a float."
+      // - "Hexadecimal numerals with neither a radix point nor an exponent always denote an
+      //   integer value; if the value overflows, it wraps around to fit into a valid integer."
+      //
+      // This is written only in the Lua 5.4 manual, but applies to Lua 5.3 too (experimentally
+      // verified).
+      "0x" + n.toString(16)
+    } else {
+      super.doIntLiteral(n)
+    }
+  }
+
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",

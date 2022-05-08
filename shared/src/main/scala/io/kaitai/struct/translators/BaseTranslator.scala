@@ -69,12 +69,15 @@ abstract class BaseTranslator(val provider: TypeProvider)
           doLocalName(name.name)
         }
       case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
-        unaryOp(op) + (inner match {
-          case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
-            translate(inner)
+        val opStr = unaryOp(op)
+        (op, inner) match {
+          /** required by trait [[MinSignedIntegers]] - see also test cases in [[TranslatorSpec]] */
+          case (Ast.unaryop.Minus, Ast.expr.IntNum(n)) => translate(Ast.expr.IntNum(-n))
+          case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
+            s"$opStr${translate(inner)}"
           case _ =>
-            s"(${translate(inner)})"
-        })
+            s"$opStr(${translate(inner)})"
+        }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>

@@ -6,9 +6,14 @@ import scala.collection.mutable.ListBuffer
 
 object Utils {
   /**
+    * BigInt-typed max value of unsigned 32-bit integer.
+    */
+  final val MAX_UINT32 = BigInt("4294967295")
+
+  /**
     * BigInt-typed max value of unsigned 64-bit integer.
     */
-  val MAX_UINT64 = BigInt("18446744073709551615")
+  final val MAX_UINT64 = BigInt("18446744073709551615")
 
   private val RDecimal = "^(-?[0-9]+)$".r
   private val RHex = "^0x([0-9a-fA-F]+)$".r

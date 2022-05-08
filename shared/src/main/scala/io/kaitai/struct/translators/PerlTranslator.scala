@@ -46,7 +46,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doBoolLiteral(n: Boolean): String = if (n) "1" else "0"
 
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String =
-    "(" + value.map((v) => translate(v)).mkString(", ") + ")"
+    "[" + value.map((v) => translate(v)).mkString(", ") + "]"
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"pack('C*', (${arr.map(_ & 0xff).mkString(", ")}))"
@@ -147,6 +147,9 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     importList.add("Encode")
     s"Encode::decode(${translate(encoding)}, $bytesExpr)"
   }
+  override def bytesLength(b: Ast.expr): String =
+    strLength(b)
+
   override def strLength(value: Ast.expr): String =
     s"length(${translate(value)})"
   override def strReverse(value: Ast.expr): String =

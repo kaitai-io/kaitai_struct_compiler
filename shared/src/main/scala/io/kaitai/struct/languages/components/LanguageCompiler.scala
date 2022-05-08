@@ -103,14 +103,16 @@ abstract class LanguageCompiler(
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter(expr: Ast.expr): Unit
 
-  def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit
+  def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit
+
+  def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit
   def condRepeatEosFooter: Unit
 
-  def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit
+  def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit
   def condRepeatExprFooter: Unit
 
-  def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit
-  def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit
+  def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit
+  def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit
 
   def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit
 
