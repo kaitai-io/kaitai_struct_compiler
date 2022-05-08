@@ -63,21 +63,26 @@ trait CommonReads extends LanguageCompiler {
   }
 
   def attrParse0(id: Identifier, attr: AttrLikeSpec, io: String, defEndian: Option[FixedEndian]): Unit = {
+    if (attr.cond.repeat != NoRepeat)
+      condRepeatCommonInit(id, attr.dataType, needRaw(attr.dataType))
     attr.cond.repeat match {
       case RepeatEos =>
-        condRepeatEosHeader(id, io, attr.dataType, needRaw(attr.dataType))
-        attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
-        condRepeatEosFooter
+        condRepeatEosHeader(id, io, attr.dataType)
       case RepeatExpr(repeatExpr: Ast.expr) =>
-        condRepeatExprHeader(id, io, attr.dataType, needRaw(attr.dataType), repeatExpr)
-        attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
+        condRepeatExprHeader(id, io, attr.dataType, repeatExpr)
+      case RepeatUntil(untilExpr: Ast.expr) =>
+        condRepeatUntilHeader(id, io, attr.dataType, untilExpr)
+      case NoRepeat =>
+    }
+    attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
+    attr.cond.repeat match {
+      case RepeatEos =>
+        condRepeatEosFooter
+      case _: RepeatExpr =>
         condRepeatExprFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
-        condRepeatUntilHeader(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
-        attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
-        condRepeatUntilFooter(id, io, attr.dataType, needRaw(attr.dataType), untilExpr)
+        condRepeatUntilFooter(id, io, attr.dataType, untilExpr)
       case NoRepeat =>
-        attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
     }
   }
 

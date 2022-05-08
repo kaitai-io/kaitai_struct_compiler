@@ -26,6 +26,78 @@ class TranslatorSpec extends FunSuite {
     JavaCompiler -> "100000000000L"
   ))
 
+  // 0x7fff_ffff
+  everybody("2147483647", "2147483647")
+  // 0x8000_0000
+  everybodyExcept("2147483648", "2147483648", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "2147483648UL",
+    GoCompiler -> "uint32(2147483648)",
+    JavaCompiler -> "2147483648L",
+  ))
+  // 0xffff_ffff
+  everybodyExcept("4294967295", "4294967295", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "4294967295UL",
+    GoCompiler -> "uint32(4294967295)",
+    JavaCompiler -> "4294967295L",
+  ))
+  // 0x1_0000_0000
+  everybodyExcept("4294967296", "4294967296", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "4294967296LL",
+    GoCompiler -> "int64(4294967296)",
+    JavaCompiler -> "4294967296L",
+  ))
+  // -0x7fff_ffff
+  everybody("-2147483647", "-2147483647")
+  // -0x8000_0000
+  everybodyExcept("-2147483648", "-2147483648", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "(-2147483647 - 1)",
+    LuaCompiler -> "(-2147483647 - 1)",
+    PHPCompiler -> "(-2147483647 - 1)",
+  ))
+  // -0x8000_0001
+  everybodyExcept("-2147483649", "-2147483649", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "-2147483649LL",
+    GoCompiler -> "int64(-2147483649)",
+    JavaCompiler -> "-2147483649L",
+  ))
+
+  // 0x7fff_ffff_ffff_ffff
+  everybodyExcept("9223372036854775807", "9223372036854775807", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "9223372036854775807LL",
+    GoCompiler -> "int64(9223372036854775807)",
+    JavaCompiler -> "9223372036854775807L",
+  ))
+  // 0x8000_0000_0000_0000
+  everybodyExcept("9223372036854775808", "9223372036854775808", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "9223372036854775808ULL",
+    GoCompiler -> "uint64(9223372036854775808)",
+    JavaCompiler -> "0x8000000000000000L",
+    LuaCompiler -> "0x8000000000000000",
+    PHPCompiler -> "(-9223372036854775807 - 1)",
+  ))
+  // 0xffff_ffff_ffff_ffff
+  everybodyExcept("18446744073709551615", "18446744073709551615", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "18446744073709551615ULL",
+    GoCompiler -> "uint64(18446744073709551615)",
+    JavaCompiler -> "0xffffffffffffffffL",
+    LuaCompiler -> "0xffffffffffffffff",
+    PHPCompiler -> "-1",
+  ))
+  // -0x7fff_ffff_ffff_ffff
+  everybodyExcept("-9223372036854775807", "-9223372036854775807", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "-9223372036854775807LL",
+    GoCompiler -> "int64(-9223372036854775807)",
+    JavaCompiler -> "-9223372036854775807L",
+  ))
+  // -0x8000_0000_0000_0000
+  everybodyExcept("-9223372036854775808", "-9223372036854775808", Map[LanguageCompilerStatic, String](
+    CppCompiler -> "(-9223372036854775807LL - 1)",
+    GoCompiler -> "int64(-9223372036854775808)",
+    JavaCompiler -> "-9223372036854775808L",
+    LuaCompiler -> "(-9223372036854775807 - 1)",
+    PHPCompiler -> "(-9223372036854775807 - 1)",
+  ))
+
   // Float literals
   everybody("1.0", "1.0", CalcFloatType)
   everybody("123.456", "123.456", CalcFloatType)
@@ -151,7 +223,7 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "foo_str"
   ))
 
-  full("foo_block", userType(List("block")), userType(List("block")), Map[LanguageCompilerStatic, String](
+  full("foo_block", userOwnedType(List("block")), userBorrowedType(List("block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "foo_block()",
     CSharpCompiler -> "FooBlock",
     GoCompiler -> "this.FooBlock",
@@ -190,7 +262,7 @@ class TranslatorSpec extends FunSuite {
     RubyCompiler -> "foo.inner.baz"
   ))
 
-  full("_root.foo", userType(List("top_class", "block")), userType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
+  full("_root.foo", userOwnedType(List("top_class", "block")), userBorrowedType(List("top_class", "block")), Map[LanguageCompilerStatic, String](
     CppCompiler -> "_root()->foo()",
     CSharpCompiler -> "M_Root.Foo",
     GoCompiler -> "this._root.Foo",
@@ -707,14 +779,14 @@ class TranslatorSpec extends FunSuite {
   case object FooBarProvider extends FakeTypeProvider {
     override def determineType(name: String): DataType = {
       name match {
-        case "foo" => userType(List("top_class", "block"))
+        case "foo" => userOwnedType(List("top_class", "block"))
       }
     }
 
     override def determineType(inClass: ClassSpec, name: String): DataType = {
       (inClass.name.last, name) match {
         case ("block", "bar") => CalcStrType
-        case ("block", "inner") => userType(List("top_class", "block", "innerblock"))
+        case ("block", "inner") => userOwnedType(List("top_class", "block", "innerblock"))
         case ("innerblock", "baz") => CalcIntType
       }
     }
@@ -722,21 +794,28 @@ class TranslatorSpec extends FunSuite {
     override def resolveType(typeName: Ast.typeId): DataType = {
       typeName.names match {
         case Seq("top_class") =>
-          userType(List("top_class"))
+          userOwnedType(List("top_class"))
         case Seq("block") |
              Seq("top_class", "block") =>
-          userType(List("top_class", "block"))
+          userOwnedType(List("top_class", "block"))
         case Seq("innerblock") |
              Seq("block", "innerblock") |
              Seq("top_class", "block", "innerblock") =>
-          userType(List("top_class", "block", "innerblock"))
+          userOwnedType(List("top_class", "block", "innerblock"))
       }
     }
   }
 
-  def userType(lname: List[String]) = {
+  def userOwnedType(lname: List[String]) = {
     val cs = ClassSpec.opaquePlaceholder(lname)
     val ut = UserTypeInstream(lname, None)
+    ut.classSpec = Some(cs)
+    ut
+  }
+
+  def userBorrowedType(lname: List[String]) = {
+    val cs = ClassSpec.opaquePlaceholder(lname)
+    val ut = CalcUserType(lname, None)
     ut.classSpec = Some(cs)
     ut
   }

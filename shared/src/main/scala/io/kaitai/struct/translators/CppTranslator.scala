@@ -12,57 +12,52 @@ import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.CppImportList
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
-class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, importListHdr: CppImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
+class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, importListHdr: CppImportList, config: RuntimeConfig)
+  extends BaseTranslator(provider)
+    with MinSignedIntegers {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
 
   /**
-    * Handles integer literals for C++ by appending relevant suffix to
-    * decimal notation.
+    * Handles integer literals for C++ by appending relevant suffix to decimal notation.
     *
-    * Note that suffixes essentially mean "long", "unsigned long",
-    * and "unsigned long long", which are not really guaranteed to match
-    * `int32_t`, `uint32_t` and `uint64_t`, but it would work for majority
-    * of current compilers.
+    * Note that suffixes essentially mean "long", "unsigned long", and "unsigned long long", which
+    * are not really guaranteed to match `int32_t`, `uint32_t` and `uint64_t`, but it would work for
+    * the majority of current compilers.
     *
     * For reference, ranges of integers that are used in this conversion are:
     *
-    * * int32_t (no suffix): –2147483648..2147483647
-    * * uint32_t (UL): 0..4294967295
-    * * int64_t (LL): -9223372036854775808..9223372036854775807
-    * * uint64_t (ULL): 0..18446744073709551615
+    *   - int32_t (no suffix): -2147483648..2147483647
+    *   - uint32_t (UL): 0..4294967295
+    *   - int64_t (LL): -9223372036854775808..9223372036854775807
+    *   - uint64_t (ULL): 0..18446744073709551615
     *
-    * Merging all these ranges, we get the following decision tree:
+    * Beyond these boundaries, C++ is unlikely to be able to represent these anyway, so we just drop
+    * the suffix and hope for the miracle.
     *
-    * * -9223372036854775808..-2147483649 => LL
-    * * -2147483648..2147483647 => no suffix
-    * * 2147483648..4294967295 => UL
-    * * 4294967296..9223372036854775807 => LL
-    * * 9223372036854775808..18446744073709551615 => ULL
-    *
-    * Beyond these boundaries, C++ is unlikely to be able to represent
-    * these anyway, so we just drop the suffix and hope for the miracle.
+    * The minimum signed 32-bit and 64-bit integers (Int.MinValue and Long.MinValue) are
+    * intentionally omitted, since they're handled by [[MinSignedIntegers]].
     *
     * @param n integer to render
     * @return rendered integer literal in C++ syntax as string
     */
   override def doIntLiteral(n: BigInt): String = {
-    val suffix = if (n < -9223372036854775808L) {
-      "" // too low, no suffix would help anyway
-    } else if (n <= -2147483649L) {
-      "LL" // -9223372036854775808..–2147483649
-    } else if (n <= 2147483647L) {
-      "" // -2147483648..2147483647
-    } else if (n <= 4294967295L) {
-      "UL" // 2147483648..4294967295
-    } else if (n <= 9223372036854775807L) {
-      "LL" // 4294967296..9223372036854775807
-    } else if (n <= Utils.MAX_UINT64) {
-      "ULL" // 9223372036854775808..18446744073709551615
-    } else {
-      "" // too high, no suffix would help anyway
-    }
+    val suffixOpt: Option[String] =
+      if (n >= Int.MinValue + 1 && n <= Int.MaxValue) {
+        Some("") // -2147483647..2147483647
+      } else if (n > Int.MaxValue && n <= Utils.MAX_UINT32) {
+        Some("UL") // 2147483648..4294967295
+      } else if ((n >= Long.MinValue + 1 && n < Int.MinValue) || (n > Utils.MAX_UINT32 && n <= Long.MaxValue)) {
+        Some("LL") // -9223372036854775807..-2147483649 | 4294967296..9223372036854775807
+      } else if (n > Long.MaxValue && n <= Utils.MAX_UINT64) {
+        Some("ULL") // 9223372036854775808..18446744073709551615
+      } else {
+        None
+      }
 
-    s"$n$suffix"
+    suffixOpt match {
+      case Some(suffix) => s"$n$suffix"
+      case None => super.doIntLiteral(n) // delegate to parent implementations
+    }
   }
 
   /**

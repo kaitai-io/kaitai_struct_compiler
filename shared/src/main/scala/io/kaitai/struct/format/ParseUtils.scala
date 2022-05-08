@@ -111,7 +111,7 @@ object ParseUtils {
     * is converted using `convertFunc` function. Lack of "field" key
     * results in an empty list.
     *
-    * @param src YAML map to get list from
+    * @param src YAML map to get list from
     * @param field key name in YAML map, value expected to be a list
     * @param convertFunc function that gets element of Any type, expected
     *                    to check its type and do the conversion
@@ -143,7 +143,7 @@ object ParseUtils {
   /**
     * Gets a list of strings from a given YAML map's key "field",
     * reporting errors accurately and ensuring type safety.
-    * @param src YAML map to get list from
+    * @param src YAML map to get list from
     * @param field key name in YAML map, value expected to be a list
     * @param path path used to report YAML errors
     * @return list of strings from YAML map
