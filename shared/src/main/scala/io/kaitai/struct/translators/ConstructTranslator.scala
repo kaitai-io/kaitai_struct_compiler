@@ -6,6 +6,9 @@ import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.ConstructClassCompiler
 
 class ConstructTranslator(provider: TypeProvider, importList: ImportList) extends PythonTranslator(provider, importList) {
+  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
+    s"(lambda this: ${translate(ifTrue)} if ${translate(condition)} else ${translate(ifFalse)})"
+
   override def doLocalName(s: String) = {
     s match {
       case Identifier.ITERATOR => "obj_"
