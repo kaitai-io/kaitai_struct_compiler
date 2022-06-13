@@ -9,7 +9,7 @@ import io.kaitai.struct.exprlang.Ast
   * However, there is no positive counterpart to
   *
   * 1. `-2**31` in signed 32-bit integers (the maximum `sint32` is `2**31 - 1`);
-  * 2. `-2**64` in signed 64-bit integers (the maximum `sint64` is `2**63 - 1`).
+  * 2. `-2**63` in signed 64-bit integers (the maximum `sint64` is `2**63 - 1`).
   *
   * `2**31` and `2**63` generally require either an *un*signed {32,64}-bit integer, or a signed
   * integer of a larger size (e.g. `sint64` for `2**31`). But these types may not be available in
