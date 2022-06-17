@@ -9,6 +9,7 @@ import io.kaitai.struct.languages.components.{CppImportList, LanguageCompilerSta
 import io.kaitai.struct.{ImportList, RuntimeConfig, StringLanguageOutputWriter}
 import org.scalatest.{FunSuite, Tag}
 import org.scalatest.Matchers._
+import io.kaitai.struct.format.Identifier
 
 class TranslatorSpec extends FunSuite {
 
@@ -753,7 +754,9 @@ class TranslatorSpec extends FunSuite {
 
   case class Always(t: DataType) extends FakeTypeProvider {
     override def determineType(name: String): DataType = t
+    override def determineType(id: Identifier): DataType = t
     override def determineType(inClass: ClassSpec, name: String): DataType = t
+    override def determineType(inClass: ClassSpec, id: Identifier): DataType = t
   }
 
   /**
@@ -783,6 +786,8 @@ class TranslatorSpec extends FunSuite {
       }
     }
 
+    override def determineType(id: Identifier): DataType = ???
+
     override def determineType(inClass: ClassSpec, name: String): DataType = {
       (inClass.name.last, name) match {
         case ("block", "bar") => CalcStrType
@@ -790,6 +795,8 @@ class TranslatorSpec extends FunSuite {
         case ("innerblock", "baz") => CalcIntType
       }
     }
+
+    override def determineType(inClass: ClassSpec, id: Identifier): DataType = ???
 
     override def resolveType(typeName: Ast.typeId): DataType = {
       typeName.names match {
