@@ -385,7 +385,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = $expr")
   }
 
-  def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
+  def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"$id := $expr")
+
+  override def blockScopeHeader: Unit = {
+    out.puts("{")
+    out.inc
+  }
+  override def blockScopeFooter: Unit = universalFooter
 
   override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {

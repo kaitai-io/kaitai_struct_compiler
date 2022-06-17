@@ -307,11 +307,14 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}[i + 1] = $expr")
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
-    out.puts(s"$tmpName = $expr")
+    out.puts(s"local $tmpName = $expr")
     out.puts(s"${privateMemberName(id)}[i + 1] = $tmpName")
   }
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
+
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"local $id = $expr")
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = dataType match {
     case t: ReadableType =>
