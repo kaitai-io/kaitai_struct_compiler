@@ -956,20 +956,12 @@ class CppCompiler(
   def nullFlagForName(ksName: Identifier) =
     s"n_${idToStr(ksName)}"
 
-  override def idToStr(id: Identifier): String = {
-    id match {
-      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
-      case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
-      case si: SpecialIdentifier => Utils.lowerUnderscoreCase(si.name)
-      case ni: NamedIdentifier => Utils.lowerUnderscoreCase(ni.name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case ni: InstanceIdentifier => Utils.lowerUnderscoreCase(ni.name)
-    }
-  }
+  override def idToStr(id: Identifier): String = CppCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String = CppCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"m_${idToStr(id)}"
 
-  override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -1057,6 +1049,18 @@ object CppCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new CppCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case NamedIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+      case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
+    }
+
+  def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"

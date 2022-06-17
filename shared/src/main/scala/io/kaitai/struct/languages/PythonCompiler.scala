@@ -485,26 +485,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 
-  def idToStr(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => name
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => s"_m_$name"
-      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
-    }
-  }
+  override def idToStr(id: Identifier): String = PythonCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String = PythonCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"self.${idToStr(id)}"
-
-  override def publicMemberName(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => name
-      case InstanceIdentifier(name) => name
-      case RawIdentifier(innerId) => s"_raw_${publicMemberName(innerId)}"
-    }
-  }
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -544,6 +529,21 @@ object PythonCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new PythonCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => name
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => s"_m_$name"
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+    }
+
+  def publicMemberName(id: Identifier): String =
+    id match {
+      case InstanceIdentifier(name) => name
+      case _ => idToStr(id)
+    }
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"

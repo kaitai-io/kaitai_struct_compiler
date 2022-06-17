@@ -67,6 +67,9 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
 
   override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
 
+  override def doInternalName(id: Identifier): String =
+    s"$$this->${PHPCompiler.publicMemberName(id)}()"
+
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)
     s"$enumClass::${Utils.upperUnderscoreCase(label)}"

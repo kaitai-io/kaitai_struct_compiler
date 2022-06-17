@@ -519,30 +519,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(")")
   }
 
-  def idToStr(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.upperCamelCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
-      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
-      case IoStorageIdentifier(innerId) => "_io_" + idToStr(innerId)
-    }
-  }
+  override def idToStr(id: Identifier): String = GoCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String = GoCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
-
-  override def publicMemberName(id: Identifier): String = {
-    id match {
-      case IoIdentifier => "_IO"
-      case RootIdentifier => "_Root"
-      case ParentIdentifier => "_Parent"
-      case NamedIdentifier(name) => Utils.upperCamelCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
-      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
-    }
-  }
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -582,6 +563,25 @@ object GoCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new GoCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.upperCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+      case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
+    }
+
+  def publicMemberName(id: Identifier): String =
+    id match {
+      case IoIdentifier => "_IO"
+      case RootIdentifier => "_Root"
+      case ParentIdentifier => "_Parent"
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case _ => idToStr(id)
+    }
 
   /**
     * Determine Go data type corresponding to a KS data type.

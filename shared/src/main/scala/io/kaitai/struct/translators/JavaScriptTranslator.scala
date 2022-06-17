@@ -53,6 +53,9 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     }
   }
 
+  override def doInternalName(id: Identifier): String =
+    s"this.${JavaScriptCompiler.publicMemberName(id)}"
+
   override def doEnumByLabel(enumType: List[String], label: String): String =
     s"${JavaScriptCompiler.types2class(enumType)}.${Utils.upperUnderscoreCase(label)}"
   override def doEnumById(enumTypeAbs: List[String], label: String): String =

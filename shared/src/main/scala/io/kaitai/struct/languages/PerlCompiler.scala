@@ -395,19 +395,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
 
-  override def idToStr(id: Identifier): String = {
-    id match {
-      case NamedIdentifier(name) => name
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case si: SpecialIdentifier => si.name
-      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
-      case InstanceIdentifier(name) => name
-    }
-  }
+  override def idToStr(id: Identifier): String = PerlCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String = PerlCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"$$self->{${idToStr(id)}}"
-
-  override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
@@ -424,6 +416,17 @@ object PerlCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new PerlCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => name
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => name
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+    }
+
+  def publicMemberName(id: Identifier): String = idToStr(id)
 
   def packageName: String = "IO::KaitaiStruct"
   override def kstreamName: String = s"$packageName::Stream"

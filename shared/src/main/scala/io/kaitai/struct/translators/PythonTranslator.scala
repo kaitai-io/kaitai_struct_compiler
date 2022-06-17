@@ -50,7 +50,10 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
       case _ => s"self.${doName(s)}"
     }
   }
-  override def doName(s: String) = s
+  override def doName(s: String) =
+    s
+  override def doInternalName(id: Identifier): String =
+    s"self.${PythonCompiler.publicMemberName(id)}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${PythonCompiler.types2class(enumTypeAbs)}.$label"

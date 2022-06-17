@@ -19,6 +19,10 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     determineType(nowClass, attrName)
   }
 
+  override def determineType(attrId: Identifier): DataType = {
+    determineType(nowClass, attrId)
+  }
+
   override def determineType(inClass: ClassSpec, attrName: String): DataType = {
     attrName match {
       case Identifier.ROOT =>
@@ -40,6 +44,22 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       case _ =>
         resolveMember(inClass, attrName).dataTypeComposite
     }
+  }
+
+  override def determineType(inClass: ClassSpec, attrId: Identifier): DataType = {
+    attrId match {
+      case _: NumberedIdentifier =>
+        // only 'seq' fields can be unnamed (numbered)
+        inClass.seq.foreach { el =>
+          if (el.id == attrId)
+            return el.dataTypeComposite
+        }
+      case NamedIdentifier(name) => return determineType(inClass, name)
+      case InstanceIdentifier(name) => return determineType(inClass, name)
+      case SpecialIdentifier(name) => return determineType(inClass, name)
+      case _ => // do nothing
+    }
+    throw new FieldNotFoundError(attrId.humanReadable, inClass)
   }
 
   /**

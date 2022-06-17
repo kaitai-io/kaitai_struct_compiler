@@ -549,25 +549,16 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  def idToStr(id: Identifier): String = {
+  def idToStr(id: Identifier): String =
     id match {
       case SpecialIdentifier(name) => name
       case NamedIdentifier(name) => Utils.lowerCamelCase(name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
-      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
     }
-  }
 
-  override def publicMemberName(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => s"M${Utils.upperCamelCase(name)}"
-      case NamedIdentifier(name) => Utils.upperCamelCase(name)
-      case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE.capitalize}_$idx"
-      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
-      case RawIdentifier(innerId) => s"M_Raw${publicMemberName(innerId)}"
-    }
-  }
+  override def publicMemberName(id: Identifier): String = CSharpCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = {
     id match {
@@ -607,6 +598,15 @@ object CSharpCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new CSharpCompiler(tp, config)
+
+  def publicMemberName(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => s"M${Utils.upperCamelCase(name)}"
+      case NamedIdentifier(name) => Utils.upperCamelCase(name)
+      case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE.capitalize}_$idx"
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case RawIdentifier(innerId) => s"M_Raw${publicMemberName(innerId)}"
+    }
 
   /**
     * Determine .NET data type corresponding to a KS data type.

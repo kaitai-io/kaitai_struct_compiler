@@ -555,24 +555,11 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  def idToStr(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => s"_m_${Utils.lowerCamelCase(name)}"
-      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
-    }
-  }
+  def idToStr(id: Identifier): String = JavaScriptCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier) = JavaCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
-
-  override def publicMemberName(id: Identifier): String = {
-    id match {
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
-    }
-  }
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -618,6 +605,21 @@ object JavaScriptCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new JavaScriptCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => s"_m_${Utils.lowerCamelCase(name)}"
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+    }
+
+  def publicMemberName(id: Identifier): String =
+    id match {
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case _ => idToStr(id)
+    }
 
   override def kstreamName: String = "KaitaiStream"
 

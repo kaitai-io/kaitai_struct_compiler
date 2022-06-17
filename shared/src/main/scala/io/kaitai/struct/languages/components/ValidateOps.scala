@@ -29,7 +29,7 @@ trait ValidateOps extends ExceptionNames {
           Ast.boolop.Or,
           values.map(expected =>
             Ast.expr.Compare(
-              Ast.expr.Name(attrId.toAstIdentifier),
+              Ast.expr.InternalName(attrId),
               Ast.cmpop.Eq,
               expected
             )
@@ -42,8 +42,8 @@ trait ValidateOps extends ExceptionNames {
           checkExpr = bigOrExpr,
           err = ValidationNotAnyOfError(attr.dataTypeComposite),
           errArgs = List(
-            Ast.expr.Name(attrId.toAstIdentifier),
-            Ast.expr.Name(IoIdentifier.toAstIdentifier),
+            Ast.expr.InternalName(attrId),
+            Ast.expr.InternalName(IoIdentifier),
             Ast.expr.Str(attr.path.mkString("/", "/", ""))
           )
         )
@@ -53,7 +53,7 @@ trait ValidateOps extends ExceptionNames {
         handleAssignmentTempVar(
           attr.dataTypeComposite,
           translator.translate(Ast.expr.Name(Ast.identifier(Identifier.ITERATOR))),
-          translator.translate(Ast.expr.Name(attrId.toAstIdentifier))
+          translator.translate(Ast.expr.InternalName(attrId))
         )
         attrValidateExpr(
           attrId,
@@ -61,8 +61,8 @@ trait ValidateOps extends ExceptionNames {
           expr,
           ValidationExprError(attr.dataTypeComposite),
           List(
-            Ast.expr.Name(attrId.toAstIdentifier),
-            Ast.expr.Name(IoIdentifier.toAstIdentifier),
+            Ast.expr.InternalName(attrId),
+            Ast.expr.InternalName(IoIdentifier),
             Ast.expr.Str(attr.path.mkString("/", "/", ""))
           )
         )
@@ -75,15 +75,15 @@ trait ValidateOps extends ExceptionNames {
       attrId,
       attr.dataTypeComposite,
       checkExpr = Ast.expr.Compare(
-        Ast.expr.Name(attrId.toAstIdentifier),
+        Ast.expr.InternalName(attrId),
         op,
         expected
       ),
       err = err,
       errArgs = List(
         expected,
-        Ast.expr.Name(attrId.toAstIdentifier),
-        Ast.expr.Name(IoIdentifier.toAstIdentifier),
+        Ast.expr.InternalName(attrId),
+        Ast.expr.InternalName(IoIdentifier),
         Ast.expr.Str(attr.path.mkString("/", "/", ""))
       )
     )

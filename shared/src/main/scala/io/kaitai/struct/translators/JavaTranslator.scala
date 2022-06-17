@@ -56,15 +56,15 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def doName(s: String) =
     s match {
-      case Identifier.ROOT => s
-      case Identifier.PARENT => "_parent()"
-      case Identifier.IO => "_io()"
       case Identifier.ITERATOR => "_it"
       case Identifier.ITERATOR2 => "_buf"
       case Identifier.SWITCH_ON => "on"
       case Identifier.INDEX => "i"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
+
+  override def doInternalName(id: Identifier): String =
+    s"${JavaCompiler.publicMemberName(id)}()"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${enumClass(enumTypeAbs)}.${Utils.upperUnderscoreCase(label)}"

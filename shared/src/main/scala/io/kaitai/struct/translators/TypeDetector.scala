@@ -58,6 +58,7 @@ class TypeDetector(provider: TypeProvider) {
         t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name).asNonOwning
+      case Ast.expr.InternalName(id) => provider.determineType(id)
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
         (t, op) match {

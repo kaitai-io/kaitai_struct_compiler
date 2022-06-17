@@ -137,6 +137,9 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     case _ => s"$s()"
   }
 
+  override def doInternalName(id: Identifier): String =
+    s"${CppCompiler.publicMemberName(id)}()"
+
   override def doEnumByLabel(enumType: List[String], label: String): String =
     CppCompiler.types2class(enumType.dropRight(1)) + "::" +
       Utils.upperUnderscoreCase(enumType.last + "_" + label)

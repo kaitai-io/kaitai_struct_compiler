@@ -426,15 +426,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def value2Const(label: String) = Utils.upperUnderscoreCase(label)
 
-  def idToStr(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
-      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
-    }
-  }
+  override def idToStr(id: Identifier): String = PHPCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier) = PHPCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = {
     id match {
@@ -444,8 +438,6 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => s"$$this->_m_${idToStr(id)}"
     }
   }
-
-  override def publicMemberName(id: Identifier) = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
@@ -506,6 +498,17 @@ object PHPCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new PHPCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+    }
+
+  def publicMemberName(id: Identifier) = idToStr(id)
 
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 

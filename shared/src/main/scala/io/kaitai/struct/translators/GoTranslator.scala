@@ -7,6 +7,9 @@ import io.kaitai.struct.format.{ClassSpec, Identifier}
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.precompile.TypeMismatchError
 import io.kaitai.struct.{ImportList, StringLanguageOutputWriter, Utils}
+import io.kaitai.struct.format.SpecialIdentifier
+import io.kaitai.struct.format.NamedIdentifier
+import io.kaitai.struct.format.InstanceIdentifier
 
 sealed trait TranslatorResult
 case class ResultString(s: String) extends TranslatorResult
@@ -54,6 +57,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         } else {
           trLocalName(name.name)
         }
+      case Ast.expr.InternalName(id: Identifier) =>
+        trInternalName(id)
       case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
         val opStr = unaryOp(op)
         ResultString((op, inner) match {
@@ -214,6 +219,14 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         }
     }
   }
+
+  def trInternalName(id: Identifier): TranslatorResult =
+    id match {
+      case SpecialIdentifier(name) => trLocalName(name)
+      case NamedIdentifier(name) => trLocalName(name)
+      case InstanceIdentifier(name) => trLocalName(name)
+      case _ => ResultString(s"this.${GoCompiler.publicMemberName(id)}")
+    }
 
   def specialName(id: String): String = id match {
     case Identifier.ROOT | Identifier.PARENT | Identifier.IO =>

@@ -37,6 +37,9 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
     }
   }
 
+  override def doInternalName(id: Identifier): String =
+    RubyCompiler.publicMemberName(id)
+
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s":${enumTypeAbs.last}_$label"
   override def doEnumById(enumType: List[String], id: String): String =

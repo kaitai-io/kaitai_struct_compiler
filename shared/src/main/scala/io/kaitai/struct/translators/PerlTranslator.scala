@@ -73,6 +73,9 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
   }
 
+  override def doInternalName(id: Identifier): String =
+    s"$$self->${PerlCompiler.publicMemberName(id)}()"
+
   override def doEnumByLabel(enumType: List[String], label: String): String = {
     val enumClass = PerlCompiler.types2class(enumType.init)
     val enumClassWithScope = if (enumClass.isEmpty) "" else s"$enumClass::"

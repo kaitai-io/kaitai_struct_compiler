@@ -1,5 +1,7 @@
 package io.kaitai.struct.exprlang
 
+import io.kaitai.struct.format.Identifier
+
 /**
   * Loosely based on /pythonparse/shared/src/main/scala/pythonparse/
   * from FastParse, Copyright (c) 2014 Li Haoyi (haoyi.sg@gmail.com)
@@ -72,6 +74,8 @@ object Ast {
     /** Represents `X[Y]`. */
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
+    /** For internal use in the compiler. It cannot appear in an AST parsed from a user-supplied string. */
+    case class InternalName(id: Identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
   }
 

@@ -68,6 +68,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
         } else {
           doLocalName(name.name)
         }
+      case Ast.expr.InternalName(id: Identifier) =>
+        doInternalName(id)
       case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
         val opStr = unaryOp(op)
         (op, inner) match {
@@ -175,6 +177,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String
+  def doInternalName(id: Identifier): String = ???
   def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String =
     anyField(value, attrName)
   def kaitaiStructField(value: Ast.expr, name: String): String =
