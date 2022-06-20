@@ -87,17 +87,6 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     s"${LuaCompiler.types2class(enumTypeAbs)}($id)"
 
-  // This is very hacky because integers and booleans cannot be compared
-  override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
-    val bool2Int = (n: Boolean) => { if (n) "1" else "0" }
-    (left, right) match {
-      case (Ast.expr.Bool(l), Ast.expr.Bool(r)) => s"${bool2Int(l)} ${cmpOp(op)} ${bool2Int(r)}"
-      case (Ast.expr.Bool(l), r) => s"${bool2Int(l)} ${cmpOp(op)} ${translate(r)}"
-      case (l, Ast.expr.Bool(r)) => s"${translate(l)} ${cmpOp(op)} ${bool2Int(r)}"
-      case _ => super.doNumericCompareOp(left, op, right)
-    }
-  }
-
   override def strConcat(left: Ast.expr, right: Ast.expr): String =
     s"${translate(left)} .. ${translate(right)}"
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {

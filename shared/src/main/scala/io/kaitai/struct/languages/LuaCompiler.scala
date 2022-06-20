@@ -326,7 +326,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     case BytesTerminatedType(terminator, include, consume, eosError, _) =>
       s"$io:read_bytes_term($terminator, $include, $consume, $eosError)"
     case BitsType1(bitEndian) =>
-      s"$io:read_bits_int_${bitEndian.toSuffix}(1)"
+      s"$io:read_bits_int_${bitEndian.toSuffix}(1) ~= 0"
     case BitsType(width: Int, bitEndian) =>
       s"$io:read_bits_int_${bitEndian.toSuffix}($width)"
     case t: UserType =>
