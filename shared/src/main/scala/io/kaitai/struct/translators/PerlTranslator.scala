@@ -117,10 +117,12 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     baseStr match {
+      case "2" =>
+        s"oct('0b' . ${translate(s)})"
       case "8" =>
         s"oct(${translate(s)})"
       case "10" =>
-        translate(s)
+        s"${translate(s)} + 0"
       case "16" =>
         s"hex(${translate(s)})"
       case _ => throw new UnsupportedOperationException(baseStr)
@@ -135,6 +137,8 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     val format = baseStr match {
+      case "2" =>
+        s"%b"
       case "8" =>
         s"%o"
       case "10" =>
