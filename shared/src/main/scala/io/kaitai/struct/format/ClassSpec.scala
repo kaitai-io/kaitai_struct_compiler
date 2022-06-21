@@ -154,20 +154,21 @@ object ClassSpec {
       case Some(value) => seqFromYaml(value, path ++ List("seq"), meta)
       case None => List()
     }
-    val types: Map[String, ClassSpec] = srcMap.get("types") match {
-      case Some(value) => typesFromYaml(value, fileName, path ++ List("types"), meta)
-      case None => Map()
-    }
     val instances: Map[InstanceIdentifier, InstanceSpec] = srcMap.get("instances") match {
       case Some(value) => instancesFromYaml(value, path ++ List("instances"), meta)
+      case None => Map()
+    }
+
+    checkDupMemberIds(params ++ seq ++ instances.values)
+
+    val types: Map[String, ClassSpec] = srcMap.get("types") match {
+      case Some(value) => typesFromYaml(value, fileName, path ++ List("types"), meta)
       case None => Map()
     }
     val enums: Map[String, EnumSpec] = srcMap.get("enums") match {
       case Some(value) => enumsFromYaml(value, path ++ List("enums"))
       case None => Map()
     }
-
-    checkDupSeqInstIds(seq, instances)
 
     val cs = ClassSpec(
       fileName, path, path.isEmpty,
@@ -194,7 +195,6 @@ object ClassSpec {
         val params = srcList.zipWithIndex.map { case (attrSrc, idx) =>
           ParamDefSpec.fromYaml(attrSrc, path ++ List(idx.toString), idx)
         }
-        // FIXME: checkDupSeqIds(params)
         params
       case unknown =>
         throw KSYParseError.withText(s"expected array, found $unknown", path)
@@ -207,37 +207,28 @@ object ClassSpec {
         val seq = srcList.zipWithIndex.map { case (attrSrc, idx) =>
           AttrSpec.fromYaml(attrSrc, path ++ List(idx.toString), metaDef, idx)
         }
-        checkDupSeqIds(seq)
         seq
       case unknown =>
         throw KSYParseError.withText(s"expected array, found $unknown", path)
     }
   }
 
-  def checkDupSeqIds(seq: List[AttrSpec]): Unit = {
-    val attrIds = mutable.Map[String, AttrSpec]()
-    seq.foreach { (attr) =>
-      attr.id match {
-        case NamedIdentifier(id) =>
-          checkDupId(attrIds.get(id), id, attr)
-          attrIds.put(id, attr)
-        case _ => // do nothing with non-named IDs
+  def checkDupMemberIds(attrs: List[MemberSpec]): Unit = {
+    val attrIds = mutable.Map[String, MemberSpec]()
+    attrs.foreach { (attr) =>
+      val idOpt: Option[String] = attr.id match {
+        case NamedIdentifier(name) => Some(name)
+        case InstanceIdentifier(name) => Some(name)
+        case _ => None // do nothing with non-named IDs
+      }
+      idOpt.foreach { (id) =>
+        checkDupId(attrIds.get(id), id, attr)
+        attrIds.put(id, attr)
       }
     }
   }
 
-  def checkDupSeqInstIds(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec]): Unit = {
-    val attrIds: Map[String, AttrSpec] = seq.flatMap((attr) => attr.id match {
-      case NamedIdentifier(id) => Some(id -> attr)
-      case _ => None
-    }).toMap
-
-    instances.foreach { case (id, instSpec) =>
-      checkDupId(attrIds.get(id.name), id.name, instSpec)
-    }
-  }
-
-  private def checkDupId(prevAttrOpt: Option[AttrSpec], id: String, nowAttr: YAMLPath) {
+  private def checkDupId(prevAttrOpt: Option[MemberSpec], id: String, nowAttr: YAMLPath) {
     prevAttrOpt match {
       case Some(prevAttr) =>
         throw KSYParseError.withText(
