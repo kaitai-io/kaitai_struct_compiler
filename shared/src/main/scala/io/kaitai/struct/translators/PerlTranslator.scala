@@ -152,13 +152,27 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
   override def bytesLength(b: Ast.expr): String =
     strLength(b)
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"unpack('C', substr(${translate(container)}, ${translate(idx)}, 1))"
+  override def bytesFirst(b: Ast.expr): String =
+    s"unpack('C', substr(${translate(b)}, 0, 1))"
+  override def bytesLast(b: Ast.expr): String =
+    s"unpack('C', substr(${translate(b)}, -1, 1))"
+  override def bytesMin(b: Ast.expr): String = {
+    importList.add("List::Util")
+    s"List::Util::min(unpack('C*', ${translate(b)}))"
+  }
+  override def bytesMax(b: Ast.expr): String = {
+    importList.add("List::Util")
+    s"List::Util::max(unpack('C*', ${translate(b)}))"
+  }
 
   override def strLength(value: Ast.expr): String =
     s"length(${translate(value)})"
   override def strReverse(value: Ast.expr): String =
     s"scalar(reverse(${translate(value)}))"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s)}[${translate(from)}:${translate(to)}]"
+    s"substr(${translate(s)}, ${translate(from)}, (${translate(to)}) - (${translate(from)}))"
 
   override def arrayFirst(a: Ast.expr): String =
     s"@{${translate(a)}}[0]"
