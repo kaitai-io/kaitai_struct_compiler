@@ -154,7 +154,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
     s"utils.array_min(${translate(a)})"
   }
-  override def arrayMax(a: Ast.expr): String ={
+  override def arrayMax(a: Ast.expr): String = {
     importList.add("local utils = require(\"utils\")")
 
     s"utils.array_max(${translate(a)})"
