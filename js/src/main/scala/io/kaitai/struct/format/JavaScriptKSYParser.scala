@@ -5,6 +5,7 @@ import io.kaitai.struct.{JavaScriptImporter, Main, RuntimeConfig}
 import scala.concurrent.Future
 import scala.scalajs.js
 import scala.concurrent.ExecutionContext.Implicits.global
+import io.kaitai.struct.problems.ProblemSeverity
 
 object JavaScriptKSYParser {
   /**
@@ -17,7 +18,13 @@ object JavaScriptKSYParser {
     val yamlScala = yamlJavascriptToScala(yaml)
     val firstSpec = ClassSpec.fromYaml(yamlScala, None)
     val specs = new JavaScriptClassSpecs(importer, firstSpec)
-    Main.importAndPrecompile(specs, config).map((_) => specs)
+    Main.importAndPrecompile(specs, config).map{ problems =>
+      // throw the first (if any) severe (not a warning) problem as an exception
+      problems.find(p => p.severity != ProblemSeverity.Warning) match {
+        case Some(problem) => throw problem.toException
+        case None => specs
+      }
+    }
   }
 
   def yamlJavascriptToScala(src: Any): Any = {
