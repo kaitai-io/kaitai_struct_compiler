@@ -3,6 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.precompile.EnumMemberNotFoundError
 
 /**
   * Validates expressions usage of types (in typecasting operator,
@@ -33,8 +34,10 @@ class ExpressionValidator(val provider: TypeProvider)
         provider.resolveEnum(inType, enumType.name)
         validate(id)
       case Ast.expr.EnumByLabel(enumType, label, inType) =>
-        provider.resolveEnum(inType, enumType.name)
-        // TODO: check that label belongs to that enum
+        val enumSpec = provider.resolveEnum(inType, enumType.name)
+        if (!enumSpec.map.values.exists(_.name == label.name)) {
+          throw new EnumMemberNotFoundError(label.name, enumType.name, enumSpec.path.mkString("/"))
+        }
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
           CommonSizeOf.getByteSizeOfClassSpec(provider.nowClass)

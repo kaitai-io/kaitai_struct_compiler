@@ -18,6 +18,8 @@ class FieldNotFoundError(val name: String, val curClass: ClassSpec)
   extends NotFoundError(s"unable to access '$name' in ${curClass.nameAsStr} context")
 class EnumNotFoundError(val name: String, val curClass: ClassSpec)
   extends NotFoundError(s"unable to find enum '$name', searching from ${curClass.nameAsStr}")
+class EnumMemberNotFoundError(val label: String, val enum: String, val enumDefPath: String)
+  extends NotFoundError(s"unable to find enum member '$enum::$label' (enum '$enum' defined at /$enumDefPath)")
 class MethodNotFoundError(val name: String, val dataType: DataType)
   extends NotFoundError(s"don't know how to call method '$name' of object type '$dataType'")
 

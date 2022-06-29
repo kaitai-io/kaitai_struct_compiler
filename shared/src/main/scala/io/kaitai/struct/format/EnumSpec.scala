@@ -4,7 +4,7 @@ import io.kaitai.struct.problems.KSYParseError
 
 import scala.collection.mutable
 
-case class EnumSpec(map: Map[Long, EnumValueSpec]) {
+case class EnumSpec(path: List[String], map: Map[Long, EnumValueSpec]) extends YAMLPath {
   var name = List[String]()
 
   /**
@@ -24,7 +24,7 @@ object EnumSpec {
   def fromYaml(src: Any, path: List[String]): EnumSpec = {
     val srcMap = ParseUtils.asMap(src, path)
     val memberNameMap = mutable.Map[String, Long]()
-    EnumSpec(srcMap.map { case (id, desc) =>
+    EnumSpec(path, srcMap.map { case (id, desc) =>
       val idLong = ParseUtils.asLong(id, path)
       val value = EnumValueSpec.fromYaml(desc, path ++ List(idLong.toString))
 
