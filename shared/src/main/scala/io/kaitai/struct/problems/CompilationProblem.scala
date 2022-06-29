@@ -14,7 +14,7 @@ sealed abstract class CompilationProblem extends Jsonable {
   def severity: ProblemSeverity
   def coords: ProblemCoords
   def text: String
-  def message = s"${coords.message}: ${severity.message}: $text"
+  def message = s"${coords.message}:\n\t${severity.message}: $text\n"
   def localizedInFile(fileName: String): CompilationProblem
 
   /**
