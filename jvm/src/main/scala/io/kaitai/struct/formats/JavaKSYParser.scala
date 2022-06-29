@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets
 import java.util.{List => JList, Map => JMap}
 import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
-import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException, ProblemCoords, YAMLParserError}
+import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException, ProblemCoords, ProblemSeverity, YAMLParserError}
 import io.kaitai.struct.{Log, Main}
 import org.yaml.snakeyaml.constructor.SafeConstructor
 import org.yaml.snakeyaml.error.MarkedYAMLException
@@ -24,7 +24,8 @@ object JavaKSYParser {
       val specs = new JavaClassSpecs(yamlDir, config.importPaths, firstSpec)
 
       val problems = Await.result(Main.importAndPrecompile(specs, config.runtime), Duration.Inf)
-      (Some(specs), problems)
+      val gotError = problems.exists(p => p.severity != ProblemSeverity.Warning)
+      (if (gotError) None else Some(specs), problems)
     } catch {
       case ex: CompilationProblemException =>
         val problem = ex.problem
