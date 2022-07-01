@@ -27,6 +27,9 @@ object JSON extends CommonLiterals {
     }
   }
 
+  /** octal escapes (which [[translators.CommonLiterals.strLiteralGenericCC]] uses by default) are not allowed in JSON */
+  override def strLiteralGenericCC(code: Char): String = strLiteralUnicode(code)
+
   def stringToJson(str: String): String =
     doStringLiteral(str)
 
