@@ -1,6 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.problems.CompilationProblem
+import io.kaitai.struct.problems.ProblemSeverity
 
 /**
   * Namespace for all the objects related to compilation results.
@@ -12,8 +13,10 @@ object CompileLog {
 
   sealed trait InputEntry extends Jsonable with CanHasErrors
 
-  case class InputFailure(errors: Iterable[CompilationProblem]) extends InputEntry {
-    override def toJson: String = JSON.mapToJson(Map("errors" -> errors))
+  case class InputFailure(problems: Iterable[CompilationProblem]) extends InputEntry {
+    override def toJson: String = {
+      JSON.mapToJson(problemsToMap(problems))
+    }
     override def hasErrors = true
   }
 
@@ -25,7 +28,7 @@ object CompileLog {
     override def toJson: String = JSON.mapToJson(Map(
       "firstSpecName" -> firstSpecName,
       "output" -> output
-    ))
+    ) ++ problemsToMap(problems))
 
     override def hasErrors: Boolean =
       output.values.map(_.values.map(_.hasErrors).max).max
@@ -56,5 +59,12 @@ object CompileLog {
   ) extends Jsonable {
     override def toString = s"FileSuccess(fileName=$fileName)"
     override def toJson: String = JSON.mapToJson(Map("fileName" -> fileName))
+  }
+
+  def problemsToMap(problems: Iterable[CompilationProblem]): Map[String, Iterable[CompilationProblem]] = {
+    val problemsByIsWarning = problems.groupBy(_.severity == ProblemSeverity.Warning)
+    problemsByIsWarning.map { case (isWarning, suchProblems) =>
+      (if (isWarning) "warnings" else "errors") -> suchProblems
+    }
   }
 }
