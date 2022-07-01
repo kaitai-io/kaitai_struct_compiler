@@ -32,7 +32,7 @@ trait CommonLiterals {
     asciiCharQuoteMap.get(code) match {
       case Some(encoded) => encoded
       case None =>
-        if (code >= 0x20 && code < 0x80) {
+        if (code >= 0x20 && code < 0x7f) {
           Character.toString(code)
         } else {
           strLiteralGenericCC(code)
