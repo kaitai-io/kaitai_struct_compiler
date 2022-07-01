@@ -37,10 +37,10 @@ abstract class BaseTranslator(val provider: TypeProvider)
   /**
     * Translates KS expression into an expression in some target language.
     * Note that this implementation may throw errors subclassed off the
-    * [[io.kaitai.struct.precompile.ExpressionError]] when encountering
+    * [[precompile.ExpressionError]] when encountering
     * some sort of logical error in expression (i.e. invalid usage of
     * operator, type mismatch, etc). Typically, one's supposed to catch
-    * and rethrow it, wrapped in [[io.kaitai.struct.precompile.ErrorInInput]]
+    * and rethrow it, wrapped in [[problems.ErrorInInput]]
     * to assist error reporting in KSC.
     *
     * @param v KS expression to translate

@@ -11,11 +11,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 object Main {
   /**
-    * Takes a freshly made [[ClassSpecs]] container with a single .ksy loaded
+    * Takes a freshly made [[format.ClassSpecs]] container with a single .ksy loaded
     * into it, launches recursive loading of imports into this container,
     * and then runs precompilation on every class that happens to be there
     * after imports.
-    * @param specs [[ClassSpecs]] container with first type loaded into it
+    * @param specs [[format.ClassSpecs]] container with first type loaded into it
     * @param config runtime configuration to be passed to precompile step
     * @return a future that will resolve when both imports and precompilations
     *         are complete; modifies given container by loading extra classes
@@ -30,10 +30,10 @@ object Main {
   }
 
   /**
-    * Runs precompilation steps on every type in the given [[ClassSpecs]] collection,
+    * Runs precompilation steps on every type in the given [[format.ClassSpecs]] collection,
     * using provided configuration.
     *
-    * @param specs [[ClassSpecs]] container with all types loaded into it
+    * @param specs [[format.ClassSpecs]] container with all types loaded into it
     * @param config runtime configuration to be passed to precompile steps
     * @return a list of compilation problems encountered during precompilation steps
     */
@@ -44,11 +44,11 @@ object Main {
   }
 
   /**
-    * Does all precompiles steps on a single [[ClassSpec]] using provided configuration.
+    * Does all precompiles steps on a single [[format.ClassSpec]] using provided configuration.
     * See individual precompile steps invocations for more in-depth description of
     * what each step includes.
     *
-    * @param classSpecs [[ClassSpecs]] container with all types loaded into it
+    * @param classSpecs [[format.ClassSpecs]] container with all types loaded into it
     * @param topClass one top type to precompile
     * @param config runtime configuration to be passed to precompile steps
     * @return a list of compilation problems encountered during precompilation steps
@@ -71,7 +71,7 @@ object Main {
   }
 
   /**
-    * Compiles a single [[ClassSpec]] into a single target language using
+    * Compiles a single [[format.ClassSpec]] into a single target language using
     * provided configuration.
     * @param specs bundle of class specifications (used to search to references there)
     * @param spec class specification to compile
