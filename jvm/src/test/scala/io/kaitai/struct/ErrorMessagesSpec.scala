@@ -29,9 +29,9 @@ class ErrorMessagesSpec extends FunSuite {
 
     do {
       val line = br.readLine()
-      hasComment = line != null && line.startsWith("# ")
+      hasComment = line != null && line.startsWith("#")
       if (hasComment) {
-        expectedLines += line.substring(2)
+        expectedLines += line.substring(1).stripPrefix(" ")
       }
     } while (hasComment)
 
