@@ -12,7 +12,7 @@ import org.yaml.snakeyaml.error.MarkedYAMLException
 import org.yaml.snakeyaml.representer.Representer
 import org.yaml.snakeyaml.{DumperOptions, LoaderOptions, Yaml}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
@@ -90,9 +90,9 @@ object JavaKSYParser {
   def yamlJavaToScala(src: Any): Any = {
     src match {
       case jlist: JList[AnyRef] =>
-        jlist.toList.map(yamlJavaToScala)
+        jlist.asScala.toList.map(yamlJavaToScala)
       case jmap: JMap[String, AnyRef] =>
-        jmap.toMap.mapValues(yamlJavaToScala)
+        jmap.asScala.toMap.mapValues(yamlJavaToScala)
       case _: String =>
         src
       case _: Double =>
