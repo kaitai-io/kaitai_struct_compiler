@@ -246,7 +246,7 @@ class ExpressionsSpec extends FunSpec {
     }
 
     it("parses interpolated string with zero char") {
-      Expressions.parse("\"abc\\0def\"") should be (Str("abc\0def"))
+      Expressions.parse("\"abc\\0def\"") should be (Str("abc\u0000def"))
     }
 
     it("parses non-interpolated string with zero char") {
