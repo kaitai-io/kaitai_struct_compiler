@@ -7,11 +7,12 @@ import io.kaitai.struct.format.{ClassSpec, FixedSized}
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.{CppImportList, LanguageCompilerStatic}
 import io.kaitai.struct.{ImportList, RuntimeConfig, StringLanguageOutputWriter}
-import org.scalatest.{FunSuite, Tag}
-import org.scalatest.Matchers._
+import org.scalatest.Tag
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers._
 import io.kaitai.struct.format.Identifier
 
-class TranslatorSpec extends FunSuite {
+class TranslatorSpec extends AnyFunSuite {
 
   // Integer literals + unary minus
   everybody("123", "123", Int1Type(true))

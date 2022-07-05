@@ -1,9 +1,9 @@
 package io.kaitai.struct.format
 
-import org.scalatest.FunSpec
-import org.scalatest.Matchers._
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers._
 
-class KSVersion$Test extends FunSpec {
+class KSVersion$Test extends AnyFunSpec {
   describe("KSVersion.compareTo") {
     it("returns 0 for equal versions") {
       val v1 = KSVersion.fromStr("1.2.3")

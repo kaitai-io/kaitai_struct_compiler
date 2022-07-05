@@ -5,10 +5,10 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.problems.CompilationProblemException
-import org.scalatest.FunSpec
-import org.scalatest.Matchers._
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers._
 
-class AttrSpec$Test extends FunSpec {
+class AttrSpec$Test extends AnyFunSpec {
   def tryOne(yamlStr: String) = AttrSpec.parseContentSpec(JavaKSYParser.stringToYaml(yamlStr), List("test"))
 
   describe("AttrSpec.parseContentSpec") {

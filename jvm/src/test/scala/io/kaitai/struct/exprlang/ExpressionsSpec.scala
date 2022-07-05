@@ -5,12 +5,12 @@ import io.kaitai.struct.exprlang.Ast.expr._
 import io.kaitai.struct.exprlang.Ast.operator._
 import io.kaitai.struct.exprlang.Ast.cmpop._
 import io.kaitai.struct.exprlang.Ast.unaryop._
-import org.scalatest.FunSpec
-import org.scalatest.Matchers._
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers._
 
 import scala.collection.mutable.ArrayBuffer
 
-class ExpressionsSpec extends FunSpec {
+class ExpressionsSpec extends AnyFunSpec {
   describe("Expressions.parse") {
     it("parses single positive integer") {
       Expressions.parse("123") should be (IntNum(123))

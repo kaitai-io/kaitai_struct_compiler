@@ -66,7 +66,7 @@ lazy val compiler = crossProject.in(file(".")).
 
     mainClass in Compile := Some("io.kaitai.struct.JavaMain"),
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+      "org.scalatest" %% "scalatest" % "3.2.12" % "test"
     ),
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
