@@ -212,7 +212,7 @@ lazy val buildNpmJsFileTask = Def.task {
        |  } else {
        |    root.KaitaiStructCompiler = factory();
        |  }
-       |}(this, function () {
+       |}(typeof self !== 'undefined' ? self : this, function () {
        |
        |var exports = {};
        |var __ScalaJSEnv = { exportsNamespace: exports };
@@ -222,7 +222,7 @@ lazy val buildNpmJsFileTask = Def.task {
        |return exports.io.kaitai.struct.MainJs;
        |
        |}));
-     """.stripMargin
+       |""".stripMargin
 
   val targetFile = new File(s"js/npm/${NAME}.js")
   println(s"buildNpmJsFile: writing $targetFile with AMD exports")
