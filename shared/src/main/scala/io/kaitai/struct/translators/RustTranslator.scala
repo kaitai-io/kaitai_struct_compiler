@@ -116,14 +116,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     translate(encoding) match {
-      case "\"ASCII\"" =>
-        // Currently has issues because the `&str` created doesn't outlive the function,
-        // will likely need to decode *as* as string or handle specially elsewhere
-        // s"&String::from_utf8_lossy($bytesExpr)"
-        "panic!(\"Unresolved lifetime issues with string parsing\")"
-      case _ =>
-        "panic!(\"Unimplemented encoding for bytesToStr: {}\", " +
-          translate(encoding) + ")"
+      case "\"ASCII\"" | "\"UTF-8\"" => s"String::from_utf8_lossy($bytesExpr).to_string()"
+      case "\"UTF-16LE\"" => s"to_utf16_string($bytesExpr)?"
+      case _ => "panic!(\"Unimplemented encoding for bytesToStr: {}\", " + translate(encoding) + ")"
     }
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.len()"
