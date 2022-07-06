@@ -43,9 +43,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
 
     importList.add(
-      "kaitai::{BytesReader, KError, KResult, KStream, KStruct, KStructUnit, TypedStack}"
+      "kaitai::*"
     )
-    importList.add("kaitai::{kf32_max, kf64_max, kf32_min, kf64_min}")
     importList.add("std::convert::{TryFrom, TryInto}")
   }
 
@@ -307,18 +306,28 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       dataType,
       excludeOptionWrapper = true
     )
-    out.puts(s") -> KResult<$streamLife, $typeName> {")
+    out.puts(s") -> KResult<&$typeName> {")
     out.inc
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier,
-                                           dataType: DataType): Unit =
-    out.puts(s"// instanceCheckCacheAndReturn($instName, $dataType)")
+                                           dataType: DataType): Unit = {
+    out.puts(s"if ${privateMemberName(instName)}.is_some() {")
+    out.inc
+    instanceReturn(instName, dataType)
+    out.dec
+    out.puts(s"}")
+  }
+
+  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
+    val primType = kaitaiPrimitiveToNativeType(dataType)
+    out.puts(s"${privateMemberName(instName)} = Some(${expression(value)} as $primType);")
+    //handleAssignmentSimple(instName, s"${privateMemberName(instName)} = ${expression(value)}")
+  }
 
   override def instanceReturn(instName: InstanceIdentifier,
                               attrType: DataType): Unit = {
-    out.puts("panic!(\"Instance calculation not yet supported.\");")
-    out.puts(s"// instanceReturn($instName, $attrType)")
+    out.puts(s"return Ok(${privateMemberName(instName)}.as_ref().unwrap());")
   }
 
   override def enumDeclaration(curClass: List[String],
@@ -719,7 +728,7 @@ object RustCompiler
     case CalcIntType => "i32"
     case CalcFloatType => "f64"
 
-    case _: StrType => s"&$streamLife str"
-    case _: BytesType => s"&$streamLife [u8]"
+    case _: StrType => s"String"
+    case _: BytesType => s"[u8]"
   }
 }
