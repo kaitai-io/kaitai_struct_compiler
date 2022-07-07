@@ -1,4 +1,4 @@
-# 0.10 (2022-07-07)
+# 0.10 (2022-07-08)
 
 * General compilation improvements:
   * Prevent referring to non-existent enum members as <code>my_enum::~~unknown_member~~</code> ([8dcd1be](https://github.com/kaitai-io/kaitai_struct_compiler/commit/8dcd1be8ee2dd87b7637a2d01b0bf65e1c2e932f))
