@@ -115,11 +115,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    translate(encoding) match {
-      case "\"ASCII\"" | "\"UTF-8\"" => s"String::from_utf8_lossy($bytesExpr).to_string()"
-      case "\"UTF-16LE\"" => s"to_utf16_string($bytesExpr)?"
-      case _ => "panic!(\"Unimplemented encoding for bytesToStr: {}\", " + translate(encoding) + ")"
-    }
+    s"decode_string($bytesExpr, ${translate(encoding)})?"
+
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.len()"
   override def strLength(s: expr): String =
