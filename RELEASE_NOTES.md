@@ -12,7 +12,7 @@
   * Improve readability of problems listed in the compiler output
   * Force UTF-8 as output encoding in generated files (don't rely on system defaults)
   * `--ksc-json-output`: add `warnings` at the same level as `errors`, don't use octal escapes (e.g. "~~`\274`~~" &xrarr; "`\u00bc`") in string values (invalid in JSON)
-  * Update SnakeYAML ~~1.25~~ &xrarr; 1.29, which no longer has the DoS vulnerability allowing a "billion laughs" attack ([50f80d7](https://github.com/kaitai-io/kaitai_struct_compiler/commit/50f80d7eca36983ca0b7f354d12656ec62e639eb))
+  * Use SnakeYAML (the YAML parser used by JVM compiler builds) ~~1.25~~ &xrarr; 1.29, which no longer contains the DoS vulnerability allowing a "billion laughs" attack ([50f80d7](https://github.com/kaitai-io/kaitai_struct_compiler/commit/50f80d7eca36983ca0b7f354d12656ec62e639eb))
 * Runtime API changes:
   * C++: `kstream::to_string` now works for all integer types up to 64 bits (not just `int` as before), has better performance and portability ([cpp_stl#50](https://github.com/kaitai-io/kaitai_struct_cpp_stl_runtime/pull/50))
   * Go: `ReadBitsInt{Be,Le}` now accept the number of bits as ~~`uint8`~~ &xrarr; `int` ([go@a5c5c1e](https://github.com/kaitai-io/kaitai_struct_go_runtime/commit/a5c5c1e1a7b653b2b569eaf67f27bfa4acf5df2d))
