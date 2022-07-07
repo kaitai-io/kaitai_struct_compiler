@@ -29,6 +29,8 @@
   * Construct: add support for enums
   * Go: implement `encoding: UTF-16{BE,LE}`
   * Go, Lua: implement `valid/expr` ([#435](https://github.com/kaitai-io/kaitai_struct/issues/435))
+  * Java: fix broken parse `instances` on Java 7 and 8 when using prebuilt `io.kaitai:kaitai-struct-runtime:0.9` [from Maven Central](https://search.maven.org/artifact/io.kaitai/kaitai-struct-runtime/0.9/jar) ([java#34](https://github.com/kaitai-io/kaitai_struct_java_runtime/issues/34))
+  * Java: fix `terminator` values from `0x80` to `0xff` ([java#35](https://github.com/kaitai-io/kaitai_struct_java_runtime/issues/35))
   * Lua: map 1-bit `type: b1` to boolean to match Kaitai Struct design (see [docs](https://doc.kaitai.io/user_guide.html#_basic_data_types))
   * Lua: fix undecided calculated endianness incorrectly treated as big-endian
   * Lua: implement `process: zlib` (see [Installation](https://github.com/kaitai-io/kaitai_struct_lua_runtime#installation) section of Lua runtime for how to enable `zlib` support)
