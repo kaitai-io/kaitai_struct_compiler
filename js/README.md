@@ -171,7 +171,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ### FastParse
 
 Portions of Kaitai Struct compiler are loosely based on
-[pythonparse](https://github.com/lihaoyi/fastparse/tree/master/pythonparse/shared/src/main/scala/pythonparse)
+[pythonparse](https://github.com/com-lihaoyi/fastparse/tree/1.0.0/pythonparse/shared/src/main/scala/pythonparse)
 from [FastParse](https://com-lihaoyi.github.io/fastparse/) and are copyright
 (c) 2014 Li Haoyi (haoyi.sg@gmail.com).
 
