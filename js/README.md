@@ -67,7 +67,7 @@ var compiler = new KaitaiStructCompiler();
 ### browser using script tags
 
 ```html
-<script src="node_modules/kaitai-struct-compiler/kaitai-struct-compiler.js"></script> 
+<script src="node_modules/kaitai-struct-compiler/kaitai-struct-compiler.js"></script>
 <script>
     var compiler = new KaitaiStructCompiler();
 </script>
@@ -78,7 +78,7 @@ var compiler = new KaitaiStructCompiler();
 ```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
 <script>
-    requirejs.config({ 
+    requirejs.config({
         paths: {
             'kaitai-struct-compiler': 'node_modules/kaitai-struct-compiler/kaitai-struct-compiler'
         }
