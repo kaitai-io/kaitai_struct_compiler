@@ -85,7 +85,7 @@ lazy val compiler = crossProject.in(file(".")).
         val dstFile = new File(dst)
         val dstFileName = dstFile.getName
         dst.startsWith(s"formats${File.separator}_") ||
-          dstFileName == ".git" ||
+          dst.startsWith(s"formats${File.separator}.git") ||
           dstFileName.endsWith("~") ||
           dstFileName.endsWith("#")
     },
