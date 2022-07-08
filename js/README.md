@@ -138,7 +138,7 @@ You can compile in debug mode which adds `_debug` property to every object and t
 
 ### Main code
 
-Kaitai Struct compiler itself is copyright (C) 2015-2021 Kaitai
+Kaitai Struct compiler itself is copyright (C) 2015-2022 Kaitai
 Project.
 
 This program is free software: you can redistribute it and/or modify
