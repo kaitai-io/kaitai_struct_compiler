@@ -116,7 +116,7 @@ Kaitai Struct compiler depends on the following libraries:
 
 * [scopt](https://github.com/scopt/scopt) — MIT license
 * [fastparse](https://com-lihaoyi.github.io/fastparse/) — MIT license
-* [snakeyaml](https://bitbucket.org/asomov/snakeyaml) — Apache 2.0 license
+* [snakeyaml](https://bitbucket.org/snakeyaml/snakeyaml) — Apache 2.0 license
 
 ---
 
