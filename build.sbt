@@ -40,7 +40,7 @@ lazy val compiler = crossProject.in(file(".")).
       <scm>
         <connection>scm:git:git://github.com/kaitai-io/kaitai_struct_compiler.git</connection>
         <developerConnection>scm:git:ssh://github.com:kaitai-io/kaitai_struct_compiler.git</developerConnection>
-        <url>http://github.com/kaitai-io/kaitai_struct_compiler/tree/master</url>
+        <url>https://github.com/kaitai-io/kaitai_struct_compiler</url>
       </scm>
       <developers>
         <developer>
