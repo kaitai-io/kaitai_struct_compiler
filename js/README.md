@@ -196,11 +196,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### Libraries used
 
-Kaitai Struct compiler depends on the following libraries:
+Kaitai Struct compiler in JavaScript depends on the following libraries:
 
-* [scopt](https://github.com/scopt/scopt) — MIT license
 * [fastparse](https://com-lihaoyi.github.io/fastparse/) — MIT license
-* [snakeyaml](https://bitbucket.org/asomov/snakeyaml) — Apache 2.0 license
 
 ---
 
