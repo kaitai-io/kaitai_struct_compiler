@@ -321,7 +321,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     val primType = kaitaiPrimitiveToNativeType(dataType)
-    out.puts(s"${privateMemberName(instName)} = Some(${expression(value)} as $primType);")
+    val converted = dataType match {
+      case _: StrType => out.puts(s"${privateMemberName(instName)} = Some(${expression(value)}.to_string());")
+      case _ => out.puts(s"${privateMemberName(instName)} = Some(${expression(value)} as $primType);")
+    }
     //handleAssignmentSimple(instName, s"${privateMemberName(instName)} = ${expression(value)}")
   }
 
