@@ -729,6 +729,6 @@ object RustCompiler
     case CalcFloatType => "f64"
 
     case _: StrType => s"String"
-    case _: BytesType => s"[u8]"
+    case _: BytesType => s"String"  //s"[u8]"
   }
 }
