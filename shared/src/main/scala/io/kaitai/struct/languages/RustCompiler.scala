@@ -416,7 +416,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val tempVarName = localTemporaryName(id)
         out.puts(s"let mut $tempVarName = ${kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true)}::default();")
         out.puts(s"$tempVarName.read(_io, Some(self), _parent.push(self))?;")
-        out.puts(s"${privateMemberName(id)} = Some($tempVarName);");
+        out.puts(s"${privateMemberName(id)} = Some($tempVarName); // $expr");
         out.dec
         out.puts(s"}")
       case _ => {
