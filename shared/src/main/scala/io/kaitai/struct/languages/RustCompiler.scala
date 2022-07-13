@@ -132,7 +132,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"${privateMemberName(ParentIdentifier)}: TypedStack<Self::ParentStack>"
     )
     out.dec
-    out.puts(s") -> KResult<$streamLife, ()> {")
+    out.puts(s") -> KResult<()> {")
     out.inc
 
     // If there aren't any attributes to parse, we need to end the read implementation here
@@ -360,8 +360,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // We typically need the lifetime in KError for returning byte slices from stream;
     // because we can only return `UnknownVariant` which contains a Copy type, it's safe
     // to declare that the error type is `'static`
-    out.puts(s"type Error = KError<'static>;")
-    out.puts(s"fn try_from(flag: i64) -> KResult<'static, $enumClass> {")
+    out.puts(s"type Error = KError;")
+    out.puts(s"fn try_from(flag: i64) -> KResult<$enumClass> {")
 
     out.inc
     out.puts(s"match flag {")
@@ -406,7 +406,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
         )
       case _: SwitchType | _: BytesLimitType =>
-        out.puts(s"// handleAssignmentSimple($id, $expr)")
+        out.puts(s"${privateMemberName(id)} = $expr.to_vec();")
       case t: UserType =>
         out.puts(s"{");
         out.inc
@@ -729,6 +729,6 @@ object RustCompiler
     case CalcFloatType => "f64"
 
     case _: StrType => s"String"
-    case _: BytesType => s"String"  //s"[u8]"
+    case _: BytesType => s"Vec<u8>"  //s"[u8]"
   }
 }
