@@ -415,8 +415,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.inc
         val tempVarName = localTemporaryName(id)
         out.puts(s"let mut $tempVarName = ${kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true)}::default();")
-        out.puts(s"$tempVarName.read(_io, Some(self), _parent.push(self))?;")
-        out.puts(s"${privateMemberName(id)} = Some($tempVarName); // $expr");
+        out.puts(s"$tempVarName.read($expr, Some(self), _parent.push(self))?;")
+        out.puts(s"${privateMemberName(id)} = Some($tempVarName);");
         out.dec
         out.puts(s"}")
       case _ => {
@@ -434,10 +434,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?"
       case _: BytesEosType => s"$io.read_bytes_full()?"
       case b: BytesTerminatedType =>
-        s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
+          s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?"
       case BitsType1(bitEndian) => s"$io.read_bits_int(1)? != 0"
       case BitsType(width, bitEndian) => s"$io.read_bits_int($width)?"
+      case utfb: UserTypeFromBytes => s"&BytesReader::new(&_io" +
+          parseExpr(utfb.bytes.asInstanceOf[BytesLimitType], assignType, io, defEndian) +
+          ")"
       case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
     }
 
@@ -485,8 +488,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     Nil
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String =
-    s"// allocateIO($varName, $rep)"
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = ""
+  //    s"// allocateIO($varName, $rep)"
 
   def switchTypeEnum(id: Identifier, st: SwitchType): Unit = {
     // Because Rust can't handle `AnyType` in the type hierarchy,
