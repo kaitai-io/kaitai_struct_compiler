@@ -25,6 +25,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     '\\' -> "\\\\"
   )
 
+  override def strLiteralGenericCC(code: Char): String =
+    strLiteralUnicode(code)
+
   override def strLiteralUnicode(code: Char): String =
     "\\u{%x}".format(code.toInt)
 
