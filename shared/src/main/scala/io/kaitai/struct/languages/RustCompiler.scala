@@ -132,7 +132,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"${privateMemberName(ParentIdentifier)}: TypedStack<Self::ParentStack>"
     )
     out.dec
-    out.puts(s") -> KResult<$streamLife, ()> {")
+    out.puts(s") -> KResult<()> {")
     out.inc
 
     // If there aren't any attributes to parse, we need to end the read implementation here
@@ -732,6 +732,6 @@ object RustCompiler
     case CalcFloatType => "f64"
 
     case _: StrType => s"String"
-    case _: BytesType => s"[u8]"
+    case _: BytesType => s"Vec<u8>"
   }
 }
