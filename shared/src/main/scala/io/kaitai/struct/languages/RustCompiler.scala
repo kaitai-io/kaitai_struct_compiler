@@ -438,7 +438,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?"
       case BitsType1(bitEndian) => s"$io.read_bits_int(1)? != 0"
       case BitsType(width, bitEndian) => s"$io.read_bits_int($width)?"
-      case utfb: UserTypeFromBytes => s"&BytesReader::new(&_io" +
+      case utfb: UserTypeFromBytes => s"&BytesReader::new(" +
           parseExpr(utfb.bytes.asInstanceOf[BytesLimitType], assignType, io, defEndian) +
           ")"
       case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
@@ -488,8 +488,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     Nil
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = ""
-  //    s"// allocateIO($varName, $rep)"
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = privateMemberName(IoIdentifier)
 
   def switchTypeEnum(id: Identifier, st: SwitchType): Unit = {
     // Because Rust can't handle `AnyType` in the type hierarchy,
