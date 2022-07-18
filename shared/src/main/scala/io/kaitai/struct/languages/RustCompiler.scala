@@ -732,6 +732,7 @@ object RustCompiler
     case _: BooleanType => "bool"
     case CalcIntType => "i32"
     case CalcFloatType => "f64"
+    case EnumType(_, basedOn) => kaitaiPrimitiveToNativeType(basedOn) //???
 
     case _: StrType => s"String"
     case _: BytesType => s"Vec<u8>"
