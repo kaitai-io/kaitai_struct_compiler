@@ -18,6 +18,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with SingleOutputFile
     with UpperCamelCaseClasses
     with UniversalFooter
+    with SwitchIfOps
     with UniversalDoc {
 
   import RustCompiler._
@@ -35,11 +36,16 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def outImports(topClass: ClassSpec): String =
     importList.toList
-      .map(i => s"#[allow(unused_imports)]\nuse $i;")
+      .map(i => s"use $i;")
       .mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"// $headerComment")
+    outHeader.puts
+
+    outHeader.puts("#![allow(unused_imports)]")
+    outHeader.puts("#![allow(non_snake_case)]")
+    outHeader.puts("#![allow(non_camel_case_types)]")
     outHeader.puts
 
     importList.add(
@@ -55,7 +61,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classHeader(name: List[String]): Unit = {
     out.puts
-    out.puts("#[allow(non_camel_case_types)]")
     out.puts("#[derive(Default, Debug, PartialEq)]")
     out.puts(s"pub struct ${classTypeName(typeProvider.nowClass)} {")
     out.inc
@@ -187,14 +192,29 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"// condIfHeader($expr)")
   }
 
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+    out.puts(s"${privateMemberName(id)} = Vec::new();")
+  }
+
   override def condRepeatEosHeader(id: Identifier,
                                    io: String,
                                    dataType: DataType): Unit = {
-    // TODO: Actual implementation, this is a shim to enable compiling
     out.puts("{")
     out.inc
+    out.puts(s"type ArrayElement = ${kaitaiTypeToNativeType(id, typeProvider.nowClass, dataType, excludeOptionWrapper = true)};")
+    out.puts(s"while !_io.is_eof() {")
+    out.inc
+  }
 
-    out.puts(s"// condRepeatEosHeader($id, $io, $dataType)")
+  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
+    out.puts(s"${privateMemberName(id)}.push(Self::read_into::<S, ArrayElement>(_io, _root, _parent.push(self))?);");
+  }
+
+  override def condRepeatEosFooter: Unit = {
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
   }
 
   override def condRepeatExprHeader(id: Identifier,
@@ -340,7 +360,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = types2class(curClass ::: List(enumName))
 
     // Set up the actual enum definition
-    out.puts(s"#[allow(non_camel_case_types)]")
     out.puts(s"#[derive(Debug, PartialEq)]")
     out.puts(s"pub enum $enumClass {")
     out.inc
@@ -389,9 +408,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"// universalDoc()")
   }
 
-  override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
-    out.puts(s"// handleAssignmentRepeatEos($id, $expr)")
-
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     out.puts(s"// handleAssignmentRepeatExpr($id, $expr)")
 
@@ -408,17 +424,18 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(
           s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
         )
-      case _: SwitchType | _: BytesLimitType =>
+      case _: BytesLimitType =>
         out.puts(s"${privateMemberName(id)} = $expr.to_vec();")
+      case t: SwitchType =>
+        out.puts(s"${privateMemberName(id)} = Some($expr);");
       case t: UserType =>
-        out.puts(s"{");
-        out.inc
-        val tempVarName = localTemporaryName(id)
-        out.puts(s"let mut $tempVarName = ${kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true)}::default();")
-        out.puts(s"$tempVarName.read($expr, Some(self), _parent.push(self))?;")
-        out.puts(s"${privateMemberName(id)} = Some($tempVarName);");
-        out.dec
-        out.puts(s"}")
+        val e = s"$expr"
+        val streamType = if (e == privateMemberName(IoIdentifier)) {
+          "S"
+        } else {
+          "BytesReader"
+        }
+        out.puts(s"${privateMemberName(id)} = Some(Self::read_into::<$streamType, ${kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true)}>($expr, Some(self), _parent.push(self))?);");
       case _ => {
         out.puts(s"${privateMemberName(id)} = $expr;")
       }
@@ -431,7 +448,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                          defEndian: Option[FixedEndian]): String =
     dataType match {
       case IntMultiType(_, _, None) => "panic!(\"Unable to parse unknown-endian integers\")"
-      case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?"
+      case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?.into()"
       case _: BytesEosType => s"$io.read_bytes_full()?"
       case b: BytesTerminatedType =>
           s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
@@ -441,6 +458,36 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case utfb: UserTypeFromBytes => s"&BytesReader::new(" +
           parseExpr(utfb.bytes.asInstanceOf[BytesLimitType], assignType, io, defEndian) +
           ")"
+      case t: UserType =>
+        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
+        val addArgs = if (t.isOpaque) {
+          ""
+        } else {
+          val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "KStructUnit::parent_stack()"
+            case Some(fp) => translator.translate(fp)
+            case None => s"${privateMemberName(ParentIdentifier)}.push(self)"
+          }
+          val addEndian = t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
+            case _ => ""
+          }
+          s", ${privateMemberName(RootIdentifier)}, $parent$addEndian"
+        }
+        val streamType = if (io == privateMemberName(IoIdentifier)) {
+          "S"
+        } else {
+          "BytesReader"
+        }
+        val userType = t match {
+          case t: UserType =>
+            val baseName = t.classSpec match {
+              case Some(spec) => types2class(spec.name)
+              case None => types2class(t.name)
+            }
+            s"$baseName"
+        }
+        s"Self::read_into::<$streamType, $userType>($addParams$io$addArgs)?.into()"
       case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
     }
 
@@ -470,17 +517,66 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def localTemporaryName(id: Identifier): String =
     s"_t_${idToStr(id)}"
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
-    out.puts(s"// switchStart($id, $on)")
+  override def switchRequiresIfs(onType: DataType): Boolean = onType match {
+    case _: IntType | _: EnumType => false
+    case _ => true
+  }
 
-  override def switchCaseStart(condition: Ast.expr): Unit =
-    out.puts(s"// switchCaseStart($condition)")
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    out.puts(s"match ${expression(on)} {")
+    out.inc
+  }
 
-  override def switchCaseEnd(): Unit = out.puts(s"// switchCaseEnd()")
+  override def switchCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"${expression(condition)} => {")
+    out.inc
+  }
 
-  override def switchElseStart(): Unit = out.puts(s"// switchElseStart()")
+  override def switchCaseEnd(): Unit = {
+    out.dec
+    out.puts("}")
+  }
 
-  override def switchEnd(): Unit = out.puts(s"// switchEnd()")
+  override def switchElseStart(): Unit = {
+    out.puts("// switchElseStart()")
+  }
+
+  override def switchEnd(): Unit = {
+    out.puts("_ => panic!(\"unhandled value\")")
+    out.dec
+    out.puts("}")
+  }
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
+    out.puts("{")
+    out.inc
+    out.puts(s"let on = &${expression(on)};")
+  }
+
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
+    out.puts(s"if on == ${expression(condition)} {")
+    out.inc
+  }
+
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
+    out.puts(s"else if on == ${expression(condition)} {")
+    out.inc
+  }
+
+  override def switchIfCaseEnd(): Unit = {
+    out.dec
+    out.puts("}")
+  }
+
+  override def switchIfElseStart(): Unit = {
+    out.puts("else {")
+    out.inc
+  }
+
+  override def switchIfEnd(): Unit = {
+    out.dec
+    out.puts("}")
+  }
 
   override def extraAttrForIO(id: Identifier,
                               rep: RepeatSpec): List[AttrSpec] = {
@@ -493,15 +589,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   def switchTypeEnum(id: Identifier, st: SwitchType): Unit = {
     // Because Rust can't handle `AnyType` in the type hierarchy,
     // we generate an enum with all possible variations
-    val typeName = kaitaiTypeToNativeType(
+    val enum_typeName = kaitaiTypeToNativeType(
       id,
       typeProvider.nowClass,
       st,
       excludeOptionWrapper = true
     )
-    out.puts("#[allow(non_camel_case_types)]")
     out.puts("#[derive(Debug, PartialEq)]")
-    out.puts(s"pub enum $typeName {")
+    out.puts(s"pub enum $enum_typeName {")
     out.inc
 
     val types = st.cases.values.toSet
@@ -519,6 +614,28 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.dec
     out.puts("}")
+
+    // add helper methods From
+    types.foreach(t => {
+      // Because this switch type will itself be in an option, we can exclude it from user types
+      val variantName = switchVariantName(id, t)
+      val typeName = kaitaiTypeToNativeType(
+        id,
+        typeProvider.nowClass,
+        t,
+        excludeOptionWrapper = true
+      )
+      out.puts(s"impl From<$typeName> for $enum_typeName {")
+      out.inc
+      out.puts(s"fn from(v: $typeName) -> Self {")
+      out.inc
+      out.puts(s"Self::$variantName(v)")
+      out.dec
+      out.puts("}")
+      out.dec
+      out.puts("}")
+    })
+    out.puts
   }
 
   def switchVariantName(id: Identifier, attrType: DataType): String =
@@ -562,10 +679,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         )
       case t: ArrayType => s"Arr${switchVariantName(id, t.elType)}"
     }
-
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    out.puts(s"// condRepeatCommonInit($id, $dataType, $needRaw)")
-  }
 
   override def ksErrorName(err: io.kaitai.struct.datatype.KSError): String =
     s"KaitaiStream.$err"
@@ -695,16 +808,16 @@ object RustCompiler
         s"Vec<${kaitaiTypeToNativeType(id, cs, t.elType, excludeOptionWrapper = true, excludeLifetime = excludeLifetime)}>"
 
       case st: SwitchType =>
-        val types = st.cases.values.toSet
-        val lifetime =
-          if (!excludeLifetime && types.exists(containsReferences))
-            s"<$streamLife>"
-          else ""
+        // val types = st.cases.values.toSet
+        // val lifetime =
+        //   if (!excludeLifetime && types.exists(containsReferences))
+        //     s"<$streamLife>"
+        //   else ""
         val typeName = id match {
           case name: NamedIdentifier =>
-            s"${types2class(cs.name ::: List(name.name))}$lifetime"
+            s"${types2class(cs.name ::: List(name.name))}"
           case name: InstanceIdentifier =>
-            s"${types2class(cs.name ::: List(name.name))}$lifetime"
+            s"${types2class(cs.name ::: List(name.name))}"
           case _ => kstructUnitName
         }
 
