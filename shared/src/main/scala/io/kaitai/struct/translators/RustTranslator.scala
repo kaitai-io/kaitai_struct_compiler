@@ -57,7 +57,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       case _ =>
         if (provider.nowClass.seq.exists(a => a.id != IoIdentifier && a.id == NamedIdentifier(s))) {
           // If the name is part of the `seq` parse list, it's safe to return as-is
-          s"self.${doName(s)}"
+          s"self.${doName(s)}()"
         } else if (provider.nowClass.instances.contains(InstanceIdentifier(s))) {
           // It's an instance, we need to safely handle lookup
           s"self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
@@ -100,7 +100,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
 
   override def enumToInt(v: expr, et: EnumType): String =
-    translate(v)
+    s"usize::from(${translate(v)})"
 
   override def boolToInt(v: expr): String =
     s"${translate(v)} as i32"

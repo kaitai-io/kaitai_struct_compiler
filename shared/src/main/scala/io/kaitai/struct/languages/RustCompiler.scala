@@ -160,10 +160,42 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"pub ${idToStr(attrName)}: $typeName,")
   }
 
-  // Intentional no-op; Rust handles ownership, so don't worry about reader methods
   override def attributeReader(attrName: Identifier,
                                attrType: DataType,
-                               isNullable: Boolean): Unit = {}
+                               isNullable: Boolean): Unit = {
+     val typeName = attrName match {
+      // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
+      case IoIdentifier | RootIdentifier | ParentIdentifier => return
+      case _ =>
+        kaitaiTypeToNativeType(attrName, typeProvider.nowClass, attrType)
+    }
+    val typeNameEx = kaitaiTypeToNativeType(attrName, typeProvider.nowClass, attrType, excludeOptionWrapper = true)
+    out.puts(
+      s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
+    out.inc
+    val enum_typename = attrType match {
+      case _: EnumType => true
+      case _: SwitchType => true
+      case _ => false
+    }
+    if (enum_typename) {
+      out.puts(s"fn ${idToStr(attrName)}(&self) -> usize {")
+      out.inc
+      out.puts(s"self.${idToStr(attrName)}.as_ref().unwrap().into()")
+    } else {
+      out.puts(s"fn ${idToStr(attrName)}(&self) -> &$typeNameEx {")
+      out.inc
+      if (typeName != typeNameEx) {
+        out.puts(s"self.${idToStr(attrName)}.as_ref().unwrap()")
+      } else {
+        out.puts(s"&self.${idToStr(attrName)}")
+      }
+    }
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+  }
 
   override def attrParse(attr: AttrLikeSpec,
                          id: Identifier,
@@ -634,7 +666,38 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("}")
       out.dec
       out.puts("}")
+      //
+      out.puts(s"impl From<&$enum_typeName> for $typeName {")
+      out.inc
+      out.puts(s"fn from(e: &$enum_typeName) -> Self {")
+      out.inc
+      out.puts(s"if let $enum_typeName::$variantName(v) = e {")
+      out.inc
+      out.puts(s"return *v")
+      out.dec
+      out.puts("}")
+      out.puts(s"""panic!(\"trying to convert from enum $enum_typeName::$variantName to $typeName, enum value {:?}\", e)""")
+      out.dec
+      out.puts("}")
+      out.dec
+      out.puts("}")
     })
+    out.puts(s"impl From<&$enum_typeName> for usize {")
+    out.inc
+    out.puts(s"fn from(e: &$enum_typeName) -> Self {")
+    out.inc
+    out.puts(s"match e {")
+    out.inc
+    types.foreach(t => {
+      val variantName = switchVariantName(id, t)
+      out.puts(s"$enum_typeName::$variantName(v) => *v as usize,")
+    })
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
     out.puts
   }
 
