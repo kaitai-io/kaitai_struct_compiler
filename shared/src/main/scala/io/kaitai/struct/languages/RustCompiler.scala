@@ -173,12 +173,26 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(
       s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
     out.inc
-    val enum_typename = attrType match {
-      case _: EnumType => true
-      case _: SwitchType => true
+
+    var types : Set[DataType] = Set()
+    var enum_typename = false
+    attrType match {
+      //TODO check
+      //case _: EnumType => enum_typename = true
+      case st: SwitchType => {
+        types = st.cases.values.toSet
+        enum_typename = true
+      }
       case _ => false
     }
-    if (enum_typename) {
+    var enum_only_numeric = true;
+    types.foreach(t => {
+      t match {
+        case _: NumericType => // leave unchanged
+        case _ => enum_only_numeric = false
+      }
+    })
+    if (enum_typename && enum_only_numeric) {
       out.puts(s"fn ${idToStr(attrName)}(&self) -> usize {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.as_ref().unwrap().into()")
@@ -679,23 +693,32 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.dec
       out.puts("}")
     })
-    out.puts(s"impl From<&$enum_typeName> for usize {")
-    out.inc
-    out.puts(s"fn from(e: &$enum_typeName) -> Self {")
-    out.inc
-    out.puts(s"match e {")
-    out.inc
+    var enum_only_numeric = true;
     types.foreach(t => {
-      val variantName = switchVariantName(id, t)
-      out.puts(s"$enum_typeName::$variantName(v) => *v as usize,")
+      t match {
+        case _: NumericType => // leave true
+        case _ => enum_only_numeric = false
+      }
     })
-    out.dec
-    out.puts("}")
-    out.dec
-    out.puts("}")
-    out.dec
-    out.puts("}")
-    out.puts
+    if (enum_only_numeric) {
+      out.puts(s"impl From<&$enum_typeName> for usize {")
+      out.inc
+      out.puts(s"fn from(e: &$enum_typeName) -> Self {")
+      out.inc
+      out.puts(s"match e {")
+      out.inc
+      types.foreach(t => {
+        val variantName = switchVariantName(id, t)
+        out.puts(s"$enum_typeName::$variantName(v) => *v as usize,")
+      })
+      out.dec
+      out.puts("}")
+      out.dec
+      out.puts("}")
+      out.dec
+      out.puts("}")
+      out.puts
+    }
   }
 
   def switchVariantName(id: Identifier, attrType: DataType): String =
