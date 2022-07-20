@@ -658,6 +658,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
 
+    var enum_only_numeric = true;
+    types.foreach(t => {
+      t match {
+        case _: NumericType => // leave true
+        case _ => enum_only_numeric = false
+      }
+    })
+
     // add helper methods From
     types.foreach(t => {
       // Because this switch type will itself be in an option, we can exclude it from user types
@@ -677,27 +685,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("}")
       out.dec
       out.puts("}")
-      //
-      out.puts(s"impl From<&$enum_typeName> for $typeName {")
-      out.inc
-      out.puts(s"fn from(e: &$enum_typeName) -> Self {")
-      out.inc
-      out.puts(s"if let $enum_typeName::$variantName(v) = e {")
-      out.inc
-      out.puts(s"return *v")
-      out.dec
-      out.puts("}")
-      out.puts(s"""panic!(\"trying to convert from enum $enum_typeName::$variantName to $typeName, enum value {:?}\", e)""")
-      out.dec
-      out.puts("}")
-      out.dec
-      out.puts("}")
-    })
-    var enum_only_numeric = true;
-    types.foreach(t => {
-      t match {
-        case _: NumericType => // leave true
-        case _ => enum_only_numeric = false
+      if (enum_only_numeric) {
+        out.puts(s"impl From<&$enum_typeName> for $typeName {")
+        out.inc
+        out.puts(s"fn from(e: &$enum_typeName) -> Self {")
+        out.inc
+        out.puts(s"if let $enum_typeName::$variantName(v) = e {")
+        out.inc
+        out.puts(s"return *v")
+        out.dec
+        out.puts("}")
+        out.puts(s"""panic!(\"trying to convert from enum $enum_typeName::$variantName to $typeName, enum value {:?}\", e)""")
+        out.dec
+        out.puts("}")
+        out.dec
+        out.puts("}")
       }
     })
     if (enum_only_numeric) {
