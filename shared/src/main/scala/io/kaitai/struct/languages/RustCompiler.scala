@@ -134,7 +134,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"${privateMemberName(RootIdentifier)}: Option<&$readLife Self::Root>,"
     )
     out.puts(
-      s"${privateMemberName(ParentIdentifier)}: TypedStack<Self::ParentStack>"
+      s"${privateMemberName(ParentIdentifier)}: Option<TypedStack<Self::ParentStack>>"
     )
     out.dec
     out.puts(s") -> KResult<()> {")
@@ -317,7 +317,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"${privateMemberName(RootIdentifier)}: Option<&$readLife ${rootClassTypeName(typeProvider.nowClass)}>,"
     )
     out.puts(
-      s"${privateMemberName(ParentIdentifier)}: TypedStack<${parentStackTypeName(typeProvider.nowClass)}>"
+      s"${privateMemberName(ParentIdentifier)}: Option<TypedStack<${parentStackTypeName(typeProvider.nowClass)}>>"
     )
     out.dec
     val typeName = kaitaiTypeToNativeType(
@@ -448,7 +448,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                          defEndian: Option[FixedEndian]): String =
     dataType match {
       case IntMultiType(_, _, None) => "panic!(\"Unable to parse unknown-endian integers\")"
-      case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?.into()"
+      case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?"
       case _: BytesEosType => s"$io.read_bytes_full()?"
       case b: BytesTerminatedType =>
           s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
