@@ -217,11 +217,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"// attrParseHybrid(${leProc()}, ${beProc()})")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
-    // TODO: Actual implementation, this is a shim to enable compiling
-    out.puts("{")
+    out.puts(s"if ${expression(expr)} {")
     out.inc
-
-    out.puts(s"// condIfHeader($expr)")
   }
 
   override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
