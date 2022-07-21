@@ -260,13 +260,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                    dataType: DataType): Unit = {
     out.puts("{")
     out.inc
-    out.puts(s"type ArrayElement = ${kaitaiTypeToNativeType(id, typeProvider.nowClass, dataType, excludeOptionWrapper = true)};")
     out.puts(s"while !_io.is_eof() {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.push(Self::read_into::<S, ArrayElement>(_io, _root, _parent.push(self))?);");
+    out.puts(s"${privateMemberName(id)}.push($expr);");
   }
 
   override def condRepeatEosFooter: Unit = {
