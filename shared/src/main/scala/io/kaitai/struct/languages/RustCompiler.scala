@@ -51,7 +51,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add(
       "kaitai::*"
     )
-    importList.add("std::convert::{TryFrom, TryInto}")
+    importList.add("std::{fs, path::PathBuf, convert::{TryFrom, TryInto}}")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
@@ -276,9 +276,22 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     RustCompiler.privateMemberName(id)
 
   override def instanceDeclHeader(className: List[String]): Unit = {
-    out.puts(
-      s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {"
-    )
+    val code =
+      s"""impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {
+        |    pub fn from_file(path: &str) -> Self {
+        |        let bytes = fs::read(path).unwrap();
+        |        let reader = BytesReader::new(&bytes);
+        |        let mut obj = ${classTypeName(typeProvider.nowClass)}::default();
+        |
+        |        if let Err(err) = obj.read(&reader, None, None) {
+        |            panic!("error '{:?}' reading from file '{}'", err, path);
+        |        }
+        |
+        |        obj
+        |    }
+        |""".stripMargin
+
+    out.puts(code)
     out.inc
   }
 
@@ -441,6 +454,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
     }
   }
+
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"${kaitaiTypeToNativeType(NamedIdentifier(id), typeProvider.nowClass, dataType)} $id = $expr;")
 
   override def parseExpr(dataType: DataType,
                          assignType: DataType,
@@ -846,6 +862,7 @@ object RustCompiler
     case CalcIntType => "i32"
     case CalcFloatType => "f64"
     case EnumType(_, basedOn) => kaitaiPrimitiveToNativeType(basedOn) //???
+    case t: UserType => types2class(t.name)
 
     case _: StrType => s"String"
     case _: BytesType => s"Vec<u8>"
