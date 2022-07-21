@@ -70,6 +70,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def doName(s: String) = s
 
+  override def doInternalName(id: Identifier): String =
+    s"${idToStr(id)}()"
+
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
 
