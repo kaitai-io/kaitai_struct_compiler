@@ -46,6 +46,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts("#![allow(unused_imports)]")
     outHeader.puts("#![allow(non_snake_case)]")
     outHeader.puts("#![allow(non_camel_case_types)]")
+    outHeader.puts("#![allow(irrefutable_let_patterns)]")
     outHeader.puts
 
     importList.add(
@@ -176,14 +177,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     var types : Set[DataType] = Set()
     var enum_typename = false
-    attrType match {
-      //TODO check
-      //case _: EnumType => enum_typename = true
+    var simple_typename = attrType match {
+      case _: UserType => false
+      case _: BytesType => false
+      case _: StrType => false
+      case _: ArrayType => false
       case st: SwitchType => {
         types = st.cases.values.toSet
         enum_typename = true
+        false
       }
-      case _ => false
+      case _: EnumType => {
+        // TODO? enum_typename = true
+        false
+      }
+      case _ => true
     }
     var enum_only_numeric = true;
     types.foreach(t => {
@@ -193,16 +201,24 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
     })
     if (enum_typename && enum_only_numeric) {
-      out.puts(s"fn ${idToStr(attrName)}(&self) -> usize {")
+      out.puts(s"pub fn ${idToStr(attrName)}(&self) -> usize {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.as_ref().unwrap().into()")
     } else {
-      out.puts(s"fn ${idToStr(attrName)}(&self) -> &$typeNameEx {")
+      if (simple_typename) {
+        out.puts(s"pub fn ${idToStr(attrName)}(&self) -> $typeNameEx {")
+      } else {
+        out.puts(s"pub fn ${idToStr(attrName)}(&self) -> &$typeNameEx {")
+      }
       out.inc
       if (typeName != typeNameEx) {
         out.puts(s"self.${idToStr(attrName)}.as_ref().unwrap()")
       } else {
-        out.puts(s"&self.${idToStr(attrName)}")
+        if (simple_typename) {
+          out.puts(s"self.${idToStr(attrName)}")
+        } else {
+          out.puts(s"&self.${idToStr(attrName)}")
+        }
       }
     }
     out.dec
@@ -352,7 +368,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                               dataType: DataType,
                               isNullable: Boolean): Unit = {
 
-    out.puts(s"fn ${idToStr(instName)}<S: $kstreamName>(")
+    out.puts(s"pub fn ${idToStr(instName)}<S: $kstreamName>(")
     out.inc
     out.puts("&mut self,")
     out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S,")
@@ -379,7 +395,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     instanceReturn(instName, dataType)
     out.dec
-    out.puts(s"}")
+    out.puts("}")
   }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
@@ -439,11 +455,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("_ => Err(KError::UnknownVariant(flag)),")
     out.dec
 
-    out.puts(s"}")
+    out.puts("}")
     out.dec
-    out.puts(s"}")
+    out.puts("}")
     out.dec
-    out.puts(s"}")
+    out.puts("}")
     out.puts
   }
 
@@ -503,13 +519,28 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           ")"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
+        val userType = t match {
+          case t: UserType =>
+            val baseName = t.classSpec match {
+              case Some(spec) => types2class(spec.name)
+              case None => types2class(t.name)
+            }
+            s"$baseName"
+        }
         val addArgs = if (t.isOpaque) {
           ""
         } else {
+          val currentType = classTypeName(typeProvider.nowClass);
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "KStructUnit::parent_stack()"
             case Some(fp) => translator.translate(fp)
-            case None => s"${privateMemberName(ParentIdentifier)}.push(self)"
+            case None => {
+              if (userType contains currentType) {
+                s"${privateMemberName(ParentIdentifier)}.push(self)"
+              } else {
+                s"${privateMemberName(ParentIdentifier)}"
+              }
+            }
           }
           val addEndian = t.classSpec.get.meta.endian match {
             case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
@@ -521,14 +552,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           "S"
         } else {
           "BytesReader"
-        }
-        val userType = t match {
-          case t: UserType =>
-            val baseName = t.classSpec match {
-              case Some(spec) => types2class(spec.name)
-              case None => types2class(t.name)
-            }
-            s"$baseName"
         }
         s"Self::read_into::<$streamType, $userType>($addParams$io$addArgs)?.into()"
       case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
@@ -566,6 +589,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+    switch_else_exist = false
     out.puts(s"match ${expression(on)} {")
     out.inc
   }
@@ -580,12 +604,18 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
+  var switch_else_exist = false
+
   override def switchElseStart(): Unit = {
-    out.puts("// switchElseStart()")
+    switch_else_exist = true
+    out.puts("_ => {")
+    out.inc
   }
 
   override def switchEnd(): Unit = {
-    out.puts("_ => panic!(\"unhandled value\")")
+    if (!switch_else_exist) {
+      out.puts("_ => {}")
+    }
     out.dec
     out.puts("}")
   }
@@ -593,7 +623,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
     out.puts("{")
     out.inc
-    out.puts(s"let on = &${expression(on)};")
+    out.puts(s"let on = ${expression(on)};")
   }
 
   override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {

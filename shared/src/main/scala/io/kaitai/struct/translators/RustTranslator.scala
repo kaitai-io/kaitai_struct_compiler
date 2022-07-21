@@ -60,7 +60,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
           s"self.${doName(s)}()"
         } else if (provider.nowClass.instances.contains(InstanceIdentifier(s))) {
           // It's an instance, we need to safely handle lookup
-          s"self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
+          s"*self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
         } else {
           // TODO: Is it possible to reach this block? RawIdentifier?
           s"self.${doName(s)}"
