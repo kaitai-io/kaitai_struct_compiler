@@ -448,7 +448,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           "BytesReader"
         }
-        out.puts(s"${privateMemberName(id)} = Some(Self::read_into::<$streamType, ${kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true)}>($expr, Some(self), _parent.push(self))?);");
+        val code =
+          s"""
+            |        ${privateMemberName(id)} = Some(
+            |            Self::read_into::<$streamType, ${kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true)}>
+            |                ($expr,
+            |                 Some(self),
+            |                 Some(_parent).push(self))?);
+            |""".stripMargin
+        out.puts(code);
       case _ => {
         out.puts(s"${privateMemberName(id)} = $expr;")
       }
