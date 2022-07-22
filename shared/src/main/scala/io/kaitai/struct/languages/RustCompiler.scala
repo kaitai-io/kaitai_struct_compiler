@@ -499,7 +499,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?.into()"
       case _: BytesEosType => s"$io.read_bytes_full()?.into()"
       case b: BytesTerminatedType =>
-          s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
+          s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?.into()"
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?.into()"
       case BitsType1(bitEndian) => s"$io.read_bits_int(1)? != 0"
       case BitsType(width, bitEndian) => s"$io.read_bits_int($width)?"
