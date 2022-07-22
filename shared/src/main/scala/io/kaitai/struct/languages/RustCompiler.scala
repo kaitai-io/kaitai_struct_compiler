@@ -497,7 +497,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     dataType match {
       case IntMultiType(_, _, None) => "panic!(\"Unable to parse unknown-endian integers\")"
       case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?.into()"
-      case _: BytesEosType => s"$io.read_bytes_full()?"
+      case _: BytesEosType => s"$io.read_bytes_full()?.into()"
       case b: BytesTerminatedType =>
           s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?.into()"
