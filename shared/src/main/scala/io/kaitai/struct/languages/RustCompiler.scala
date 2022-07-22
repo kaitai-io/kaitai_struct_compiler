@@ -512,9 +512,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             }
             s"$baseName"
         }
-        s"Self::read_into::<BytesReader, $userType>(&BytesReader::new(" +
-          parseExpr(utfb.bytes.asInstanceOf[BytesLimitType], assignType, io, defEndian) +
-          "), _root, _parent.push(self))?.into()"
+        val expr = if (utfb.bytes.isInstanceOf[BytesLimitType]) {
+          parseExpr(utfb.bytes.asInstanceOf[BytesLimitType], assignType, io, defEndian)
+        } else if (utfb.bytes.isInstanceOf[BytesEosType]) {
+          parseExpr(utfb.bytes.asInstanceOf[BytesEosType], assignType, io, defEndian)
+        } else {
+          s"TODO: impl UserTypeFromBytes.asInstanceOf $utfb"
+        }
+        s"Self::read_into::<BytesReader, $userType>(&BytesReader::new(" + expr + "), _root, _parent.push(self))?.into()"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val userType = t match {
