@@ -482,18 +482,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(
           s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
         )
-      case _: BytesLimitType =>
-        out.puts(s"${privateMemberName(id)} = $expr.to_vec();")
-      case t: SwitchType =>
-        out.puts(s"${privateMemberName(id)} = Some($expr);");
-      case t: UserType =>
-        val e = s"$expr"
-        val streamType = if (e == privateMemberName(IoIdentifier)) {
-          "S"
-        } else {
-          "BytesReader"
-        }
-        out.puts(s"${privateMemberName(id)} = Some(Self::read_into::<$streamType, ${kaitaiTypeToNativeType(id, typeProvider.nowClass, t, excludeOptionWrapper = true)}>($expr, Some(self), _parent.push(self))?);");
+      case st: SwitchType =>
+        out.puts(s"${privateMemberName(id)} = Some($expr);")
       case _ => {
         out.puts(s"${privateMemberName(id)} = $expr;")
       }
@@ -510,12 +500,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType => s"$io.read_bytes_full()?"
       case b: BytesTerminatedType =>
           s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?"
-      case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?"
+      case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?.into()"
       case BitsType1(bitEndian) => s"$io.read_bits_int(1)? != 0"
       case BitsType(width, bitEndian) => s"$io.read_bits_int($width)?"
-      case utfb: UserTypeFromBytes => s"&BytesReader::new(&_io" +
+      case utfb: UserTypeFromBytes =>
+        val userType = utfb match {
+          case t: UserType =>
+            val baseName = t.classSpec match {
+              case Some(spec) => types2class(spec.name)
+              case None => types2class(t.name)
+            }
+            s"$baseName"
+        }
+        s"Self::read_into::<BytesReader, $userType>(&BytesReader::new(" +
           parseExpr(utfb.bytes.asInstanceOf[BytesLimitType], assignType, io, defEndian) +
-          ")"
+          "), _root, _parent.push(self))?.into()"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val userType = t match {
@@ -650,13 +649,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def extraAttrForIO(id: Identifier,
-                              rep: RepeatSpec): List[AttrSpec] = {
-    out.puts(s"// extraAttrForIO($id, $rep)")
-    Nil
-  }
-
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = ""
+  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = privateMemberName(IoIdentifier)
 
   def switchTypeEnum(id: Identifier, st: SwitchType): Unit = {
     // Because Rust can't handle `AnyType` in the type hierarchy,
@@ -699,17 +692,23 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     types.foreach(t => {
       // Because this switch type will itself be in an option, we can exclude it from user types
       val variantName = switchVariantName(id, t)
-      val typeName = kaitaiTypeToNativeType(
-        id,
-        typeProvider.nowClass,
-        t,
-        excludeOptionWrapper = true
-      )
+      var v = "v"
+      val typeName = t match {
+        case _ : BytesType => {
+          v = "v.to_vec()"
+          s"&[u8]" // special case for Bytes(Vec[u8]) (else switch)
+        }
+        case _ => kaitaiTypeToNativeType(
+            id,
+            typeProvider.nowClass,
+            t,
+            excludeOptionWrapper = true)
+      }
       out.puts(s"impl From<$typeName> for $enum_typeName {")
       out.inc
       out.puts(s"fn from(v: $typeName) -> Self {")
       out.inc
-      out.puts(s"Self::$variantName(v)")
+      out.puts(s"Self::$variantName($v)")
       out.dec
       out.puts("}")
       out.dec
