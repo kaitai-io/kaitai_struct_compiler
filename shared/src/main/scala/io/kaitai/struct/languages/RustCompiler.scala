@@ -463,7 +463,19 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
-    out.puts(s"// universalDoc()")
+    out.puts
+    out.puts( "/**")
+
+    doc.summary.foreach(docStr => out.putsLines(" * ", docStr))
+
+    doc.ref.foreach {
+      case TextRef(text) =>
+        out.putsLines(" * ", s"\\sa $text")
+      case UrlRef(url, text) =>
+        out.putsLines(" * ", s"\\sa $url $text")
+    }
+
+    out.puts( " */")
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
