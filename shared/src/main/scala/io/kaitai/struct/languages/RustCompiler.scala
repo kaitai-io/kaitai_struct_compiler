@@ -356,6 +356,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
     attrType match {
       case _: ArrayType => out.puts(s"pub ${idToStr(attrName)}: $typeName,")
+      case _: UserType => // do nothing (instance return &UserType)
       case _ => out.puts(s"pub ${idToStr(attrName)}: Option<$typeName>,")
     }
   }
@@ -390,6 +391,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier,
                                            dataType: DataType): Unit = {
+    val userType = dataType match {
+      case _: UserType => true
+      case _ => false
+    }
+    if (userType) {
+      return
+    }
     out.puts(s"if ${privateMemberName(instName)}.is_some() {")
     out.inc
     instanceReturn(instName, dataType)
@@ -398,17 +406,29 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
-    val primType = kaitaiPrimitiveToNativeType(dataType)
-    val converted = dataType match {
-      case _: StrType => out.puts(s"${privateMemberName(instName)} = Some(${expression(value)}.to_string());")
-      case _ => out.puts(s"${privateMemberName(instName)} = Some(${expression(value)} as $primType);")
+    dataType match {
+      case _: UserType => {
+        out.puts(s"Ok(${expression(value)})")
+      }
+      case _: StrType => {
+        out.puts(s"${privateMemberName(instName)} = Some(${expression(value)}.to_string());")
+      }
+      case _ => {
+        val primType = kaitaiPrimitiveToNativeType(dataType)
+        out.puts(s"${privateMemberName(instName)} = Some(${expression(value)} as $primType);")
+      }
     }
-    //handleAssignmentSimple(instName, s"${privateMemberName(instName)} = ${expression(value)}")
   }
 
   override def instanceReturn(instName: InstanceIdentifier,
                               attrType: DataType): Unit = {
-    out.puts(s"return Ok(${privateMemberName(instName)}.as_ref().unwrap());")
+    val userType = attrType match {
+      case _: UserType => true
+      case _ => false
+    }
+    if (!userType) {
+      out.puts(s"return Ok(${privateMemberName(instName)}.as_ref().unwrap());")
+    }
   }
 
   override def enumDeclaration(curClass: List[String],
@@ -488,17 +508,20 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     val seqId = typeProvider.nowClass.seq.find(s => s.id == id)
-
+    var done = false;
     if (seqId.isDefined) seqId.get.dataType match {
-      case _: EnumType =>
+      case et: EnumType =>
+        done = true;
         out.puts(
           s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
         )
       case st: SwitchType =>
+        done = true;
         out.puts(s"${privateMemberName(id)} = Some($expr);")
-      case _ => {
-        out.puts(s"${privateMemberName(id)} = $expr;")
-      }
+      case _ => done = false;
+    }
+    if (!done) {
+      out.puts(s"${privateMemberName(id)} = $expr;")
     }
   }
 
@@ -515,23 +538,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?.into()"
       case BitsType1(bitEndian) => s"$io.read_bits_int(1)? != 0"
       case BitsType(width, bitEndian) => s"$io.read_bits_int($width)?"
-      case utfb: UserTypeFromBytes =>
-        val userType = utfb match {
-          case t: UserType =>
-            val baseName = t.classSpec match {
-              case Some(spec) => types2class(spec.name)
-              case None => types2class(t.name)
-            }
-            s"$baseName"
-        }
-        val expr = if (utfb.bytes.isInstanceOf[BytesLimitType]) {
-          parseExpr(utfb.bytes.asInstanceOf[BytesLimitType], assignType, io, defEndian)
-        } else if (utfb.bytes.isInstanceOf[BytesEosType]) {
-          parseExpr(utfb.bytes.asInstanceOf[BytesEosType], assignType, io, defEndian)
-        } else {
-          s"TODO: impl UserTypeFromBytes.asInstanceOf $utfb"
-        }
-        s"Self::read_into::<BytesReader, $userType>(&BytesReader::new(" + expr + "), _root, _parent.push(self))?.into()"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val userType = t match {
@@ -666,7 +672,33 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = privateMemberName(IoIdentifier)
+  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {//= privateMemberName(IoIdentifier)
+    val memberName = privateMemberName(id)
+    val ioId = IoStorageIdentifier(id)
+
+    val args = rep match {
+      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
+      case _ => privateMemberName(id)
+    }
+
+    val newStreamRaw = s"${memberName}"
+    val ioName = rep match {
+      case NoRepeat =>
+        val newStream = newStreamRaw
+        val localIO = localTemporaryName(ioId)
+        out.puts(s"let ${localIO} = BytesReader::new(&$newStream);")
+        s"&$localIO"
+      case _ =>
+        newStreamRaw
+        // TODO
+        //val localIO = s"io_${idToStr(id)}"
+        // out.puts(s"$kstreamName* $localIO = $newStreamRaw;")
+        // out.puts(s"${privateMemberName(ioId)}->push_back($localIO);")
+        //localIO
+    }
+
+    ioName
+  }
 
   def switchTypeEnum(id: Identifier, st: SwitchType): Unit = {
     // Because Rust can't handle `AnyType` in the type hierarchy,
@@ -837,6 +869,7 @@ object RustCompiler
     case InstanceIdentifier(n) => n
     case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
     case RawIdentifier(inner) => s"raw_${idToStr(inner)}"
+    case IoStorageIdentifier(inner) => s"io_${idToStr(inner)}"
   }
 
   def rootClassTypeName(c: ClassSpec, isRecurse: Boolean = false): String = {

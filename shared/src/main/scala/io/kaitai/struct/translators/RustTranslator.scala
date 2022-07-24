@@ -59,8 +59,15 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
           // If the name is part of the `seq` parse list, it's safe to return as-is
           s"self.${doName(s)}()"
         } else if (provider.nowClass.instances.contains(InstanceIdentifier(s))) {
-          // It's an instance, we need to safely handle lookup
-          s"*self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
+          val userType = provider.nowClass.instances.get(InstanceIdentifier(s)).get.dataTypeComposite match {
+            case _: UserType => true
+            case _ => false
+          }
+          if (userType) {
+            s"self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
+          } else {
+            s"*self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
+          }
         } else {
           // TODO: Is it possible to reach this block? RawIdentifier?
           s"self.${doName(s)}"
