@@ -588,6 +588,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           ""
         } else {
           val currentType = classTypeName(typeProvider.nowClass);
+          val root = if (typeProvider.nowClass.isTopLevel) {
+            "Some(self)"
+          } else {
+            privateMemberName(RootIdentifier)
+          }
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "KStructUnit::parent_stack()"
             case Some(fp) => translator.translate(fp)
@@ -603,7 +608,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
             case _ => ""
           }
-          s", ${privateMemberName(RootIdentifier)}, $parent$addEndian"
+          s", $root, $parent$addEndian"
         }
         val streamType = if (io == privateMemberName(IoIdentifier)) {
           "S"
