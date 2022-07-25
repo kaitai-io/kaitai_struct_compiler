@@ -352,12 +352,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def useIO(ioEx: Ast.expr): String = s"// useIO($ioEx)"
 
-  override def pushPos(io: String): Unit = out.puts(s"// pushPos($io)")
+  override def pushPos(io: String): Unit =
+    out.puts(s"let _pos = $io.pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"// seek($io, $pos)")
+    out.puts(s"$io.seek(${expression(pos)})?;")
 
-  override def popPos(io: String): Unit = out.puts(s"// popPos($io)")
+  override def popPos(io: String): Unit =
+    out.puts(s"$io.seek(_pos)?;")
 
   override def alignToByte(io: String): Unit =
     out.puts(s"${privateMemberName(IoIdentifier)}.align_to_byte()?;")
@@ -403,13 +405,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"pub fn ${idToStr(instName)}<S: $kstreamName>(")
     out.inc
     out.puts("&mut self,")
-    out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S,")
-    out.puts(
-      s"${privateMemberName(RootIdentifier)}: Option<&$readLife ${rootClassTypeName(typeProvider.nowClass)}>,"
-    )
-    out.puts(
-      s"${privateMemberName(ParentIdentifier)}: TypedStack<${parentStackTypeName(typeProvider.nowClass)}>"
-    )
+    out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S")
     out.dec
     val typeName = kaitaiTypeToNativeType(
       instName,
@@ -885,6 +881,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def ksErrorName(err: io.kaitai.struct.datatype.KSError): String =
     s"KaitaiStream.$err"
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    err: KSError,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if !(${expression(checkExpr)}) {")
+    out.inc
+    out.puts(s"""return Err(KError::ValidationNotEqual(r#"$errArgsStr"#.to_string()));""")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object RustCompiler

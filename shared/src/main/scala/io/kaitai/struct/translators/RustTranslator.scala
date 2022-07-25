@@ -13,7 +13,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   import RustCompiler._
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "&[" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
+    "&[" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "].to_vec()"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
@@ -64,9 +64,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
             case _ => false
           }
           if (userType) {
-            s"self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
+            s"self.${doName(s)}(${privateMemberName(IoIdentifier)})?"
           } else {
-            s"*self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
+            s"*self.${doName(s)}(${privateMemberName(IoIdentifier)})?"
           }
         } else {
           // TODO: Is it possible to reach this block? RawIdentifier?
@@ -76,6 +76,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   }
 
   override def doName(s: String) = s
+
+  override def doInternalName(id: Identifier): String =
+    s"${doLocalName(idToStr(id))}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
