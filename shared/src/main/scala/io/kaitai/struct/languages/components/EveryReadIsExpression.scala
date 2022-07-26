@@ -103,22 +103,7 @@ trait EveryReadIsExpression
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
-        val rawId = RawIdentifier(id)
-        val byteType = knownSizeType.bytes
-
-        attrParse2(rawId, byteType, io, rep, true, defEndian)
-
-        val extraType = rep match {
-          case NoRepeat => byteType
-          case _ => ArrayTypeInStream(byteType)
-        }
-
-        this match {
-          case thisStore: AllocateAndStoreIO =>
-            thisStore.allocateIO(rawId, rep)
-          case thisLocal: AllocateIOLocalVar =>
-            thisLocal.allocateIO(rawId, rep)
-        }
+        createSubstream(id, knownSizeType.bytes, io, rep, defEndian)
       case _: UserTypeInstream =>
         // no fixed buffer, just use regular IO
         io
@@ -141,6 +126,76 @@ trait EveryReadIsExpression
           userTypeDebugRead(tempVarName, dataType, assignType)
           handleAssignment(id, tempVarName, rep, false)
       }
+    }
+  }
+
+  /**
+    * Creates a substream for a specific member `id`. A substream will be using underlying bytes
+    * type `byteType`, repeat specification `rep` and default endianness of `defEndian`.
+    *
+    * @param id
+    * @param byteType underlying bytes type
+    * @param io parent stream to derive substream from
+    * @param rep repeat specification for underlying bytes type
+    * @param defEndian default endianness specification
+    * @return string reference to a freshly created substream
+    */
+  def createSubstream(id: Identifier, byteType: BytesType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
+    byteType match {
+      case BytesLimitType(sizeExpr, None, _, None, None) =>
+        createSubstreamFixedSize(id, sizeExpr, io)
+      case _ =>
+        // fall back to buffered implementation
+        createSubstreamBuffered(id, byteType, io, rep, defEndian)
+    }
+  }
+
+  /**
+    * Creates a substream for a specific member `id` of fixed sized `sizeExpr`, based off a parent
+    * stream of `io`.
+    *
+    * Default implementation just short-circuits this to `createSubstreamBuffered`, which is an
+    * inefficient, but guaranteed to work implementation.
+    *
+    * @param id identifier of a member that this stream is for
+    * @param sizeExpr expression designating size of substream in bytes
+    * @param io parent stream to derive substream from
+    * @return string reference to a freshly created substream
+    */
+  def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String =
+    createSubstreamBuffered(
+      id,
+      BytesLimitType(sizeExpr, None, false, None, None),
+      io,
+      NoRepeat,
+      None
+    )
+
+  /**
+    * Creates a substream by reading bytes that will comprise the stream first into a buffer in
+    * memory, and then wrapping that buffer as a new stream.
+    * @param id identifier of a member that this stream is for
+    * @param byteType underlying bytes type
+    * @param io parent stream to derive substream from
+    * @param rep repeat specification for underlying bytes type
+    * @param defEndian default endianness specification
+    * @return string reference to a freshly created substream
+    */
+  def createSubstreamBuffered(id: Identifier, byteType: BytesType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
+    val rawId = RawIdentifier(id)
+
+    attrParse2(rawId, byteType, io, rep, true, defEndian)
+
+    val extraType = rep match {
+      case NoRepeat => byteType
+      case _ => ArrayTypeInStream(byteType)
+    }
+
+    this match {
+      case thisStore: AllocateAndStoreIO =>
+        thisStore.allocateIO(rawId, rep)
+      case thisLocal: AllocateIOLocalVar =>
+        thisLocal.allocateIO(rawId, rep)
     }
   }
 
