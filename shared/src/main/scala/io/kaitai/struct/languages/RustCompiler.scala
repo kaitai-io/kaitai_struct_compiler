@@ -47,7 +47,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts("#![allow(non_snake_case)]")
     outHeader.puts("#![allow(non_camel_case_types)]")
     outHeader.puts("#![allow(irrefutable_let_patterns)]")
+    outHeader.puts("#![allow(unused_comparisons)]")
     outHeader.puts
+    outHeader.puts("extern crate kaitai;")
 
     importList.add(
       "kaitai::*"
@@ -751,17 +753,25 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
 
     val types = st.cases.values.toSet
-    types.foreach(t => {
-      // Because this switch type will itself be in an option, we can exclude it from user types
-      val variantName = switchVariantName(id, t)
-      val typeName = kaitaiTypeToNativeType(
-        id,
-        typeProvider.nowClass,
-        t,
-        excludeOptionWrapper = true
-      )
-      out.puts(s"$variantName($typeName),")
-    })
+
+    {
+      var types_set = scala.collection.mutable.Set[String]()
+      types.foreach(t => {
+        // Because this switch type will itself be in an option, we can exclude it from user types
+        val variantName = switchVariantName(id, t)
+        val typeName = kaitaiTypeToNativeType(
+          id,
+          typeProvider.nowClass,
+          t,
+          excludeOptionWrapper = true
+        )
+        val new_typename = types_set.add(typeName)
+        // same typename could be in case of different endianness
+        if (new_typename) {
+          out.puts(s"$variantName($typeName),")
+        }
+      })
+    }
 
     out.dec
     out.puts("}")
@@ -774,48 +784,55 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
     })
 
-    // add helper methods From
-    types.foreach(t => {
-      // Because this switch type will itself be in an option, we can exclude it from user types
-      val variantName = switchVariantName(id, t)
-      var v = "v"
-      val typeName = t match {
-        case _ : BytesType => {
-          v = "v.to_vec()"
-          s"&[u8]" // special case for Bytes(Vec[u8]) (else switch)
+    // generate only if switch types are different
+    {
+      var types_set = scala.collection.mutable.Set[String]()
+      // add helper methods From
+      types.foreach(t => {
+        // Because this switch type will itself be in an option, we can exclude it from user types
+        val variantName = switchVariantName(id, t)
+        var v = "v"
+        val typeName = t match {
+          case _ : BytesType => {
+            v = "v.to_vec()"
+            s"&[u8]" // special case for Bytes(Vec[u8]) (else switch)
+          }
+          case _ => kaitaiTypeToNativeType(
+              id,
+              typeProvider.nowClass,
+              t,
+              excludeOptionWrapper = true)
         }
-        case _ => kaitaiTypeToNativeType(
-            id,
-            typeProvider.nowClass,
-            t,
-            excludeOptionWrapper = true)
-      }
-      out.puts(s"impl From<$typeName> for $enum_typeName {")
-      out.inc
-      out.puts(s"fn from(v: $typeName) -> Self {")
-      out.inc
-      out.puts(s"Self::$variantName($v)")
-      out.dec
-      out.puts("}")
-      out.dec
-      out.puts("}")
-      if (enum_only_numeric) {
-        out.puts(s"impl From<&$enum_typeName> for $typeName {")
-        out.inc
-        out.puts(s"fn from(e: &$enum_typeName) -> Self {")
-        out.inc
-        out.puts(s"if let $enum_typeName::$variantName(v) = e {")
-        out.inc
-        out.puts(s"return *v")
-        out.dec
-        out.puts("}")
-        out.puts(s"""panic!(\"trying to convert from enum $enum_typeName::$variantName to $typeName, enum value {:?}\", e)""")
-        out.dec
-        out.puts("}")
-        out.dec
-        out.puts("}")
-      }
-    })
+        val new_typename = types_set.add(typeName)
+        if (new_typename) {
+          out.puts(s"impl From<$typeName> for $enum_typeName {")
+          out.inc
+          out.puts(s"fn from(v: $typeName) -> Self {")
+          out.inc
+          out.puts(s"Self::$variantName($v)")
+          out.dec
+          out.puts("}")
+          out.dec
+          out.puts("}")
+          if (enum_only_numeric) {
+            out.puts(s"impl From<&$enum_typeName> for $typeName {")
+            out.inc
+            out.puts(s"fn from(e: &$enum_typeName) -> Self {")
+            out.inc
+            out.puts(s"if let $enum_typeName::$variantName(v) = e {")
+            out.inc
+            out.puts(s"return *v")
+            out.dec
+            out.puts("}")
+            out.puts(s"""panic!(\"trying to convert from enum $enum_typeName::$variantName to $typeName, enum value {:?}\", e)""")
+            out.dec
+            out.puts("}")
+            out.dec
+            out.puts("}")
+          }
+        }
+      })
+    }
     if (enum_only_numeric) {
       out.puts(s"impl From<&$enum_typeName> for usize {")
       out.inc
@@ -823,9 +840,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.inc
       out.puts(s"match e {")
       out.inc
+      var variants_set = scala.collection.mutable.Set[String]()
       types.foreach(t => {
         val variantName = switchVariantName(id, t)
-        out.puts(s"$enum_typeName::$variantName(v) => *v as usize,")
+        val new_typename = variants_set.add(variantName)
+        if (new_typename) {
+          out.puts(s"$enum_typeName::$variantName(v) => *v as usize,")
+        }
       })
       out.dec
       out.puts("}")
