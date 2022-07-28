@@ -480,7 +480,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
     val ioName = s"_io_${idToStr(id)}"
-    out.puts(s"$kstreamName $ioName = $io.substream(${translator.translate(sizeExpr)})")
+    out.puts(s"$kstreamName $ioName = $io.substream(${translator.translate(sizeExpr)});")
     ioName
   }
 
