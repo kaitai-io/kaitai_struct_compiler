@@ -559,6 +559,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"let $id = $expr;")
+
   override def parseExpr(dataType: DataType,
                          assignType: DataType,
                          io: String,
@@ -940,7 +943,7 @@ object RustCompiler
     case SpecialIdentifier(n) => n
     case NamedIdentifier(n) => n
     case InstanceIdentifier(n) => n
-    case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+    case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE}$idx"
     case RawIdentifier(inner) => s"raw_${idToStr(inner)}"
     case IoStorageIdentifier(inner) => s"io_${idToStr(inner)}"
   }
