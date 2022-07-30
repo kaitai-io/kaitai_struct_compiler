@@ -482,6 +482,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     ioName
   }
 
+  override def extraRawAttrForUserTypeFromBytes(id: Identifier, ut: UserTypeFromBytes, condSpec: ConditionalSpec): List[AttrSpec] =
+    ut.bytes match {
+      case BytesLimitType(sizeExpr, None, _, None, None) =>
+        // substream will be used, no need for store raws
+        List()
+      case _ =>
+        // buffered implementation will be used, fall back to raw storage
+        super.extraRawAttrForUserTypeFromBytes(id, ut, condSpec)
+    }
+
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName.bytesStripRight($expr0, (byte) $padByte)"
