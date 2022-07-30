@@ -269,9 +269,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
-    val javaName = idToStr(varName)
-
-    val ioName = s"_io_$javaName"
+    val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
@@ -479,7 +477,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
-    val ioName = s"_io_${idToStr(id)}"
+    val ioName = idToStr(IoStorageIdentifier(id))
     out.puts(s"$kstreamName $ioName = $io.substream(${translator.translate(sizeExpr)});")
     ioName
   }
@@ -768,6 +766,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+      case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
     }
 
   def publicMemberName(id: Identifier) = idToStr(id)
