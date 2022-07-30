@@ -13,7 +13,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   import RustCompiler._
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "&[" + arr.map(x => "%0#2x".format(x & 0xff)).mkString(", ") + "]"
+    "&[" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "].to_vec()"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
@@ -59,8 +59,15 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
           // If the name is part of the `seq` parse list, it's safe to return as-is
           s"self.${doName(s)}()"
         } else if (provider.nowClass.instances.contains(InstanceIdentifier(s))) {
-          // It's an instance, we need to safely handle lookup
-          s"*self.${doName(s)}(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)}, ${privateMemberName(ParentIdentifier)})?"
+          val userType = provider.nowClass.instances.get(InstanceIdentifier(s)).get.dataTypeComposite match {
+            case _: UserType => true
+            case _ => false
+          }
+          if (userType) {
+            s"self.${doName(s)}(${privateMemberName(IoIdentifier)})?"
+          } else {
+            s"*self.${doName(s)}(${privateMemberName(IoIdentifier)})?"
+          }
         } else {
           // TODO: Is it possible to reach this block? RawIdentifier?
           s"self.${doName(s)}"
@@ -71,10 +78,10 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doName(s: String) = s
 
   override def doInternalName(id: Identifier): String =
-    s"${idToStr(id)}()"
+    s"${doLocalName(idToStr(id))}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
+    s"&${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
 
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
@@ -142,4 +149,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${translate(a)}.iter().min()"
   override def arrayMax(a: Ast.expr): String =
     s"${translate(a)}.iter().max()"
+
+  override def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String = {
+    val code = s"${anyField(value, attrName)}()"
+    code
+  }
 }

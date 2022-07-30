@@ -279,13 +279,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                     io: String,
                                     dataType: DataType,
                                     repeatExpr: Ast.expr): Unit = {
-    // TODO: Actual implementation, this is a shim to enable compiling
-    out.puts("{")
+    val lenVar = s"l_${idToStr(id)}"
+    out.puts(s"let $lenVar = ${expression(repeatExpr)};")
+    out.puts(s"for _i in 0..$lenVar {")
     out.inc
-
-    out.puts(
-      s"// TODO: condRepeatExprHeader($id, $io, $dataType, $repeatExpr)"
-    )
   }
 
   override def condRepeatUntilHeader(id: Identifier,
@@ -312,20 +309,57 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("} {}")
   }
 
-  override def attrProcess(proc: ProcessExpr,
-                           varSrc: Identifier,
-                           varDest: Identifier,
-                           rep: RepeatSpec): Unit =
-    out.puts(s"// TODO: attrProcess($proc, $varSrc, $varDest, $rep)")
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case _ => s"// TODO $memberName->at($memberName->size() - 1)"
+    }
+  }
+
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
+
+    val expr = proc match {
+      case ProcessXor(xorValue) =>
+        val procName = translator.detectType(xorValue) match {
+          case _: IntType => "process_xor_one"
+          case _: BytesType => "process_xor_many"
+        }
+        s"S::$procName(&$srcExpr, ${expression(xorValue)})"
+      case ProcessZlib =>
+        s"S::process_zlib(&$srcExpr)"
+      case ProcessRotate(isLeft, rotValue) =>
+        val expr = if (isLeft) {
+          expression(rotValue)
+        } else {
+          s"8 - (${expression(rotValue)})"
+        }
+        s"S::process_rotate_left(&$srcExpr, $expr)"
+      case ProcessCustom(name, args) =>
+        val procClass = name.map((x) => type2class(x)).mkString("::")
+        val procName = s"_process_${idToStr(varSrc)}"
+
+        //importListSrc.addLocal(outFileNameHeader(name.last))
+
+        val argList = args.map(expression).mkString(", ")
+        var argListInParens = if (argList.nonEmpty) s"($argList)" else ""
+        out.puts(s"$procClass $procName$argListInParens;")
+        s"$procName.decode(&$srcExpr)"
+    }
+    handleAssignment(varDest, expr, rep, false)
+  }
 
   override def useIO(ioEx: Ast.expr): String = s"// TODO: useIO($ioEx)"
 
-  override def pushPos(io: String): Unit = out.puts(s"// TODO: pushPos($io)")
+  override def pushPos(io: String): Unit =
+    out.puts(s"let _pos = $io.pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"// TODO: seek($io, $pos)")
+    out.puts(s"$io.seek(${expression(pos)})?;")
 
-  override def popPos(io: String): Unit = out.puts(s"// TODO: popPos($io)")
+  override def popPos(io: String): Unit =
+    out.puts(s"$io.seek(_pos)?;")
 
   override def alignToByte(io: String): Unit =
     out.puts(s"${privateMemberName(IoIdentifier)}.align_to_byte()?;")
@@ -334,22 +368,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     RustCompiler.privateMemberName(id)
 
   override def instanceDeclHeader(className: List[String]): Unit = {
-    val code =
-      s"""impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {
-        |    pub fn from_file(path: &str) -> Self {
-        |        let bytes = fs::read(path).unwrap();
-        |        let reader = BytesReader::new(&bytes);
-        |        let mut obj = ${classTypeName(typeProvider.nowClass)}::default();
-        |
-        |        if let Err(err) = obj.read(&reader, None, KStructUnit::parent_stack()) {
-        |            panic!("error '{:?}' reading from file '{}'", err, path);
-        |        }
-        |
-        |        obj
-        |    }
-        |""".stripMargin
-
-    out.puts(code)
+    out.puts(
+      s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {"
+    )
     out.inc
   }
 
@@ -384,13 +405,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"pub fn ${idToStr(instName)}<S: $kstreamName>(")
     out.inc
     out.puts("&mut self,")
-    out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S,")
-    out.puts(
-      s"${privateMemberName(RootIdentifier)}: Option<&$readLife ${rootClassTypeName(typeProvider.nowClass)}>,"
-    )
-    out.puts(
-      s"${privateMemberName(ParentIdentifier)}: TypedStack<${parentStackTypeName(typeProvider.nowClass)}>"
-    )
+    out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S")
     out.dec
     val typeName = kaitaiTypeToNativeType(
       instName,
@@ -425,6 +440,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
       case _: StrType => {
         out.puts(s"${privateMemberName(instName)} = Some(${expression(value)}.to_string());")
+      }
+      case _: BytesType => {
+        out.puts(s"let _t = ${expression(value)};")
+        out.puts(s"${privateMemberName(instName)} = Some(_t.to_vec());")
       }
       case _ => {
         val primType = kaitaiPrimitiveToNativeType(dataType)
@@ -512,7 +531,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
-    out.puts(s"// TODO: handleAssignmentRepeatExpr($id, $expr)")
+    handleAssignmentRepeatEos(id, expr)
 
   override def handleAssignmentRepeatUntil(id: Identifier,
                                            expr: String,
@@ -529,6 +548,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
         )
       case _: BytesLimitType =>
+      	done = true;
         out.puts(s"${privateMemberName(id)} = $expr.to_vec();")
       case st: SwitchType =>
         done = true;
@@ -570,6 +590,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           ""
         } else {
           val currentType = classTypeName(typeProvider.nowClass);
+          val root = if (typeProvider.nowClass.isTopLevel) {
+            "Some(self)"
+          } else {
+            privateMemberName(RootIdentifier)
+          }
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "KStructUnit::parent_stack()"
             case Some(fp) => translator.translate(fp)
@@ -585,7 +610,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
             case _ => ""
           }
-          s", ${privateMemberName(RootIdentifier)}, $parent$addEndian"
+          s", $root, $parent$addEndian"
         }
         val streamType = if (io == privateMemberName(IoIdentifier)) {
           "S"
@@ -862,6 +887,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def ksErrorName(err: io.kaitai.struct.datatype.KSError): String =
     s"KaitaiStream.$err"
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    err: KSError,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    out.puts(s"if !(${expression(checkExpr)}) {")
+    out.inc
+    out.puts(s"""return Err(KError::ValidationNotEqual(r#"$errArgsStr"#.to_string()));""")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object RustCompiler
