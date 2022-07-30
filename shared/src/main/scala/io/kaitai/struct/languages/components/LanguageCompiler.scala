@@ -54,7 +54,16 @@ abstract class LanguageCompiler(
 
   def debug: Boolean = !config.autoRead && config.readStoresPos
 
+  /**
+    * @return String which is supposed to fill one level of indentation customary to the target
+    *         language. Most often it's either a tab or a sequence of spaces.
+    */
   def indent: String
+
+  /**
+    * @param topClassName name of the top-level type in standard KS notation (lower underscore).
+    * @return File name supposed to host a given top class name.
+    */
   def outFileName(topClassName: String): String
 
   def type2class(className: String): String
@@ -83,7 +92,22 @@ abstract class LanguageCompiler(
 
   def runRead(name: List[String]): Unit
   def runReadCalc(): Unit
+
+  /**
+    * Generates header for a common `_read()` method or an endianness-specific `_read_be()` /
+    * `_read_le()` method - typically a method declaration/definition. This method is supposed to
+    * perform reading of sequence attributes.
+    * @param endian specifies whether to create a common `_read` method (if None), or an
+    *               endianness-specific `read_be` or `read_le` method (if Some)
+    * @param isEmpty true if created method is expected to be empty, i.e. no sequence attributes
+    *                reads are expected to be performed inside it.
+    */
   def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit
+
+  /**
+    * Generates footer for a `_read()` / `_read_be()` / `_read_le()` methods. This method is
+    * supposed to perform reading of sequence attributes.
+    */
   def readFooter(): Unit
 
   def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
