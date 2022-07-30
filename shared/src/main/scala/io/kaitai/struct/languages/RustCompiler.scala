@@ -47,12 +47,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts("#![allow(non_snake_case)]")
     outHeader.puts("#![allow(non_camel_case_types)]")
     outHeader.puts("#![allow(irrefutable_let_patterns)]")
+    outHeader.puts("#![allow(unused_comparisons)]")
     outHeader.puts
+    outHeader.puts("extern crate kaitai;")
 
     importList.add(
       "kaitai::*"
     )
-    importList.add("std::{fs, path::PathBuf, convert::{TryFrom, TryInto}}")
+    importList.add("std::convert::{TryFrom, TryInto}")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
@@ -121,9 +123,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def runRead(name: List[String]): Unit = out.puts(s"// TODO: runRead($name)")
+  override def runRead(name: List[String]): Unit = out.puts(s"// runRead($name)")
 
-  override def runReadCalc(): Unit = out.puts(s"// TODO: runReadCalc()")
+  override def runReadCalc(): Unit = out.puts(s"// runReadCalc()")
 
   override def readHeader(endian: Option[FixedEndian],
                           isEmpty: Boolean): Unit = {
@@ -146,7 +148,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       endRead()
   }
 
-  override def readFooter(): Unit = out.puts(s"// TODO: readFooter()")
+  override def readFooter(): Unit = out.puts(s"// readFooter()")
 
   override def attributeDeclaration(attrName: Identifier,
                                     attrType: DataType,
@@ -244,7 +246,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit =
-    out.puts(s"// TODO: attrParseHybrid(${leProc()}, ${beProc()})")
+    out.puts(s"// attrParseHybrid(${leProc()}, ${beProc()})")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)} {")
@@ -294,7 +296,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
 
     out.puts(
-      s"// TODO: condRepeatUntilHeader($id, $io, $dataType, $repeatExpr)"
+      s"// condRepeatUntilHeader($id, $io, $dataType, $repeatExpr)"
     )
   }
 
@@ -303,7 +305,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                      dataType: DataType,
                                      repeatExpr: Ast.expr): Unit = {
     out.puts(
-      s"// TODO: condRepeatUntilFooter($id, $io, $dataType, $repeatExpr)"
+      s"// condRepeatUntilFooter($id, $io, $dataType, $repeatExpr)"
     )
     out.dec
     out.puts("} {}")
@@ -350,7 +352,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  override def useIO(ioEx: Ast.expr): String = s"// TODO: useIO($ioEx)"
+  override def useIO(ioEx: Ast.expr): String = s"// useIO($ioEx)"
 
   override def pushPos(io: String): Unit =
     out.puts(s"let _pos = $io.pos();")
@@ -536,7 +538,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatUntil(id: Identifier,
                                            expr: String,
                                            isRaw: Boolean): Unit =
-    out.puts(s"// TODO: handleAssignmentRepeatUntil($id, $expr, $isRaw)")
+    out.puts(s"// handleAssignmentRepeatUntil($id, $expr, $isRaw)")
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     val seqId = typeProvider.nowClass.seq.find(s => s.id == id)
@@ -547,9 +549,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(
           s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
         )
-      case _: BytesLimitType =>
-      	done = true;
-        out.puts(s"${privateMemberName(id)} = $expr.to_vec();")
       case st: SwitchType =>
         done = true;
         out.puts(s"${privateMemberName(id)} = Some($expr);")
@@ -560,22 +559,22 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"let $id = $expr;")
+
   override def parseExpr(dataType: DataType,
                          assignType: DataType,
                          io: String,
                          defEndian: Option[FixedEndian]): String =
     dataType match {
       case IntMultiType(_, _, None) => "panic!(\"Unable to parse unknown-endian integers\")"
-      case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?" //.into()"
+      case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?.into()"
       case _: BytesEosType => s"$io.read_bytes_full()?.into()"
       case b: BytesTerminatedType =>
           s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?.into()"
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?.into()"
       case BitsType1(bitEndian) => s"$io.read_bits_int(1)? != 0"
       case BitsType(width, bitEndian) => s"$io.read_bits_int($width)?"
-      case utfb: UserTypeFromBytes => s"&BytesReader::new(" +
-          parseExpr(utfb.bytes.asInstanceOf[BytesLimitType], assignType, io, defEndian) +
-          ")"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val userType = t match {
@@ -618,7 +617,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           "BytesReader"
         }
         s"Self::read_into::<$streamType, $userType>($addParams$io$addArgs)?.into()"
-      case _ => s"// TODO: parseExpr($dataType, $assignType, $io, $defEndian)"
+      case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
     }
 
   override def bytesPadTermExpr(expr0: String,
@@ -639,10 +638,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrFixedContentsParse(attrName: Identifier,
                                       contents: String): Unit =
-    out.puts(s"// TODO: attrFixedContentsParse($attrName, $contents)")
+    out.puts(s"// attrFixedContentsParse($attrName, $contents)")
 
   override def publicMemberName(id: Identifier): String =
-    s"// TODO: publicMemberName($id)"
+    s"// publicMemberName($id)"
 
   override def localTemporaryName(id: Identifier): String =
     s"_t_${idToStr(id)}"
@@ -757,17 +756,25 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
 
     val types = st.cases.values.toSet
-    types.foreach(t => {
-      // Because this switch type will itself be in an option, we can exclude it from user types
-      val variantName = switchVariantName(id, t)
-      val typeName = kaitaiTypeToNativeType(
-        id,
-        typeProvider.nowClass,
-        t,
-        excludeOptionWrapper = true
-      )
-      out.puts(s"$variantName($typeName),")
-    })
+
+    {
+      var types_set = scala.collection.mutable.Set[String]()
+      types.foreach(t => {
+        // Because this switch type will itself be in an option, we can exclude it from user types
+        val variantName = switchVariantName(id, t)
+        val typeName = kaitaiTypeToNativeType(
+          id,
+          typeProvider.nowClass,
+          t,
+          excludeOptionWrapper = true
+        )
+        val new_typename = types_set.add(typeName)
+        // same typename could be in case of different endianness
+        if (new_typename) {
+          out.puts(s"$variantName($typeName),")
+        }
+      })
+    }
 
     out.dec
     out.puts("}")
@@ -780,48 +787,55 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
     })
 
-    // add helper methods From
-    types.foreach(t => {
-      // Because this switch type will itself be in an option, we can exclude it from user types
-      val variantName = switchVariantName(id, t)
-      var v = "v"
-      val typeName = t match {
-        case _ : BytesType => {
-          v = "v.to_vec()"
-          s"&[u8]" // special case for Bytes(Vec[u8]) (else switch)
+    // generate only if switch types are different
+    {
+      var types_set = scala.collection.mutable.Set[String]()
+      // add helper methods From
+      types.foreach(t => {
+        // Because this switch type will itself be in an option, we can exclude it from user types
+        val variantName = switchVariantName(id, t)
+        var v = "v"
+        val typeName = t match {
+          case _ : BytesType => {
+            v = "v.to_vec()"
+            s"&[u8]" // special case for Bytes(Vec[u8]) (else switch)
+          }
+          case _ => kaitaiTypeToNativeType(
+              id,
+              typeProvider.nowClass,
+              t,
+              excludeOptionWrapper = true)
         }
-        case _ => kaitaiTypeToNativeType(
-            id,
-            typeProvider.nowClass,
-            t,
-            excludeOptionWrapper = true)
-      }
-      out.puts(s"impl From<$typeName> for $enum_typeName {")
-      out.inc
-      out.puts(s"fn from(v: $typeName) -> Self {")
-      out.inc
-      out.puts(s"Self::$variantName($v)")
-      out.dec
-      out.puts("}")
-      out.dec
-      out.puts("}")
-      if (enum_only_numeric) {
-        out.puts(s"impl From<&$enum_typeName> for $typeName {")
-        out.inc
-        out.puts(s"fn from(e: &$enum_typeName) -> Self {")
-        out.inc
-        out.puts(s"if let $enum_typeName::$variantName(v) = e {")
-        out.inc
-        out.puts(s"return *v")
-        out.dec
-        out.puts("}")
-        out.puts(s"""panic!(\"trying to convert from enum $enum_typeName::$variantName to $typeName, enum value {:?}\", e)""")
-        out.dec
-        out.puts("}")
-        out.dec
-        out.puts("}")
-      }
-    })
+        val new_typename = types_set.add(typeName)
+        if (new_typename) {
+          out.puts(s"impl From<$typeName> for $enum_typeName {")
+          out.inc
+          out.puts(s"fn from(v: $typeName) -> Self {")
+          out.inc
+          out.puts(s"Self::$variantName($v)")
+          out.dec
+          out.puts("}")
+          out.dec
+          out.puts("}")
+          if (enum_only_numeric) {
+            out.puts(s"impl From<&$enum_typeName> for $typeName {")
+            out.inc
+            out.puts(s"fn from(e: &$enum_typeName) -> Self {")
+            out.inc
+            out.puts(s"if let $enum_typeName::$variantName(v) = e {")
+            out.inc
+            out.puts(s"return *v")
+            out.dec
+            out.puts("}")
+            out.puts(s"""panic!(\"trying to convert from enum $enum_typeName::$variantName to $typeName, enum value {:?}\", e)""")
+            out.dec
+            out.puts("}")
+            out.dec
+            out.puts("}")
+          }
+        }
+      })
+    }
     if (enum_only_numeric) {
       out.puts(s"impl From<&$enum_typeName> for usize {")
       out.inc
@@ -829,9 +843,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.inc
       out.puts(s"match e {")
       out.inc
+      var variants_set = scala.collection.mutable.Set[String]()
       types.foreach(t => {
         val variantName = switchVariantName(id, t)
-        out.puts(s"$enum_typeName::$variantName(v) => *v as usize,")
+        val new_typename = variants_set.add(variantName)
+        if (new_typename) {
+          out.puts(s"$enum_typeName::$variantName(v) => *v as usize,")
+        }
       })
       out.dec
       out.puts("}")
@@ -925,7 +943,7 @@ object RustCompiler
     case SpecialIdentifier(n) => n
     case NamedIdentifier(n) => n
     case InstanceIdentifier(n) => n
-    case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+    case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE}$idx"
     case RawIdentifier(inner) => s"raw_${idToStr(inner)}"
     case IoStorageIdentifier(inner) => s"io_${idToStr(inner)}"
   }
@@ -1066,8 +1084,6 @@ object RustCompiler
     case _: BooleanType => "bool"
     case CalcIntType => "i32"
     case CalcFloatType => "f64"
-    case EnumType(_, basedOn) => kaitaiPrimitiveToNativeType(basedOn) //???
-    case t: UserType => types2class(t.name)
 
     case _: StrType => s"String"
     case _: BytesType => s"Vec<u8>"

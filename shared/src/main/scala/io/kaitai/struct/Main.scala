@@ -81,24 +81,30 @@ object Main {
     */
   def compile(specs: ClassSpecs, spec: ClassSpec, lang: LanguageCompilerStatic, conf: RuntimeConfig): CompileLog.SpecSuccess = {
     val config = updateConfig(conf, spec)
-
-    val cc = lang match {
-      case GraphvizClassCompiler =>
-        new GraphvizClassCompiler(specs, spec)
-      case GoCompiler =>
-        new GoClassCompiler(specs, spec, config)
-      case RustCompiler =>
-        new RustClassCompiler(specs, spec, config)
-      case ConstructClassCompiler =>
-        new ConstructClassCompiler(specs, spec)
-      case NimCompiler =>
-        new NimClassCompiler(specs, spec, config)
-      case HtmlClassCompiler =>
-        new HtmlClassCompiler(specs, spec)
-      case _ =>
-        new ClassCompiler(specs, spec, config, lang)
+    try {
+      val cc = lang match {
+        case GraphvizClassCompiler =>
+          new GraphvizClassCompiler(specs, spec)
+        case GoCompiler =>
+          new GoClassCompiler(specs, spec, config)
+        case RustCompiler =>
+          new RustClassCompiler(specs, spec, config)
+        case ConstructClassCompiler =>
+          new ConstructClassCompiler(specs, spec)
+        case NimCompiler =>
+          new NimClassCompiler(specs, spec, config)
+        case HtmlClassCompiler =>
+          new HtmlClassCompiler(specs, spec)
+        case _ =>
+          new ClassCompiler(specs, spec, config, lang)
+      }
+      cc.compile
+    } catch {
+      case e: NotImplementedError => {
+        e.printStackTrace
+        throw e
+      }
     }
-    cc.compile
   }
 
   /**

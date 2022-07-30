@@ -69,8 +69,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
             s"*self.${doName(s)}(${privateMemberName(IoIdentifier)})?"
           }
         } else {
-          // TODO: Is it possible to reach this block? RawIdentifier?
-          s"self.${doName(s)}"
+          // unnamed identifier
+          s"self.${doName(s)}()"
         }
     }
   }
@@ -82,6 +82,10 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"&${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
+
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
+    s"${translate(left)}.as_str() ${cmpOp(op)} ${translate(right)}"
+  }
 
   override def doEnumById(enumTypeAbs: List[String], id: String) =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
