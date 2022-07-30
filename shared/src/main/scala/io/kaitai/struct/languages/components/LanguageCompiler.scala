@@ -60,12 +60,6 @@ abstract class LanguageCompiler(
     */
   def indent: String
 
-  /**
-    * @param topClassName name of the top-level type in standard KS notation (lower underscore).
-    * @return File name supposed to host a given top class name.
-    */
-  def outFileName(topClassName: String): String
-
   def type2class(className: String): String
   def fileHeader(topClassName: String): Unit
   def fileFooter(topClassName: String): Unit = {}
