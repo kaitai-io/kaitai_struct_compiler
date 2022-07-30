@@ -61,7 +61,17 @@ abstract class LanguageCompiler(
   def indent: String
 
   def type2class(className: String): String
+
+  /**
+    * Generates file header for a top-level type.
+    * @param topClassName top-level name type in KS notation (lower underscore)
+    */
   def fileHeader(topClassName: String): Unit
+
+  /**
+    * Generated file footer for a top-level type.
+    * @param topClassName top-level name type in KS notation (lower underscore)
+    */
   def fileFooter(topClassName: String): Unit = {}
   def importFile(file: String): Unit = {}
 
