@@ -478,7 +478,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
     val ioName = idToStr(IoStorageIdentifier(id))
-    out.puts(s"$kstreamName $ioName = $io.substream(${translator.translate(sizeExpr)});")
+    handleAssignmentTempVar(KaitaiStreamType, ioName, s"$io.substream(${translator.translate(sizeExpr)});")
     ioName
   }
 
