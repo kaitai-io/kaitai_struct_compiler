@@ -319,22 +319,26 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  // TODO: merge with attrProcess above (there is currently 99.9% duplication)
+  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
-        out.puts(s"$destName = $kstreamName.processXor($srcName, ${expression(xorValue)});")
+        val xorValueStr = translator.detectType(xorValue) match {
+          case _: IntType => translator.doCast(xorValue, Int1Type(true))
+          case _ => expression(xorValue)
+        }
+        s"$kstreamName.processXor($srcExpr, $xorValueStr)"
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName.unprocessZlib($srcName);")
+        s"$kstreamName.unprocessZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (!isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+        s"$kstreamName.processRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val namespace = name.init.mkString(".")
         val procClass = namespace +
@@ -342,8 +346,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           type2class(name.last)
         val procName = s"_process_${idToStr(varSrc)}"
         out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = $procName.encode($srcName);")
+        s"$procName.encode($srcExpr)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
@@ -483,7 +488,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   // used for all repetitions in _write() and _check()
-  override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
+  override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts(s"for (int i = 0; i < ${privateMemberName(id)}.size(); i++) {")
     out.inc
   }
@@ -837,9 +842,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val stmt = dataType match {
       case t: ReadableType =>
         s"$io.write${Utils.capitalize(t.apiCall(defEndian))}($expr)"
-      case BitsType1 =>
+      case BitsType1(bitEndian) =>
         s"$io.writeBitsInt(1, ($expr) ? 1 : 0)"
-      case BitsType(width: Int) =>
+      case BitsType(width: Int, bitEndian) =>
         s"$io.writeBitsInt($width, $expr)"
       case _: BytesType =>
         s"$io.writeBytes($expr)"
@@ -923,17 +928,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case (true, false) => ""
     })
   }
-
-  def idToStr(id: Identifier): String =
-    id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
-      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
-    }
-
-  def publicMemberName(id: Identifier) = idToStr(id)
 
   def kaitaiType2JavaType(attrType: DataType): String = kaitaiType2JavaTypePrim(attrType)
 
@@ -1042,6 +1036,17 @@ object JavaCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new JavaCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+    }
+
+  def publicMemberName(id: Identifier) = idToStr(id)
 
   def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
 

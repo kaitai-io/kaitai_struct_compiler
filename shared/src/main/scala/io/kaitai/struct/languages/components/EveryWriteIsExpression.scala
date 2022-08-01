@@ -17,15 +17,15 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 
     attr.cond.repeat match {
       case RepeatEos =>
-        condRepeatCommonHeader(id, io, attr.dataType, needRaww(attr.dataType))
+        condRepeatCommonHeader(id, io, attr.dataType)
         attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
         condRepeatCommonFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
-        condRepeatCommonHeader(id, io, attr.dataType, needRaww(attr.dataType))
+        condRepeatCommonHeader(id, io, attr.dataType)
         attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
         condRepeatCommonFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
-        condRepeatCommonHeader(id, io, attr.dataType, needRaww(attr.dataType))
+        condRepeatCommonHeader(id, io, attr.dataType)
         attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
         condRepeatCommonFooter
       case NoRepeat =>
@@ -98,7 +98,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     val idToWrite = t.process match {
       case Some(proc) =>
         val rawId = RawIdentifier(id)
-        attrUnprocess(proc, id, rawId)
+        attrUnprocess(proc, id, rawId, rep)
         rawId
       case None =>
         id
@@ -258,13 +258,5 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
   def attrWriteStreamToStream(srcIo: String, dstIo: String): Unit
   def exprStreamToByteArray(ioFixed: String): String
 
-  def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit
-
-  // FIXME: unify with EveryReadIsExpression
-  def needRaww(dataType: DataType): Boolean = {
-    dataType match {
-      case t: UserTypeFromBytes => true
-      case _ => false
-    }
-  }
+  def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit
 }
