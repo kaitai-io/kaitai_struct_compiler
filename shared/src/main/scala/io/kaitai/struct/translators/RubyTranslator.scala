@@ -87,8 +87,26 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def intToStr(i: Ast.expr, base: Ast.expr): String =
     translate(i) + s".to_s(${translate(base)})"
 
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"($bytesExpr).force_encoding(${translate(encoding)})"
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
+    // We can skip "encode to UTF8" if we're 100% sure that the string we're handling is already
+    // in UTF8. To check that, we need to see if the encoding expression is constant, and if it is,
+    // then check if
+    val encodingOpt = encoding.evaluateStrConst
+    val needEncode: Boolean = encodingOpt match {
+      case Some(encodingConst) =>
+        val encodingConstLower = encodingConst.toLowerCase
+        encodingConstLower != "utf8" && encodingConstLower != "utf-8"
+      case None =>
+        true
+    }
+
+    s"($bytesExpr).force_encoding(${translate(encoding)})" + (if (needEncode) {
+      ".encode('UTF-8')"
+    } else {
+      ""
+    })
+  }
+
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.size"
   /**
