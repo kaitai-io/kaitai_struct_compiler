@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec, MetaSpec}
 import io.kaitai.struct.languages.{GoCompiler, NimCompiler, RustCompiler}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile._
@@ -80,7 +80,7 @@ object Main {
     * @return a container that contains all compiled files and results
     */
   def compile(specs: ClassSpecs, spec: ClassSpec, lang: LanguageCompilerStatic, conf: RuntimeConfig): CompileLog.SpecSuccess = {
-    val config = updateConfig(conf, spec)
+    val config = updateConfigFromMeta(conf, spec.meta)
 
     val cc = lang match {
       case GraphvizClassCompiler =>
@@ -103,16 +103,26 @@ object Main {
 
   /**
     * Updates runtime configuration with "enforcement" options that came from a source file itself.
-    * Currently only used to enforce debug when "ks-debug: true" is specified in top-level "meta" key.
+    * Currently used to enforce:
+    * * debug when "ks-debug: true" is specified in top-level "meta" key
+    * * zero copy stream usage when "ks-zero-copy-stream" is specified
+    *
     * @param config original runtime configuration
-    * @param topClass top-level class spec
+    * @param meta meta spec for top-level type
     * @return updated runtime configuration with applied enforcements
     */
-  private def updateConfig(config: RuntimeConfig, topClass: ClassSpec): RuntimeConfig = {
-    if (topClass.meta.forceDebug) {
+  private def updateConfigFromMeta(config: RuntimeConfig, meta: MetaSpec): RuntimeConfig = {
+    val config1 = if (meta.forceDebug) {
       config.copy(autoRead = false, readStoresPos = true)
     } else {
       config
     }
+
+    val config2 = meta.zeroCopySubstream match {
+      case Some(value) => config1.copy(zeroCopySubstream = value)
+      case None => config1
+    }
+
+    config2
   }
 }

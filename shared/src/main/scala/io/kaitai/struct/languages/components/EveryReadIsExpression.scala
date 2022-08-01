@@ -141,12 +141,17 @@ trait EveryReadIsExpression
     * @return string reference to a freshly created substream
     */
   def createSubstream(id: Identifier, byteType: BytesType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
-    byteType match {
-      case BytesLimitType(sizeExpr, None, _, None, None) =>
-        createSubstreamFixedSize(id, sizeExpr, io)
-      case _ =>
-        // fall back to buffered implementation
-        createSubstreamBuffered(id, byteType, io, rep, defEndian)
+    if (config.zeroCopySubstream) {
+      byteType match {
+        case BytesLimitType(sizeExpr, None, _, None, None) =>
+          createSubstreamFixedSize(id, sizeExpr, io)
+        case _ =>
+          // fall back to buffered implementation
+          createSubstreamBuffered(id, byteType, io, rep, defEndian)
+      }
+    } else {
+      // if zero-copy substreams were declined, always use buffered implementation
+      createSubstreamBuffered(id, byteType, io, rep, defEndian)
     }
   }
 

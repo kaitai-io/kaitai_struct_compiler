@@ -129,6 +129,10 @@ object JavaMain {
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
       } text("opaque types allowed, default: false")
 
+      opt[Boolean]("zero-copy-substream") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(zeroCopySubstream = x))
+      } text("zero-copy substreams allowed, default: true")
+
       opt[Unit]("ksc-exceptions") action { (x, c) =>
         c.copy(throwExceptions = true)
       } text("ksc throws exceptions instead of human-readable error messages")
