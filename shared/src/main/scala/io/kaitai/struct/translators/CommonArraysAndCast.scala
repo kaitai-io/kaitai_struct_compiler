@@ -17,7 +17,7 @@ import io.kaitai.struct.precompile.TypeMismatchError
   */
 trait CommonArraysAndCast[T] extends TypeDetector {
   /**
-    * Processes elements inside a given [[Ast.expr.List]] element to render them
+    * Processes elements inside a given [[exprlang.Ast.expr.List]] element to render them
     * as either byte array literal or true array.
     * @param values elements from a list
     * @return translation result
@@ -43,7 +43,7 @@ trait CommonArraysAndCast[T] extends TypeDetector {
   }
 
   /**
-    * Processes an [[Ast.expr.CastToType]] element, by checking if
+    * Processes an [[exprlang.Ast.expr.CastToType]] element, by checking if
     * this is an literal array type enforcement cast first, and
     * rendering it accordingly as proper literal, or invoking
     * the normal [[doCast]] otherwise.
@@ -60,7 +60,7 @@ trait CommonArraysAndCast[T] extends TypeDetector {
         castToType match {
           case _: BytesType =>
             doByteArray(array.elts)
-          case ArrayType(elType) =>
+          case ArrayTypeInStream(elType) =>
             doArrayLiteral(elType, array.elts)
           case _ =>
             // No luck, this is some kind of weird cast, not a type enforcement;

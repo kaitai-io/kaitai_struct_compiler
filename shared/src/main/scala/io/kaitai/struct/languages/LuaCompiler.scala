@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError, NeedRaw}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -17,6 +17,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with SingleOutputFile
     with UniversalDoc
     with UniversalFooter
+    with SwitchIfOps
     with UpperCamelCaseClasses {
 
   import LuaCompiler._
@@ -99,15 +100,15 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def runRead(): Unit =
+  override def runRead(name: List[String]): Unit =
     out.puts("self:_read()")
   override def runReadCalc(): Unit = {
     out.puts
-    out.puts(s"if self._is_le then")
+    out.puts("if self._is_le == true then")
     out.inc
     out.puts("self:_read_le()")
     out.dec
-    out.puts(s"elseif not self._is_le then")
+    out.puts("elseif self._is_le == false then")
     out.inc
     out.puts("self:_read_be()")
     out.dec
@@ -161,11 +162,16 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = {}")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = {}")
     out.puts(s"${privateMemberName(id)} = {}")
-    out.puts("local i = 1")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+    out.puts("local i = 0")
     out.puts(s"while not $io:is_eof() do")
     out.inc
   }
@@ -175,11 +181,8 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = {}")
-    out.puts(s"${privateMemberName(id)} = {}")
-    out.puts(s"for i = 1, ${expression(repeatExpr)} do")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
+    out.puts(s"for i = 0, ${expression(repeatExpr)} - 1 do")
     out.inc
   }
   override def condRepeatExprFooter: Unit = {
@@ -187,15 +190,12 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, datatype: DataType, needRaw: Boolean, repeatExpr: Ast.expr): Unit = {
-    if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = {}")
-    out.puts(s"${privateMemberName(id)} = {}")
-    out.puts("local i = 1")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
+    out.puts("local i = 0")
     out.puts("while true do")
     out.inc
   }
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(untilExpr)} then")
     out.inc
@@ -205,36 +205,44 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("i = i + 1")
     out.dec
     out.puts("end")
-    out.dec
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)})")
+        s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        throw new RuntimeException("Lua zlib not supported")
+        s"$kstreamName.process_zlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName.process_rotate_left($srcName, $expr, 1)")
+        s"$kstreamName.process_rotate_left($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procName = s"_process_${idToStr(varSrc)}"
 
         importList.add("require(\"" + s"${name.last}" + "\")")
 
         out.puts(s"local $procName = ${types2class(name)}(${args.map(expression).mkString(", ")})")
-        out.puts(s"$destName = $procName:decode($srcName)")
+        s"$procName:decode($srcExpr)"
+    }
+    handleAssignment(varDest, expr, rep, false)
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i + 1]"
+      case _ => s"$memberName[#$memberName]"
     }
   }
 
@@ -277,41 +285,35 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"${types2class(curClass)}.${type2class(enumName)} = enum.Enum {")
     out.inc
-    enumColl.foreach { case (id, label) => out.puts(s"${label.name} = $id,") }
+    enumColl.foreach { case (id, label) => out.puts(s"${label.name} = ${translator.doIntLiteral(id)},") }
     out.dec
     out.puts("}")
     out.puts
   }
 
-  override def idToStr(id: Identifier): String = id match {
-    case SpecialIdentifier(name) => name
-    case NamedIdentifier(name) => name
-    case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-    case InstanceIdentifier(name) => s"_m_$name"
-    case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
-  }
+  override def idToStr(id: Identifier): String = LuaCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String = LuaCompiler.publicMemberName(id)
+
   override def privateMemberName(id: Identifier): String =
     s"self.${idToStr(id)}"
-  override def publicMemberName(id: Identifier): String = id match {
-    case SpecialIdentifier(name) => name
-    case NamedIdentifier(name) => name
-    case InstanceIdentifier(name) => name
-    case RawIdentifier(innerId) => s"_raw_${publicMemberName(innerId)}"
-  }
   override def localTemporaryName(id: Identifier): String =
     s"_t_${idToStr(id)}"
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}[i] = $expr")
+    out.puts(s"${privateMemberName(id)}[i + 1] = $expr")
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}[i] = $expr")
+    out.puts(s"${privateMemberName(id)}[i + 1] = $expr")
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
-    out.puts(s"$tmpName = $expr")
-    out.puts(s"${privateMemberName(id)}[i] = $tmpName")
+    out.puts(s"local $tmpName = $expr")
+    out.puts(s"${privateMemberName(id)}[i + 1] = $tmpName")
   }
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr")
+
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"local $id = $expr")
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = dataType match {
     case t: ReadableType =>
@@ -322,16 +324,17 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"$io:read_bytes_full()"
     case BytesTerminatedType(terminator, include, consume, eosError, _) =>
       s"$io:read_bytes_term($terminator, $include, $consume, $eosError)"
-    case BitsType1 =>
-      s"$io:read_bits_int(1)"
-    case BitsType(width: Int) =>
-      s"$io:read_bits_int($width)"
+    case BitsType1(bitEndian) =>
+      s"$io:read_bits_int_${bitEndian.toSuffix}(1) ~= 0"
+    case BitsType(width: Int, bitEndian) =>
+      s"$io:read_bits_int_${bitEndian.toSuffix}($width)"
     case t: UserType =>
       val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
       val addArgs = if (t.isOpaque) {
         ""
       } else {
         val parent = t.forcedParent match {
+          case Some(USER_TYPE_NO_PARENT) => "nil"
           case Some(fp) => translator.translate(fp)
           case None => "self"
         }
@@ -355,36 +358,45 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit =
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id:_read()")
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
+  override def switchCaseStart(condition: Ast.expr): Unit = {}
+  override def switchCaseEnd(): Unit = {}
+  override def switchElseStart(): Unit = {}
+  override def switchEnd(): Unit = {}
+
+  override def switchRequiresIfs(onType: DataType): Boolean = true
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit =
     out.puts(s"local _on = ${expression(on)}")
-  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
+
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
     out.puts(s"if _on == ${expression(condition)} then")
     out.inc
   }
-  override def switchCaseStart(condition: Ast.expr): Unit = {
+
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
     out.puts(s"elseif _on == ${expression(condition)} then")
     out.inc
   }
-  override def switchCaseEnd(): Unit =
+
+  override def switchIfCaseEnd(): Unit =
     out.dec
-  override def switchElseStart(): Unit = {
+
+  override def switchIfElseStart(): Unit = {
     out.puts("else")
     out.inc
   }
-  override def switchEnd(): Unit =
+
+  override def switchIfEnd(): Unit =
     out.puts("end")
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val varStr = privateMemberName(varName)
 
-    val args = rep match {
-      case RepeatEos | RepeatUntil(_) => s"$varStr[#$varStr]"
-      case RepeatExpr(_) => s"$varStr[i]"
-      case NoRepeat => varStr
-    }
+    val args = getRawIdExpr(varName, rep)
 
     importList.add("local stringstream = require(\"string_stream\")")
     out.puts(s"local _io = $kstreamName(stringstream($args))")
@@ -392,6 +404,31 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def ksErrorName(err: KSError): String = LuaCompiler.ksErrorName(err)
+
+  override def attrValidateExpr(
+    attrId: Identifier,
+    attrType: DataType,
+    checkExpr: Ast.expr,
+    err: KSError,
+    errArgs: List[Ast.expr]
+  ): Unit = {
+    val errArgsCode = errArgs.map(translator.translate)
+    out.puts(s"if not(${translator.translate(checkExpr)}) then")
+    out.inc
+    val msg = err match {
+      case _: ValidationNotEqualError => {
+        val (expected, actual) = (
+          errArgsCode.lift(0).getOrElse("[expected]"),
+          errArgsCode.lift(1).getOrElse("[actual]")
+        )
+        s""""not equal, expected " ..  $expected .. ", but got " .. $actual"""
+      }
+      case _ => "\"" + ksErrorName(err) + "\""
+    }
+    out.puts(s"error($msg)")
+    out.dec
+    out.puts("end")
+  }
 }
 
 object LuaCompiler extends LanguageCompilerStatic
@@ -403,9 +440,24 @@ object LuaCompiler extends LanguageCompilerStatic
     config: RuntimeConfig
   ): LanguageCompiler = new LuaCompiler(tp, config)
 
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => name
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => s"_m_$name"
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+    }
+
+  def publicMemberName(id: Identifier): String =
+    id match {
+      case InstanceIdentifier(name) => name
+      case _ => idToStr(id)
+    }
+
   override def kstructName: String = "KaitaiStruct"
   override def kstreamName: String = "KaitaiStream"
-  override def ksErrorName(err: KSError): String = ???
+  override def ksErrorName(err: KSError): String = err.name
 
   def types2class(name: List[String]): String =
     name.map(x => type2class(x)).mkString(".")

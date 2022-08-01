@@ -2,7 +2,8 @@ package io.kaitai.struct.datatype
 
 import io.kaitai.struct.datatype.DataType.SwitchType
 import io.kaitai.struct.exprlang.{Ast, Expressions}
-import io.kaitai.struct.format.{ParseUtils, YAMLParseException}
+import io.kaitai.struct.format.ParseUtils
+import io.kaitai.struct.problems.KSYParseError
 
 sealed trait Endianness
 
@@ -30,7 +31,7 @@ object Endianness {
         val endianMap = ParseUtils.asMapStr(srcMap, path)
         Some(fromMap(endianMap, path))
       case _ =>
-        throw new YAMLParseException(
+        throw KSYParseError.withText(
           s"unable to parse endianness: `le`, `be` or calculated endianness map is expected",
           path ++ List("endian")
         )
@@ -46,7 +47,7 @@ object Endianness {
         case "be" => BigEndian
         case "le" => LittleEndian
         case _ =>
-          throw YAMLParseException.badDictValue(Set("be", "le"), endStr, path ++ List("cases", condition))
+          throw KSYParseError.badDictValue(Set("be", "le"), endStr, path ++ List("cases", condition))
       })
     }
 
@@ -61,7 +62,7 @@ object Endianness {
         case Some(e: FixedEndian) => Some(e)
         case Some(_: CalcEndian) | Some(InheritedEndian) => None // to be overridden during compile
         case None =>
-          throw new YAMLParseException(s"unable to use type '$dt' without default endianness", path ++ List("type"))
+          throw KSYParseError.withText(s"unable to use type '$dt' without default endianness", path ++ List("type"))
       }
   }
 }

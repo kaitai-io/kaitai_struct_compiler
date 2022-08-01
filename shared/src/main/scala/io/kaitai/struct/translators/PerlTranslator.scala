@@ -21,9 +21,9 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     '@' -> "\\@",
     '%' -> "\\%",
 
-    '\7' -> "\\a",
+    '\u0007' -> "\\a",
     '\f' -> "\\f",
-    '\33' -> "\\e",
+    '\u001b' -> "\\e",
     '\b' -> "\\b"
 
     // \v is available since 5.10, but according to documentation
@@ -46,7 +46,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doBoolLiteral(n: Boolean): String = if (n) "1" else "0"
 
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String =
-    "(" + value.map((v) => translate(v)).mkString(", ") + ")"
+    "[" + value.map((v) => translate(v)).mkString(", ") + "]"
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"pack('C*', (${arr.map(_ & 0xff).mkString(", ")}))"
@@ -73,11 +73,14 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
   }
 
+  override def doInternalName(id: Identifier): String =
+    s"$$self->${PerlCompiler.publicMemberName(id)}()"
+
   override def doEnumByLabel(enumType: List[String], label: String): String = {
     val enumClass = PerlCompiler.types2class(enumType.init)
     val enumClassWithScope = if (enumClass.isEmpty) "" else s"$enumClass::"
-    val enumName = enumType.last.toUpperCase
-    s"$$$enumClassWithScope${enumName}_${label.toUpperCase}"
+    val enumName = Utils.upperUnderscoreCase(enumType.last)
+    s"$$$enumClassWithScope${enumName}_${Utils.upperUnderscoreCase(label)}"
   }
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
@@ -114,10 +117,12 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     baseStr match {
+      case "2" =>
+        s"oct('0b' . ${translate(s)})"
       case "8" =>
         s"oct(${translate(s)})"
       case "10" =>
-        translate(s)
+        s"${translate(s)} + 0"
       case "16" =>
         s"hex(${translate(s)})"
       case _ => throw new UnsupportedOperationException(baseStr)
@@ -132,6 +137,8 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     val format = baseStr match {
+      case "2" =>
+        s"%b"
       case "8" =>
         s"%o"
       case "10" =>
@@ -147,12 +154,29 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     importList.add("Encode")
     s"Encode::decode(${translate(encoding)}, $bytesExpr)"
   }
+  override def bytesLength(b: Ast.expr): String =
+    strLength(b)
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"unpack('C', substr(${translate(container)}, ${translate(idx)}, 1))"
+  override def bytesFirst(b: Ast.expr): String =
+    s"unpack('C', substr(${translate(b)}, 0, 1))"
+  override def bytesLast(b: Ast.expr): String =
+    s"unpack('C', substr(${translate(b)}, -1, 1))"
+  override def bytesMin(b: Ast.expr): String = {
+    importList.add("List::Util")
+    s"List::Util::min(unpack('C*', ${translate(b)}))"
+  }
+  override def bytesMax(b: Ast.expr): String = {
+    importList.add("List::Util")
+    s"List::Util::max(unpack('C*', ${translate(b)}))"
+  }
+
   override def strLength(value: Ast.expr): String =
     s"length(${translate(value)})"
   override def strReverse(value: Ast.expr): String =
     s"scalar(reverse(${translate(value)}))"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s)}[${translate(from)}:${translate(to)}]"
+    s"substr(${translate(s)}, ${translate(from)}, (${translate(to)}) - (${translate(from)}))"
 
   override def arrayFirst(a: Ast.expr): String =
     s"@{${translate(a)}}[0]"

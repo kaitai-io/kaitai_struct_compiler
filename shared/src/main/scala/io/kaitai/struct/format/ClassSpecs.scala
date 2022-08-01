@@ -1,6 +1,6 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.precompile.ErrorInInput
+import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException}
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -17,6 +17,8 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
   /**
     * Calls certain function on all [[ClassSpec]] elements stored in this ClassSpecs,
     * and all subtypes stored in these elements, recursively.
+    *
+    * @param proc function to execute on every encountered type.
     */
   def forEachRec(proc: (ClassSpec) => Unit): Unit =
     forEachTopLevel((_, typeSpec) => typeSpec.forEachRec(proc))
@@ -25,15 +27,35 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
     * Calls certain function on all top-level [[ClassSpec]] elements stored in this
     * ClassSpecs.
     */
-  def forEachTopLevel(proc: (String, ClassSpec) => Unit): Unit = {
+  def forEachTopLevel[R](proc: (String, ClassSpec) => Unit): Unit = {
     foreach { case (specName, typeSpec) =>
       try {
         proc(specName, typeSpec)
       } catch {
-        case ErrorInInput(err, path, None) =>
-          // Try to emit more specific error, with a reference to current file
-          throw ErrorInInput(err, path, Some(specName))
+        case cpe: CompilationProblemException =>
+          throw cpe.localizedInType(typeSpec)
       }
+    }
+  }
+
+  /**
+    * Calls certain function on all [[ClassSpec]] elements stored in this ClassSpecs,
+    * and all subtypes stored in these elements, recursively.
+    *
+    * @param proc function to execute on every encountered type.
+    */
+  def mapRec(proc: (ClassSpec) => Iterable[CompilationProblem]): Iterable[CompilationProblem] =
+    mapTopLevel((_, typeSpec) => typeSpec.mapRec(proc))
+
+  /**
+    * Calls certain function on all top-level [[ClassSpec]] elements stored in this
+    * ClassSpecs.
+    *
+    * @param proc function to execute on every encountered type.
+    */
+  def mapTopLevel(proc: (String, ClassSpec) => Iterable[CompilationProblem]): Iterable[CompilationProblem] = {
+    flatMap { case (specName, typeSpec) =>
+      proc(specName, typeSpec).map(problem => problem.localizedInType(typeSpec))
     }
   }
 

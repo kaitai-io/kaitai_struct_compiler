@@ -27,7 +27,8 @@ object Log {
     "type_resolve",
     "type_valid",
     "seq_sizes",
-    "import"
+    "import",
+    "enum_resolve"
   )
 
   var fileOps: Logger = NullLogger
@@ -37,6 +38,7 @@ object Log {
   var typeValid: Logger = NullLogger
   var seqSizes: Logger = NullLogger
   var importOps: Logger = NullLogger
+  var enumResolve: Logger = NullLogger
 
   def initFromVerboseFlag(subsystems: Seq[String]): Unit = {
     fileOps = NullLogger
@@ -50,6 +52,7 @@ object Log {
       case "type_valid" => typeValid = ConsoleLogger
       case "seq_sizes" => seqSizes = ConsoleLogger
       case "import" => importOps = ConsoleLogger
+      case "enum_resolve" => enumResolve = ConsoleLogger
     }
   }
 }

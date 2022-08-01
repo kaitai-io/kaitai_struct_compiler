@@ -1,9 +1,9 @@
 package io.kaitai.struct.exprlang
 
-import org.scalatest.FunSpec
-import org.scalatest.Matchers._
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers._
 
-class Ast$Test extends FunSpec {
+class Ast$Test extends AnyFunSpec {
   describe("Ast.expr.evaluateIntConst") {
     it ("considers `42` constant") {
       Expressions.parse("42").evaluateIntConst should be(Some(42))
@@ -19,6 +19,10 @@ class Ast$Test extends FunSpec {
 
     it ("considers `(-3 + 7) * 8 / 2` constant") {
       Expressions.parse("(-3 + 7) * 8 / 2").evaluateIntConst should be(Some(16))
+    }
+
+    it ("considers `-5 % 3` constant") {
+      Expressions.parse("-5 % 3").evaluateIntConst should be(Some(1))
     }
 
     it ("considers `[3, 1, 4][2]` constant") {

@@ -1,6 +1,7 @@
 package io.kaitai.struct.format
 
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.problems.KSYParseError
 
 sealed trait RepeatSpec
 case class RepeatExpr(expr: Ast.expr) extends RepeatSpec
@@ -24,7 +25,7 @@ object RepeatSpec {
         val spec = repeatUntil match {
           case Some(expr) => RepeatUntil(expr)
           case None =>
-            throw new YAMLParseException(
+            throw KSYParseError.withText(
               "`repeat: until` requires a `repeat-until` expression",
               path ++ List("repeat")
             )
@@ -34,7 +35,7 @@ object RepeatSpec {
         val spec = repeatExpr match {
           case Some(expr) => RepeatExpr(expr)
           case None =>
-            throw new YAMLParseException(
+            throw KSYParseError.withText(
               "`repeat: expr` requires a `repeat-expr` expression",
               path ++ List("repeat")
             )
@@ -43,7 +44,7 @@ object RepeatSpec {
       case Some("eos") =>
         (RepeatEos, Set())
       case Some(other) =>
-        throw YAMLParseException.badDictValue(
+        throw KSYParseError.badDictValue(
           Set("until", "expr", "eos"), other, path ++ List("repeat")
         )
     }

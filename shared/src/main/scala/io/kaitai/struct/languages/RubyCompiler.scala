@@ -93,7 +93,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def runRead(): Unit = {
+  override def runRead(name: List[String]): Unit = {
     out.puts("_read")
   }
 
@@ -177,46 +177,51 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     out.puts(s"${privateMemberName(attrName)} = $normalIO.ensure_fixed_contents($contents)")
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    out.puts(proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)})"
+        s"$kstreamName::$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
         importList.add("zlib")
-        s"$destName = Zlib::Inflate.inflate($srcName)"
+        s"Zlib::Inflate.inflate($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$destName = $kstreamName::process_rotate_left($srcName, $expr, 1)"
+        s"$kstreamName::process_rotate_left($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = name.map((x) => type2class(x)).mkString("::")
         out.puts(s"_process = $procClass.new(${args.map(expression).mkString(", ")})")
-        s"$destName = _process.decode($srcName)"
-    })
+        s"_process.decode($srcExpr)"
+    }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
     val ioName = s"_io_${idToStr(id)}"
 
-    val args = rep match {
-      case RepeatEos | RepeatUntil(_) => s"$memberName.last"
-      case RepeatExpr(_) => s"$memberName[i]"
-      case NoRepeat => s"$memberName"
-    }
+    val args = getRawIdExpr(id, rep)
 
     out.puts(s"$ioName = $kstreamName.new($args)")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i]"
+      case _ => s"$memberName.last"
+    }
   }
 
   override def useIO(ioEx: expr): String = {
@@ -273,40 +278,40 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
     out.puts(s"${privateMemberName(id)} = []")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("i = 0")
     out.puts(s"while not $io.eof?")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} << $expr")
+
   override def condRepeatEosFooter: Unit = {
     out.puts("i += 1")
     super.condRepeatEosFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
-    if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = Array.new(${expression(repeatExpr)})")
-    out.puts(s"${privateMemberName(id)} = Array.new(${expression(repeatExpr)})")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
     out.puts(s"(${expression(repeatExpr)}).times { |i|")
     out.inc
   }
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}[i] = $expr")
+    handleAssignmentRepeatEos(id, expr)
+
   override def condRepeatExprFooter: Unit = {
     out.dec
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-    out.puts(s"${privateMemberName(id)} = []")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("i = 0")
     out.puts("begin")
     out.inc
@@ -318,7 +323,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} << $tmpName")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("i += 1")
     out.dec
@@ -341,16 +346,17 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.read_bytes_full"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.read_bytes_term($terminator, $include, $consume, $eosError)"
-      case BitsType1 =>
-        s"$io.read_bits_int(1) != 0"
-      case BitsType(width: Int) =>
-        s"$io.read_bits_int($width)"
+      case BitsType1(bitEndian) =>
+        s"$io.read_bits_int_${bitEndian.toSuffix}(1) != 0"
+      case BitsType(width: Int, bitEndian) =>
+        s"$io.read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
           val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "nil"
             case Some(fp) => translator.translate(fp)
             case None => "self"
           }
@@ -376,7 +382,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit =
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id._read")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
@@ -418,7 +424,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$enumConst = {")
     out.inc
     enumColl.foreach { case (id, label) =>
-      out.puts(s"$id => ${enumValue(enumName, label)},")
+      out.puts(s"${translator.doIntLiteral(id)} => ${enumValue(enumName, label)},")
     }
     out.dec
     out.puts("}")
@@ -429,26 +435,27 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
 
-  def value2Const(s: String) = s.toUpperCase
+  def value2Const(s: String) = Utils.upperUnderscoreCase(s)
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
     val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
     out.puts(s"SEQ_FIELDS = [$seqStr]")
   }
 
-  override def idToStr(id: Identifier): String = {
-    id match {
-      case NamedIdentifier(name) => name
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case si: SpecialIdentifier => si.name
-      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
-      case InstanceIdentifier(name) => name
-    }
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("def inspect")
+    out.inc
+    out.puts(translator.translate(toStringExpr))
+    out.dec
+    out.puts("end")
   }
 
-  override def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
+  override def idToStr(id: Identifier): String = RubyCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = idToStr(id)
+  override def publicMemberName(id: Identifier): String = RubyCompiler.publicMemberName(id)
+
+  override def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -458,11 +465,11 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attrId: Identifier,
     attrType: DataType,
     checkExpr: Ast.expr,
-    errName: String,
+    err: KSError,
     errArgs: List[Ast.expr]
   ): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"raise $errName.new($errArgsStr) if not ${translator.translate(checkExpr)}")
+    out.puts(s"raise ${ksErrorName(err)}.new($errArgsStr) if not ${translator.translate(checkExpr)}")
   }
 
   def types2class(names: List[String]) = names.map(type2class).mkString("::")
@@ -475,6 +482,17 @@ object RubyCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new RubyCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+    }
+
+  def publicMemberName(id: Identifier) = idToStr(id)
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"

@@ -8,8 +8,8 @@ import sbt.Keys._
 resolvers += Resolver.sonatypeRepo("public")
 
 val NAME = "kaitai-struct-compiler"
-val VERSION = "0.9-SNAPSHOT"
-val TARGET_LANGS = "C++/STL, C#, Java, JavaScript, Lua, Perl, PHP, Python, Ruby"
+val VERSION = "0.10"
+val TARGET_LANGS = "C++/STL, C#, Go, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby"
 val UTF8 = Charset.forName("UTF-8")
 
 lazy val root = project.in(file(".")).
@@ -25,7 +25,7 @@ lazy val compiler = crossProject.in(file(".")).
     organization := "io.kaitai",
     version := sys.env.getOrElse("KAITAI_STRUCT_VERSION", VERSION),
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.12.4",
+    scalaVersion := "2.12.12",
 
     // Repo publish options
     publishTo := version { (v: String) =>
@@ -40,7 +40,7 @@ lazy val compiler = crossProject.in(file(".")).
       <scm>
         <connection>scm:git:git://github.com/kaitai-io/kaitai_struct_compiler.git</connection>
         <developerConnection>scm:git:ssh://github.com:kaitai-io/kaitai_struct_compiler.git</developerConnection>
-        <url>http://github.com/kaitai-io/kaitai_struct_compiler/tree/master</url>
+        <url>https://github.com/kaitai-io/kaitai_struct_compiler</url>
       </scm>
       <developers>
         <developer>
@@ -58,7 +58,7 @@ lazy val compiler = crossProject.in(file(".")).
     libraryDependencies ++= Seq(
       "com.github.scopt" %%% "scopt" % "3.6.0",
       "com.lihaoyi" %%% "fastparse" % "1.0.0",
-      "org.yaml" % "snakeyaml" % "1.25"
+      "org.yaml" % "snakeyaml" % "1.28"
     )
   ).
   jvmSettings(
@@ -66,10 +66,13 @@ lazy val compiler = crossProject.in(file(".")).
 
     mainClass in Compile := Some("io.kaitai.struct.JavaMain"),
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+      "org.scalatest" %% "scalatest" % "3.2.12" % "test"
     ),
 
     testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
+    // o - causes test results to be written back to sbt, which usually displays it on the standard output
+    // Suppress all other notification events except failures so it is easy to see only failures
+    testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oNCXELOPQRM"),
 
     // Universal: add extra files (formats repo) for distribution, removing
     // .git special files and various dirty/backup files that git normally
@@ -82,7 +85,7 @@ lazy val compiler = crossProject.in(file(".")).
         val dstFile = new File(dst)
         val dstFileName = dstFile.getName
         dst.startsWith(s"formats${File.separator}_") ||
-          dstFileName == ".git" ||
+          dst.startsWith(s"formats${File.separator}.git") ||
           dstFileName.endsWith("~") ||
           dstFileName.endsWith("#")
     },
@@ -154,6 +157,10 @@ lazy val compiler = crossProject.in(file(".")).
     wixProductUpgradeId := "63e85f5f-7680-4b3e-9bb9-dea0f70e970a",
     wixProductLicense := Some(new File("shared/src/windows/License.rtf")),
 
+    rpmVendor := "Kaitai Project",
+    rpmUrl := Some("https://kaitai.io/"),
+    rpmLicense := Some("GPLv3+"),
+
     maintainer in Windows := "Kaitai Project",
     maintainer in Debian := "Mikhail Yakshin <greycat@kaitai.io>"
   ).
@@ -205,7 +212,7 @@ lazy val buildNpmJsFileTask = Def.task {
        |  } else {
        |    root.KaitaiStructCompiler = factory();
        |  }
-       |}(this, function () {
+       |}(typeof self !== 'undefined' ? self : this, function () {
        |
        |var exports = {};
        |var __ScalaJSEnv = { exportsNamespace: exports };
@@ -215,9 +222,9 @@ lazy val buildNpmJsFileTask = Def.task {
        |return exports.io.kaitai.struct.MainJs;
        |
        |}));
-     """.stripMargin
+       |""".stripMargin
 
-  val targetFile = new File(s"js/npm/${name.value}.js")
+  val targetFile = new File(s"js/npm/${NAME}.js")
   println(s"buildNpmJsFile: writing $targetFile with AMD exports")
   IO.write(targetFile, fileWithExports, UTF8)
   Seq(targetFile)
@@ -235,7 +242,7 @@ lazy val buildNpmPackageTask = Def.task {
   val packageJsonTmpl = IO.read(new File("js/package.json"), UTF8)
   val packageJsonContents = packageJsonTmpl.replaceFirst(
     "\"version\": \".*?\"",
-    "\"version\": \"" + version.value + "\""
+    "\"version\": \"" + version.value.replace("-SNAPSHOT", ".0-SNAPSHOT") + "\""
   )
 
   IO.write(packageJsonFile, packageJsonContents, UTF8)

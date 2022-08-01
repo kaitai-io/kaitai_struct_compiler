@@ -18,7 +18,7 @@ object LanguageCompilerStatic {
     "java" -> JavaCompiler,
     "javascript" -> JavaScriptCompiler,
     "lua" -> LuaCompiler,
-    "nim" -> NimClassCompiler,
+    "nim" -> NimCompiler,
     "perl" -> PerlCompiler,
     "php" -> PHPCompiler,
     "python" -> PythonCompiler,

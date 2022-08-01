@@ -30,7 +30,7 @@ class GoClassCompiler(
 
     // Basic struct declaration
     lang.classHeader(curClass.name)
-    compileAttrDeclarations(curClass.seq ++ extraAttrs)
+    compileAttrDeclarations(curClass.seq ++ curClass.params ++ extraAttrs)
     curClass.instances.foreach { case (instName, instSpec) =>
       compileInstanceDeclaration(instName, instSpec)
     }

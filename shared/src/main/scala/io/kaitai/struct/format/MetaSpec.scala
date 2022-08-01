@@ -1,20 +1,23 @@
 package io.kaitai.struct.format
 
-import io.kaitai.struct.datatype.{CalcEndian, Endianness, InheritedEndian}
+import io.kaitai.struct.datatype.{BitEndianness, CalcEndian, Endianness, InheritedEndian}
+import io.kaitai.struct.problems.KSYParseError
 
 case class MetaSpec(
   path: List[String],
   isOpaque: Boolean,
   id: Option[String],
   endian: Option[Endianness],
+  bitEndian: Option[BitEndianness],
   encoding: Option[String],
   forceDebug: Boolean,
   opaqueTypes: Option[Boolean],
   imports: List[String]
 ) extends YAMLPath {
   def fillInDefaults(defSpec: MetaSpec): MetaSpec = {
-    fillInEncoding(defSpec.encoding).
-      fillInEndian(defSpec.endian)
+    fillInEncoding(defSpec.encoding)
+      .fillInEndian(defSpec.endian)
+      .fillInBitEndian(defSpec.bitEndian)
   }
 
   private
@@ -37,6 +40,15 @@ case class MetaSpec(
         this.copy(endian = defEndian)
     }
   }
+
+  def fillInBitEndian(defBitEndian: Option[BitEndianness]): MetaSpec = {
+    (defBitEndian, bitEndian) match {
+      case (None, _) => this
+      case (_, Some(_)) => this
+      case (Some(_), None) =>
+        this.copy(bitEndian = defBitEndian)
+    }
+  }
 }
 
 object MetaSpec {
@@ -47,6 +59,7 @@ object MetaSpec {
     isOpaque = true,
     id = None,
     endian = None,
+    bitEndian = None,
     encoding = None,
     forceDebug = false,
     opaqueTypes = None,
@@ -57,6 +70,7 @@ object MetaSpec {
     "id",
     "imports",
     "endian",
+    "bit-endian",
     "encoding",
     "title",
     "ks-version",
@@ -75,10 +89,12 @@ object MetaSpec {
     ParseUtils.getOptValueStr(srcMap, "ks-version", path).foreach { (verStr) =>
       val ver = KSVersion.fromStr(verStr)
       if (ver > KSVersion.current)
-        throw YAMLParseException.incompatibleVersion(ver, KSVersion.current, path)
+        throw KSYParseError.incompatibleVersion(ver, KSVersion.current, path)
     }
 
     val endian: Option[Endianness] = Endianness.fromYaml(srcMap.get("endian"), path)
+
+    val bitEndian: Option[BitEndianness] = BitEndianness.fromYaml(srcMap.get("bit-endian"), path)
 
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
@@ -94,6 +110,6 @@ object MetaSpec {
 
     val imports = ParseUtils.getListStr(srcMap, "imports", path)
 
-    MetaSpec(path, isOpaque = false, id, endian, encoding, forceDebug, opaqueTypes, imports)
+    MetaSpec(path, isOpaque = false, id, endian, bitEndian, encoding, forceDebug, opaqueTypes, imports)
   }
 }

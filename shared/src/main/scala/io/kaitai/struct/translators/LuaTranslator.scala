@@ -6,8 +6,28 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.languages.LuaCompiler
+import io.kaitai.struct.Utils
 
-class LuaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+class LuaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider)
+    with MinSignedIntegers {
+  override def doIntLiteral(n: BigInt): String = {
+    if (n > Long.MaxValue && n <= Utils.MAX_UINT64) {
+      // See <https://www.lua.org/manual/5.4/manual.html#3.1>:
+      //
+      // - "A numeric constant (...), if its value fits in an integer or it is a hexadecimal
+      //   constant, it denotes an integer; otherwise (that is, a decimal integer numeral that
+      //   overflows), it denotes a float."
+      // - "Hexadecimal numerals with neither a radix point nor an exponent always denote an
+      //   integer value; if the value overflows, it wraps around to fit into a valid integer."
+      //
+      // This is written only in the Lua 5.4 manual, but applies to Lua 5.3 too (experimentally
+      // verified).
+      "0x" + n.toString(16)
+    } else {
+      super.doIntLiteral(n)
+    }
+  }
+
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",
@@ -15,27 +35,35 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
-    '\7' -> "\\a",
+    '\u0007' -> "\\a",
     '\b' -> "\\b",
-    '\13' -> "\\v",
+    '\u000b' -> "\\v",
     '\f' -> "\\f",
-    '\33' -> "\\027"
+    '\u001b' -> "\\027"
   )
 
   override def strLiteralUnicode(code: Char): String =
     "\\u{%04x}".format(code.toInt)
 
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Div) =>
+        s"math.floor(${translate(left)} / ${translate(right)})"
+      case _ =>
+        super.numericBinOp(left, op, right)
+    }
+  }
+
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String = {
     // Lua indexes start at 1, so we need to offset them
-    val fixedIdx = idx match {
-      case Ast.expr.IntNum(n) => Ast.expr.IntNum(n + 1)
-      case _ => idx
-    }
-
-    s"${translate(container)}[${translate(fixedIdx)}]"
+    s"${translate(container)}[${translate(idx)} + 1]"
   }
-  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
-    s"(((${translate(condition)}) and (${translate(ifTrue)})) or (${translate(ifFalse)}))"
+  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String = {
+    importList.add("local utils = require(\"utils\")")
+
+    // http://lua-users.org/wiki/TernaryOperator (section Boxing/unboxing, using functions)
+    s"utils.box_unwrap((${translate(condition)}) and utils.box_wrap(${translate(ifTrue)}) or (${translate(ifFalse)}))"
+  }
 
   override def doBoolLiteral(n: Boolean): String =
     if (n) "true" else "false"
@@ -51,21 +79,13 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   }
   override def doName(s: String): String =
     s
+  override def doInternalName(id: Identifier): String =
+    s"self.${LuaCompiler.publicMemberName(id)}"
+
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${LuaCompiler.types2class(enumTypeAbs)}.$label"
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     s"${LuaCompiler.types2class(enumTypeAbs)}($id)"
-
-  // This is very hacky because integers and booleans cannot be compared
-  override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
-    val bool2Int = (n: Boolean) => { if (n) "1" else "0" }
-    (left, right) match {
-      case (Ast.expr.Bool(l), Ast.expr.Bool(r)) => s"${bool2Int(l)} ${cmpOp(op)} ${bool2Int(r)}"
-      case (Ast.expr.Bool(l), r) => s"${bool2Int(l)} ${cmpOp(op)} ${translate(r)}"
-      case (l, Ast.expr.Bool(r)) => s"${translate(l)} ${cmpOp(op)} ${bool2Int(r)}"
-      case _ => super.doNumericCompareOp(left, op, right)
-    }
-  }
 
   override def strConcat(left: Ast.expr, right: Ast.expr): String =
     s"${translate(left)} .. ${translate(right)}"
@@ -95,12 +115,31 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
     s"str_decode.decode($bytesExpr, ${translate(encoding)})"
   }
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String = {
+    s"string.byte(${translate(container)}, ${translate(idx)} + 1)"
+  }
+  override def bytesFirst(a: Ast.expr): String =
+    s"string.byte(${translate(a)}, 1)"
+  override def bytesLast(a: Ast.expr): String = {
+    val table = translate(a)
+    s"string.byte(${table}, #${table})"
+  }
+  override def bytesMin(a: Ast.expr): String = {
+    importList.add("local utils = require(\"utils\")")
+
+    s"utils.byte_array_min(${translate(a)})"
+  }
+  override def bytesMax(a: Ast.expr): String = {
+    importList.add("local utils = require(\"utils\")")
+
+    s"utils.byte_array_max(${translate(a)})"
+  }
   override def strLength(s: Ast.expr): String =
     s"string.len(${translate(s)})"
   override def strReverse(s: Ast.expr): String =
     s"string.reverse(${translate(s)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"string.sub(${translate(s)}, ${translate(from)}, ${translate(to)})"
+    s"string.sub(${translate(s)}, ${translate(from)} + 1, ${translate(to)})"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[1]"
@@ -115,7 +154,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
     s"utils.array_min(${translate(a)})"
   }
-  override def arrayMax(a: Ast.expr): String ={
+  override def arrayMax(a: Ast.expr): String = {
     importList.add("local utils = require(\"utils\")")
 
     s"utils.array_max(${translate(a)})"

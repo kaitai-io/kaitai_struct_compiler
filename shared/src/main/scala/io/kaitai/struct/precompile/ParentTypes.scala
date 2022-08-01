@@ -2,7 +2,7 @@ package io.kaitai.struct.precompile
 
 import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType.{ArrayType, SwitchType, UserType}
+import io.kaitai.struct.datatype.DataType.{ArrayTypeInStream, SwitchType, UserType}
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
@@ -61,7 +61,7 @@ class ParentTypes(classSpecs: ClassSpecs) {
           case (_, _) =>
             // ignore everything else
         }
-      case ArrayType(innerType) =>
+      case ArrayTypeInStream(innerType) =>
         markupParentTypesAdd(curClass, innerType)
       case _ => // ignore, it's standard type
     }

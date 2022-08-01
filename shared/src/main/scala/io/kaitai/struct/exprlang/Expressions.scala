@@ -8,7 +8,7 @@ import fastparse.StringReprOps
 /**
   * Loosely based on /pythonparse/shared/src/main/scala/pythonparse/
   * from FastParse, Copyright (c) 2014 Li Haoyi (haoyi.sg@gmail.com)
-  * http://www.lihaoyi.com/fastparse/
+  * https://com-lihaoyi.github.io/fastparse/
   *
   * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
   * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
@@ -65,7 +65,7 @@ object Expressions {
   val Eq = op("==", Ast.cmpop.Eq)
   val GtE = op(">=", Ast.cmpop.GtE)
   val LtE = op("<=", Ast.cmpop.LtE)
-  val NotEq = op("<>" | "!=", Ast.cmpop.NotEq)
+  val NotEq = op("!=", Ast.cmpop.NotEq)
   val comp_op = P( LtE|GtE|Eq|Gt|Lt|NotEq )
   val Add = op("+", Ast.operator.Add)
   val Sub = op("-", Ast.operator.Sub)
@@ -185,11 +185,26 @@ object Expressions {
 
   val topExprList: P[Seq[Ast.expr]] = P(testlist1 ~ End)
 
+  val typeRef: P[Ast.TypeWithArguments] = P(Start ~ TYPE_NAME ~ ("(" ~ list ~ ")").? ~ End).map {
+    case (path, None)       => Ast.TypeWithArguments(path, Ast.expr.List(Seq()))
+    case (path, Some(args)) => Ast.TypeWithArguments(path, args)
+  }
+
   class ParseException(val src: String, val failure: Parsed.Failure)
     extends RuntimeException(failure.msg)
 
   def parse(src: String): Ast.expr = realParse(src, topExpr)
   def parseList(src: String): Seq[Ast.expr] = realParse(src, topExprList)
+
+  /**
+   * Parse string with reference to user-type definition, optionally in full path format
+   * and optional arguments.
+   *
+   * @param src Type reference as string
+   * @return Tuple with path to type and type arguments. If arguments are not provided,
+   *         corresponding list is empty. List with path always contains at least one element
+   */
+  def parseTypeRef(src: String): Ast.TypeWithArguments = realParse(src, typeRef)
 
   private def realParse[T](src: String, parser: P[T]): T = {
     val r = parser.parse(src.trim)

@@ -24,6 +24,10 @@ abstract trait CommonMethods[T] extends TypeDetector {
       return byteSizeOfValue(value.toString, valType)
 
     valType match {
+      case KaitaiStructType | CalcKaitaiStructType =>
+        attr.name match {
+          case Identifier.PARENT => kaitaiStructField(value, attr.name)
+        }
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
       case _: BytesType =>
@@ -48,7 +52,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
         attr.name match {
           case "to_i" => floatToInt(value)
         }
-      case ArrayType(inType) =>
+      case _: ArrayType =>
         attr.name match {
           case "first" => arrayFirst(value)
           case "last" => arrayLast(value)
@@ -56,7 +60,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
           case "min" => arrayMin(value)
           case "max" => arrayMax(value)
         }
-      case KaitaiStreamType =>
+      case KaitaiStreamType | OwnedKaitaiStreamType =>
         attr.name match {
           case "size" => kaitaiStreamSize(value)
           case "eof" => kaitaiStreamEof(value)
@@ -101,6 +105,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
   }
 
   def userTypeField(ut: UserType, value: Ast.expr, name: String): T
+  def kaitaiStructField(value: Ast.expr, name: String): T
 
   def bytesSubscript(container: Ast.expr, idx: Ast.expr): T
   def bytesFirst(b: Ast.expr): T

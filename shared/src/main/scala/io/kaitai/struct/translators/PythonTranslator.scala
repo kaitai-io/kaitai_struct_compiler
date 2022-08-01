@@ -30,9 +30,9 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
-    '\7' -> "\\a",
+    '\u0007' -> "\\a",
     '\f' -> "\\f",
-    '\13' -> "\\v",
+    '\u000b' -> "\\v",
     '\b' -> "\\b"
   )
 
@@ -50,7 +50,10 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
       case _ => s"self.${doName(s)}"
     }
   }
-  override def doName(s: String) = s
+  override def doName(s: String) =
+    s
+  override def doInternalName(id: Identifier): String =
+    s"self.${PythonCompiler.publicMemberName(id)}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${PythonCompiler.types2class(enumTypeAbs)}.$label"
@@ -101,14 +104,27 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
     s"($bytesExpr).decode(${translate(encoding)})"
+
   override def bytesLength(value: Ast.expr): String =
     s"len(${translate(value)})"
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"${PythonCompiler.kstreamName}.byte_array_index(${translate(container)}, ${translate(idx)})"
+  override def bytesFirst(a: Ast.expr): String =
+    bytesSubscript(a, Ast.expr.IntNum(0))
+  override def bytesLast(a: Ast.expr): String =
+    bytesSubscript(a, Ast.expr.IntNum(-1))
+  override def bytesMin(b: Ast.expr): String =
+    s"${PythonCompiler.kstreamName}.byte_array_min(${translate(b)})"
+  override def bytesMax(b: Ast.expr): String =
+    s"${PythonCompiler.kstreamName}.byte_array_max(${translate(b)})"
+
+
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
   override def strReverse(value: Ast.expr): String =
-    s"${translate(value)}[::-1]"
+    s"(${translate(value)})[::-1]"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s)}[${translate(from)}:${translate(to)}]"
+    s"(${translate(s)})[${translate(from)}:${translate(to)}]"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[0]"

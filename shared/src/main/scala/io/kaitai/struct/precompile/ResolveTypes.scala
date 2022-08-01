@@ -2,8 +2,9 @@ package io.kaitai.struct.precompile
 
 import io.kaitai.struct.Log
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType.{EnumType, SwitchType, UserType}
+import io.kaitai.struct.datatype.DataType.{ArrayType, EnumType, SwitchType, UserType}
 import io.kaitai.struct.format._
+import io.kaitai.struct.problems.KSYParseError
 
 /**
   * A collection of methods that resolves user types and enum types, i.e.
@@ -43,12 +44,14 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
         et.enumSpec = resolveEnumSpec(curClass, et.name)
         if (et.enumSpec.isEmpty) {
           val err = new EnumNotFoundError(et.name.mkString("::"), curClass)
-          throw new YAMLParseException(err.getMessage, path)
+          throw KSYParseError.withText(err.getMessage, path)
         }
       case st: SwitchType =>
         st.cases.foreach { case (caseName, ut) =>
           resolveUserType(curClass, ut, path ++ List("type", "cases", caseName.toString))
         }
+      case at: ArrayType =>
+        resolveUserType(curClass, at.elType, path)
       case _ =>
         // not a user type, nothing to resolve
     }
@@ -68,7 +71,7 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
         } else {
           // Opaque types are disabled => that is an error
           val err = new TypeNotFoundError(typeName.mkString("::"), curClass)
-          throw new YAMLParseException(err.getMessage, path)
+          throw KSYParseError.withText(err.getMessage, path)
         }
       case Some(x) =>
         Log.typeResolve.info(() => s"    => ${x.nameAsStr}")
@@ -122,14 +125,19 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
   }
 
   def resolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
-    //    Console.println(s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
-    val res = realResolveEnumSpec(curClass, typeName)
-    //    Console.println("   => " + (res match {
-    //      case None => "???"
-    //      case Some(x) => x.name.mkString("|")
-    //    }))
+    Log.enumResolve.info(() => s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
 
-    res
+    val res = realResolveEnumSpec(curClass, typeName)
+    res match {
+      case None => {
+        Log.enumResolve.info(() => s"    => ???")
+        res
+      }
+      case Some(x) => {
+        Log.enumResolve.info(() => s"    => ${x.nameAsStr}")
+        res
+      }
+    }
   }
 
   private def realResolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
@@ -155,8 +163,23 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) {
           case Some(upClass) =>
             resolveEnumSpec(upClass, typeName)
           case None =>
-            // No luck at all
-            None
+            // Check this class if it's top-level class
+            if (curClass.name.head == firstName) {
+              resolveEnumSpec(curClass, restNames)
+            } else {
+              // Check if top-level specs has this name
+              // If there's None => no luck at all
+              val resolvedTop = specs.get(firstName)
+              resolvedTop match {
+                case None => None
+                case Some(classSpec) => if (restNames.isEmpty) {
+                  // resolved everything, but this points to a type name, not enum name
+                  None
+                } else {
+                  resolveEnumSpec(classSpec, restNames)
+                }
+              }
+            }
         }
     }
   }

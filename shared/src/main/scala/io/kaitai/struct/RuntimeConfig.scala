@@ -7,12 +7,16 @@ package io.kaitai.struct
   *                      use `#ifndef`-`#define`-`#endif` guards.
   * @param stdStringFrontBack If true, allow use of `front()` and `back()` methods
   *                           on `std::string`. If false, come up with simulation.
+  * @param useListInitializers If true, allows use of list initializers for
+  *                            `std::vector`. Otherwise, throw a fatal unimplemented
+  *                            error.
   * @param pointers Choose which style of pointers to use.
   */
 case class CppRuntimeConfig(
   namespace: List[String] = List(),
   usePragmaOnce: Boolean = false,
   stdStringFrontBack: Boolean = false,
+  useListInitializers: Boolean = false,
   pointers: CppRuntimeConfig.Pointers = CppRuntimeConfig.RawPointers
 ) {
   /**
@@ -22,6 +26,7 @@ case class CppRuntimeConfig(
   def copyAsCpp98() = copy(
     usePragmaOnce = false,
     stdStringFrontBack = false,
+    useListInitializers = false,
     pointers = CppRuntimeConfig.RawPointers
   )
 
@@ -32,6 +37,7 @@ case class CppRuntimeConfig(
   def copyAsCpp11() = copy(
     usePragmaOnce = true,
     stdStringFrontBack = true,
+    useListInitializers = true,
     pointers = CppRuntimeConfig.UniqueAndRawPointers
   )
 }
@@ -80,6 +86,7 @@ case class JavaRuntimeConfig(
   * @param phpNamespace PHP namespace
   * @param pythonPackage Python package name
   * @param nimModule Path of Nim runtime module
+  * @param nimOpaque Directory of opaque Nim modules
   */
 case class RuntimeConfig(
   autoRead: Boolean = true,
@@ -92,5 +99,6 @@ case class RuntimeConfig(
   dotNetNamespace: String = "Kaitai",
   phpNamespace: String = "",
   pythonPackage: String = "",
-  nimModule: String = "kaitai_struct/runtime/nim/kaitai"
+  nimModule: String = "kaitai_struct_nim_runtime",
+  nimOpaque: String = ""
 )

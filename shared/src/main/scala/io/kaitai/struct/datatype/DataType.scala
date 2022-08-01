@@ -2,6 +2,7 @@ package io.kaitai.struct.datatype
 
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format._
+import io.kaitai.struct.problems.KSYParseError
 import io.kaitai.struct.translators.TypeDetector
 
 sealed trait DataType {
@@ -46,8 +47,8 @@ object DataType {
       s"$ch1${width.width}${finalEnd.map(_.toSuffix).getOrElse("")}"
     }
   }
-  case object BitsType1 extends BooleanType
-  case class BitsType(width: Int) extends IntType
+  case class BitsType1(bitEndian: BitEndianness) extends BooleanType
+  case class BitsType(width: Int, bitEndian: BitEndianness) extends IntType
 
   abstract class FloatType extends NumericType
   case object CalcFloatType extends FloatType
@@ -112,6 +113,8 @@ object DataType {
     def isOwning: Boolean
   }
 
+  abstract class StructType extends ComplexDataType
+
   /**
     * Common abstract ancestor for all types which can treated as "user types".
     * Namely, this typically means that this type has a name, may have some
@@ -124,21 +127,11 @@ object DataType {
     val name: List[String],
     val forcedParent: Option[Ast.expr],
     var args: Seq[Ast.expr]
-  ) extends ComplexDataType {
+  ) extends StructType {
     var classSpec: Option[ClassSpec] = None
     def isOpaque = {
       val cs = classSpec.get
       cs.isTopLevel || cs.meta.isOpaque
-    }
-
-    override def asNonOwning: UserType = {
-      if (!isOwning) {
-        this
-      } else {
-        val r = CalcUserType(name, forcedParent, args)
-        r.classSpec = classSpec
-        r
-      }
     }
   }
   case class UserTypeInstream(
@@ -147,6 +140,11 @@ object DataType {
     _args: Seq[Ast.expr] = Seq()
   ) extends UserType(_name, _forcedParent, _args) {
     def isOwning = true
+    override def asNonOwning: UserType = {
+      val r = CalcUserType(name, forcedParent, args)
+      r.classSpec = classSpec
+      r
+    }
   }
   case class UserTypeFromBytes(
     _name: List[String],
@@ -156,6 +154,11 @@ object DataType {
     override val process: Option[ProcessExpr]
   ) extends UserType(_name, _forcedParent, _args) with Processing {
     override def isOwning = true
+    override def asNonOwning: UserType = {
+      val r = CalcUserTypeFromBytes(name, forcedParent, args, bytes, process)
+      r.classSpec = classSpec
+      r
+    }
   }
   case class CalcUserType(
     _name: List[String],
@@ -164,26 +167,43 @@ object DataType {
   ) extends UserType(_name, _forcedParent, _args) {
     override def isOwning = false
   }
+  case class CalcUserTypeFromBytes(
+    _name: List[String],
+    _forcedParent: Option[Ast.expr],
+    _args: Seq[Ast.expr] = Seq(),
+    bytes: BytesType,
+    override val process: Option[ProcessExpr]
+  ) extends UserType(_name, _forcedParent, _args) with Processing {
+    override def isOwning = false
+  }
 
-  case class ArrayType(elType: DataType) extends ComplexDataType {
+  abstract sealed class ArrayType(val elType: DataType) extends ComplexDataType
+
+  case class ArrayTypeInStream(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = true
     override def asNonOwning: CalcArrayType = CalcArrayType(elType)
   }
-  case class CalcArrayType(elType: DataType) extends ComplexDataType {
+  case class CalcArrayType(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = false
   }
 
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
 
   case object AnyType extends DataType
-  case object KaitaiStructType extends ComplexDataType {
+  case object KaitaiStructType extends StructType {
     def isOwning = true
     override def asNonOwning: DataType = CalcKaitaiStructType
   }
-  case object CalcKaitaiStructType extends ComplexDataType {
+  case object CalcKaitaiStructType extends StructType {
     def isOwning = false
   }
-  case object KaitaiStreamType extends DataType
+  case object OwnedKaitaiStreamType extends ComplexDataType {
+    def isOwning = true
+    override def asNonOwning: DataType = KaitaiStreamType
+  }
+  case object KaitaiStreamType extends ComplexDataType {
+    def isOwning = false
+  }
 
   case class EnumType(name: List[String], basedOn: IntType) extends DataType {
     var enumSpec: Option[EnumSpec] = None
@@ -282,7 +302,7 @@ object DataType {
           case (None, false) =>
             Map()
           case (Some(_), true) =>
-            throw new YAMLParseException("can't have both `size` and `size-eos` defined", path)
+            throw KSYParseError("can't have both `size` and `size-eos` defined", path).toException
         }
       }
 
@@ -292,8 +312,7 @@ object DataType {
 
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
   private val ReFloatType = """f(4|8)(le|be)?""".r
-  private val ReBitType = """b(\d+)""".r
-  private val ReUserTypeWithArgs = """^([a-z][a-z0-9_]*)\((.*)\)$""".r
+  private val ReBitType = """b(\d+)(le|be)?""".r
 
   def fromYaml(
     dto: Option[String],
@@ -331,14 +350,19 @@ object DataType {
             },
             Endianness.fromString(Option(endianStr), metaDef.endian, dt, path)
           )
-        case ReBitType(widthStr) =>
+        case ReBitType(widthStr, bitEndianStr) =>
           (arg.enumRef, widthStr.toInt) match {
             case (None, 1) =>
               // if we're not inside enum and it's 1-bit type
-              BitsType1
+              BitsType1(
+                BitEndianness.fromString(Option(bitEndianStr), metaDef.bitEndian, dt, path)
+              )
             case (_, width) =>
               // either inside enum (any width) or (width != 1)
-              BitsType(width)
+              BitsType(
+                width,
+                BitEndianness.fromString(Option(bitEndianStr), metaDef.bitEndian, dt, path)
+              )
           }
         case "str" | "strz" =>
           val enc = getEncoding(arg.encoding, metaDef, path)
@@ -353,18 +377,24 @@ object DataType {
           val bat = arg2.getByteArrayType(path)
           StrFromBytesType(bat, enc)
         case _ =>
-          val (arglessType, args) = dt match {
-            case ReUserTypeWithArgs(typeStr, argsStr) => (typeStr, Expressions.parseList(argsStr))
-            case _ => (dt, List())
-          }
-          val dtl = classNameToList(arglessType)
+          val typeWithArgs = Expressions.parseTypeRef(dt)
           if (arg.size.isEmpty && !arg.sizeEos && arg.terminator.isEmpty) {
             if (arg.process.isDefined)
-              throw new YAMLParseException(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path)
-            UserTypeInstream(dtl, arg.parent, args)
+              throw KSYParseError(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path).toException
+            UserTypeInstream(
+              typeWithArgs.typeName.names.toList,
+              arg.parent,
+              typeWithArgs.arguments.elts
+            )
           } else {
             val bat = arg.getByteArrayType(path)
-            UserTypeFromBytes(dtl, arg.parent, args, bat, arg.process)
+            UserTypeFromBytes(
+              typeWithArgs.typeName.names.toList,
+              arg.parent,
+              typeWithArgs.arguments.elts,
+              bat,
+              arg.process
+            )
           }
       }
     }
@@ -378,7 +408,7 @@ object DataType {
         r match {
           case numType: IntType => EnumType(classNameToList(enumName), numType)
           case _ =>
-            throw new YAMLParseException(s"tried to resolve non-integer $r to enum", path)
+            throw KSYParseError(s"tried to resolve non-integer $r to enum", path).toException
         }
       case None =>
         r
@@ -396,49 +426,59 @@ object DataType {
     case Some(dt) => pureFromString(dt)
   }
 
-  def pureFromString(dt: String): DataType = dt match {
-    case "bytes" => CalcBytesType
-    case "u1" => Int1Type(false)
-    case "s1" => Int1Type(true)
-    case RePureIntType(signStr, widthStr) =>
-      IntMultiType(
-        signStr match {
-          case "s" => true
-          case "u" => false
-        },
+  def pureFromString(dt: String): DataType = {
+    val arraySuffix = "[]"
+    val (isArray, singleId) = (dt.endsWith(arraySuffix), dt.stripSuffix(arraySuffix))
+    val singleType = singleId match {
+      case "bytes" => CalcBytesType
+      case "u1" => Int1Type(false)
+      case "s1" => Int1Type(true)
+      case RePureIntType(signStr, widthStr) =>
+        IntMultiType(
+          signStr match {
+            case "s" => true
+            case "u" => false
+          },
+          widthStr match {
+            case "2" => Width2
+            case "4" => Width4
+            case "8" => Width8
+          },
+          None
+        )
+      case RePureFloatType(widthStr) =>
+        FloatMultiType(
+          widthStr match {
+            case "4" => Width4
+            case "8" => Width8
+          },
+          None
+        )
+      case ReBitType(widthStr, bitEndianStr) =>
         widthStr match {
-          case "2" => Width2
-          case "4" => Width4
-          case "8" => Width8
-        },
-        None
-      )
-    case RePureFloatType(widthStr) =>
-      FloatMultiType(
-        widthStr match {
-          case "4" => Width4
-          case "8" => Width8
-        },
-        None
-      )
-    case ReBitType(widthStr) =>
-      widthStr match {
-        case "1" => BitsType1
-        case _ => BitsType(widthStr.toInt)
-      }
-    case "str" => CalcStrType
-    case "bool" => CalcBooleanType
-    case "struct" => CalcKaitaiStructType
-    case "io" => KaitaiStreamType
-    case "any" => AnyType
-    case _ => CalcUserType(classNameToList(dt), None)
+          // bit endianness is not applicable here (and the dependent code doesn't care about it), so why not assume big endian
+          case "1" => BitsType1(BigBitEndian)
+          case _ => BitsType(widthStr.toInt, BigBitEndian)
+        }
+      case "str" => CalcStrType
+      case "bool" => CalcBooleanType
+      case "struct" => CalcKaitaiStructType
+      case "io" => KaitaiStreamType
+      case "any" => AnyType
+      case _ => CalcUserType(classNameToList(singleId), None)
+    }
+    if (isArray) {
+      CalcArrayType(singleType)
+    } else {
+      singleType
+    }
   }
 
   def getEncoding(curEncoding: Option[String], metaDef: MetaSpec, path: List[String]): String = {
     curEncoding.orElse(metaDef.encoding) match {
       case Some(enc) => enc
       case None =>
-        throw new YAMLParseException("string type, but no encoding found", path)
+        throw KSYParseError("string type, but no encoding found", path).toException
     }
   }
 

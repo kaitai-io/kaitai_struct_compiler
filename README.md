@@ -1,5 +1,12 @@
 # Kaitai Struct: compiler
 
+![Build Status](https://img.shields.io/github/workflow/status/kaitai-io/kaitai_struct_compiler/test)
+[![Maven Central](https://img.shields.io/maven-central/v/io.kaitai/kaitai-struct-compiler_2.12)](https://search.maven.org/artifact/io.kaitai/kaitai-struct-compiler_2.12)
+
+[![npm@latest](https://img.shields.io/npm/v/kaitai-struct-compiler/latest)](https://www.npmjs.com/package/kaitai-struct-compiler/v/latest)
+[![npm@next](https://img.shields.io/npm/v/kaitai-struct-compiler/next)](https://www.npmjs.com/package/kaitai-struct-compiler/v/next)
+[![npm downloads](https://img.shields.io/npm/dm/kaitai-struct-compiler?label=npm%20downloads)](https://www.npmtrends.com/kaitai-struct-compiler)
+
 This project is an official reference compiler for [Kaitai Struct](http://kaitai.io) project.
 
 Kaitai Struct is a declarative language used to describe various
@@ -28,27 +35,27 @@ If you're looking for information on:
 
 ### Main code
 
-Kaitai Struct compiler itself is copyright (C) 2015-2019 Kaitai
+Kaitai Struct compiler itself is copyright (C) 2015-2022 Kaitai
 Project.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or (at
-your option) any later version.
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ### FastParse
 
 Portions of Kaitai Struct compiler are loosely based on
-[pythonparse](https://github.com/lihaoyi/fastparse/tree/master/pythonparse/shared/src/main/scala/pythonparse)
-from [FastParse](http://www.lihaoyi.com/fastparse/) and are copyright
+[pythonparse](https://github.com/com-lihaoyi/fastparse/tree/1.0.0/pythonparse/shared/src/main/scala/pythonparse)
+from [FastParse](https://com-lihaoyi.github.io/fastparse/) and are copyright
 (c) 2014 Li Haoyi (haoyi.sg@gmail.com).
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -74,7 +81,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Portions of Kaitai Struct compiler are based on `scala/xml/Utility.scala` from [Scala XML](https://github.com/scala/scala-xml).
 
-Copyright (c) 2002-2017 EPFL
+Copyright (c) 2002-2017 EPFL\
 Copyright (c) 2011-2017 Lightbend, Inc.
 
 All rights reserved.
@@ -108,8 +115,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 Kaitai Struct compiler depends on the following libraries:
 
 * [scopt](https://github.com/scopt/scopt) — MIT license
-* [fastparse](http://www.lihaoyi.com/fastparse/) — MIT license
-* [snakeyaml](https://bitbucket.org/asomov/snakeyaml) — Apache 2.0 license
+* [fastparse](https://com-lihaoyi.github.io/fastparse/) — MIT license
+* [snakeyaml](https://bitbucket.org/snakeyaml/snakeyaml) — Apache 2.0 license
 
 ---
 

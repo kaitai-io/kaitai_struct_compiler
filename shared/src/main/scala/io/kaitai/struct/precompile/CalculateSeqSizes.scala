@@ -7,7 +7,9 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
 class CalculateSeqSizes(specs: ClassSpecs) {
-  def run(): Unit = specs.forEachRec(CalculateSeqSizes.getSeqSize)
+  def run(): Unit = {
+    specs.forEachRec(CalculateSeqSizes.getSeqSize)
+  }
 }
 
 object CalculateSeqSizes {
@@ -82,8 +84,8 @@ object CalculateSeqSizes {
     */
   def dataTypeBitsSize(dataType: DataType): Sized = {
     dataType match {
-      case BitsType1 => FixedSized(1)
-      case BitsType(width) => FixedSized(width)
+      case BitsType1(_) => FixedSized(1)
+      case BitsType(width, _) => FixedSized(width)
       case EnumType(_, basedOn) => dataTypeBitsSize(basedOn)
       case ut: UserTypeInstream => getSeqSize(ut.classSpec.get)
       case _ =>
@@ -114,6 +116,7 @@ object CalculateSeqSizes {
       case _: BytesTerminatedType => DynamicSized
       case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
       case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
+      case cutb: CalcUserTypeFromBytes => dataTypeByteSize(cutb.bytes)
       case st: SwitchType => DynamicSized // FIXME: it's really possible get size if st.hasSize
     }
   }

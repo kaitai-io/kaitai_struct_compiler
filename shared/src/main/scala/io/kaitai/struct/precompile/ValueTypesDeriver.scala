@@ -1,6 +1,7 @@
 package io.kaitai.struct.precompile
 
-import io.kaitai.struct.format.{ClassSpec, ClassSpecs, ValueInstanceSpec, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs, ValueInstanceSpec}
+import io.kaitai.struct.problems.ErrorInInput
 import io.kaitai.struct.translators.TypeDetector
 import io.kaitai.struct.{ClassTypeProvider, Log}
 
@@ -21,11 +22,11 @@ class ValueTypesDeriver(specs: ClassSpecs, topClass: ClassSpec) {
       case (instName, inst) =>
         inst match {
           case vi: ValueInstanceSpec =>
-            vi.dataType match {
+            vi.dataTypeOpt match {
               case None =>
                 try {
-                  val viType = detector.detectType(vi.value).asNonOwning
-                  vi.dataType = Some(viType)
+                  val viType = detector.detectType(vi.value)
+                  vi.dataTypeOpt = Some(viType)
                   Log.typeProcValue.info(() => s"${instName.name} derived type: $viType")
                   hasChanged = true
                 } catch {
@@ -34,7 +35,7 @@ class ValueTypesDeriver(specs: ClassSpecs, topClass: ClassSpec) {
                     hasUndecided = true
                     // just ignore, we're not there yet, probably we'll get it on next iteration
                   case err: ExpressionError =>
-                    throw new ErrorInInput(err, vi.path ++ List("value"))
+                    throw ErrorInInput(err, vi.path ++ List("value")).toException
                 }
               case Some(_) =>
                 // already derived, do nothing

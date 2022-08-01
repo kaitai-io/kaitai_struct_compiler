@@ -53,8 +53,11 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     }
   }
 
+  override def doInternalName(id: Identifier): String =
+    s"this.${JavaScriptCompiler.publicMemberName(id)}"
+
   override def doEnumByLabel(enumType: List[String], label: String): String =
-    s"${JavaScriptCompiler.types2class(enumType)}.${label.toUpperCase}"
+    s"${JavaScriptCompiler.types2class(enumType)}.${Utils.upperUnderscoreCase(label)}"
   override def doEnumById(enumTypeAbs: List[String], label: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     label

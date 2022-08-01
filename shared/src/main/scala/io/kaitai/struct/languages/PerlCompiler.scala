@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, NeedRaw}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -16,6 +16,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
     with FixedContentsUsingArrayByteLiteral
+    with SwitchIfOps
     with EveryReadIsExpression {
 
   import PerlCompiler._
@@ -97,7 +98,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  override def runRead(): Unit =
+  override def runRead(name: List[String]): Unit =
     out.puts("$self->_read();")
 
   override def runReadCalc(): Unit = {
@@ -166,44 +167,51 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    out.puts(proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
         }
-        s"$destName = $kstreamName::$procName($srcName, ${expression(xorValue)});"
+        s"$kstreamName::$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
         importList.add("Compress::Zlib")
-        s"$destName = Compress::Zlib::uncompress($srcName);"
+        s"Compress::Zlib::uncompress($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$destName = $kstreamName::process_rotate_left($srcName, $expr, 1);"
-    })
+        s"$kstreamName::process_rotate_left($srcExpr, $expr, 1)"
+    }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatEos => s"$memberName[-1]"
-      case RepeatExpr(_) => s"$memberName[$$i]"
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-      case NoRepeat => s"$memberName"
+      case _ => getRawIdExpr(id, rep)
     }
 
     val ioName = s"$$io_${idToStr(id)}"
 
     out.puts(s"my $ioName = $kstreamName->new($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[$$i]"
+      case _ => s"$memberName[-1]"
+    }
   }
 
   override def useIO(ioEx: expr): String = {
@@ -228,10 +236,15 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ();")
     out.puts(s"${privateMemberName(id)} = ();")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts(s"while (!$io->is_eof()) {")
     out.inc
   }
@@ -239,10 +252,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
-    if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
-    out.puts(s"${privateMemberName(id)} = ();")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
     val nVar = s"$$n_${idToStr(id)}"
     out.puts(s"my $nVar = ${expression(repeatExpr)};")
     out.puts(s"for (my $$i = 0; $$i < $nVar; $$i++) {")
@@ -250,12 +260,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}[$$i] = $expr;")
+    handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
-    out.puts(s"${privateMemberName(id)} = ();")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("do {")
     out.inc
   }
@@ -270,7 +277,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"push @{${privateMemberName(id)}}, $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} until (${expression(untilExpr)});")
@@ -289,10 +296,10 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io->read_bytes_full()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io->read_bytes_term($terminator, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
-      case BitsType1 =>
-        s"$io->read_bits_int(1)"
-      case BitsType(width: Int) =>
-        s"$io->read_bits_int($width)"
+      case BitsType1(bitEndian) =>
+        s"$io->read_bits_int_${bitEndian.toSuffix}(1)"
+      case BitsType(width: Int, bitEndian) =>
+        s"$io->read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
         val addArgs = if (t.isOpaque) {
           ""
@@ -323,29 +330,36 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
+  override def switchCaseStart(condition: Ast.expr): Unit = {}
+  override def switchCaseEnd(): Unit = {}
+  override def switchElseStart(): Unit = {}
+  override def switchEnd(): Unit = {}
+
+  override def switchRequiresIfs(onType: DataType): Boolean = true
+
+  override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
     typeProvider._currentSwitchType = Some(translator.detectType(on))
     out.puts(s"my $$_on = ${expression(on)};")
   }
 
-  override def switchCaseFirstStart(condition: Ast.expr): Unit = {
+  override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
     out.puts(s"if (${expression(onComparisonExpr(condition))}) {")
     out.inc
   }
 
-  override def switchCaseStart(condition: Ast.expr): Unit = {
+  override def switchIfCaseStart(condition: Ast.expr): Unit = {
     out.puts(s"elsif (${expression(onComparisonExpr(condition))}) {")
     out.inc
   }
+  override def switchIfCaseEnd(): Unit = universalFooter
 
-  override def switchCaseEnd(): Unit = universalFooter
-
-  override def switchElseStart(): Unit = {
+  override def switchIfElseStart(): Unit = {
     out.puts(s"else {")
     out.inc
   }
 
-  override def switchEnd(): Unit = {}
+  override def switchIfEnd(): Unit = {}
 
   /**
     * Generates comparison expression by a given condition expression, comparing
@@ -375,25 +389,17 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
 
     enumColl.foreach { case (id, label) =>
-      out.puts(s"our ${enumValue(enumName, label.name)} = $id;")
+      out.puts(s"our ${enumValue(enumName, label.name)} = ${translator.doIntLiteral(id)};")
     }
   }
 
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
 
-  override def idToStr(id: Identifier): String = {
-    id match {
-      case NamedIdentifier(name) => name
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case si: SpecialIdentifier => si.name
-      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
-      case InstanceIdentifier(name) => name
-    }
-  }
+  override def idToStr(id: Identifier): String = PerlCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String = PerlCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"$$self->{${idToStr(id)}}"
-
-  override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
@@ -410,6 +416,17 @@ object PerlCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new PerlCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => name
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => name
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+    }
+
+  def publicMemberName(id: Identifier): String = idToStr(id)
 
   def packageName: String = "IO::KaitaiStruct"
   override def kstreamName: String = s"$packageName::Stream"

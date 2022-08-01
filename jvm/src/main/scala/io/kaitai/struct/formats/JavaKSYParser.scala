@@ -1,30 +1,41 @@
 package io.kaitai.struct.formats
 
 import java.io._
-import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 import java.util.{List => JList, Map => JMap}
-
 import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
-import io.kaitai.struct.precompile.YAMLParserError
+import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException, ProblemCoords, ProblemSeverity, YAMLParserError}
 import io.kaitai.struct.{Log, Main}
 import org.yaml.snakeyaml.constructor.SafeConstructor
 import org.yaml.snakeyaml.error.MarkedYAMLException
 import org.yaml.snakeyaml.representer.Representer
 import org.yaml.snakeyaml.{DumperOptions, LoaderOptions, Yaml}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 object JavaKSYParser {
-  def localFileToSpecs(yamlFilename: String, config: CLIConfig): ClassSpecs = {
-    val firstSpec = fileNameToSpec(yamlFilename)
-    val yamlDir = Option(new File(yamlFilename).getParent).getOrElse(".")
-    val specs = new JavaClassSpecs(yamlDir, config.importPaths, firstSpec)
+  def localFileToSpecs(yamlFilename: String, config: CLIConfig): (Option[ClassSpecs], Iterable[CompilationProblem]) = {
+    try {
+      val firstSpec = fileNameToSpec(yamlFilename)
+      val yamlDir = Option(new File(yamlFilename).getParent).getOrElse(".")
+      val specs = new JavaClassSpecs(yamlDir, config.importPaths, firstSpec)
 
-    Await.result(Main.importAndPrecompile(specs, config.runtime), Duration.Inf)
-    specs
+      val problems = Await.result(Main.importAndPrecompile(specs, config.runtime), Duration.Inf)
+      val gotError = problems.exists(p => p.severity != ProblemSeverity.Warning)
+      (if (gotError) None else Some(specs), problems)
+    } catch {
+      case ex: CompilationProblemException =>
+        val problem = ex.problem
+        val problemLocalized = if (problem.coords.file.isEmpty) {
+          problem.localizedInFile(yamlFilename)
+        } else {
+          problem
+        }
+        (None, List(problemLocalized))
+    }
   }
 
   def fileNameToSpec(yamlFilename: String): ClassSpec = {
@@ -35,19 +46,24 @@ object JavaKSYParser {
     // which screws up encoding on some systems and screws up reading
     // UTF-8 files with BOM
     val fis = new FileInputStream(yamlFilename)
-    val isr = new InputStreamReader(fis, Charset.forName("UTF-8"))
+    val isr = new InputStreamReader(fis, StandardCharsets.UTF_8)
     val br = new BufferedReader(isr)
     try {
       val scalaSrc = readerToYaml(br)
-      ClassSpec.fromYaml(scalaSrc)
+      ClassSpec.fromYaml(scalaSrc, Some(yamlFilename))
     } catch {
       case marked: MarkedYAMLException =>
         val mark = marked.getProblemMark
-        throw YAMLParserError(
-          marked.getProblem,
-          Some(yamlFilename),
-          Some(mark.getLine + 1),
-          Some(mark.getColumn + 1)
+        throw CompilationProblemException(
+          YAMLParserError(
+            marked.getProblem,
+            ProblemCoords(
+              Some(yamlFilename),
+              None,
+              Some(mark.getLine + 1),
+              Some(mark.getColumn + 1)
+            )
+          )
         )
     }
   }
@@ -74,9 +90,9 @@ object JavaKSYParser {
   def yamlJavaToScala(src: Any): Any = {
     src match {
       case jlist: JList[AnyRef] =>
-        jlist.toList.map(yamlJavaToScala)
+        jlist.asScala.toList.map(yamlJavaToScala)
       case jmap: JMap[String, AnyRef] =>
-        jmap.toMap.mapValues(yamlJavaToScala)
+        jmap.asScala.toMap.mapValues(yamlJavaToScala)
       case _: String =>
         src
       case _: Double =>

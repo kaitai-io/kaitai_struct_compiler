@@ -37,11 +37,13 @@ class ClassCompiler(
   }
 
   /**
-    * Generates code for one full class using a given [[ClassSpec]].
+    * Generates code for one full class using a given [[format.ClassSpec]].
     * @param curClass current class to generate code for
     */
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
+
+    curClass.meta.imports.foreach(file => lang.importFile(file))
 
     if (!lang.innerDocstrings)
       compileClassDoc(curClass)
@@ -51,6 +53,18 @@ class ClassCompiler(
 
     // Forward declarations for recursive types
     curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(List(typeName)) }
+
+    // Forward declarations for params which reference types external to this type
+    curClass.params.foreach((paramDefSpec) =>
+      paramDefSpec.dataType match {
+        case ut: UserType =>
+          val externalTypeName = ut.classSpec.get.name
+          if (externalTypeName.head != curClass.name.head) {
+            lang.classForwardDeclaration(externalTypeName)
+          }
+        case _ => // no forward declarations needed
+      }
+    )
 
     if (lang.innerEnums)
       compileEnums(curClass)
@@ -93,6 +107,8 @@ class ClassCompiler(
     compileAttrDeclarations(allAttrs)
     compileAttrReaders(allAttrs)
 
+    curClass.toStringExpr.foreach(expr => lang.classToString(expr))
+
     lang.classFooter(curClass.name)
 
     if (!lang.innerClasses)
@@ -122,7 +138,7 @@ class ClassCompiler(
     compileInit(curClass)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     if (lang.config.autoRead)
-      lang.runRead()
+      lang.runRead(curClass.name)
     lang.classConstructorFooter
   }
 
@@ -309,7 +325,6 @@ class ClassCompiler(
       if (wasUnaligned && !nowUnaligned)
         lang.alignToByte(lang.normalIO)
       lang.attrParse(attr, attr.id, defEndian)
-      compileValidate(attr)
       wasUnaligned = nowUnaligned
     }
   }
@@ -330,13 +345,6 @@ class ClassCompiler(
       lang.attrCheck(attr, attr.id)
     }
   }
-
-  /**
-    * Compiles validation procedure for one attribute after it was parsed.
-    * @param attr attribute to validate
-    */
-  def compileValidate(attr: AttrSpec): Unit =
-    attr.valid.foreach(valid => lang.attrValidate(attr.id, attr, valid))
 
   /**
     * Compiles all enums specifications for a given type.
@@ -376,24 +384,33 @@ class ClassCompiler(
         lang.attrParseIfHeader(instName, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
-      case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, endian)
+        lang.instanceSetCalculated(instName)
+      case pi: ParseInstanceSpec =>
+        lang.attrParse(pi, instName, endian)
     }
 
-    lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
   }
 
-  def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit =
-    lang.instanceDeclaration(instName, instSpec.dataTypeComposite, instSpec.isNullable)
+  def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit = {
+    val isNullable = if (lang.switchBytesOnlyAsRaw) {
+      instSpec match {
+        case pi: ParseInstanceSpec => pi.isNullableSwitchRaw
+        case i => i.isNullable
+      }
+    } else {
+      instSpec.isNullable
+    }
+    lang.instanceDeclaration(instName, instSpec.dataTypeComposite, isNullable)
+  }
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =
     lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
 
   def isUnalignedBits(dt: DataType): Boolean =
     dt match {
-      case _: BitsType | BitsType1 => true
+      case _: BitsType | _: BitsType1 => true
       case et: EnumType => isUnalignedBits(et.basedOn)
       case _ => false
     }

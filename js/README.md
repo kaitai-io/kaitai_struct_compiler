@@ -16,7 +16,7 @@ a nice, easy-to-comprehend API.
 
 For more info on Kaitai Struct, please refer to http://kaitai.io/
 
-Note that reference Kaitai Struct compiler is written Scala, and thus
+Note that reference Kaitai Struct compiler is written in Scala, and thus
 can be compiled for a variety of platforms, such as JVM, JavaScript
 and native binaries. This package is compiled to be run JavaScript
 environments.
@@ -33,7 +33,8 @@ the compiler). If you:
   (compiling it on the fly) => use
   [Kaitai Struct loader for JavaScript](https://github.com/kaitai-io/kaitai-struct-loader).
 * want to integrate compiler into your build flow => use a JVM-based
-  desktop compiler, which can be called as a command-line utility
+  [desktop compiler](https://kaitai.io/#download), which can be called
+  as a command-line utility
 
 ## Installation
 
@@ -53,9 +54,9 @@ Our [examples repository](https://github.com/kaitai-io/kaitai_struct_examples) c
 
 ## Plugging in
 
-We publish the compiler as an [UMD module](https://github.com/umdjs/umd), so it works from various environments, including server-side (eg. node) and client-side (eg. web browser) ones.
+We publish the compiler as a [UMD module](https://github.com/umdjs/umd), so it works from various environments, including server-side (e.g. Node.js) and client-side (e.g. web browser) ones.
 
-Note: currently we don't publish the compiler as standard ES module. This will probably change in the future. If you need ES module please comment on [this issue](https://github.com/kaitai-io/kaitai_struct/issues/180).
+Note: currently we don't publish the compiler as standard ES module. This will probably change in the future. If you need ES module, please comment on [this issue](https://github.com/kaitai-io/kaitai_struct/issues/180).
 
 ### node
 
@@ -67,18 +68,18 @@ var compiler = new KaitaiStructCompiler();
 ### browser using script tags
 
 ```html
-<script src="node_modules/kaitai-struct-compiler/kaitai-struct-compiler.js"></script> 
+<script src="node_modules/kaitai-struct-compiler/kaitai-struct-compiler.js"></script>
 <script>
     var compiler = new KaitaiStructCompiler();
 </script>
 ```
 
-### browser using AMD loader (eg. require.js)
+### browser using AMD loader (e.g. require.js)
 
 ```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
 <script>
-    requirejs.config({ 
+    requirejs.config({
         paths: {
             'kaitai-struct-compiler': 'node_modules/kaitai-struct-compiler/kaitai-struct-compiler'
         }
@@ -132,33 +133,46 @@ yamlImporter.importYaml("import_outer.ksy").then(function(ksy) {
 
 ### Debug mode
 
-You can compile in debug mode which adds `_debug` property to every object and this `_debug` object contains the start and end offsets of the parsed fields so you can find bytes of the field in the original binary.
+You can compile `.ksy` source files in debug mode by setting the `debugMode` parameter to `true`. This has two effects (these can be controlled separately in the JVM-based desktop compiler since 0.9 - see [#332](https://github.com/kaitai-io/kaitai_struct/issues/332#issuecomment-454795155), but not yet in this JS compiler):
 
-## Copyrights and licensing
+* objects created from user-defined `types` (and the top-level type with name specified in `/meta/id`) in the .ksy file will have a `_debug` map, which stores start and end offsets of each attribute - this is used in visualizers.
+
+  On the JVM-based desktop compiler, this can be enabled with `--read-pos`.
+
+* the `_read` method (responsible for reading the `seq` structure defined in the .ksy file) will no longer be automatically called from constructors in the generated parser code, so you have to call it manually like this:
+
+  ```diff
+   var g = new Gif(new KaitaiStream(data));
+  +g._read();
+  ```
+
+  On the JVM-based desktop compiler, this can be enabled with `--no-auto-read`.
+
+## Licensing
 
 ### Main code
 
-Kaitai Struct compiler itself is copyright (C) 2015-2017 Kaitai
+Kaitai Struct compiler itself is copyright (C) 2015-2022 Kaitai
 Project.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or (at
-your option) any later version.
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ### FastParse
 
 Portions of Kaitai Struct compiler are loosely based on
-[pythonparse](https://github.com/lihaoyi/fastparse/tree/master/pythonparse/shared/src/main/scala/pythonparse)
-from [FastParse](http://www.lihaoyi.com/fastparse/) and are copyright
+[pythonparse](https://github.com/com-lihaoyi/fastparse/tree/1.0.0/pythonparse/shared/src/main/scala/pythonparse)
+from [FastParse](https://com-lihaoyi.github.io/fastparse/) and are copyright
 (c) 2014 Li Haoyi (haoyi.sg@gmail.com).
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -182,11 +196,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### Libraries used
 
-Kaitai Struct compiler depends on the following libraries:
+Kaitai Struct compiler in JavaScript depends on the following libraries:
 
-* [scopt](https://github.com/scopt/scopt) — MIT license
-* [fastparse](http://www.lihaoyi.com/fastparse/) — MIT license
-* [snakeyaml](https://bitbucket.org/asomov/snakeyaml) — Apache 2.0 license
+* [fastparse](https://com-lihaoyi.github.io/fastparse/) — MIT license
 
 ---
 

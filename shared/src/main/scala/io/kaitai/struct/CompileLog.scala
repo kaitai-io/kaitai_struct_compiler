@@ -1,5 +1,8 @@
 package io.kaitai.struct
 
+import io.kaitai.struct.problems.CompilationProblem
+import io.kaitai.struct.problems.ProblemSeverity
+
 /**
   * Namespace for all the objects related to compilation results.
   */
@@ -10,19 +13,22 @@ object CompileLog {
 
   sealed trait InputEntry extends Jsonable with CanHasErrors
 
-  case class InputFailure(errors: List[CompileError]) extends InputEntry {
-    override def toJson: String = JSON.mapToJson(Map("errors" -> errors))
+  case class InputFailure(problems: Iterable[CompilationProblem]) extends InputEntry {
+    override def toJson: String = {
+      JSON.mapToJson(problemsToMap(problems))
+    }
     override def hasErrors = true
   }
 
   case class InputSuccess(
     firstSpecName: String,
-    output: Map[String, Map[String, SpecEntry]]
+    output: Map[String, Map[String, SpecEntry]],
+    problems: Iterable[CompilationProblem]
   ) extends InputEntry {
     override def toJson: String = JSON.mapToJson(Map(
       "firstSpecName" -> firstSpecName,
       "output" -> output
-    ))
+    ) ++ problemsToMap(problems))
 
     override def hasErrors: Boolean =
       output.values.map(_.values.map(_.hasErrors).max).max
@@ -31,7 +37,7 @@ object CompileLog {
   /** Compilation result of a single [[io.kaitai.struct.format.ClassSpec]] into a single target language. */
   sealed trait SpecEntry extends Jsonable with CanHasErrors
 
-  case class SpecFailure(errors: List[CompileError]) extends SpecEntry {
+  case class SpecFailure(errors: List[CompilationProblem]) extends SpecEntry {
     override def toJson: String = JSON.mapToJson(Map("errors" -> errors))
     override def hasErrors: Boolean = true
   }
@@ -55,15 +61,10 @@ object CompileLog {
     override def toJson: String = JSON.mapToJson(Map("fileName" -> fileName))
   }
 
-  case class CompileError(
-    file: String,
-    path: List[String],
-    message: String
-  ) extends Jsonable {
-    override def toJson: String = JSON.mapToJson(Map(
-      "file" -> file,
-      "path" -> path,
-      "message" -> message
-    ))
+  def problemsToMap(problems: Iterable[CompilationProblem]): Map[String, Iterable[CompilationProblem]] = {
+    val problemsByIsWarning = problems.groupBy(_.severity == ProblemSeverity.Warning)
+    problemsByIsWarning.map { case (isWarning, suchProblems) =>
+      (if (isWarning) "warnings" else "errors") -> suchProblems
+    }
   }
 }

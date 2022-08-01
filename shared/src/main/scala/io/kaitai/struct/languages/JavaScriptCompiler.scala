@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -9,7 +9,7 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.JavaScriptTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
-class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeConfig)
+class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with UpperCamelCaseClasses
@@ -42,7 +42,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
       indent + "} else {\n" +
       indent * 2 + s"root.${types2class(topClass.name)} = factory($rootArgs);\n" +
       indent + "}\n" +
-      s"}(this, function (${argClasses.mkString(", ")}) {"
+      s"}(typeof self !== 'undefined' ? self : this, function (${argClasses.mkString(", ")}) {"
   }
 
   override def fileHeader(topClassName: String): Unit = {
@@ -115,7 +115,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts("}")
   }
 
-  override def runRead(): Unit = {
+  override def runRead(name: List[String]): Unit = {
     out.puts("this._read();")
   }
 
@@ -138,7 +138,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
     val suffix = endian match {
-      case Some(e) => e.toSuffix.toUpperCase
+      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
       case None => ""
     }
     out.puts(s"${type2class(typeProvider.nowClass.name.last)}.prototype._read$suffix = function() {")
@@ -189,26 +189,25 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
       s"$normalIO.ensureFixedContents($contents);")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier): Unit = {
-    val srcName = privateMemberName(varSrc)
-    val destName = privateMemberName(varDest)
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+    val srcExpr = getRawIdExpr(varSrc, rep)
 
-    proc match {
+    val expr = proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "processXorOne"
           case _: BytesType => "processXorMany"
         }
-        out.puts(s"$destName = $kstreamName.$procName($srcName, ${expression(xorValue)});")
+        s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        out.puts(s"$destName = $kstreamName.processZlib($srcName);")
+        s"$kstreamName.processZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        out.puts(s"$destName = $kstreamName.processRotateLeft($srcName, $expr, 1);")
+        s"$kstreamName.processRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val nameInit = name.init
         val pkgName = if (nameInit.isEmpty) "" else nameInit.mkString("-") + "/"
@@ -217,8 +216,9 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
         importList.add(s"$pkgName$procClass")
 
         out.puts(s"var _process = new $procClass(${args.map(expression).mkString(", ")});")
-        out.puts(s"$destName = _process.decode($srcName);")
+        s"_process.decode($srcExpr)"
     }
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
@@ -227,14 +227,19 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
     val ioName = s"_io_$langName"
 
-    val args = rep match {
-      case RepeatEos | RepeatUntil(_) => s"$memberCall[$memberCall.length - 1]"
-      case RepeatExpr(_) => s"$memberCall[i]"
-      case NoRepeat => memberCall
-    }
+    val args = getRawIdExpr(varName, rep)
 
     out.puts(s"var $ioName = new $kstreamName($args);")
     ioName
+  }
+
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
+    val memberName = privateMemberName(varName)
+    rep match {
+      case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i]"
+      case _ => s"$memberName[$memberName.length - 1]"
+    }
   }
 
   override def useIO(ioEx: expr): String = {
@@ -262,7 +267,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
     val ioProps = io match {
       case None => ""
-      case Some(x) => s"start: $x.pos, ioOffset: $x._byteOffset"
+      case Some(x) => s"start: $x.pos, ioOffset: $x.byteOffset"
     }
 
     val enumNameProps = attrType match {
@@ -286,17 +291,23 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.inc
   }
 
+  // TODO: replace this with UniversalFooter
   override def condIfFooter(expr: expr): Unit = {
     out.dec
     out.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean): Unit = {
-    if (needRaw)
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
     if (config.readStoresPos)
       out.puts(s"this._debug.${idToStr(id)}.arr = [];")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("var i = 0;")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
@@ -312,31 +323,20 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, repeatExpr: expr): Unit = {
-    if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new Array(${expression(repeatExpr)});")
-    out.puts(s"${privateMemberName(id)} = new Array(${expression(repeatExpr)});")
-    if (config.readStoresPos)
-      out.puts(s"this._debug.${idToStr(id)}.arr = new Array(${expression(repeatExpr)});")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
     out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}[i] = $expr;")
-  }
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
+    handleAssignmentRepeatEos(id, expr)
 
   override def condRepeatExprFooter: Unit = {
     out.dec
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
-    if (needRaw)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-    out.puts(s"${privateMemberName(id)} = []")
-    if (config.readStoresPos)
-      out.puts(s"this._debug.${idToStr(id)}.arr = [];")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("var i = 0;")
     out.puts("do {")
     out.inc
@@ -348,7 +348,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts(s"${privateMemberName(id)}.push($tmpName);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: Boolean, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("i++;")
     out.dec
@@ -372,10 +372,10 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
         s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
-      case BitsType1 =>
-        s"$io.readBitsInt(1) != 0"
-      case BitsType(width: Int) =>
-        s"$io.readBitsInt($width)"
+      case BitsType1(bitEndian) =>
+        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
+      case BitsType(width: Int, bitEndian) =>
+        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
         val parent = t.forcedParent match {
           case Some(USER_TYPE_NO_PARENT) => "null"
@@ -404,7 +404,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     expr2
   }
 
-  override def userTypeDebugRead(id: String): Unit = {
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
     out.puts(s"$id._read();")
   }
 
@@ -518,7 +518,7 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
 
     // Name to ID mapping
     enumColl.foreach { case (id, label) =>
-      out.puts(s"${enumValue(enumName, label.name)}: $id,")
+      out.puts(s"${enumValue(enumName, label.name)}: ${translator.doIntLiteral(id)},")
     }
     out.puts
 
@@ -537,31 +537,29 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     out.puts
   }
 
-  def enumValue(enumName: String, label: String) = label.toUpperCase
+  def enumValue(enumName: String, label: String) = Utils.upperUnderscoreCase(label)
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
     //val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
     //out.puts(s"SEQ_FIELDS = [$seqStr]")
   }
 
-  def idToStr(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => s"_m_${Utils.lowerCamelCase(name)}"
-      case RawIdentifier(innerId) => "_raw_" + idToStr(innerId)
-    }
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    val className = type2class(translator.provider.nowClass.name.last)
+
+    out.puts
+    out.puts(s"${className}.prototype.toString = function() {")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)};")
+    out.dec
+    out.puts("}")
   }
+
+  def idToStr(id: Identifier): String = JavaScriptCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier) = JavaCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
-
-  override def publicMemberName(id: Identifier): String = {
-    id match {
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
-    }
-  }
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -571,13 +569,13 @@ class JavaScriptCompiler(val typeProvider: ClassTypeProvider, config: RuntimeCon
     attrId: Identifier,
     attrType: DataType,
     checkExpr: Ast.expr,
-    errName: String,
+    err: KSError,
     errArgs: List[Ast.expr]
   ): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
     out.puts(s"if (!(${translator.translate(checkExpr)})) {")
     out.inc
-    out.puts(s"throw new $errName($errArgsStr);")
+    out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
     out.dec
     out.puts("}")
   }
@@ -607,6 +605,21 @@ object JavaScriptCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new JavaScriptCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => s"_m_${Utils.lowerCamelCase(name)}"
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+    }
+
+  def publicMemberName(id: Identifier): String =
+    id match {
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case _ => idToStr(id)
+    }
 
   override def kstreamName: String = "KaitaiStream"
 

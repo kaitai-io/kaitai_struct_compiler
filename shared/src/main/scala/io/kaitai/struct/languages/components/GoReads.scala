@@ -22,7 +22,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     }
     val expr = parseExprBytes(translator.outVarCheckRes(parseExpr(dataType, io, None)), dataType)
     handleAssignment(rawId, expr, rep, isRaw)
-    dataType.process.foreach((proc) => attrProcess(proc, rawId, id))
+    dataType.process.foreach((proc) => attrProcess(proc, rawId, id, rep))
   }
 
   def attrSwitchTypeParse(
@@ -75,7 +75,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
         val enumSpec = t.enumSpec.get
         val expr = translator.trEnumById(enumSpec.name, translator.resToStr(r1))
         handleAssignment(id, expr, rep, isRaw)
-      case BitsType1 =>
+      case _: BitsType1 =>
         val expr = parseExpr(dataType, io, defEndian)
         val r1 = translator.outVarCheckRes(expr)
         val r2 = ResultString(s"${translator.resToStr(r1)} != 0")
@@ -122,7 +122,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
 
         val extraType = rep match {
           case NoRepeat => byteType
-          case _ => ArrayType(byteType)
+          case _ => ArrayTypeInStream(byteType)
         }
 
         this match {

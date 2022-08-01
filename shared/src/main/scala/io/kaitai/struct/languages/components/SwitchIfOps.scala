@@ -76,34 +76,44 @@ trait SwitchIfOps extends SwitchOps {
     normalCaseProc: (T) => Unit,
     elseCaseProc: (T) => Unit
   ): Unit = {
-    switchIfStart(id, on, onType)
+    val someNormalCases = cases.filter { case (caseExpr, _) =>
+      caseExpr != SwitchType.ELSE_CONST
+    }.size > 0
 
-    // Pass 1: only normal case clauses
-    var first = true
+    if (someNormalCases) {
+      switchIfStart(id, on, onType)
 
-    cases.foreach { case (condition, result) =>
-      condition match {
-        case SwitchType.ELSE_CONST =>
-          // skip for now
-        case _ =>
-          if (first) {
-            switchIfCaseFirstStart(condition)
-            first = false
-          } else {
-            switchIfCaseStart(condition)
-          }
-          normalCaseProc(result)
-          switchIfCaseEnd()
+      // Pass 1: only normal case clauses
+      var first = true
+
+      cases.foreach { case (condition, result) =>
+        condition match {
+          case SwitchType.ELSE_CONST =>
+            // skip for now
+          case _ =>
+            if (first) {
+              switchIfCaseFirstStart(condition)
+              first = false
+            } else {
+              switchIfCaseStart(condition)
+            }
+            normalCaseProc(result)
+            switchIfCaseEnd()
+        }
+      }
+
+      // Pass 2: else clause, if it is there
+      cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
+        switchIfElseStart()
+        elseCaseProc(result)
+        switchIfElseEnd()
+      }
+
+      switchIfEnd()
+    } else {
+      cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
+        elseCaseProc(result)
       }
     }
-
-    // Pass 2: else clause, if it is there
-    cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
-      switchIfElseStart()
-      elseCaseProc(result)
-      switchIfElseEnd()
-    }
-
-    switchIfEnd()
   }
 }
