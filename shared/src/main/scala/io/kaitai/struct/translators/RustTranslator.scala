@@ -1,5 +1,8 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.format._
+import io.kaitai.struct.datatype._
+
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -44,38 +47,67 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def doLocalName(s: String) = {
-    s match {
-      case Identifier.ITERATOR => "tmpa"
-      case Identifier.ITERATOR2 => "tmpb"
-      case Identifier.INDEX => "i"
-      case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
-      case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
-      case Identifier.PARENT =>
-        // TODO: How to handle _parent._parent?
-        s"${RustCompiler.privateMemberName(ParentIdentifier)}.peek()"
-      case _ =>
-        if (provider.nowClass.seq.exists(a => a.id != IoIdentifier && a.id == NamedIdentifier(s))) {
-          // If the name is part of the `seq` parse list, it's safe to return as-is
-          s"self.${doName(s)}()"
-        } else if (provider.nowClass.instances.contains(InstanceIdentifier(s))) {
-          val userType = provider.nowClass.instances.get(InstanceIdentifier(s)).get.dataTypeComposite match {
-            case _: UserType => true
-            case _ => false
-          }
-          if (userType) {
-            s"self.${doName(s)}(${privateMemberName(IoIdentifier)})?"
-          } else {
-            s"*self.${doName(s)}(${privateMemberName(IoIdentifier)})?"
-          }
-        } else {
-          // unnamed identifier
-          s"self.${doName(s)}()"
+  override def doName(s: String) = s match {
+    case _ =>
+      val found = get_instance(get_top_class(provider.nowClass), InstanceIdentifier(s))
+      if (found.isDefined) {
+        val userType = found.get.dataTypeComposite match {
+          case _: UserType => true
+          case _ => false
         }
-    }
+        if (userType) {
+          s"$s(${privateMemberName(IoIdentifier)})?"
+        } else {
+          s"$s(${privateMemberName(IoIdentifier)})?"
+        }
+      } else {
+        s"$s()"
+      }
   }
 
-  override def doName(s: String) = s
+  def get_top_class(c: ClassSpec): ClassSpec = {
+    if (c.isTopLevel) {
+      return c
+    }
+    get_top_class(c.upClass.get)
+  }
+
+  def get_instance(cs: ClassSpec, id: Identifier): Option[InstanceSpec] = {
+    var found : Option[InstanceSpec] = None;
+    // look for instance
+    cs.instances.foreach { case (instName, instSpec) =>
+      if (instName == id) {
+        found = Some(instSpec);
+      }
+    }
+    // look deeper
+    if (found.isEmpty) {
+      cs.types.foreach {
+        case (_, typeSpec) => {
+          found = get_instance(typeSpec, id)
+          if (found.isDefined) {
+            return found;
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  override def anyField(value: expr, attrName: String): String =
+    s"${translate(value)}.${doName(attrName)}"
+
+  override def doLocalName(s: String) = s match {
+    case Identifier.ITERATOR => "tmpa"
+    case Identifier.ITERATOR2 => "tmpb"
+    case Identifier.INDEX => "i"
+    case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
+    case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
+    case Identifier.PARENT =>
+      // TODO: How to handle _parent._parent?
+      s"${RustCompiler.privateMemberName(ParentIdentifier)}.as_ref().unwrap().peek()"
+    case _ => s"self.${doName(s)}"
+  }
 
   override def doInternalName(id: Identifier): String =
     s"${doLocalName(idToStr(id))}"
