@@ -137,7 +137,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"${privateMemberName(RootIdentifier)}: Option<&$readLife Self::Root>,"
     )
     out.puts(
-      s"${privateMemberName(ParentIdentifier)}: TypedStack<Self::ParentStack>"
+      s"${privateMemberName(ParentIdentifier)}: Option<TypedStack<Self::ParentStack>>"
     )
     out.dec
     out.puts(s") -> KResult<()> {")
@@ -179,11 +179,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     var types : Set[DataType] = Set()
     var enum_typename = false
+    var as_ref = false
     var simple_typename = attrType match {
       case _: UserType => false
-      case _: BytesType => false
-      case _: StrType => false
-      case _: ArrayType => false
+      case _: BytesType => {
+        as_ref = true
+        true
+      }
+      case _: StrType => {
+        as_ref = true
+        true
+      }
+      case _: ArrayType => {
+        as_ref = true
+        true
+      }
       case st: SwitchType => {
         types = st.cases.values.toSet
         enum_typename = true
@@ -207,19 +217,23 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.inc
       out.puts(s"self.${idToStr(attrName)}.as_ref().unwrap().into()")
     } else {
-      if (simple_typename) {
+      if (as_ref) {
+        out.puts(s"pub fn ${idToStr(attrName)}(&self) -> &$typeNameEx {")
+      } else if (simple_typename) {
         out.puts(s"pub fn ${idToStr(attrName)}(&self) -> $typeNameEx {")
       } else {
-        out.puts(s"pub fn ${idToStr(attrName)}(&self) -> &$typeNameEx {")
+        out.puts(s"pub fn ${idToStr(attrName)}(&mut self) -> &mut $typeNameEx {")
       }
       out.inc
       if (typeName != typeNameEx) {
-        out.puts(s"self.${idToStr(attrName)}.as_ref().unwrap()")
+        out.puts(s"self.${idToStr(attrName)}.as_mut().unwrap()")
       } else {
-        if (simple_typename) {
+        if (as_ref) {
+          out.puts(s"&self.${idToStr(attrName)}")
+        } else if (simple_typename) {
           out.puts(s"self.${idToStr(attrName)}")
         } else {
-          out.puts(s"&self.${idToStr(attrName)}")
+          out.puts(s"&mut self.${idToStr(attrName)}")
         }
       }
     }
@@ -392,18 +406,30 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
     attrType match {
       case _: ArrayType => out.puts(s"pub ${idToStr(attrName)}: $typeName,")
-      case _: UserType => // do nothing (instance return &UserType)
       case _ => out.puts(s"pub ${idToStr(attrName)}: Option<$typeName>,")
     }
   }
 
   override def idToStr(id: Identifier): String = RustCompiler.idToStr(id)
 
+  def is_copy_type(dataType: DataType): Boolean = dataType match {
+    case _: UserType => false
+    case _: BytesType => false
+    case _: StrType => false
+    case _: ArrayType => false
+    case _ => true
+  }
+
+  def is_mut_needed(dataType: DataType): Boolean = dataType match {
+    case _: UserType => true
+    case _ => false
+  }
+
   override def instanceHeader(className: List[String],
                               instName: InstanceIdentifier,
                               dataType: DataType,
                               isNullable: Boolean): Unit = {
-
+    in_instance = true
     out.puts(s"pub fn ${idToStr(instName)}<S: $kstreamName>(")
     out.inc
     out.puts("&mut self,")
@@ -415,30 +441,42 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       dataType,
       excludeOptionWrapper = true
     )
-    out.puts(s") -> KResult<&$typeName> {")
+    if (is_copy_type(dataType)) {
+      out.puts(s") -> KResult<$typeName> {")
+    } else {
+      if (is_mut_needed(dataType)) {
+        out.puts(s") -> KResult<&mut $typeName> {")
+      } else {
+        out.puts(s") -> KResult<&$typeName> {")
+      }
+    }
     out.inc
+    out.puts(s"let _root : Option<&${classTypeName(typeProvider.topClass)}> = None;")
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier,
                                            dataType: DataType): Unit = {
-    val userType = dataType match {
-      case _: UserType => true
-      case _ => false
-    }
-    if (userType) {
-      return
-    }
     out.puts(s"if ${privateMemberName(instName)}.is_some() {")
     out.inc
-    instanceReturn(instName, dataType)
+    if (is_copy_type(dataType)) {
+      out.puts(s"return Ok(${privateMemberName(instName)}.unwrap());")
+    } else {
+      if (is_mut_needed(dataType)) {
+        out.puts(s"return Ok(${privateMemberName(instName)}.as_mut().unwrap());")
+      } else {
+        out.puts(s"return Ok(${privateMemberName(instName)}.as_ref().unwrap());")
+      }
+    }
     out.dec
     out.puts("}")
   }
 
+  var in_instance = false
+
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     dataType match {
       case _: UserType => {
-        out.puts(s"Ok(${expression(value)})")
+        out.puts(s"let ret = ${expression(value)};")
       }
       case _: StrType => {
         out.puts(s"${privateMemberName(instName)} = Some(${expression(value)}.to_string());")
@@ -449,20 +487,30 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
       case _ => {
         val primType = kaitaiPrimitiveToNativeType(dataType)
-        out.puts(s"${privateMemberName(instName)} = Some(${expression(value)} as $primType);")
+        out.puts(s"${privateMemberName(instName)} = Some((${expression(value)}) as $primType);")
       }
     }
   }
 
   override def instanceReturn(instName: InstanceIdentifier,
                               attrType: DataType): Unit = {
-    val userType = attrType match {
-      case _: UserType => true
-      case _ => false
+    attrType match {
+      case _: UserType => {
+        out.puts(s"Ok(ret)")
+      }
+      case _ => {
+        if (is_copy_type(attrType)) {
+          out.puts(s"Ok(${privateMemberName(instName)}.unwrap())")
+        } else {
+          if (is_mut_needed(attrType)) {
+            out.puts(s"Ok(${privateMemberName(instName)}.as_mut().unwrap())")
+          } else {
+            out.puts(s"Ok(${privateMemberName(instName)}.as_ref().unwrap())")
+          }
+        }
+      }
     }
-    if (!userType) {
-      out.puts(s"return Ok(${privateMemberName(instName)}.as_ref().unwrap());")
-    }
+    in_instance = false
   }
 
   override def enumDeclaration(curClass: List[String],
@@ -555,6 +603,28 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => done = false;
     }
     if (!done) {
+      id match {
+        case _: InstanceIdentifier => {
+          done = true;
+          out.puts(s"${privateMemberName(id)} = Some($expr);")
+
+          if (in_instance) {
+            val found = translator.get_instance(translator.get_top_class(typeProvider.nowClass), id)
+            if (found.isDefined) {
+              val userType = found.get.dataTypeComposite match {
+                case _: UserType => true
+                case _ => false
+              }
+              if (userType) {
+                out.puts(s"let ret = ${privateMemberName(id)}.as_mut().unwrap();")
+              }
+            }
+          }
+        }
+        case _ => false
+      }
+    }
+    if (!done) {
       out.puts(s"${privateMemberName(id)} = $expr;")
     }
   }
@@ -598,10 +668,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(USER_TYPE_NO_PARENT) => "KStructUnit::parent_stack()"
             case Some(fp) => translator.translate(fp)
             case None => {
-              if (userType contains currentType) {
-                s"${privateMemberName(ParentIdentifier)}.push(self)"
+              if ((userType contains currentType) && !in_instance) {
+                s"Some(${privateMemberName(ParentIdentifier)}.unwrap().push(self))"
               } else {
-                s"${privateMemberName(ParentIdentifier)}"
+                if(in_instance) {
+                  s"None"
+                } else {
+                  s"${privateMemberName(ParentIdentifier)}"
+                }
               }
             }
           }
