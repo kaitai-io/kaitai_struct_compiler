@@ -185,9 +185,4 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${translate(a)}.iter().min()"
   override def arrayMax(a: Ast.expr): String =
     s"${translate(a)}.iter().max()"
-
-  override def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String = {
-    val code = s"${anyField(value, attrName)}()"
-    code
-  }
 }
