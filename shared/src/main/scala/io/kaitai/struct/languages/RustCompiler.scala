@@ -1006,14 +1006,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                          ): Unit = {
     dataType match {
       case t: EnumType =>
-        if(t.basedOn.isInstanceOf[ReadableType]) {
-          val expr = s"$io.read_${t.basedOn.asInstanceOf[ReadableType].apiCall(defEndian)}()?"
-          handleAssignment(id, expr, rep, isRaw)
-        } else {
-          out.puts(
-            "unimplemented!();"
-          )
-        }
+        val expr =
+          t.basedOn match {
+            case inst: ReadableType =>
+              s"$io.read_${inst.apiCall(defEndian)}()?"
+            case BitsType(width: Int, _) =>
+              s"$io.read_bits_int($width)?"
+          }
+        handleAssignment(id, expr, rep, isRaw)
       case _ =>
         super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
     }
