@@ -113,7 +113,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${doLocalName(idToStr(id))}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
+    s"&${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     s"${translate(left)}.as_str() ${cmpOp(op)} ${translate(right)}"
@@ -185,4 +185,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${translate(a)}.iter().min()"
   override def arrayMax(a: Ast.expr): String =
     s"${translate(a)}.iter().max()"
+
+  override def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String = {
+    val code = s"${anyField(value, attrName)}()"
+    code
+  }
 }

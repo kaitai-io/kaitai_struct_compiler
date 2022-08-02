@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct._
-import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype.DataType.{ReadableType, _}
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -993,6 +993,30 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"""return Err(KError::ValidationNotEqual(r#"$errArgsStr"#.to_string()));""")
     out.dec
     out.puts("}")
+  }
+
+  override def attrParse2(
+                           id: Identifier,
+                           dataType: DataType,
+                           io: String,
+                           rep: RepeatSpec,
+                           isRaw: Boolean,
+                           defEndian: Option[FixedEndian],
+                           assignTypeOpt: Option[DataType] = None
+                         ): Unit = {
+    dataType match {
+      case t: EnumType =>
+        if(t.basedOn.isInstanceOf[ReadableType]) {
+          val expr = s"$io.read_${t.basedOn.asInstanceOf[ReadableType].apiCall(defEndian)}()?"
+          handleAssignment(id, expr, rep, isRaw)
+        } else {
+          out.puts(
+            "unimplemented!();"
+          )
+        }
+      case _ =>
+        super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
+    }
   }
 }
 
