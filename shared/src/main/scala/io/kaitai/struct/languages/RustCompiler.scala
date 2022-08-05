@@ -65,7 +65,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classHeader(name: List[String]): Unit = {
     out.puts
-    out.puts("#[derive(Default, Debug, PartialEq)]")
+    out.puts("#[derive(Default, Debug, PartialEq, Clone)]")
     out.puts(s"pub struct ${classTypeName(typeProvider.nowClass)} {")
     out.inc
 
@@ -478,7 +478,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     dataType match {
       case _: UserType => {
-        out.puts(s"let ret = ${translator.remove_deref(expression(value))};")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.clone();")
       }
       case _: StrType => {
         out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.to_string();")
@@ -495,15 +495,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceReturn(instName: InstanceIdentifier,
                               attrType: DataType): Unit = {
-    val userType = attrType match {
-      case _: UserType => true
-      case _ => false
-    }
-    if (userType) {
-      out.puts(s"Ok(ret)")
-    } else {
-      out.puts(s"Ok(${privateMemberName(instName)}.borrow())")
-    }
+    out.puts(s"Ok(${privateMemberName(instName)}.borrow())")
     in_instance = false
   }
 
@@ -514,7 +506,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = types2class(curClass ::: List(enumName))
 
     // Set up the actual enum definition
-    out.puts(s"#[derive(Debug, PartialEq)]")
+    out.puts(s"#[derive(Debug, PartialEq, Clone)]")
     out.puts(s"pub enum $enumClass {")
     out.inc
 
@@ -601,19 +593,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case _: InstanceIdentifier => {
           done = true;
           out.puts(s"*${privateMemberName(id)}.borrow_mut() = $expr;")
-
-          if (in_instance) {
-            val found = translator.get_instance(translator.get_top_class(typeProvider.nowClass), id)
-            if (found.isDefined) {
-              val userType = found.get.dataTypeComposite match {
-                case _: UserType => true
-                case _ => false
-              }
-              if (userType) {
-                out.puts(s"let ret = ${privateMemberName(id)}.borrow();")
-              }
-            }
-          }
         }
         case _ => false
       }
@@ -689,6 +668,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     // in expr_2.ksy we got into rustc bug
     // https://github.com/rust-lang/rust/issues/82656
+    // https://github.com/rust-lang/rust/issues/70919
     // workaround:
     out.puts(s"let t = $expr;")
     s"t"
@@ -825,7 +805,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       st,
       excludeOptionWrapper = true
     )
-    out.puts("#[derive(Debug, PartialEq)]")
+    out.puts("#[derive(Debug, PartialEq, Clone)]")
     out.puts(s"pub enum $enum_typeName {")
     out.inc
 
