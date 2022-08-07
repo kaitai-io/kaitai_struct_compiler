@@ -3,14 +3,14 @@ package io.kaitai.struct
 import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.KSVersion
 import io.kaitai.struct.formats.JavaKSYParser
+import io.kaitai.struct.SimpleMatchers
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers._
 
 import java.io._
 import java.nio.charset.Charset
 import scala.collection.mutable
 
-class ErrorMessagesSpec extends AnyFunSuite {
+class ErrorMessagesSpec extends AnyFunSuite with SimpleMatchers {
   // required, because this class is the sole entry point and this test needs
   // version info
   KSVersion.current = Version.version
@@ -53,7 +53,7 @@ class ErrorMessagesSpec extends AnyFunSuite {
         ).replace(FORMATS_ERR_DIR + "/", "")
       )
 
-      problemsStr.mkString("\n") shouldEqual expected.mkString("\n")
+      problemsStr.mkString("\n") shouldEqualPlainly expected.mkString("\n")
     }
   }
 
