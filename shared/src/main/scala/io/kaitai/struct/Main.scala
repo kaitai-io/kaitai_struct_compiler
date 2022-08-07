@@ -56,7 +56,7 @@ object Main {
   def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, conf: RuntimeConfig): Iterable[CompilationProblem] = {
     val config = updateConfigFromMeta(conf, topClass.meta)
 
-    classSpecs.foreach { case (_, curClass) => MarkupClassNames.markupClassNames(curClass) }
+    new MarkupClassNames(classSpecs).run()
     val resolveTypeProblems = new ResolveTypes(classSpecs, config.opaqueTypes).run()
 
     // For now, bail out early in case we have any type resolution problems
