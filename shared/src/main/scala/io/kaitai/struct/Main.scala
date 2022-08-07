@@ -56,7 +56,14 @@ object Main {
   def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Iterable[CompilationProblem] = {
     classSpecs.foreach { case (_, curClass) => MarkupClassNames.markupClassNames(curClass) }
     val opaqueTypes = topClass.meta.opaqueTypes.getOrElse(config.opaqueTypes)
-    new ResolveTypes(classSpecs, opaqueTypes).run()
+    val resolveTypeProblems = new ResolveTypes(classSpecs, opaqueTypes).run()
+
+    // For now, bail out early in case we have any type resolution problems
+    // TODO: try to recover and do some more passes even in face of these
+    if (resolveTypeProblems.nonEmpty) {
+      return resolveTypeProblems
+    }
+
     new ParentTypes(classSpecs).run()
     new SpecsValueTypeDerive(classSpecs).run()
     new CalculateSeqSizes(classSpecs).run()
@@ -67,7 +74,7 @@ object Main {
 
     topClass.parentClass = GenericStructClassSpec
 
-    typeValidatorProblems ++ styleWarnings
+    resolveTypeProblems ++ typeValidatorProblems ++ styleWarnings
   }
 
   /**
