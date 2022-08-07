@@ -50,13 +50,14 @@ object Main {
     *
     * @param classSpecs [[format.ClassSpecs]] container with all types loaded into it
     * @param topClass one top type to precompile
-    * @param config runtime configuration to be passed to precompile steps
+    * @param conf runtime configuration to be passed to precompile steps
     * @return a list of compilation problems encountered during precompilation steps
     */
-  def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Iterable[CompilationProblem] = {
+  def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, conf: RuntimeConfig): Iterable[CompilationProblem] = {
+    val config = updateConfigFromMeta(conf, topClass.meta)
+
     classSpecs.foreach { case (_, curClass) => MarkupClassNames.markupClassNames(curClass) }
-    val opaqueTypes = topClass.meta.opaqueTypes.getOrElse(config.opaqueTypes)
-    val resolveTypeProblems = new ResolveTypes(classSpecs, opaqueTypes).run()
+    val resolveTypeProblems = new ResolveTypes(classSpecs, config.opaqueTypes).run()
 
     // For now, bail out early in case we have any type resolution problems
     // TODO: try to recover and do some more passes even in face of these
@@ -130,6 +131,11 @@ object Main {
       case None => config1
     }
 
-    config2
+    val config3 = meta.opaqueTypes match {
+      case Some(value) => config2.copy(opaqueTypes = value)
+      case None => config2
+    }
+
+    config3
   }
 }
