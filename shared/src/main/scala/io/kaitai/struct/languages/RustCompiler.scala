@@ -55,6 +55,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       "kaitai::*"
     )
     importList.add("std::convert::{TryFrom, TryInto}")
+    importList.add("std::cell::{Ref, Cell, RefCell}")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
@@ -64,7 +65,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classHeader(name: List[String]): Unit = {
     out.puts
-    out.puts("#[derive(Default, Debug, PartialEq)]")
+    out.puts("#[derive(Default, Debug, PartialEq, Clone)]")
     out.puts(s"pub struct ${classTypeName(typeProvider.nowClass)} {")
     out.inc
 
@@ -160,7 +161,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         kaitaiTypeToNativeType(attrName, typeProvider.nowClass, attrType)
     }
 
-    out.puts(s"pub ${idToStr(attrName)}: $typeName,")
+    out.puts(s"${idToStr(attrName)}: $typeName,")
   }
 
   override def attributeReader(attrName: Identifier,
@@ -179,31 +180,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     var types : Set[DataType] = Set()
     var enum_typename = false
-    var as_ref = false
-    var simple_typename = attrType match {
-      case _: UserType => false
-      case _: BytesType => {
-        as_ref = true
-        true
-      }
-      case _: StrType => {
-        as_ref = true
-        true
-      }
-      case _: ArrayType => {
-        as_ref = true
-        true
-      }
+    attrType match {
       case st: SwitchType => {
         types = st.cases.values.toSet
         enum_typename = true
-        false
       }
       case _: EnumType => {
         // TODO? enum_typename = true
-        false
       }
-      case _ => true
+      case _ =>
     }
     var enum_only_numeric = true;
     types.foreach(t => {
@@ -212,29 +197,30 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case _ => enum_only_numeric = false
       }
     })
+    var fn = idToStr(attrName)
     if (enum_typename && enum_only_numeric) {
-      out.puts(s"pub fn ${idToStr(attrName)}(&self) -> usize {")
+      out.puts(s"pub fn $fn(&self) -> usize {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.as_ref().unwrap().into()")
-    } else {
-      if (as_ref) {
-        out.puts(s"pub fn ${idToStr(attrName)}(&self) -> &$typeNameEx {")
-      } else if (simple_typename) {
-        out.puts(s"pub fn ${idToStr(attrName)}(&self) -> $typeNameEx {")
+      out.dec
+      out.puts("}")
+      fn = s"${fn}_enum"
+    }
+    {
+      if (typeName.startsWith("RefCell")) {
+        out.puts(s"pub fn $fn(&self) -> Ref<$typeNameEx> {")
       } else {
-        out.puts(s"pub fn ${idToStr(attrName)}(&mut self) -> &mut $typeNameEx {")
+        out.puts(s"pub fn $fn(&self) -> &$typeNameEx {")
       }
       out.inc
       if (typeName != typeNameEx) {
-        out.puts(s"self.${idToStr(attrName)}.as_mut().unwrap()")
-      } else {
-        if (as_ref) {
-          out.puts(s"&self.${idToStr(attrName)}")
-        } else if (simple_typename) {
-          out.puts(s"self.${idToStr(attrName)}")
+        if (typeName.startsWith("RefCell")) {
+          out.puts(s"self.${idToStr(attrName)}.borrow()")
         } else {
-          out.puts(s"&mut self.${idToStr(attrName)}")
+          out.puts(s"self.${idToStr(attrName)}.as_ref().unwrap()")
         }
+      } else {
+        out.puts(s"&self.${idToStr(attrName)}")
       }
     }
     out.dec
@@ -338,11 +324,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
-        val procName = translator.detectType(xorValue) match {
-          case _: IntType => "process_xor_one"
-          case _: BytesType => "process_xor_many"
+        translator.detectType(xorValue) match {
+          case _: IntType => {
+            s"S::process_xor_one(&$srcExpr, ${expression(xorValue)})"
+          }
+          case _: BytesType => {
+            s"S::process_xor_many(&$srcExpr, &${translator.remove_deref(expression(xorValue))})"
+          }
         }
-        s"S::$procName(&$srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
         s"S::process_zlib(&$srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
@@ -404,9 +393,38 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       attrType,
       excludeOptionWrapper = true
     )
-    attrType match {
-      case _: ArrayType => out.puts(s"pub ${idToStr(attrName)}: $typeName,")
-      case _ => out.puts(s"pub ${idToStr(attrName)}: Option<$typeName>,")
+    out.puts(s"${calculatedFlagForName(attrName)}: Cell<bool>,")
+    out.puts(s"${idToStr(attrName)}: RefCell<$typeName>,")
+  }
+
+  def calculatedFlagForName(ksName: Identifier) =
+  s"f_${idToStr(ksName)}"
+
+  override def instanceClear(instName: InstanceIdentifier): Unit = {
+    var set = false;
+    val ins = translator.get_instance(typeProvider.nowClass, instName)
+    if (ins.isDefined) {
+      set = ins.get.dataTypeComposite match {
+        case _: UserType => true
+        case _ => false
+      }
+    }
+    if (!set) {
+      out.puts(s"self.${calculatedFlagForName(instName)}.set(false);")
+    }
+  }
+
+  override def instanceSetCalculated(instName: InstanceIdentifier): Unit = {
+    var set = false;
+    val ins = translator.get_instance(typeProvider.nowClass, instName)
+    if (ins.isDefined) {
+      set = ins.get.dataTypeComposite match {
+        case _: UserType => true
+        case _ => false
+      }
+    }
+    if (!set) {
+      out.puts(s"self.${calculatedFlagForName(instName)}.set(true);")
     }
   }
 
@@ -432,7 +450,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     in_instance = true
     out.puts(s"pub fn ${idToStr(instName)}<S: $kstreamName>(")
     out.inc
-    out.puts("&mut self,")
+    out.puts("&self,")
     out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S")
     out.dec
     val typeName = kaitaiTypeToNativeType(
@@ -441,32 +459,16 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       dataType,
       excludeOptionWrapper = true
     )
-    if (is_copy_type(dataType)) {
-      out.puts(s") -> KResult<$typeName> {")
-    } else {
-      if (is_mut_needed(dataType)) {
-        out.puts(s") -> KResult<&mut $typeName> {")
-      } else {
-        out.puts(s") -> KResult<&$typeName> {")
-      }
-    }
+    out.puts(s") -> KResult<Ref<$typeName>> {")
     out.inc
     out.puts(s"let _root : Option<&${classTypeName(typeProvider.topClass)}> = None;")
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier,
                                            dataType: DataType): Unit = {
-    out.puts(s"if ${privateMemberName(instName)}.is_some() {")
+    out.puts(s"if self.${calculatedFlagForName(instName)}.get() {")
     out.inc
-    if (is_copy_type(dataType)) {
-      out.puts(s"return Ok(${privateMemberName(instName)}.unwrap());")
-    } else {
-      if (is_mut_needed(dataType)) {
-        out.puts(s"return Ok(${privateMemberName(instName)}.as_mut().unwrap());")
-      } else {
-        out.puts(s"return Ok(${privateMemberName(instName)}.as_ref().unwrap());")
-      }
-    }
+    out.puts(s"return Ok(${privateMemberName(instName)}.borrow());")
     out.dec
     out.puts("}")
   }
@@ -476,40 +478,24 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     dataType match {
       case _: UserType => {
-        out.puts(s"let ret = ${expression(value)};")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.clone();")
       }
       case _: StrType => {
-        out.puts(s"${privateMemberName(instName)} = Some(${expression(value)}.to_string());")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.to_string();")
       }
       case _: BytesType => {
-        out.puts(s"let _t = ${expression(value)};")
-        out.puts(s"${privateMemberName(instName)} = Some(_t.to_vec());")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = (${translator.remove_deref(expression(value))}).to_vec().clone();")
       }
       case _ => {
         val primType = kaitaiPrimitiveToNativeType(dataType)
-        out.puts(s"${privateMemberName(instName)} = Some((${expression(value)}) as $primType);")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = (${expression(value)}) as $primType;")
       }
     }
   }
 
   override def instanceReturn(instName: InstanceIdentifier,
                               attrType: DataType): Unit = {
-    attrType match {
-      case _: UserType => {
-        out.puts(s"Ok(ret)")
-      }
-      case _ => {
-        if (is_copy_type(attrType)) {
-          out.puts(s"Ok(${privateMemberName(instName)}.unwrap())")
-        } else {
-          if (is_mut_needed(attrType)) {
-            out.puts(s"Ok(${privateMemberName(instName)}.as_mut().unwrap())")
-          } else {
-            out.puts(s"Ok(${privateMemberName(instName)}.as_ref().unwrap())")
-          }
-        }
-      }
-    }
+    out.puts(s"Ok(${privateMemberName(instName)}.borrow())")
     in_instance = false
   }
 
@@ -520,7 +506,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = types2class(curClass ::: List(enumName))
 
     // Set up the actual enum definition
-    out.puts(s"#[derive(Debug, PartialEq)]")
+    out.puts(s"#[derive(Debug, PartialEq, Clone)]")
     out.puts(s"pub enum $enumClass {")
     out.inc
 
@@ -606,20 +592,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       id match {
         case _: InstanceIdentifier => {
           done = true;
-          out.puts(s"${privateMemberName(id)} = Some($expr);")
-
-          if (in_instance) {
-            val found = translator.get_instance(translator.get_top_class(typeProvider.nowClass), id)
-            if (found.isDefined) {
-              val userType = found.get.dataTypeComposite match {
-                case _: UserType => true
-                case _ => false
-              }
-              if (userType) {
-                out.puts(s"let ret = ${privateMemberName(id)}.as_mut().unwrap();")
-              }
-            }
-          }
+          out.puts(s"*${privateMemberName(id)}.borrow_mut() = $expr;")
         }
         case _ => false
       }
@@ -635,8 +608,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def parseExpr(dataType: DataType,
                          assignType: DataType,
                          io: String,
-                         defEndian: Option[FixedEndian]): String =
-    dataType match {
+                         defEndian: Option[FixedEndian]): String = {
+    val expr = dataType match {
       case IntMultiType(_, _, None) => "panic!(\"Unable to parse unknown-endian integers\")"
       case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?.into()"
       case _: BytesEosType => s"$io.read_bytes_full()?.into()"
@@ -693,6 +666,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"Self::read_into::<$streamType, $userType>($addParams$io$addArgs)?.into()"
       case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
     }
+    // in expr_2.ksy we got into rustc bug
+    // https://github.com/rust-lang/rust/issues/82656
+    // https://github.com/rust-lang/rust/issues/70919
+    // workaround:
+    out.puts(s"let t = $expr;")
+    s"t"
+  }
 
   override def bytesPadTermExpr(expr0: String,
                                 padRight: Option[Int],
@@ -760,16 +740,16 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
     out.puts("{")
     out.inc
-    out.puts(s"let on = ${expression(on)};")
+    out.puts(s"let on = &${expression(on)};")
   }
 
   override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
-    out.puts(s"if on == ${expression(condition)} {")
+    out.puts(s"if *on == ${expression(condition)} {")
     out.inc
   }
 
   override def switchIfCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"else if on == ${expression(condition)} {")
+    out.puts(s"else if *on == ${expression(condition)} {")
     out.inc
   }
 
@@ -825,7 +805,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       st,
       excludeOptionWrapper = true
     )
-    out.puts("#[derive(Debug, PartialEq)]")
+    out.puts("#[derive(Debug, PartialEq, Clone)]")
     out.puts(s"pub enum $enum_typeName {")
     out.inc
 
@@ -1132,7 +1112,7 @@ object RustCompiler
         val typeName =
           if (!excludeBox && t.isOpaque) s"Box<$baseName>"
           else s"$baseName"
-        if (excludeOptionWrapper) typeName else s"Option<$typeName>"
+        if (excludeOptionWrapper) typeName else s"RefCell<$typeName>"
 
       case t: EnumType =>
         val typeName = t.enumSpec match {

@@ -51,15 +51,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case _ =>
       val found = get_instance(get_top_class(provider.nowClass), InstanceIdentifier(s))
       if (found.isDefined) {
-        val userType = found.get.dataTypeComposite match {
-          case _: UserType => true
-          case _ => false
-        }
-        if (userType) {
-          s"$s(${privateMemberName(IoIdentifier)})?"
-        } else {
-          s"$s(${privateMemberName(IoIdentifier)})?"
-        }
+        s"$s(${privateMemberName(IoIdentifier)})?"
       } else {
         s"$s()"
       }
@@ -94,8 +86,45 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     return found;
   }
 
-  override def anyField(value: expr, attrName: String): String =
-    s"${translate(value)}.${doName(attrName)}"
+  override def anyField(value: expr, attrName: String): String = {
+    val t = translate(value)
+    var r = ""
+    if (t.charAt(0) == '*') {
+      r = s"$t.${doName(attrName)}"
+    } else {
+      r = s"*$t.${doName(attrName)}"
+    }
+    r
+  }
+
+  def remove_deref(s: String): String = {
+    if (s.charAt(0) == '*') {
+      s.substring(1, s.length())
+    } else {
+      s
+    }
+  }
+
+  def get_attr(cs: ClassSpec, id: String): Option[MemberSpec] = {
+    var found : Option[MemberSpec] = None;
+    cs.seq.foreach { el =>
+      if (idToStr(el.id) == id) {
+        found = Some(el);
+      }
+    }
+    // look deeper
+    if (found.isEmpty) {
+      cs.types.foreach {
+        case (_, typeSpec) => {
+          found = get_attr(typeSpec, id)
+          if (found.isDefined) {
+            return found;
+          }
+        }
+      }
+    }
+    return found;
+  }
 
   override def doLocalName(s: String) = s match {
     case Identifier.ITERATOR => "tmpa"
@@ -106,7 +135,25 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case Identifier.PARENT =>
       // TODO: How to handle _parent._parent?
       s"${RustCompiler.privateMemberName(ParentIdentifier)}.as_ref().unwrap().peek()"
-    case _ => s"self.${doName(s)}"
+    case _ => {
+      val n = doName(s)
+      var deref = true
+      val found = get_attr(get_top_class(provider.nowClass), s)
+      if (found.isDefined) {
+        deref = found.get.dataTypeComposite match {
+          case _: SwitchType => false
+          case _: UserType => false
+          case _: BytesType => false
+          case _: ArrayType => false
+          case _ => true
+        }
+      }
+      if (deref) {
+        s"*self.$n"
+      } else {
+        s"self.$n"
+      }
+    }
   }
 
   override def doInternalName(id: Identifier): String =
@@ -116,7 +163,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"&${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    s"${translate(left)}.as_str() ${cmpOp(op)} ${translate(right)}"
+    s"${remove_deref(translate(left))}.as_str() ${cmpOp(op)} ${remove_deref(translate(right))}"
   }
 
   override def doEnumById(enumTypeAbs: List[String], id: String) =
@@ -169,20 +216,44 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.len()"
   override def strLength(s: expr): String =
-    s"${translate(s)}.len()"
+    s"${remove_deref(translate(s))}.len()"
   override def strReverse(s: expr): String =
     s"${translate(s)}.graphemes(true).rev().flat_map(|g| g.chars()).collect()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}.first()"
+    s"*${translate(a)}.first().ok_or(KError::EmptyIterator)?"
   override def arrayLast(a: expr): String =
-    s"${translate(a)}.last()"
+    s"*${translate(a)}.last().ok_or(KError::EmptyIterator)?"
   override def arraySize(a: expr): String =
-    s"${translate(a)}.len()"
-  override def arrayMin(a: Ast.expr): String =
-    s"${translate(a)}.iter().min()"
-  override def arrayMax(a: Ast.expr): String =
-    s"${translate(a)}.iter().max()"
+    s"${remove_deref(translate(a))}.len()"
+
+  def is_float_type(a: Ast.expr): Boolean = {
+    detectType(a) match {
+      case t: ArrayType => {
+        t.elType match  {
+          case f: FloatMultiType => true
+          case _ => false
+        }
+      }
+      case _ => false
+    }
+  }
+
+  override def arrayMin(a: Ast.expr): String = {
+    if (is_float_type(a)) {
+      s"*${translate(a)}.iter().reduce(|a, b| if (a.min(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
+    } else {
+      s"*${translate(a)}.iter().min().ok_or(KError::EmptyIterator)?"
+    }
+  }
+
+  override def arrayMax(a: Ast.expr): String = {
+    if (is_float_type(a)) {
+      s"*${translate(a)}.iter().reduce(|a, b| if (a.max(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
+    } else {
+      s"*${translate(a)}.iter().max().ok_or(KError::EmptyIterator)?"
+    }
+  }
 }
