@@ -223,13 +223,37 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}.first()"
+    s"*${translate(a)}.first().ok_or(KError::EmptyIterator)?"
   override def arrayLast(a: expr): String =
-    s"${translate(a)}.last()"
+    s"*${translate(a)}.last().ok_or(KError::EmptyIterator)?"
   override def arraySize(a: expr): String =
     s"${remove_deref(translate(a))}.len()"
-  override def arrayMin(a: Ast.expr): String =
-    s"${translate(a)}.iter().min()"
-  override def arrayMax(a: Ast.expr): String =
-    s"${translate(a)}.iter().max()"
+
+  def is_float_type(a: Ast.expr): Boolean = {
+    detectType(a) match {
+      case t: ArrayType => {
+        t.elType match  {
+          case f: FloatMultiType => true
+          case _ => false
+        }
+      }
+      case _ => false
+    }
+  }
+
+  override def arrayMin(a: Ast.expr): String = {
+    if (is_float_type(a)) {
+      s"*${translate(a)}.iter().reduce(|a, b| if (a.min(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
+    } else {
+      s"*${translate(a)}.iter().min().ok_or(KError::EmptyIterator)?"
+    }
+  }
+
+  override def arrayMax(a: Ast.expr): String = {
+    if (is_float_type(a)) {
+      s"*${translate(a)}.iter().reduce(|a, b| if (a.max(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
+    } else {
+      s"*${translate(a)}.iter().max().ok_or(KError::EmptyIterator)?"
+    }
+  }
 }
