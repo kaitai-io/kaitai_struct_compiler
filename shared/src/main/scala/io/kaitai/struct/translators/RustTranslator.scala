@@ -18,7 +18,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "&[" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "].to_vec()"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
-    s"pack('C*', ${elts.map(translate).mkString(", ")})"
+    "&[" + elts.map(translate).mkString(", ") + "]"
 
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
