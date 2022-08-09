@@ -160,7 +160,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${doLocalName(idToStr(id))}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"&${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
+    s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     s"${remove_deref(translate(left))}.as_str() ${cmpOp(op)} ${remove_deref(translate(right))}"
