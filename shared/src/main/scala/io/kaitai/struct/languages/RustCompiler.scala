@@ -402,7 +402,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceClear(instName: InstanceIdentifier): Unit = {
     var set = false;
-    val ins = translator.get_instance(typeProvider.nowClass, instName)
+    val ins = translator.get_instance(typeProvider.nowClass, idToStr(instName))
     if (ins.isDefined) {
       set = ins.get.dataTypeComposite match {
         case _: UserType => true
@@ -416,7 +416,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceSetCalculated(instName: InstanceIdentifier): Unit = {
     var set = false;
-    val ins = translator.get_instance(typeProvider.nowClass, instName)
+    val ins = translator.get_instance(typeProvider.nowClass, idToStr(instName))
     if (ins.isDefined) {
       set = ins.get.dataTypeComposite match {
         case _: UserType => true
@@ -487,8 +487,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"*${privateMemberName(instName)}.borrow_mut() = (${translator.remove_deref(expression(value))}).to_vec().clone();")
       }
       case _ => {
+        translator.in_instance_need_deref_attr = true
         val primType = kaitaiPrimitiveToNativeType(dataType)
         out.puts(s"*${privateMemberName(instName)}.borrow_mut() = (${expression(value)}) as $primType;")
+        translator.in_instance_need_deref_attr = false
       }
     }
   }
