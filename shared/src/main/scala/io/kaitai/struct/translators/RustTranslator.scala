@@ -18,7 +18,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "&[" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "].to_vec()"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
-    s"pack('C*', ${elts.map(translate).mkString(", ")})"
+    "&[" + elts.map(translate).mkString(", ") + "]"
 
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
@@ -48,8 +48,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   }
 
   override def doName(s: String) = s match {
+    case Identifier.PARENT => s
     case _ =>
-      val found = get_instance(get_top_class(provider.nowClass), InstanceIdentifier(s))
+      val found = get_instance(get_top_class(provider.nowClass), s)
       if (found.isDefined) {
         s"$s(${privateMemberName(IoIdentifier)})?"
       } else {
@@ -64,11 +65,11 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     get_top_class(c.upClass.get)
   }
 
-  def get_instance(cs: ClassSpec, id: Identifier): Option[InstanceSpec] = {
+  def get_instance(cs: ClassSpec, s: String): Option[InstanceSpec] = {
     var found : Option[InstanceSpec] = None;
     // look for instance
     cs.instances.foreach { case (instName, instSpec) =>
-      if (instName == id) {
+      if (idToStr(instName) == s) {
         found = Some(instSpec);
       }
     }
@@ -76,7 +77,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     if (found.isEmpty) {
       cs.types.foreach {
         case (_, typeSpec) => {
-          found = get_instance(typeSpec, id)
+          found = get_instance(typeSpec, s)
           if (found.isDefined) {
             return found;
           }
@@ -88,11 +89,19 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def anyField(value: expr, attrName: String): String = {
     val t = translate(value)
+    val a = doName(attrName)
     var r = ""
     if (t.charAt(0) == '*') {
-      r = s"$t.${doName(attrName)}"
+      r = s"$t.$a"
     } else {
-      r = s"*$t.${doName(attrName)}"
+      r = s"*$t.$a"
+    }
+    attrName match {
+      case Identifier.PARENT => {
+        // handle _parent._parent
+        r = r.replace(".peek()._parent", ".pop().peek()")
+      }
+      case _ =>
     }
     r
   }
@@ -126,15 +135,15 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     return found;
   }
 
+  var in_instance_need_deref_attr = false
+
   override def doLocalName(s: String) = s match {
     case Identifier.ITERATOR => "tmpa"
     case Identifier.ITERATOR2 => "tmpb"
     case Identifier.INDEX => "i"
     case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
     case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
-    case Identifier.PARENT =>
-      // TODO: How to handle _parent._parent?
-      s"${RustCompiler.privateMemberName(ParentIdentifier)}.as_ref().unwrap().peek()"
+    case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.as_ref().unwrap().peek()"
     case _ => {
       val n = doName(s)
       var deref = true
@@ -148,7 +157,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
           case _ => true
         }
       }
-      if (deref) {
+      if (in_instance_need_deref_attr || deref) {
         s"*self.$n"
       } else {
         s"self.$n"
@@ -223,9 +232,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
-    s"*${translate(a)}.first().ok_or(KError::EmptyIterator)?"
+    s"${translate(a)}.first().ok_or(KError::EmptyIterator)?"
   override def arrayLast(a: expr): String =
-    s"*${translate(a)}.last().ok_or(KError::EmptyIterator)?"
+    s"${translate(a)}.last().ok_or(KError::EmptyIterator)?"
   override def arraySize(a: expr): String =
     s"${remove_deref(translate(a))}.len()"
 
@@ -243,17 +252,17 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def arrayMin(a: Ast.expr): String = {
     if (is_float_type(a)) {
-      s"*${translate(a)}.iter().reduce(|a, b| if (a.min(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
+      s"${translate(a)}.iter().reduce(|a, b| if (a.min(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
     } else {
-      s"*${translate(a)}.iter().min().ok_or(KError::EmptyIterator)?"
+      s"${translate(a)}.iter().min().ok_or(KError::EmptyIterator)?"
     }
   }
 
   override def arrayMax(a: Ast.expr): String = {
     if (is_float_type(a)) {
-      s"*${translate(a)}.iter().reduce(|a, b| if (a.max(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
+      s"${translate(a)}.iter().reduce(|a, b| if (a.max(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
     } else {
-      s"*${translate(a)}.iter().max().ok_or(KError::EmptyIterator)?"
+      s"${translate(a)}.iter().max().ok_or(KError::EmptyIterator)?"
     }
   }
 }
