@@ -9,6 +9,8 @@ import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RustTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
+import scala.annotation.tailrec
+
 class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with AllocateIOLocalVar
@@ -56,6 +58,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
     importList.add("std::convert::{TryFrom, TryInto}")
     importList.add("std::cell::{Ref, Cell, RefCell}")
+
+    typeProvider.allClasses.foreach{
+      case (name, _) =>
+        if(name != topClassName) //TODO: do not add to imported
+          importList.add(s"super::$name::*")
+    }
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
@@ -181,22 +189,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     var types : Set[DataType] = Set()
     var enum_typename = false
     attrType match {
-      case st: SwitchType => {
+      case st: SwitchType =>
         types = st.cases.values.toSet
         enum_typename = true
-      }
-      case _: EnumType => {
-        // TODO? enum_typename = true
-      }
+      case _: EnumType => // TODO? enum_typename = true
       case _ =>
     }
-    var enum_only_numeric = true;
-    types.foreach(t => {
-      t match {
-        case _: NumericType => // leave unchanged
-        case _ => enum_only_numeric = false
-      }
-    })
+    var enum_only_numeric = true
+    types.foreach {
+      case _: NumericType => // leave unchanged
+      case _ => enum_only_numeric = false
+    }
     var fn = idToStr(attrName)
     if (enum_typename && enum_only_numeric) {
       out.puts(s"pub fn $fn(&self) -> usize {")
@@ -267,7 +270,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.push($expr);");
+    out.puts(s"${privateMemberName(id)}.push($expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -325,12 +328,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val expr = proc match {
       case ProcessXor(xorValue) =>
         translator.detectType(xorValue) match {
-          case _: IntType => {
+          case _: IntType =>
             s"S::process_xor_one(&$srcExpr, ${expression(xorValue)})"
-          }
-          case _: BytesType => {
+          case _: BytesType =>
             s"S::process_xor_many(&$srcExpr, &${translator.remove_deref(expression(xorValue))})"
-          }
         }
       case ProcessZlib =>
         s"S::process_zlib(&$srcExpr)"
@@ -342,7 +343,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"S::process_rotate_left(&$srcExpr, $expr)"
       case ProcessCustom(name, args) =>
-        val procClass = name.map((x) => type2class(x)).mkString("::")
+        val procClass = name.map(x => type2class(x)).mkString("::")
         val procName = s"_process_${idToStr(varSrc)}"
 
         //importListSrc.addLocal(outFileNameHeader(name.last))
@@ -352,7 +353,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"$procClass $procName$argListInParens;")
         s"$procName.decode(&$srcExpr)"
     }
-    handleAssignment(varDest, expr, rep, false)
+    handleAssignment(varDest, expr, rep, isRaw = false)
   }
 
   override def useIO(ioEx: Ast.expr): String = s"// useIO($ioEx)"
@@ -401,7 +402,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   s"f_${idToStr(ksName)}"
 
   override def instanceClear(instName: InstanceIdentifier): Unit = {
-    var set = false;
+    var set = false
     val ins = translator.get_instance(typeProvider.nowClass, idToStr(instName))
     if (ins.isDefined) {
       set = ins.get.dataTypeComposite match {
@@ -415,7 +416,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceSetCalculated(instName: InstanceIdentifier): Unit = {
-    var set = false;
+    var set = false
     val ins = translator.get_instance(typeProvider.nowClass, idToStr(instName))
     if (ins.isDefined) {
       set = ins.get.dataTypeComposite match {
@@ -477,21 +478,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     dataType match {
-      case _: UserType => {
+      case _: UserType =>
         out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.clone();")
-      }
-      case _: StrType => {
+      case _: StrType =>
         out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.to_string();")
-      }
-      case _: BytesType => {
+      case _: BytesType =>
         out.puts(s"*${privateMemberName(instName)}.borrow_mut() = (${translator.remove_deref(expression(value))}).to_vec().clone();")
-      }
-      case _ => {
+      case _ =>
         translator.in_instance_need_deref_attr = true
         val primType = kaitaiPrimitiveToNativeType(dataType)
         out.puts(s"*${privateMemberName(instName)}.borrow_mut() = (${expression(value)}) as $primType;")
         translator.in_instance_need_deref_attr = false
-      }
     }
   }
 
@@ -578,30 +575,28 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     val seqId = typeProvider.nowClass.seq.find(s => s.id == id)
-    var done = false;
+    var done = false
     if (seqId.isDefined) seqId.get.dataType match {
       case et: EnumType =>
-        done = true;
+        done = true
         out.puts(
           s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
         )
       case st: SwitchType =>
-        done = true;
+        done = true
         out.puts(s"${privateMemberName(id)} = Some($expr);")
       case _ => done = false;
     }
     if (!done) {
       id match {
-        case _: InstanceIdentifier => {
-          done = true;
+        case _: InstanceIdentifier =>
+          done = true
           out.puts(s"*${privateMemberName(id)}.borrow_mut() = $expr;")
-        }
         case _ => false
       }
     }
-    if (!done) {
+    if (!done)
       out.puts(s"${privateMemberName(id)} = $expr;")
-    }
   }
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
@@ -621,7 +616,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1(bitEndian) => s"$io.read_bits_int(1)? != 0"
       case BitsType(width, bitEndian) => s"$io.read_bits_int($width)?"
       case t: UserType =>
-        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
+        val addParams = Utils.join(t.args.map(a => translator.translate(a)), "", ", ", ", ")
         val userType = t match {
           case t: UserType =>
             val baseName = t.classSpec match {
@@ -633,7 +628,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val addArgs = if (t.isOpaque) {
           ""
         } else {
-          val currentType = classTypeName(typeProvider.nowClass);
+          val currentType = classTypeName(typeProvider.nowClass)
           val root = if (typeProvider.nowClass.isTopLevel) {
             "Some(self)"
           } else {
@@ -642,7 +637,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "KStructUnit::parent_stack()"
             case Some(fp) => translator.translate(fp)
-            case None => {
+            case None =>
               if ((userType contains currentType) && !in_instance) {
                 s"Some(${privateMemberName(ParentIdentifier)}.unwrap().push(self))"
               } else {
@@ -652,7 +647,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                   s"${privateMemberName(ParentIdentifier)}"
                 }
               }
-            }
           }
           val addEndian = t.classSpec.get.meta.endian match {
             case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
@@ -779,12 +773,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => privateMemberName(id)
     }
 
-    val newStreamRaw = s"${memberName}"
+    val newStreamRaw = s"$memberName"
     val ioName = rep match {
       case NoRepeat =>
         val newStream = newStreamRaw
         val localIO = localTemporaryName(ioId)
-        out.puts(s"let ${localIO} = BytesReader::new(&$newStream);")
+        out.puts(s"let $localIO = BytesReader::new(&$newStream);")
         s"&$localIO"
       case _ =>
         newStreamRaw
@@ -835,13 +829,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
 
-    var enum_only_numeric = true;
-    types.foreach(t => {
-      t match {
-        case _: NumericType => // leave true
-        case _ => enum_only_numeric = false
-      }
-    })
+    var enum_only_numeric = true
+    types.foreach {
+      case _: NumericType => // leave true
+      case _ => enum_only_numeric = false
+    }
 
     // generate only if switch types are different
     {
@@ -852,10 +844,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val variantName = switchVariantName(id, t)
         var v = "v"
         val typeName = t match {
-          case _ : BytesType => {
+          case _ : BytesType =>
             v = "v.to_vec()"
             s"&[u8]" // special case for Bytes(Vec[u8]) (else switch)
-          }
           case _ => kaitaiTypeToNativeType(
               id,
               typeProvider.nowClass,
@@ -1028,6 +1019,7 @@ object RustCompiler
     case IoStorageIdentifier(inner) => s"io_${idToStr(inner)}"
   }
 
+  @tailrec
   def rootClassTypeName(c: ClassSpec, isRecurse: Boolean = false): String = {
     if (!isRecurse && c.isTopLevel)
       "Self"
