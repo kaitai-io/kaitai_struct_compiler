@@ -1167,5 +1167,7 @@ object RustCompiler
 
     case _: StrType => s"String"
     case _: BytesType => s"Vec<u8>"
+
+    case ArrayTypeInStream(inType) => s"Vec<${kaitaiPrimitiveToNativeType(inType)}>"
   }
 }
