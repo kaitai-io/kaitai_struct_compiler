@@ -65,7 +65,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classHeader(name: List[String]): Unit = {
     out.puts
-    out.puts("#[derive(Default, Debug, PartialEq, Clone, Copy)]")
+    out.puts("#[derive(Default, Debug, PartialEq, Clone)]")
     out.puts(s"pub struct ${classTypeName(typeProvider.nowClass)} {")
     out.inc
 
@@ -508,7 +508,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = types2class(curClass ::: List(enumName))
 
     // Set up the actual enum definition
-    out.puts(s"#[derive(Debug, PartialEq, Clone, Copy)]")
+    out.puts(s"#[derive(Debug, PartialEq, Clone)]")
     out.puts(s"pub enum $enumClass {")
     out.inc
 
