@@ -220,7 +220,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val baseStr = translate(base)
     baseStr match {
       case "10" =>
-        s"${translate(i)}.to_string()"
+        s"${remove_deref(translate(i))}.to_string()"
       case _ =>
         s"base_convert(strval(${translate(i)}), 10, $baseStr)"
     }
