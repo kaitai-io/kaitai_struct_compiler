@@ -18,7 +18,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "&[" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "].to_vec()"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
-    "&[" + elts.map(translate).mkString(", ") + "]"
+    "&[" + elts.map(translate).mkString(", ") + "].to_vec()"
+  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = {
+    t match {
+      case CalcStrType => "vec![" + value.map((v) => translate(v)).mkString(".to_string(), ") + ".to_string()]"
+      case _ => "vec![" + value.map((v) => translate(v)).mkString(", ") + "]"
+    }
+  }
 
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
@@ -153,7 +159,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
           case _: SwitchType => false
           case _: UserType => false
           case _: BytesType => false
-          case _: ArrayType => false
+          //case _: ArrayType => false
           case _ => true
         }
       }
@@ -180,7 +186,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     id
 
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}[${translate(idx)} as usize]"
+    s"${remove_deref(translate(container))}[${translate(idx)} as usize]"
 
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     "if " + translate(condition) +
@@ -214,7 +220,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val baseStr = translate(base)
     baseStr match {
       case "10" =>
-        s"${translate(i)}.to_string()"
+        s"${remove_deref(translate(i))}.to_string()"
       case _ =>
         s"base_convert(strval(${translate(i)}), 10, $baseStr)"
     }
@@ -223,7 +229,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"decode_string($bytesExpr, ${translate(encoding)})?"
 
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.len()"
+    s"${remove_deref(translate(b))}.len()"
   override def strLength(s: expr): String =
     s"${remove_deref(translate(s))}.len()"
   override def strReverse(s: expr): String =
@@ -240,6 +246,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   def is_float_type(a: Ast.expr): Boolean = {
     detectType(a) match {
+      case t: CalcArrayType => {
+        t.elType match {
+          case f: FloatMultiType => true
+          case CalcFloatType => true
+          case _ => false
+        }
+      }
       case t: ArrayType => {
         t.elType match  {
           case f: FloatMultiType => true
