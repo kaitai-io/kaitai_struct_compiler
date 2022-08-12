@@ -640,7 +640,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             privateMemberName(RootIdentifier)
           }
           val parent = t.forcedParent match {
-            case Some(USER_TYPE_NO_PARENT) => "KStructUnit::parent_stack()"
+            case Some(USER_TYPE_NO_PARENT) => "None"
             case Some(fp) => translator.translate(fp)
             case None => {
               if ((userType contains currentType) && !in_instance) {
