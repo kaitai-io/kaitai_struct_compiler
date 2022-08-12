@@ -97,10 +97,18 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val t = translate(value)
     val a = doName(attrName)
     var r = ""
-    if (t.charAt(0) == '*') {
-      r = s"$t.$a"
+    if (need_deref(attrName)) {
+      if (t.charAt(0) == '*') {
+        r = s"$t.$a"
+      } else {
+        r = s"*$t.$a"
+      }
     } else {
-      r = s"*$t.$a"
+      if (t.charAt(0) == '*') {
+        r = s"${t.substring(1)}.$a"
+      } else {
+        r = s"$t.$a"
+      }
     }
     attrName match {
       case Identifier.PARENT => {
@@ -143,6 +151,25 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   var in_instance_need_deref_attr = false
 
+  def need_deref(s: String) = {
+    var deref = true
+    val found_attr = get_attr(get_top_class(provider.nowClass), s)
+    if (found_attr.isDefined ) {
+      deref = found_attr.get.dataTypeComposite match {
+        case _: SwitchType => false
+        case _: UserType => false
+        case _: BytesType => false
+        //case _: ArrayType => false
+        case _ => true
+      }
+    } else if (get_instance(get_top_class(provider.nowClass), s).isDefined)  {
+      deref = true
+    } else {
+      deref = false
+    }
+    deref
+  }
+
   override def doLocalName(s: String) = s match {
     case Identifier.ITERATOR => "tmpa"
     case Identifier.ITERATOR2 => "tmpb"
@@ -152,17 +179,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.as_ref().unwrap().peek()"
     case _ => {
       val n = doName(s)
-      var deref = true
-      val found = get_attr(get_top_class(provider.nowClass), s)
-      if (found.isDefined) {
-        deref = found.get.dataTypeComposite match {
-          case _: SwitchType => false
-          case _: UserType => false
-          case _: BytesType => false
-          //case _: ArrayType => false
-          case _ => true
-        }
-      }
+      var deref = need_deref(s)
       if (in_instance_need_deref_attr || deref) {
         s"*self.$n"
       } else {
