@@ -104,8 +104,6 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
         id
     }
     t match {
-      case FixedBytesType(contents, process) =>
-        attrPrimitiveWrite(io, translator.doByteArrayLiteral(contents), t, None)
       case t: BytesEosType =>
         val expr = writeExprAsString(idToWrite, rep, isRaw)
         attrPrimitiveWrite(io, expr, t, None)

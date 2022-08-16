@@ -241,7 +241,6 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
     dataType match {
       case _: BytesEosType => END_OF_STREAM
       case blt: BytesLimitType => expressionSize(blt.size, attrName)
-      case fbt: FixedBytesType => expressionSize(Ast.expr.IntNum(fbt.contents.length), attrName)
       case StrFromBytesType(basedOn, _) => dataTypeSizeAsString(basedOn, attrName)
       case utb: UserTypeFromBytes => dataTypeSizeAsString(utb.bytes, attrName)
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)

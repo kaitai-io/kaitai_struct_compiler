@@ -544,8 +544,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
       case blt: BytesLimitType =>
         s"$io.readBytes(${expression(blt.size)})"
-      case fbt: FixedBytesType =>
-        s"$io.readBytes(${expression(Ast.expr.IntNum(fbt.contents.length))})"
       case _: BytesEosType =>
         s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>

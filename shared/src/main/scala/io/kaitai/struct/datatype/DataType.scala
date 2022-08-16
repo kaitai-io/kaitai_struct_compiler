@@ -67,7 +67,6 @@ object DataType {
   case object CalcBytesType extends BytesType {
     override def process = None
   }
-  case class FixedBytesType(contents: Array[Byte], override val process: Option[ProcessExpr]) extends BytesType
   case class BytesEosType(
     terminator: Option[Int],
     include: Boolean,
@@ -323,7 +322,7 @@ object DataType {
     val r = dto match {
       case None =>
         arg.contents match {
-          case Some(c) => FixedBytesType(c, arg.process)
+          case Some(c) => BytesLimitType(Ast.expr.IntNum(c.length), None, false, None, arg.process)
           case _ => arg.getByteArrayType(path)
         }
       case Some(dt) => dt match {
