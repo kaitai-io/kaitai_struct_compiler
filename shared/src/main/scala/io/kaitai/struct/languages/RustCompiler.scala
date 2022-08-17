@@ -484,6 +484,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.to_string();")
       case _: BytesType =>
         out.puts(s"*${privateMemberName(instName)}.borrow_mut() = (${translator.remove_deref(expression(value))}).to_vec().clone();")
+      case e: EnumType =>
+        val expr = expression(value)
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))};")
       case _ =>
         translator.in_instance_need_deref_attr = true
         val primType = kaitaiPrimitiveToNativeType(dataType)
@@ -545,6 +548,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
     out.dec
+    out.puts("}")
+    out.puts
+
+    out.puts(s"impl Default for $enumClass {")
+    out.inc
+    //FIXME: what is default?
+    out.puts(s"fn default() -> Self { $enumClass::${type2class(enumColl(0)._2.name)} }")
     out.puts("}")
     out.puts
   }
@@ -1157,8 +1167,8 @@ object RustCompiler
     case CalcIntType => "i32"
     case CalcFloatType => "f64"
 
-    case _: StrType => s"String"
-    case _: BytesType => s"Vec<u8>"
+    case _: StrType => "String"
+    case _: BytesType => "Vec<u8>"
 
     case ArrayTypeInStream(inType) => s"Vec<${kaitaiPrimitiveToNativeType(inType)}>"
   }
