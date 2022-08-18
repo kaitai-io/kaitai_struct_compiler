@@ -2,7 +2,6 @@ package io.kaitai.struct.translators
 
 import io.kaitai.struct.format._
 import io.kaitai.struct.datatype._
-
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -21,8 +20,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     "&vec![" + elts.map(translate).mkString(", ") + "]"
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = {
     t match {
-      case CalcStrType => "vec![" + value.map((v) => translate(v)).mkString(".to_string(), ") + ".to_string()]"
-      case _ => "vec![" + value.map((v) => translate(v)).mkString(", ") + "]"
+      case CalcStrType => "vec![" + value.map(v => translate(v)).mkString(".to_string(), ") + ".to_string()]"
+      case _ => "vec![" + value.map(v => translate(v)).mkString(", ") + "]"
     }
   }
 
@@ -42,7 +41,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def numericBinOp(left: Ast.expr,
                             op: Ast.operator,
-                            right: Ast.expr) = {
+                            right: Ast.expr): String = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"${translate(left)} / ${translate(right)}"
@@ -53,7 +52,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def doName(s: String) = s match {
+  override def doName(s: String): String = s match {
     case Identifier.PARENT => s
     case _ =>
       val found = get_instance(get_top_class(provider.nowClass), s)
@@ -72,25 +71,24 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   }
 
   def get_instance(cs: ClassSpec, s: String): Option[InstanceSpec] = {
-    var found : Option[InstanceSpec] = None;
+    var found : Option[InstanceSpec] = None
     // look for instance
     cs.instances.foreach { case (instName, instSpec) =>
       if (idToStr(instName) == s) {
-        found = Some(instSpec);
+        found = Some(instSpec)
       }
     }
     // look deeper
     if (found.isEmpty) {
       cs.types.foreach {
-        case (_, typeSpec) => {
+        case (_, typeSpec) =>
           found = get_instance(typeSpec, s)
           if (found.isDefined) {
-            return found;
+            return found
           }
         }
-      }
     }
-    return found;
+    found
   }
 
   override def anyField(value: expr, attrName: String): String = {
@@ -111,10 +109,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       }
     }
     attrName match {
-      case Identifier.PARENT => {
+      case Identifier.PARENT =>
         // handle _parent._parent
         r = r.replace(".peek()._parent", ".pop().peek()")
-      }
       case _ =>
     }
     r
@@ -145,24 +142,23 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   }
 
   def get_attr(cs: ClassSpec, id: String): Option[MemberSpec] = {
-    var found : Option[MemberSpec] = None;
+    var found : Option[MemberSpec] = None
     cs.seq.foreach { el =>
       if (idToStr(el.id) == id) {
-        found = Some(el);
+        found = Some(el)
       }
     }
     // look deeper
     if (found.isEmpty) {
       cs.types.foreach {
-        case (_, typeSpec) => {
+        case (_, typeSpec) =>
           found = get_attr(typeSpec, id)
           if (found.isDefined) {
-            return found;
+            return found
           }
         }
-      }
     }
-    return found;
+    found
   }
 
   var in_instance_need_deref_attr = false
@@ -192,14 +188,14 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     deref
   }
 
-  override def doLocalName(s: String) = s match {
+  override def doLocalName(s: String): String = s match {
     case Identifier.ITERATOR => "tmpa"
     case Identifier.ITERATOR2 => "tmpb"
     case Identifier.INDEX => "i"
     case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
     case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
     case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.as_ref().unwrap().peek()"
-    case _ => {
+    case _ =>
       val n = doName(s)
       var deref = need_deref(s)
       if (in_instance_need_deref_attr || deref) {
@@ -207,7 +203,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       } else {
         s"self.$n"
       }
-    }
   }
 
   override def doInternalName(id: Identifier): String =
@@ -216,11 +211,11 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"&${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     s"${remove_deref(translate(left))}.as_str() ${cmpOp(op)} ${remove_deref(translate(right))}"
   }
 
-  override def doEnumById(enumTypeAbs: List[String], id: String) =
+  override def doEnumById(enumTypeAbs: List[String], id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 
@@ -239,6 +234,27 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       s"if ${translate(condition)} { ${translate(ifTrue)} } else { ${translate(ifFalse)} }"
     } else {
       s"if ${translate(condition)} { ${remove_deref(translate(ifTrue))}$to_type } else { ${remove_deref(translate(ifFalse))}$to_type }"
+    }
+  }
+  override def translate(v: Ast.expr): String = {
+    v match {
+      case Ast.expr.EnumById(enumType, id, inType) =>
+        id match {
+          case ifExp: Ast.expr.IfExp =>
+            val enumSpec = provider.resolveEnum(inType, enumType.name)
+            val enumName = RustCompiler.types2class(enumSpec.name)
+            def toStr(ex: Ast.expr) = ex match {
+              case Ast.expr.IntNum(n) => s"$enumName::try_from($n)?"
+              case _ => super.translate(ex)
+            }
+            val ifTrue = toStr(ifExp.ifTrue)
+            val ifFalse = toStr(ifExp.ifFalse)
+
+            "if " + translate(ifExp.condition) + s" { $ifTrue } else { $ifFalse }"
+          case _ => super.translate(v)
+        }
+      case _ =>
+        super.translate(v)
     }
   }
 
@@ -300,19 +316,17 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   def is_float_type(a: Ast.expr): Boolean = {
     detectType(a) match {
-      case t: CalcArrayType => {
+      case t: CalcArrayType =>
         t.elType match {
           case f: FloatMultiType => true
           case CalcFloatType => true
           case _ => false
         }
-      }
-      case t: ArrayType => {
+      case t: ArrayType =>
         t.elType match  {
           case f: FloatMultiType => true
           case _ => false
         }
-      }
       case _ => false
     }
   }
