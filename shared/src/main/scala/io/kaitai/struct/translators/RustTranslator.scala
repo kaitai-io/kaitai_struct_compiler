@@ -16,9 +16,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   import RustCompiler._
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "&[" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "].to_vec()"
+    "&vec![" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
-    "&[" + elts.map(translate).mkString(", ") + "].to_vec()"
+    "&vec![" + elts.map(translate).mkString(", ") + "]"
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = {
     t match {
       case CalcStrType => "vec![" + value.map((v) => translate(v)).mkString(".to_string(), ") + ".to_string()]"
@@ -120,9 +120,25 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     r
   }
 
+  def rem_vec_amp(s: String): String = {
+    if (s.startsWith("&vec!")) {
+      s.substring(1)
+    } else {
+      s
+    }
+  }
+
   def remove_deref(s: String): String = {
     if (s.charAt(0) == '*') {
-      s.substring(1, s.length())
+      s.substring(1)
+    } else {
+      s
+    }
+  }
+
+  def ensure_deref(s: String): String = {
+    if (s.startsWith("self")) {
+      s"*$s"
     } else {
       s
     }
@@ -151,21 +167,27 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   var in_instance_need_deref_attr = false
 
+  def is_copy_type(dataType: DataType): Boolean = dataType match {
+    case _: SwitchType => false
+    case _: UserType => false
+    case _: BytesType => false
+    case _: ArrayType => false
+    case _: StrType => false
+    case _ => true
+  }
+
   def need_deref(s: String) = {
-    var deref = true
+    var deref = false
     val found_attr = get_attr(get_top_class(provider.nowClass), s)
     if (found_attr.isDefined ) {
-      deref = found_attr.get.dataTypeComposite match {
-        case _: SwitchType => false
-        case _: UserType => false
-        case _: BytesType => false
-        //case _: ArrayType => false
-        case _ => true
-      }
-    } else if (get_instance(get_top_class(provider.nowClass), s).isDefined)  {
-      deref = true
+      deref = is_copy_type(found_attr.get.dataTypeComposite)
     } else {
-      deref = false
+      val found_inst = get_instance(get_top_class(provider.nowClass), s)
+      if (found_inst.isDefined) {
+        deref = true //is_copy_type(found_inst.get.dataTypeComposite)
+      } else {
+        deref = false
+      }
     }
     deref
   }
@@ -205,10 +227,20 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def arraySubscript(container: expr, idx: expr): String =
     s"${remove_deref(translate(container))}[${translate(idx)} as usize]"
 
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    "if " + translate(condition) +
-      " { " + translate(ifTrue) + " } else { " +
-      translate(ifFalse) + "}"
+  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String = {
+    var to_type = ""
+    detectType(ifTrue) match {
+      case _: UserType => to_type = ".clone()"
+      case _: StrType => to_type = ".to_string()"
+      case _: BytesType => to_type = ".to_vec()"
+      case _ =>
+    }
+    if (to_type.isEmpty) {
+      s"if ${translate(condition)} { ${translate(ifTrue)} } else { ${translate(ifFalse)} }"
+    } else {
+      s"if ${translate(condition)} { ${remove_deref(translate(ifTrue))}$to_type } else { ${remove_deref(translate(ifFalse))}$to_type }"
+    }
+  }
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr): String =
@@ -242,8 +274,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
         s"base_convert(strval(${translate(i)}), 10, $baseStr)"
     }
   }
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"decode_string($bytesExpr, ${translate(encoding)})?"
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
+    if (bytesExpr.charAt(0) == '*') {
+      s"decode_string(&$bytesExpr, &${translate(encoding)})?"
+    } else {
+      s"decode_string($bytesExpr, &${translate(encoding)})?"
+    }
+  }
 
   override def bytesLength(b: Ast.expr): String =
     s"${remove_deref(translate(b))}.len()"
@@ -255,9 +292,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}.first().ok_or(KError::EmptyIterator)?"
+    s"${ensure_deref(translate(a))}.first().ok_or(KError::EmptyIterator)?"
   override def arrayLast(a: expr): String =
-    s"${translate(a)}.last().ok_or(KError::EmptyIterator)?"
+    s"${ensure_deref(translate(a))}.last().ok_or(KError::EmptyIterator)?"
   override def arraySize(a: expr): String =
     s"${remove_deref(translate(a))}.len()"
 
@@ -282,17 +319,17 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def arrayMin(a: Ast.expr): String = {
     if (is_float_type(a)) {
-      s"${translate(a)}.iter().reduce(|a, b| if (a.min(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
+      s"${ensure_deref(translate(a))}.iter().reduce(|a, b| if (a.min(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
     } else {
-      s"${translate(a)}.iter().min().ok_or(KError::EmptyIterator)?"
+      s"${ensure_deref(translate(a))}.iter().min().ok_or(KError::EmptyIterator)?"
     }
   }
 
   override def arrayMax(a: Ast.expr): String = {
     if (is_float_type(a)) {
-      s"${translate(a)}.iter().reduce(|a, b| if (a.max(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
+      s"${ensure_deref(translate(a))}.iter().reduce(|a, b| if (a.max(*b)) == *b {b} else {a}).ok_or(KError::EmptyIterator)?"
     } else {
-      s"${translate(a)}.iter().max().ok_or(KError::EmptyIterator)?"
+      s"${ensure_deref(translate(a))}.iter().max().ok_or(KError::EmptyIterator)?"
     }
   }
 }
