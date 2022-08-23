@@ -349,7 +349,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         //importListSrc.addLocal(outFileNameHeader(name.last))
 
         val argList = args.map(expression).mkString(", ")
-        var argListInParens = if (argList.nonEmpty) s"($argList)" else ""
+        val argListInParens = if (argList.nonEmpty) s"($argList)" else ""
         out.puts(s"$procClass $procName$argListInParens;")
         s"$procName.decode(&$srcExpr)"
     }
@@ -464,20 +464,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   var in_instance = false
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
+    val expr = expression(value)
+
     dataType match {
       case _: UserType =>
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.clone();")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expr)}.clone();")
       case _: StrType =>
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.to_string();")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expr)}.to_string();")
       case _: BytesType =>
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.rem_vec_amp(translator.remove_deref(expression(value)))}.to_vec();")
-      case e: EnumType =>
-        val expr = expression(value)
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))};")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.rem_vec_amp(translator.remove_deref(expr))}.to_vec();")
+      case _: EnumType =>
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expr)};")
       case _ =>
         translator.in_instance_need_deref_attr = true
         val primType = kaitaiPrimitiveToNativeType(dataType)
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = (${expression(value)}) as $primType;")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ($expr) as $primType;")
         translator.in_instance_need_deref_attr = false
     }
   }
@@ -509,6 +510,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.dec
     out.puts("}")
+    out.puts
 
     // Set up parsing enums from the underlying value
     out.puts(s"impl TryFrom<i64> for $enumClass {")
@@ -538,10 +540,29 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
     out.puts
 
+    out.puts(s"impl From<&$enumClass> for i64 {")
+    out.inc
+    out.puts(s"fn from(val: &$enumClass) -> Self {")
+    out.inc
+    out.puts(s"match val {")
+    out.inc
+    enumColl.foreach {
+      case (value, label) =>
+        out.puts(s"$enumClass::${type2class(label.name)} => $value,")
+    }
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+    out.puts
+
     out.puts(s"impl Default for $enumClass {")
     out.inc
     //FIXME: what is default?
-    out.puts(s"fn default() -> Self { $enumClass::${type2class(enumColl(0)._2.name)} }")
+    out.puts(s"fn default() -> Self { $enumClass::${type2class(enumColl.head._2.name)} }")
+    out.dec
     out.puts("}")
     out.puts
   }
@@ -581,12 +602,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case _: BytesType => refcell = true
         case _: ArrayType => refcell = true
         case _: StrType => refcell = true
-        case et: EnumType =>
+        case _: EnumType =>
           done = true
           out.puts(
             s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
           )
-        case st: SwitchType =>
+        case _: SwitchType =>
           done = true
           out.puts(s"${privateMemberName(id)} = Some($expr);")
         case _ =>
@@ -604,7 +625,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case _: InstanceIdentifier =>
           done = true
           out.puts(s"*${privateMemberName(id)}.borrow_mut() = $expr;")
-        case _ => false
+        case _ =>
       }
     }
     if (!done)
@@ -625,8 +646,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case b: BytesTerminatedType =>
           s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?.into()"
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?.into()"
-      case BitsType1(bitEndian) => s"$io.read_bits_int(1)? != 0"
-      case BitsType(width, bitEndian) => s"$io.read_bits_int($width)?"
+      case _: BitsType1 => s"$io.read_bits_int(1)? != 0"
+      case BitsType(width, _) => s"$io.read_bits_int($width)?"
       case t: UserType =>
         val addParams = Utils.join(t.args.map(a => translator.translate(a)), "", ", ", ", ")
         val userType = t match {
@@ -780,10 +801,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(id)
     val ioId = IoStorageIdentifier(id)
 
-    val args = rep match {
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-      case _ => privateMemberName(id)
-    }
+//    val args = rep match {
+//      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
+//      case _ => privateMemberName(id)
+//    }
 
     val newStreamRaw = s"$memberName"
     val ioName = rep match {
@@ -820,7 +841,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val types = st.cases.values.toSet
 
     {
-      var types_set = scala.collection.mutable.Set[String]()
+      val types_set = scala.collection.mutable.Set[String]()
       types.foreach(t => {
         // Because this switch type will itself be in an option, we can exclude it from user types
         val variantName = switchVariantName(id, t)
@@ -849,7 +870,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // generate only if switch types are different
     {
-      var types_set = scala.collection.mutable.Set[String]()
+      val types_set = scala.collection.mutable.Set[String]()
       // add helper methods From
       types.foreach(t => {
         // Because this switch type will itself be in an option, we can exclude it from user types
@@ -902,7 +923,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.inc
       out.puts(s"match e {")
       out.inc
-      var variants_set = scala.collection.mutable.Set[String]()
+      val variants_set = scala.collection.mutable.Set[String]()
       types.foreach(t => {
         val variantName = switchVariantName(id, t)
         val new_typename = variants_set.add(variantName)
@@ -1078,7 +1099,7 @@ object RustCompiler
   def containsReferences(d: DataType, originating: Option[ClassSpec]): Boolean =
     d match {
       case _: BytesType | _: StrType => true
-      case t: UserType => true
+      case _: UserType => true
       /*
       t.classSpec match {
         // Recursive types may need references, but the recursion itself
@@ -1130,7 +1151,7 @@ object RustCompiler
       case t: ArrayType =>
         s"Vec<${kaitaiTypeToNativeType(id, cs, t.elType, excludeOptionWrapper = true, excludeLifetime = excludeLifetime)}>"
 
-      case st: SwitchType =>
+      case _: SwitchType =>
         // val types = st.cases.values.toSet
         // val lifetime =
         //   if (!excludeLifetime && types.exists(containsReferences))
