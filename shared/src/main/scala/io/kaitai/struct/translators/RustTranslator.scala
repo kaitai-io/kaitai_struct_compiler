@@ -5,7 +5,7 @@ import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.{Identifier, InstanceIdentifier, IoIdentifier, NamedIdentifier, ParentIdentifier, RootIdentifier}
+import io.kaitai.struct.format.{Identifier, IoIdentifier, ParentIdentifier, RootIdentifier}
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
@@ -172,10 +172,10 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case _ => true
   }
 
-  def need_deref(s: String) = {
+  def need_deref(s: String): Boolean = {
     var deref = false
     val found_attr = get_attr(get_top_class(provider.nowClass), s)
-    if (found_attr.isDefined ) {
+    if (found_attr.isDefined) {
       deref = is_copy_type(found_attr.get.dataTypeComposite)
     } else {
       val found_inst = get_instance(get_top_class(provider.nowClass), s)
@@ -197,7 +197,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.as_ref().unwrap().peek()"
     case _ =>
       val n = doName(s)
-      var deref = need_deref(s)
+      val deref = need_deref(s)
       if (in_instance_need_deref_attr || deref) {
         s"*self.$n"
       } else {
@@ -273,7 +273,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
 
   override def enumToInt(v: expr, et: EnumType): String =
-    s"usize::from(${translate(v)})"
+    s"i64::from(${remove_deref(translate(v))})"
 
   override def boolToInt(v: expr): String =
     s"${translate(v)} as i32"
@@ -318,13 +318,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     detectType(a) match {
       case t: CalcArrayType =>
         t.elType match {
-          case f: FloatMultiType => true
+          //case f: FloatMultiType => true
           case CalcFloatType => true
           case _ => false
         }
       case t: ArrayType =>
         t.elType match  {
-          case f: FloatMultiType => true
+          //case f: FloatMultiType => true
           case _ => false
         }
       case _ => false
