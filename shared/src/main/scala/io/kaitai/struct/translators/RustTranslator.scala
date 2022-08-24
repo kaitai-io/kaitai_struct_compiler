@@ -161,6 +161,26 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     found
   }
 
+  def get_param(cs: ClassSpec, id: String): Option[MemberSpec] = {
+    var found : Option[MemberSpec] = None
+    cs.params.foreach { el =>
+      if (idToStr(el.id) == id) {
+        found = Some(el)
+      }
+    }
+    // look deeper
+    if (found.isEmpty) {
+      cs.types.foreach {
+        case (_, typeSpec) =>
+          found = get_param(typeSpec, id)
+          if (found.isDefined) {
+            return found
+          }
+        }
+    }
+    found
+  }
+
   var in_instance_need_deref_attr = false
 
   def is_copy_type(dataType: DataType): Boolean = dataType match {
@@ -169,20 +189,26 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case _: BytesType => false
     case _: ArrayType => false
     case _: StrType => false
+    case _: EnumType => false
     case _ => true
   }
 
   def need_deref(s: String) = {
     var deref = false
-    val found_attr = get_attr(get_top_class(provider.nowClass), s)
-    if (found_attr.isDefined ) {
-      deref = is_copy_type(found_attr.get.dataTypeComposite)
+    var found = get_attr(get_top_class(provider.nowClass), s)
+    if (found.isDefined ) {
+      deref = is_copy_type(found.get.dataTypeComposite)
     } else {
-      val found_inst = get_instance(get_top_class(provider.nowClass), s)
-      if (found_inst.isDefined) {
-        deref = true //is_copy_type(found_inst.get.dataTypeComposite)
+      found = get_instance(get_top_class(provider.nowClass), s)
+      if (found.isDefined) {
+        deref = true //is_copy_type(found.get.dataTypeComposite)
       } else {
-        deref = false
+        found = get_param(get_top_class(provider.nowClass), s)
+        if (found.isDefined) {
+          deref = true
+        } else {
+          deref = false
+        }
       }
     }
     deref
@@ -209,7 +235,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${doLocalName(idToStr(id))}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"&${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
+    s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     s"${remove_deref(translate(left))}.as_str() ${cmpOp(op)} ${remove_deref(translate(right))}"
