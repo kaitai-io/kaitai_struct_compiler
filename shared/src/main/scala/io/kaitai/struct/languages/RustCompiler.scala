@@ -362,7 +362,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let _pos = $io.pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"$io.seek(${expression(pos)})?;")
+    out.puts(s"$io.seek(${expression(pos)} as usize)?;")
 
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)?;")
