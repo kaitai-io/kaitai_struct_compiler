@@ -68,7 +68,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
     importList.add(
-      s"crate::${classSpec.name.last}::${type2class(classSpec.name.last)}"
+      s"super::${classSpec.name.last}::${type2class(classSpec.name.last)}"
     )
 
   override def classHeader(name: List[String]): Unit = {
