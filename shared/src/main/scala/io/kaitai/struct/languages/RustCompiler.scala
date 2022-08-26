@@ -362,7 +362,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let _pos = $io.pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"$io.seek(${expression(pos)})?;")
+    out.puts(s"$io.seek(${expression(pos)} as usize)?;")
 
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)?;")
@@ -757,12 +757,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                 include: Boolean): String = {
     val ioId = privateMemberName(IoIdentifier)
     val expr = padRight match {
-      case Some(p) => s"$ioId.bytes_strip_right($expr0, $p)"
+      case Some(p) => s"$ioId.bytes_strip_right($expr0, $p).into()"
       case None => expr0
     }
 
     terminator match {
-      case Some(term) => s"$ioId.bytes_terminate($expr, $term, $include)"
+      case Some(term) => s"$ioId.bytes_terminate($expr, $term, $include).into()"
       case None => expr
     }
   }
