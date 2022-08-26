@@ -55,11 +55,17 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doName(s: String): String = s match {
     case Identifier.PARENT => s
     case _ =>
-      val found = get_instance(get_top_class(provider.nowClass), s)
-      if (found.isDefined) {
+      val topClass = get_top_class(provider.nowClass)
+      val instance_found = get_instance(topClass, s)
+      if (instance_found.isDefined) {
         s"$s(${privateMemberName(IoIdentifier)})?"
       } else {
-        s"$s()"
+        val param_found = get_param(topClass, s)
+        if(param_found.isDefined) {
+          s
+        } else {
+          s"$s()"
+        }
       }
   }
 
