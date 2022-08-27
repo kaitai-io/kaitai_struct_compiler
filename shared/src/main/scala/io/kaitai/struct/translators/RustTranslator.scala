@@ -60,12 +60,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       if (instance_found.isDefined) {
         s"$s(${privateMemberName(IoIdentifier)})?"
       } else {
-        val param_found = get_param(topClass, s)
-        if(param_found.isDefined) {
-          s
-        } else {
-          s"$s()"
-        }
+        s"$s()"
       }
   }
 
@@ -356,13 +351,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     detectType(a) match {
       case t: CalcArrayType =>
         t.elType match {
-          //case f: FloatMultiType => true
+          case f: FloatMultiType => true
           case CalcFloatType => true
           case _ => false
         }
       case t: ArrayType =>
         t.elType match  {
-          //case f: FloatMultiType => true
+          case f: FloatMultiType => true
           case _ => false
         }
       case _ => false

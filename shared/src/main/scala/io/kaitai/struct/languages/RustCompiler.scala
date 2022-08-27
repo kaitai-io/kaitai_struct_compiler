@@ -374,9 +374,29 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     RustCompiler.privateMemberName(id)
 
   override def instanceDeclHeader(className: List[String]): Unit = {
-    out.puts(
-      s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {"
-    )
+    if (!typeProvider.nowClass.params.isEmpty) {
+      val paramsArg = Utils.join(typeProvider.nowClass.params.map{ case p =>
+        val n = paramName(p.id)
+        val t = kaitaiTypeToNativeType(Some(p.id), typeProvider.nowClass, p.dataType, excludeOptionWrapper = true)
+        var byref = ""
+        if (!translator.is_copy_type(p.dataType))
+          byref = "&"
+        // generate param access helper
+        attributeReader(p.id, p.dataType, false)
+        s"$n: $byref$t"
+      }, "", ", ", "")
+
+      out.puts(s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
+      out.inc
+      out.puts(s"pub fn set_params(&mut self, $paramsArg) {")
+      out.inc
+      typeProvider.nowClass.params.foreach((p) => handleAssignmentParams(p.id, paramName(p.id)))
+      out.dec
+      out.puts("}")
+      out.dec
+      out.puts("}")
+    }
+    out.puts(s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
     out.inc
   }
 
@@ -464,25 +484,23 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   var in_instance = false
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
-    translator.context_need_deref_attr = true
-    val expr = expression(value)
-
     dataType match {
       case _: UserType =>
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expr)}.clone();")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.clone();")
       case _: StrType =>
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expr)}.to_string();")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))}.to_string();")
       case _: BytesType =>
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.rem_vec_amp(translator.remove_deref(expr))}.to_vec();")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.rem_vec_amp(translator.remove_deref(expression(value)))}.to_vec();")
       case _: ArrayType =>
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.rem_vec_amp(translator.remove_deref(expr))}.to_vec();")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.rem_vec_amp(translator.remove_deref(expression(value)))}.to_vec();")
       case _: EnumType =>
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expr)};")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ${translator.remove_deref(expression(value))};")
       case _ =>
+        translator.context_need_deref_attr = true
         val primType = kaitaiPrimitiveToNativeType(dataType)
-        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = ($expr) as $primType;")
+        out.puts(s"*${privateMemberName(instName)}.borrow_mut() = (${expression(value)}) as $primType;")
+        translator.context_need_deref_attr = false
     }
-    translator.context_need_deref_attr = false
   }
 
   override def instanceReturn(instName: InstanceIdentifier,
