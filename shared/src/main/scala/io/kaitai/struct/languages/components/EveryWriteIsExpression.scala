@@ -4,7 +4,6 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype.FixedEndian
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 
 import scala.collection.mutable.ListBuffer
@@ -59,30 +58,17 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case t: StrFromBytesType =>
         attrStrTypeWrite(id, t, io, rep, isRaw)
       case t: EnumType =>
-        val expr = translator.enumToInt(Ast.expr.Name(Ast.identifier(idToStr(id))), t)
+        val expr = writeExprAsExpr(id, rep, isRaw)
         val exprType = internalEnumIntType(t.basedOn)
-        attrPrimitiveWrite(io, expr, t.basedOn, defEndian, Some(exprType))
+        attrPrimitiveWrite(io, Ast.expr.Attribute(expr, Ast.identifier("to_i")), t.basedOn, defEndian, Some(exprType))
       case _ =>
-        val expr = writeExprAsString(id, rep, isRaw)
+        val expr = writeExprAsExpr(id, rep, isRaw)
         attrPrimitiveWrite(io, expr, dataType, defEndian, exprTypeOpt)
     }
   }
 
-  // TODO: unite these methods
-  def writeExprAsString(id: Identifier, rep: RepeatSpec, isRaw: Boolean): String = {
-    rep match {
-      case NoRepeat =>
-        privateMemberName(id)
-      case _ =>
-        translator.arraySubscript(
-          Ast.expr.Name(Ast.identifier(idToStr(id))),
-          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
-        )
-    }
-  }
-
   def writeExprAsExpr(id: Identifier, rep: RepeatSpec, isRaw: Boolean): Ast.expr = {
-    val astId = Ast.expr.Name(Ast.identifier(idToStr(id)))
+    val astId = Ast.expr.InternalName(id)
     rep match {
       case NoRepeat =>
         astId
@@ -105,42 +91,46 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     }
     t match {
       case t: BytesEosType =>
-        val expr = writeExprAsString(idToWrite, rep, isRaw)
+        val expr = writeExprAsExpr(idToWrite, rep, isRaw)
         attrPrimitiveWrite(io, expr, t, None)
-        if (t.terminator.isDefined && !t.include)
-          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false), None)
+        t.terminator.foreach { (term) =>
+          if (!t.include)
+            attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None)
+        }
       case blt: BytesLimitType =>
-        val expr = writeExprAsString(idToWrite, rep, isRaw)
+        val expr = writeExprAsExpr(idToWrite, rep, isRaw)
         attrBytesLimitWrite2(io, expr, blt)
       case t: BytesTerminatedType =>
-        val expr = writeExprAsString(idToWrite, rep, isRaw)
+        val expr = writeExprAsExpr(idToWrite, rep, isRaw)
         attrPrimitiveWrite(io, expr, t, None)
         if (t.consume && !t.include)
-          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false), None)
+          attrPrimitiveWrite(io, Ast.expr.IntNum(t.terminator), Int1Type(false), None)
     }
   }
 
   def attrStrTypeWrite(id: Identifier, t: StrFromBytesType, io: String, rep: RepeatSpec, isRaw: Boolean) = {
-    val expr = translator.strToBytes(writeExprAsExpr(id, rep, isRaw), Ast.expr.Str(t.encoding))
+    val expr = exprStrToBytes(writeExprAsExpr(id, rep, isRaw), t.encoding)
     attrPrimitiveWrite(io, expr, t.bytes, None)
 
     t.bytes match {
       case t: BytesEosType =>
-        if (t.terminator.isDefined && !t.include)
-          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false), None)
+        t.terminator.foreach { (term) =>
+          if (!t.include)
+            attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None)
+        }
       case t: BytesLimitType =>
         // FIXME: implement padding and terminator byte
-        t.terminator.foreach((terminator) =>
+        t.terminator.foreach { (term) =>
           if (!t.include)
-            attrPrimitiveWrite(io, terminator.toString, Int1Type(false), None)
-        )
+            attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None)
+        }
       case t: BytesTerminatedType =>
         if (t.consume && !t.include)
-          attrPrimitiveWrite(io, t.terminator.toString, Int1Type(false), None)
+          attrPrimitiveWrite(io, Ast.expr.IntNum(t.terminator), Int1Type(false), None)
     }
   }
 
-  def attrBytesLimitWrite2(io: String, expr: String, blt: BytesLimitType): Unit = {
+  def attrBytesLimitWrite2(io: String, expr: Ast.expr, blt: BytesLimitType): Unit = {
     val (term, padRight) = (blt.terminator, blt.padRight, blt.include) match {
       case (None, None, false) =>
         // no terminator, no padding => just a regular output
@@ -177,7 +167,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     exprTypeOpt: Option[DataType] = None
   ) = {
     val exprType = exprTypeOpt.getOrElse(t)
-    val expr = writeExprAsString(id, rep, isRaw)
+    val expr = writeExprAsExpr(id, rep, isRaw)
 
     t match {
       case _: UserTypeInstream =>
@@ -218,8 +208,8 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
   }
   def attrSwitchTypeWrite(
     id: Identifier,
-    on: expr,
-    cases: Map[expr, DataType],
+    on: Ast.expr,
+    cases: Map[Ast.expr, DataType],
     io: String,
     rep: RepeatSpec,
     defEndian: Option[FixedEndian],
@@ -248,11 +238,20 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     )
   }
 
+  def exprStrToBytes(name: Ast.expr, encoding: String) =
+    Ast.expr.Call(
+      Ast.expr.Attribute(
+        name,
+        Ast.identifier("to_b")
+      ),
+      Seq(Ast.expr.Str(encoding))
+    )
+
   def internalEnumIntType(basedOn: IntType): DataType
 
-  def attrPrimitiveWrite(io: String, expr: String, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType] = None): Unit
-  def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit
-  def attrUserTypeInstreamWrite(io: String, expr: String, t: DataType, exprType: DataType): Unit
+  def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType] = None): Unit
+  def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit
+  def attrUserTypeInstreamWrite(io: String, expr: Ast.expr, t: DataType, exprType: DataType): Unit
   def attrWriteStreamToStream(srcIo: String, dstIo: String): Unit
   def exprStreamToByteArray(ioFixed: String): String
 

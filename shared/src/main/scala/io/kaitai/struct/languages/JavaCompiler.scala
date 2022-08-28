@@ -825,12 +825,13 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrPrimitiveWrite(
     io: String,
-    exprRaw: String,
+    valueExpr: Ast.expr,
     dataType: DataType,
     defEndian: Option[FixedEndian],
     exprTypeOpt: Option[DataType] = None
   ): Unit = {
     val exprType = exprTypeOpt.getOrElse(dataType)
+    val exprRaw = expression(valueExpr)
     val expr = if (exprType != dataType) {
       s"(${kaitaiType2JavaType(dataType)}) ($exprRaw)"
     } else {
@@ -841,7 +842,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: ReadableType =>
         s"$io.write${Utils.capitalize(t.apiCall(defEndian))}($expr)"
       case BitsType1(bitEndian) =>
-        s"$io.writeBitsInt(1, ($expr) ? 1 : 0)"
+        s"$io.writeBitsInt(1, ${translator.boolToInt(valueExpr)})"
       case BitsType(width: Int, bitEndian) =>
         s"$io.writeBitsInt($width, $expr)"
       case _: BytesType =>
@@ -850,10 +851,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(stmt + ";")
   }
 
-  override def attrBytesLimitWrite(io: String, expr: String, size: String, term: Int, padRight: Int): Unit =
-    out.puts(s"$io.writeBytesLimit($expr, $size, (byte) $term, (byte) $padRight);")
+  override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit =
+    out.puts(s"$io.writeBytesLimit(${expression(expr)}, $size, (byte) $term, (byte) $padRight);")
 
-  override def attrUserTypeInstreamWrite(io: String, exprRaw: String, dataType: DataType, exprType: DataType) = {
+  override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, dataType: DataType, exprType: DataType) = {
+    val exprRaw = expression(valueExpr)
     val expr = if (exprType != dataType) {
       s"((${kaitaiType2JavaType(dataType)}) ($exprRaw))"
     } else {

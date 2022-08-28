@@ -32,21 +32,10 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
   }
 
   def attrCheck2(id: Identifier, dataType: DataType, io: String, repeat: RepeatSpec, isRaw: Boolean) = {
-    // TODO: unify with EveryWriteIsExpression.writeExprAsExpr
-    val astName = idToName(id)
-    val item = repeat match {
-      case NoRepeat =>
-        astName
-      case _ =>
-        Ast.expr.Subscript(
-          astName,
-          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
-        )
-    }
-
+    val item = writeExprAsExpr(id, repeat, isRaw)
     dataType match {
       case t: BytesType =>
-        attrByteSizeCheck(astName, t, exprByteArraySize(item), idToMsg(id))
+        attrByteSizeCheck(Ast.expr.InternalName(id), t, exprByteArraySize(item), idToMsg(id))
       case st: StrFromBytesType =>
         val bytes = exprStrToBytes(item, st.encoding)
         attrByteSizeCheck(
@@ -61,7 +50,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
 
   def attrArraySizeCheck(id: Identifier, expectedSize: Ast.expr): Unit =
     attrAssertEqual(
-      exprArraySize(idToName(id)),
+      exprArraySize(Ast.expr.InternalName(id)),
       expectedSize,
       idToMsg(id)
     )
@@ -116,8 +105,6 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
     case SpecialIdentifier(name) => name
   }
 
-  def idToName(id: Identifier): Ast.expr.Name = Ast.expr.Name(Ast.identifier(idToMsg(id)))
-
   def exprByteArraySize(name: Ast.expr) =
     Ast.expr.Attribute(
       name,
@@ -125,15 +112,6 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
     )
 
   def exprArraySize(name: Ast.expr) = exprByteArraySize(name)
-
-  def exprStrToBytes(name: Ast.expr, encoding: String) =
-    Ast.expr.Call(
-      Ast.expr.Attribute(
-        name,
-        Ast.identifier("to_b")
-      ),
-      Seq(Ast.expr.Str(encoding))
-    )
 
   def attrAssertLastByte(name: Ast.expr, expectedLast: Int, msg: String): Unit = {
     attrAssertEqual(
