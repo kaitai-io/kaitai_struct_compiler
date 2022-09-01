@@ -39,16 +39,28 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def strLiteralUnicode(code: Char): String =
     "\\u{%x}".format(code.toInt)
 
+  def isSignedIntType(dt: DataType): Boolean = dt match {
+    case Int1Type(true) => true
+    case IntMultiType(true, _, _) => true
+    case CalcIntType => true
+    case _ => false
+  }
+
   override def numericBinOp(left: Ast.expr,
                             op: Ast.operator,
                             right: Ast.expr): String = {
-    (detectType(left), detectType(right), op) match {
-      case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"${translate(left)} / ${translate(right)}"
-      case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${translate(left)} % ${translate(right)}"
-      case _ =>
+    val lt = detectType(left)
+    val rt = detectType(right)
+
+    if (isSignedIntType(lt) && isSignedIntType(rt) && op == Ast.operator.Mod)
+        s"modulo(${translate(left)} as i64, ${translate(right)} as i64)"
+    else {
+      if (lt != rt) {
+        val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
+        s"(${translate(left)} as $ct ${binOp(op)} ${translate(right)} as $ct)"
+      } else {
         super.numericBinOp(left, op, right)
+      }
     }
   }
 
@@ -298,7 +310,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def strToInt(s: expr, base: expr): String =
     translate(base) match {
       case "10" =>
-        s"${translate(s)}.parse().unwrap()"
+        s"${translate(s)}.parse::<i32>().unwrap()"
       case _ =>
         "panic!(\"Converting from string to int in base {} is unimplemented\"" + translate(
           base
@@ -309,7 +321,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"i64::from(${remove_deref(translate(v))})"
 
   override def boolToInt(v: expr): String =
-    s"${translate(v)} as i32"
+    s"(${translate(v)}) as i32"
 
   override def floatToInt(v: expr): String =
     s"${translate(v)} as i32"
@@ -318,7 +330,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val baseStr = translate(base)
     baseStr match {
       case "10" =>
-        s"${remove_deref(translate(i))}.to_string()"
+         s"${remove_deref(translate(i))}.to_string()"
       case _ =>
         s"base_convert(strval(${translate(i)}), 10, $baseStr)"
     }
@@ -335,10 +347,15 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${remove_deref(translate(b))}.len()"
   override def strLength(s: expr): String =
     s"${remove_deref(translate(s))}.len()"
-  override def strReverse(s: expr): String =
-    s"${translate(s)}.graphemes(true).rev().flat_map(|g| g.chars()).collect()"
+  override def strReverse(s: expr): String = {
+    val e = translate(s)
+    if (e.charAt(0) == '*')
+      s"reverse_string(&$e)?"
+    else
+      s"reverse_string($e)?"
+  }
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"${translate(s)}[${translate(from)}..${translate(to)}]"
 
   override def arrayFirst(a: expr): String =
     s"${ensure_deref(translate(a))}.first().ok_or(KError::EmptyIterator)?"
