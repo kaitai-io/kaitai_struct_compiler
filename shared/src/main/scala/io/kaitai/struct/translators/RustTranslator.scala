@@ -304,16 +304,14 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr): String =
-    "format!(\"{}{}\", " + translate(left) + ", " + translate(right) + ")"
+    s"""format!("{}{}", ${translate(left)}, ${translate(right)})"""
 
   override def strToInt(s: expr, base: expr): String =
     translate(base) match {
       case "10" =>
         s"${translate(s)}.parse::<i32>().unwrap()"
       case _ =>
-        "panic!(\"Converting from string to int in base {} is unimplemented\"" + translate(
-          base
-        ) + ")"
+        s"i32::from_str_radix(${translate(s)}, ${translate(base)}).unwrap()"
     }
 
   override def enumToInt(v: expr, et: EnumType): String =
