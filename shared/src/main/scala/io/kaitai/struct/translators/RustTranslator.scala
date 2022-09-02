@@ -261,8 +261,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   }
 
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    id
+    s"($id as i64).try_into()?"
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${remove_deref(translate(container))}[${translate(idx)} as usize]"
