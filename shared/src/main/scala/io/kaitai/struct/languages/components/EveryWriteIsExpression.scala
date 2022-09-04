@@ -103,8 +103,17 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case t: BytesTerminatedType =>
         val expr = writeExprAsExpr(idToWrite, rep, isRaw)
         attrPrimitiveWrite(io, expr, t, None)
-        if (t.consume && !t.include)
+        if (!t.include) {
+          if (!t.consume) {
+            blockScopeHeader
+            pushPos(io)
+          }
           attrPrimitiveWrite(io, Ast.expr.IntNum(t.terminator), Int1Type(false), None)
+          if (!t.consume) {
+            popPos(io)
+            blockScopeFooter
+          }
+        }
     }
   }
 
@@ -112,6 +121,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     val expr = exprStrToBytes(writeExprAsExpr(id, rep, isRaw), t.encoding)
     attrPrimitiveWrite(io, expr, t.bytes, None)
 
+    /** FIXME: duplication with the previous [[attrBytesTypeWrite]] method (will also ensure consistent handling) */
     t.bytes match {
       case t: BytesEosType =>
         t.terminator.foreach { (term) =>
