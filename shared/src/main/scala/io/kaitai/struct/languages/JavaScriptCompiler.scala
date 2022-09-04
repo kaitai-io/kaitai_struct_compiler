@@ -17,8 +17,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalDoc
     with AllocateIOLocalVar
     with EveryReadIsExpression
-    with SwitchIfOps
-    with FixedContentsUsingArrayByteLiteral {
+    with SwitchIfOps {
   import JavaScriptCompiler._
 
   override val translator = new JavaScriptTranslator(typeProvider)
@@ -182,11 +181,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     beProc()
     out.dec
     out.puts("}")
-  }
-
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = " +
-      s"$normalIO.ensureFixedContents($contents);")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {

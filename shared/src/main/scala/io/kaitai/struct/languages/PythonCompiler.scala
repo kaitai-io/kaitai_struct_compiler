@@ -17,7 +17,6 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalFooter
     with EveryReadIsExpression
     with AllocateIOLocalVar
-    with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
     with SwitchIfOps
     with NoNeedForFullClassPath {
@@ -173,9 +172,6 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.putsLines("", "\"\"\"" + docStr + refStr + "\"\"\"")
   }
-
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents($contents)")
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
     out.puts("if self._is_le:")

@@ -15,7 +15,6 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalFooter
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
-    with FixedContentsUsingArrayByteLiteral
     with SwitchIfOps
     with EveryReadIsExpression {
 
@@ -161,10 +160,6 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     beProc()
     out.dec
     out.puts("}")
-  }
-
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
