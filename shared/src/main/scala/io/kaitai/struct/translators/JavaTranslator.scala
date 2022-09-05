@@ -129,11 +129,18 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.length"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"(${translate(container)}[${translate(idx)}] & 0xff)"
   override def bytesFirst(b: Ast.expr): String =
-    s"${translate(b)}[0]"
+    bytesSubscript(b, Ast.expr.IntNum(0))
   override def bytesLast(b: Ast.expr): String =
-    s"${translate(b)}[(${translate(b)}).length - 1]"
+    bytesSubscript(b, Ast.expr.BinOp(
+      Ast.expr.Attribute(
+        b,
+        Ast.identifier("length")
+      ),
+      Ast.operator.Sub,
+      Ast.expr.IntNum(1)
+    ))
   override def bytesMin(b: Ast.expr): String =
     s"${JavaCompiler.kstreamName}.byteArrayMin(${translate(b)})"
   override def bytesMax(b: Ast.expr): String =
