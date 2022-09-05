@@ -35,7 +35,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
     val item = writeExprAsExpr(id, repeat, isRaw)
     dataType match {
       case t: BytesType =>
-        attrByteSizeCheck(Ast.expr.InternalName(id), t, exprByteArraySize(item), idToMsg(id))
+        attrByteSizeCheck(item, t, exprByteArraySize(item), idToMsg(id))
       case st: StrFromBytesType =>
         val bytes = exprStrToBytes(item, st.encoding)
         attrByteSizeCheck(
