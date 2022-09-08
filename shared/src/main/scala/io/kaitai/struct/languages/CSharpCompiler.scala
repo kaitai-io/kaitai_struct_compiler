@@ -268,7 +268,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condIfFooter(expr: expr): Unit = fileFooter(null)
+  override def condIfFooter: Unit = fileFooter(null)
 
   override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
     importList.add("System.Collections.Generic")

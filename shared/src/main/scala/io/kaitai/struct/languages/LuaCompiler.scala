@@ -153,7 +153,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"if ${expression(expr)} then")
     out.inc
   }
-  override def condIfFooter(expr: Ast.expr): Unit = {
+  override def condIfFooter: Unit = {
     out.dec
     out.puts("end")
   }

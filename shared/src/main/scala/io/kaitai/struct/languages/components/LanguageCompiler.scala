@@ -107,7 +107,7 @@ abstract class LanguageCompiler(
   def condIfSetNull(instName: Identifier): Unit = {}
   def condIfSetNonNull(instName: Identifier): Unit = {}
   def condIfHeader(expr: Ast.expr): Unit
-  def condIfFooter(expr: Ast.expr): Unit
+  def condIfFooter: Unit
 
   def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit
 
@@ -173,7 +173,7 @@ abstract class LanguageCompiler(
 
   def attrParseIfFooter(ifExpr: Option[Ast.expr]): Unit = {
     ifExpr match {
-      case Some(e) => condIfFooter(e)
+      case Some(e) => condIfFooter
       case None => // ignore
     }
   }

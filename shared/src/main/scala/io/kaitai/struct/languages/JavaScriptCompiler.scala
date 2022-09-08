@@ -286,7 +286,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   // TODO: replace this with UniversalFooter
-  override def condIfFooter(expr: expr): Unit = {
+  override def condIfFooter: Unit = {
     out.dec
     out.puts("}")
   }

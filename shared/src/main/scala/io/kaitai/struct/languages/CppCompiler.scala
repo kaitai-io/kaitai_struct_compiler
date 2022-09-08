@@ -610,7 +610,7 @@ class CppCompiler(
     outSrc.inc
   }
 
-  override def condIfFooter(expr: Ast.expr): Unit = {
+  override def condIfFooter: Unit = {
     outSrc.dec
     outSrc.puts("}")
   }
