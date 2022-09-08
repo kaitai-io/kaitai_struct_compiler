@@ -575,8 +575,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
     val expr1 = padRight match {
-      case Some(padByte) => s"$kstreamName.bytesStripRight($expr0, (byte) $padByte)"
-      case None => expr0
+      case Some(padByte) if terminator.map(term => padByte != term).getOrElse(true) =>
+        s"$kstreamName.bytesStripRight($expr0, (byte) $padByte)"
+      case _ => expr0
     }
     val expr2 = terminator match {
       case Some(term) => s"$kstreamName.bytesTerminate($expr1, (byte) $term, $include)"
