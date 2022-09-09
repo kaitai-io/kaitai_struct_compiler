@@ -256,7 +256,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+   override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+    // this line required for handleAssignmentRepeatUntil
+    typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"${privateMemberName(id)} = Vec::new();")
   }
 
@@ -305,13 +307,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier,
                                            expr: String,
-                                           isRaw: Boolean): Unit =
+                                           isRaw: Boolean): Unit = {
     out.puts(s"${privateMemberName(id)}.push($expr);")
+    var copy_type = ""
+    if (typeProvider._currentIteratorType.isDefined && translator.is_copy_type(typeProvider._currentIteratorType.get)) {
+      copy_type = "*"
+    }
+    out.puts(s"let ${translator.doLocalName(Identifier.ITERATOR)} = $copy_type${privateMemberName(id)}.last().unwrap();")
+  }
 
   override def condRepeatUntilFooter(id: Identifier,
                                      io: String,
                                      dataType: DataType,
                                      repeatExpr: Ast.expr): Unit = {
+    // this line required by kaitai code
+    typeProvider._currentIteratorType = Some(dataType)
     out.puts("_i += 1;")
     out.puts(s"!(${expression(repeatExpr)})")
     out.dec
@@ -870,11 +880,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(id)
     val ioId = IoStorageIdentifier(id)
 
-//    val args = rep match {
-//      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
-//      case _ => privateMemberName(id)
-//    }
-
     val newStreamRaw = s"$memberName"
     val ioName = rep match {
       case NoRepeat =>
@@ -883,12 +888,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"let $localIO = BytesReader::new(&$newStream);")
         s"&$localIO"
       case _ =>
-        newStreamRaw
-        // TODO
-        //val localIO = s"io_${idToStr(id)}"
-        // out.puts(s"$kstreamName* $localIO = $newStreamRaw;")
-        // out.puts(s"${privateMemberName(ioId)}->push_back($localIO);")
-        //localIO
+        val localIO = s"io_${idToStr(id)}"
+        out.puts(s"let $localIO = BytesReader::new(&$newStreamRaw.last().unwrap());")
+        s"&$localIO"
     }
 
     ioName

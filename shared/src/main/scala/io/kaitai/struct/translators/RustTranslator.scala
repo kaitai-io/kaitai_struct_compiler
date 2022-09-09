@@ -228,8 +228,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   }
 
   override def doLocalName(s: String): String = s match {
-    case Identifier.ITERATOR => "tmpa"
-    case Identifier.ITERATOR2 => "tmpb"
+    case Identifier.ITERATOR => "_tmpa"
+    case Identifier.ITERATOR2 => "_tmpb"
     case Identifier.INDEX => "_i"
     case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
     case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
