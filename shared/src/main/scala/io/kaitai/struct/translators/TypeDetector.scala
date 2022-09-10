@@ -231,6 +231,7 @@ class TypeDetector(provider: TypeProvider) {
           case (_: StrType, "to_i") => CalcIntType
           case (_: StrType, "to_b") => CalcBytesType
           case (_: BytesType, "to_s") => CalcStrType
+          case (_: BytesType, "index_of") => CalcIntType
           case _ =>
             throw new MethodNotFoundError(methodName.name, objType)
         }

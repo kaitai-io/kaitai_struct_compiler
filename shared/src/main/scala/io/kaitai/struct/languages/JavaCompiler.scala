@@ -866,12 +866,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def exprStreamToByteArray(io: String): String =
     s"$io.toByteArray()"
 
-  override def attrBasicCheck(checkExpr: String, actual: String, expected: String, msg: String): Unit = {
-    val msgStr = translator.translate(Ast.expr.Str(msg))
+  override def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
+    val msgStr = expression(Ast.expr.Str(msg))
 
-    out.puts(s"if ($checkExpr)")
+    out.puts(s"if (${expression(checkExpr)})")
     out.inc
-    out.puts(s"throw new ConsistencyError($msgStr, $actual, $expected);")
+    out.puts(s"throw new ConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)});")
     out.dec
 
     importList.add("io.kaitai.struct.ConsistencyError")

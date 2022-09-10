@@ -99,6 +99,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
           case (_: StrType, "to_i") => strToInt(obj, args(0))
           case (_: StrType, "to_b") => strToBytes(obj, args(0))
           case (_: BytesType, "to_s") => bytesToStr(obj, args(0))
+          case (_: BytesType, "index_of") => bytesIndexOf(obj, args(0))
           case _ => throw new TypeMismatchError(s"don't know how to call method '$methodName' of object type '$objType'")
         }
     }
@@ -121,6 +122,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
   def strToBytes(s: Ast.expr, encoding: Ast.expr): T = ???
 
   def bytesToStr(value: Ast.expr, expr: Ast.expr): T
+  def bytesIndexOf(value: Ast.expr, expr: Ast.expr): T = ???
 
   def intToStr(value: Ast.expr, num: Ast.expr): T
 

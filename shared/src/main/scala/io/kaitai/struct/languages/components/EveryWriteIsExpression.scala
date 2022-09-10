@@ -94,6 +94,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
         val expr = writeExprAsExpr(idToWrite, rep, isRaw)
         attrPrimitiveWrite(io, expr, t, None)
         t.terminator.foreach { (term) =>
+          // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`)
           if (!t.include)
             attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None)
         }
@@ -108,6 +109,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
             blockScopeHeader
             pushPos(io)
           }
+          // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`)
           attrPrimitiveWrite(io, Ast.expr.IntNum(t.terminator), Int1Type(false), None)
           if (!t.consume) {
             popPos(io)

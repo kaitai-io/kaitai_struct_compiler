@@ -35,13 +35,12 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
     val item = writeExprAsExpr(id, repeat, isRaw)
     dataType match {
       case t: BytesType =>
-        attrByteSizeCheck(item, t, exprByteArraySize(item), idToMsg(id))
+        attrBytesCheck(item, t, idToMsg(id))
       case st: StrFromBytesType =>
         val bytes = exprStrToBytes(item, st.encoding)
-        attrByteSizeCheck(
+        attrBytesCheck(
           bytes,
           st.bytes,
-          exprByteArraySize(bytes),
           idToMsg(id)
         )
       case _ => // no checks
@@ -55,45 +54,111 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
       idToMsg(id)
     )
 
-  def attrByteSizeCheck(name: Ast.expr, t: BytesType, actualSize: Ast.expr, msgId: String): Unit = {
+  def attrBytesCheck(bytes: Ast.expr, t: BytesType, msgId: String): Unit = {
+    val actualSize = exprByteArraySize(bytes)
     t match {
-      case blt: BytesLimitType =>
-        if (blt.padRight.isDefined) {
-          // size must be "<= declared"
+      case blt: BytesLimitType => {
+        if (blt.terminator.isDefined || blt.padRight.isDefined) {
+          // size must be "<= declared" (less than or equal to declared size)
           attrAssertLtE(actualSize, blt.size, msgId)
-          blt.terminator.foreach { (term) =>
-            if (blt.include)
-              attrAssertLastByte(name, term, msgId)
-          }
         } else {
-          blt.terminator match {
-            case Some(term) =>
-              if (!blt.include) {
-                // size must be "<= (declared - 1)", i.e. "< declared"
-                attrAssertLt(actualSize, blt.size, msgId)
-              } else {
-                // terminator is included into the string, so
-                // size must be "<= declared"
-                attrAssertLtE(actualSize, blt.size, msgId)
-                attrAssertLastByte(name, term, msgId)
-              }
-            case None =>
-              // size must match declared size exactly
-              attrAssertEqual(
-                actualSize,
-                blt.size,
-                msgId
-              )
+          // size must match declared size exactly
+          attrAssertEqual(
+            actualSize,
+            blt.size,
+            msgId
+          )
+        }
+        blt.terminator.foreach { (term) =>
+          val actualIndexOfTerm = exprByteArrayIndexOf(bytes, term)
+          val isPadRightActive = blt.padRight.map(padByte => padByte != term).getOrElse(false)
+          if (!blt.include) {
+            attrAssertEqual(actualIndexOfTerm, Ast.expr.IntNum(-1), msgId)
+            if (isPadRightActive) {
+              condIfHeader(Ast.expr.Compare(actualSize, Ast.cmpop.Eq, blt.size))
+              // check if the last byte is not `pad-right`
+            }
+          } else {
+            val lastByteIndex = Ast.expr.BinOp(actualSize, Ast.operator.Sub, Ast.expr.IntNum(1))
+            if (!isPadRightActive) {
+              condIfHeader(Ast.expr.Compare(actualSize, Ast.cmpop.Lt, blt.size))
+              // must not be empty (always contains at least the `terminator` byte)
+              attrAssertCmp(actualSize, Ast.cmpop.Eq, Ast.expr.IntNum(0), msgId)
+              // the user wants to terminate the value prematurely and there's no `pad-right` that
+              // could do that, so the last byte of the value must be `terminator`
+              attrAssertEqual(actualIndexOfTerm, lastByteIndex, msgId)
+              condIfFooter
+
+              condIfHeader(Ast.expr.Compare(actualSize, Ast.cmpop.Eq, blt.size))
+            }
+            attrBasicCheck(
+              Ast.expr.BoolOp(
+                Ast.boolop.And,
+                Seq(
+                  Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.NotEq, Ast.expr.IntNum(-1)),
+                  Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.NotEq, lastByteIndex)
+                )
+              ),
+              actualIndexOfTerm,
+              lastByteIndex,
+              msgId
+            )
+            if (!isPadRightActive) {
+              condIfFooter
+            } else {
+              condIfHeader(Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.Eq, Ast.expr.IntNum(-1)))
+              // check if the last byte is not `pad-right`
+            }
+          }
+          // intentionally deferring the `condIfFooter` call (in case of `isPadRightActive`)
+        }
+        blt.padRight.foreach { (padByte) =>
+          if (blt.terminator.map(term => padByte != term).getOrElse(true)) {
+            val lastByte = exprByteArrayLastByte(bytes)
+            attrBasicCheck(
+              Ast.expr.BoolOp(
+                Ast.boolop.And,
+                Seq(
+                  Ast.expr.Compare(actualSize, Ast.cmpop.NotEq, Ast.expr.IntNum(0)),
+                  Ast.expr.Compare(
+                    lastByte,
+                    Ast.cmpop.Eq,
+                    Ast.expr.IntNum(padByte)
+                  )
+                )
+              ),
+              lastByte,
+              Ast.expr.IntNum(padByte),
+              msgId
+            )
           }
         }
-      case btt: BytesTerminatedType =>
-        if (btt.include)
-          attrAssertLastByte(name, btt.terminator, msgId)
+        blt.terminator.foreach { (term) =>
+          val isPadRightActive = blt.padRight.map(padByte => padByte != term).getOrElse(false)
+          // here's the `condIfFooter` call omitted from the previous `blt.terminator.foreach()` block
+          if (isPadRightActive)
+            condIfFooter
+        }
+      }
+      case btt: BytesTerminatedType => {
+        val actualIndexOfTerm = exprByteArrayIndexOf(bytes, btt.terminator)
+        // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`, i.e. the default setting)
+        val expectedIndexOfTerm = if (btt.include) {
+          // must not be empty (always contains at least the `terminator` byte)
+          attrAssertCmp(actualSize, Ast.cmpop.Eq, Ast.expr.IntNum(0), msgId)
+
+          Ast.expr.BinOp(actualSize, Ast.operator.Sub, Ast.expr.IntNum(1))
+        } else {
+          Ast.expr.IntNum(-1)
+        }
+
+        attrAssertEqual(actualIndexOfTerm, expectedIndexOfTerm, msgId)
+      }
       case _ => // no checks
     }
   }
 
-  def attrBasicCheck(checkExpr: String, actual: String, expected: String, msg: String): Unit
+  def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit
 
   private
   def idToMsg(id: Identifier): String = id match {
@@ -111,18 +176,22 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
       Ast.identifier("size")
     )
 
-  def exprArraySize(name: Ast.expr) = exprByteArraySize(name)
+  def exprByteArrayLastByte(name: Ast.expr) =
+    Ast.expr.Attribute(
+      name,
+      Ast.identifier("last")
+    )
 
-  def attrAssertLastByte(name: Ast.expr, expectedLast: Int, msg: String): Unit = {
-    attrAssertEqual(
+  def exprByteArrayIndexOf(name: Ast.expr, term: Int) =
+    Ast.expr.Call(
       Ast.expr.Attribute(
         name,
-        Ast.identifier("last")
+        Ast.identifier("index_of")
       ),
-      Ast.expr.IntNum(expectedLast),
-      msg
+      Seq(Ast.expr.IntNum(term))
     )
-  }
+
+  def exprArraySize(name: Ast.expr) = exprByteArraySize(name)
 
   def attrAssertEqual(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
     attrAssertCmp(actual, Ast.cmpop.NotEq, expected, msg)
@@ -130,14 +199,11 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
   def attrAssertLtE(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
     attrAssertCmp(actual, Ast.cmpop.Gt, expected, msg)
 
-  def attrAssertLt(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
-    attrAssertCmp(actual, Ast.cmpop.GtE, expected, msg)
-
   def attrAssertCmp(actual: Ast.expr, op: Ast.cmpop, expected: Ast.expr, msg: String): Unit =
     attrBasicCheck(
-      translator.translate(Ast.expr.Compare(actual, op, expected)),
-      translator.translate(actual),
-      translator.translate(expected),
+      Ast.expr.Compare(actual, op, expected),
+      actual,
+      expected,
       msg
     )
 }

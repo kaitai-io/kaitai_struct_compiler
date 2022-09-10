@@ -125,6 +125,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
     importList.add("java.nio.charset.Charset")
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
   }
+  override def bytesIndexOf(b: expr, byte: expr): String =
+    s"${JavaCompiler.kstreamName}.byteArrayIndexOf(${translate(b)}, (byte) ${translate(byte)})"
 
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.length"
