@@ -80,7 +80,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     }
   }
 
-  def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, rep: RepeatSpec, isRaw: Boolean) = {
+  def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
     val idToWrite = t.process match {
       case Some(proc) =>
         val rawId = RawIdentifier(id)
@@ -89,9 +89,18 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case None =>
         id
     }
+    val expr = writeExprAsExpr(idToWrite, rep, isRaw)
+    attrBytesTypeWrite2(io, expr, t)
+  }
+
+  def attrStrTypeWrite(id: Identifier, t: StrFromBytesType, io: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
+    val expr = exprStrToBytes(writeExprAsExpr(id, rep, isRaw), t.encoding)
+    attrBytesTypeWrite2(io, expr, t.bytes)
+  }
+
+  def attrBytesTypeWrite2(io: String, expr: Ast.expr, t: BytesType): Unit =
     t match {
       case t: BytesEosType =>
-        val expr = writeExprAsExpr(idToWrite, rep, isRaw)
         attrPrimitiveWrite(io, expr, t, None)
         t.terminator.foreach { (term) =>
           // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`)
@@ -99,10 +108,8 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
             attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None)
         }
       case blt: BytesLimitType =>
-        val expr = writeExprAsExpr(idToWrite, rep, isRaw)
         attrBytesLimitWrite2(io, expr, blt)
       case t: BytesTerminatedType =>
-        val expr = writeExprAsExpr(idToWrite, rep, isRaw)
         attrPrimitiveWrite(io, expr, t, None)
         if (!t.include) {
           if (!t.consume) {
@@ -117,30 +124,6 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
           }
         }
     }
-  }
-
-  def attrStrTypeWrite(id: Identifier, t: StrFromBytesType, io: String, rep: RepeatSpec, isRaw: Boolean) = {
-    val expr = exprStrToBytes(writeExprAsExpr(id, rep, isRaw), t.encoding)
-    attrPrimitiveWrite(io, expr, t.bytes, None)
-
-    /** FIXME: duplication with the previous [[attrBytesTypeWrite]] method (will also ensure consistent handling) */
-    t.bytes match {
-      case t: BytesEosType =>
-        t.terminator.foreach { (term) =>
-          if (!t.include)
-            attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None)
-        }
-      case t: BytesLimitType =>
-        // FIXME: implement padding and terminator byte
-        t.terminator.foreach { (term) =>
-          if (!t.include)
-            attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None)
-        }
-      case t: BytesTerminatedType =>
-        if (t.consume && !t.include)
-          attrPrimitiveWrite(io, Ast.expr.IntNum(t.terminator), Int1Type(false), None)
-    }
-  }
 
   def attrBytesLimitWrite2(io: String, expr: Ast.expr, blt: BytesLimitType): Unit = {
     val (term, padRight) = (blt.terminator, blt.padRight, blt.include) match {
