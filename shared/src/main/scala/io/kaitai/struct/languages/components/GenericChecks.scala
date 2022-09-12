@@ -115,7 +115,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
         }
         blt.padRight.foreach { (padByte) =>
           if (blt.terminator.map(term => padByte != term).getOrElse(true)) {
-            val lastByte = exprByteArrayLastByte(bytes)
+            val lastByte = exprByteArrayLast(bytes)
             attrBasicCheck(
               Ast.expr.BoolOp(
                 Ast.boolop.And,
@@ -177,7 +177,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
       Ast.identifier("size")
     )
 
-  def exprByteArrayLastByte(name: Ast.expr) =
+  def exprByteArrayLast(name: Ast.expr) =
     Ast.expr.Attribute(
       name,
       Ast.identifier("last")
@@ -194,17 +194,14 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
 
   def exprArraySize(name: Ast.expr) = exprByteArraySize(name)
 
+  def exprArrayLast(name: Ast.expr) = exprByteArrayLast(name)
+
   def attrAssertUntilCond(name: Ast.expr, dataType: DataType, untilExpr: Ast.expr, msg: String): Unit = {
     blockScopeHeader
     handleAssignmentTempVar(
       dataType,
       translator.doName(Identifier.ITERATOR),
-      translator.translate(
-        Ast.expr.Attribute(
-          name,
-          Ast.identifier("last")
-        )
-      )
+      translator.translate(exprArrayLast(name))
     )
     typeProvider._currentIteratorType = Some(dataType)
     attrBasicCheck(
