@@ -21,6 +21,8 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
         condRepeatCommonFooter
       case rep: RepeatUntil =>
+        // the array must not be empty (always contains at least the `repeat-until: {true}` element)
+        attrAssertCmp(exprArraySize(Ast.expr.InternalName(id)), Ast.cmpop.Eq, Ast.expr.IntNum(0), idToMsg(id))
         condRepeatCommonHeader(id, io, attr.dataType)
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
         attrAssertUntilCond(id, attr.dataType, rep, false, idToMsg(id))
