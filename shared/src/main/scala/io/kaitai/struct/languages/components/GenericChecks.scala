@@ -21,6 +21,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
         condRepeatCommonFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
+        attrAssertUntilCond(Ast.expr.InternalName(id), attr.dataType, untilExpr, idToMsg(id))
         condRepeatCommonHeader(id, io, attr.dataType)
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
         condRepeatCommonFooter
@@ -114,7 +115,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
         }
         blt.padRight.foreach { (padByte) =>
           if (blt.terminator.map(term => padByte != term).getOrElse(true)) {
-            val lastByte = exprByteArrayLastByte(bytes)
+            val lastByte = exprByteArrayLast(bytes)
             attrBasicCheck(
               Ast.expr.BoolOp(
                 Ast.boolop.And,
@@ -176,7 +177,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
       Ast.identifier("size")
     )
 
-  def exprByteArrayLastByte(name: Ast.expr) =
+  def exprByteArrayLast(name: Ast.expr) =
     Ast.expr.Attribute(
       name,
       Ast.identifier("last")
@@ -192,6 +193,25 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
     )
 
   def exprArraySize(name: Ast.expr) = exprByteArraySize(name)
+
+  def exprArrayLast(name: Ast.expr) = exprByteArrayLast(name)
+
+  def attrAssertUntilCond(name: Ast.expr, dataType: DataType, untilExpr: Ast.expr, msg: String): Unit = {
+    blockScopeHeader
+    handleAssignmentTempVar(
+      dataType,
+      translator.doName(Identifier.ITERATOR),
+      translator.translate(exprArrayLast(name))
+    )
+    typeProvider._currentIteratorType = Some(dataType)
+    attrBasicCheck(
+      Ast.expr.UnaryOp(Ast.unaryop.Not, untilExpr),
+      Ast.expr.Str(dataType.toString),
+      Ast.expr.Str(translator.translate(untilExpr)),
+      msg
+    )
+    blockScopeFooter
+  }
 
   def attrAssertEqual(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
     attrAssertCmp(actual, Ast.cmpop.NotEq, expected, msg)
