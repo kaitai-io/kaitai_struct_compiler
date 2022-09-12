@@ -20,10 +20,10 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
         condRepeatCommonHeader(id, io, attr.dataType)
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
         condRepeatCommonFooter
-      case RepeatUntil(untilExpr: Ast.expr) =>
-        attrAssertUntilCond(Ast.expr.InternalName(id), attr.dataType, untilExpr, idToMsg(id))
+      case rep: RepeatUntil =>
         condRepeatCommonHeader(id, io, attr.dataType)
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
+        attrAssertUntilCond(id, attr.dataType, rep, false, idToMsg(id))
         condRepeatCommonFooter
       case NoRepeat =>
         attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
@@ -196,18 +196,21 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
 
   def exprArrayLast(name: Ast.expr) = exprByteArrayLast(name)
 
-  def attrAssertUntilCond(name: Ast.expr, dataType: DataType, untilExpr: Ast.expr, msg: String): Unit = {
+  def attrAssertUntilCond(id: Identifier, dataType: DataType, repeat: RepeatUntil, isRaw: Boolean, msg: String): Unit = {
     blockScopeHeader
     handleAssignmentTempVar(
       dataType,
       translator.doName(Identifier.ITERATOR),
-      translator.translate(exprArrayLast(name))
+      translator.translate(writeExprAsExpr(id, repeat, isRaw))
     )
     typeProvider._currentIteratorType = Some(dataType)
-    attrBasicCheck(
-      Ast.expr.UnaryOp(Ast.unaryop.Not, untilExpr),
-      Ast.expr.Str(dataType.toString),
-      Ast.expr.Str(translator.translate(untilExpr)),
+    attrAssertEqual(
+      repeat.expr,
+      Ast.expr.Compare(
+        Ast.expr.Name(Ast.identifier(Identifier.INDEX)),
+        Ast.cmpop.Eq,
+        Ast.expr.BinOp(exprArraySize(Ast.expr.InternalName(id)), Ast.operator.Sub, Ast.expr.IntNum(1))
+      ),
       msg
     )
     blockScopeFooter
