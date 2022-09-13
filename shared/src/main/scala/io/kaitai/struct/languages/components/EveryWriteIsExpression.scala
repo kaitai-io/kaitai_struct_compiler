@@ -46,7 +46,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case t: UserType =>
         attrUserTypeWrite(id, t, io, rep, isRaw, defEndian, exprTypeOpt)
       case t: BytesType =>
-        attrBytesTypeWrite(id, t, io, rep, isRaw)
+        attrBytesTypeWrite(id, t, io, rep, isRaw, exprTypeOpt)
       case st: SwitchType =>
         val isNullable = if (switchBytesOnlyAsRaw) {
           st.isNullableSwitchRaw
@@ -56,7 +56,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 
         attrSwitchTypeWrite(id, st.on, st.cases, io, rep, defEndian, isNullable, st.combinedType)
       case t: StrFromBytesType =>
-        attrStrTypeWrite(id, t, io, rep, isRaw)
+        attrStrTypeWrite(id, t, io, rep, isRaw, exprTypeOpt)
       case t: EnumType =>
         val expr = writeExprAsExpr(id, rep, isRaw)
         val exprType = internalEnumIntType(t.basedOn)
@@ -80,44 +80,44 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     }
   }
 
-  def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
+  def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, rep: RepeatSpec, isRaw: Boolean, exprTypeOpt: Option[DataType]): Unit = {
     val idToWrite = t.process match {
       case Some(proc) =>
         val rawId = RawIdentifier(id)
-        attrUnprocess(proc, id, rawId, rep)
+        attrUnprocess(proc, id, rawId, rep, t, exprTypeOpt)
         rawId
       case None =>
         id
     }
     val expr = writeExprAsExpr(idToWrite, rep, isRaw)
-    attrBytesTypeWrite2(io, expr, t)
+    attrBytesTypeWrite2(io, expr, t, exprTypeOpt)
   }
 
-  def attrStrTypeWrite(id: Identifier, t: StrFromBytesType, io: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
+  def attrStrTypeWrite(id: Identifier, t: StrFromBytesType, io: String, rep: RepeatSpec, isRaw: Boolean, exprTypeOpt: Option[DataType]): Unit = {
     val expr = exprStrToBytes(writeExprAsExpr(id, rep, isRaw), t.encoding)
-    attrBytesTypeWrite2(io, expr, t.bytes)
+    attrBytesTypeWrite2(io, expr, t.bytes, exprTypeOpt)
   }
 
-  def attrBytesTypeWrite2(io: String, expr: Ast.expr, t: BytesType): Unit =
+  def attrBytesTypeWrite2(io: String, expr: Ast.expr, t: BytesType, exprTypeOpt: Option[DataType]): Unit =
     t match {
       case t: BytesEosType =>
-        attrPrimitiveWrite(io, expr, t, None)
+        attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
         t.terminator.foreach { (term) =>
           // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`)
           if (!t.include)
-            attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None)
+            attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None, None)
         }
       case blt: BytesLimitType =>
-        attrBytesLimitWrite2(io, expr, blt)
+        attrBytesLimitWrite2(io, expr, blt, exprTypeOpt)
       case t: BytesTerminatedType =>
-        attrPrimitiveWrite(io, expr, t, None)
+        attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
         if (!t.include) {
           if (!t.consume) {
             blockScopeHeader
             pushPos(io)
           }
           // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`)
-          attrPrimitiveWrite(io, Ast.expr.IntNum(t.terminator), Int1Type(false), None)
+          attrPrimitiveWrite(io, Ast.expr.IntNum(t.terminator), Int1Type(false), None, None)
           if (!t.consume) {
             popPos(io)
             blockScopeFooter
@@ -125,12 +125,12 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
         }
     }
 
-  def attrBytesLimitWrite2(io: String, expr: Ast.expr, blt: BytesLimitType): Unit = {
+  def attrBytesLimitWrite2(io: String, expr: Ast.expr, blt: BytesLimitType, exprTypeOpt: Option[DataType]): Unit = {
     val (term, padRight) = (blt.terminator, blt.padRight, blt.include) match {
       case (None, None, false) =>
         // no terminator, no padding => just a regular output
         // validation should check that expression's length matches size
-        attrPrimitiveWrite(io, expr, blt, None)
+        attrPrimitiveWrite(io, expr, blt, None, exprTypeOpt)
         return
       case (_, None, true) =>
         // terminator included, no padding => pad with zeroes
@@ -195,7 +195,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
                     val ioFixed = thisLocal.allocateIOFixed(rawId, translator.translate(blt.size))
                     attrUserTypeInstreamWrite(ioFixed, expr, t, exprType)
                     handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, isRaw)
-                    attrBytesTypeWrite(rawId, byteType, io, rep, isRaw)
+                    attrBytesTypeWrite(rawId, byteType, io, rep, isRaw, exprTypeOpt)
                 }
             }
         }
@@ -244,11 +244,11 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 
   def internalEnumIntType(basedOn: IntType): DataType
 
-  def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType] = None): Unit
+  def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit
   def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit
   def attrUserTypeInstreamWrite(io: String, expr: Ast.expr, t: DataType, exprType: DataType): Unit
   def attrWriteStreamToStream(srcIo: String, dstIo: String): Unit
   def exprStreamToByteArray(ioFixed: String): String
 
-  def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit
+  def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dt: BytesType, exprTypeOpt: Option[DataType]): Unit
 }

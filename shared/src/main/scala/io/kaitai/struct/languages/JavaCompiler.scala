@@ -315,8 +315,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   // TODO: merge with attrProcess above (there is currently 99.9% duplication)
-  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
-    val srcExpr = getRawIdExpr(varSrc, rep)
+  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit = {
+    val exprType = exprTypeOpt.getOrElse(dataType)
+    val srcExprRaw = getRawIdExpr(varSrc, rep)
+    val srcExpr = if (exprType != dataType) {
+      s"(${kaitaiType2JavaType(dataType)}) ($srcExprRaw)"
+    } else {
+      srcExprRaw
+    }
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
@@ -824,7 +830,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     valueExpr: Ast.expr,
     dataType: DataType,
     defEndian: Option[FixedEndian],
-    exprTypeOpt: Option[DataType] = None
+    exprTypeOpt: Option[DataType]
   ): Unit = {
     val exprType = exprTypeOpt.getOrElse(dataType)
     val exprRaw = expression(valueExpr)
