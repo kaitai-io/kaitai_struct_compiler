@@ -318,11 +318,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit = {
     val exprType = exprTypeOpt.getOrElse(dataType)
     val srcExprRaw = getRawIdExpr(varSrc, rep)
-    val srcExpr = if (exprType != dataType) {
-      s"(${kaitaiType2JavaType(dataType)}) ($srcExprRaw)"
-    } else {
-      srcExprRaw
-    }
+    val srcExpr = castIfNeeded(srcExprRaw, exprType, dataType)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
@@ -572,11 +568,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"new ${types2class(t.name)}($io$addArgs$addParams)"
     }
 
-    if (assignType != dataType) {
-      s"(${kaitaiType2JavaType(assignType)}) ($expr)"
-    } else {
-      expr
-    }
+    castIfNeeded(expr, dataType, assignType)
   }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
@@ -593,11 +585,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
-    val expr = if (assignType != dataType) {
-      s"((${kaitaiType2JavaType(dataType)}) ($id))"
-    } else {
-      id
-    }
+    val expr = castIfNeeded(id, assignType, dataType)
     out.puts(s"$expr._read();")
   }
 
@@ -762,14 +750,13 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val primType = kaitaiType2JavaTypePrim(dataType)
     val boxedType = kaitaiType2JavaTypeBoxed(dataType)
 
-    if (primType != boxedType) {
-      // Special trick to achieve both implicit type conversion + boxing.
-      // Unfortunately, Java can't do both in one assignment, i.e. this would fail:
+    if (dataType.isInstanceOf[NumericType]) {
+      // Special trick to achieve both type conversion + boxing.
+      // Unfortunately, Java can't do both by itself, i.e. this would fail:
       //
       // Double c = 1.0f + 1;
 
-      out.puts(s"$primType _tmp = ($primType) (${expression(value)});")
-      out.puts(s"${privateMemberName(instName)} = _tmp;")
+      out.puts(s"${privateMemberName(instName)} = ${translator.doCast(value, dataType)};")
     } else {
       out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
     }
@@ -834,11 +821,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   ): Unit = {
     val exprType = exprTypeOpt.getOrElse(dataType)
     val exprRaw = expression(valueExpr)
-    val expr = if (exprType != dataType) {
-      s"(${kaitaiType2JavaType(dataType)}) ($exprRaw)"
-    } else {
-      exprRaw
-    }
+    val expr = castIfNeeded(exprRaw, exprType, dataType)
 
     val stmt = dataType match {
       case t: ReadableType =>
@@ -858,11 +841,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, dataType: DataType, exprType: DataType) = {
     val exprRaw = expression(valueExpr)
-    val expr = if (exprType != dataType) {
-      s"((${kaitaiType2JavaType(dataType)}) ($exprRaw))"
-    } else {
-      exprRaw
-    }
+    val expr = castIfNeeded(exprRaw, exprType, dataType)
     out.puts(s"$expr._write($io);")
   }
 
@@ -938,6 +917,21 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       kaitaiType2JavaTypeBoxed(attrType)
     } else {
       kaitaiType2JavaTypePrim(attrType)
+    }
+
+  def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType): String =
+    if (exprType != targetType) {
+      val castTypeId = kaitaiType2JavaTypePrim(targetType)
+      targetType match {
+        // Handles both unboxing + downcasting at the same time if needed
+        // (solution from https://github.com/kaitai-io/kaitai_struct_compiler/pull/149)
+        //
+        // See also https://github.com/kaitai-io/kaitai_struct_compiler/pull/212#issuecomment-731149487
+        case _: NumericType => s"((Number) ($exprRaw)).${castTypeId}Value()"
+        case _ => s"(($castTypeId) ($exprRaw))"
+      }
+    } else {
+      exprRaw
     }
 
   /**

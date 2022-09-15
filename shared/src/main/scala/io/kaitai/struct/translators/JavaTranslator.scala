@@ -106,13 +106,18 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
   }
 
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}.get((int) ${translate(idx)})"
+    s"${translate(container)}.get(${doCast(idx, CalcIntType)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: DataType): String = {
     // FIXME
     val compiler = new JavaCompiler(provider.asInstanceOf[ClassTypeProvider], config)
-    s"((${compiler.kaitaiType2JavaType(typeName)}) (${translate(value)}))"
+    if (value.isInstanceOf[Ast.expr.IntNum] || value.isInstanceOf[Ast.expr.FloatNum])
+      // this branch is not really needed, but makes the code a bit cleaner -
+      // we can simplify casting to just this for numeric constants
+      s"((${compiler.kaitaiType2JavaType(typeName)}) ${translate(value)})"
+    else
+      compiler.castIfNeeded(translate(value), AnyType, typeName)
   }
 
   // Predefined methods of various types
@@ -121,7 +126,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
   override def enumToInt(v: expr, et: EnumType): String =
     s"${translate(v)}.id()"
   override def floatToInt(v: expr): String =
-    s"(int) (${translate(v)} + 0)"
+    doCast(v, CalcIntType)
   override def intToStr(i: expr, base: expr): String =
     s"Long.toString(${translate(i)}, ${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
@@ -129,12 +134,12 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
     s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
   }
   override def bytesIndexOf(b: expr, byte: expr): String =
-    s"${JavaCompiler.kstreamName}.byteArrayIndexOf(${translate(b)}, (byte) ${translate(byte)})"
+    s"${JavaCompiler.kstreamName}.byteArrayIndexOf(${translate(b)}, ${doCast(byte, Int1Type(true))})"
 
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.length"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"(${translate(container)}[${translate(idx)}] & 0xff)"
+    s"(${translate(container)}[${doCast(idx, CalcIntType)}] & 0xff)"
   override def bytesFirst(b: Ast.expr): String =
     bytesSubscript(b, Ast.expr.IntNum(0))
   override def bytesLast(b: Ast.expr): String =
