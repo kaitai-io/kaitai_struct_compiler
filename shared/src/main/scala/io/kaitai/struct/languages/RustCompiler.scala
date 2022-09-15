@@ -259,7 +259,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
    override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
     // this line required for handleAssignmentRepeatUntil
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts(s"${privateMemberName(id)} = Vec::new();")
+    if (in_instance) {
+      out.puts(s"*${privateMemberName(id)}.borrow_mut() = Vec::new();")
+    } else {
+      out.puts(s"${privateMemberName(id)} = Vec::new();")
+    }
   }
 
   override def condRepeatEosHeader(id: Identifier,
@@ -273,7 +277,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.push($expr);")
+    if (in_instance) {
+      out.puts(s"${privateMemberName(id)}.borrow_mut().push($expr);")
+    } else {
+      out.puts(s"${privateMemberName(id)}.push($expr);")
+    }
   }
 
   override def condRepeatEosFooter: Unit = {
