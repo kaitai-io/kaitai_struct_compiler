@@ -166,10 +166,25 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
       case IoIdentifier | RootIdentifier | ParentIdentifier => return
       case _ =>
-        kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType)
+        kaitaiTypeToNativeTypeWrapper(Some(attrName), attrType)
     }
 
     out.puts(s"${idToStr(attrName)}: $typeName,")
+  }
+
+  def kaitaiTypeToNativeTypeWrapper(id: Option[Identifier],
+                                    attrType: DataType): String = {
+    if (id.isDefined) id.get match {
+      case RawIdentifier(inner) => {
+        val found = translator.get_instance(typeProvider.nowClass, idToStr(inner))
+        if (found.isDefined) {
+          // raw id for instance should have RefCell wrapper
+          return s"RefCell<${kaitaiTypeToNativeType(id, typeProvider.nowClass, attrType)}>"
+        }
+      }
+      case _ =>
+    }
+    kaitaiTypeToNativeType(id, typeProvider.nowClass, attrType)
   }
 
   override def attributeReader(attrName: Identifier,
@@ -179,7 +194,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
       case IoIdentifier | RootIdentifier | ParentIdentifier => return
       case _ =>
-        kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType)
+        kaitaiTypeToNativeTypeWrapper(Some(attrName), attrType)
     }
     val typeNameEx = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType, excludeOptionWrapper = true)
     out.puts(
@@ -888,7 +903,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(id)
     val ioId = IoStorageIdentifier(id)
 
-    val newStreamRaw = s"$memberName"
+    var newStreamRaw = s"$memberName"
     val ioName = rep match {
       case NoRepeat =>
         val newStream = newStreamRaw
@@ -896,7 +911,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"let $localIO = BytesReader::new(&$newStream);")
         s"&$localIO"
       case _ =>
-        val localIO = s"io_${idToStr(id)}"
+        val ids = idToStr(id)
+        val localIO = s"io_$ids"
+        if (in_instance) {
+          out.puts(s"let $ids = $newStreamRaw.borrow();")
+          newStreamRaw = ids
+        }
         out.puts(s"let $localIO = BytesReader::new(&$newStreamRaw.last().unwrap());")
         s"&$localIO"
     }
