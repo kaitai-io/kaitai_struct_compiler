@@ -249,10 +249,13 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val name = idToStr(attrName)
 
     out.puts(s"public $javaType $name() { return $name; }")
+  }
 
-    if (config.readWrite) {
-      out.puts(s"public void set${idToSetterStr(attrName)}($javaType _v) { $name = _v; }")
-    }
+  override def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
+    val javaType = kaitaiType2JavaType(attrType, isNullable)
+    val name = idToStr(attrName)
+
+    out.puts(s"public void set${idToSetterStr(attrName)}($javaType _v) { $name = _v; }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -760,6 +763,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
     }
+  }
+
+  override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
+    out.puts(s"public void _invalidate${idToSetterStr(instName)}() { ${privateMemberName(instName)} = null; }")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {

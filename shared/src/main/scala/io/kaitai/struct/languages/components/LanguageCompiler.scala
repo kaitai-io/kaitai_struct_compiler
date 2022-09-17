@@ -88,6 +88,7 @@ abstract class LanguageCompiler(
 
   def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
   def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
+  def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = ???
   def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit
@@ -141,6 +142,7 @@ abstract class LanguageCompiler(
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit
   def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr)
+  def instanceInvalidate(instName: InstanceIdentifier): Unit = ???
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit
 

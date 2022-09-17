@@ -222,6 +222,9 @@ class ClassCompiler(
         attr.isNullable
       }
       lang.attributeReader(attr.id, attr.dataTypeComposite, isNullable)
+      if (config.readWrite) {
+        lang.attributeSetter(attr.id, attr.dataTypeComposite, isNullable)
+      }
     }
   }
 
@@ -391,6 +394,14 @@ class ClassCompiler(
 
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
+
+    if (config.readWrite)
+      instSpec match {
+        case pi: ParseInstanceSpec =>
+          lang.attributeSetter(instName, dataType, instSpec.isNullable)
+        case _: ValueInstanceSpec =>
+          lang.instanceInvalidate(instName)
+      }
   }
 
   def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit = {
