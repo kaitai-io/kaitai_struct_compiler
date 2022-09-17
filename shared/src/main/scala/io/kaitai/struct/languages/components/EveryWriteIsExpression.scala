@@ -7,13 +7,54 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
 import scala.collection.mutable.ListBuffer
+import io.kaitai.struct.datatype._
 
 trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguage with EveryReadIsExpression {
-  override def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[FixedEndian]): Unit = {
+  override def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
     attrParseIfHeader(id, attr.cond.ifExpr)
 
-    val io = normalIO
+    // Manage IO & seeking for ParseInstances
+    val io = attr match {
+      case pis: ParseInstanceSpec =>
+        val io = pis.io match {
+          case None => normalIO
+          case Some(ex) => useIO(ex)
+        }
+        pis.pos.foreach { pos =>
+          pushPos(io)
+          seek(io, pos)
+        }
+        io
+      case _ =>
+        // no seeking required for sequence attributes
+        normalIO
+    }
 
+    defEndian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        // FIXME: rename to indicate that it can be used for both parsing/writing
+        attrParseHybrid(
+          () => attrWrite0(id, attr, io, Some(LittleEndian)),
+          () => attrWrite0(id, attr, io, Some(BigEndian))
+        )
+      case None =>
+        attrWrite0(id, attr, io, None)
+      case Some(fe: FixedEndian) =>
+        attrWrite0(id, attr, io, Some(fe))
+    }
+
+    attr match {
+      case pis: ParseInstanceSpec =>
+        // Restore position, if applicable
+        if (pis.pos.isDefined)
+          popPos(io)
+      case _ => // no seeking required for sequence attributes
+    }
+
+    attrParseIfFooter(attr.cond.ifExpr)
+  }
+
+  def attrWrite0(id: Identifier, attr: AttrLikeSpec, io: String, defEndian: Option[FixedEndian]): Unit = {
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatCommonHeader(id, io, attr.dataType)
@@ -30,9 +71,8 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case NoRepeat =>
         attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
     }
-
-    attrParseIfFooter(attr.cond.ifExpr)
   }
+
   def attrWrite2(
     id: Identifier,
     dataType: DataType,

@@ -98,11 +98,15 @@ abstract class LanguageCompiler(
 
   def writeHeader(endian: Option[FixedEndian]): Unit = ???
   def writeFooter(): Unit = ???
-  def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[FixedEndian]): Unit = ???
+  def writeInstanceHeader(instName: InstanceIdentifier): Unit = ???
+  def writeInstanceFooter(): Unit = ???
+  def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
   def runWriteCalc(): Unit = ???
 
   def checkHeader(): Unit = ???
   def checkFooter(): Unit = ???
+  def checkInstanceHeader(instName: InstanceIdentifier): Unit = ???
+  def checkInstanceFooter(): Unit = ???
   def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = ???
 
   def condIfSetNull(instName: Identifier): Unit = {}

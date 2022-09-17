@@ -399,6 +399,13 @@ class ClassCompiler(
       instSpec match {
         case pi: ParseInstanceSpec =>
           lang.attributeSetter(instName, dataType, instSpec.isNullable)
+          lang.writeInstanceHeader(instName)
+          lang.attrWrite(pi, instName, endian)
+          lang.writeInstanceFooter
+
+          lang.checkInstanceHeader(instName)
+          lang.attrCheck(pi, instName)
+          lang.checkInstanceFooter
         case _: ValueInstanceSpec =>
           lang.instanceInvalidate(instName)
       }
