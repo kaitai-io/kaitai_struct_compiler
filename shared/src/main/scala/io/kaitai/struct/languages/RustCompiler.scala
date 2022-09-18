@@ -395,7 +395,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, isRaw = false)
   }
 
-  override def useIO(ioEx: Ast.expr): String = s"// useIO($ioEx)"
+  override def useIO(ioEx: Ast.expr): String = {
+    out.puts(s"let io = BytesReader::new(&${expression(ioEx)});")
+    "io"
+  }
 
   override def pushPos(io: String): Unit =
     out.puts(s"let _pos = $io.pos();")
@@ -498,7 +501,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"pub fn ${idToStr(instName)}<S: $kstreamName>(")
     out.inc
     out.puts("&self,")
-    out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S")
+    out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S,")
+    out.puts(s"${privateMemberName(RootIdentifier)}: Option<&${classTypeName(typeProvider.topClass)}>")
     out.dec
     val typeName = kaitaiTypeToNativeType(
       Some(instName),
@@ -508,7 +512,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
     out.puts(s") -> KResult<Ref<$typeName>> {")
     out.inc
-    out.puts(s"let _root : Option<&${classTypeName(typeProvider.topClass)}> = None;")
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier,
@@ -1147,8 +1150,8 @@ object RustCompiler
     case NamedIdentifier(n) => n
     case InstanceIdentifier(n) => n
     case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE}$idx"
-    case RawIdentifier(inner) => s"raw_${idToStr(inner)}"
-    case IoStorageIdentifier(inner) => s"io_${idToStr(inner)}"
+    case RawIdentifier(inner) => s"${idToStr(inner)}_raw" // use suffix naming, easy to replace, like in anyField()
+    case IoStorageIdentifier(inner) => s"${idToStr(inner)}_io" // same here
   }
 
   @tailrec

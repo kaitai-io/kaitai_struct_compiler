@@ -70,7 +70,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       val topClass = get_top_class(provider.nowClass)
       val instance_found = get_instance(topClass, s)
       if (instance_found.isDefined) {
-        s"$s(${privateMemberName(IoIdentifier)})?"
+        s"$s(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)})?"
       } else {
         s"$s()"
       }
@@ -122,6 +122,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       }
     }
     attrName match {
+      case Identifier.IO =>
+        r = r.replace("()._io()", "_raw()")
       case Identifier.PARENT =>
         // handle _parent._parent
         r = r.replace(".peek()._parent", ".pop().peek()")
