@@ -909,8 +909,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     var newStreamRaw = s"$memberName"
     val ioName = rep match {
       case NoRepeat =>
-        val newStream = newStreamRaw
+        var newStream = newStreamRaw
         val localIO = localTemporaryName(ioId)
+        if (in_instance) {
+          val ids = idToStr(id)
+          out.puts(s"let $ids = $newStream.borrow();")
+          newStream = ids
+        }
         out.puts(s"let $localIO = BytesReader::new(&$newStream);")
         s"&$localIO"
       case _ =>
