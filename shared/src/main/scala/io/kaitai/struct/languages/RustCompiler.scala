@@ -700,11 +700,20 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
     }
     if (!done) {
+      var inst = false
       id match {
         case _: InstanceIdentifier =>
-          done = true
-          out.puts(s"*${privateMemberName(id)}.borrow_mut() = $expr;")
+          inst = true
+        case RawIdentifier(inner) => inner match {
+          case _: InstanceIdentifier =>
+            inst = true
+          case _ =>
+        }
         case _ =>
+      }
+      if (inst) {
+        done = true
+        out.puts(s"*${privateMemberName(id)}.borrow_mut() = $expr;")
       }
     }
     if (!done)
