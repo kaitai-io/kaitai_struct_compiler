@@ -765,7 +765,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             s"$baseName"
         }
         val addArgs = if (t.isOpaque) {
-          ""
+          ", None, None"
         } else {
           val currentType = classTypeName(typeProvider.nowClass)
           val root = if (typeProvider.nowClass.isTopLevel) {
