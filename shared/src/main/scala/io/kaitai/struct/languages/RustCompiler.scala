@@ -674,10 +674,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val seqId = typeProvider.nowClass.seq.find(s => s.id == id)
     var done = false
     var refcell = false
+    var opaque = false
     if (seqId.isDefined) {
       val idType = seqId.get.dataType
       idType match {
-        case _: UserType => refcell = true
+        case t: UserType =>
+          refcell = true
+          if (t.isOpaque) {
+            opaque = true
+          }
         case _: BytesType => refcell = true
         case _: ArrayType => refcell = true
         case _: StrType => refcell = true
@@ -694,7 +699,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       if (refcell) {
           val typeName = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, idType)
           if (typeName.startsWith("RefCell")) {
-            out.puts(s"${privateMemberName(id)} = RefCell::new($expr);")
+            if (opaque) {
+              out.puts(s"${privateMemberName(id)} = RefCell::new(Some(Box::new($expr)));")
+            } else {
+              out.puts(s"${privateMemberName(id)} = RefCell::new($expr);")
+            }
             done = true
           }
       }
@@ -1253,7 +1262,7 @@ object RustCompiler
 
         // Because we can't predict if opaque types will recurse, we have to box them
         val typeName =
-          if (!excludeBox && t.isOpaque) s"Box<$baseName>"
+          if (!excludeBox && t.isOpaque) s"Option<Box<$baseName>>"
           else s"$baseName"
         if (excludeOptionWrapper) typeName else s"RefCell<$typeName>"
 
