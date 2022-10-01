@@ -738,14 +738,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                          defEndian: Option[FixedEndian]): String = {
     var addParams = ""
     val expr = dataType match {
-      case IntMultiType(_, _, None) => "panic!(\"Unable to parse unknown-endian integers\")"
       case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?.into()"
       case _: BytesEosType => s"$io.read_bytes_full()?.into()"
       case b: BytesTerminatedType =>
           s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?.into()"
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?.into()"
-      case _: BitsType1 => s"$io.read_bits_int(1)? != 0"
-      case BitsType(width, _) => s"$io.read_bits_int($width)?"
+      case BitsType1(bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}(1)? != 0"
+      case BitsType(width: Int, bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}($width)?"
       case t: UserType =>
         addParams = Utils.join(t.args.map{ a =>
           val typ = translator.detectType(a)
@@ -1141,8 +1140,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           t.basedOn match {
             case inst: ReadableType =>
               s"$io.read_${inst.apiCall(defEndian)}()?"
-            case BitsType(width: Int, _) =>
-              s"$io.read_bits_int($width)?"
+            case BitsType(width: Int, bitEndian) =>
+              s"$io.read_bits_int_${bitEndian.toSuffix}($width)?"
           }
         handleAssignment(id, expr, rep, isRaw)
       case _ =>
