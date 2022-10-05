@@ -1,7 +1,8 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype.DataType.{KaitaiStreamType, UserTypeInstream}
-import io.kaitai.struct.datatype.{Endianness, FixedEndian, InheritedEndian}
+import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.datatype._
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.languages.components.ExtraAttrs
@@ -34,10 +35,10 @@ class RustClassCompiler(
     curClass.instances.foreach { case (instName, instSpec) =>
       compileInstanceDeclaration(instName, instSpec)
     }
-    
+
     // Constructor = Read() function
     compileReadFunction(curClass)
-    
+
     compileInstances(curClass)
 
     compileAttrReaders(curClass.seq ++ extraAttrs)
@@ -58,16 +59,33 @@ class RustClassCompiler(
       curClass.params
     )
 
-    // FIXME
     val defEndian = curClass.meta.endian match {
       case Some(fe: FixedEndian) => Some(fe)
       case _ => None
     }
-    
+
     lang.readHeader(defEndian, false)
-    
+
+    curClass.meta.endian match {
+      case Some(ce: CalcEndian) => compileCalcEndian(ce)
+      case Some(_) => // Nothing to generate
+      case None => // Same here
+    }
+
     compileSeq(curClass.seq, defEndian)
     lang.classConstructorFooter
+  }
+
+  override def compileCalcEndian(ce: CalcEndian): Unit = {
+    def renderProc(result: FixedEndian): Unit = {
+      val v = result match {
+        case LittleEndian => Ast.expr.IntNum(1)
+        case BigEndian => Ast.expr.IntNum(2)
+      }
+      lang.instanceCalculate(IS_LE_ID, CalcIntType, v)
+    }
+    lang.switchCases[FixedEndian](IS_LE_ID, ce.on, ce.cases, renderProc, renderProc)
+    lang.runReadCalc()
   }
 
   override def compileInstances(curClass: ClassSpec) = {

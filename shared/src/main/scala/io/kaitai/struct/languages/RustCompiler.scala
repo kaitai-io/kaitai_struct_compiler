@@ -101,6 +101,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                       rootClassName: List[String],
                                       isHybrid: Boolean,
                                       params: List[ParamDefSpec]): Unit = {
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        attributeDeclaration(EndianIdentifier, IntMultiType(true, Width4, None), false)
+      case _ =>
+    }
 
     // Unlike other OOP languages, implementing an interface happens outside the struct declaration.
     universalFooter
@@ -132,9 +137,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def runRead(name: List[String]): Unit = out.puts(s"// runRead($name)")
+  override def runRead(name: List[String]): Unit = {}
 
-  override def runReadCalc(): Unit = out.puts(s"// runReadCalc()")
+  override def runReadCalc(): Unit = {
+    out.puts(s"if *${privateMemberName(EndianIdentifier)}.borrow() == 0 {")
+    out.inc
+    out.puts(s"""return Err(KError::UndecidedEndiannessError("${typeProvider.nowClass.path.mkString("/", "/", "")}".to_string()));""")
+    out.dec
+    out.puts("}")
+  }
 
   override def readHeader(endian: Option[FixedEndian],
                           isEmpty: Boolean): Unit = {
@@ -146,7 +157,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"${privateMemberName(RootIdentifier)}: Option<&$readLife Self::Root>,"
     )
     out.puts(
-      s"${privateMemberName(ParentIdentifier)}: Option<TypedStack<Self::ParentStack>>"
+      s"${privateMemberName(ParentIdentifier)}: Option<TypedStack<Self::ParentStack>>,"
     )
     out.dec
     out.puts(s") -> KResult<()> {")
@@ -165,6 +176,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val typeName = attrName match {
       // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
       case IoIdentifier | RootIdentifier | ParentIdentifier => return
+      case EndianIdentifier => s"RefCell<${kaitaiTypeToNativeTypeWrapper(Some(attrName), attrType)}>"
       case _ =>
         kaitaiTypeToNativeTypeWrapper(Some(attrName), attrType)
     }
@@ -263,8 +275,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit =
-    out.puts(s"// attrParseHybrid(${leProc()}, ${beProc()})")
+  override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {}
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)} {")
@@ -437,6 +448,20 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("}")
       out.dec
       out.puts("}")
+    }
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        out.puts(s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
+        out.inc
+        val t = kaitaiTypeToNativeType(Some(EndianIdentifier), typeProvider.nowClass, IntMultiType(true, Width4, None), excludeOptionWrapper = true)
+        out.puts(s"pub fn set_endian(&mut self, ${idToStr(EndianIdentifier)}: $t) {")
+        out.inc
+        handleAssignmentSimple(EndianIdentifier, s"${idToStr(EndianIdentifier)}")
+        out.dec
+        out.puts("}")
+        out.dec
+        out.puts("}")
+      case _ =>
     }
     out.puts(s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
     out.inc
@@ -718,6 +743,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             inst = true
           case _ =>
         }
+        case EndianIdentifier =>
+          inst = true
         case _ =>
       }
       if (inst) {
@@ -738,7 +765,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                          defEndian: Option[FixedEndian]): String = {
     var addParams = ""
     val expr = dataType match {
-      case t: ReadableType => s"$io.read_${t.apiCall(defEndian)}()?.into()"
+      case t: ReadableType =>
+        t match {
+          case IntMultiType(_, _, None) =>
+            s"if *${privateMemberName(EndianIdentifier)}.borrow() == 1 { $io.read_${t.apiCall(Some(LittleEndian))}()?.into() } else { $io.read_${t.apiCall(Some(BigEndian))}()?.into() }"
+          case IntMultiType(_, _, Some(e)) =>
+            s"$io.read_${t.apiCall(Some(e))}()?.into()"
+          case _ =>
+            s"$io.read_${t.apiCall(defEndian)}()?.into()"
+        }
       case _: BytesEosType => s"$io.read_bytes_full()?.into()"
       case b: BytesTerminatedType =>
           s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?.into()"
@@ -795,11 +830,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                 }
               }
           }
-          val addEndian = t.classSpec.get.meta.endian match {
-            case Some(InheritedEndian) => s", ${privateMemberName(EndianIdentifier)}"
-            case _ => ""
-          }
-          s", $root, $parent$addEndian"
+          s", $root, $parent"
         }
         val streamType = if (io == privateMemberName(IoIdentifier)) {
           "S"
@@ -807,7 +838,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           "BytesReader"
         }
         if (addParams.isEmpty) {
-          out.puts(s"let t = Self::read_into::<$streamType, $userType>($io$addArgs)?.into();")
+          if (t.classSpec.isDefined) t.classSpec.get.meta.endian match {
+            case Some(InheritedEndian) =>
+              out.puts(s"let mut t = $userType::default();")
+              out.puts(s"t.set_endian(*${privateMemberName(EndianIdentifier)}.borrow());")
+              out.puts(s"t.read::<$streamType>($io$addArgs)?;")
+            case _ =>
+              out.puts(s"let t = Self::read_into::<$streamType, $userType>($io$addArgs)?.into();")
+          }
         } else {
           //val at = kaitaiTypeToNativeType(None, typeProvider.nowClass, assignType, excludeOptionWrapper = true)
           out.puts(s"let mut t = $userType::default();")
