@@ -714,7 +714,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case _: EnumType =>
           done = true
           out.puts(
-            s"${privateMemberName(id)} = Some(($expr as i64).try_into()?);"
+            s"${privateMemberName(id)} = Some($expr);"
           )
         case _: SwitchType =>
           done = true
@@ -888,6 +888,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String =
     s"_t_${idToStr(id)}"
+
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
+    // we already have splitted construction of object and read method
+  }
 
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
     case _: IntType | _: EnumType => false
@@ -1177,9 +1181,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val expr =
           t.basedOn match {
             case inst: ReadableType =>
-              s"$io.read_${inst.apiCall(defEndian)}()?"
+              s"($io.read_${inst.apiCall(defEndian)}()? as i64).try_into()?"
             case BitsType(width: Int, bitEndian) =>
-              s"$io.read_bits_int_${bitEndian.toSuffix}($width)?"
+              s"($io.read_bits_int_${bitEndian.toSuffix}($width)? as i64).try_into()?"
           }
         handleAssignment(id, expr, rep, isRaw)
       case _ =>
