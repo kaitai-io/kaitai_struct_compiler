@@ -57,7 +57,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     else {
       if (lt != rt) {
         val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
-        s"(${translate(left)} as $ct ${binOp(op)} ${translate(right)} as $ct)"
+        s"((${translate(left)} as $ct) ${binOp(op)} (${translate(right)} as $ct))"
       } else {
         super.numericBinOp(left, op, right)
       }
