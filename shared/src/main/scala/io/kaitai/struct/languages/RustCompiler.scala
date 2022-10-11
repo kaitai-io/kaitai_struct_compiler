@@ -38,7 +38,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def outImports(topClass: ClassSpec): String =
     importList.toList
-      .map(i => s"use $i;")
       .mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
@@ -54,21 +53,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts("extern crate kaitai;")
 
     importList.add(
-      "kaitai::*"
+      "use kaitai::*;"
     )
-    importList.add("std::convert::{TryFrom, TryInto}")
-    importList.add("std::cell::{Ref, Cell, RefCell}")
+    importList.add("use std::convert::{TryFrom, TryInto};")
+    importList.add("use std::cell::{Ref, Cell, RefCell};")
 
     typeProvider.allClasses.foreach{
       case (name, _) =>
         if(name != topClassName) //TODO: do not add to imported
-          importList.add(s"super::$name::*")
+          importList.add(s"use super::$name::*;")
     }
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
     importList.add(
-      s"super::${classSpec.name.last}::${type2class(classSpec.name.last)}"
+      s"use super::${classSpec.name.last}::${type2class(classSpec.name.last)};"
     )
 
   override def classHeader(name: List[String]): Unit = {
@@ -396,11 +395,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val procClass = name.map(x => type2class(x)).mkString("::")
         val procName = s"_process_${idToStr(varSrc)}"
 
-        //importListSrc.addLocal(outFileNameHeader(name.last))
+        val mod_name = name.last;
+        importList.add(s"""#[path = "$mod_name.rs"] mod $mod_name;""")
+        importList.add(s"use self::$mod_name::*;")
 
         val argList = args.map(expression).mkString(", ")
-        val argListInParens = if (argList.nonEmpty) s"($argList)" else ""
-        out.puts(s"$procClass $procName$argListInParens;")
+        val argListInParens = s"($argList)"
+        out.puts(s"let $procName = $procClass::new$argListInParens;")
         s"$procName.decode(&$srcExpr)"
     }
     handleAssignment(varDest, expr, rep, isRaw = false)
