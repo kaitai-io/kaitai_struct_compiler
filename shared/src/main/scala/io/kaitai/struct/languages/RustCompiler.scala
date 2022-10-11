@@ -367,7 +367,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(varName)
     rep match {
       case NoRepeat => memberName
-      case _ => s"// TODO $memberName->at($memberName->size() - 1)"
+      case _ => s"$memberName[$memberName.len() - 1]"
     }
   }
 
