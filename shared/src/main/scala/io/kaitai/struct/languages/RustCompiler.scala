@@ -595,6 +595,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
         out.puts(s"${type2class(label.name)},")
     }
+    out.puts("Unknown(i64),")
 
     out.dec
     out.puts("}")
@@ -618,7 +619,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case (value, label) =>
         out.puts(s"$value => Ok($enumClass::${type2class(label.name)}),")
     }
-    out.puts("_ => Err(KError::UnknownVariant(flag)),")
+    out.puts(s"_ => Ok($enumClass::Unknown(flag)),")
     out.dec
 
     out.puts("}")
@@ -638,6 +639,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case (value, label) =>
         out.puts(s"$enumClass::${type2class(label.name)} => $value,")
     }
+    out.puts(s"$enumClass::Unknown(v) => *v")
     out.dec
     out.puts("}")
     out.dec
@@ -648,8 +650,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"impl Default for $enumClass {")
     out.inc
-    //FIXME: what is default?
-    out.puts(s"fn default() -> Self { $enumClass::${type2class(enumColl.head._2.name)} }")
+    out.puts(s"fn default() -> Self { $enumClass::Unknown(0) }")
     out.dec
     out.puts("}")
     out.puts
