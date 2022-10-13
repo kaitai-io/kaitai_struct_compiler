@@ -823,7 +823,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case Some(fp) => translator.translate(fp)
             case None =>
               if ((userType contains currentType) && !in_instance) {
-                s"Some(${privateMemberName(ParentIdentifier)}.unwrap().push(self))"
+                if (typeProvider.nowClass.isTopLevel) {
+                  s"Some(${privateMemberName(ParentIdentifier)}.unwrap_or(KStructUnit::parent_stack()).push(self))"
+                } else {
+                  s"Some(${privateMemberName(ParentIdentifier)}.unwrap().push(self))"
+                }
               } else {
                 if(in_instance) {
                   s"None"
