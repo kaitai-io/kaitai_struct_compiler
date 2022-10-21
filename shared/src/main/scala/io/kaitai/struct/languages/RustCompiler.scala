@@ -1196,6 +1196,19 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
     }
   }
+
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    importList.add("use std::fmt;")
+    out.puts(s"impl fmt::Display for ${classTypeName(typeProvider.nowClass)} {")
+    out.inc
+    out.puts(s"fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
+    out.inc
+    out.puts(s"""write!(f, "{}", ${translator.translate(toStringExpr)})""")
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object RustCompiler

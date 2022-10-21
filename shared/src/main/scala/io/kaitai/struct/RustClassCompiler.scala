@@ -42,6 +42,7 @@ class RustClassCompiler(
     compileInstances(curClass)
 
     compileAttrReaders(curClass.seq ++ extraAttrs)
+    curClass.toStringExpr.foreach(expr => lang.classToString(expr))
     lang.classFooter(curClass.name)
 
     compileEnums(curClass)
