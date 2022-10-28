@@ -211,26 +211,23 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
-    val readAccessAndType = if (!config.autoRead || config.readWrite) {
-      "public"
-    } else {
-      "private"
+    endian match {
+      case Some(e) =>
+        out.puts(s"private void _read${Utils.upperUnderscoreCase(e.toSuffix)}() {")
+      case None =>
+        out.puts(s"${if (!config.autoRead) "public" else "private"} void _read() {")
     }
-    val suffix = endian match {
-      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
-      case None => ""
-    }
-    out.puts(s"$readAccessAndType void _read$suffix() {")
     out.inc
   }
 
   override def writeHeader(endian: Option[FixedEndian]): Unit = {
-    val suffix = endian match {
-      case Some(e) => Utils.upperUnderscoreCase(e.toSuffix)
-      case None => ""
-    }
     out.puts
-    out.puts(s"public void _write$suffix() {")
+    endian match {
+      case Some(e) =>
+        out.puts(s"private void _write${Utils.upperUnderscoreCase(e.toSuffix)}() {")
+      case None =>
+        out.puts("public void _write() {")
+    }
     out.inc
   }
 
