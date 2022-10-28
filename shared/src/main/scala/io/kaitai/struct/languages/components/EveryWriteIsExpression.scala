@@ -57,19 +57,27 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
   def attrWrite0(id: Identifier, attr: AttrLikeSpec, io: String, defEndian: Option[FixedEndian]): Unit = {
     attr.cond.repeat match {
       case RepeatEos =>
+        // we could use condRepeatEosHeader instead (we only deal with fixed-size streams when
+        // writing), but don't have to (there is no difference, because the `repeat: eos` repetition
+        // doesn't involve user expressions, unlike `repeat: expr` and `repeat: until`)
         condRepeatCommonHeader(id, io, attr.dataType)
-        attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
-        condRepeatCommonFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
-        condRepeatCommonHeader(id, io, attr.dataType)
-        attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
-        condRepeatCommonFooter
+        condRepeatExprHeader(id, io, attr.dataType, repeatExpr)
       case RepeatUntil(untilExpr: Ast.expr) =>
-        condRepeatCommonHeader(id, io, attr.dataType)
-        attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
-        condRepeatCommonFooter
+        condRepeatUntilHeader(id, io, attr.dataType, untilExpr)
+        val expr = writeExprAsExpr(id, attr.cond.repeat, false)
+        handleAssignmentRepeatUntilIterator(translator.translate(expr))
       case NoRepeat =>
-        attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
+    }
+    attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
+    attr.cond.repeat match {
+      case RepeatEos =>
+        condRepeatCommonFooter
+      case _: RepeatExpr =>
+        condRepeatExprFooter
+      case RepeatUntil(untilExpr: Ast.expr) =>
+        condRepeatUntilFooter(id, io, attr.dataType, untilExpr)
+      case NoRepeat =>
     }
   }
 
@@ -283,6 +291,8 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     )
 
   def internalEnumIntType(basedOn: IntType): DataType
+
+  def handleAssignmentRepeatUntilIterator(expr: String): Unit
 
   def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit
   def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit

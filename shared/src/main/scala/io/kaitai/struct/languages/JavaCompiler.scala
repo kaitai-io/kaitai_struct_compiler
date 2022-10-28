@@ -499,7 +499,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("java.util.ArrayList")
   }
 
-  // used for all repetitions in _write() and _check()
+  // used for all repetitions in _check()
   override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts(s"for (int i = 0; i < ${privateMemberName(id)}.size(); i++) {")
     out.inc
@@ -527,6 +527,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     out.puts(s"$typeDecl$tempVar = $expr;")
     out.puts(s"${privateMemberName(id)}.add($tempVar);")
+  }
+
+  override def handleAssignmentRepeatUntilIterator(expr: String): Unit = {
+    out.puts(s"${translator.doName(Identifier.ITERATOR)} = $expr;")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
