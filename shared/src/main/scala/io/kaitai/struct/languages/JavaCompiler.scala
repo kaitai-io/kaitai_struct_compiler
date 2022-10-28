@@ -241,6 +241,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts(s"public void _write${idToSetterStr(instName)}() {")
     out.inc
+    instanceSetWriteFlag(instName, false)
   }
 
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
@@ -767,12 +768,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if (_write${idToSetterStr(instName)}) {")
+    out.puts(s"if (_write${idToSetterStr(instName)})")
     out.inc
     out.puts(s"_write${idToSetterStr(instName)}();")
-    instanceSetWriteFlag(instName, false)
     out.dec
-    out.puts("}")
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
