@@ -79,7 +79,7 @@ class ClassCompiler(
     compileEagerRead(curClass.seq, curClass.meta.endian)
 
     if (config.readWrite) {
-      compileWrite(curClass.seq, curClass.meta.endian)
+      compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
       compileCheck(curClass.seq)
     }
 
@@ -263,17 +263,17 @@ class ClassCompiler(
     }
   }
 
-  def compileWrite(seq: List[AttrSpec], endian: Option[Endianness]): Unit = {
+  def compileWrite(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec], endian: Option[Endianness]): Unit = {
     endian match {
       case None | Some(_: FixedEndian) =>
-        compileSeqWriteProc(seq, None)
+        compileSeqWriteProc(seq, instances, None)
       case Some(CalcEndian(_, _)) | Some(InheritedEndian) =>
         lang.writeHeader(None)
         lang.runWriteCalc()
         lang.writeFooter()
 
-        compileSeqWriteProc(seq, Some(LittleEndian))
-        compileSeqWriteProc(seq, Some(BigEndian))
+        compileSeqWriteProc(seq, instances, Some(LittleEndian))
+        compileSeqWriteProc(seq, instances, Some(BigEndian))
     }
   }
 
@@ -310,8 +310,9 @@ class ClassCompiler(
     lang.readFooter()
   }
 
-  def compileSeqWriteProc(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
+  def compileSeqWriteProc(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec], defEndian: Option[FixedEndian]) = {
     lang.writeHeader(defEndian)
+    compileSetInstanceWriteFlags(instances)
     compileSeqWrite(seq, defEndian)
     lang.writeFooter()
   }
@@ -329,6 +330,16 @@ class ClassCompiler(
         lang.alignToByte(lang.normalIO)
       lang.attrParse(attr, attr.id, defEndian)
       wasUnaligned = nowUnaligned
+    }
+  }
+
+  def compileSetInstanceWriteFlags(instances: Map[InstanceIdentifier, InstanceSpec]) = {
+    instances.foreach { case (instName, instSpec) =>
+      instSpec match {
+        case _: ParseInstanceSpec =>
+          lang.instanceSetWriteFlag(instName, true)
+        case _: ValueInstanceSpec => // do nothing
+      }
     }
   }
 
@@ -380,6 +391,12 @@ class ClassCompiler(
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     if (lang.innerDocstrings)
       compileInstanceDoc(instName, instSpec)
+    if (config.readWrite)
+      instSpec match {
+        case _: ParseInstanceSpec =>
+          lang.instanceCheckWriteFlagAndWrite(instName)
+        case _: ValueInstanceSpec => // do nothing
+      }
     lang.instanceCheckCacheAndReturn(instName, dataType)
 
     instSpec match {
@@ -421,6 +438,12 @@ class ClassCompiler(
       instSpec.isNullable
     }
     lang.instanceDeclaration(instName, instSpec.dataTypeComposite, isNullable)
+    if (config.readWrite)
+      instSpec match {
+        case _: ParseInstanceSpec =>
+          lang.instanceWriteFlagDeclaration(instName)
+        case _: ValueInstanceSpec => // do nothing
+      }
   }
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =

@@ -745,6 +745,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
   }
 
+  override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = {
+    out.puts(s"private boolean _write${idToSetterStr(attrName)} = false;")
+  }
+
+  override def instanceSetWriteFlag(instName: InstanceIdentifier, value: Boolean): Unit = {
+      out.puts(s"_write${idToSetterStr(instName)} = ${expression(Ast.expr.Bool(value))};")
+  }
+
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${idToStr(instName)}() {")
     out.inc
@@ -755,6 +763,15 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     instanceReturn(instName, dataType)
     out.dec
+  }
+
+  override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if (_write${idToSetterStr(instName)}) {")
+    out.inc
+    out.puts(s"_write${idToSetterStr(instName)}();")
+    instanceSetWriteFlag(instName, false)
+    out.dec
+    out.puts("}")
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {

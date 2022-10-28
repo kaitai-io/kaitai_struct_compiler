@@ -141,12 +141,15 @@ abstract class LanguageCompiler(
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
   def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = attributeDeclaration(attrName, attrType, isNullable)
+  def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = ???
+  def instanceSetWriteFlag(instName: InstanceIdentifier, value: Boolean): Unit = ???
   def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit
   def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr)
   def instanceInvalidate(instName: InstanceIdentifier): Unit = ???
+  def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = ???
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit
 
