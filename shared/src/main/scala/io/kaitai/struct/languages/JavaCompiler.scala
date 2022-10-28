@@ -201,11 +201,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("} else if (_is_le) {")
     out.inc
-    out.puts("_writeLE();")
+    out.puts("_write_SeqLE();")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts("_writeBE();")
+    out.puts("_write_SeqBE();")
     out.dec
     out.puts("}")
   }
@@ -224,9 +224,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     endian match {
       case Some(e) =>
-        out.puts(s"private void _write${Utils.upperUnderscoreCase(e.toSuffix)}() {")
+        out.puts(s"private void _write_Seq${Utils.upperUnderscoreCase(e.toSuffix)}() {")
       case None =>
-        out.puts("public void _write() {")
+        out.puts("public void _write_Seq() {")
     }
     out.inc
   }
@@ -878,7 +878,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, dataType: DataType, exprType: DataType) = {
     val exprRaw = expression(valueExpr)
     val expr = castIfNeeded(exprRaw, exprType, dataType)
-    out.puts(s"$expr._write($io);")
+    out.puts(s"$expr._write_Seq($io);")
   }
 
   override def attrWriteStreamToStream(srcIo: String, dstIo: String) =
