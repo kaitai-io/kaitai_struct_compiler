@@ -78,6 +78,10 @@ class ClassCompiler(
     // Read method(s)
     compileEagerRead(curClass.seq, curClass.meta.endian)
 
+    compileFetchInstancesProc(curClass.seq ++ curClass.instances.values.collect {
+      case inst: AttrLikeSpec => inst
+    })
+
     if (config.readWrite) {
       compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
       compileCheck(curClass.seq)
@@ -310,6 +314,12 @@ class ClassCompiler(
     lang.readFooter()
   }
 
+  def compileFetchInstancesProc(attrs: List[AttrLikeSpec]) = {
+    lang.fetchInstancesHeader()
+    compileFetchInstances(attrs)
+    lang.fetchInstancesFooter()
+  }
+
   def compileSeqWriteProc(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec], defEndian: Option[FixedEndian]) = {
     lang.writeHeader(defEndian)
     compileSetInstanceWriteFlags(instances)
@@ -330,6 +340,12 @@ class ClassCompiler(
         lang.alignToByte(lang.normalIO)
       lang.attrParse(attr, attr.id, defEndian)
       wasUnaligned = nowUnaligned
+    }
+  }
+
+  def compileFetchInstances(attrs: List[AttrLikeSpec]): Unit = {
+    attrs.foreach { (attr) =>
+      lang.attrFetchInstances(attr, attr.id)
     }
   }
 

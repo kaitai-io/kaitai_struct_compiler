@@ -96,6 +96,12 @@ abstract class LanguageCompiler(
   def attrInit(attr: AttrLikeSpec): Unit = {}
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
+  def attrFetchInstances(attr: AttrLikeSpec, id: Identifier): Unit = {}
+  def fetchInstancesHeader(): Unit = {}
+  def fetchInstancesFooter(): Unit = {}
+  def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = ???
+  def attrInvokeInstance(instName: InstanceIdentifier): Unit = ???
+
   def writeHeader(endian: Option[FixedEndian]): Unit = ???
   def writeFooter(): Unit = ???
   def writeInstanceHeader(instName: InstanceIdentifier): Unit = ???

@@ -15,6 +15,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UpperCamelCaseClasses
     with ObjectOrientedLanguage
     with EveryReadIsExpression
+    with FetchInstances
     with EveryWriteIsExpression
     with GenericChecks
     with UniversalFooter
@@ -218,6 +219,21 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"${if (!config.autoRead) "public" else "private"} void _read() {")
     }
     out.inc
+  }
+
+  override def fetchInstancesHeader(): Unit = {
+    out.puts
+    out.puts("public void _fetchInstances() {")
+    out.inc
+  }
+
+  override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
+    val expr = castIfNeeded(expression(baseExpr), exprType, dataType)
+    out.puts(s"$expr._fetchInstances();")
+  }
+
+  override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {
+    out.puts(s"${publicMemberName(instName)}();")
   }
 
   override def writeHeader(endian: Option[FixedEndian]): Unit = {
