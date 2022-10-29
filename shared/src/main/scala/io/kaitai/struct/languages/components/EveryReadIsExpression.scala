@@ -200,4 +200,17 @@ trait EveryReadIsExpression
       attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }
+
+  def itemExpr(id: Identifier, rep: RepeatSpec, isRaw: Boolean): Ast.expr = {
+    val astId = Ast.expr.InternalName(id)
+    rep match {
+      case NoRepeat =>
+        astId
+      case _ =>
+        Ast.expr.Subscript(
+          astId,
+          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
+        )
+    }
+  }
 }

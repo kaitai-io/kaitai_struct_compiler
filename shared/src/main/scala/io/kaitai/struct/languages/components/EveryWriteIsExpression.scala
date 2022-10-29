@@ -65,7 +65,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
         condRepeatExprHeader(id, io, attr.dataType, repeatExpr)
       case RepeatUntil(untilExpr: Ast.expr) =>
         condRepeatUntilHeader(id, io, attr.dataType, untilExpr)
-        val expr = writeExprAsExpr(id, attr.cond.repeat, false)
+        val expr = itemExpr(id, attr.cond.repeat, false)
         handleAssignmentRepeatUntilIterator(translator.translate(expr))
       case NoRepeat =>
     }
@@ -106,25 +106,12 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case t: StrFromBytesType =>
         attrStrTypeWrite(id, t, io, rep, isRaw, exprTypeOpt)
       case t: EnumType =>
-        val expr = writeExprAsExpr(id, rep, isRaw)
+        val expr = itemExpr(id, rep, isRaw)
         val exprType = internalEnumIntType(t.basedOn)
         attrPrimitiveWrite(io, Ast.expr.Attribute(expr, Ast.identifier("to_i")), t.basedOn, defEndian, Some(exprType))
       case _ =>
-        val expr = writeExprAsExpr(id, rep, isRaw)
+        val expr = itemExpr(id, rep, isRaw)
         attrPrimitiveWrite(io, expr, dataType, defEndian, exprTypeOpt)
-    }
-  }
-
-  def writeExprAsExpr(id: Identifier, rep: RepeatSpec, isRaw: Boolean): Ast.expr = {
-    val astId = Ast.expr.InternalName(id)
-    rep match {
-      case NoRepeat =>
-        astId
-      case _ =>
-        Ast.expr.Subscript(
-          astId,
-          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
-        )
     }
   }
 
@@ -137,12 +124,12 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case None =>
         id
     }
-    val expr = writeExprAsExpr(idToWrite, rep, isRaw)
+    val expr = itemExpr(idToWrite, rep, isRaw)
     attrBytesTypeWrite2(io, expr, t, exprTypeOpt)
   }
 
   def attrStrTypeWrite(id: Identifier, t: StrFromBytesType, io: String, rep: RepeatSpec, isRaw: Boolean, exprTypeOpt: Option[DataType]): Unit = {
-    val expr = exprStrToBytes(writeExprAsExpr(id, rep, isRaw), t.encoding)
+    val expr = exprStrToBytes(itemExpr(id, rep, isRaw), t.encoding)
     attrBytesTypeWrite2(io, expr, t.bytes, exprTypeOpt)
   }
 
@@ -210,7 +197,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     exprTypeOpt: Option[DataType] = None
   ) = {
     val exprType = exprTypeOpt.getOrElse(t)
-    val expr = writeExprAsExpr(id, rep, isRaw)
+    val expr = itemExpr(id, rep, isRaw)
 
     t match {
       case _: UserTypeInstream =>
