@@ -130,8 +130,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
     out.inc
     out.puts(s"type Root = ${rootClassTypeName(typeProvider.nowClass)};")
+
+    // generate parent stack type
+    val parentStack = if (typeProvider.nowClass.isTopLevel)
+      s"$kstructUnitName"
+    else {
+      val parentType = kaitaiTypeToNativeType(None, typeProvider.nowClass, typeProvider.nowClass.parentType, excludeOptionWrapper = true, excludeBox = true)
+      s"(&$readLife $parentType, <$parentType as $kstructName<$readLife, $streamLife>>::ParentStack)"
+    }
+
     out.puts(
-      s"type ParentStack = ${parentStackTypeName(typeProvider.nowClass)};"
+      s"type ParentStack = $parentStack;"
     )
     out.puts
   }
@@ -818,23 +827,23 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           } else {
             privateMemberName(RootIdentifier)
           }
-          val parent = t.forcedParent match {
+          var parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "None"
             case Some(fp) => translator.translate(fp)
             case None =>
-              if ((userType contains currentType) && !in_instance) {
+              if (!in_instance) {
                 if (typeProvider.nowClass.isTopLevel) {
                   s"Some(${privateMemberName(ParentIdentifier)}.unwrap_or(KStructUnit::parent_stack()).push(self))"
                 } else {
                   s"Some(${privateMemberName(ParentIdentifier)}.unwrap().push(self))"
                 }
               } else {
-                if(in_instance) {
-                  s"None"
-                } else {
-                  s"${privateMemberName(ParentIdentifier)}"
-                }
+                s"None"
               }
+          }
+          t.classSpec.get.parentType match {
+            case CalcKaitaiStructType => parent = "None"
+            case _ =>
           }
           s", $root, $parent"
         }
@@ -1247,13 +1256,6 @@ object RustCompiler
       rootClassTypeName(c.upClass.get, isRecurse = true)
   }
 
-  def parentStackTypeName(c: ClassSpec): String = {
-    if (c.isTopLevel)
-      s"$kstructUnitName"
-    else
-      s"(&$readLife ${classTypeName(c.upClass.get)}, <${classTypeName(c.upClass.get)} as $kstructName<$readLife, $streamLife>>::ParentStack)"
-  }
-
   override def kstructName = s"KStruct"
 
   def readLife = "'r"
@@ -1353,6 +1355,7 @@ object RustCompiler
         if (excludeOptionWrapper) typeName else s"Option<$typeName>"
 
       case KaitaiStreamType => kstreamName
+      case CalcKaitaiStructType => kstructUnitName
     }
 
   def kaitaiPrimitiveToNativeType(attrType: DataType): String = attrType match {
