@@ -270,6 +270,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     var to_type = ""
     detectType(ifTrue) match {
       case _: UserType => to_type = ".clone()"
+      case _: EnumType => to_type = ".clone()"
       case _: StrType => to_type = ".to_string()"
       case _: BytesType => to_type = ".to_vec()"
       case _ =>
