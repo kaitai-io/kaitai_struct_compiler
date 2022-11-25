@@ -8,8 +8,6 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.problems.KSYParseError
 
-import scala.collection.JavaConversions._
-
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 
 trait AttrLikeSpec extends MemberSpec {
@@ -299,7 +297,7 @@ object AttrSpec {
     // If we have size defined, and we don't have any "else" case already, add
     // an implicit "else" case that will at least catch everything else as
     // "untyped" byte array of given size
-    val addCases: Map[Ast.expr, DataType] = if (cases.containsKey(SwitchType.ELSE_CONST)) {
+    val addCases: Map[Ast.expr, DataType] = if (cases.contains(SwitchType.ELSE_CONST)) {
       Map()
     } else {
       (arg.size, arg.sizeEos) match {

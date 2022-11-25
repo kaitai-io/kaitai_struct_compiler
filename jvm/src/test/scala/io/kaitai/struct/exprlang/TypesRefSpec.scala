@@ -4,10 +4,10 @@ import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.exprlang.Ast.expr.{BinOp, IntNum, List, Name}
 import io.kaitai.struct.exprlang.Ast.identifier
 import io.kaitai.struct.exprlang.Ast.operator.Add
-import org.scalatest.FunSpec
-import org.scalatest.Matchers._
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers._
 
-class TypesRefSpec extends FunSpec {
+class TypesRefSpec extends AnyFunSpec {
   describe("Expressions.parseTypeRef") {
     describe("parses local type refs") {
       it("some_type") {

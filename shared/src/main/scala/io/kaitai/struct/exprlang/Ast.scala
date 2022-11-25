@@ -49,6 +49,18 @@ object Ast {
       *         variable
       */
     def evaluateIntConst: Option[BigInt] = ConstEvaluator.evaluateIntConst(this)
+
+    /**
+      * Evaluates the expression, if it's possible to get a string constant as
+      * the result of evaluation.
+      *
+      * @return string result of evaluation if it's constant or None, if it's
+      *         variable
+      */
+    def evaluateStrConst: Option[String] = ConstEvaluator.evaluate(this) match {
+      case ConstEvaluator.value.Str(x) => Some(x)
+      case _ => None
+    }
   }
 
   object expr{

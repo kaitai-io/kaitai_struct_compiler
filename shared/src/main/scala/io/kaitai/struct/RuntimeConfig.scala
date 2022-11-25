@@ -79,6 +79,12 @@ case class JavaRuntimeConfig(
   *                    "opaque" type, i.e. an external KaitaiStruct-compatible type
   *                    defined somewhere else. If false, it will be reported as
   *                    precompile error.
+  * @param zeroCopySubstream If true, code generated will handle substreams using
+  *                          zero-copy semantics if possible (with is faster and
+  *                          uses less memory, but the downside is that the stream
+  *                          must be seekable). If false, it will always use reading
+  *                          in raw byte arrays and then constructing new substream
+  *                          off the in-memory content.
   * @param cppConfig C++-specific configuration
   * @param java Java-specific configuration
   * @param goPackage Go package name
@@ -92,6 +98,7 @@ case class RuntimeConfig(
   autoRead: Boolean = true,
   readStoresPos: Boolean = false,
   opaqueTypes: Boolean = false,
+  zeroCopySubstream: Boolean = true,
   cppConfig: CppRuntimeConfig = CppRuntimeConfig(),
   goPackage: String = "",
   java: JavaRuntimeConfig = JavaRuntimeConfig(),

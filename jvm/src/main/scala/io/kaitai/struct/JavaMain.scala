@@ -59,7 +59,7 @@ object JavaMain {
 
       opt[File]('d', "outdir") valueName("<directory>") action { (x, c) =>
         c.copy(outDir = x)
-      } text("output directory (filenames will be auto-generated)")
+      } text("output directory (filenames will be auto-generated); on Unix-like shells, the short form `-d` requires arguments to be preceded by `--`")
 
       val importPathExample = List("<directory>", "<directory>", "...").mkString(File.pathSeparator)
       opt[String]('I', "import-path") optional() unbounded() valueName(importPathExample) action { (x, c) =>
@@ -128,6 +128,10 @@ object JavaMain {
       opt[Boolean]("opaque-types") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
       } text("opaque types allowed, default: false")
+
+      opt[Boolean]("zero-copy-substream") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(zeroCopySubstream = x))
+      } text("zero-copy substreams allowed, default: true")
 
       opt[Unit]("ksc-exceptions") action { (x, c) =>
         c.copy(throwExceptions = true)

@@ -3,10 +3,10 @@ package io.kaitai.struct.datatype
 import io.kaitai.struct.datatype.DataType.SwitchType
 import io.kaitai.struct.exprlang.Expressions
 import io.kaitai.struct.format.ClassSpec
-import org.scalatest.FunSpec
-import org.scalatest.Matchers._
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers._
 
-class SwitchType$Test extends FunSpec {
+class SwitchType$Test extends AnyFunSpec {
   describe("SwitchType.parseSwitch") {
     it ("combines ints properly") {
       val t = SwitchType(

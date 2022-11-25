@@ -46,9 +46,9 @@ class CppCompiler(
   var accessMode: AccessMode = PublicAccess
 
   override def indent: String = "    "
-  override def outFileName(topClassName: String): String = topClassName
-  def outFileNameSource(className: String): String = outFileName(className) + ".cpp"
-  def outFileNameHeader(className: String): String = outFileName(className) + ".h"
+  def typeToFileName(topClassName: String): String = topClassName
+  def outFileNameSource(className: String): String = typeToFileName(className) + ".cpp"
+  def outFileNameHeader(className: String): String = typeToFileName(className) + ".h"
 
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")

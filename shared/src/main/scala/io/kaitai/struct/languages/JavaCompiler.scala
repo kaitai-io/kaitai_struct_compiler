@@ -269,9 +269,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
-    val javaName = idToStr(varName)
-
-    val ioName = s"_io_$javaName"
+    val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
@@ -475,6 +473,28 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"(${kaitaiType2JavaType(assignType)}) ($expr)"
     } else {
       expr
+    }
+  }
+
+  override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
+    val ioName = idToStr(IoStorageIdentifier(id))
+    handleAssignmentTempVar(KaitaiStreamType, ioName, s"$io.substream(${translator.translate(sizeExpr)});")
+    ioName
+  }
+
+  override def extraRawAttrForUserTypeFromBytes(id: Identifier, ut: UserTypeFromBytes, condSpec: ConditionalSpec): List[AttrSpec] = {
+    if (config.zeroCopySubstream) {
+      ut.bytes match {
+        case BytesLimitType(sizeExpr, None, _, None, None) =>
+          // substream will be used, no need for store raws
+          List()
+        case _ =>
+          // buffered implementation will be used, fall back to raw storage
+          super.extraRawAttrForUserTypeFromBytes(id, ut, condSpec)
+      }
+    } else {
+      // zero-copy streams disabled, fall back to raw storage
+      super.extraRawAttrForUserTypeFromBytes(id, ut, condSpec)
     }
   }
 
@@ -762,6 +782,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+      case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
     }
 
   def publicMemberName(id: Identifier) = idToStr(id)

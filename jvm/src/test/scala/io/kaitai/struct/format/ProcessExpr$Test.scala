@@ -1,10 +1,10 @@
 package io.kaitai.struct.format
 
 import io.kaitai.struct.exprlang.Ast
-import org.scalatest.FunSpec
-import org.scalatest.Matchers._
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers._
 
-class ProcessExpr$Test extends FunSpec {
+class ProcessExpr$Test extends AnyFunSpec {
   describe("ProcessExpr.fromStr") {
     it("foo(5)") {
       ProcessExpr.fromStr(Some("foo(5)"), List("some", "path")) should be(Some(ProcessCustom(

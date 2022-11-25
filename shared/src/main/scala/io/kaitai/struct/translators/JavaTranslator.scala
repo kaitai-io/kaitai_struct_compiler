@@ -76,14 +76,13 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
   }
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    if (op == Ast.cmpop.Eq) {
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = op match {
+    case Ast.cmpop.Eq =>
       s"${translate(left)}.equals(${translate(right)})"
-    } else if (op == Ast.cmpop.NotEq) {
+    case Ast.cmpop.NotEq =>
       s"!(${translate(left)}).equals(${translate(right)})"
-    } else {
+    case _ =>
       s"(${translate(left)}.compareTo(${translate(right)}) ${cmpOp(op)} 0)"
-    }
   }
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
