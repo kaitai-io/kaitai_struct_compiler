@@ -400,8 +400,32 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     ioName
   }
 
+  override def exprIORemainingSize(io: String): String =
+    s"$io.size() - $io.pos()"
+
   override def allocateIOGrowing(varName: Identifier): String =
     allocateIOFixed(varName, "100000") // FIXME to use real growing buffer
+
+  override def subIOWriteBackHeader(subIO: String, io: String): String = {
+    val parentIoName = "parent"
+    out.puts(s"$subIO.setWriteBackHandler(new $kstreamName.WriteBackHandler($io.pos()) {")
+    out.inc
+    out.puts("@Override")
+    out.puts(s"protected void write($kstreamName $parentIoName) {")
+    out.inc
+
+    parentIoName
+  }
+
+  override def subIOWriteBackFooter: Unit = {
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("});")
+  }
+
+  override def addChildIO(io: String, childIO: String): Unit =
+    out.puts(s"$io.addChildStream($childIO);")
 
   def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
     val memberName = idToStr(varName)
@@ -421,6 +445,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io.seek(${expression(pos)});")
+
+  override def seekRelative(io: String, relPos: String): Unit =
+    out.puts(s"$io.seek($io.pos() + ($relPos));")
 
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")

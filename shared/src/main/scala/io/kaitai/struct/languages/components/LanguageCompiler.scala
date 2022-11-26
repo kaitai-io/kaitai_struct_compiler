@@ -140,8 +140,16 @@ abstract class LanguageCompiler(
   def useIO(ioEx: Ast.expr): String
   def pushPos(io: String): Unit
   def seek(io: String, pos: Ast.expr): Unit
+  def seekRelative(io: String, relPos: String): Unit = ???
   def popPos(io: String): Unit
   def alignToByte(io: String): Unit
+
+  def exprIORemainingSize(io: String): String = ???
+
+  def subIOWriteBackHeader(subIO: String, io: String): String = ???
+  def subIOWriteBackFooter: Unit = ???
+
+  def addChildIO(io: String, childIO: String): Unit = ???
 
   def instanceDeclHeader(className: List[String]): Unit = {}
   def instanceClear(instName: InstanceIdentifier): Unit = {}

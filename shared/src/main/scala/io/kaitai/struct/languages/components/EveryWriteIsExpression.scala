@@ -207,20 +207,29 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
         val byteType = knownSizeType.bytes
         byteType.process match {
           case None =>
-            byteType match {
+            val size = byteType match {
               case blt: BytesLimitType =>
-                this match {
-                  //      case thisStore: AllocateAndStoreIO =>
-                  //        val ourIO = thisStore.allocateIO(rawId, rep)
-                  //        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
-                  //        privateMemberName(ourIO)
-                  case thisLocal: AllocateIOLocalVar =>
-                    val ioFixed = thisLocal.allocateIOFixed(rawId, translator.translate(blt.size))
-                    attrUserTypeInstreamWrite(ioFixed, expr, t, exprType)
-                    attrWriteStreamToStream(ioFixed, io)
+                translator.translate(blt.size)
+              case _: BytesEosType =>
+                exprIORemainingSize(io)
+            }
+            this match {
+              //      case thisStore: AllocateAndStoreIO =>
+              //        val ourIO = thisStore.allocateIO(rawId, rep)
+              //        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
+              //        privateMemberName(ourIO)
+              case thisLocal: AllocateIOLocalVar =>
+                val ioFixed = thisLocal.allocateIOFixed(rawId, size)
+
+                {
+                  val parentIO = subIOWriteBackHeader(ioFixed, io)
+                  attrWriteStreamToStream(ioFixed, parentIO)
+                  subIOWriteBackFooter
                 }
-              case _ =>
-                attrUserTypeInstreamWrite(io, expr, t, exprType)
+
+                addChildIO(io, ioFixed)
+                seekRelative(io, size)
+                attrUserTypeInstreamWrite(ioFixed, expr, t, exprType)
             }
           case Some(process) =>
             byteType match {
