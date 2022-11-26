@@ -257,7 +257,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts(s"public void _write${idToSetterStr(instName)}() {")
     out.inc
-    instanceSetWriteFlag(instName, false)
+    instanceClearWriteFlag(instName)
   }
 
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
@@ -792,10 +792,19 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = {
     out.puts(s"private boolean _write${idToSetterStr(attrName)} = false;")
+    out.puts(s"private boolean _toWrite${idToSetterStr(attrName)} = true;")
   }
 
-  override def instanceSetWriteFlag(instName: InstanceIdentifier, value: Boolean): Unit = {
-      out.puts(s"_write${idToSetterStr(instName)} = ${expression(Ast.expr.Bool(value))};")
+  override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = {
+    out.puts(s"_write${idToSetterStr(instName)} = _toWrite${idToSetterStr(instName)};")
+  }
+
+  override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = {
+    out.puts(s"_write${idToSetterStr(instName)} = false;")
+  }
+
+  override def instanceToWriteSetter(instName: InstanceIdentifier): Unit = {
+    out.puts(s"public void set${idToSetterStr(instName)}_ToWrite(boolean _v) { _toWrite${idToSetterStr(instName)} = _v; }")
   }
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {

@@ -353,7 +353,7 @@ class ClassCompiler(
     instances.foreach { case (instName, instSpec) =>
       instSpec match {
         case _: ParseInstanceSpec =>
-          lang.instanceSetWriteFlag(instName, true)
+          lang.instanceSetWriteFlag(instName)
         case _: ValueInstanceSpec => // do nothing
       }
     }
@@ -432,6 +432,7 @@ class ClassCompiler(
       instSpec match {
         case pi: ParseInstanceSpec =>
           lang.attributeSetter(instName, dataType, instSpec.isNullable)
+          lang.instanceToWriteSetter(instName)
           lang.writeInstanceHeader(instName)
           lang.attrWrite(pi, instName, endian)
           lang.writeInstanceFooter
