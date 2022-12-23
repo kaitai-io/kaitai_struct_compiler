@@ -166,15 +166,10 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
 
   def attrBytesTypeWrite2(io: String, expr: Ast.expr, t: BytesType, exprTypeOpt: Option[DataType]): Unit =
     t match {
-      case t: BytesEosType =>
-        attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
-        t.terminator.foreach { (term) =>
-          // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`)
-          if (!t.include)
-            attrPrimitiveWrite(io, Ast.expr.IntNum(term), Int1Type(false), None, None)
-        }
-      case blt: BytesLimitType =>
-        attrBytesLimitWrite2(io, expr, blt, exprTypeOpt)
+      case bt: BytesEosType =>
+        attrBytesLimitWrite2(io, expr, bt, exprIORemainingSize(io), bt.padRight, bt.terminator, bt.include, exprTypeOpt)
+      case bt: BytesLimitType =>
+        attrBytesLimitWrite2(io, expr, bt, expression(bt.size), bt.padRight, bt.terminator, bt.include, exprTypeOpt)
       case t: BytesTerminatedType =>
         attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
         if (!t.include) {
@@ -191,12 +186,21 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
         }
     }
 
-  def attrBytesLimitWrite2(io: String, expr: Ast.expr, blt: BytesLimitType, exprTypeOpt: Option[DataType]): Unit = {
-    val (term, padRight) = (blt.terminator, blt.padRight, blt.include) match {
+  def attrBytesLimitWrite2(
+    io: String,
+    expr: Ast.expr,
+    bt: BytesType,
+    sizeExpr: String,
+    padRight: Option[Int],
+    terminator: Option[Int],
+    include: Boolean,
+    exprTypeOpt: Option[DataType]
+  ): Unit = {
+    val (termArg, padRightArg) = (terminator, padRight, include) match {
       case (None, None, false) =>
         // no terminator, no padding => just a regular output
         // validation should check that expression's length matches size
-        attrPrimitiveWrite(io, expr, blt, None, exprTypeOpt)
+        attrPrimitiveWrite(io, expr, bt, None, exprTypeOpt)
         return
       case (_, None, true) =>
         // terminator included, no padding => pad with zeroes
@@ -215,7 +219,7 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
         // both terminator and padding specified
         (t, p)
     }
-    attrBytesLimitWrite(io, expr, translator.translate(blt.size), term, padRight)
+    attrBytesLimitWrite(io, expr, sizeExpr, termArg, padRightArg)
   }
 
   def attrUserTypeWrite(
