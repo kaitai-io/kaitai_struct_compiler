@@ -55,6 +55,8 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
   }
 
   def attrWrite0(id: Identifier, attr: AttrLikeSpec, io: String, defEndian: Option[FixedEndian]): Unit = {
+    if (attr.cond.repeat != NoRepeat)
+      condRepeatCommonWriteInit(id, attr.dataType, needRaw(attr.dataType))
     attr.cond.repeat match {
       case RepeatEos =>
         // we could use condRepeatEosHeader instead (we only deal with fixed-size streams when
@@ -124,7 +126,36 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
       case None =>
         id
     }
-    val expr = itemExpr(idToWrite, rep, isRaw)
+    val expr = if (idToWrite.isInstanceOf[RawIdentifier] && rep != NoRepeat) {
+      // NOTE: This special handling isn't normally needed and one can just use
+      // `itemExpr(idToWrite, rep, isRaw)` as usual. The `itemExpr` method assumes that the
+      // expression it's supposed to generate will be used in a loop where the iteration
+      // variable `Identifier.INDEX` is available (usually called just `i`) and uses it. This
+      // is a good default, but it doesn't work if the expression is used between
+      // `subIOWriteBackHeader` and `subIOWriteBackFooter` (see `attrUserTypeWrite` below),
+      // because in Java the loop control variable `i` is not "final" or "effectively final".
+      //
+      // The workaround is to change the expression so that it doesn't depend on the `i`
+      // variable. We can do that here, because the `RawIdentifier(...)` array starts empty
+      // before the loop and each element is added by `attrUnprocess` in each loop iteration -
+      // so the current item is just the last entry in the `RawIdentifier(...)` array.
+      //
+      // See test ProcessRepeatUsertype that requires this.
+      val astId = Ast.expr.InternalName(idToWrite)
+      Ast.expr.Subscript(
+        astId,
+        Ast.expr.BinOp(
+          Ast.expr.Attribute(
+            astId,
+            Ast.identifier("size")
+          ),
+          Ast.operator.Sub,
+          Ast.expr.IntNum(1)
+        )
+      )
+    } else {
+      itemExpr(idToWrite, rep, isRaw)
+    }
     attrBytesTypeWrite2(io, expr, t, exprTypeOpt)
   }
 
@@ -202,46 +233,64 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
     t match {
       case _: UserTypeInstream =>
         attrUserTypeInstreamWrite(io, expr, t, exprType)
-      case knownSizeType: UserTypeFromBytes =>
+      case utb: UserTypeFromBytes =>
         val rawId = RawIdentifier(id)
-        val byteType = knownSizeType.bytes
-        byteType.process match {
-          case None =>
-            val size = byteType match {
-              case blt: BytesLimitType =>
-                translator.translate(blt.size)
-              case _: BytesEosType =>
-                exprIORemainingSize(io)
-            }
-            this match {
-              //      case thisStore: AllocateAndStoreIO =>
-              //        val ourIO = thisStore.allocateIO(rawId, rep)
-              //        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
-              //        privateMemberName(ourIO)
-              case thisLocal: AllocateIOLocalVar =>
-                val ioFixed = thisLocal.allocateIOFixed(rawId, size)
+        val byteType = utb.bytes
 
-                {
-                  val parentIO = subIOWriteBackHeader(ioFixed, io)
-                  attrWriteStreamToStream(ioFixed, parentIO)
-                  subIOWriteBackFooter
-                }
+        /** @note Must be kept in sync with [[ExtraAttrs.writeNeedsOuterSize]] */
+        val outerSize = byteType match {
+          case blt: BytesLimitType =>
+            translator.translate(blt.size)
+          case _: BytesEosType =>
+            exprIORemainingSize(io)
+          case _: BytesTerminatedType =>
+            translator.translate(itemExpr(OuterSizeIdentifier(id), rep, isRaw))
+        }
 
-                addChildIO(io, ioFixed)
-                seekRelative(io, size)
-                attrUserTypeInstreamWrite(ioFixed, expr, t, exprType)
-            }
-          case Some(process) =>
+        /** @note Must be kept in sync with [[ExtraAttrs.writeNeedsInnerSize]] */
+        val innerSize = if (writeNeedsInnerSize(utb)) {
+          translator.translate(itemExpr(InnerSizeIdentifier(id), rep, isRaw))
+        } else {
+          outerSize
+        }
+
+        this match {
+          //      case thisStore: AllocateAndStoreIO =>
+          //        val ourIO = thisStore.allocateIO(rawId, rep)
+          //        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
+          //        privateMemberName(ourIO)
+          case thisLocal: AllocateIOLocalVar =>
+            val ioFixed = thisLocal.allocateIOFixed(rawId, innerSize)
+            addChildIO(io, ioFixed)
+
+            blockScopeHeader
+
+            pushPosForSubIOWriteBackHandler(io)
+            seekRelative(io, outerSize)
             byteType match {
-              case blt: BytesLimitType =>
-                this match {
-                  case thisLocal: AllocateIOLocalVar =>
-                    val ioFixed = thisLocal.allocateIOFixed(rawId, translator.translate(blt.size))
-                    attrUserTypeInstreamWrite(ioFixed, expr, t, exprType)
-                    handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, isRaw)
-                    attrBytesTypeWrite(rawId, byteType, io, rep, isRaw, exprTypeOpt)
+              case t: BytesTerminatedType =>
+                // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`)
+                if (!t.include && t.consume) {
+                  // terminator can only be 1 byte long at the moment
+                  seekRelative(io, expression(Ast.expr.IntNum(1)))
                 }
+              case _ => // do nothing
             }
+
+            byteType.process.foreach { (process) =>
+              attrUnprocessPrepareBeforeSubIOHandler(process, rawId)
+            }
+
+            {
+              val parentIO = subIOWriteBackHeader(ioFixed)
+              handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, true)
+              attrBytesTypeWrite(rawId, byteType, parentIO, rep, isRaw, exprTypeOpt)
+              subIOWriteBackFooter
+            }
+
+            blockScopeFooter
+
+            attrUserTypeInstreamWrite(ioFixed, expr, t, exprType)
         }
     }
   }
@@ -297,4 +346,5 @@ trait EveryWriteIsExpression extends LanguageCompiler with ObjectOrientedLanguag
   def exprStreamToByteArray(ioFixed: String): String
 
   def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dt: BytesType, exprTypeOpt: Option[DataType]): Unit
+  def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit
 }

@@ -40,6 +40,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  /** See [[subIOWriteBackHeader]] => the code generated when `true` will be inside the definition
+   * of the "writeBackHandler" callback function. */
+  private var inSubIOWriteBackHandler = false;
+
   override def universalFooter: Unit = {
     out.dec
     out.puts("}")
@@ -343,26 +347,32 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  // TODO: merge with attrProcess above (there is currently 99.9% duplication)
   override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit = {
     val exprType = exprTypeOpt.getOrElse(dataType)
-    val srcExprRaw = getRawIdExpr(varSrc, rep)
+    val srcExprRaw = varSrc match {
+      // use `_raw_items[_raw_items.size - 1]`
+      case _: RawIdentifier => getRawIdExpr(varSrc, rep)
+      // but `items[_index]`
+      case _ => expression(itemExpr(varSrc, rep, false))
+    }
     val srcExpr = castIfNeeded(srcExprRaw, exprType, dataType)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
+        val argStr = if (inSubIOWriteBackHandler) "_processXorArg" else expression(xorValue)
         val xorValueStr = translator.detectType(xorValue) match {
-          case _: IntType => translator.doCast(xorValue, Int1Type(true))
-          case _ => expression(xorValue)
+          case _: IntType => castIfNeeded(argStr, AnyType, Int1Type(true))
+          case _ => argStr
         }
         s"$kstreamName.processXor($srcExpr, $xorValueStr)"
       case ProcessZlib =>
         s"$kstreamName.unprocessZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
+        val argStr = if (inSubIOWriteBackHandler) "_processRotateArg" else expression(rotValue)
         val expr = if (!isLeft) {
-          expression(rotValue)
+          argStr
         } else {
-          s"8 - (${expression(rotValue)})"
+          s"8 - ($argStr)"
         }
         s"$kstreamName.processRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
@@ -371,10 +381,31 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           (if (namespace.nonEmpty) "." else "") +
           type2class(name.last)
         val procName = s"_process_${idToStr(varSrc)}"
-        out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
+        if (!inSubIOWriteBackHandler) {
+          out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
+        }
         s"$procName.encode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
+  }
+
+  override def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit = {
+    proc match {
+      case ProcessXor(xorValue) =>
+        val dataType = translator.detectType(xorValue)
+        out.puts(s"final ${kaitaiType2JavaType(dataType)} _processXorArg = ${expression(xorValue)};")
+      case ProcessRotate(_, rotValue) =>
+        val dataType = translator.detectType(rotValue)
+        out.puts(s"final ${kaitaiType2JavaType(dataType)} _processRotateArg = ${expression(rotValue)};")
+      case ProcessZlib => // no process arguments
+      case ProcessCustom(name, args) =>
+        val namespace = name.init.mkString(".")
+        val procClass = namespace +
+          (if (namespace.nonEmpty) "." else "") +
+          type2class(name.last)
+        val procName = s"_process_${idToStr(varSrc)}"
+        out.puts(s"final $procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
+    }
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
@@ -406,18 +437,23 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def allocateIOGrowing(varName: Identifier): String =
     allocateIOFixed(varName, "100000") // FIXME to use real growing buffer
 
-  override def subIOWriteBackHeader(subIO: String, io: String): String = {
+  override def subIOWriteBackHeader(subIO: String): String = {
     val parentIoName = "parent"
-    out.puts(s"$subIO.setWriteBackHandler(new $kstreamName.WriteBackHandler($io.pos()) {")
+    out.puts(s"final ${type2class(typeProvider.nowClass.name.last)} _this = this;")
+    out.puts(s"$subIO.setWriteBackHandler(new $kstreamName.WriteBackHandler(_pos2) {")
     out.inc
     out.puts("@Override")
     out.puts(s"protected void write($kstreamName $parentIoName) {")
     out.inc
 
+    inSubIOWriteBackHandler = true
+
     parentIoName
   }
 
   override def subIOWriteBackFooter: Unit = {
+    inSubIOWriteBackHandler = false
+
     out.dec
     out.puts("}")
     out.dec
@@ -428,7 +464,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$io.addChildStream($childIO);")
 
   def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
-    val memberName = idToStr(varName)
+    val memberName = privateMemberName(varName)
     rep match {
       case NoRepeat => memberName
       case _ => s"$memberName.get($memberName.size() - 1)"
@@ -442,6 +478,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def pushPos(io: String): Unit =
     out.puts(s"long _pos = $io.pos();")
+
+  override def pushPosForSubIOWriteBackHandler(io: String): Unit =
+    out.puts(s"long _pos2 = $io.pos();")
 
   override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io.seek(${expression(pos)});")
@@ -508,7 +547,24 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new ArrayList<byte[]>();")
+    if (config.readWrite) {
+      dataType match {
+        case utb: UserTypeFromBytes =>
+          if (writeNeedsOuterSize(utb))
+            out.puts(s"${privateMemberName(OuterSizeIdentifier(id))} = new ArrayList<Integer>();")
+          if (writeNeedsInnerSize(utb))
+            out.puts(s"${privateMemberName(InnerSizeIdentifier(id))} = new ArrayList<Integer>();")
+        case _ => // do nothing
+      }
+    }
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}();")
+  }
+
+  override def condRepeatCommonWriteInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+    if (needRaw.level >= 1)
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
+    if (needRaw.level >= 2)
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new ArrayList<byte[]>();")
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
@@ -963,10 +1019,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => Utils.upperCamelCase(name)
       case RawIdentifier(innerId) => "_raw_" + idToSetterStr(innerId)
+      case OuterSizeIdentifier(innerId) => s"${idToSetterStr(innerId)}_OuterSize"
+      case InnerSizeIdentifier(innerId) => s"${idToSetterStr(innerId)}_InnerSize"
     }
   }
 
-  override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = s"${if (inSubIOWriteBackHandler) "_" else ""}this.${idToStr(id)}"
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -1128,6 +1186,8 @@ object JavaCompiler extends LanguageCompilerStatic
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+      case OuterSizeIdentifier(innerId) => s"${idToStr(innerId)}_OuterSize"
+      case InnerSizeIdentifier(innerId) => s"${idToStr(innerId)}_InnerSize"
     }
 
   def publicMemberName(id: Identifier) = idToStr(id)

@@ -95,6 +95,14 @@ case class IoStorageIdentifier(innerId: Identifier) extends Identifier {
   override def humanReadable: String = s"io(${innerId.humanReadable})"
 }
 
+case class OuterSizeIdentifier(innerId: Identifier) extends Identifier {
+  override def humanReadable: String = s"outerSize(${innerId.humanReadable})"
+}
+
+case class InnerSizeIdentifier(innerId: Identifier) extends Identifier {
+  override def humanReadable: String = s"innerSize(${innerId.humanReadable})"
+}
+
 case class InstanceIdentifier(name: String) extends Identifier {
   Identifier.checkIdentifier(name)
 

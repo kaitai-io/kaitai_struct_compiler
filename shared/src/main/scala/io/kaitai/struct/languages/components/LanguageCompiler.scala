@@ -121,6 +121,7 @@ abstract class LanguageCompiler(
   def condIfFooter: Unit
 
   def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit
+  def condRepeatCommonWriteInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = ???
 
   def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit
   def condRepeatEosFooter: Unit
@@ -139,6 +140,7 @@ abstract class LanguageCompiler(
   def normalIO: String
   def useIO(ioEx: Ast.expr): String
   def pushPos(io: String): Unit
+  def pushPosForSubIOWriteBackHandler(io: String): Unit = ???
   def seek(io: String, pos: Ast.expr): Unit
   def seekRelative(io: String, relPos: String): Unit = ???
   def popPos(io: String): Unit
@@ -146,7 +148,7 @@ abstract class LanguageCompiler(
 
   def exprIORemainingSize(io: String): String = ???
 
-  def subIOWriteBackHeader(subIO: String, io: String): String = ???
+  def subIOWriteBackHeader(subIO: String): String = ???
   def subIOWriteBackFooter: Unit = ???
 
   def addChildIO(io: String, childIO: String): Unit = ???

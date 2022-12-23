@@ -108,6 +108,36 @@ trait EveryReadIsExpression
 
         attrParse2(rawId, byteType, io, rep, true, defEndian)
 
+        if (config.readWrite) {
+          if (writeNeedsOuterSize(knownSizeType)) {
+            /** @note Must be kept in sync with [[attrBytesTypeParse]] */
+            val rawRawId = knownSizeType.process match {
+              case None => rawId
+              case Some(_) => RawIdentifier(rawId)
+            }
+            val item = itemExpr(rawRawId, rep, false)
+            val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
+            /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
+             * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
+            if (rep == NoRepeat) {
+              handleAssignmentSimple(OuterSizeIdentifier(id), itemSizeExprStr)
+            } else {
+              handleAssignmentRepeatEos(OuterSizeIdentifier(id), itemSizeExprStr)
+            }
+          }
+          if (writeNeedsInnerSize(knownSizeType)) {
+            val item = itemExpr(rawId, rep, false)
+            val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
+            /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
+             * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
+            if (rep == NoRepeat) {
+              handleAssignmentSimple(InnerSizeIdentifier(id), itemSizeExprStr)
+            } else {
+              handleAssignmentRepeatEos(InnerSizeIdentifier(id), itemSizeExprStr)
+            }
+          }
+        }
+
         val extraType = rep match {
           case NoRepeat => byteType
           case _ => ArrayTypeInStream(byteType)
