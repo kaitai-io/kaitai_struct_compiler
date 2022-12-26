@@ -15,9 +15,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   import RustCompiler._
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "&vec![" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "]"
+    "vec![" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "].as_slice()"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
-    "&vec![" + elts.map(translate).mkString(", ") + "]"
+    "vec![" + elts.map(translate).mkString(", ") + "].as_slice()"
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = {
     t match {
       case CalcStrType => "vec![" + value.map(v => translate(v)).mkString(".to_string(), ") + ".to_string()]"
@@ -70,7 +70,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       val topClass = get_top_class(provider.nowClass)
       val instance_found = get_instance(topClass, s)
       if (instance_found.isDefined) {
-        s"$s(${privateMemberName(IoIdentifier)}, ${privateMemberName(RootIdentifier)})?"
+        s"$s(${privateMemberName(IoIdentifier)})?"
       } else {
         s"$s()"
       }
@@ -124,7 +124,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
         r = r.replace("()._io()", "_raw()")
       case Identifier.PARENT =>
         // handle _parent._parent
-        r = r.replace(".peek()._parent", ".pop().peek()")
+        r = r.replace(".get().as_ref()._parent", ".get().as_ref()._parent.get().as_ref()")
       case _ =>
     }
     r
@@ -147,7 +147,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   }
 
   def ensure_deref(s: String): String = {
-    if (s.startsWith("self")) {
+    if (s.startsWith(self_name())) {
       s"*$s"
     } else {
       s
@@ -210,7 +210,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     var deref = false
     var found = get_attr(get_top_class(provider.nowClass), s)
     if (found.isDefined ) {
-      deref = is_copy_type(found.get.dataTypeComposite)
+      deref = true//is_copy_type(found.get.dataTypeComposite)
     } else {
       found = get_instance(get_top_class(provider.nowClass), s)
       if (found.isDefined) {
@@ -232,15 +232,15 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case Identifier.ITERATOR2 => "_tmpb"
     case Identifier.INDEX => "_i"
     case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
-    case Identifier.ROOT => s"${RustCompiler.privateMemberName(RootIdentifier)}.ok_or(KError::MissingRoot)?"
-    case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.as_ref().unwrap().peek()"
+    case Identifier.ROOT => s"${self_name()}.${RustCompiler.privateMemberName(RootIdentifier)}.get().as_ref()"
+    case Identifier.PARENT => s"${RustCompiler.privateMemberName(ParentIdentifier)}.get().as_ref()"
     case _ =>
       val n = doName(s)
       val deref = need_deref(s)
       if (context_need_deref_attr || deref) {
-        s"*self.$n"
+        s"*${self_name()}.$n"
       } else {
-        s"self.$n"
+        s"${self_name()}.$n"
       }
   }
   override def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
