@@ -52,9 +52,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
     outHeader.puts("extern crate kaitai;")
 
-    importList.add(
-      "use kaitai::*;"
-    )
+    importList.add("use kaitai::*;")
     importList.add("use std::convert::{TryFrom, TryInto};")
     importList.add("use std::cell::{Ref, Cell, RefCell};")
     importList.add("use std::rc::{Rc, Weak};")
@@ -113,7 +111,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                       params: List[ParamDefSpec]): Unit = {
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
-        attributeDeclaration(EndianIdentifier, IntMultiType(true, Width4, None), false)
+        attributeDeclaration(EndianIdentifier, IntMultiType(signed = true, Width4, None), isNullable = false)
       case _ =>
     }
 
@@ -1115,6 +1113,42 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("}")
       out.puts
     }
+
+    {
+      val types_set = scala.collection.mutable.Set[String]()
+      val attrs_set = scala.collection.mutable.Set[String]()
+      types.foreach(t => {
+        val variantName = switchVariantName(id, t)
+        val typeName = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, t, excludeBox = true)
+        if (types_set.add(typeName)) {
+          t.asInstanceOf[UserType].classSpec.get.seq.foreach(
+            attr => {
+              val attrName = attr.id
+              if (attrs_set.add(idToStr(attrName))) {
+                out.puts(s"impl $enum_typeName {")
+                out.inc
+                val fn = idToStr(attrName)
+                val nativeType = kaitaiTypeToNativeTypeWrapper(Some(attrName), attr.dataTypeComposite)
+                //out.puts(nativeType.attrGetterDcl(fn))
+                out.puts(s"pub fn $fn(&self) -> Ref<$nativeType> {")
+                out.inc
+                out.puts("match self {")
+                out.inc
+                out.puts(s"$enum_typeName::$typeName(x) => x.$fn.borrow(),")
+                out.puts("_ => panic!(\"wrong variant: {:?}\", self),")
+                out.dec
+                out.puts("}")
+                out.dec
+                out.puts("}")
+                out.dec
+                out.puts("}")
+              }
+            }
+          )
+        }
+      })
+    }
+
   }
 
   def switchVariantName(id: Identifier, attrType: DataType): String =
@@ -1330,12 +1364,8 @@ object RustCompiler
           return baseName
         }
 
-        // Because we can't predict if opaque types will recurse, we have to box them
-        val typeName =
-          if (!excludeBox && t.isOpaque) s"$baseName"
-          else s"$baseName"
-        //if (excludeOptionWrapper) typeName else s"Rc<$typeName>"
-        s"Rc<$typeName>"
+        if (excludeBox) s"$baseName"
+        else s"Rc<$baseName>"
 
       case t: EnumType =>
         val baseName = t.enumSpec match {
