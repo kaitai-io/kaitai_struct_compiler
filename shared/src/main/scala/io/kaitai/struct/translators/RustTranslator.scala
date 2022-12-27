@@ -124,7 +124,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
         r = r.replace("()._io()", "_raw()")
       case Identifier.PARENT =>
         // handle _parent._parent
-        r = r.replace(".get().as_ref()._parent", ".get().as_ref()._parent.get().as_ref()")
+        var builder = new StringBuilder()
+        val expandStr = ".get().as_ref()._parent"
+        val start = r.lastIndexOf(expandStr)
+        builder.append(r.substring(0, start))
+        builder.append(".get().as_ref()._parent.get().as_ref()")
+        builder.append(r.substring(start + expandStr.length()))
+        r = builder.toString()
       case _ =>
     }
     r
@@ -196,13 +202,32 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   var context_need_deref_attr = false
 
+  def enum_numeric_only(dataType: DataType): Boolean = {
+    var types : Set[DataType] = Set()
+    var enum_typename = false
+    dataType match {
+      case st: SwitchType =>
+        types = st.cases.values.toSet
+        enum_typename = true
+      case _: EnumType => return true
+      case _ => return false
+    }
+    var enum_only_numeric = true
+    types.foreach {
+      case _: NumericType => // leave unchanged
+      case _ => enum_only_numeric = false
+    }
+    //println(s"$dataType - $enum_only_numeric")
+    enum_only_numeric
+  }
+
   def is_copy_type(dataType: DataType): Boolean = dataType match {
-    case _: SwitchType => false
-    case _: UserType => false
-    case _: BytesType => false
-    case _: ArrayType => false
-    case _: StrType => false
-    case _: EnumType => false
+    // case _: SwitchType => false
+    // case _: UserType => false
+    // case _: BytesType => false
+    // case _: ArrayType => false
+    // case _: StrType => false
+    // case _: EnumType => false
     case _ => true
   }
 
@@ -210,20 +235,23 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     var deref = false
     var found = get_attr(get_top_class(provider.nowClass), s)
     if (found.isDefined ) {
-      deref = true//is_copy_type(found.get.dataTypeComposite)
+      deref = !enum_numeric_only(found.get.dataTypeComposite) //is_copy_type(found.get.dataTypeComposite)
+      //println(s"need_deref get_attr $s $deref ${found.get.dataTypeComposite}")
     } else {
       found = get_instance(get_top_class(provider.nowClass), s)
       if (found.isDefined) {
+        //println(s"need_deref get_instance $s $deref ${found.get.dataTypeComposite}")
         deref = true //is_copy_type(found.get.dataTypeComposite)
       } else {
         found = get_param(get_top_class(provider.nowClass), s)
         if (found.isDefined) {
-          deref = true
+          deref = !enum_numeric_only(found.get.dataTypeComposite)
         } else {
           deref = false
         }
       }
     }
+    //println(s"need_deref $s $deref")
     deref
   }
 
@@ -238,15 +266,16 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       val n = doName(s)
       val deref = need_deref(s)
       if (context_need_deref_attr || deref) {
+        //println(s"$context_need_deref_attr, $deref")
         s"*${self_name()}.$n"
       } else {
         s"${self_name()}.$n"
       }
   }
   override def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
-    context_need_deref_attr = true
+    //context_need_deref_attr = true
     val code = s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-    context_need_deref_attr = false
+    //context_need_deref_attr = false
     code
   }
 
