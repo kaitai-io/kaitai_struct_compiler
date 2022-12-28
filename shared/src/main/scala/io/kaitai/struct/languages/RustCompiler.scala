@@ -257,15 +257,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("}")
       fn = s"${fn}_enum"
     }
-    if (enum_typename) {
-      out.puts(s"pub fn $fn(&self) -> &$typeNameEx {")
-      out.inc
-      out.puts(s"self.${idToStr(attrName)}.borrow().as_ref().unwrap()")
-    } else {
+//    if (enum_typename) {
+//      out.puts(s"pub fn $fn(&self) -> &$typeNameEx {")
+//      out.inc
+//      out.puts(s"self.${idToStr(attrName)}.borrow().as_ref().unwrap()")
+//    } else {
       out.puts(s"pub fn $fn(&self) -> Ref<$typeName> {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.borrow()")
-    }
+//    }
     out.dec
     out.puts("}")
     out.dec
