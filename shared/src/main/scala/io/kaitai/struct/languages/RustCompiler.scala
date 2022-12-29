@@ -236,20 +236,21 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     var types : Set[DataType] = Set()
     var enum_typename = false
+    var switch_typename = false
     attrType match {
       case st: SwitchType =>
         types = st.cases.values.toSet
-        enum_typename = true
+        switch_typename = true
       case _: EnumType => enum_typename = true
       case _ =>
     }
-    var enum_only_numeric = false//true
+    var enum_only_numeric = true
     types.foreach {
       case _: NumericType => // leave unchanged
       case _ => enum_only_numeric = false
     }
     var fn = idToStr(attrName)
-    if (enum_typename && enum_only_numeric) {
+    if (switch_typename && enum_only_numeric) {
       out.puts(s"pub fn $fn(&self) -> usize {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.borrow().as_ref().unwrap().into()")
@@ -257,11 +258,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("}")
       fn = s"${fn}_enum"
     }
-//    if (enum_typename) {
-//      out.puts(s"pub fn $fn(&self) -> &$typeNameEx {")
-//      out.inc
-//      out.puts(s"self.${idToStr(attrName)}.borrow().as_ref().unwrap()")
-//    } else {
+    if (switch_typename || enum_typename) {
+      out.puts(s"pub fn $fn(&self) -> $typeNameEx {")
+      out.inc
+      out.puts(s"self.${idToStr(attrName)}.borrow().as_ref().unwrap().clone()")
+    } else {
       out.puts(s"pub fn $fn(&self) -> Ref<$typeName> {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.borrow()")
@@ -574,10 +575,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: EnumType =>
         out.puts(s"*${RustCompiler.privateMemberName(instName, true)} = ${translator.remove_deref(expression(value))};")
       case _ =>
-        translator.context_need_deref_attr = true
+        //translator.context_need_deref_attr = true
         val primType = kaitaiPrimitiveToNativeType(dataType)
         out.puts(s"*${RustCompiler.privateMemberName(instName, true)} = (${expression(value)}) as $primType;")
-        translator.context_need_deref_attr = false
+        //translator.context_need_deref_attr = false
     }
   }
 
@@ -639,9 +640,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
     out.puts
 
-    out.puts(s"impl From<&$enumClass> for i64 {")
+    out.puts(s"impl From<$enumClass> for i64 {")
     out.inc
-    out.puts(s"fn from(val: &$enumClass) -> Self {")
+    out.puts(s"fn from(val: $enumClass) -> Self {")
     out.inc
     out.puts(s"match val {")
     out.inc
@@ -649,7 +650,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case (value, label) =>
         out.puts(s"$enumClass::${type2class(label.name)} => $value,")
     }
-    out.puts(s"$enumClass::Unknown(v) => *v")
+    out.puts(s"$enumClass::Unknown(v) => v")
     out.dec
     out.puts("}")
     out.dec
@@ -697,9 +698,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"*${RustCompiler.privateMemberName(id, true)} = Some($expr.clone());")
       case _ =>
         if (need_clone)
-          out.puts(s"*${RustCompiler.privateMemberName(id, true)} = RefCell::new($expr.clone());")
+          out.puts(s"*${RustCompiler.privateMemberName(id, true)} = $expr.clone();")
         else
-          out.puts(s"*${RustCompiler.privateMemberName(id, true)} = RefCell::new($expr);")
+          out.puts(s"*${RustCompiler.privateMemberName(id, true)} = $expr;")
     }
   }
 
@@ -732,7 +733,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       if (refcell) {
           val typeName = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, idType)
           if (opaque) {
-            out.puts(s"*${RustCompiler.privateMemberName(id, true)} = $expr;")
+            out.puts(s"*${RustCompiler.privateMemberName(id, true)} = Some($expr);")
           } else {
             out.puts(s"*${RustCompiler.privateMemberName(id, true)} = $expr;")
           }
@@ -848,17 +849,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         if (addParams.isEmpty) {
           if (t.classSpec.isDefined) t.classSpec.get.meta.endian match {
             case Some(InheritedEndian) =>
-              out.puts(s"let mut t = $userType::default();")
-              out.puts(s"t.set_endian(*${privateMemberName(EndianIdentifier)});")
-              out.puts(s"t.read::<$streamType>($io$addArgs)?;")
+              // out.puts(s"let mut t = $userType::default();")
+              // out.puts(s"t.set_endian(*${privateMemberName(EndianIdentifier)});")
+              // out.puts(s"t.read::<$streamType>($io$addArgs)?;")
+              out.puts(s"let f = |t : &mut $userType| Ok(t.set_endian(*${privateMemberName(EndianIdentifier)}));")
+              out.puts(s"let t = Self::read_into_with_init::<$streamType, $userType>($io$addArgs, &f)?.into();")
             case _ =>
               out.puts(s"let t = Self::read_into::<$streamType, $userType>($io$addArgs)?.into();")
           }
         } else {
-          //val at = kaitaiTypeToNativeType(None, typeProvider.nowClass, assignType, excludeOptionWrapper = true)
-          out.puts(s"let mut t = $userType::default();")
-          out.puts(s"t.set_params($addParams);")
-          out.puts(s"t.read::<$streamType>($io$addArgs)?;")
+          out.puts(s"let f = |t : &mut $userType| Ok(t.set_params($addParams));")
+          out.puts(s"let t = Self::read_into_with_init::<$streamType, $userType>($io$addArgs, &f)?.into();")
         }
         return s"t"
       case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
@@ -945,12 +946,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
-    out.puts(s"if *on == ${expression(condition)} {")
+    out.puts(s"if on == ${expression(condition)} {")
     out.inc
   }
 
   override def switchIfCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"else if *on == ${expression(condition)} {")
+    out.puts(s"else if on == ${expression(condition)} {")
     out.inc
   }
 
@@ -1364,8 +1365,12 @@ object RustCompiler
           return baseName
         }
 
-        if (excludeBox) s"$baseName"
-        else s"Rc<$baseName>"
+        //if (excludeOptionWrapper) typeName else s"Rc<$typeName>"
+        if (t.isOpaque) s"Option<Rc<$baseName>>" else s"Rc<$baseName>"
+        // Because we can't predict if opaque types will recurse, we have to box them
+        // val typeName =
+        //   if (!excludeBox && t.isOpaque) s"$baseName"
+        //   else s"$baseName"
 
       case t: EnumType =>
         val baseName = t.enumSpec match {
