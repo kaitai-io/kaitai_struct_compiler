@@ -266,7 +266,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"pub fn $fn(&self) -> Ref<$typeName> {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.borrow()")
-//    }
+    }
     out.dec
     out.puts("}")
     out.dec
@@ -1120,7 +1120,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       val attrs_set = scala.collection.mutable.Set[String]()
       types.foreach(t => {
         val variantName = switchVariantName(id, t)
-        val typeName = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, t, excludeBox = true)
+        val typeName = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, t, cleanTypename = true)
         if (types_set.add(typeName)) {
           t.asInstanceOf[UserType].classSpec.get.seq.foreach(
             attr => {
@@ -1346,8 +1346,7 @@ object RustCompiler
                              cs: ClassSpec,
                              attrType: DataType,
                              excludeOptionWrapper: Boolean = false,
-                             cleanTypename: Boolean = false,
-                             excludeBox: Boolean = false): String =
+                             cleanTypename: Boolean = false): String =
     attrType match {
       // TODO: Not exhaustive
       case _: NumericType => kaitaiPrimitiveToNativeType(attrType)
@@ -1361,16 +1360,11 @@ object RustCompiler
           case None => types2class(t.name)
         }
 
-        if (cleanTypename) {
-          return baseName
+        (t.isOpaque, cleanTypename) match {
+          case (_, true)    =>  baseName
+          case (true, _)    =>  s"Option<Rc<$baseName>>"
+          case (false, _)   =>  s"Rc<$baseName>"
         }
-
-        //if (excludeOptionWrapper) typeName else s"Rc<$typeName>"
-        if (t.isOpaque) s"Option<Rc<$baseName>>" else s"Rc<$baseName>"
-        // Because we can't predict if opaque types will recurse, we have to box them
-        // val typeName =
-        //   if (!excludeBox && t.isOpaque) s"$baseName"
-        //   else s"$baseName"
 
       case t: EnumType =>
         val baseName = t.enumSpec match {
