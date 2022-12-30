@@ -1119,33 +1119,36 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       val types_set = scala.collection.mutable.Set[String]()
       val attrs_set = scala.collection.mutable.Set[String]()
       types.foreach(t => {
-        val variantName = switchVariantName(id, t)
         val typeName = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, t, cleanTypename = true)
         if (types_set.add(typeName)) {
-          t.asInstanceOf[UserType].classSpec.get.seq.foreach(
-            attr => {
-              val attrName = attr.id
-              if (attrs_set.add(idToStr(attrName))) {
-                out.puts(s"impl $enum_typeName {")
-                out.inc
-                val fn = idToStr(attrName)
-                val nativeType = kaitaiTypeToNativeTypeWrapper(Some(attrName), attr.dataTypeComposite)
-                //out.puts(nativeType.attrGetterDcl(fn))
-                out.puts(s"pub fn $fn(&self) -> Ref<$nativeType> {")
-                out.inc
-                out.puts("match self {")
-                out.inc
-                out.puts(s"$enum_typeName::$typeName(x) => x.$fn.borrow(),")
-                out.puts("_ => panic!(\"wrong variant: {:?}\", self),")
-                out.dec
-                out.puts("}")
-                out.dec
-                out.puts("}")
-                out.dec
-                out.puts("}")
-              }
-            }
-          )
+          t match {
+            case ut: UserType =>
+              ut.classSpec.get.seq.foreach(
+                attr => {
+                  val attrName = attr.id
+                  if (attrs_set.add(idToStr(attrName))) {
+                    out.puts(s"impl $enum_typeName {")
+                    out.inc
+                    val fn = idToStr(attrName)
+                    val nativeType = kaitaiTypeToNativeTypeWrapper(Some(attrName), attr.dataTypeComposite)
+                    //out.puts(nativeType.attrGetterDcl(fn))
+                    out.puts(s"pub fn $fn(&self) -> Ref<$nativeType> {")
+                    out.inc
+                    out.puts("match self {")
+                    out.inc
+                    out.puts(s"$enum_typeName::$typeName(x) => x.$fn.borrow(),")
+                    out.puts("_ => panic!(\"wrong variant: {:?}\", self),")
+                    out.dec
+                    out.puts("}")
+                    out.dec
+                    out.puts("}")
+                    out.dec
+                    out.puts("}")
+                  }
+                }
+              )
+            case _ =>
+          }
         }
       })
     }
