@@ -4,8 +4,15 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
-trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with EveryWriteIsExpression {
+trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
   override def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = {
+    val bodyShouldDependOnIo: Option[Boolean] =
+      if (userExprDependsOnIo(attr.cond.ifExpr)) {
+        return
+      } else {
+        Some(false)
+      }
+
     attrParseIfHeader(id, attr.cond.ifExpr)
 
     val io = normalIO
@@ -13,153 +20,314 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatCommonHeader(id, io, attr.dataType)
-        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
+        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false, bodyShouldDependOnIo)
         condRepeatCommonFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
-        attrArraySizeCheck(id, repeatExpr)
+        attrRepeatExprCheck(id, repeatExpr, bodyShouldDependOnIo)
         condRepeatCommonHeader(id, io, attr.dataType)
-        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
+        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false, bodyShouldDependOnIo)
         condRepeatCommonFooter
-      case rep: RepeatUntil =>
-        // the array must not be empty (always contains at least the `repeat-until: {true}` element)
-        attrAssertCmp(exprArraySize(Ast.expr.InternalName(id)), Ast.cmpop.Eq, Ast.expr.IntNum(0), idToMsg(id))
+      case repUntil: RepeatUntil =>
+        attrAssertUntilNotEmpty(id)
         condRepeatCommonHeader(id, io, attr.dataType)
-        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
-        attrAssertUntilCond(id, attr.dataType, rep, false, idToMsg(id))
+        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false, bodyShouldDependOnIo)
+        attrAssertUntilCond(id, attr.dataType, repUntil, false, bodyShouldDependOnIo)
         condRepeatCommonFooter
       case NoRepeat =>
-        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false)
+        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false, bodyShouldDependOnIo)
     }
 
     attrParseIfFooter(attr.cond.ifExpr)
   }
 
-  def attrCheck2(id: Identifier, dataType: DataType, io: String, repeat: RepeatSpec, isRaw: Boolean) = {
+
+
+  def userExprDependsOnIo(expr: Option[Ast.expr]): Boolean = expr match {
+    case None => false
+    case Some(v) => userExprDependsOnIo(v)
+  }
+
+  private
+  def getArrayItemType(dt: DataType): DataType = {
+    dt match {
+      case arr: ArrayType => getArrayItemType(arr.elType)
+      case other => other
+    }
+  }
+
+  def userExprDependsOnIo(expr: Ast.expr): Boolean = {
+    expr match {
+      case _: Ast.expr.IntNum => false
+      case _: Ast.expr.FloatNum => false
+      case _: Ast.expr.Str => false
+      case _: Ast.expr.Bool => false
+      case _: Ast.expr.EnumById => false
+      case _: Ast.expr.EnumByLabel => false
+      case n: Ast.expr.Name =>
+        val t = getArrayItemType(translator.detectType(n))
+        if (t == KaitaiStreamType || t == OwnedKaitaiStreamType) {
+          true
+        } else {
+          /** @see [[ClassTypeProvider.determineType(inClass:ClassSpec,attrName:String):DataType*]] */
+          n.id.name match {
+            case Identifier.ROOT
+              | Identifier.PARENT
+              | Identifier.IO
+              | Identifier.ITERATOR
+              | Identifier.SWITCH_ON
+              | Identifier.INDEX
+              | Identifier.SIZEOF
+              => false
+            case _ =>
+              val spec = typeProvider.resolveMember(typeProvider.nowClass, n.id.name)
+              spec match {
+                case _: AttrSpec => false
+
+                // Parameters are fine because they are normally set by the user, so are already
+                // available in _check(). The only parameters set by the generated code in _write()
+                // (not by the user) are params of type KaitaiStream or an array of KaitaiStream,
+                // but these were caught earlier in this function.
+                case _: ParamDefSpec => false
+
+                // Value instances are OK to use in _check() if their expressions in `value` and
+                // `if` do not use _io or parse instances. They can refer to other value instances,
+                // provided they follow the same conditions (which is ensured by a recursive call).
+                case vis: ValueInstanceSpec =>
+                  userExprDependsOnIo(vis.ifExpr) || userExprDependsOnIo(vis.value)
+
+                // Although accessing parse instances in _check() is not a problem by itself,
+                // because parse instances are set by the user so they are already available in
+                // _check(), it becomes a problem when you don't invoke a parse instance dependent
+                // on the time of invocation in _write() because you have already done a particular
+                // check in _check().
+                //
+                // Take the test
+                // https://github.com/kaitai-io/kaitai_struct_tests/blob/010efd1d9c07a61a320a644d4e782dd488ba28e4/formats/instance_in_repeat_until.ksy
+                // as an example. In _write() you don't need to reproduce the special `do { ... }
+                // while (!repeat-until);` loop as used in _read(), because you already know the
+                // array length, so a simple "foreach" loop will suffice. Then there is a
+                // consistency check to ensure that the `repeat-until` condition is `false` for all
+                // items except the last one, and `true` for the last one. This check can be either
+                // done in _check(), or in _write() at the end of each iteration of the "foreach"
+                // loop. You can do it in _check() if you want, but you *need* to evaluate the
+                // `repeat-until` expression (and throw away the result, if you like - the point is
+                // just to invoke the parse instances specified there) at the end of each "foreach"
+                // loop iteration in _write(), because _read() does that. So it makes sense to do
+                // the check only in _write().
+                //
+                // It may be tempting to suggest to do the check both in _check() and _write(), and
+                // in this particular case you could really do that because the parse instance is
+                // used directly in the `repeat-until` expression. But if such parse instance is used
+                // indirectly via a value instance, you should no longer use that value instance in
+                // _check() at all, because that would cache the its value and the invocation in
+                // _write() would merely return this cached value, not evaluating the expression
+                // again. But that means that the parse instance will be written at a different
+                // time, because it won't be invoked from `seq` at the time it would be in _read()
+                // and will be written only when invoked from _fetchInstances(), which is wrong and
+                // inconsistent with parsing. Although the user could work around this specific
+                // issue by manually invalidating the value instances that the careless _check()
+                // invoked after calling it, this would be a bug in _check(). Calling _check()
+                // should not have side effects that the user has to "undo".
+                //
+                // Of course, perhaps most parse instances are not dependent on the time of
+                // invocation. But the language allows them to be, and it's not that trivial to
+                // detect it: you have to analyze all expressions that affect its parsing. So we
+                // will not do that for now - it's easier to avoid invoking parse instances in
+                // _check() (directly or indirectly) entirely.
+                case _: ParseInstanceSpec => true
+              }
+          }
+        }
+      case Ast.expr.InternalName(id) =>
+        ???
+      case Ast.expr.UnaryOp(op, inner) =>
+        userExprDependsOnIo(inner)
+      case Ast.expr.Compare(left, op, right) =>
+        userExprDependsOnIo(left) || userExprDependsOnIo(right)
+      case Ast.expr.BinOp(left, op, right) =>
+        userExprDependsOnIo(left) || userExprDependsOnIo(right)
+      case Ast.expr.BoolOp(op, values) =>
+        values.exists(v => userExprDependsOnIo(v))
+      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
+        userExprDependsOnIo(condition) || userExprDependsOnIo(ifTrue) || userExprDependsOnIo(ifFalse)
+      case Ast.expr.Subscript(value, idx) =>
+        userExprDependsOnIo(value) || userExprDependsOnIo(idx)
+      case a: Ast.expr.Attribute =>
+        val t = getArrayItemType(translator.detectType(a))
+        if (t == KaitaiStreamType || t == OwnedKaitaiStreamType) {
+          true
+        } else {
+          userExprDependsOnIo(a.value)
+        }
+      case Ast.expr.Call(func, args) =>
+        (func match {
+          case Ast.expr.Attribute(value, methodName) =>
+            userExprDependsOnIo(value)
+        }) || args.exists(v => userExprDependsOnIo(v))
+      case Ast.expr.List(values: Seq[Ast.expr]) =>
+        values.exists(v => userExprDependsOnIo(v))
+      case Ast.expr.CastToType(value, typeName) =>
+        userExprDependsOnIo(value)
+      case _: Ast.expr.ByteSizeOfType => false
+      case _: Ast.expr.BitSizeOfType => false
+    }
+
+  }
+
+  def attrCheck2(id: Identifier, dataType: DataType, io: String, repeat: RepeatSpec, isRaw: Boolean, shouldDependOnIo: Option[Boolean]) = {
     val item = itemExpr(id, repeat, isRaw)
     dataType match {
       case t: BytesType =>
-        attrBytesCheck(item, t, idToMsg(id))
+        attrBytesCheck(id, item, t, shouldDependOnIo)
       case st: StrFromBytesType =>
         val bytes = exprStrToBytes(item, st.encoding)
-        attrBytesCheck(
-          bytes,
-          st.bytes,
-          idToMsg(id)
-        )
+        attrBytesCheck(id, bytes, st.bytes, shouldDependOnIo)
       case _ => // no checks
     }
   }
 
-  def attrArraySizeCheck(id: Identifier, expectedSize: Ast.expr): Unit =
+  def attrRepeatExprCheck(id: Identifier, expectedSize: Ast.expr, shouldDependOnIo: Option[Boolean]): Unit = {
+    if (shouldDependOnIo.map(shouldDepend => userExprDependsOnIo(expectedSize) != shouldDepend).getOrElse(false))
+      return
     attrAssertEqual(
       exprArraySize(Ast.expr.InternalName(id)),
       expectedSize,
       idToMsg(id)
     )
+  }
 
-  def attrBytesCheck(bytes: Ast.expr, t: BytesType, msgId: String): Unit = {
+  def attrBytesCheck(id: Identifier, bytes: Ast.expr, t: BytesType, shouldDependOnIoOrig: Option[Boolean]): Unit = {
+    val shouldDependOnIo: Option[Boolean] =
+      if (t.process.isDefined) {
+        if (shouldDependOnIoOrig.getOrElse(true)) {
+          None
+        } else {
+          return
+        }
+      } else {
+        shouldDependOnIoOrig
+      }
+
+    val msgId = idToMsg(id)
     val actualSize = exprByteArraySize(bytes)
+    val canUseNonIoDependent = shouldDependOnIo.map(shouldDepend => shouldDepend == false).getOrElse(true)
     t match {
       case blt: BytesLimitType => {
-        if (blt.terminator.isDefined || blt.padRight.isDefined) {
-          // size must be "<= declared" (less than or equal to declared size)
-          attrAssertLtE(actualSize, blt.size, msgId)
-        } else {
-          // size must match declared size exactly
-          attrAssertEqual(
-            actualSize,
-            blt.size,
-            msgId
-          )
-        }
-        blt.terminator.foreach { (term) =>
-          val actualIndexOfTerm = exprByteArrayIndexOf(bytes, term)
-          val isPadRightActive = blt.padRight.map(padByte => padByte != term).getOrElse(false)
-          if (!blt.include) {
-            attrAssertEqual(actualIndexOfTerm, Ast.expr.IntNum(-1), msgId)
-            if (isPadRightActive) {
-              condIfHeader(Ast.expr.Compare(actualSize, Ast.cmpop.Eq, blt.size))
-              // check if the last byte is not `pad-right`
-            }
+        val limitSize = blt.size
+        val canUseLimitSize = shouldDependOnIo.map(shouldDepend => userExprDependsOnIo(limitSize) == shouldDepend).getOrElse(true)
+        if (canUseLimitSize) {
+          if (blt.terminator.isDefined || blt.padRight.isDefined) {
+            // size must be "<= declared" (less than or equal to declared size)
+            attrAssertLtE(actualSize, limitSize, msgId)
           } else {
-            val lastByteIndex = Ast.expr.BinOp(actualSize, Ast.operator.Sub, Ast.expr.IntNum(1))
-            if (!isPadRightActive) {
-              condIfHeader(Ast.expr.Compare(actualSize, Ast.cmpop.Lt, blt.size))
-              // must not be empty (always contains at least the `terminator` byte)
-              attrAssertCmp(actualSize, Ast.cmpop.Eq, Ast.expr.IntNum(0), msgId)
-              // the user wants to terminate the value prematurely and there's no `pad-right` that
-              // could do that, so the last byte of the value must be `terminator`
-              attrAssertEqual(actualIndexOfTerm, lastByteIndex, msgId)
-              condIfFooter
-
-              condIfHeader(Ast.expr.Compare(actualSize, Ast.cmpop.Eq, blt.size))
-            }
-            attrBasicCheck(
-              Ast.expr.BoolOp(
-                Ast.boolop.And,
-                Seq(
-                  Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.NotEq, Ast.expr.IntNum(-1)),
-                  Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.NotEq, lastByteIndex)
-                )
-              ),
-              actualIndexOfTerm,
-              lastByteIndex,
+            // size must match declared size exactly
+            attrAssertEqual(
+              actualSize,
+              limitSize,
               msgId
             )
-            if (!isPadRightActive) {
-              condIfFooter
+          }
+        }
+        blt.terminator match {
+          case Some(term) => {
+            val actualIndexOfTerm = exprByteArrayIndexOf(bytes, term)
+            val isPadRightActive = blt.padRight.map(padByte => padByte != term).getOrElse(false)
+            if (!blt.include) {
+              if (canUseNonIoDependent) {
+                attrAssertEqual(actualIndexOfTerm, Ast.expr.IntNum(-1), msgId)
+              }
+              if (isPadRightActive && canUseLimitSize) {
+                condIfHeader(Ast.expr.Compare(actualSize, Ast.cmpop.Eq, limitSize))
+                // check if the last byte is not `pad-right`
+                attrBytesPadRightCheck(bytes, actualSize, blt.padRight, msgId)
+                condIfFooter
+              }
             } else {
-              condIfHeader(Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.Eq, Ast.expr.IntNum(-1)))
-              // check if the last byte is not `pad-right`
+              val lastByteIndex = Ast.expr.BinOp(actualSize, Ast.operator.Sub, Ast.expr.IntNum(1))
+              if (!isPadRightActive && canUseLimitSize) {
+                condIfHeader(Ast.expr.Compare(actualSize, Ast.cmpop.Lt, limitSize))
+                // must not be empty (always contains at least the `terminator` byte)
+                attrAssertCmp(actualSize, Ast.cmpop.Eq, Ast.expr.IntNum(0), msgId)
+                // the user wants to terminate the value prematurely and there's no `pad-right` that
+                // could do that, so the last byte of the value must be `terminator`
+                attrAssertEqual(actualIndexOfTerm, lastByteIndex, msgId)
+                condIfFooter
+
+                condIfHeader(Ast.expr.Compare(actualSize, Ast.cmpop.Eq, limitSize))
+                attrTermIncludeCheck(actualIndexOfTerm, lastByteIndex, msgId)
+                condIfFooter
+              }
+              if (isPadRightActive && canUseNonIoDependent) {
+                attrTermIncludeCheck(actualIndexOfTerm, lastByteIndex, msgId)
+
+                condIfHeader(Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.Eq, Ast.expr.IntNum(-1)))
+                // check if the last byte is not `pad-right`
+                attrBytesPadRightCheck(bytes, actualSize, blt.padRight, msgId)
+                condIfFooter
+              }
             }
           }
-          // intentionally deferring the `condIfFooter` call (in case of `isPadRightActive`)
-        }
-        blt.padRight.foreach { (padByte) =>
-          if (blt.terminator.map(term => padByte != term).getOrElse(true)) {
-            val lastByte = exprByteArrayLast(bytes)
-            attrBasicCheck(
-              Ast.expr.BoolOp(
-                Ast.boolop.And,
-                Seq(
-                  Ast.expr.Compare(actualSize, Ast.cmpop.NotEq, Ast.expr.IntNum(0)),
-                  Ast.expr.Compare(
-                    lastByte,
-                    Ast.cmpop.Eq,
-                    Ast.expr.IntNum(padByte)
-                  )
-                )
-              ),
-              lastByte,
-              Ast.expr.IntNum(padByte),
-              msgId
-            )
-          }
-        }
-        blt.terminator.foreach { (term) =>
-          val isPadRightActive = blt.padRight.map(padByte => padByte != term).getOrElse(false)
-          // here's the `condIfFooter` call omitted from the previous `blt.terminator.foreach()` block
-          if (isPadRightActive)
-            condIfFooter
+          case None =>
+            if (canUseLimitSize) {
+              // check if the last byte is not `pad-right`
+              attrBytesPadRightCheck(bytes, actualSize, blt.padRight, msgId)
+            }
         }
       }
       case btt: BytesTerminatedType => {
-        val actualIndexOfTerm = exprByteArrayIndexOf(bytes, btt.terminator)
-        // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`, i.e. the default setting)
-        val expectedIndexOfTerm = if (btt.include) {
-          // must not be empty (always contains at least the `terminator` byte)
-          attrAssertCmp(actualSize, Ast.cmpop.Eq, Ast.expr.IntNum(0), msgId)
+        if (canUseNonIoDependent) {
+          val actualIndexOfTerm = exprByteArrayIndexOf(bytes, btt.terminator)
+          // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`, i.e. the default setting)
+          val expectedIndexOfTerm = if (btt.include) {
+            // must not be empty (always contains at least the `terminator` byte)
+            attrAssertCmp(actualSize, Ast.cmpop.Eq, Ast.expr.IntNum(0), msgId)
 
-          Ast.expr.BinOp(actualSize, Ast.operator.Sub, Ast.expr.IntNum(1))
-        } else {
-          Ast.expr.IntNum(-1)
+            Ast.expr.BinOp(actualSize, Ast.operator.Sub, Ast.expr.IntNum(1))
+          } else {
+            Ast.expr.IntNum(-1)
+          }
+
+          attrAssertEqual(actualIndexOfTerm, expectedIndexOfTerm, msgId)
         }
-
-        attrAssertEqual(actualIndexOfTerm, expectedIndexOfTerm, msgId)
       }
       case _ => // no checks
     }
   }
+
+  def attrBytesPadRightCheck(bytes: Ast.expr, actualSize: Ast.expr, padRight: Option[Int], msgId: String): Unit =
+    padRight.foreach { (padByte) =>
+      val lastByte = exprByteArrayLast(bytes)
+      attrBasicCheck(
+        Ast.expr.BoolOp(
+          Ast.boolop.And,
+          Seq(
+            Ast.expr.Compare(actualSize, Ast.cmpop.NotEq, Ast.expr.IntNum(0)),
+            Ast.expr.Compare(
+              lastByte,
+              Ast.cmpop.Eq,
+              Ast.expr.IntNum(padByte)
+            )
+          )
+        ),
+        lastByte,
+        Ast.expr.IntNum(padByte),
+        msgId
+      )
+    }
+
+  def attrTermIncludeCheck(actualIndexOfTerm: Ast.expr, lastByteIndex: Ast.expr, msgId: String): Unit =
+    attrBasicCheck(
+      Ast.expr.BoolOp(
+        Ast.boolop.And,
+        Seq(
+          Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.NotEq, Ast.expr.IntNum(-1)),
+          Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.NotEq, lastByteIndex)
+        )
+      ),
+      actualIndexOfTerm,
+      lastByteIndex,
+      msgId
+    )
 
   def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit
 
@@ -194,26 +362,42 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression with Eve
       Seq(Ast.expr.IntNum(term))
     )
 
+  def exprStrToBytes(name: Ast.expr, encoding: String) =
+    Ast.expr.Call(
+      Ast.expr.Attribute(
+        name,
+        Ast.identifier("to_b")
+      ),
+      Seq(Ast.expr.Str(encoding))
+    )
+
   def exprArraySize(name: Ast.expr) = exprByteArraySize(name)
 
   def exprArrayLast(name: Ast.expr) = exprByteArrayLast(name)
 
-  def attrAssertUntilCond(id: Identifier, dataType: DataType, repeat: RepeatUntil, isRaw: Boolean, msg: String): Unit = {
+  def attrAssertUntilNotEmpty(id: Identifier): Unit = {
+    // the array must not be empty (always contains at least the `repeat-until: {true}` element)
+    attrAssertCmp(exprArraySize(Ast.expr.InternalName(id)), Ast.cmpop.Eq, Ast.expr.IntNum(0), idToMsg(id))
+  }
+
+  def attrAssertUntilCond(id: Identifier, dataType: DataType, repUntil: RepeatUntil, isRaw: Boolean, shouldDependOnIo: Option[Boolean]): Unit = {
+    typeProvider._currentIteratorType = Some(dataType)
+    if (shouldDependOnIo.map(shouldDepend => userExprDependsOnIo(repUntil.expr) != shouldDepend).getOrElse(false))
+      return
     blockScopeHeader
     handleAssignmentTempVar(
       dataType,
       translator.doName(Identifier.ITERATOR),
-      translator.translate(itemExpr(id, repeat, isRaw))
+      translator.translate(itemExpr(id, repUntil, isRaw))
     )
-    typeProvider._currentIteratorType = Some(dataType)
     attrAssertEqual(
-      repeat.expr,
+      repUntil.expr,
       Ast.expr.Compare(
         Ast.expr.Name(Ast.identifier(Identifier.INDEX)),
         Ast.cmpop.Eq,
         Ast.expr.BinOp(exprArraySize(Ast.expr.InternalName(id)), Ast.operator.Sub, Ast.expr.IntNum(1))
       ),
-      msg
+      idToMsg(id)
     )
     blockScopeFooter
   }

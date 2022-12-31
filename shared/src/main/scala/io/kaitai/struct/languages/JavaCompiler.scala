@@ -628,10 +628,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.add($tempVar);")
   }
 
-  override def handleAssignmentRepeatUntilIterator(expr: String): Unit = {
-    out.puts(s"${translator.doName(Identifier.ITERATOR)} = $expr;")
-  }
-
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("i++;")
