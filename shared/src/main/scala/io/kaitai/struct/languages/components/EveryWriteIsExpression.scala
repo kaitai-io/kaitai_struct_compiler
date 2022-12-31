@@ -119,7 +119,7 @@ trait EveryWriteIsExpression
   ): Unit = {
     dataType match {
       case t: UserType =>
-        attrUserTypeWrite(id, t, io, rep, isRaw, defEndian, checksShouldDependOnIo, exprTypeOpt)
+        attrUserTypeWrite(id, t, io, rep, isRaw, defEndian, exprTypeOpt)
       case t: BytesType =>
         attrBytesTypeWrite(id, t, io, rep, isRaw, checksShouldDependOnIo, exprTypeOpt)
       case st: SwitchType =>
@@ -280,7 +280,6 @@ trait EveryWriteIsExpression
     rep: RepeatSpec,
     isRaw: Boolean,
     defEndian: Option[FixedEndian],
-    checksShouldDependOnIo: Option[Boolean],
     exprTypeOpt: Option[DataType] = None
   ) = {
     val exprType = exprTypeOpt.getOrElse(t)
@@ -340,7 +339,7 @@ trait EveryWriteIsExpression
             {
               val parentIO = subIOWriteBackHeader(ioFixed)
               handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, true)
-              attrBytesTypeWrite(rawId, byteType, parentIO, rep, isRaw, checksShouldDependOnIo, exprTypeOpt)
+              attrBytesTypeWrite(rawId, byteType, parentIO, rep, isRaw, None, exprTypeOpt)
               subIOWriteBackFooter
             }
 
