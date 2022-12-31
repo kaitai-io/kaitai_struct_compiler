@@ -207,6 +207,7 @@ trait EveryWriteIsExpression
     t match {
       case bt: BytesEosType =>
         attrBytesLimitWrite2(io, expr, bt, exprIORemainingSize(io), bt.padRight, bt.terminator, bt.include, exprTypeOpt)
+        attrBytesEosCheck(id, io)
       case bt: BytesLimitType =>
         attrBytesLimitWrite2(io, expr, bt, expression(bt.size), bt.padRight, bt.terminator, bt.include, exprTypeOpt)
       case t: BytesTerminatedType =>
