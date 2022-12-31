@@ -402,10 +402,10 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     blockScopeFooter
   }
 
-  def attrBytesEosCheck(id: Identifier, io: String): Unit =
-    attrBytesEosCheck(io, idToMsg(id))
+  def attrIsEofCheck(id: Identifier, expectedIsEof: Boolean, io: String): Unit =
+    attrIsEofCheck(io, expectedIsEof, idToMsg(id))
 
-  def attrBytesEosCheck(io: String, msg: String): Unit
+  def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit
 
   def attrAssertEqual(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
     attrAssertCmp(actual, Ast.cmpop.NotEq, expected, msg)

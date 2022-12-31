@@ -86,6 +86,11 @@ trait EveryWriteIsExpression
     if (attr.cond.repeat != NoRepeat) {
       condRepeatCommonHeader(id, io, attr.dataType)
     }
+    attr.cond.repeat match {
+      case RepeatEos =>
+        attrIsEofCheck(id, false, io)
+      case _ =>
+    }
     attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian, checksShouldDependOnIo)
     attr.cond.repeat match {
       case repUntil: RepeatUntil =>
@@ -94,6 +99,11 @@ trait EveryWriteIsExpression
     }
     if (attr.cond.repeat != NoRepeat) {
       condRepeatCommonFooter
+    }
+    attr.cond.repeat match {
+      case RepeatEos =>
+        attrIsEofCheck(id, true, io)
+      case _ =>
     }
   }
 
@@ -207,7 +217,7 @@ trait EveryWriteIsExpression
     t match {
       case bt: BytesEosType =>
         attrBytesLimitWrite2(io, expr, bt, exprIORemainingSize(io), bt.padRight, bt.terminator, bt.include, exprTypeOpt)
-        attrBytesEosCheck(id, io)
+        attrIsEofCheck(id, true, io)
       case bt: BytesLimitType =>
         attrBytesLimitWrite2(io, expr, bt, expression(bt.size), bt.padRight, bt.terminator, bt.include, exprTypeOpt)
       case t: BytesTerminatedType =>

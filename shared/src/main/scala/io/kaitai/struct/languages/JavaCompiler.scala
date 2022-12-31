@@ -1004,10 +1004,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("io.kaitai.struct.ConsistencyError")
   }
 
-  override def attrBytesEosCheck(io: String, msg: String): Unit = {
+  override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit = {
     val msgStr = expression(Ast.expr.Str(msg))
 
-    out.puts(s"if (!($io.isEof()))")
+    val eofExpr = s"$io.isEof()"
+    val ifExpr = if (expectedIsEof) {
+      s"!($eofExpr)"
+    } else {
+      eofExpr
+    }
+    out.puts(s"if ($ifExpr)")
     out.inc
     out.puts(s"throw new ConsistencyError($msgStr, ${exprIORemainingSize(io)}, 0);")
     out.dec
