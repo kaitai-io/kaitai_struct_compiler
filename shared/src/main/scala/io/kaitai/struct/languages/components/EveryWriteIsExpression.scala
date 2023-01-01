@@ -222,17 +222,32 @@ trait EveryWriteIsExpression
         attrBytesLimitWrite2(io, expr, bt, expression(bt.size), bt.padRight, bt.terminator, bt.include, exprTypeOpt)
       case t: BytesTerminatedType =>
         attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
-        if (!t.include) {
+        if (t.include) {
+          val actualIndexOfTerm = exprByteArrayIndexOf(expr, t.terminator)
+          if (!t.eosError) {
+            condIfHeader(Ast.expr.Compare(actualIndexOfTerm, Ast.cmpop.Eq, Ast.expr.IntNum(-1)))
+            attrIsEofCheck(id, true, io)
+            condIfFooter
+          }
+        } else {
+          if (!t.eosError)
+            condIfIsEofHeader(io, false)
+
           if (!t.consume) {
-            blockScopeHeader
+            if (t.eosError) {
+              blockScopeHeader
+            }
             pushPos(io)
           }
-          // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`)
           attrPrimitiveWrite(io, Ast.expr.IntNum(t.terminator), Int1Type(false), None, None)
           if (!t.consume) {
             popPos(io)
-            blockScopeFooter
+            if (t.eosError) {
+              blockScopeFooter
+            }
           }
+          if (!t.eosError)
+            condIfIsEofFooter
         }
     }
   }
@@ -324,10 +339,13 @@ trait EveryWriteIsExpression
             seekRelative(io, outerSize)
             byteType match {
               case t: BytesTerminatedType =>
-                // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`)
                 if (!t.include && t.consume) {
+                  if (!t.eosError)
+                    condIfIsEofHeader(io, false)
                   // terminator can only be 1 byte long at the moment
                   seekRelative(io, expression(Ast.expr.IntNum(1)))
+                  if (!t.eosError)
+                    condIfIsEofFooter
                 }
               case _ => // do nothing
             }
@@ -392,4 +410,7 @@ trait EveryWriteIsExpression
 
   def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dt: BytesType, exprTypeOpt: Option[DataType]): Unit
   def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit
+
+  def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit
+  def condIfIsEofFooter: Unit
 }

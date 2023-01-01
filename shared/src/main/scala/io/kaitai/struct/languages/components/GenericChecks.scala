@@ -277,17 +277,19 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       case btt: BytesTerminatedType => {
         if (canUseNonIoDependent) {
           val actualIndexOfTerm = exprByteArrayIndexOf(bytes, btt.terminator)
-          // FIXME: does not take `eos-error: false` into account (assumes `eos-error: true`, i.e. the default setting)
+          val lastByteIndex: Ast.expr = Ast.expr.BinOp(actualSize, Ast.operator.Sub, Ast.expr.IntNum(1))
           val expectedIndexOfTerm = if (btt.include) {
-            // must not be empty (always contains at least the `terminator` byte)
-            attrAssertCmp(actualSize, Ast.cmpop.Eq, Ast.expr.IntNum(0), msgId)
+            if (btt.eosError) {
+              // must not be empty (always contains at least the `terminator` byte)
+              attrAssertCmp(actualSize, Ast.cmpop.Eq, Ast.expr.IntNum(0), msgId)
 
-            Ast.expr.BinOp(actualSize, Ast.operator.Sub, Ast.expr.IntNum(1))
+              attrAssertEqual(actualIndexOfTerm, lastByteIndex, msgId)
+            } else {
+              attrTermIncludeCheck(actualIndexOfTerm, lastByteIndex, msgId)
+            }
           } else {
-            Ast.expr.IntNum(-1)
+            attrAssertEqual(actualIndexOfTerm, Ast.expr.IntNum(-1), msgId)
           }
-
-          attrAssertEqual(actualIndexOfTerm, expectedIndexOfTerm, msgId)
         }
       }
       case _ => // no checks

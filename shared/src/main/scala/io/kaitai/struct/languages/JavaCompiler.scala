@@ -1021,6 +1021,20 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("io.kaitai.struct.ConsistencyError")
   }
 
+  override def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit = {
+    val eofExpr = s"$io.isEof()"
+    val ifExpr = if (!wantedIsEof) {
+      s"!($eofExpr)"
+    } else {
+      eofExpr
+    }
+
+    out.puts(s"if ($ifExpr) {")
+    out.inc
+  }
+
+  override def condIfIsEofFooter: Unit = universalFooter
+
   def value2Const(s: String) = Utils.upperUnderscoreCase(s)
 
   override def idToStr(id: Identifier): String = JavaCompiler.idToStr(id)
