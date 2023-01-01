@@ -47,7 +47,6 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     case Some(v) => userExprDependsOnIo(v)
   }
 
-  private
   def getArrayItemType(dt: DataType): DataType = {
     dt match {
       case arr: ArrayType => getArrayItemType(arr.elType)
@@ -177,6 +176,13 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
   def attrCheck2(id: Identifier, dataType: DataType, repeat: RepeatSpec, shouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType] = None) = {
     val item = itemExpr(id, repeat)
     dataType match {
+      case ut: UserType =>
+        val itemUserType =
+          if (exprTypeOpt.map(exprType => !exprType.isInstanceOf[UserType]).getOrElse(false))
+            Ast.expr.CastToType(item, Ast.typeId(true, ut.classSpec.get.name))
+          else
+            item
+        attrUserTypeCheck(id, itemUserType, ut, shouldDependOnIo)
       case t: BytesType =>
         val itemBytes =
           if (exprTypeOpt.map(exprType => !exprType.isInstanceOf[BytesType]).getOrElse(false))
@@ -343,6 +349,38 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       msgId
     )
 
+  def attrUserTypeCheck(id: Identifier, utExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean]): Unit = {
+    (ut.classSpec.get.params, ut.args).zipped.foreach { (paramDef, argExpr) =>
+      attrUserTypeParamCheck(id, ut, utExpr, paramDef.id, paramDef.dataType, argExpr, shouldDependOnIo)
+    }
+  }
+
+  def attrUserTypeParamCheck(id: Identifier, ut: UserType, utExpr: Ast.expr, paramId: Identifier, paramDataType: DataType, argExpr: Ast.expr, shouldDependOnIo: Option[Boolean]): Unit = {
+    val paramItemType = getArrayItemType(paramDataType)
+    val paramBasedOnIo = (paramItemType == KaitaiStreamType || paramItemType == OwnedKaitaiStreamType)
+    // parameters with types `io` or `io[]` never have to be checked for consistency because they're set by the generated code
+    if (paramBasedOnIo)
+      return
+    if (shouldDependOnIo.map(shouldDepend => userExprDependsOnIo(argExpr) != shouldDepend).getOrElse(false))
+      return
+    val paramAttrName = paramId match {
+      case NamedIdentifier(name) => name
+      case SpecialIdentifier(name) => name
+    }
+    val actualArgExpr = Ast.expr.Attribute(utExpr, Ast.identifier(paramAttrName))
+    val msgId = idToMsg(id)
+    paramDataType match {
+      /** @note Must be kept in sync with [[translators.BaseTranslator.translate]] */
+      case _: NumericType | _: BooleanType | _: StrType | _: BytesType | _: EnumType =>
+        attrAssertEqual(actualArgExpr, argExpr, msgId)
+      case _: ArrayType =>
+        attrObjectsEqualCheck(actualArgExpr, argExpr, msgId)
+      case _: StructType =>
+        attrObjectsEqualCheck(actualArgExpr, argExpr, msgId)
+      case AnyType =>
+        attrObjectsEqualCheck(actualArgExpr, argExpr, msgId)
+    }
+  }
 
   def attrSwitchCheck(
     id: Identifier,
@@ -381,6 +419,9 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
   }
 
   def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit
+
+  // This may turn out to be too Java-specific method, so we can refactor it later.
+  def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit
 
   private
   def idToMsg(id: Identifier): String = id.humanReadable

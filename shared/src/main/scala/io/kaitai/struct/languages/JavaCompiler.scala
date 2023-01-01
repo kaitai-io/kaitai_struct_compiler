@@ -288,6 +288,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public void set${idToSetterStr(attrName)}($javaType _v) { $name = _v; }")
   }
 
+  override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit = {
+    out.puts(s"${expression(base)}.set${idToSetterStr(propName)}($value);")
+  }
+
   override def universalDoc(doc: DocSpec): Unit = {
     out.puts
     out.puts( "/**")
@@ -1001,6 +1005,18 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"throw new ConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)});")
     out.dec
 
+    importList.add("io.kaitai.struct.ConsistencyError")
+  }
+
+  override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    out.puts(s"if (!Objects.equals(${expression(actual)}, ${expression(expected)}))")
+    out.inc
+    out.puts(s"throw new ConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)});")
+    out.dec
+
+    importList.add("java.util.Objects")
     importList.add("io.kaitai.struct.ConsistencyError")
   }
 

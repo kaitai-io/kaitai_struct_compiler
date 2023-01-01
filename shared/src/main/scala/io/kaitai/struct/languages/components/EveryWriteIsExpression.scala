@@ -119,7 +119,7 @@ trait EveryWriteIsExpression
   ): Unit = {
     dataType match {
       case t: UserType =>
-        attrUserTypeWrite(id, t, io, rep, isRaw, defEndian, exprTypeOpt)
+        attrUserTypeWrite(id, t, io, rep, isRaw, defEndian, checksShouldDependOnIo, exprTypeOpt)
       case t: BytesType =>
         attrBytesTypeWrite(id, t, io, rep, isRaw, checksShouldDependOnIo, exprTypeOpt)
       case st: SwitchType =>
@@ -295,10 +295,28 @@ trait EveryWriteIsExpression
     rep: RepeatSpec,
     isRaw: Boolean,
     defEndian: Option[FixedEndian],
+    checksShouldDependOnIo: Option[Boolean],
     exprTypeOpt: Option[DataType] = None
   ) = {
     val exprType = exprTypeOpt.getOrElse(t)
     val expr = itemExpr(id, rep)
+
+    {
+      val itemUserType =
+        if (exprTypeOpt.map(exprType => !exprType.isInstanceOf[UserType]).getOrElse(false))
+          Ast.expr.CastToType(expr, Ast.typeId(true, t.classSpec.get.name))
+        else
+          expr
+      // check non-`io` params
+      attrUserTypeCheck(id, itemUserType, t, checksShouldDependOnIo)
+      // set `io` params
+      (t.classSpec.get.params, t.args).zipped.foreach { (paramDef, argExpr) =>
+        val paramItemType = getArrayItemType(paramDef.dataType)
+        val paramBasedOnIo = (paramItemType == KaitaiStreamType || paramItemType == OwnedKaitaiStreamType)
+        if (paramBasedOnIo)
+          attrSetProperty(itemUserType, paramDef.id, expression(argExpr))
+      }
+    }
 
     t match {
       case _: UserTypeInstream =>
@@ -414,4 +432,6 @@ trait EveryWriteIsExpression
 
   def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit
   def condIfIsEofFooter: Unit
+
+  def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit
 }
