@@ -353,7 +353,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       // use `_raw_items[_raw_items.size - 1]`
       case _: RawIdentifier => getRawIdExpr(varSrc, rep)
       // but `items[_index]`
-      case _ => expression(itemExpr(varSrc, rep, false))
+      case _ => expression(itemExpr(varSrc, rep))
     }
     val srcExpr = castIfNeeded(srcExprRaw, exprType, dataType)
 

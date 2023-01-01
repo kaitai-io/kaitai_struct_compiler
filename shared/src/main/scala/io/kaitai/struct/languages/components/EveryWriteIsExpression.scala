@@ -133,11 +133,11 @@ trait EveryWriteIsExpression
       case t: StrFromBytesType =>
         attrStrTypeWrite(id, t, io, rep, isRaw, checksShouldDependOnIo, exprTypeOpt)
       case t: EnumType =>
-        val expr = itemExpr(id, rep, isRaw)
+        val expr = itemExpr(id, rep)
         val exprType = internalEnumIntType(t.basedOn)
         attrPrimitiveWrite(io, Ast.expr.Attribute(expr, Ast.identifier("to_i")), t.basedOn, defEndian, Some(exprType))
       case _ =>
-        val expr = itemExpr(id, rep, isRaw)
+        val expr = itemExpr(id, rep)
         attrPrimitiveWrite(io, expr, dataType, defEndian, exprTypeOpt)
     }
   }
@@ -161,7 +161,7 @@ trait EveryWriteIsExpression
     }
     val expr = if (idToWrite.isInstanceOf[RawIdentifier] && rep != NoRepeat) {
       // NOTE: This special handling isn't normally needed and one can just use
-      // `itemExpr(idToWrite, rep, isRaw)` as usual. The `itemExpr` method assumes that the
+      // `itemExpr(idToWrite, rep)` as usual. The `itemExpr` method assumes that the
       // expression it's supposed to generate will be used in a loop where the iteration
       // variable `Identifier.INDEX` is available (usually called just `i`) and uses it. This
       // is a good default, but it doesn't work if the expression is used between
@@ -187,7 +187,7 @@ trait EveryWriteIsExpression
         )
       )
     } else {
-      itemExpr(idToWrite, rep, isRaw)
+      itemExpr(idToWrite, rep)
     }
     attrBytesTypeWrite2(id, io, expr, t, checksShouldDependOnIo, exprTypeOpt)
   }
@@ -201,7 +201,7 @@ trait EveryWriteIsExpression
     checksShouldDependOnIo: Option[Boolean],
     exprTypeOpt: Option[DataType]
   ): Unit = {
-    val expr = exprStrToBytes(itemExpr(id, rep, isRaw), t.encoding)
+    val expr = exprStrToBytes(itemExpr(id, rep), t.encoding)
     attrBytesTypeWrite2(id, io, expr, t.bytes, checksShouldDependOnIo, exprTypeOpt)
   }
 
@@ -298,7 +298,7 @@ trait EveryWriteIsExpression
     exprTypeOpt: Option[DataType] = None
   ) = {
     val exprType = exprTypeOpt.getOrElse(t)
-    val expr = itemExpr(id, rep, isRaw)
+    val expr = itemExpr(id, rep)
 
     t match {
       case _: UserTypeInstream =>
@@ -314,12 +314,12 @@ trait EveryWriteIsExpression
           case _: BytesEosType =>
             exprIORemainingSize(io)
           case _: BytesTerminatedType =>
-            translator.translate(itemExpr(OuterSizeIdentifier(id), rep, isRaw))
+            translator.translate(itemExpr(OuterSizeIdentifier(id), rep))
         }
 
         /** @note Must be kept in sync with [[ExtraAttrs.writeNeedsInnerSize]] */
         val innerSize = if (writeNeedsInnerSize(utb)) {
-          translator.translate(itemExpr(InnerSizeIdentifier(id), rep, isRaw))
+          translator.translate(itemExpr(InnerSizeIdentifier(id), rep))
         } else {
           outerSize
         }

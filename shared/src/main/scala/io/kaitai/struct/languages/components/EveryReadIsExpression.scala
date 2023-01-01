@@ -115,7 +115,7 @@ trait EveryReadIsExpression
               case None => rawId
               case Some(_) => RawIdentifier(rawId)
             }
-            val item = itemExpr(rawRawId, rep, false)
+            val item = itemExpr(rawRawId, rep)
             val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
             /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
              * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
@@ -126,7 +126,7 @@ trait EveryReadIsExpression
             }
           }
           if (writeNeedsInnerSize(knownSizeType)) {
-            val item = itemExpr(rawId, rep, false)
+            val item = itemExpr(rawId, rep)
             val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
             /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
              * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
@@ -231,7 +231,7 @@ trait EveryReadIsExpression
     handleAssignmentSimple(instName, expression(value))
   }
 
-  def itemExpr(id: Identifier, rep: RepeatSpec, isRaw: Boolean): Ast.expr = {
+  def itemExpr(id: Identifier, rep: RepeatSpec): Ast.expr = {
     val astId = Ast.expr.InternalName(id)
     rep match {
       case NoRepeat =>

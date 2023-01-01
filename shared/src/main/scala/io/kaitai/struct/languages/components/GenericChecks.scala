@@ -175,7 +175,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
   }
 
   def attrCheck2(id: Identifier, dataType: DataType, io: String, repeat: RepeatSpec, isRaw: Boolean, shouldDependOnIo: Option[Boolean]) = {
-    val item = itemExpr(id, repeat, isRaw)
+    val item = itemExpr(id, repeat)
     dataType match {
       case t: BytesType =>
         attrBytesCheck(id, item, t, shouldDependOnIo)
@@ -383,7 +383,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     handleAssignmentTempVar(
       dataType,
       translator.doName(Identifier.ITERATOR),
-      translator.translate(itemExpr(id, repUntil, isRaw))
+      translator.translate(itemExpr(id, repUntil))
     )
     attrAssertEqual(
       repUntil.expr,

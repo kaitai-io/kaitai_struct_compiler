@@ -32,7 +32,7 @@ trait FetchInstances extends LanguageCompiler with ObjectOrientedLanguage with E
     dataType match {
       case _: UserType =>
         val exprType = exprTypeOpt.getOrElse(dataType)
-        attrInvokeFetchInstances(itemExpr(id, rep, false), exprType, dataType)
+        attrInvokeFetchInstances(itemExpr(id, rep), exprType, dataType)
       case st: SwitchType =>
         attrSwitchTypeFetchInstances(id, st.on, st.cases, rep, st.combinedType)
       case _ =>
