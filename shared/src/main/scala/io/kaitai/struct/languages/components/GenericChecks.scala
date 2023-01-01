@@ -20,21 +20,21 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatCommonHeader(id, io, attr.dataType)
-        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false, bodyShouldDependOnIo)
+        attrCheck2(id, attr.dataType, attr.cond.repeat, bodyShouldDependOnIo)
         condRepeatCommonFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
         attrRepeatExprCheck(id, repeatExpr, bodyShouldDependOnIo)
         condRepeatCommonHeader(id, io, attr.dataType)
-        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false, bodyShouldDependOnIo)
+        attrCheck2(id, attr.dataType, attr.cond.repeat, bodyShouldDependOnIo)
         condRepeatCommonFooter
       case repUntil: RepeatUntil =>
         attrAssertUntilNotEmpty(id)
         condRepeatCommonHeader(id, io, attr.dataType)
-        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false, bodyShouldDependOnIo)
-        attrAssertUntilCond(id, attr.dataType, repUntil, false, bodyShouldDependOnIo)
+        attrCheck2(id, attr.dataType, attr.cond.repeat, bodyShouldDependOnIo)
+        attrAssertUntilCond(id, attr.dataType, repUntil, bodyShouldDependOnIo)
         condRepeatCommonFooter
       case NoRepeat =>
-        attrCheck2(id, attr.dataType, io, attr.cond.repeat, false, bodyShouldDependOnIo)
+        attrCheck2(id, attr.dataType, attr.cond.repeat, bodyShouldDependOnIo)
     }
 
     attrParseIfFooter(attr.cond.ifExpr)
@@ -174,14 +174,26 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
 
   }
 
-  def attrCheck2(id: Identifier, dataType: DataType, io: String, repeat: RepeatSpec, isRaw: Boolean, shouldDependOnIo: Option[Boolean]) = {
+  def attrCheck2(id: Identifier, dataType: DataType, repeat: RepeatSpec, shouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType] = None) = {
     val item = itemExpr(id, repeat)
     dataType match {
       case t: BytesType =>
-        attrBytesCheck(id, item, t, shouldDependOnIo)
+        val itemBytes =
+          if (exprTypeOpt.map(exprType => !exprType.isInstanceOf[BytesType]).getOrElse(false))
+            Ast.expr.CastToType(item, Ast.typeId(false, Seq("bytes")))
+          else
+            item
+        attrBytesCheck(id, itemBytes, t, shouldDependOnIo)
       case st: StrFromBytesType =>
-        val bytes = exprStrToBytes(item, st.encoding)
+        val itemStr =
+          if (exprTypeOpt.map(exprType => !exprType.isInstanceOf[StrType]).getOrElse(false))
+            Ast.expr.CastToType(item, Ast.typeId(false, Seq("str")))
+          else
+            item
+        val bytes = exprStrToBytes(itemStr, st.encoding)
         attrBytesCheck(id, bytes, st.bytes, shouldDependOnIo)
+      case st: SwitchType =>
+        attrSwitchCheck(id, st.on, st.cases, repeat, shouldDependOnIo, st.combinedType)
       case _ => // no checks
     }
   }
@@ -331,6 +343,43 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       msgId
     )
 
+
+  def attrSwitchCheck(
+    id: Identifier,
+    on: Ast.expr,
+    cases: Map[Ast.expr, DataType],
+    rep: RepeatSpec,
+    shouldDependOnIoOrig: Option[Boolean],
+    assignType: DataType
+  ): Unit = {
+    val shouldDependOnIo: Option[Boolean] =
+      if (userExprDependsOnIo(on)) {
+        if (shouldDependOnIoOrig.getOrElse(true)) {
+          None
+        } else {
+          return
+        }
+      } else {
+        shouldDependOnIoOrig
+      }
+
+    switchCases[DataType](id, on, cases,
+      (dataType) => {
+        attrCheck2(id, dataType, rep, shouldDependOnIo, Some(assignType))
+      },
+      (dataType) => if (switchBytesOnlyAsRaw) {
+        dataType match {
+          case t: BytesType =>
+            attrCheck2(RawIdentifier(id), dataType, rep, shouldDependOnIo, Some(assignType))
+          case _ =>
+            attrCheck2(id, dataType, rep, shouldDependOnIo, Some(assignType))
+        }
+      } else {
+        attrCheck2(id, dataType, rep, shouldDependOnIo, Some(assignType))
+      }
+    )
+  }
+
   def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit
 
   private
@@ -375,7 +424,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     attrAssertCmp(exprArraySize(Ast.expr.InternalName(id)), Ast.cmpop.Eq, Ast.expr.IntNum(0), idToMsg(id))
   }
 
-  def attrAssertUntilCond(id: Identifier, dataType: DataType, repUntil: RepeatUntil, isRaw: Boolean, shouldDependOnIo: Option[Boolean]): Unit = {
+  def attrAssertUntilCond(id: Identifier, dataType: DataType, repUntil: RepeatUntil, shouldDependOnIo: Option[Boolean]): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     if (shouldDependOnIo.map(shouldDepend => userExprDependsOnIo(repUntil.expr) != shouldDepend).getOrElse(false))
       return

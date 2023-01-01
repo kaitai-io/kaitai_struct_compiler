@@ -94,7 +94,7 @@ trait EveryWriteIsExpression
     attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian, checksShouldDependOnIo)
     attr.cond.repeat match {
       case repUntil: RepeatUntil =>
-        attrAssertUntilCond(id, attr.dataType, repUntil, false, checksShouldDependOnIo)
+        attrAssertUntilCond(id, attr.dataType, repUntil, checksShouldDependOnIo)
       case _ =>
     }
     if (attr.cond.repeat != NoRepeat) {
@@ -129,7 +129,7 @@ trait EveryWriteIsExpression
           st.isNullable
         }
 
-        attrSwitchTypeWrite(id, st.on, st.cases, io, rep, defEndian, checksShouldDependOnIo, isNullable, st.combinedType)
+        attrSwitchTypeWrite(id, st.on, st.cases, io, rep, defEndian, checksShouldDependOnIo, st.combinedType)
       case t: StrFromBytesType =>
         attrStrTypeWrite(id, t, io, rep, isRaw, checksShouldDependOnIo, exprTypeOpt)
       case t: EnumType =>
@@ -374,17 +374,18 @@ trait EveryWriteIsExpression
     io: String,
     rep: RepeatSpec,
     defEndian: Option[FixedEndian],
-    checksShouldDependOnIo: Option[Boolean],
-    isNullable: Boolean,
+    checksShouldDependOnIoOrig: Option[Boolean],
     assignType: DataType
   ): Unit = {
-    if (isNullable)
-      condIfSetNull(id)
+    val checksShouldDependOnIo =
+      if (userExprDependsOnIo(on)) {
+        None
+      } else {
+        checksShouldDependOnIoOrig
+      }
 
     switchCases[DataType](id, on, cases,
       (dataType) => {
-        if (isNullable)
-          condIfSetNonNull(id)
         attrWrite2(id, dataType, io, rep, false, defEndian, checksShouldDependOnIo, Some(assignType))
       },
       (dataType) => if (switchBytesOnlyAsRaw) {
