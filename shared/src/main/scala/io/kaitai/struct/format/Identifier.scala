@@ -25,7 +25,7 @@ abstract class Identifier {
   */
 case class NumberedIdentifier(idx: Int) extends Identifier {
   import NumberedIdentifier._
-  override def humanReadable: String = s"${TEMPLATE}_$idx"
+  override def humanReadable: String = s"_${TEMPLATE}$idx"
 }
 
 object NumberedIdentifier {

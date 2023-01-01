@@ -334,14 +334,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
   def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit
 
   private
-  def idToMsg(id: Identifier): String = id match {
-    case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-    case NamedIdentifier(name) => name
-    case RawIdentifier(innerId) => s"_raw_$innerId"
-    case IoStorageIdentifier(innerId) => s"_io_$innerId"
-    case InstanceIdentifier(name) => name
-    case SpecialIdentifier(name) => name
-  }
+  def idToMsg(id: Identifier): String = id.humanReadable
 
   def exprByteArraySize(name: Ast.expr) =
     Ast.expr.Attribute(
