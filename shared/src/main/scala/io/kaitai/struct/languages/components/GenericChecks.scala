@@ -350,6 +350,11 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     )
 
   def attrUserTypeCheck(id: Identifier, utExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean]): Unit = {
+    /** @note Must be kept in sync with [[JavaCompiler.parseExpr]] */
+    if (!ut.isOpaque) {
+      attrUserTypeParamCheck(id, ut, utExpr, RootIdentifier, CalcKaitaiStructType, Ast.expr.Name(Ast.identifier(Identifier.ROOT)), shouldDependOnIo)
+    }
+    attrParentParamCheck(id, Ast.expr.Attribute(utExpr, Ast.identifier(Identifier.PARENT)), ut, shouldDependOnIo)
     (ut.classSpec.get.params, ut.args).zipped.foreach { (paramDef, argExpr) =>
       attrUserTypeParamCheck(id, ut, utExpr, paramDef.id, paramDef.dataType, argExpr, shouldDependOnIo)
     }
@@ -491,6 +496,11 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     attrIsEofCheck(io, expectedIsEof, idToMsg(id))
 
   def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit
+
+  def attrParentParamCheck(id: Identifier, actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean]): Unit =
+    attrParentParamCheck(actualParentExpr, ut, shouldDependOnIo, idToMsg(id))
+
+  def attrParentParamCheck(actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean], msg: String): Unit
 
   def attrAssertEqual(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
     attrAssertCmp(actual, Ast.cmpop.NotEq, expected, msg)

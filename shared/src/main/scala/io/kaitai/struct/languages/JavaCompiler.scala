@@ -1020,6 +1020,30 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("io.kaitai.struct.ConsistencyError")
   }
 
+  override def attrParentParamCheck(actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean], msg: String): Unit = {
+    if (ut.isOpaque)
+      return
+    /** @note Must be kept in sync with [[JavaCompiler.parseExpr]] */
+    val (expectedParent, dependsOnIo) = ut.forcedParent match {
+      case Some(USER_TYPE_NO_PARENT) => ("null", false)
+      case Some(fp) =>
+        (expression(fp), userExprDependsOnIo(fp))
+      case None => ("this", false)
+    }
+    if (shouldDependOnIo.map(shouldDepend => dependsOnIo != shouldDepend).getOrElse(false))
+      return
+
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    out.puts(s"if (!Objects.equals(${expression(actualParentExpr)}, $expectedParent))")
+    out.inc
+    out.puts(s"throw new ConsistencyError($msgStr, ${expression(actualParentExpr)}, $expectedParent);")
+    out.dec
+
+    importList.add("java.util.Objects")
+    importList.add("io.kaitai.struct.ConsistencyError")
+  }
+
   override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit = {
     val msgStr = expression(Ast.expr.Str(msg))
 
