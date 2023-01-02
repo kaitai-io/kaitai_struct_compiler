@@ -36,6 +36,14 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       case NoRepeat =>
         attrCheck2(id, attr.dataType, attr.cond.repeat, bodyShouldDependOnIo)
     }
+    // TODO: move to attrCheck2 when we change the `valid` semantics to apply to each item
+    // in repeated fields, not the entire array (see
+    // https://github.com/kaitai-io/kaitai_struct_formats/issues/347)
+    attr.valid.foreach { (valid) =>
+      if (bodyShouldDependOnIo.map(shouldDepend => validDependsOnIo(valid) == shouldDepend).getOrElse(true)) {
+        attrValidate(id, attr, valid)
+      }
+    }
 
     attrParseIfFooter(attr.cond.ifExpr)
   }
@@ -170,7 +178,17 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       case _: Ast.expr.ByteSizeOfType => false
       case _: Ast.expr.BitSizeOfType => false
     }
+  }
 
+  def validDependsOnIo(valid: ValidationSpec): Boolean = {
+    valid match {
+      case ValidationEq(expected) => userExprDependsOnIo(expected)
+      case ValidationMin(min) => userExprDependsOnIo(min)
+      case ValidationMax(max) => userExprDependsOnIo(max)
+      case ValidationRange(min, max) => userExprDependsOnIo(min) || userExprDependsOnIo(max)
+      case ValidationAnyOf(values) => values.exists(v => userExprDependsOnIo(v))
+      case ValidationExpr(expr) => userExprDependsOnIo(expr)
+    }
   }
 
   def attrCheck2(id: Identifier, dataType: DataType, repeat: RepeatSpec, shouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType] = None) = {
