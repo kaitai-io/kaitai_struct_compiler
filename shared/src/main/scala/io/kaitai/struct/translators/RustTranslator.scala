@@ -316,13 +316,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     var deref = false
     var found = get_attr(get_top_class(provider.nowClass), s)
     if (found.isDefined ) {
-      val cleanType = RustCompiler.kaitaiTypeToNativeType(Some(NamedIdentifier(s)), provider.nowClass, found.get.dataType, cleanType = true)
+      val cleanType = RustCompiler.kaitaiTypeToNativeType(Some(NamedIdentifier(s)), provider.nowClass, found.get.dataType, cleanTypename = true)
       //if (cleanType != "Vec<u8>")
         deref = !enum_numeric_only(found.get.dataTypeComposite) //is_copy_type(found.get.dataTypeComposite)
     } else {
       found = get_instance(get_top_class(provider.nowClass), s)
       if (found.isDefined) {
-        val cleanType = RustCompiler.kaitaiTypeToNativeType(Some(NamedIdentifier(s)), provider.nowClass, found.get.dataType, cleanType = true)
+        val cleanType = RustCompiler.kaitaiTypeToNativeType(Some(NamedIdentifier(s)), provider.nowClass, found.get.dataType, cleanTypename = true)
         //if (cleanType != "Vec<u8>")
           deref = true //is_copy_type(found.get.dataTypeComposite)
       } else {
