@@ -203,36 +203,22 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
       case IoIdentifier | RootIdentifier | ParentIdentifier => return
       case _ =>
-        kaitaiTypeToNativeTypeWrapper(Some(attrName), attrType)
+        kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType)
     }
 
-    out.puts(s"${idToStr(attrName)}: RefCell<$typeName>,")
-  }
-
-  def kaitaiTypeToNativeTypeWrapper(id: Option[Identifier],
-                                    attrType: DataType): String = {
-    // if (id.isDefined) id.get match {
-    //   case RawIdentifier(inner) => {
-    //     val found = translator.get_instance(typeProvider.nowClass, idToStr(inner))
-    //     if (found.isDefined) {
-    //       // raw id for instance should have RefCell wrapper
-    //       return s"${kaitaiTypeToNativeType(id, typeProvider.nowClass, attrType)}"
-    //     }
-    //   }
-    //   case _ =>
-    // }
-    kaitaiTypeToNativeType(id, typeProvider.nowClass, attrType)
+    out.puts(s"${idToStr(attrName)}: $typeName,")
   }
 
   override def attributeReader(attrName: Identifier,
                                attrType: DataType,
                                isNullable: Boolean): Unit = {
-     val typeName = attrName match {
+    var typeName = attrName match {
       // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
-      case IoIdentifier | RootIdentifier | ParentIdentifier => return
-      case _ =>
-        kaitaiTypeToNativeTypeWrapper(Some(attrName), attrType)
+        case IoIdentifier | RootIdentifier | ParentIdentifier => return
+        case _ =>
+          kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType)
     }
+
     //val typeNameEx = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType, excludeOptionWrapper = true)
     out.puts(
       s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
@@ -268,7 +254,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     //   out.puts(s"RefEnum::new(self.${idToStr(attrName)}.borrow())")
     // } else
     {
-      out.puts(s"pub fn $fn(&self) -> Ref<$typeName> {")
+      if (!typeName.startsWith("Ref<"))
+        typeName = typeName.replace("RefCell<", "Ref<")
+
+      out.puts(s"pub fn $fn(&self) -> $typeName {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.borrow()")
     }
@@ -1139,7 +1128,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                     out.puts(s"impl $enum_typeName {")
                     out.inc
                     val fn = idToStr(attrName)
-                    val nativeType = kaitaiTypeToNativeTypeWrapper(Some(attrName), attr.dataTypeComposite)
+                    val nativeType = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attr.dataTypeComposite, cleanTypename = true)
                     //out.puts(nativeType.attrGetterDcl(fn))
                     out.puts(s"pub fn $fn(&self) -> Ref<$nativeType> {")
                     out.inc
@@ -1360,10 +1349,11 @@ object RustCompiler
                              cleanTypename: Boolean = false): String =
     attrType match {
       // TODO: Not exhaustive
-      case _: NumericType => kaitaiPrimitiveToNativeType(attrType)
-      case _: BooleanType => kaitaiPrimitiveToNativeType(attrType)
-      case _: StrType => kaitaiPrimitiveToNativeType(attrType)
-      case _: BytesType => kaitaiPrimitiveToNativeType(attrType)
+      case _: NumericType | _: BooleanType | _: StrType | _: BytesType =>
+        if (cleanTypename)
+          kaitaiPrimitiveToNativeType(attrType)
+        else
+          s"RefCell<${kaitaiPrimitiveToNativeType(attrType)}>"
 
       case t: UserType =>
         val baseName = t.classSpec match {
@@ -1399,7 +1389,7 @@ object RustCompiler
           case _ => kstructUnitName
         }
 
-        if (excludeOptionWrapper) typeName else s"Option<$typeName>"
+        if (excludeOptionWrapper) typeName else s"RefCell<Option<$typeName>>"
 
       case KaitaiStreamType => kstreamName
       case CalcKaitaiStructType => kstructUnitName
@@ -1429,6 +1419,6 @@ object RustCompiler
     case _: BytesType => "Vec<u8>"
 
     case ArrayTypeInStream(inType) => s"Vec<${kaitaiPrimitiveToNativeType(inType)}>"
-    case _ => "kaitaiPrimitiveToNativeType ???"
+    case _ => s"kaitaiPrimitiveToNativeType '${attrType.toString}' ???"
   }
 }
