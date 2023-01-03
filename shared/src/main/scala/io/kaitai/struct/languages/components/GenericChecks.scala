@@ -40,6 +40,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     // in repeated fields, not the entire array (see
     // https://github.com/kaitai-io/kaitai_struct_formats/issues/347)
     attr.valid.foreach { (valid) =>
+      typeProvider._currentIteratorType = Some(attr.dataTypeComposite)
       if (bodyShouldDependOnIo.map(shouldDepend => validDependsOnIo(valid) == shouldDepend).getOrElse(true)) {
         attrValidate(id, attr, valid)
       }

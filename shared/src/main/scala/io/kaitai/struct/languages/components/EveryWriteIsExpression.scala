@@ -159,7 +159,7 @@ trait EveryWriteIsExpression
       case None =>
         id
     }
-    val expr = if (idToWrite.isInstanceOf[RawIdentifier] && rep != NoRepeat) {
+    val item = if (idToWrite.isInstanceOf[RawIdentifier] && rep != NoRepeat) {
       // NOTE: This special handling isn't normally needed and one can just use
       // `itemExpr(idToWrite, rep)` as usual. The `itemExpr` method assumes that the
       // expression it's supposed to generate will be used in a loop where the iteration
@@ -189,7 +189,12 @@ trait EveryWriteIsExpression
     } else {
       itemExpr(idToWrite, rep)
     }
-    attrBytesTypeWrite2(id, io, expr, t, checksShouldDependOnIo, exprTypeOpt)
+    val itemBytes =
+      if (exprTypeOpt.map(exprType => !exprType.isInstanceOf[BytesType]).getOrElse(false))
+        Ast.expr.CastToType(item, Ast.typeId(false, Seq("bytes")))
+      else
+        item
+    attrBytesTypeWrite2(id, io, itemBytes, t, checksShouldDependOnIo, exprTypeOpt)
   }
 
   def attrStrTypeWrite(
@@ -201,8 +206,14 @@ trait EveryWriteIsExpression
     checksShouldDependOnIo: Option[Boolean],
     exprTypeOpt: Option[DataType]
   ): Unit = {
-    val expr = exprStrToBytes(itemExpr(id, rep), t.encoding)
-    attrBytesTypeWrite2(id, io, expr, t.bytes, checksShouldDependOnIo, exprTypeOpt)
+    val item = itemExpr(id, rep)
+    val itemStr =
+      if (exprTypeOpt.map(exprType => !exprType.isInstanceOf[StrType]).getOrElse(false))
+        Ast.expr.CastToType(item, Ast.typeId(false, Seq("str")))
+      else
+        item
+    val bytes = exprStrToBytes(itemStr, t.encoding)
+    attrBytesTypeWrite2(id, io, bytes, t.bytes, checksShouldDependOnIo, exprTypeOpt)
   }
 
   def attrBytesTypeWrite2(
