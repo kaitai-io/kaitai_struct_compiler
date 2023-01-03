@@ -83,11 +83,12 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
             }
           case as: AttrSpec =>
             val code = s"$s()"
-            val aType = RustCompiler.kaitaiPrimitiveToNativeType(as.dataTypeComposite)
+            val aType = RustCompiler.kaitaiTypeToNativeType(Some(as.id), provider.nowClass, as.dataTypeComposite)
+            val refOpt = "RefCell<Option<[^>]+>>".r
             aType match {
               //case "String" => s"$code.as_str()"
               //case "Vec<u8>" => s"$code.as_slice()"
-              //case "SwitchType" => s"$code.as_ref().unwrap()"
+              case refOpt() => s"$code.as_ref().unwrap()"
               case _ => code
             }
           case pis: ParseInstanceSpec =>
