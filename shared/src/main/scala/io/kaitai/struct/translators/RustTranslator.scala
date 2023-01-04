@@ -184,7 +184,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val t = translate(value)
     var a = doName(attrName)
     attrName match {
-      case Identifier.PARENT => a = a + ".get().as_ref()"
+      case Identifier.PARENT => a = a + ".get_value().borrow().as_ref().unwrap()"
       case _ =>
     }
     var r = ""
@@ -343,7 +343,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case Identifier.INDEX => "_i"
     case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
     case Identifier.ROOT => s"_r"
-    case Identifier.PARENT => s"_p"
+    case Identifier.PARENT => s"_prc.as_ref().unwrap()"
     case _ =>
       val n = doName(s)
       val deref = !n.endsWith(".as_str()") && !n.endsWith(".as_slice()") && need_deref(s)
