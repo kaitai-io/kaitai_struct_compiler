@@ -71,38 +71,11 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       if (memberFound.isDefined)
         memberFound.get match {
           case vis: ValueInstanceSpec =>
-            val call = s"$s(${privateMemberName(IoIdentifier)})?"
-            vis.dataTypeOpt match {
-              case Some(dt) =>
-                dt match {
-                  //case _: StrType => s"$call.as_str()"
-                  //case _: BytesType => s"$call.as_slice()"
-                  case _ => call
-                }
-              case None => call
-            }
+            s"$s(${privateMemberName(IoIdentifier)})?"
           case as: AttrSpec =>
-            val code = s"$s()"
-            val aType = RustCompiler.kaitaiTypeToNativeType(Some(as.id), provider.nowClass, as.dataTypeComposite)
-            val refOpt = "RefCell<Option<[^>]+>>".r
-            aType match {
-              //case "String" => s"$code.as_str()"
-              //case "Vec<u8>" => s"$code.as_slice()"
-              case refOpt() => s"$code.as_ref().unwrap()"
-              case _ => code
-            }
+            s"$s()"
           case pis: ParseInstanceSpec =>
-            pis.dataType match {
-              case _: NumericType | _: StrType =>
-                s"$s(${privateMemberName(IoIdentifier)})?"
-              case t: UserTypeInstream =>
-                if (t.isOpaque)
-                  s"$s(${privateMemberName(IoIdentifier)})?.as_ref().unwrap()"
-                else
-                  s"$s(${privateMemberName(IoIdentifier)})?"
-              case _ =>
-                s"$s(${privateMemberName(IoIdentifier)})?.as_ref().unwrap()"
-            }
+            s"$s(${privateMemberName(IoIdentifier)})?"
           case _ =>
             s"$s()"
         }
@@ -185,7 +158,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val t = translate(value)
     var a = doName(attrName)
     attrName match {
-      case Identifier.PARENT => a = a + ".get().as_ref()"
+      case Identifier.PARENT => a = a + ".get_value().borrow().as_ref().unwrap()"
       case _ =>
     }
     var r = ""
@@ -299,7 +272,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       case _: NumericType => // leave unchanged
       case _ => enum_only_numeric = false
     }
-    //println(s"$dataType - $enum_only_numeric")
     enum_only_numeric
   }
 
@@ -313,21 +285,18 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case _ => true
   }
 
-  def need_deref(s: String): Boolean = {
+  def need_deref(s: String, c: ClassSpec = provider.nowClass): Boolean = {
     var deref = false
-    var found = get_attr(get_top_class(provider.nowClass), s)
+    var tc = get_top_class(c)
+    var found = get_attr(tc, s)
     if (found.isDefined ) {
-      val cleanType = RustCompiler.kaitaiTypeToNativeType(Some(NamedIdentifier(s)), provider.nowClass, found.get.dataType, cleanTypename = true)
-      //if (cleanType != "Vec<u8>")
-        deref = !enum_numeric_only(found.get.dataTypeComposite) //is_copy_type(found.get.dataTypeComposite)
+        deref = !enum_numeric_only(found.get.dataTypeComposite)
     } else {
-      found = get_instance(get_top_class(provider.nowClass), s)
+      found = get_instance(tc, s)
       if (found.isDefined) {
-        val cleanType = RustCompiler.kaitaiTypeToNativeType(Some(NamedIdentifier(s)), provider.nowClass, found.get.dataType, cleanTypename = true)
-        //if (cleanType != "Vec<u8>")
-          deref = true //is_copy_type(found.get.dataTypeComposite)
+          deref = true
       } else {
-        found = get_param(get_top_class(provider.nowClass), s)
+        found = get_param(tc, s)
         if (found.isDefined) {
           deref = !enum_numeric_only(found.get.dataTypeComposite)
         } else {
@@ -344,7 +313,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case Identifier.INDEX => "_i"
     case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
     case Identifier.ROOT => s"_r"
-    case Identifier.PARENT => s"_p"
+    case Identifier.PARENT => s"_prc.as_ref().unwrap()"
     case _ =>
       val n = doName(s)
       val deref = !n.endsWith(".as_str()") && !n.endsWith(".as_slice()") && need_deref(s)
@@ -391,7 +360,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       case _: CalcArrayType => to_type = ".clone()"
       case _ =>
     }
-    println(s"$ifTrue, $ifFalse - ${detectType(ifTrue)}")
     if (to_type.isEmpty) {
       s"if ${translate(condition)} { ${translate(ifTrue)} } else { ${translate(ifFalse)} }"
     } else {

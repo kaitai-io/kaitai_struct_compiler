@@ -184,10 +184,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"self_rc._root.set(_root.get());")
     out.puts(s"self_rc._parent.set(_parent.get());")
     out.puts(s"let _new_parent = SharedType::<Self>::new(self_rc.clone());")
-    out.puts(s"let _rrc = self_rc._root.get();")
-    out.puts(s"let _prc = self_rc._parent.get();")
+    out.puts(s"let _rrc = self_rc._root.get()?;")
+    out.puts(s"let _prc = self_rc._parent.get_value().borrow();")
     out.puts(s"let _r = _rrc.as_ref();")
-    out.puts(s"let _p = _prc.as_ref();")
 
     // If there aren't any attributes to parse, we need to end the read implementation here
     if (typeProvider.nowClass.seq.isEmpty)
@@ -408,7 +407,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         importList.add(s"""#[path = "$mod_name.rs"] mod $mod_name;""")
         importList.add(s"use self::$mod_name::*;")
 
-        val argList = args.map(expression).mkString(", ")
+        val argList = translate_args(args, false)
         val argListInParens = s"($argList)"
         out.puts(s"let $procName = $procClass::new$argListInParens;")
         s"$procName.decode(&$srcExpr)"
@@ -547,10 +546,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
     out.puts(s") -> KResult<Ref<$typeName>> {")
     out.inc
-    out.puts(s"let _rrc = self._root.get();")
-    out.puts(s"let _prc = self._parent.get();")
+    out.puts(s"let _rrc = self._root.get()?;")
+    out.puts(s"let _prc = self._parent.get_value().borrow();")
     out.puts(s"let _r = _rrc.as_ref();")
-    out.puts(s"let _p = _prc.as_ref();")
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier,
@@ -768,6 +766,25 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"let $id = $expr;")
 
+  def translate_args(args: Seq[Ast.expr], into: Boolean): String = {
+    Utils.join(args.map { a =>
+      val typ = translator.detectType(a)
+      var byref = ""
+      val t = kaitaiTypeToNativeType(None, typeProvider.nowClass, typ)
+      var try_into = ""
+      typ match {
+        case _: NumericType =>
+          if (into) {
+            try_into = s".try_into().map_err(|_| KError::CastError)?"
+          }
+        case _ =>
+          if (!translator.is_copy_type(typ))
+            byref = "&"
+      }
+      s"$byref${translator.translate(a)}$try_into"
+    }, "", ", ", "")
+  }
+
   override def parseExpr(dataType: DataType,
                          assignType: DataType,
                          io: String,
@@ -790,23 +807,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1(bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}(1)? != 0"
       case BitsType(width: Int, bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}($width)?"
       case t: UserType =>
-        addParams = Utils.join(t.args.map{ a =>
-          val typ = translator.detectType(a)
-          var byref = ""
-          //val t = kaitaiTypeToNativeType(None, typeProvider.nowClass, typ)
-          var try_into = ""
-          // exclude enums
-          typ match {
-            case _: NumericType => try_into = s".try_into().map_err(|_| KError::CastError)?"
-            case _ =>
-              if (!translator.is_copy_type(typ))
-                byref = "&"
-          }
-          //var need_deref = "*"
-          //if (t.startsWith("RefCell"))
-          //  need_deref = "&*"
-          s"$byref${translator.translate(a)}$try_into"
-        }, "", ", ", "")
+        addParams = translate_args(t.args, true)
         val userType = t match {
           case t: UserType =>
             val baseName = t.classSpec match {
