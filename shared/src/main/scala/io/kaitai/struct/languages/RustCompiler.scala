@@ -199,20 +199,18 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                     attrType: DataType,
                                     isNullable: Boolean): Unit = {
     val typeName = attrName match {
-      // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
       case IoIdentifier | RootIdentifier | ParentIdentifier => return
       case _ =>
         kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType)
     }
 
-    out.puts(s"${idToStr(attrName)}: $typeName,")
+    out.puts(s"${idToStr(attrName)}: RefCell<$typeName>,")
   }
 
   override def attributeReader(attrName: Identifier,
                                attrType: DataType,
                                isNullable: Boolean): Unit = {
     var typeName = attrName match {
-      // For keeping lifetimes simple, we don't store _io, _root, or _parent with the struct
         case IoIdentifier | RootIdentifier | ParentIdentifier => return
         case _ =>
           kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType)
@@ -247,16 +245,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("}")
       fn = s"${fn}_enum"
     }
-    // if (switch_typename || enum_typename) {
-    //   out.puts(s"pub fn $fn(&self) -> RefEnum<$typeNameEx> {")
-    //   out.inc
-    //   out.puts(s"RefEnum::new(self.${idToStr(attrName)}.borrow())")
-    // } else
     {
-      if (!typeName.startsWith("Ref<"))
-        typeName = typeName.replace("RefCell<", "Ref<")
-
-      out.puts(s"pub fn $fn(&self) -> $typeName {")
+      out.puts(s"pub fn $fn(&self) -> Ref<$typeName> {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.borrow()")
     }
@@ -820,20 +810,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val addArgs = if (t.isOpaque) {
           ", None, None"
         } else {
-          //val currentType = classTypeName(typeProvider.nowClass)
           var parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "None"
             case Some(fp) => translator.translate(fp)
             case None =>
               if (!in_instance) {
                 s"Some(_new_parent.clone())"
-                // if (typeProvider.nowClass.isTopLevel) {
-                //   s"Some(${privateMemberName(ParentIdentifier)}.unwrap_or(KStructUnit::parent_stack()).push(self))"
-                // } else {
-                //   s"Some(${privateMemberName(ParentIdentifier)}.unwrap().push(self))"
-                // }
               } else {
-                //s"Some(${self_name()}.${privateMemberName(ParentIdentifier)}.clone())"
                 "None"
               }
           }
@@ -1129,13 +1112,20 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                     out.puts(s"impl $enum_typeName {")
                     out.inc
                     val fn = idToStr(attrName)
-                    val nativeType = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attr.dataTypeComposite, cleanTypename = true)
-                    //out.puts(nativeType.attrGetterDcl(fn))
-                    out.puts(s"pub fn $fn(&self) -> Ref<$nativeType> {")
+                    var nativeType = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attr.dataTypeComposite, cleanTypename = true)
+                    var nativeTypeEx = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attr.dataTypeComposite)
+                    var clone = ""
+                    val rc_typename = nativeTypeEx.startsWith("Rc<")
+                    if (rc_typename) {
+                      nativeType = s"$nativeTypeEx"
+                      clone = ".clone()"
+                    } else
+                      nativeType = s"Ref<$nativeType>"
+                    out.puts(s"pub fn $fn(&self) -> $nativeType {")
                     out.inc
                     out.puts("match self {")
                     out.inc
-                    out.puts(s"$enum_typeName::$typeName(x) => x.$fn.borrow(),")
+                    out.puts(s"$enum_typeName::$typeName(x) => x.$fn.borrow()$clone,")
                     out.puts("_ => panic!(\"wrong variant: {:?}\", self),")
                     out.dec
                     out.puts("}")
@@ -1312,37 +1302,6 @@ object RustCompiler
   // TODO: Use `mod` to scope types instead of weird names
     names.map(x => type2class(x)).mkString("_")
 
-//  def lifetimeParam(d: DataType): String =
-//    if (containsReferences(d)) s"<$streamLife>" else ""
-
-//  def containsReferences(d: DataType): Boolean = containsReferences(d, None)
-
-//  def containsReferences(c: ClassSpec,
-//                         originating: Option[ClassSpec]): Boolean =
-//    c.seq.exists(t => containsReferences(t.dataType, originating)) ||
-//      c.instances.exists(
-//        i => containsReferences(i._2.dataTypeComposite, originating)
-//      )
-
-  def containsReferences(d: DataType, originating: Option[ClassSpec]): Boolean =
-    d match {
-      case _: BytesType | _: StrType => true
-      case _: UserType => true
-      /*
-      t.classSpec match {
-        // Recursive types may need references, but the recursion itself
-        // will be handled by `Box<>`, so doesn't need a reference
-        case Some(inner) if originating.contains(inner) => false
-        case Some(inner) => containsReferences(inner, originating.orElse(Some(inner)))
-        case None => false
-      }
-       */
-      case t: ArrayType => containsReferences(t.elType, originating)
-      case st: SwitchType =>
-        st.cases.values.exists(t => containsReferences(t, originating))
-      case _ => false
-    }
-
   def kaitaiTypeToNativeType(id: Option[Identifier],
                              cs: ClassSpec,
                              attrType: DataType,
@@ -1351,10 +1310,7 @@ object RustCompiler
     attrType match {
       // TODO: Not exhaustive
       case _: NumericType | _: BooleanType | _: StrType | _: BytesType =>
-        if (cleanTypename)
           kaitaiPrimitiveToNativeType(attrType)
-        else
-          s"RefCell<${kaitaiPrimitiveToNativeType(attrType)}>"
 
       case t: UserType =>
         val baseName = t.classSpec match {
@@ -1390,7 +1346,7 @@ object RustCompiler
           case _ => kstructUnitName
         }
 
-        if (excludeOptionWrapper) typeName else s"RefCell<Option<$typeName>>"
+        if (excludeOptionWrapper) typeName else s"Option<$typeName>"
 
       case KaitaiStreamType => kstreamName
       case CalcKaitaiStructType => kstructUnitName
