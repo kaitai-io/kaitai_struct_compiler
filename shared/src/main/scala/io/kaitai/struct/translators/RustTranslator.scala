@@ -80,7 +80,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
           case as: AttrSpec =>
             val code = s"$s()"
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(as.id), provider.nowClass, as.dataTypeComposite)
-            val refOpt = "Option<[^>]+>$".r
+            //val refOpt = "Option<[^>]+>$".r
+            val refOpt = "^Option<.*".r
             aType match {
               //case "String" => s"$code.as_str()"
               //case "Vec<u8>" => s"$code.as_slice()"
@@ -145,7 +146,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       case Identifier.PARENT | Identifier.IO =>
         None
       case _ =>
-        for { ms <- findInClass(get_top_class(c)) }
+        for { ms <- findInClass(c) }
           return Some(ms)
 
         provider.asInstanceOf[ClassTypeProvider].allClasses.foreach { cls =>

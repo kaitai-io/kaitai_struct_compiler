@@ -49,6 +49,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts("#![allow(non_camel_case_types)]")
     outHeader.puts("#![allow(irrefutable_let_patterns)]")
     outHeader.puts("#![allow(unused_comparisons)]")
+    outHeader.puts("#![allow(arithmetic_overflow)]")
     outHeader.puts
     outHeader.puts("extern crate kaitai;")
 
@@ -555,20 +556,17 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     dataType match {
       case _: UserType =>
-        out.puts(s"*${RustCompiler.privateMemberName(instName, writeAccess = true)} = ${translator.remove_deref(expression(value))}.clone();")
+        handleAssignmentSimple(instName, s"${translator.remove_deref(expression(value))}.clone()")
       case _: StrType =>
-        out.puts(s"*${RustCompiler.privateMemberName(instName, writeAccess = true)} = ${translator.remove_deref(expression(value))}.to_string();")
+        handleAssignmentSimple(instName, s"${translator.remove_deref(expression(value))}.to_string()")
       case _: BytesType =>
-        out.puts(s"*${RustCompiler.privateMemberName(instName, writeAccess = true)} = ${translator.rem_vec_amp(translator.remove_deref(expression(value)))}.to_vec();")
+        handleAssignmentSimple(instName, s"${translator.rem_vec_amp(translator.remove_deref(expression(value)))}.to_vec()")
       case _: ArrayType =>
-        out.puts(s"*${RustCompiler.privateMemberName(instName, writeAccess = true)} = ${translator.rem_vec_amp(translator.remove_deref(expression(value)))}.to_vec();")
+        handleAssignmentSimple(instName, s"${translator.rem_vec_amp(translator.remove_deref(expression(value)))}.to_vec()")
       case _: EnumType =>
-        out.puts(s"*${RustCompiler.privateMemberName(instName, writeAccess = true)} = ${translator.remove_deref(expression(value))};")
+        handleAssignmentSimple(instName, s"${translator.remove_deref(expression(value))}")
       case _ =>
-        //translator.context_need_deref_attr = true
-        val primType = kaitaiPrimitiveToNativeType(dataType)
-        out.puts(s"*${RustCompiler.privateMemberName(instName, writeAccess = true)} = (${expression(value)}) as $primType;")
-        //translator.context_need_deref_attr = false
+        handleAssignmentSimple(instName, s"(${expression(value)}) as ${kaitaiPrimitiveToNativeType(dataType)}")
     }
   }
 
@@ -695,7 +693,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    val seqId = typeProvider.nowClass.seq.find(s => s.id == id)
+    val seqId = translator.findMember(idToStr(id))
     var done = false
     var refcell = false
     var opaque = false
@@ -721,8 +719,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case _ =>
       }
       if (refcell) {
-          //val typeName = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, idType)
-          if (opaque) {
+          val typeName = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, idType)
+          if (opaque || typeName.startsWith("Option<")) {
             out.puts(s"*${RustCompiler.privateMemberName(id, writeAccess = true)} = Some($expr);")
           } else {
             out.puts(s"*${RustCompiler.privateMemberName(id, writeAccess = true)} = $expr;")
