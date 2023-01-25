@@ -983,6 +983,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     ioName
   }
 
+  def if_opaque(dt: DataType): Boolean = dt match {
+    case t: UserType => if (t.isOpaque) true else false
+    case _ => false
+  }
+
   def switchTypeEnum(id: Identifier, st: SwitchType): Unit = {
     // Because Rust can't handle `AnyType` in the type hierarchy,
     // we generate an enum with all possible variations
@@ -1042,7 +1047,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
               Some(id),
               typeProvider.nowClass,
               t,
-              excludeOptionWrapper = true)
+              excludeOptionWrapperAlways = true)
         }
         val new_typename = types_set.add(typeName)
         if (new_typename) {
@@ -1050,7 +1055,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           out.inc
           out.puts(s"fn from(v: $typeName) -> Self {")
           out.inc
-          out.puts(s"Self::$variantName($v)")
+          if (if_opaque(t)) {
+            out.puts(s"Self::$variantName(Some($v))")
+          } else {
+            out.puts(s"Self::$variantName($v)")
+          }
           out.dec
           out.puts("}")
           out.dec
@@ -1115,6 +1124,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                     val fn = idToStr(attrName)
                     var nativeType = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attr.dataTypeComposite, cleanTypename = true)
                     var nativeTypeEx = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attr.dataTypeComposite)
+                    val typeNameEx = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, t)
+                    val x = if (typeNameEx.startsWith("Option<")) "x.as_ref().unwrap()" else "x"
                     var clone = ""
                     val rc_typename = nativeTypeEx.startsWith("Rc<")
                     if (rc_typename) {
@@ -1126,7 +1137,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                     out.inc
                     out.puts("match self {")
                     out.inc
-                    out.puts(s"$enum_typeName::$typeName(x) => x.$fn.borrow()$clone,")
+                    out.puts(s"$enum_typeName::$typeName(x) => $x.$fn.borrow()$clone,")
                     out.puts("_ => panic!(\"wrong variant: {:?}\", self),")
                     out.dec
                     out.puts("}")
@@ -1307,6 +1318,7 @@ object RustCompiler
                              cs: ClassSpec,
                              attrType: DataType,
                              excludeOptionWrapper: Boolean = false,
+                             excludeOptionWrapperAlways: Boolean = false,
                              cleanTypename: Boolean = false): String =
     attrType match {
       // TODO: Not exhaustive
@@ -1321,7 +1333,7 @@ object RustCompiler
 
         (t.isOpaque, cleanTypename) match {
           case (_, true)    =>  baseName
-          case (true, _)    =>  s"Option<Rc<$baseName>>"
+          case (true, _)    =>  if (excludeOptionWrapperAlways) s"Rc<$baseName>" else s"Option<Rc<$baseName>>"
           case (false, _)   =>  s"Rc<$baseName>"
         }
 
@@ -1333,7 +1345,7 @@ object RustCompiler
         if (cleanTypename) {
           return baseName
         }
-        if (excludeOptionWrapper) baseName else s"$baseName"
+        if (excludeOptionWrapper || excludeOptionWrapperAlways) baseName else s"$baseName"
 
       case t: ArrayType =>
         s"Vec<${kaitaiTypeToNativeType(id, cs, t.elType, excludeOptionWrapper = true)}>"
@@ -1347,7 +1359,7 @@ object RustCompiler
           case _ => kstructUnitName
         }
 
-        if (excludeOptionWrapper) typeName else s"Option<$typeName>"
+        if (excludeOptionWrapper || excludeOptionWrapperAlways) typeName else s"Option<$typeName>"
 
       case KaitaiStreamType => kstreamName
       case CalcKaitaiStructType => kstructUnitName
