@@ -74,8 +74,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(vis.id), provider.nowClass, vis.dataTypeComposite)
             val refOpt = "^Option<.*".r
             aType match {
-              case refOpt() => s"$s(${privateMemberName(IoIdentifier)})?.as_ref().unwrap()"
-              case _ => s"$s(${privateMemberName(IoIdentifier)})?"
+              case refOpt() => s"$s()?.as_ref().unwrap()"
+              case _ => s"$s()?"
             }
           case as: AttrSpec =>
             val code = s"$s()"
@@ -99,12 +99,12 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
               case _ => s"$s()"
             }
           case pis: ParseInstanceSpec =>
-            //s"$s(${privateMemberName(IoIdentifier)})?"
+            //s"$s()?"
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(pis.id), provider.nowClass, pis.dataTypeComposite)
             val refOpt = "^Option<.*".r
             aType match {
-              case refOpt() => s"$s(${privateMemberName(IoIdentifier)})?.as_ref().unwrap()"
-              case _ => s"$s(${privateMemberName(IoIdentifier)})?"
+              case refOpt() => s"$s()?.as_ref().unwrap()"
+              case _ => s"$s()?"
             }
           case _ =>
             s"$s()"
@@ -204,11 +204,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       } else {
         r = s"$t.$a"
       }
-    }
-    attrName match {
-      case Identifier.IO =>
-        r = r.replace("()._io()", "_raw()")
-      case _ =>
     }
     r
   }

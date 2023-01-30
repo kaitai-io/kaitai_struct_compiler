@@ -183,6 +183,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s") -> KResult<()> {")
     out.inc
 
+    out.puts(s"*self_rc._io.borrow_mut() = _io.clone();")
     out.puts(s"self_rc._root.set(_root.get());")
     out.puts(s"self_rc._parent.set(_parent.get());")
     out.puts(s"let _new_parent = SharedType::<Self>::new(self_rc.clone());")
@@ -201,7 +202,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                     attrType: DataType,
                                     isNullable: Boolean): Unit = {
     val typeName = attrName match {
-      case IoIdentifier | RootIdentifier | ParentIdentifier => return
+      case RootIdentifier | ParentIdentifier => return
       case _ =>
         kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType)
     }
@@ -213,7 +214,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                attrType: DataType,
                                isNullable: Boolean): Unit = {
     var typeName = attrName match {
-        case IoIdentifier | RootIdentifier | ParentIdentifier => return
+        case RootIdentifier | ParentIdentifier => return
         case _ =>
           kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType)
     }
@@ -408,8 +409,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def useIO(ioEx: Ast.expr): String = {
-    out.puts(s"let t = ${expression(ioEx)};")
-    out.puts(s"let io = BytesReader::new(&*t);")
+    out.puts(s"let io = Clone::clone(&*${expression(ioEx)});")
     "io"
   }
 
@@ -480,8 +480,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val typeName = kaitaiTypeToNativeType(
       Some(attrName),
       typeProvider.nowClass,
-      attrType,
-      excludeOptionWrapper = true
+      attrType
     )
     out.puts(s"${calculatedFlagForName(attrName)}: Cell<bool>,")
     out.puts(s"${idToStr(attrName)}: RefCell<$typeName>,")
@@ -525,19 +524,18 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                               dataType: DataType,
                               isNullable: Boolean): Unit = {
     in_instance = true
-    out.puts(s"pub fn ${idToStr(instName)}<S: $kstreamName>(")
+    out.puts(s"pub fn ${idToStr(instName)}(")
     out.inc
-    out.puts("&self,")
-    out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S")
+    out.puts("&self")
     out.dec
     val typeName = kaitaiTypeToNativeType(
       Some(instName),
       typeProvider.nowClass,
-      dataType,
-      excludeOptionWrapper = true
+      dataType
     )
     out.puts(s") -> KResult<Ref<$typeName>> {")
     out.inc
+    out.puts(s"let _io = self._io.borrow();")
     out.puts(s"let _rrc = self._root.get_value().borrow();")
     out.puts(s"let _prc = self._parent.get_value().borrow();")
     out.puts(s"let _r = _rrc.as_ref().unwrap();")
@@ -828,22 +826,26 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $root, $parent"
         }
-        val streamType = if (io == privateMemberName(IoIdentifier)) {
-          "S"
+        var io2 = ""
+        var streamType = ""
+        if (io == privateMemberName(IoIdentifier)) {
+          io2 = s"&*$io"
+          streamType = "_"
         } else {
-          "BytesReader"
+          io2 = s"$io"
+          streamType = "BytesReader"
         }
         if (addParams.isEmpty) {
           if (t.classSpec.isDefined) t.classSpec.get.meta.endian match {
             case Some(InheritedEndian) =>
               out.puts(s"let f = |t : &mut $userType| Ok(t.set_endian(*${privateMemberName(EndianIdentifier)}));")
-              out.puts(s"let t = Self::read_into_with_init::<$streamType, $userType>($io$addArgs, &f)?.into();")
+              out.puts(s"let t = Self::read_into_with_init::<$streamType, $userType>($io2$addArgs, &f)?.into();")
             case _ =>
-              out.puts(s"let t = Self::read_into::<$streamType, $userType>($io$addArgs)?.into();")
+              out.puts(s"let t = Self::read_into::<$streamType, $userType>($io2$addArgs)?.into();")
           }
         } else {
           out.puts(s"let f = |t : &mut $userType| Ok(t.set_params($addParams));")
-          out.puts(s"let t = Self::read_into_with_init::<$streamType, $userType>($io$addArgs, &f)?.into();")
+          out.puts(s"let t = Self::read_into_with_init::<$streamType, $userType>($io2$addArgs, &f)?.into();")
         }
         return s"t"
       case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
@@ -968,7 +970,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           out.puts(s"let $ids = $newStream;")
           newStream = ids
         //}
-        out.puts(s"let $localIO = BytesReader::new(&$newStream);")
+        out.puts(s"let $localIO = BytesReader::from($newStream.clone());")
         s"&$localIO"
       case _ =>
         val ids = idToStr(id)
@@ -977,7 +979,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           out.puts(s"let $ids = $newStreamRaw;")
           newStreamRaw = ids
         //}
-        out.puts(s"let $localIO = BytesReader::new(&$newStreamRaw.last().unwrap());")
+        out.puts(s"let $localIO = BytesReader::from($newStreamRaw.last().unwrap().clone());")
         s"&$localIO"
     }
 
@@ -1362,8 +1364,9 @@ object RustCompiler
 
         if (excludeOptionWrapper || excludeOptionWrapperAlways) typeName else s"Option<$typeName>"
 
-      case KaitaiStreamType => kstreamName
+      case KaitaiStreamType => "BytesReader"
       case CalcKaitaiStructType => kstructUnitName
+      case _ => s"kaitaiTypeToNativeType'${attrType.toString}'???"
     }
 
   def kaitaiPrimitiveToNativeType(attrType: DataType): String = attrType match {
