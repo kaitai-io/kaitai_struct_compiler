@@ -1345,10 +1345,7 @@ object RustCompiler
           case Some(spec) => s"${types2class(spec.name)}"
           case None => s"${types2class(t.name)}"
         }
-        if (cleanTypename) {
-          return baseName
-        }
-        if (excludeOptionWrapper || excludeOptionWrapperAlways) baseName else s"$baseName"
+        baseName
 
       case t: ArrayType =>
         s"Vec<${kaitaiTypeToNativeType(id, cs, t.elType, excludeOptionWrapper = true)}>"
