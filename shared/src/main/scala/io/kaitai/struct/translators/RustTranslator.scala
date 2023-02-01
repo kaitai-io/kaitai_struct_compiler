@@ -345,6 +345,18 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       s"if ${translate(condition)} { ${remove_deref(translate(ifTrue))}$to_type } else { ${remove_deref(translate(ifFalse))}$to_type }"
     }
   }
+
+  override def doCast(value: Ast.expr, typeName: DataType): String = {
+    val t1_type = detectType(value)
+    val t1 = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, t1_type)
+    val t2 = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, typeName)
+    if (t1 != t2 && t1_type != KaitaiStructType && t1_type != CalcFloatType && t1_type != CalcIntType) {
+      s"Into::<$t2>::into(&${translate(value)})"
+    } else {
+      translate(value)
+    }
+  }
+
   override def translate(v: Ast.expr): String = {
     v match {
       case Ast.expr.EnumById(enumType, id, inType) =>

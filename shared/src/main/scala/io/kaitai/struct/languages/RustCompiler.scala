@@ -1042,18 +1042,44 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // Because this switch type will itself be in an option, we can exclude it from user types
         val variantName = switchVariantName(id, t)
         var v = "v"
-        val typeName = t match {
-          case _ : BytesType =>
-            v = "v.to_vec()"
-            s"&[u8]" // special case for Bytes(Vec[u8]) (else switch)
-          case _ => kaitaiTypeToNativeType(
+        var typeName = kaitaiTypeToNativeType(
               Some(id),
               typeProvider.nowClass,
               t,
               excludeOptionWrapperAlways = true)
-        }
+
         val new_typename = types_set.add(typeName)
         if (new_typename) {
+          // generate helpers to convert enum into variant (let x : Rc<Var1> = enum1.into())
+          if (!enum_only_numeric) {
+            val asOption = "^Option<.*".r
+            val suffix = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, t) match {
+              case asOption() => s".as_ref().unwrap()"
+              case _ => ""
+            }
+            out.puts(s"impl From<&$enum_typeName> for $typeName {")
+            out.inc
+            out.puts(s"fn from(v: &$enum_typeName) -> Self {")
+            out.inc
+            out.puts(s"if let $enum_typeName::$variantName(x) = v {")
+            out.inc
+            out.puts(s"return x$suffix.clone();")
+            out.dec
+            out.puts("}")
+            out.puts(s"""panic!("expected $enum_typeName::$variantName, got {:?}", v)""")
+            out.dec
+            out.puts("}")
+            out.dec
+            out.puts("}")
+          }
+          // special case for Bytes(Vec[u8]) (else switch)
+          t match {
+            case _ : BytesType =>
+              v = "v.to_vec()"
+              typeName = s"&[u8]"
+            case _ =>
+          }
+          // generate helpers to create enum from variant (let enum1 = Var1.into())
           out.puts(s"impl From<$typeName> for $enum_typeName {")
           out.inc
           out.puts(s"fn from(v: $typeName) -> Self {")
