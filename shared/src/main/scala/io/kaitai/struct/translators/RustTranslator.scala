@@ -348,9 +348,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def doCast(value: Ast.expr, typeName: DataType): String = {
     val t1_type = detectType(value)
-    val t1 = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, t1_type)
-    val t2 = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, typeName)
-    if (t1 != t2 && t1_type != KaitaiStructType && t1_type != CalcFloatType && t1_type != CalcIntType) {
+    val t1 = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, t1_type, excludeOptionWrapperAlways = true)
+    val t2 = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, typeName, excludeOptionWrapperAlways = true)
+    if (t1 != t2 && t1_type != CalcFloatType && t1_type != CalcIntType) {
       s"Into::<$t2>::into(&${translate(value)})"
     } else {
       translate(value)
