@@ -1136,7 +1136,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts
     }
 
-    {
+    // generate helper method with name from variant type (to convert enum into variant and call variant method inside)
+    // only if there is only single variant
+    // if more than 1 - Kaitai will do casting
+    if (types.size == 1) {
       val types_set = scala.collection.mutable.Set[String]()
       val attrs_set = scala.collection.mutable.Set[String]()
       types.foreach(t => {
@@ -1167,7 +1170,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                     out.puts("match self {")
                     out.inc
                     out.puts(s"$enum_typeName::$typeName(x) => $x.$fn.borrow()$clone,")
-                    out.puts("_ => panic!(\"wrong variant: {:?}\", self),")
+                    //out.puts("_ => panic!(\"wrong variant: {:?}\", self),")
                     out.dec
                     out.puts("}")
                     out.dec
