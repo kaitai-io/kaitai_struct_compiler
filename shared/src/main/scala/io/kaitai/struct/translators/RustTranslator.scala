@@ -224,6 +224,14 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
+  def ensure_amp(s: String): String = {
+    if (s.charAt(0) == '&') {
+      s
+    } else {
+      s"&$s"
+    }
+  }
+
   def remove_deref(s: String): String = {
     if (s.charAt(0) == '*') {
       s.substring(1)

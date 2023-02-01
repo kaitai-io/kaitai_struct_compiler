@@ -832,7 +832,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           io2 = s"&*$io"
           streamType = "_"
         } else {
-          io2 = s"$io"
+          io2 = translator.ensure_amp(io)
           streamType = "BytesReader"
         }
         if (addParams.isEmpty) {
