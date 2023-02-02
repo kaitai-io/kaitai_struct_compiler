@@ -814,7 +814,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           var parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "None"
-            case Some(fp) => translator.translate(fp)
+            case Some(fp) => s"Some(SharedType::new(${translator.translate(fp)}.clone()))"
             case None => s"Some(${self_name()}._self.clone())"
           }
           t.classSpec.get.parentType match {
