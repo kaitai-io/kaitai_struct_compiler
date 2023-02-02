@@ -90,6 +90,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       kaitaiTypeToNativeType(None, typeProvider.nowClass, typeProvider.nowClass.parentType, cleanTypename = true)
     }
     out.puts(s"pub ${privateMemberName(ParentIdentifier)}: SharedType<$parent>,")
+    out.puts(s"pub _self: SharedType<Self>,")
 
     typeProvider.nowClass.params.foreach { p =>
       // Make sure the parameter is imported if necessary
@@ -186,9 +187,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"*self_rc._io.borrow_mut() = _io.clone();")
     out.puts(s"self_rc._root.set(_root.get());")
     out.puts(s"self_rc._parent.set(_parent.get());")
-    out.puts(s"let _new_parent = SharedType::<Self>::new(self_rc.clone());")
-    out.puts(s"let _rrc = self_rc._root.get_value().borrow();")
-    out.puts(s"let _prc = self_rc._parent.get_value().borrow();")
+    out.puts(s"self_rc._self.set(Ok(self_rc.clone()));");
+
+    out.puts(s"let _rrc = self_rc._root.get_value().borrow().upgrade();")
+    out.puts(s"let _prc = self_rc._parent.get_value().borrow().upgrade();")
     out.puts(s"let _r = _rrc.as_ref().unwrap();")
 
     // If there aren't any attributes to parse, we need to end the read implementation here
@@ -536,8 +538,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s") -> KResult<Ref<$typeName>> {")
     out.inc
     out.puts(s"let _io = self._io.borrow();")
-    out.puts(s"let _rrc = self._root.get_value().borrow();")
-    out.puts(s"let _prc = self._parent.get_value().borrow();")
+    out.puts(s"let _rrc = self._root.get_value().borrow().upgrade();")
+    out.puts(s"let _prc = self._parent.get_value().borrow().upgrade();")
     out.puts(s"let _r = _rrc.as_ref().unwrap();")
   }
 
@@ -770,7 +772,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
       var translated = translator.translate(a)
       if (translated == "_r") // _root
-        translated = "*_rrc"
+        translated = "_rrc"
       s"$byref$translated$try_into"
     }, "", ", ", "")
   }
@@ -813,12 +815,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           var parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "None"
             case Some(fp) => translator.translate(fp)
-            case None =>
-              if (!in_instance) {
-                s"Some(_new_parent.clone())"
-              } else {
-                "None"
-              }
+            case None => s"Some(${self_name()}._self.clone())"
           }
           t.classSpec.get.parentType match {
             case CalcKaitaiStructType => parent = "None"

@@ -188,7 +188,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val t = translate(value)
     var a = doName(attrName)
     attrName match {
-      case Identifier.PARENT => a = a + ".get_value().borrow().as_ref().unwrap()"
+      case Identifier.PARENT => a = a + ".get_value().borrow().upgrade().as_ref().unwrap()"
       case _ =>
     }
     var r = ""
