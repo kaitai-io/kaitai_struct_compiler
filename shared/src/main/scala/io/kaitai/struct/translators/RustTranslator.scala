@@ -46,17 +46,26 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case _ => false
   }
 
+  def isAllDigits(x: String) = x forall Character.isDigit
+
   override def numericBinOp(left: Ast.expr,
                             op: Ast.operator,
                             right: Ast.expr): String = {
     val lt = detectType(left)
     val rt = detectType(right)
+    val tl = translate(left)
+    val tr = translate(right)
 
     if (isSignedIntType(lt) && isSignedIntType(rt) && op == Ast.operator.Mod)
-        s"modulo(${translate(left)} as i64, ${translate(right)} as i64)"
+        s"modulo($tl as i64, $tr as i64)"
     else {
-      val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
-      s"((${translate(left)} as $ct) ${binOp(op)} (${translate(right)} as $ct))"
+      if (lt == rt && isAllDigits(tl) && isAllDigits(tr)) {
+        // let rust decide final type
+        s"($tl ${binOp(op)} $tr)"
+      } else {
+        val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
+        s"(($tl as $ct) ${binOp(op)} ($tr as $ct))"
+      }
     }
   }
 
@@ -370,6 +379,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     var into = false
     castTypeName match {
       case _: UserType => into = true;
+      case CalcBytesType => into = true;
       case _ =>
     }
     if (into) {
