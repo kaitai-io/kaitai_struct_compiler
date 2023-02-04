@@ -773,7 +773,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       var translated = translator.translate(a)
       if (translated == "_r") // _root
         translated = "_rrc"
-      s"$byref$translated$try_into"
+      if (try_into.nonEmpty)
+        s"$byref($translated)$try_into"
+      else
+        s"$byref$translated"
     }, "", ", ", "")
   }
 

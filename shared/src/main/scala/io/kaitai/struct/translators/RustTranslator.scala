@@ -55,12 +55,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     if (isSignedIntType(lt) && isSignedIntType(rt) && op == Ast.operator.Mod)
         s"modulo(${translate(left)} as i64, ${translate(right)} as i64)"
     else {
-      if (lt != rt) {
-        val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
-        s"((${translate(left)} as $ct) ${binOp(op)} (${translate(right)} as $ct))"
-      } else {
-        super.numericBinOp(left, op, right)
-      }
+      val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
+      s"((${translate(left)} as $ct) ${binOp(op)} (${translate(right)} as $ct))"
     }
   }
 
@@ -323,6 +319,17 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
 
+  override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
+    val lt = detectType(left)
+    val rt = detectType(right)
+    if (lt != rt) {
+      val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
+      s"((${translate(left)} as $ct) ${cmpOp(op)} (${translate(right)} as $ct))"
+    } else {
+      s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+    }
+  }
+
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     // val l = translate(left)
     // val r = translate(right)
@@ -354,14 +361,21 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def doCast(value: Ast.expr, typeName: DataType): String = {
-    val t1_type = detectType(value)
-    val t1 = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, t1_type, excludeOptionWrapperAlways = true)
-    val t2 = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, typeName, excludeOptionWrapperAlways = true)
-    if (t1 != t2 && t1_type != CalcFloatType && t1_type != CalcIntType) {
-      s"Into::<$t2>::into(&${translate(value)})"
+  override def doCast(value: Ast.expr, castTypeName: DataType): String = {
+    val value_type = detectType(value)
+    if(castTypeName == value_type)
+      return translate(value)
+
+    val ct = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, castTypeName, excludeOptionWrapperAlways = true)
+    var into = false
+    castTypeName match {
+      case _: UserType => into = true;
+      case _ =>
+    }
+    if (into) {
+      s"Into::<$ct>::into(&${translate(value)})"
     } else {
-      translate(value)
+      s"(${translate(value)} as $ct)"
     }
   }
 
