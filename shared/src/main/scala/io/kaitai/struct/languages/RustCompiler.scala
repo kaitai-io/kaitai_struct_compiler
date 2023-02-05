@@ -1392,7 +1392,6 @@ object RustCompiler
 
       case KaitaiStreamType => "BytesReader"
       case CalcKaitaiStructType => kstructUnitName
-      case _ => s"kaitaiTypeToNativeType'${attrType.toString}'???"
     }
 
   def kaitaiPrimitiveToNativeType(attrType: DataType): String = attrType match {
@@ -1419,6 +1418,5 @@ object RustCompiler
     case _: BytesType => "Vec<u8>"
 
     case ArrayTypeInStream(inType) => s"Vec<${kaitaiPrimitiveToNativeType(inType)}>"
-    case _ => s"kaitaiPrimitiveToNativeType '${attrType.toString}' ???"
   }
 }
