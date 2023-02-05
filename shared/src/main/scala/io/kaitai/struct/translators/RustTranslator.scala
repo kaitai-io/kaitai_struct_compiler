@@ -56,9 +56,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val tl = translate(left)
     val tr = translate(right)
 
-    if (isSignedIntType(lt) && isSignedIntType(rt) && op == Ast.operator.Mod)
+    if (isSignedIntType(lt) && isSignedIntType(rt) && op == Ast.operator.Mod) {
         s"modulo($tl as i64, $tr as i64)"
-    else {
+    } else if (isSignedIntType(lt) && isSignedIntType(rt) && op == Ast.operator.RShift) {
+        // Arithmetic right shift on signed integer types, logical right shift on unsigned integer types
+        val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
+        s"((($tl as u64) >> $tr) as $ct)"
+    } else {
       if (lt == rt && isAllDigits(tl) && isAllDigits(tr)) {
         // let rust decide final type
         s"($tl ${binOp(op)} $tr)"
