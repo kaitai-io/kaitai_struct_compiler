@@ -77,10 +77,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"pub struct ${classTypeName(typeProvider.nowClass)} {")
     out.inc
 
-    // Because we can't predict whether opaque types will need lifetimes as a type parameter,
-    // everyone gets a phantom data marker
-    //out.puts(s"_phantom: std::marker::PhantomData<&$streamLife ()>,")
-
     val root = types2class(name.slice(0, 1))
     out.puts(s"pub ${privateMemberName(RootIdentifier)}: SharedType<$root>,")
 
@@ -138,7 +134,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
 
     out.puts(
-      s"impl<$readLife, $streamLife: $readLife> $kstructName<$readLife, $streamLife> for ${classTypeName(typeProvider.nowClass)} {"
+      s"impl $kstructName for ${classTypeName(typeProvider.nowClass)} {"
     )
     out.inc
     val root = classTypeName(typeProvider.topClass)
@@ -173,7 +169,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"fn read<S: $kstreamName>(")
     out.inc
     out.puts(s"self_rc: &Rc<Self>,")
-    out.puts(s"${privateMemberName(IoIdentifier)}: &$streamLife S,")
+    out.puts(s"${privateMemberName(IoIdentifier)}: &S,")
     out.puts(
       s"$root: SharedType<Self::Root>,"
     )
@@ -223,7 +219,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     //val typeNameEx = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType, excludeOptionWrapper = true)
     out.puts(
-      s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
+      s"impl ${classTypeName(typeProvider.nowClass)} {")
     out.inc
 
     var types : Set[DataType] = Set()
@@ -443,7 +439,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$n: $byref$t"
       }, "", ", ", "")
 
-      out.puts(s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
+      out.puts(s"impl ${classTypeName(typeProvider.nowClass)} {")
       out.inc
       out.puts(s"pub fn set_params(&mut self, $paramsArg) {")
       out.inc
@@ -455,7 +451,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
-        out.puts(s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
+        out.puts(s"impl ${classTypeName(typeProvider.nowClass)} {")
         out.inc
         val t = kaitaiTypeToNativeType(Some(EndianIdentifier), typeProvider.nowClass, IntMultiType(signed = true, Width4, None), excludeOptionWrapper = true)
         out.puts(s"pub fn set_endian(&mut self, ${idToStr(EndianIdentifier)}: $t) {")
@@ -467,7 +463,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts("}")
       case _ =>
     }
-    out.puts(s"impl<$readLife, $streamLife: $readLife> ${classTypeName(typeProvider.nowClass)} {")
+    out.puts(s"impl ${classTypeName(typeProvider.nowClass)} {")
     out.inc
   }
 
@@ -1333,14 +1329,10 @@ object RustCompiler
 
   override def kstructName = s"KStruct"
 
-  def readLife = "'r"
-
   def kstructUnitName = "KStructUnit"
 
   def classTypeName(c: ClassSpec): String =
     s"${types2class(c.name)}"
-
-  def streamLife = "'s"
 
   def types2class(names: List[String]): String =
   // TODO: Use `mod` to scope types instead of weird names
