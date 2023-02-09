@@ -379,7 +379,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     if(castTypeName == value_type)
       return translate(value)
 
-    val ct = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, castTypeName, excludeOptionWrapperAlways = true)
+    val ct = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, castTypeName, excludeOptionWrapper = true)
     var into = false
     castTypeName match {
       case _: UserType => into = true;
