@@ -23,7 +23,21 @@ lazy val compiler = crossProject.in(file(".")).
   enablePlugins(JavaAppPackaging).
   settings(
     organization := "io.kaitai",
-    version := sys.env.getOrElse("KAITAI_STRUCT_VERSION", VERSION),
+    version := {
+      sys.env.get("KAITAI_STRUCT_VERSION") match {
+        case Some(ver) =>
+          if (VERSION.endsWith("-SNAPSHOT")) {
+            if (!ver.startsWith(VERSION))
+              throw new MessageOnlyException(s"Environment variable KAITAI_STRUCT_VERSION '$ver' doesn't start with build.sbt VERSION '$VERSION'")
+          } else {
+            if (ver != VERSION)
+              throw new MessageOnlyException(s"Environment variable KAITAI_STRUCT_VERSION '$ver' is not equal to build.sbt VERSION '$VERSION'")
+          }
+          ver
+        case None =>
+          VERSION
+      }
+    },
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
     scalaVersion := "2.12.12",
 
