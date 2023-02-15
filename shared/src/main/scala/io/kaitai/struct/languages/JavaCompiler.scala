@@ -993,9 +993,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$expr._write_Seq($io);")
   }
 
-  override def attrWriteStreamToStream(srcIo: String, dstIo: String) =
-    out.puts(s"$dstIo.writeStream($srcIo);")
-
   override def exprStreamToByteArray(io: String): String =
     s"$io.toByteArray()"
 
