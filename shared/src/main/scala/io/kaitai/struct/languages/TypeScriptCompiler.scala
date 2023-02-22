@@ -52,14 +52,13 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts(s" * $headerComment")
     outHeader.puts(" */")
 
-    outHeader.puts("// @ts-ignore")
     outHeader.puts("import KaitaiStream from 'kaitai-struct/KaitaiStream'")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val className = type2class(classSpec.name.head)
     // FIXME
-    out.puts(s"import ${className} from './opaque'")
+    // out.puts(s"import ${className} from './opaque'")
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -94,8 +93,13 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"constructor(")
     out.inc
     out.puts(s"readonly ${Identifier.IO}: $kstreamName,")
-    out.puts(s"readonly ${Identifier.PARENT}: ${kaitaiType2NativeType(parentClassName, isNullable = false)},")
-    out.puts(s"readonly ${Identifier.ROOT}: ${types2class(rootClassName)},")
+    if (params.isEmpty) {
+      out.puts(s"readonly ${Identifier.PARENT}?: ${kaitaiType2NativeType(parentClassName, isNullable = false)},")
+      out.puts(s"readonly ${Identifier.ROOT}?: ${types2class(rootClassName)},")
+    } else {
+      out.puts(s"readonly ${Identifier.PARENT}: ${kaitaiType2NativeType(parentClassName, isNullable = false)} | undefined,")
+      out.puts(s"readonly ${Identifier.ROOT}: ${types2class(rootClassName)} | undefined,")
+    }
     if (isHybrid) {
       out.puts(s"public ${Identifier.IS_LE}: boolean,")
     }
@@ -361,14 +365,14 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("{")
     out.inc
-    out.puts(s"let ${Identifier.ITERATOR}, ${Identifier.ITERATOR2};")
+    out.puts(s"let ${Identifier.ITERATOR}, ${Identifier.ITERATOR2}, i = 0;")
     out.puts("do {")
     out.inc
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
-    out.puts(s"let $tmpName = $expr;")
+    out.puts(s"$tmpName = $expr;")
     out.puts(s"this.${
       id match {
         case InstanceIdentifier(_) => privateMemberName(id)
@@ -379,6 +383,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts(s"i++;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")
     out.dec
