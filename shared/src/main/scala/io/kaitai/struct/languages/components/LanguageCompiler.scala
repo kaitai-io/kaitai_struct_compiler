@@ -102,7 +102,7 @@ abstract class LanguageCompiler(
   def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = ???
   def attrInvokeInstance(instName: InstanceIdentifier): Unit = ???
 
-  def writeHeader(endian: Option[FixedEndian]): Unit = ???
+  def writeHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = ???
   def writeFooter(): Unit = ???
   def writeInstanceHeader(instName: InstanceIdentifier): Unit = ???
   def writeInstanceFooter(): Unit = ???
@@ -148,8 +148,8 @@ abstract class LanguageCompiler(
 
   def exprIORemainingSize(io: String): String = ???
 
-  def subIOWriteBackHeader(subIO: String): String = ???
-  def subIOWriteBackFooter: Unit = ???
+  def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = ???
+  def subIOWriteBackFooter(subIO: String): Unit = ???
 
   def addChildIO(io: String, childIO: String): Unit = ???
 
@@ -158,6 +158,7 @@ abstract class LanguageCompiler(
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
   def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = attributeDeclaration(attrName, attrType, isNullable)
   def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = ???
+  def instanceWriteFlagInit(attrName: InstanceIdentifier): Unit = {}
   def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = ???
   def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = ???
   def instanceToWriteSetter(instName: InstanceIdentifier): Unit = ???

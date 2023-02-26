@@ -42,7 +42,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   /** See [[subIOWriteBackHeader]] => the code generated when `true` will be inside the definition
    * of the "writeBackHandler" callback function. */
-  private var inSubIOWriteBackHandler = false;
+  private var inSubIOWriteBackHandler = false
 
   override def universalFooter: Unit = {
     out.dec
@@ -242,7 +242,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${publicMemberName(instName)}();")
   }
 
-  override def writeHeader(endian: Option[FixedEndian]): Unit = {
+  override def writeHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
     out.puts
     endian match {
       case Some(e) =>
@@ -416,7 +416,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val javaName = idToStr(varName)
-
     val ioName = s"_io_$javaName"
 
     val args = rep match {
@@ -443,7 +442,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def allocateIOGrowing(varName: Identifier): String =
     allocateIOFixed(varName, "100000") // FIXME to use real growing buffer
 
-  override def subIOWriteBackHeader(subIO: String): String = {
+  override def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = {
     val parentIoName = "parent"
     out.puts(s"final ${type2class(typeProvider.nowClass.name.last)} _this = this;")
     out.puts(s"$subIO.setWriteBackHandler(new $kstreamName.WriteBackHandler(_pos2) {")
@@ -457,7 +456,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     parentIoName
   }
 
-  override def subIOWriteBackFooter: Unit = {
+  override def subIOWriteBackFooter(subIO: String): Unit = {
     inSubIOWriteBackHandler = false
 
     out.dec

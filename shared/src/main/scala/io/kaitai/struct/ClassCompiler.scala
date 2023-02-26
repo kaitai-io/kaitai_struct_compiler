@@ -140,7 +140,16 @@ class ClassCompiler(
       curClass.params
     )
     compileInit(curClass)
-    curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
+    if (config.readWrite) {
+      curClass.instances.foreach { case (instName, instSpec) =>
+        lang.instanceClear(instName)
+        instSpec match {
+          case _: ParseInstanceSpec =>
+            lang.instanceWriteFlagInit(instName)
+          case _: ValueInstanceSpec => // do nothing
+        }
+      }
+    }
     if (lang.config.autoRead)
       lang.runRead(curClass.name)
     lang.classConstructorFooter
@@ -272,7 +281,7 @@ class ClassCompiler(
       case None | Some(_: FixedEndian) =>
         compileSeqWriteProc(seq, instances, None)
       case Some(CalcEndian(_, _)) | Some(InheritedEndian) =>
-        lang.writeHeader(None)
+        lang.writeHeader(None, false)
         lang.runWriteCalc()
         lang.writeFooter()
 
@@ -321,7 +330,7 @@ class ClassCompiler(
   }
 
   def compileSeqWriteProc(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec], defEndian: Option[FixedEndian]) = {
-    lang.writeHeader(defEndian)
+    lang.writeHeader(defEndian, !instances.values.exists(i => i.isInstanceOf[ParseInstanceSpec]) && seq.isEmpty)
     compileSetInstanceWriteFlags(instances)
     compileSeqWrite(seq, defEndian)
     lang.writeFooter()

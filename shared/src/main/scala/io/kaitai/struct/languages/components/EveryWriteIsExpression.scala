@@ -384,10 +384,10 @@ trait EveryWriteIsExpression
             }
 
             {
-              val parentIO = subIOWriteBackHeader(ioFixed)
+              val parentIO = subIOWriteBackHeader(ioFixed, byteType.process)
               handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, true)
               attrBytesTypeWrite(rawId, byteType, parentIO, rep, isRaw, None, exprTypeOpt)
-              subIOWriteBackFooter
+              subIOWriteBackFooter(ioFixed)
             }
 
             blockScopeFooter
