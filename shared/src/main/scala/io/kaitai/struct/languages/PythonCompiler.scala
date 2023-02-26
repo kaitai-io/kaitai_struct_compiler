@@ -407,7 +407,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val varStr = privateMemberName(varName)
     val ioName = s"_io_${idToStr(varName)}"
 
-    out.puts(s"$ioName = $kstreamName(BytesIO(bytes($size)))")
+    // NOTE: in Python 2, bytes() converts an integer argument to a string (e.g. bytes(12) => '12'),
+    // so we have to use bytearray() instead
+    out.puts(s"$ioName = $kstreamName(BytesIO(bytearray($size)))")
     ioName
   }
 
