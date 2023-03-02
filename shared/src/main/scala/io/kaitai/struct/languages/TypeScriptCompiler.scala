@@ -93,7 +93,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"constructor(")
     out.inc
     out.puts(s"readonly ${Identifier.IO}: $kstreamName,")
-    if (params.isEmpty) {
+    if (params.isEmpty && !isHybrid) {
       out.puts(s"readonly ${Identifier.PARENT}?: ${kaitaiType2NativeType(parentClassName, isNullable = false)},")
       out.puts(s"readonly ${Identifier.ROOT}?: ${types2class(rootClassName)},")
     } else {
@@ -562,7 +562,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     out.puts(s"export namespace ${types2class(curClass)} {")
     out.inc
-    out.puts(s"export const enum ${type2class(enumName)} {")
+    out.puts(s"export enum ${type2class(enumName)} {")
     out.inc
 
     enumColl.foreach { case (id, label) =>
@@ -668,7 +668,7 @@ class TypeScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case AnyType => "any"
 
       case _: StrType => "string"
-      case _: BytesType => "string"
+      case _: BytesType => "Uint8Array"
 
       case t: UserType => if (t.classSpec.isEmpty) {
         types2class(t.name)
