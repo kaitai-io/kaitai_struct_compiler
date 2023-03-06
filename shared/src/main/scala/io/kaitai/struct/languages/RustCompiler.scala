@@ -183,7 +183,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"*self_rc._io.borrow_mut() = _io.clone();")
     out.puts(s"self_rc._root.set(_root.get());")
     out.puts(s"self_rc._parent.set(_parent.get());")
-    out.puts(s"self_rc._self.set(Ok(self_rc.clone()));");
+    out.puts(s"self_rc._self.set(Ok(self_rc.clone()));")
 
     out.puts(s"let _rrc = self_rc._root.get_value().borrow().upgrade();")
     out.puts(s"let _prc = self_rc._parent.get_value().borrow().upgrade();")
@@ -398,7 +398,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         importList.add(s"""#[path = "$mod_name.rs"] mod $mod_name;""")
         importList.add(s"use self::$mod_name::*;")
 
-        val argList = translate_args(args, false)
+        val argList = translate_args(args, into = false)
         val argListInParens = s"($argList)"
         out.puts(s"let $procName = $procClass::new$argListInParens;")
         s"$procName.decode(&$srcExpr)"
@@ -794,7 +794,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1(bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}(1)? != 0"
       case BitsType(width: Int, bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}($width)?"
       case t: UserType =>
-        addParams = translate_args(t.args, true)
+        addParams = translate_args(t.args, into = true)
         val userType = t match {
           case t: UserType =>
             val baseName = t.classSpec match {

@@ -73,46 +73,41 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
+  def unwrap(s: String): String = s + ".as_ref().unwrap()"
+
   override def doName(s: String): String = s match {
     case Identifier.PARENT => s
     case _ =>
+      val refOpt = "^Option<.*".r
       val memberFound = findMember(s)
       if (memberFound.isDefined)
         memberFound.get match {
           case vis: ValueInstanceSpec =>
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(vis.id), provider.nowClass, vis.dataTypeComposite)
-            val refOpt = "^Option<.*".r
             aType match {
-              case refOpt() => s"$s()?.as_ref().unwrap()"
+              case refOpt() => unwrap(s"$s()?")
               case _ => s"$s()?"
             }
           case as: AttrSpec =>
             val code = s"$s()"
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(as.id), provider.nowClass, as.dataTypeComposite)
-            //val refOpt = "Option<[^>]+>$".r
-            val refOpt = "^Option<.*".r
             aType match {
-              //case "String" => s"$code.as_str()"
-              //case "Vec<u8>" => s"$code.as_slice()"
               case refOpt() =>
                 if (!enum_numeric_only(as.dataTypeComposite)) {
-                  s"$code.as_ref().unwrap()"
+                  unwrap(code)
                 } else code
               case _ => code
             }
           case pd: ParamDefSpec =>
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(pd.id), provider.nowClass, pd.dataTypeComposite)
-            val refOpt = "^Option<.*".r
             aType match {
-              case refOpt() => s"$s().as_ref().unwrap()"
+              case refOpt() => unwrap(s"$s()")
               case _ => s"$s()"
             }
           case pis: ParseInstanceSpec =>
-            //s"$s()?"
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(pis.id), provider.nowClass, pis.dataTypeComposite)
-            val refOpt = "^Option<.*".r
             aType match {
-              case refOpt() => s"$s()?.as_ref().unwrap()"
+              case refOpt() => unwrap(s"$s()?")
               case _ => s"$s()?"
             }
           case _ =>
@@ -197,7 +192,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val t = translate(value)
     var a = doName(attrName)
     attrName match {
-      case Identifier.PARENT => a = a + ".get_value().borrow().upgrade().as_ref().unwrap()"
+      case Identifier.PARENT => a = a + unwrap(".get_value().borrow().upgrade()")
       case _ =>
     }
     var r = ""
@@ -257,8 +252,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
-  var context_need_deref_attr = false
-
   def enum_numeric_only(dataType: DataType): Boolean = {
     var types : Set[DataType] = Set()
     var enum_typename = false
@@ -308,23 +301,19 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case Identifier.ITERATOR2 => "_tmpb"
     case Identifier.INDEX => "_i"
     case Identifier.IO => s"${RustCompiler.privateMemberName(IoIdentifier)}"
-    case Identifier.ROOT => s"_r"
-    case Identifier.PARENT => s"_prc.as_ref().unwrap()"
+    case Identifier.ROOT => "_r"
+    case Identifier.PARENT => unwrap("_prc")
     case _ =>
       val n = doName(s)
       val deref = !n.endsWith(".as_str()") && !n.endsWith(".as_slice()") && need_deref(s)
-      if (context_need_deref_attr || deref) {
+      if (deref) {
         s"*${self_name()}.$n"
       } else {
         s"${self_name()}.$n"
       }
   }
-  override def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
-    //context_need_deref_attr = true
-    val code = s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
-    //context_need_deref_attr = false
-    code
-  }
+  override def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
 
   override def doInternalName(id: Identifier): String =
     s"${doLocalName(idToStr(id))}"
@@ -343,13 +332,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
-    // val l = translate(left)
-    // val r = translate(right)
-    // val asStr = if (l.endsWith(".as_str()") && r.endsWith(")?")) ".as_str()" else ""
-    // s"$l ${cmpOp(op)} $r$asStr"
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"${ensure_deref(translate(left))} ${cmpOp(op)} ${remove_deref(translate(right))}.to_string()"
-  }
 
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     s"($id as i64).try_into()?"
@@ -478,13 +462,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     detectType(a) match {
       case t: CalcArrayType =>
         t.elType match {
-          case f: FloatMultiType => true
+          case _: FloatMultiType => true
           case CalcFloatType => true
           case _ => false
         }
       case t: ArrayType =>
         t.elType match  {
-          case f: FloatMultiType => true
+          case _: FloatMultiType => true
           case _ => false
         }
       case _ => false
