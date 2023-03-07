@@ -101,7 +101,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
-    out.puts("self._root = _root if _root else self")
+    if (name == rootClassName) {
+      out.puts("self._root = _root if _root else self")
+    } else {
+      out.puts("self._root = _root")
+    }
 
     if (isHybrid)
       out.puts("self._is_le = _is_le")
