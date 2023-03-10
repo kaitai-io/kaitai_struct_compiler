@@ -521,7 +521,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                               instName: InstanceIdentifier,
                               dataType: DataType,
                               isNullable: Boolean): Unit = {
-    in_instance = true
     out.puts(s"pub fn ${idToStr(instName)}(")
     out.inc
     out.puts("&self")
@@ -548,8 +547,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  var in_instance = false
-
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     dataType match {
       case _: UserType =>
@@ -570,7 +567,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceReturn(instName: InstanceIdentifier,
                               attrType: DataType): Unit = {
     out.puts(s"Ok(${privateMemberName(instName)})")
-    in_instance = false
   }
 
   override def enumDeclaration(curClass: List[String],
@@ -957,20 +953,16 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case NoRepeat =>
         var newStream = newStreamRaw
         val localIO = localTemporaryName(ioId)
-        //if (in_instance) {
           val ids = idToStr(id)
           out.puts(s"let $ids = $newStream;")
           newStream = ids
-        //}
         out.puts(s"let $localIO = BytesReader::from($newStream.clone());")
         s"&$localIO"
       case _ =>
         val ids = idToStr(id)
         val localIO = s"io_$ids"
-        //if (in_instance) {
           out.puts(s"let $ids = $newStreamRaw;")
           newStreamRaw = ids
-        //}
         out.puts(s"let $localIO = BytesReader::from($newStreamRaw.last().unwrap().clone());")
         s"&$localIO"
     }
