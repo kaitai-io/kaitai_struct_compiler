@@ -773,7 +773,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                          io: String,
                          defEndian: Option[FixedEndian]): String = {
     var addParams = ""
-    val expr = dataType match {
+    dataType match {
       case t: ReadableType =>
         t match {
           case IntMultiType(_, _, None) =>
@@ -838,12 +838,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         return s"t"
       case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
     }
-    // in expr_2.ksy we got into rustc bug
-    // https://github.com/rust-lang/rust/issues/82656
-    // https://github.com/rust-lang/rust/issues/70919
-    // workaround:
-    out.puts(s"let t = $expr;")
-    s"t"
   }
 
   override def bytesPadTermExpr(expr0: String,
