@@ -399,7 +399,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
-  // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr): String =
     s"""format!("{}{}", ${translate(left)}, ${translate(right)})"""
 
