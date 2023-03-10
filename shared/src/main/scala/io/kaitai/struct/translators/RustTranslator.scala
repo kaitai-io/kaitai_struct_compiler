@@ -80,43 +80,44 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case _ =>
       val refOpt = "^Option<.*".r
       val memberFound = findMember(s)
-      if (memberFound.isDefined)
+      if (memberFound.isDefined) {
+        val f = s"$s()"
         memberFound.get match {
           case vis: ValueInstanceSpec =>
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(vis.id), provider.nowClass, vis.dataTypeComposite)
             aType match {
-              case refOpt() => unwrap(s"$s()?")
-              case _ => s"$s()?"
+              case refOpt() => unwrap(s"$f?")
+              case _ => s"$f?"
             }
           case as: AttrSpec =>
-            val code = s"$s()"
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(as.id), provider.nowClass, as.dataTypeComposite)
             aType match {
               case refOpt() =>
                 if (!enum_numeric_only(as.dataTypeComposite)) {
-                  unwrap(code)
-                } else code
-              case _ => code
+                  unwrap(f)
+                } else f
+              case _ => f
             }
           case pd: ParamDefSpec =>
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(pd.id), provider.nowClass, pd.dataTypeComposite)
             aType match {
-              case refOpt() => unwrap(s"$s()")
-              case _ => s"$s()"
+              case refOpt() => unwrap(s"$f")
+              case _ => s"$f"
             }
           case pis: ParseInstanceSpec =>
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(pis.id), provider.nowClass, pis.dataTypeComposite)
             aType match {
-              case refOpt() => unwrap(s"$s()?")
-              case _ => s"$s()?"
+              case refOpt() => unwrap(s"$f?")
+              case _ => s"$f?"
             }
           case _ =>
-            s"$s()"
+            s"$f"
         }
+      }
       else {
         s"$s()"
       }
-  }
+    }
 
   def findMember(attrName: String, c: ClassSpec = provider.nowClass): Option[MemberSpec] = {
     def findInClass(inClass: ClassSpec): Option[MemberSpec] = {
@@ -146,9 +147,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       None
     }
 
-    val attr = attrName match {
+    attrName match {
       case Identifier.PARENT | Identifier.IO =>
-        None
+        return None
       case _ =>
         for { ms <- findInClass(c) }
           return Some(ms)
@@ -157,9 +158,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
           for { ms <- findInClass(cls._2) }
             return Some(ms)
         }
-        None
     }
-    attr
+    None
   }
 
   def get_top_class(c: ClassSpec): ClassSpec = c.upClass match {
