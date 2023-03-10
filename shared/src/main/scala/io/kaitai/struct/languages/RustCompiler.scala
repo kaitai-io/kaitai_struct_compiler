@@ -217,7 +217,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType)
     }
 
-    //val typeNameEx = kaitaiTypeToNativeType(Some(attrName), typeProvider.nowClass, attrType, excludeOptionWrapper = true)
     out.puts(
       s"impl ${classTypeName(typeProvider.nowClass)} {")
     out.inc
@@ -673,7 +672,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (paramId.isDefined) {
       need_clone = !translator.is_copy_type(paramId.get.dataType)
     }
-    //val typeName = kaitaiTypeToNativeType(Some(id), typeProvider.nowClass, paramId.get.dataType)
     paramId.get.dataType match {
       case _: EnumType =>
         out.puts(s"*${RustCompiler.privateMemberName(id, writeAccess = true)} = $expr.clone();")
