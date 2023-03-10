@@ -80,8 +80,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case _ =>
       val refOpt = "^Option<.*".r
       val memberFound = findMember(s)
+      val f = s"$s()"
       if (memberFound.isDefined) {
-        val f = s"$s()"
         memberFound.get match {
           case vis: ValueInstanceSpec =>
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(vis.id), provider.nowClass, vis.dataTypeComposite)
@@ -101,8 +101,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
           case pd: ParamDefSpec =>
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(pd.id), provider.nowClass, pd.dataTypeComposite)
             aType match {
-              case refOpt() => unwrap(s"$f")
-              case _ => s"$f"
+              case refOpt() => unwrap(f)
+              case _ => f
             }
           case pis: ParseInstanceSpec =>
             val aType = RustCompiler.kaitaiTypeToNativeType(Some(pis.id), provider.nowClass, pis.dataTypeComposite)
@@ -111,11 +111,11 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
               case _ => s"$f?"
             }
           case _ =>
-            s"$f"
+            f
         }
       }
       else {
-        s"$s()"
+        f
       }
     }
 
