@@ -364,7 +364,7 @@ class JavaMain(config: CLIConfig) {
   ): SpecSuccess = {
     val res = Main.compile(specs, spec, lang, runtime)
     res.files.foreach { (file) =>
-      Log.fileOps.info(() => s".... writing $outDir/${file.fileName}")
+      Log.fileOps.info(() => s".... writing ${file.fileName}")
 
       val outPath = new File(outDir + "/" + file.fileName)
 
