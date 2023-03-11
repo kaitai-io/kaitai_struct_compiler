@@ -88,7 +88,7 @@ object Main {
     * @return a container that contains all compiled files and results
     */
   def compile(specs: ClassSpecs, spec: ClassSpec, lang: LanguageCompilerStatic, conf: RuntimeConfig): CompileLog.SpecSuccess = {
-    val config = updateConfig(conf, spec)
+    val config = updateConfigFromMeta(conf, spec.meta)
 
     val cc = lang match {
       case GraphvizClassCompiler =>
