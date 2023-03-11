@@ -162,11 +162,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     None
   }
 
-  def get_top_class(c: ClassSpec): ClassSpec = c.upClass match {
-    case Some(upClass) => get_top_class(upClass)
-    case None => c
-  }
-
   def get_instance(cs: ClassSpec, s: String): Option[InstanceSpec] = {
     var found : Option[InstanceSpec] = None
     // look for instance
