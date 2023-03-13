@@ -30,7 +30,7 @@ class RustClassCompiler(
 
     // Basic struct declaration
     lang.classHeader(curClass.name)
-    
+
     compileAttrDeclarations(curClass.seq ++ extraAttrs)
     curClass.instances.foreach { case (instName, instSpec) =>
       compileInstanceDeclaration(instName, instSpec)
