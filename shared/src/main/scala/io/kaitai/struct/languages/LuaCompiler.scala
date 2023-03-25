@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError, NeedRaw}
+import io.kaitai.struct.{ClassTypeProvider, Constants, RuntimeConfig, Utils}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, NeedRaw, ValidationNotEqualError}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -36,7 +36,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("require(\"" + classSpec.name.head + "\")")
 
   override def fileHeader(topClassName: String): Unit = {
-    outHeader.puts(s"-- $headerComment")
+    outHeader.puts(s"-- ${Constants.headerComment}")
     outHeader.puts("--")
     outHeader.puts("-- This file is compatible with Lua 5.3")
     outHeader.puts

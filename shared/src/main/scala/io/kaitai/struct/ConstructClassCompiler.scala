@@ -27,7 +27,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       "",
       List(CompileLog.FileSuccess(
         outFileName(topClass.nameAsStr),
-        importList.toList.mkString("\n") + "\n\n" + out.result
+        s"# ${Constants.headerComment}\n" + importList.toList.mkString("\n") + "\n\n" + out.result
       ))
     )
   }

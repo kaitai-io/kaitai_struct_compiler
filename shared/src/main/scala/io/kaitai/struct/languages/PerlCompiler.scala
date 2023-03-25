@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{ExceptionNames, _}
 import io.kaitai.struct.translators.{PerlTranslator, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, Constants, RuntimeConfig}
 
 class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -37,7 +37,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.toList.map((x) => s"use $x;").mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
-    outHeader.puts(s"# $headerComment")
+    outHeader.puts(s"# ${Constants.headerComment}")
     outHeader.puts
 
     importList.add("strict")
