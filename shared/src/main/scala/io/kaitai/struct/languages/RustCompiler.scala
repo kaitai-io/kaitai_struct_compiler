@@ -376,19 +376,19 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case ProcessXor(xorValue) =>
         translator.detectType(xorValue) match {
           case _: IntType =>
-            s"S::process_xor_one(&$srcExpr, ${expression(xorValue)})"
+            s"BytesReader::process_xor_one(&$srcExpr, ${expression(xorValue)})"
           case _: BytesType =>
-            s"S::process_xor_many(&$srcExpr, &${translator.remove_deref(expression(xorValue))})"
+            s"BytesReader::process_xor_many(&$srcExpr, &${translator.remove_deref(expression(xorValue))})"
         }
       case ProcessZlib =>
-        s"S::process_zlib(&$srcExpr)"
+        s"BytesReader::process_zlib(&$srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"S::process_rotate_left(&$srcExpr, $expr)"
+        s"BytesReader::process_rotate_left(&$srcExpr, $expr)"
       case ProcessCustom(name, args) =>
         val procClass = name.map(x => type2class(x)).mkString("::")
         val procName = s"_process_${idToStr(varSrc)}"
@@ -844,12 +844,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                 include: Boolean): String = {
     val ioId = privateMemberName(IoIdentifier)
     val expr = padRight match {
-      case Some(p) => s"$ioId.bytes_strip_right($expr0, $p).into()"
+      case Some(p) => s"BytesReader::bytes_strip_right(&$expr0, $p).into()"
       case None => expr0
     }
 
     terminator match {
-      case Some(term) => s"$ioId.bytes_terminate($expr, $term, $include).into()"
+      case Some(term) => s"BytesReader::bytes_terminate(&$expr, $term, $include).into()"
       case None => expr
     }
   }
@@ -1012,7 +1012,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       types.foreach(t => {
         // Because this switch type will itself be in an option, we can exclude it from user types
         val variantName = switchVariantName(id, t)
-        var v = "v"
         var typeName = kaitaiTypeToNativeType(
               Some(id),
               typeProvider.nowClass,
@@ -1046,8 +1045,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           // special case for Bytes(Vec[u8]) (else switch)
           t match {
             case _ : BytesType =>
-              v = "v.to_vec()"
-              typeName = s"&[u8]"
+              typeName = s"Vec<u8>"
             case _ =>
           }
           // generate helpers to create enum from variant (let enum1 = Var1.into())
@@ -1055,7 +1053,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           out.inc
           out.puts(s"fn from(v: $typeName) -> Self {")
           out.inc
-          out.puts(s"Self::$variantName($v)")
+          out.puts(s"Self::$variantName(v)")
           out.dec
           out.puts("}")
           out.dec

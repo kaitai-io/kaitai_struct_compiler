@@ -423,18 +423,16 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
         s"base_convert(strval(${translate(i)}), 10, $baseStr)"
     }
   }
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
-    if (bytesExpr.charAt(0) == '*') {
-      s"decode_string(&$bytesExpr, &${translate(encoding)})?"
-    } else {
-      s"decode_string(${ensure_vec_amp(bytesExpr)}, &${translate(encoding)})?"
-    }
-  }
+
+  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
+    s"decode_string(&$bytesExpr, &${translate(encoding)})?"
 
   override def bytesLength(b: Ast.expr): String =
     s"${remove_deref(translate(b))}.len()"
+
   override def strLength(s: expr): String =
     s"${remove_deref(translate(s))}.len()"
+
   override def strReverse(s: expr): String = {
     val e = translate(s)
     if (e.charAt(0) == '*')
