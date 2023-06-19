@@ -333,7 +333,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentRepeatEos(id, r)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
-    out.puts(s"for i := 1;; i++ {")
+    out.puts("i := 0")
+    out.puts("for {")
     out.inc
   }
 
@@ -351,6 +352,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("break")
     out.dec
     out.puts("}")
+    out.puts("i++")
     out.dec
     out.puts("}")
   }

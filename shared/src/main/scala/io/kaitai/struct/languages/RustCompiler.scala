@@ -283,6 +283,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentRepeatEos(id, expr)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
+    out.puts("let mut i = 0;")
     out.puts("while {")
     out.inc
   }
@@ -299,9 +300,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts(s"!(${expression(untilExpr)})")
+    out.puts(s"if ${expression(untilExpr)}} {")
+    out.inc
+    out.puts("break;")
     out.dec
-    out.puts("} { }")
+    out.puts("}")
+    out.puts("i += 1;")
+    out.dec
+    out.puts("}")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {

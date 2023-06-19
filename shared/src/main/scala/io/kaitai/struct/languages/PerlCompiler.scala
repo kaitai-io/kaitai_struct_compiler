@@ -263,7 +263,8 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentRepeatEos(id, expr)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    out.puts("do {")
+    out.puts("my $i = 0;")
+    out.puts("while (1) {")
     out.inc
   }
 
@@ -279,8 +280,10 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts(s"last if(${expression(untilExpr)});")
+    out.puts("$i++;")
     out.dec
-    out.puts(s"} until (${expression(untilExpr)});")
+    out.puts("}")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =

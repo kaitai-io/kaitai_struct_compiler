@@ -338,7 +338,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("var i = 0;")
-    out.puts("do {")
+    out.puts("while (true) {")
     out.inc
   }
 
@@ -350,9 +350,14 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
+    out.puts(s"if (${expression(untilExpr)}}) {")
+    out.inc
+    out.puts("break;")
+    out.dec
+    out.puts("}")
     out.puts("i++;")
     out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts("}")
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
