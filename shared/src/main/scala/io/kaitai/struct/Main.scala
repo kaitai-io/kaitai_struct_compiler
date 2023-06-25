@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec, MetaSpec}
-import io.kaitai.struct.languages.{GoCompiler, NimCompiler, RustCompiler}
+import io.kaitai.struct.languages.{CCompiler, GoCompiler, NimCompiler, RustCompiler}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile._
 import io.kaitai.struct.problems.CompilationProblem
@@ -92,6 +92,8 @@ object Main {
     val config = updateConfigFromMeta(conf, spec.meta)
 
     val cc = lang match {
+      case CCompiler =>
+        new CClassCompiler(specs, spec, conf)
       case GraphvizClassCompiler =>
         new GraphvizClassCompiler(specs, spec)
       case GoCompiler =>

@@ -23,3 +23,5 @@ project/boot/
 # Unpacking complete binaries for testing purposes
 /runnable
 js/npm
+output/kaitai-struct-compiler-0.10-SNAPSHOT/lib
+.bsp
