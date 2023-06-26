@@ -1,15 +1,16 @@
 package io.kaitai.struct
 
+import io.kaitai.struct.JavaMain.CLIConfig
+import io.kaitai.struct.format.KSVersion
+import io.kaitai.struct.formats.JavaKSYParser
+import io.kaitai.struct.SimpleMatchers
+import org.scalatest.funsuite.AnyFunSuite
+
 import java.io._
 import java.nio.charset.Charset
+import scala.collection.mutable
 
-import io.kaitai.struct.JavaMain.CLIConfig
-import io.kaitai.struct.format.{KSVersion, YAMLParseException}
-import io.kaitai.struct.formats.JavaKSYParser
-import io.kaitai.struct.precompile.{ErrorInInput, YAMLParserError}
-import org.scalatest.FunSuite
-
-class ErrorMessagesSpec extends FunSuite {
+class ErrorMessagesSpec extends AnyFunSuite with SimpleMatchers {
   // required, because this class is the sole entry point and this test needs
   // version info
   KSVersion.current = Version.version
@@ -18,18 +19,23 @@ class ErrorMessagesSpec extends FunSuite {
   val CHARSET_UTF8 = Charset.forName("UTF-8")
   val DEFAULT_CONFIG = CLIConfig()
 
-  def getExpected(fn: String): String = {
+  def getExpected(fn: String): List[String] = {
     val fis = new FileInputStream(fn)
     val isr = new InputStreamReader(fis, CHARSET_UTF8)
     val br = new BufferedReader(isr)
-    val firstLine = br.readLine()
 
-    if (firstLine.startsWith("# ")) {
-      firstLine.substring(2)
-    } else {
-      "???"
-      //fail(s"unable to parse expected line: $firstLine")
-    }
+    var hasComment = true
+    var expectedLines = mutable.ArrayBuffer[String]()
+
+    do {
+      val line = br.readLine()
+      hasComment = line != null && line.startsWith("#")
+      if (hasComment) {
+        expectedLines += line.substring(1).stripPrefix(" ")
+      }
+    } while (hasComment)
+
+    expectedLines.toList
   }
 
   def testOne(f: File): Unit = {
@@ -38,26 +44,22 @@ class ErrorMessagesSpec extends FunSuite {
     val fn = f.toString
     test(testName) {
       val expected = getExpected(fn)
-      val caught = intercept[RuntimeException] {
-        val classSpec = JavaKSYParser.localFileToSpecs(fn, DEFAULT_CONFIG)
-      }
-      caught match {
-        case _: YAMLParseException | _: ErrorInInput | _: YAMLParserError =>
-          assertResult(expected) {
-            // replace version-dependent message with a moniker
-            caught.getMessage.replace(
-              s"but you have ${KSVersion.current}",
-              "but you have $KS_VERSION"
-            )
-          }
-        case other =>
-          System.err.println("got other exception, rethrowing")
-          throw other
-      }
+      val (_, problems) = JavaKSYParser.localFileToSpecs(fn, DEFAULT_CONFIG)
+      val problemsStr = problems.map(problem =>
+        // replace version-dependent message with a moniker
+        problem.message.replace(
+          s"but you have ${KSVersion.current}",
+          "but you have $KS_VERSION"
+        ).replace(FORMATS_ERR_DIR + "/", "")
+      )
+
+      problemsStr.mkString("\n") shouldEqualPlainly expected.mkString("\n")
     }
   }
 
   new File(FORMATS_ERR_DIR).listFiles.
     filter((f) => f.isFile && f.getName.endsWith(".ksy")).
     sorted.foreach((f) => testOne(f))
+
+//  testOne(new File(FORMATS_ERR_DIR + "/attr_invalid_switch_eq.ksy"))
 }

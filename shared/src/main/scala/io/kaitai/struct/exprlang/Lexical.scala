@@ -5,7 +5,7 @@ object WsApi extends fastparse.WhitespaceApi.Wrapper(Lexical.wscomment)
 /**
  * Loosely based on /pythonparse/shared/src/main/scala/pythonparse/
  * from FastParse, Copyright (c) 2014 Li Haoyi (haoyi.sg@gmail.com)
- * http://www.lihaoyi.com/fastparse/
+ * https://com-lihaoyi.github.io/fastparse/
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
@@ -46,17 +46,17 @@ object Lexical {
   val escapeseq = P( "\\" ~/ (quotedchar | quotedoctal | quotedhex) )
 
   val QUOTED_CC = Map(
-    "a" -> "\7",  // bell, ASCII code 7
-    "b" -> "\b",  // backspace, ASCII code 8
-    "t" -> "\t",  // horizontal tab, ASCII code 9
-    "n" -> "\n",  // newline, ASCII code 10
-    "v" -> "\13", // vertical tab, ASCII code 11 = 0o13
-    "f" -> "\14", // form feed, ASCII code 12 = 0o14
-    "r" -> "\r",  // carriage return, ASCII code 13
-    "e" -> "\33", // escape, ASCII code 27 = 0o33
-    "'" -> "'",   // single quote
-    "\"" -> "\"", // double quote
-    "\\" -> "\\"  // backslash
+    "a" -> "\u0007", // bell, ASCII code 7
+    "b" -> "\b",     // backspace, ASCII code 8
+    "t" -> "\t",     // horizontal tab, ASCII code 9
+    "n" -> "\n",     // newline, ASCII code 10
+    "v" -> "\u000b", // vertical tab, ASCII code 11 = 0o13
+    "f" -> "\u000c", // form feed, ASCII code 12 = 0o14
+    "r" -> "\r",     // carriage return, ASCII code 13
+    "e" -> "\u001b", // escape, ASCII code 27 = 0o33
+    "'" -> "'",      // single quote
+    "\"" -> "\"",    // double quote
+    "\\" -> "\\"     // backslash
   )
   val VALID_QUOTED = QUOTED_CC.keys.toList.sorted.mkString
   val quotedchar = P( CharIn(VALID_QUOTED).! ).map(QUOTED_CC)

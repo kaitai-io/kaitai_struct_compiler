@@ -19,6 +19,6 @@ class JavaScriptClassSpecs(importer: JavaScriptImporter, firstSpec: ClassSpec)
   def doImport(name: String, mode: String): Future[Option[ClassSpec]] =
     importer.importYaml(name, mode).toFuture.map { (yaml) =>
       val yamlScala = JavaScriptKSYParser.yamlJavascriptToScala(yaml)
-      Some(ClassSpec.fromYaml(yamlScala))
+      Some(ClassSpec.fromYaml(yamlScala, Some(name)))
     }(JSExecutionContext.queue)
 }

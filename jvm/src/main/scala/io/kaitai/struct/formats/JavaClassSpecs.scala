@@ -1,11 +1,10 @@
 package io.kaitai.struct.formats
 
-import java.io.{File, FileNotFoundException, IOError}
-
 import io.kaitai.struct.Log
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
-import io.kaitai.struct.precompile.ErrorInInput
+import io.kaitai.struct.problems.ErrorInInput
 
+import java.io.{File, FileNotFoundException}
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -72,7 +71,7 @@ object JavaClassSpecs {
           cacheMap(name) = spec
           Some(spec)
         } catch {
-          case err: Throwable => throw new ErrorInInput(err, path, inFile)
+          case err: Throwable => throw ErrorInInput(err, path, inFile).toException
         }
     }
   }

@@ -37,10 +37,10 @@ abstract class BaseTranslator(val provider: TypeProvider)
   /**
     * Translates KS expression into an expression in some target language.
     * Note that this implementation may throw errors subclassed off the
-    * [[io.kaitai.struct.precompile.ExpressionError]] when encountering
+    * [[precompile.ExpressionError]] when encountering
     * some sort of logical error in expression (i.e. invalid usage of
     * operator, type mismatch, etc). Typically, one's supposed to catch
-    * and rethrow it, wrapped in [[io.kaitai.struct.precompile.ErrorInInput]]
+    * and rethrow it, wrapped in [[problems.ErrorInInput]]
     * to assist error reporting in KSC.
     *
     * @param v KS expression to translate
@@ -68,13 +68,18 @@ abstract class BaseTranslator(val provider: TypeProvider)
         } else {
           doLocalName(name.name)
         }
+      case Ast.expr.InternalName(id: Identifier) =>
+        doInternalName(id)
       case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
-        unaryOp(op) + (inner match {
-          case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) =>
-            translate(inner)
+        val opStr = unaryOp(op)
+        (op, inner) match {
+          /** required by trait [[MinSignedIntegers]] - see also test cases in [[TranslatorSpec]] */
+          case (Ast.unaryop.Minus, Ast.expr.IntNum(n)) => translate(Ast.expr.IntNum(-n))
+          case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
+            s"$opStr${translate(inner)}"
           case _ =>
-            s"(${translate(inner)})"
-        })
+            s"$opStr(${translate(inner)})"
+        }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
@@ -172,6 +177,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
 
   def doLocalName(s: String): String = doName(s)
   def doName(s: String): String
+  def doInternalName(id: Identifier): String = ???
   def userTypeField(userType: UserType, value: Ast.expr, attrName: String): String =
     anyField(value, attrName)
   def kaitaiStructField(value: Ast.expr, name: String): String =

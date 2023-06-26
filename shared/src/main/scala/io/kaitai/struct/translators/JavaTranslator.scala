@@ -10,12 +10,23 @@ import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
-    val literal = if (n > Long.MaxValue) {
+    // Java's integer parsing behaves differently depending on whether you use decimal or hex syntax.
+    // With decimal syntax, the parser/compiler rejects any number that cannot be stored in a long
+    // (signed 64-bit integer) without overflow. With hexadecimal syntax, it allows anything that
+    // would fit in an unsigned 64-bit integer. Java's `long` is always signed, so if you use this
+    // trick to enter a number that is too large for a signed 64-bit integer, it will overflow into
+    // negative. But this can still be useful if you don't perform any arithmetic that cares about
+    // the sign (e. g. you pass the value unmodified to something else, or you use only bit operations
+    // or Long's "unsigned" methods).
+    //
+    // Of course, if `n > Utils.MAX_UINT64` we'll still get out of range error
+    // TODO: Convert real big numbers to BigInteger
+    val literal = if (n > Long.MaxValue && n <= Utils.MAX_UINT64) {
       "0x" + n.toString(16)
     } else {
       n.toString
     }
-    val suffix = if (n > Int.MaxValue) "L" else ""
+    val suffix = if (n < Int.MinValue || n > Int.MaxValue) "L" else ""
 
     s"$literal$suffix"
   }
@@ -45,15 +56,15 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def doName(s: String) =
     s match {
-      case Identifier.ROOT => s
-      case Identifier.PARENT => "_parent()"
-      case Identifier.IO => "_io()"
       case Identifier.ITERATOR => "_it"
       case Identifier.ITERATOR2 => "_buf"
       case Identifier.SWITCH_ON => "on"
       case Identifier.INDEX => "i"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
+
+  override def doInternalName(id: Identifier): String =
+    s"${JavaCompiler.publicMemberName(id)}()"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${enumClass(enumTypeAbs)}.${Utils.upperUnderscoreCase(label)}"
@@ -65,14 +76,13 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
   }
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    if (op == Ast.cmpop.Eq) {
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = op match {
+    case Ast.cmpop.Eq =>
       s"${translate(left)}.equals(${translate(right)})"
-    } else if (op == Ast.cmpop.NotEq) {
+    case Ast.cmpop.NotEq =>
       s"!(${translate(left)}).equals(${translate(right)})"
-    } else {
+    case _ =>
       s"(${translate(left)}.compareTo(${translate(right)}) ${cmpOp(op)} 0)"
-    }
   }
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {

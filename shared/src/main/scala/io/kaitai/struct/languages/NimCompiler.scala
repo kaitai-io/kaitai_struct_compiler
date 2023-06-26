@@ -122,7 +122,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"`${idToStr(attrName)}`*: ${ksToNim(attrType)}")
   }
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    attributeDeclaration(attrName, attrType, isNullable)
+    out.puts(s"`${idToStr(attrName)}`: ${ksToNim(attrType)}")
+    out.puts(s"`${instanceFlagIdentifier(attrName)}`: bool")
   }
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {}
@@ -142,7 +143,13 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     universalFooter
   }
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+    // sequences don't have to be manually initialized in Nim - they're automatically initialized as
+    // empty sequences (see https://narimiran.github.io/nim-basics/#_result_variable)
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("block:")
     out.inc
     out.puts("var i: int")
@@ -154,20 +161,20 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.dec
   }
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     out.puts(s"for i in 0 ..< int(${expression(repeatExpr)}):")
     out.inc
   }
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     out.puts("block:")
     out.inc
     out.puts("var i: int")
     out.puts("while true:")
     out.inc
   }
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts(s"if ${expression(repeatExpr)}:")
+    out.puts(s"if ${expression(untilExpr)}:")
     out.inc
     out.puts("break")
     out.dec
@@ -223,15 +230,10 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentSimple(instName, cast)
   }
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    dataType match {
-      case _: ArrayType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
-      case _: StrType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
-      case _: BytesType => out.puts(s"if ${privateMemberName(instName)}.len != 0:")
-      case _ => out.puts(s"if ${privateMemberName(instName)} != nil:")
-    }
-      out.inc
-      instanceReturn(instName, dataType)
-      out.dec
+    out.puts(s"if this.${instanceFlagIdentifier(instName)}:")
+    out.inc
+    out.puts(s"return ${privateMemberName(instName)}")
+    out.dec
   }
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"proc ${idToStr(instName).dropRight(4)}(this: ${namespaced(className)}): ${ksToNim(dataType)} = ")
@@ -242,6 +244,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+    out.puts(s"this.${instanceFlagIdentifier(instName)} = true")
     out.puts(s"return ${privateMemberName(instName)}")
   }
   // def normalIO: String = ???
@@ -500,6 +503,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     out.puts( "]##")
   }
+
+  def instanceFlagIdentifier(id: InstanceIdentifier) = s"${idToStr(id)}Flag"
 }
 
 object NimCompiler extends LanguageCompilerStatic

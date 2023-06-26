@@ -8,6 +8,7 @@ import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompiler
 import io.kaitai.struct.translators.ConstructTranslator
 
 class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
+  import ConstructClassCompiler._
   val out = new StringLanguageOutputWriter(indent)
   val importList = new ImportList
 
@@ -15,29 +16,28 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   val translator = new ConstructTranslator(provider, importList)
 
   override def compile: CompileLog.SpecSuccess = {
-    out.puts("from construct import *")
-    out.puts("from construct.lib import *")
-    out.puts
+    importList.add("from construct import *")
+    importList.add("from construct.lib import *")
 
     compileClass(topClass)
 
-    out.puts(s"_schema = ${type2class(topClass)}")
+    out.puts(s"_schema = ${types2class(topClass.name)}")
 
     CompileLog.SpecSuccess(
       "",
       List(CompileLog.FileSuccess(
         outFileName(topClass.nameAsStr),
-        out.result
+        importList.toList.mkString("\n") + "\n\n" + out.result
       ))
     )
   }
 
   def compileClass(cs: ClassSpec): Unit = {
-    cs.types.foreach { case (_, typeSpec) => compileClass(typeSpec) }
-
     cs.enums.foreach { case (_, enumSpec) => compileEnum(enumSpec) }
 
-    out.puts(s"${type2class(cs)} = Struct(")
+    cs.types.foreach { case (_, typeSpec) => compileClass(typeSpec) }
+
+    out.puts(s"${types2class(cs.name)} = Struct(")
     out.inc
 
     provider.nowClass = cs
@@ -101,15 +101,12 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def compileEnum(enumSpec: EnumSpec): Unit = {
-    out.puts(s"def ${enumToStr(enumSpec)}(subcon):")
+    importList.add("import enum")
+    out.puts(s"class ${types2class(enumSpec.name)}(enum.IntEnum):")
     out.inc
-    out.puts("return Enum(subcon,")
-    out.inc
-    enumSpec.sortedSeq.foreach { case (number, valueSpec) =>
-      out.puts(s"${valueSpec.name}=$number,")
+    enumSpec.sortedSeq.foreach { case (id, valueSpec) =>
+      out.puts(s"${valueSpec.name} = ${translator.doIntLiteral(id)}")
     }
-    out.dec
-    out.puts(")")
     out.dec
     out.puts
   }
@@ -122,10 +119,6 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       case InstanceIdentifier(name) => name
     }
   }
-
-  def type2class(cs: ClassSpec) = cs.name.mkString("__")
-
-  def enumToStr(enumSpec: EnumSpec) = enumSpec.name.mkString("__")
 
   def typeToStr(dataType: DataType): String = dataType match {
     case Int1Type(signed) =>
@@ -150,17 +143,17 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
           attrBytesTerminatedType(btt, s"GreedyString(encoding='$encoding')")
       }
     case ut: UserTypeInstream =>
-      s"LazyBound(lambda: ${type2class(ut.classSpec.get)})"
+      s"LazyBound(lambda: ${types2class(ut.classSpec.get.name)})"
     case utb: UserTypeFromBytes =>
       utb.bytes match {
         //case BytesEosType(terminator, include, padRight, process) =>
         case BytesLimitType(size, terminator, include, padRight, process) =>
-          s"FixedSized(${translator.translate(size)}, LazyBound(lambda: ${type2class(utb.classSpec.get)}))"
+          s"FixedSized(${translator.translate(size)}, LazyBound(lambda: ${types2class(utb.classSpec.get.name)}))"
         //case BytesTerminatedType(terminator, include, consume, eosError, process) =>
         case _ => "???"
       }
     case et: EnumType =>
-      s"${enumToStr(et.enumSpec.get)}(${typeToStr(et.basedOn)})"
+      s"Enum(${typeToStr(et.basedOn)}, ${types2class(et.enumSpec.get.name)})"
     case st: SwitchType =>
       attrSwitchType(st)
     case _ => "???"
@@ -218,4 +211,6 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
 object ConstructClassCompiler extends LanguageCompilerStatic {
   // FIXME: Unused, should be probably separated from LanguageCompilerStatic
   override def getCompiler(tp: ClassTypeProvider, config: RuntimeConfig): LanguageCompiler = ???
+
+  def types2class(name: List[String]): String = name.mkString("__")
 }

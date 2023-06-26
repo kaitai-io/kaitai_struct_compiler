@@ -1,9 +1,11 @@
 package io.kaitai.struct.exprlang
 
+import io.kaitai.struct.format.Identifier
+
 /**
   * Loosely based on /pythonparse/shared/src/main/scala/pythonparse/
   * from FastParse, Copyright (c) 2014 Li Haoyi (haoyi.sg@gmail.com)
-  * http://www.lihaoyi.com/fastparse/
+  * https://com-lihaoyi.github.io/fastparse/
   *
   * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
   * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
@@ -46,41 +48,18 @@ object Ast {
       * @return integer result of evaluation if it's constant or None, if it's
       *         variable
       */
-    def evaluateIntConst: Option[BigInt] = {
-      this match {
-        case expr.IntNum(x) =>
-          Some(x)
-        case expr.UnaryOp(op, operand) =>
-          operand.evaluateIntConst.map(opValue =>
-            op match {
-              case unaryop.Invert => ~opValue
-              case unaryop.Not => return None // TODO?
-              case unaryop.Minus => -opValue
-            }
-          )
-        case expr.BinOp(left, op, right) =>
-          val leftValue = left.evaluateIntConst match {
-            case Some(x) => x
-            case None => return None
-          }
-          val rightValue = right.evaluateIntConst match {
-            case Some(x) => x
-            case None => return None
-          }
-          op match {
-            case operator.Add => Some(leftValue + rightValue)
-            case operator.Sub => Some(leftValue - rightValue)
-            case operator.Mult => Some(leftValue * rightValue)
-            case operator.Div => Some(leftValue / rightValue)
-            case operator.Mod => Some(leftValue % rightValue)
-            case operator.LShift => Some(leftValue << rightValue.toInt)
-            case operator.RShift => Some(leftValue >> rightValue.toInt)
-            case operator.BitOr => Some(leftValue | rightValue)
-            case operator.BitXor => Some(leftValue ^ rightValue)
-            case operator.BitAnd => Some(leftValue & rightValue)
-          }
-        case _ => None
-      }
+    def evaluateIntConst: Option[BigInt] = ConstEvaluator.evaluateIntConst(this)
+
+    /**
+      * Evaluates the expression, if it's possible to get a string constant as
+      * the result of evaluation.
+      *
+      * @return string result of evaluation if it's constant or None, if it's
+      *         variable
+      */
+    def evaluateStrConst: Option[String] = ConstEvaluator.evaluate(this) match {
+      case ConstEvaluator.value.Str(x) => Some(x)
+      case _ => None
     }
   }
 
@@ -89,7 +68,8 @@ object Ast {
     case class BinOp(left: expr, op: operator, right: expr) extends expr
     case class UnaryOp(op: unaryop, operand: expr) extends expr
     case class IfExp(condition: expr, ifTrue: expr, ifFalse: expr) extends expr
-//    case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
+    // case class Dict(keys: Seq[expr], values: Seq[expr]) extends expr
+    /** Represents `X < Y`, `X > Y` and so on. */
     case class Compare(left: expr, ops: cmpop, right: expr) extends expr
     case class Call(func: expr, args: Seq[expr]) extends expr
     case class IntNum(n: BigInt) extends expr
@@ -103,14 +83,19 @@ object Ast {
     case class CastToType(value: expr, typeName: typeId) extends expr
     case class ByteSizeOfType(typeName: typeId) extends expr
     case class BitSizeOfType(typeName: typeId) extends expr
+    /** Represents `X[Y]`. */
     case class Subscript(value: expr, idx: expr) extends expr
     case class Name(id: identifier) extends expr
+    /** For internal use in the compiler. It cannot appear in an AST parsed from a user-supplied string. */
+    case class InternalName(id: Identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
   }
 
   sealed trait boolop
-  object boolop{
+  object boolop {
+    /** Boolean conjunction. Applicable only to `Boolean`s */
     case object And extends boolop
+    /** Boolean disjunction. Applicable only to `Boolean`s */
     case object Or extends boolop
   }
 
@@ -121,7 +106,7 @@ object Ast {
     case object Mult  extends operator
     case object Div  extends operator
     case object Mod  extends operator
-//    case object Pow  extends operator
+    // case object Pow  extends operator
     case object LShift  extends operator
     case object RShift  extends operator
     case object BitOr  extends operator
@@ -131,8 +116,11 @@ object Ast {
 
   sealed trait unaryop
   object unaryop {
+    /** Bitwise negation operator. Applicable only to `IntNum`s */
     case object Invert extends unaryop
+    /** Boolean negation operator. Applicable only to `Boolean`s */
     case object Not extends unaryop
+    /** Arithmetic negation operator. Applicable only to `IntNum`s / `FloatNum`s */
     case object Minus extends unaryop
   }
 
@@ -145,4 +133,6 @@ object Ast {
     case object Gt extends cmpop
     case object GtE extends cmpop
   }
+
+  case class TypeWithArguments(typeName: typeId, arguments: expr.List)
 }

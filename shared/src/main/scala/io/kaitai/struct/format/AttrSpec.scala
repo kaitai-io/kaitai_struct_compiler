@@ -1,14 +1,12 @@
 package io.kaitai.struct.format
 
 import java.nio.charset.Charset
-
 import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.{Ast, Expressions}
-
-import scala.collection.JavaConversions._
+import io.kaitai.struct.problems.KSYParseError
 
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 
@@ -104,10 +102,10 @@ case class YamlAttrArgs(
           case Some(term) =>
             BytesTerminatedType(term, include, consume, eosError, process)
           case None =>
-            throw new YAMLParseException("'size', 'size-eos' or 'terminator' must be specified", path)
+            throw KSYParseError("'size', 'size-eos' or 'terminator' must be specified", path).toException
         }
       case (Some(_), true) =>
-        throw new YAMLParseException("only one of 'size' or 'size-eos' must be specified", path)
+        throw KSYParseError("only one of 'size' or 'size-eos' must be specified", path).toException
     }
   }
 }
@@ -155,7 +153,7 @@ object AttrSpec {
           NamedIdentifier(idStr)
         } catch {
           case _: InvalidIdentifier =>
-            throw YAMLParseException.invalidId(idStr, "attribute", path ++ List("id"))
+            throw KSYParseError.invalidId(idStr, "attribute", path ++ List("id"))
         }
       case None => NumberedIdentifier(idx)
     }
@@ -167,7 +165,7 @@ object AttrSpec {
       fromYaml2(srcMap, path, metaDef, id)
     } catch {
       case (epe: Expressions.ParseException) =>
-        throw YAMLParseException.expression(epe, path)
+        throw KSYParseError.expression(epe, path)
     }
   }
 
@@ -197,7 +195,7 @@ object AttrSpec {
           byteArray.map(x => Ast.expr.IntNum(x & 0xff))
         )))
       case (Some(_), Some(_)) =>
-        throw new YAMLParseException(s"`contents` and `valid` can't be used together", path)
+        throw KSYParseError.withText(s"`contents` and `valid` can't be used together", path)
     }
 
     val typObj = srcMap.get("type")
@@ -224,7 +222,7 @@ object AttrSpec {
             val switchMapStr = ParseUtils.anyMapToStrMap(switchMap, path)
             parseSwitch(switchMapStr, path, metaDef, yamlAttrArgs)
           case unknown =>
-            throw new YAMLParseException(s"expected map or string, found $unknown", path ++ List("type"))
+            throw KSYParseError.withText(s"expected map or string, found $unknown", path ++ List("type"))
         }
     }
 
@@ -257,12 +255,12 @@ object AttrSpec {
             case integer: Integer =>
               bb.append(Utils.clampIntToByte(integer))
             case el =>
-              throw new YAMLParseException(s"unable to parse fixed content in array: $el", path ++ List(idx.toString))
+              throw KSYParseError.withText(s"unable to parse fixed content in array: $el", path ++ List(idx.toString))
           }
         }
         bb.toArray
       case _ =>
-        throw new YAMLParseException(s"unable to parse fixed content: $c", path)
+        throw KSYParseError.withText(s"unable to parse fixed content: $c", path)
     }
   }
 
@@ -292,14 +290,14 @@ object AttrSpec {
         Expressions.parse(condition) -> condType
       } catch {
         case epe: Expressions.ParseException =>
-          throw YAMLParseException.expression(epe, casePath)
+          throw KSYParseError.expression(epe, casePath)
       }
     }
 
     // If we have size defined, and we don't have any "else" case already, add
     // an implicit "else" case that will at least catch everything else as
     // "untyped" byte array of given size
-    val addCases: Map[Ast.expr, DataType] = if (cases.containsKey(SwitchType.ELSE_CONST)) {
+    val addCases: Map[Ast.expr, DataType] = if (cases.contains(SwitchType.ELSE_CONST)) {
       Map()
     } else {
       (arg.size, arg.sizeEos) match {
@@ -310,7 +308,7 @@ object AttrSpec {
         case (None, false) =>
           Map()
         case (Some(_), true) =>
-          throw new YAMLParseException("can't have both `size` and `size-eos` defined", path)
+          throw KSYParseError.withText("can't have both `size` and `size-eos` defined", path)
       }
     }
 

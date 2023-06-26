@@ -14,6 +14,12 @@ import scala.collection.mutable.ListBuffer
   * * output body
   */
 trait SingleOutputFile extends LanguageCompiler {
+  /**
+    * @param topClassName name of the top-level type in standard KS notation (lower underscore).
+    * @return File name supposed to host a given top class name.
+    */
+  def outFileName(topClassName: String): String
+
   val outHeader = new StringLanguageOutputWriter(indent)
   val out = new StringLanguageOutputWriter(indent)
 

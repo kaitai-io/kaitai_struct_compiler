@@ -1,15 +1,15 @@
 package io.kaitai.struct
 
-import java.io.{File, FileWriter}
+import java.io.{File, FileOutputStream, OutputStreamWriter}
+import java.nio.charset.StandardCharsets
 import java.net.URLDecoder
-
 import io.kaitai.struct.CompileLog._
 import io.kaitai.struct.JavaMain.CLIConfig
-import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion, YAMLParseException}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs, KSVersion}
 import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
-import io.kaitai.struct.precompile.{ErrorInInput, YAMLParserError}
+import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException, ErrorInInput}
 
 object JavaMain {
   KSVersion.current = Version.version
@@ -59,7 +59,7 @@ object JavaMain {
 
       opt[File]('d', "outdir") valueName("<directory>") action { (x, c) =>
         c.copy(outDir = x)
-      } text("output directory (filenames will be auto-generated)")
+      } text("output directory (filenames will be auto-generated); on Unix-like shells, the short form `-d` requires arguments to be preceded by `--`")
 
       val importPathExample = List("<directory>", "<directory>", "...").mkString(File.pathSeparator)
       opt[String]('I', "import-path") optional() unbounded() valueName(importPathExample) action { (x, c) =>
@@ -129,6 +129,10 @@ object JavaMain {
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
       } text("opaque types allowed, default: false")
 
+      opt[Boolean]("zero-copy-substream") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(zeroCopySubstream = x))
+      } text("zero-copy substreams allowed, default: true")
+
       opt[Unit]("ksc-exceptions") action { (x, c) =>
         c.copy(throwExceptions = true)
       } text("ksc throws exceptions instead of human-readable error messages")
@@ -186,25 +190,25 @@ object JavaMain {
     // we need to decode it as well.
     //
     // Linux, from IDE:
-    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.11/classes/
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.12/classes/
     //
     // Linux, from stage:
-    // $HOME/git/kaitai_struct/compiler/jvm/target/universal/stage/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // $HOME/git/kaitai_struct/compiler/jvm/target/universal/stage/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Linux, from "sbt compilerJVM/run"
-    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.11/classes/
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.12/classes/
     //
     // Linux, from universal, custom install path:
-    // /tmp/a%20b/kaitai-struct-compiler-0.7-SNAPSHOT/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // /tmp/a%20b/kaitai-struct-compiler-0.10-SNAPSHOT/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Linux, from Debian install:
-    // /usr/share/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // /usr/share/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Windows, default install path:
-    // /C:/Program%20Files/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // /C:/Program%20Files/kaitai-struct-compiler/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Windows, custom install path with spaces and non-latin chars:
-    // /G:/%d0%b3%d0%b4%d0%b5-%d1%82%d0%be%20%d1%82%d0%b0%d0%bc/lib/io.kaitai.kaitai-struct-compiler-0.7-SNAPSHOT.jar
+    // /G:/%d0%b3%d0%b4%d0%b5-%d1%82%d0%be%20%d1%82%d0%b0%d0%bc/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
 
     val fStr = classOf[JavaMain].getProtectionDomain.getCodeSource.getLocation.getPath
     Log.importOps.info(() => s"home path: location = $fStr")
@@ -264,6 +268,14 @@ class JavaMain(config: CLIConfig) {
             InputFailure(List(exceptionToCompileError(ex, srcFile.toString)))
         }
       }
+      if (!config.jsonOutput) {
+        val problems = log match {
+          case InputFailure(errors) => errors
+          case InputSuccess(firstSpecName, output, precompileProblems) => precompileProblems
+        }
+        problems.foreach { (p) => Console.err.println(p.message) }
+      }
+
       srcFile.toString -> log
     }.toMap
 
@@ -278,33 +290,39 @@ class JavaMain(config: CLIConfig) {
   private def logsHaveErrors(logs: Map[String, InputEntry]): Boolean =
     logs.values.map(_.hasErrors).max
 
-  private def compileOneInput(srcFile: String) = {
+  private def compileOneInput(srcFile: String): InputEntry = {
     Log.fileOps.info(() => s"parsing $srcFile...")
-    val specs = JavaKSYParser.localFileToSpecs(srcFile, config)
+    val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(srcFile, config)
 
-    val output: Map[String, Map[String, SpecEntry]] = config.targets match {
-      case Seq(lang) =>
-        // single target, just use target directory as is
-        val out = compileOneLang(specs, lang, config.outDir.toString)
-        Map(lang -> out)
-      case _ =>
-        // multiple targets, use additional directories
-        compileAllLangs(specs, config)
+    specsOpt match {
+      case Some(specs) =>
+        val output: Map[String, Map[String, SpecEntry]] = config.targets match {
+          case Seq(lang) =>
+            // single target, just use target directory as is
+            val out = compileOneLang(specs, lang, config.outDir.toString)
+            Map(lang -> out)
+          case _ =>
+            // multiple targets, use additional directories
+            compileAllLangs(specs, config)
+        }
+        InputSuccess(
+          specs.firstSpec.nameAsStr,
+          output,
+          precompileProblems
+        )
+      case None =>
+        InputFailure(precompileProblems)
     }
-    InputSuccess(
-      specs.firstSpec.nameAsStr,
-      output
-    )
   }
 
   def compileAllLangs(specs: ClassSpecs, config: CLIConfig): Map[String, Map[String, SpecEntry]] = {
     config.targets.map { langStr =>
-      langStr match {
+      langStr -> (langStr match {
         case "go" | "java" =>
-          langStr -> compileOneLang(specs, langStr, s"${config.outDir}/${langStr}/src")
+          compileOneLang(specs, langStr, s"${config.outDir}/${langStr}/src")
         case _ =>
-          langStr -> compileOneLang(specs, langStr, s"${config.outDir}/${langStr}")
-      }
+          compileOneLang(specs, langStr, s"${config.outDir}/${langStr}")
+      })
     }.toMap
   }
 
@@ -327,7 +345,11 @@ class JavaMain(config: CLIConfig) {
         case ex: Throwable =>
           if (config.throwExceptions)
             ex.printStackTrace()
-          SpecFailure(List(exceptionToCompileError(ex, classSpec.nameAsStr)))
+          val p = exceptionToCompileError(ex, classSpec.nameAsStr)
+          if (!config.jsonOutput) {
+            Console.err.println(p.message)
+          }
+          SpecFailure(List(p))
       }
       classSpec.nameAsStr -> res
     }.toMap
@@ -350,31 +372,20 @@ class JavaMain(config: CLIConfig) {
       val parentPath = outPath.getParentFile
       parentPath.mkdirs
 
-      val fw = new FileWriter(outPath)
-      fw.write(file.contents)
-      fw.close()
+      val osw = new OutputStreamWriter(new FileOutputStream(outPath), StandardCharsets.UTF_8)
+      osw.write(file.contents)
+      osw.close()
     }
     res
   }
 
-  private def exceptionToCompileError(ex: Throwable, srcFile: String): CompileError = {
-    if (!config.jsonOutput)
-      Console.err.println(ex.getMessage)
+  private def exceptionToCompileError(ex: Throwable, srcFile: String): CompilationProblem = {
     ex match {
-      case ype: YAMLParseException =>
-        CompileError(srcFile, ype.path, None, None, ype.msg)
-      case e: ErrorInInput =>
-        val file = e.file.getOrElse(srcFile)
-        val msg = Option(e.getCause) match {
-          case Some(cause) => cause.getMessage
-          case None => e.getMessage
-        }
-        CompileError(file, e.path, None, None, msg)
-      case ypr: YAMLParserError =>
-        val file = ypr.file.getOrElse(srcFile)
-        CompileError(file, List(), ypr.line, ypr.col, ypr.msg)
+      case cpe: CompilationProblemException =>
+        cpe.problem
       case _ =>
-        CompileError(srcFile, List(), None, None, ex.getMessage)
+        // TODO: have a dedicated class instead of ErrorInInput
+        ErrorInInput(ex, List(), Some(srcFile))
     }
   }
 }

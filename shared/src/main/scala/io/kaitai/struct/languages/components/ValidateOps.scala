@@ -29,7 +29,7 @@ trait ValidateOps extends ExceptionNames {
           Ast.boolop.Or,
           values.map(expected =>
             Ast.expr.Compare(
-              Ast.expr.Name(attrId.toAstIdentifier),
+              Ast.expr.InternalName(attrId),
               Ast.cmpop.Eq,
               expected
             )
@@ -40,10 +40,10 @@ trait ValidateOps extends ExceptionNames {
           attrId,
           attr.dataTypeComposite,
           checkExpr = bigOrExpr,
-          errName = ksErrorName(ValidationNotAnyOfError(attr.dataTypeComposite)),
+          err = ValidationNotAnyOfError(attr.dataTypeComposite),
           errArgs = List(
-            Ast.expr.Name(attrId.toAstIdentifier),
-            Ast.expr.Name(IoIdentifier.toAstIdentifier),
+            Ast.expr.InternalName(attrId),
+            Ast.expr.InternalName(IoIdentifier),
             Ast.expr.Str(attr.path.mkString("/", "/", ""))
           )
         )
@@ -53,16 +53,16 @@ trait ValidateOps extends ExceptionNames {
         handleAssignmentTempVar(
           attr.dataTypeComposite,
           translator.translate(Ast.expr.Name(Ast.identifier(Identifier.ITERATOR))),
-          translator.translate(Ast.expr.Name(attrId.toAstIdentifier))
+          translator.translate(Ast.expr.InternalName(attrId))
         )
         attrValidateExpr(
           attrId,
           attr.dataTypeComposite,
           expr,
-          ksErrorName(ValidationExprError(attr.dataTypeComposite)),
+          ValidationExprError(attr.dataTypeComposite),
           List(
-            Ast.expr.Name(attrId.toAstIdentifier),
-            Ast.expr.Name(IoIdentifier.toAstIdentifier),
+            Ast.expr.InternalName(attrId),
+            Ast.expr.InternalName(IoIdentifier),
             Ast.expr.Str(attr.path.mkString("/", "/", ""))
           )
         )
@@ -75,21 +75,21 @@ trait ValidateOps extends ExceptionNames {
       attrId,
       attr.dataTypeComposite,
       checkExpr = Ast.expr.Compare(
-        Ast.expr.Name(attrId.toAstIdentifier),
+        Ast.expr.InternalName(attrId),
         op,
         expected
       ),
-      errName = ksErrorName(err),
+      err = err,
       errArgs = List(
         expected,
-        Ast.expr.Name(attrId.toAstIdentifier),
-        Ast.expr.Name(IoIdentifier.toAstIdentifier),
+        Ast.expr.InternalName(attrId),
+        Ast.expr.InternalName(IoIdentifier),
         Ast.expr.Str(attr.path.mkString("/", "/", ""))
       )
     )
   }
 
-  def attrValidateExpr(attrId: Identifier, attrType: DataType, checkExpr: Ast.expr, errName: String, errArgs: List[Ast.expr]): Unit = {}
+  def attrValidateExpr(attrId: Identifier, attrType: DataType, checkExpr: Ast.expr, err: KSError, errArgs: List[Ast.expr]): Unit = {}
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit
   def blockScopeHeader: Unit
   def blockScopeFooter: Unit

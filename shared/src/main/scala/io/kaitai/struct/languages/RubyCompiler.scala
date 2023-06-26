@@ -278,46 +278,40 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
     if (needRaw.level >= 1)
       out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
-
     out.puts(s"${privateMemberName(id)} = []")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("i = 0")
     out.puts(s"while not $io.eof?")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} << $expr")
+
   override def condRepeatEosFooter: Unit = {
     out.puts("i += 1")
     super.condRepeatEosFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = Array.new(${expression(repeatExpr)})")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = Array.new(${expression(repeatExpr)})")
-    out.puts(s"${privateMemberName(id)} = Array.new(${expression(repeatExpr)})")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
     out.puts(s"(${expression(repeatExpr)}).times { |i|")
     out.inc
   }
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}[i] = $expr")
+    handleAssignmentRepeatEos(id, expr)
+
   override def condRepeatExprFooter: Unit = {
     out.dec
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
-    out.puts(s"${privateMemberName(id)} = []")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("i = 0")
     out.puts("begin")
     out.inc
@@ -329,7 +323,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} << $tmpName")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.puts("i += 1")
     out.dec
@@ -362,6 +356,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           ""
         } else {
           val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "nil"
             case Some(fp) => translator.translate(fp)
             case None => "self"
           }
@@ -373,6 +368,12 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"${types2class(t.name)}.new($io$addArgs$addParams)"
     }
+  }
+
+  override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
+    val ioName = s"_io_${idToStr(id)}"
+    out.puts(s"$ioName = $io.substream(${translator.translate(sizeExpr)})")
+    ioName
   }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
@@ -429,7 +430,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$enumConst = {")
     out.inc
     enumColl.foreach { case (id, label) =>
-      out.puts(s"$id => ${enumValue(enumName, label)},")
+      out.puts(s"${translator.doIntLiteral(id)} => ${enumValue(enumName, label)},")
     }
     out.dec
     out.puts("}")
@@ -456,19 +457,11 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def idToStr(id: Identifier): String = {
-    id match {
-      case NamedIdentifier(name) => Utils.lowerUnderscoreCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case si: SpecialIdentifier => si.name
-      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
-      case InstanceIdentifier(name) => Utils.lowerUnderscoreCase(name)
-    }
-  }
+  override def idToStr(id: Identifier): String = RubyCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String = RubyCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
-
-  override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -478,11 +471,11 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attrId: Identifier,
     attrType: DataType,
     checkExpr: Ast.expr,
-    errName: String,
+    err: KSError,
     errArgs: List[Ast.expr]
   ): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"raise $errName.new($errArgsStr) if not ${translator.translate(checkExpr)}")
+    out.puts(s"raise ${ksErrorName(err)}.new($errArgsStr) if not ${translator.translate(checkExpr)}")
   }
 
   def types2class(names: List[String]) = names.map(type2class).mkString("::")
@@ -495,6 +488,17 @@ object RubyCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new RubyCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+    }
+
+  def publicMemberName(id: Identifier) = idToStr(id)
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"

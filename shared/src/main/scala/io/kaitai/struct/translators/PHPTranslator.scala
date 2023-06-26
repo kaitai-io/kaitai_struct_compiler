@@ -7,7 +7,17 @@ import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.PHPCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
-class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
+class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider)
+    with MinSignedIntegers {
+  override def doIntLiteral(n: BigInt): String = {
+    super.doIntLiteral(if (n >= Long.MinValue && n <= Utils.MAX_UINT64) {
+      n.toLong // output unsigned 64-bit integers as signed (otherwise we would get a float and
+               // lose precision)
+    } else {
+      n
+    })
+  }
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + Utils.hexEscapeByteArray(arr) + "\""
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
@@ -25,8 +35,8 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     '$' -> "\\$",
 
     '\f' -> "\\f",
-    '\13' -> "\\v",
-    '\33' -> "\\e"
+    '\u000b' -> "\\v",
+    '\u001b' -> "\\e"
   )
 
   override def strLiteralUnicode(code: Char): String =
@@ -56,6 +66,9 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   }
 
   override def doName(s: String) = s"${Utils.lowerCamelCase(s)}()"
+
+  override def doInternalName(id: Identifier): String =
+    s"$$this->${PHPCompiler.publicMemberName(id)}()"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     val enumClass = types2classAbs(enumTypeAbs)

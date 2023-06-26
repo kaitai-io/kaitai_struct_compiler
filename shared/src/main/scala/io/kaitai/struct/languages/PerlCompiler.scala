@@ -236,12 +236,15 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
     if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ();")
-    out.puts(s"${privateMemberName(id)} = ();")
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
+    out.puts(s"${privateMemberName(id)} = [];")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts(s"while (!$io->is_eof()) {")
     out.inc
   }
@@ -249,12 +252,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ();")
-    out.puts(s"${privateMemberName(id)} = ();")
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
     val nVar = s"$$n_${idToStr(id)}"
     out.puts(s"my $nVar = ${expression(repeatExpr)};")
     out.puts(s"for (my $$i = 0; $$i < $nVar; $$i++) {")
@@ -262,14 +260,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}[$$i] = $expr;")
+    handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ();")
-    out.puts(s"${privateMemberName(id)} = ();")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("do {")
     out.inc
   }
@@ -284,7 +277,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"push @{${privateMemberName(id)}}, $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} until (${expression(untilExpr)});")
@@ -396,25 +389,17 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
 
     enumColl.foreach { case (id, label) =>
-      out.puts(s"our ${enumValue(enumName, label.name)} = $id;")
+      out.puts(s"our ${enumValue(enumName, label.name)} = ${translator.doIntLiteral(id)};")
     }
   }
 
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
 
-  override def idToStr(id: Identifier): String = {
-    id match {
-      case NamedIdentifier(name) => name
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case si: SpecialIdentifier => si.name
-      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
-      case InstanceIdentifier(name) => name
-    }
-  }
+  override def idToStr(id: Identifier): String = PerlCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String = PerlCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"$$self->{${idToStr(id)}}"
-
-  override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
@@ -431,6 +416,17 @@ object PerlCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new PerlCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => name
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => name
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+    }
+
+  def publicMemberName(id: Identifier): String = idToStr(id)
 
   def packageName: String = "IO::KaitaiStruct"
   override def kstreamName: String = s"$packageName::Stream"

@@ -29,10 +29,10 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
-    '\0' -> "\\0",
-    '\7' -> "\\a",
+    '\u0000' -> "\\0",
+    '\u0007' -> "\\a",
     '\f' -> "\\f",
-    '\13' -> "\\v",
+    '\u000b' -> "\\v",
     '\b' -> "\\b"
   )
 
@@ -57,6 +57,9 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     } else {
       s"${Utils.upperCamelCase(s)}"
     }
+
+  override def doInternalName(id: Identifier): String =
+    s"${CSharpCompiler.publicMemberName(id)}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${enumClass(enumTypeAbs)}.${Utils.upperCamelCase(label)}"

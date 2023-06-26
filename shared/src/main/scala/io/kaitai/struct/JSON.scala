@@ -22,15 +22,18 @@ object JSON extends CommonLiterals {
       case v: Jsonable => v.toJson
       case v: Int => v.toString
       case v: String => stringToJson(v)
-      case v: List[_] => listToJson(v)
+      case v: Seq[_] => seqToJson(v)
       case v: Map[String, _] => mapToJson(v)
     }
   }
 
+  /** octal escapes (which [[translators.CommonLiterals.strLiteralGenericCC]] uses by default) are not allowed in JSON */
+  override def strLiteralGenericCC(code: Char): String = strLiteralUnicode(code)
+
   def stringToJson(str: String): String =
     doStringLiteral(str)
 
-  def listToJson(obj: List[_]): String =
+  def seqToJson(obj: Seq[_]): String =
     "[" + obj.map((x) => stringify(x)).mkString(",") + "]"
 
   def mapToJson(obj: Map[String, _]): String = {

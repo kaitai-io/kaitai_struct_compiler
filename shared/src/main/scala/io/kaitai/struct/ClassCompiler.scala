@@ -37,7 +37,7 @@ class ClassCompiler(
   }
 
   /**
-    * Generates code for one full class using a given [[ClassSpec]].
+    * Generates code for one full class using a given [[format.ClassSpec]].
     * @param curClass current class to generate code for
     */
   def compileClass(curClass: ClassSpec): Unit = {

@@ -80,7 +80,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case _ => s"(${ksToNim(typeName)}(${translate(value)}))"
     }
   override def doIntLiteral(n: BigInt): String = {
-    if (n <= -2147483649L) { // -9223372036854775808..–2147483649
+    if (n <= -2147483649L) { // -9223372036854775808..-2147483649
       s"$n'i64"
     } else if (n <= 2147483647L) { // -2147483648..2147483647
       s"$n"
@@ -100,7 +100,10 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     if (arr.size == 0)
       s"@[]"
     else
-      "@[" + arr.mkString("'u8, ") + "'u8]"
+      "@[" + arr.map(b => {
+        val ub: Int = b & 0xff
+        ub
+      }).mkString("'u8, ") + "'u8]"
   }
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"@[${elts.map(translate).mkString(", ")}]"

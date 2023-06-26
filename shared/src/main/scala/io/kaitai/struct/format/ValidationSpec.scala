@@ -1,6 +1,7 @@
 package io.kaitai.struct.format
 
 import io.kaitai.struct.exprlang.{Ast, Expressions}
+import io.kaitai.struct.problems.KSYParseError
 
 sealed trait ValidationSpec
 
@@ -88,7 +89,7 @@ object ValidationSpec {
       case srcMap: Map[Any, Any] =>
         fromMap(ParseUtils.anyMapToStrMap(srcMap, path), path)
       case _ =>
-        throw YAMLParseException.badType("string or map", src, path)
+        throw KSYParseError.badType("string or map", src, path)
     }
   }
 
@@ -113,6 +114,6 @@ object ValidationSpec {
     ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
 
     // No bogus keys found, likely an empty validation
-    throw YAMLParseException.noKeys(path, LEGAL_KEYS)
+    throw KSYParseError.noKeys(path, LEGAL_KEYS)
   }
 }

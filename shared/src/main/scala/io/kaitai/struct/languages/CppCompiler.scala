@@ -46,15 +46,14 @@ class CppCompiler(
   var accessMode: AccessMode = PublicAccess
 
   override def indent: String = "    "
-  override def outFileName(topClassName: String): String = topClassName
-  def outFileNameSource(className: String): String = outFileName(className) + ".cpp"
-  def outFileNameHeader(className: String): String = outFileName(className) + ".h"
+  def typeToFileName(topClassName: String): String = topClassName
+  def outFileNameSource(className: String): String = typeToFileName(className) + ".cpp"
+  def outFileNameHeader(className: String): String = typeToFileName(className) + ".h"
 
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")
     outSrcHeader.puts
 
-    importListSrc.addSystem("memory")
     importListSrc.addLocal(outFileNameHeader(topClassName))
 
     if (config.cppConfig.usePragmaOnce) {
@@ -109,13 +108,9 @@ class CppCompiler(
     }
   }
 
-  override def importFile(file: String): Unit = {
-    importListHdr.addLocal(outFileNameHeader(file))
-  }
-
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     classForwardDeclaration(classSpec.name)
-    importListSrc.addLocal(outFileNameHeader(classSpec.name.head))
+    importListHdr.addLocal(outFileNameHeader(classSpec.name.head))
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -244,8 +239,10 @@ class CppCompiler(
   }
 
   override def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {
-    outHdr.puts(s"~${types2class(List(name.last))}();")
+    ensureMode(PrivateAccess)
     outHdr.puts("void _clean_up();")
+    ensureMode(PublicAccess)
+    outHdr.puts(s"~${types2class(List(name.last))}();")
 
     outSrc.puts
     outSrc.puts(s"${types2class(name)}::~${types2class(List(name.last))}() {")
@@ -315,8 +312,6 @@ class CppCompiler(
   override def readFooter(): Unit = {
     outSrc.dec
     outSrc.puts("}")
-
-    ensureMode(PublicAccess)
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
@@ -624,7 +619,7 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
     importListHdr.addSystem("vector")
 
     if (needRaw.level >= 1) {
@@ -637,6 +632,9 @@ class CppCompiler(
       outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
     }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
+  }
+
+  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
@@ -656,54 +654,22 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, repeatExpr: Ast.expr): Unit = {
-    importListHdr.addSystem("vector")
-
+  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     val lenVar = s"l_${idToStr(id)}"
-    outSrc.puts(s"int $lenVar = ${expression(repeatExpr)};")
-    if (needRaw.level >= 1) {
-      val rawId = privateMemberName(RawIdentifier(id))
-      outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
-      outSrc.puts(s"$rawId->reserve($lenVar);")
-      if (needRaw.hasIO) {
-        val ioId = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-        outSrc.puts(s"$ioId = ${newVector(OwnedKaitaiStreamType)};")
-        outSrc.puts(s"$ioId->reserve($lenVar);")
-      }
-    }
-    if (needRaw.level >= 2) {
-      val rawId = privateMemberName(RawIdentifier(RawIdentifier(id)))
-      outSrc.puts(s"$rawId = ${newVector(CalcBytesType)};")
-      outSrc.puts(s"$rawId->reserve($lenVar);")
-    }
-    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
-    outSrc.puts(s"${privateMemberName(id)}->reserve($lenVar);")
+    outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit = {
-    outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(expr)});")
-  }
+  override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
+    handleAssignmentRepeatEos(id, expr)
 
   override def condRepeatExprFooter: Unit = {
     outSrc.dec
     outSrc.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
-    importListHdr.addSystem("vector")
-
-    if (needRaw.level >= 1) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
-      if (needRaw.hasIO) {
-        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(OwnedKaitaiStreamType)};")
-      }
-    }
-    if (needRaw.level >= 2) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
-    }
-    outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
+  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
@@ -737,7 +703,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)}->push_back($wrappedTempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, needRaw: NeedRaw, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
     outSrc.puts("i++;")
     outSrc.dec
@@ -802,7 +768,6 @@ class CppCompiler(
           case SharedPointers =>
             s"std::make_shared<${types2class(t.name)}>($addParams$io$addArgs)"
           case UniqueAndRawPointers =>
-            importListSrc.addSystem("memory")
             // C++14
             //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
             s"std::unique_ptr<${types2class(t.name)}>(new ${types2class(t.name)}($addParams$io$addArgs))"
@@ -966,12 +931,12 @@ class CppCompiler(
 
     if (enumColl.size > 1) {
       enumColl.dropRight(1).foreach { case (id, label) =>
-        outHdr.puts(s"${value2Const(enumName, label.name)} = $id,")
+        outHdr.puts(s"${value2Const(enumName, label.name)} = ${translator.doIntLiteral(id)},")
       }
     }
     enumColl.last match {
       case (id, label) =>
-        outHdr.puts(s"${value2Const(enumName, label.name)} = $id")
+        outHdr.puts(s"${value2Const(enumName, label.name)} = ${translator.doIntLiteral(id)}")
     }
 
     outHdr.dec
@@ -1002,20 +967,12 @@ class CppCompiler(
   def nullFlagForName(ksName: Identifier) =
     s"n_${idToStr(ksName)}"
 
-  override def idToStr(id: Identifier): String = {
-    id match {
-      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
-      case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
-      case si: SpecialIdentifier => Utils.lowerUnderscoreCase(si.name)
-      case ni: NamedIdentifier => Utils.lowerUnderscoreCase(ni.name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case ni: InstanceIdentifier => Utils.lowerUnderscoreCase(ni.name)
-    }
-  }
+  override def idToStr(id: Identifier): String = CppCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String = CppCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"m_${idToStr(id)}"
 
-  override def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -1084,14 +1041,14 @@ class CppCompiler(
     attrId: Identifier,
     attrType: DataType,
     checkExpr: Ast.expr,
-    errName: String,
+    err: KSError,
     errArgs: List[Ast.expr]
   ): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
     importListSrc.addKaitai("kaitai/exceptions.h")
     outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
     outSrc.inc
-    outSrc.puts(s"throw $errName($errArgsStr);")
+    outSrc.puts(s"throw ${ksErrorName(err)}($errArgsStr);")
     outSrc.dec
     outSrc.puts("}")
   }
@@ -1103,6 +1060,18 @@ object CppCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new CppCompiler(tp, config)
+
+  def idToStr(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case NamedIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.lowerUnderscoreCase(name)
+      case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
+      case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
+    }
+
+  def publicMemberName(id: Identifier): String = idToStr(id)
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"

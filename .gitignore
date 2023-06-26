@@ -1,8 +1,11 @@
 # IntelliJ IDEA project files
 *.iml
 *.iws
-.idea/
+.idea/*
 /out/
+
+# Still allow storage of IDEA runConfigurations in the repository
+!.idea/runConfigurations
 
 # mpeltonen/sbt-idea plugin
 .idea_modules/

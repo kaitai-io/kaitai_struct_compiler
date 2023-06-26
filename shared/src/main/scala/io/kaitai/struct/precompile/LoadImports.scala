@@ -10,7 +10,7 @@ import scala.concurrent.Future
   * Precompilation stage that manages loading of extra .ksy files requested in
   * `meta/imports` key of initial .ksy file.
   *
-  * @param specs collection of [[ClassSpec]] entries to work on
+  * @param specs collection of [[format.ClassSpec]] entries to work on
   */
 class LoadImports(specs: ClassSpecs) {
   import LoadImports._
