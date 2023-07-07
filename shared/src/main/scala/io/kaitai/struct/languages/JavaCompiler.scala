@@ -736,6 +736,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public static String[] _seqFields = new String[] { $seqStr };")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("@Override")
+    out.puts("public String toString() {")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)};")
+    out.dec
+    out.puts("}")
+  }
+
   def value2Const(s: String) = Utils.upperUnderscoreCase(s)
 
   override def idToStr(id: Identifier): String = JavaCompiler.idToStr(id)
