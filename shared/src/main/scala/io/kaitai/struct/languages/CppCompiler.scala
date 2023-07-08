@@ -943,6 +943,28 @@ class CppCompiler(
     outHdr.puts("};")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    ensureMode(PublicAccess)
+    // _to_string() method
+    outHdr.puts(s"std::string _to_string() const;")
+    outSrc.puts
+    outSrc.puts(s"std::string ${types2class(typeProvider.nowClass.name)}::_to_string() const {")
+    outSrc.inc
+    outSrc.puts(s"return ${translator.translate(toStringExpr)};")
+    outSrc.dec
+    outSrc.puts("}")
+
+    // operator<< that trivially calls ._to_string()
+    outHdr.puts(s"friend std::ostream& operator<<(std::ostream& os, const ${types2class(typeProvider.nowClass.name)}& obj);")
+    outSrc.puts
+    outSrc.puts(s"std::ostream& operator<<(std::ostream& os, const ${types2class(typeProvider.nowClass.name)}& obj) {")
+    outSrc.inc
+    outSrc.puts("os << obj._to_string();")
+    outSrc.puts("return os;")
+    outSrc.dec
+    outSrc.puts("}")
+  }
+
   def value2Const(enumName: String, label: String) = Utils.upperUnderscoreCase(enumName + "_" + label)
 
   def defineName(className: String) = Utils.upperUnderscoreCase(className) + "_H_"
