@@ -424,6 +424,15 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     classFooter(name)
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("public function __toString() {")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)};")
+    out.dec
+    out.puts("}")
+  }
+
   def value2Const(label: String) = Utils.upperUnderscoreCase(label)
 
   override def idToStr(id: Identifier): String = PHPCompiler.idToStr(id)
