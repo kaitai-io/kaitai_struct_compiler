@@ -90,7 +90,7 @@ object DataType {
 
   abstract class StrType extends DataType
   case object CalcStrType extends StrType
-  case class StrFromBytesType(bytes: BytesType, encoding: String) extends StrType
+  case class StrFromBytesType(bytes: BytesType, var encoding: String) extends StrType
 
   case object CalcBooleanType extends BooleanType
 

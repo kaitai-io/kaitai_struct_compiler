@@ -72,10 +72,11 @@ object Main {
 
     // Warnings
     val styleWarnings = new StyleCheckIds(classSpecs, topClass).run()
+    val encodingProblems = new CanonicalizeEncodingNames(classSpecs).run()
 
     topClass.parentClass = GenericStructClassSpec
 
-    resolveTypeProblems ++ typeValidatorProblems ++ styleWarnings
+    resolveTypeProblems ++ typeValidatorProblems ++ styleWarnings ++ encodingProblems
   }
 
   /**
