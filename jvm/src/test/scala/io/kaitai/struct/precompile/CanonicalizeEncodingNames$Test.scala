@@ -6,9 +6,9 @@ import org.scalatest.matchers.should.Matchers._
 
 class CanonicalizeEncodingNames$Test extends AnyFunSpec {
   describe("CanonicalizeEncodingNames.") {
-    it("validates correct encoding name 'US-ASCII'") {
-      val (newEncoding, problem) = CanonicalizeEncodingNames.canonicalizeName("US-ASCII")
-      newEncoding should be("US-ASCII")
+    it("validates correct encoding name 'ASCII'") {
+      val (newEncoding, problem) = CanonicalizeEncodingNames.canonicalizeName("ASCII")
+      newEncoding should be("ASCII")
       problem should be(None)
     }
 
