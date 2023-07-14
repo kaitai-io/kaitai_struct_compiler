@@ -1,7 +1,7 @@
 package io.kaitai.struct.problems
 
 import fastparse.StringReprOps
-import io.kaitai.struct.{JSON, Jsonable, Utils}
+import io.kaitai.struct.{JSON, Jsonable, Utils, problems}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Expressions
 import io.kaitai.struct.format.{ClassSpec, Identifier, KSVersion}
@@ -34,6 +34,10 @@ sealed abstract class CompilationProblem extends Jsonable {
     JSON.mapToJson(
       (coords.toSeq ++ Seq("message" -> text)).toMap
     )
+}
+
+trait PathLocalizable {
+  def localizedInPath(path: List[String]): CompilationProblem with PathLocalizable
 }
 
 /**
@@ -214,4 +218,28 @@ case class StyleWarningRepeatExprNum(goodName: String, badName: String, becauseO
 
   override def localizedInFile(fileName: String): CompilationProblem =
     copy(coords = coords.copy(file = Some(fileName)))
+}
+
+case class EncodingNameWarning(goodName: String, badName: String, override val coords: ProblemCoords = ProblemCoords()) extends StyleWarning(coords) with PathLocalizable {
+  override def warningText = s"use canonical encoding name `$goodName` instead of `$badName`"
+  override def styleGuideAnchor = "encoding-name"
+
+  override def localizedInFile(fileName: String): CompilationProblem =
+    copy(coords = coords.copy(file = Some(fileName)))
+
+  override def localizedInPath(path: List[String]): CompilationProblem with PathLocalizable =
+    copy(coords = coords.copy(path = Some(path)))
+}
+
+case class UnrecognizedEncodingError(
+  badName: String,
+  override val coords: ProblemCoords = ProblemCoords()
+) extends CompilationProblem with PathLocalizable {
+  override def severity: ProblemSeverity = ProblemSeverity.Warning
+  override def text = s"unrecognized encoding name '${badName}'"
+  override def localizedInFile(fileName: String): CompilationProblem =
+    copy(coords = coords.copy(file = Some(fileName)))
+
+  override def localizedInPath(path: List[String]): CompilationProblem with PathLocalizable =
+    copy(coords = coords.copy(path = Some(path)))
 }
