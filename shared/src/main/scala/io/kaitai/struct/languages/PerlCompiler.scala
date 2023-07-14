@@ -395,6 +395,18 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("use overload '\"\"' => \\&_to_string;")
+    out.puts
+    out.puts("sub _to_string {")
+    out.inc
+    out.puts("my ($self) = @_;")
+    out.puts(s"return ${translator.translate(toStringExpr)}")
+    out.dec
+    out.puts("}")
+  }
+
   override def idToStr(id: Identifier): String = PerlCompiler.idToStr(id)
 
   override def publicMemberName(id: Identifier): String = PerlCompiler.publicMemberName(id)
