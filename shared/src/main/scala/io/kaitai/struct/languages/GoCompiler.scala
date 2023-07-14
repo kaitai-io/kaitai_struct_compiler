@@ -526,6 +526,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(")")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts(s"func (this ${types2class(typeProvider.nowClass.name)}) String() string {")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)}")
+    out.dec
+    out.puts("}")
+  }
+
   override def idToStr(id: Identifier): String = GoCompiler.idToStr(id)
 
   override def publicMemberName(id: Identifier): String = GoCompiler.publicMemberName(id)
