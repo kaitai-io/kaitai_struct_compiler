@@ -98,9 +98,8 @@ class ExpressionValidator(val provider: TypeProvider)
     validate(to)
   }
 
-  override def bytesToStr(value: Ast.expr, expr: Ast.expr): Unit = {
+  override def bytesToStr(value: Ast.expr, encoding: String): Unit = {
     validate(value)
-    validate(expr)
   }
 
   override def intToStr(value: Ast.expr, num: Ast.expr): Unit = {

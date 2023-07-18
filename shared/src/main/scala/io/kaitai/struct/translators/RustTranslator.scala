@@ -93,13 +93,12 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
         s"base_convert(strval(${translate(i)}), 10, $baseStr)"
     }
   }
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    translate(encoding) match {
-      case "\"ASCII\"" =>
+  override def bytesToStr(bytesExpr: String, encoding: String): String =
+    encoding match {
+      case "ASCII" =>
         s"String::from_utf8_lossy($bytesExpr)"
       case _ =>
-        "panic!(\"Unimplemented encoding for bytesToStr: {}\", " +
-	translate(encoding) + ")"
+        "panic!(\"Unimplemented encoding for bytesToStr: {}\", \"" + encoding + "\")"
     }
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.len()"

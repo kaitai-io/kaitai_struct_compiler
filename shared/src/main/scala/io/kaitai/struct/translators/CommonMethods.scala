@@ -97,7 +97,15 @@ abstract trait CommonMethods[T] extends TypeDetector {
           // TODO: check argument quantity
           case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
           case (_: StrType, "to_i") => strToInt(obj, args(0))
-          case (_: BytesType, "to_s") => bytesToStr(obj, args(0))
+          case (_: BytesType, "to_s") =>
+            args match {
+              case Seq(Ast.expr.Str(encoding)) =>
+                bytesToStr(obj, encoding)
+              case Seq(x) =>
+                throw new TypeMismatchError(s"to_s: argument #0: expected constant string, got ${x}")
+              case _ =>
+                throw new TypeMismatchError(s"to_s: expected 1 argument, got ${args.length}")
+            }
           case _ => throw new TypeMismatchError(s"don't know how to call method '$methodName' of object type '$objType'")
         }
     }
@@ -118,7 +126,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
   def strToInt(s: Ast.expr, base: Ast.expr): T
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): T
 
-  def bytesToStr(value: Ast.expr, expr: Ast.expr): T
+  def bytesToStr(value: Ast.expr, encoding: String): T
 
   def intToStr(value: Ast.expr, num: Ast.expr): T
 

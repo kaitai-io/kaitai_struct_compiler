@@ -114,9 +114,27 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"(int) (${translate(v)} + 0)"
   override def intToStr(i: expr, base: expr): String =
     s"Long.toString(${translate(i)}, ${translate(base)})"
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
-    importList.add("java.nio.charset.Charset")
-    s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
+  override def bytesToStr(bytesExpr: String, encoding: String): String = {
+    // Java has a small number of standard charsets preloaded. Accessing them as constants is more
+    // efficient than looking them up by string in a map, so we utilize this when as possible.
+    // See https://docs.oracle.com/javase/7/docs/api/java/nio/charset/StandardCharsets.html
+    val standardCharsetsMap = Map(
+      "ISO-8859-1" -> "ISO_8859_1",
+      "ASCII" -> "US_ASCII",
+      "UTF-16BE" -> "UTF_16BE",
+      "UTF-16LE" -> "UTF_16LE",
+      "UTF-8" -> "UTF_8",
+    )
+
+    val charsetExpr = standardCharsetsMap.get(encoding) match {
+      case Some(charsetConst) =>
+        importList.add("java.nio.charset.StandardCharsets")
+        s"StandardCharsets.${charsetConst}"
+      case None =>
+        importList.add("java.nio.charset.Charset")
+        s"""Charset.forName("$encoding")"""
+    }
+    s"new String($bytesExpr, $charsetExpr)"
   }
 
   override def bytesLength(b: Ast.expr): String =
