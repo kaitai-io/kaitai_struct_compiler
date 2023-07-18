@@ -44,5 +44,7 @@ object EncodingList {
     "windows-1256" -> Set("CP1256"),
     "windows-1257" -> Set("CP1257"),
     "windows-1258" -> Set("CP1258"),
+    "IBM437" -> Set("cp437", "437", "csibm437"),
+    "IBM866" -> Set("cp866", "866", "csibm866"),
   )
 }
