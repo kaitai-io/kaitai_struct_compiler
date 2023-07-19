@@ -102,7 +102,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
               case Seq(Ast.expr.Str(encoding)) =>
                 bytesToStr(obj, encoding)
               case Seq(x) =>
-                throw new TypeMismatchError(s"to_s: argument #0: expected constant string, got ${x}")
+                throw new TypeMismatchError(s"to_s: argument #0: expected string literal, got $x")
               case _ =>
                 throw new TypeMismatchError(s"to_s: expected 1 argument, got ${args.length}")
             }
