@@ -2,7 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, NeedRaw}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -758,6 +758,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => config.java.endOfStreamErrorClass
+    case ConversionError => "NumberFormatException"
     case _ => s"KaitaiStream.${err.name}"
   }
 

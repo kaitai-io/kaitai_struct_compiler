@@ -14,6 +14,7 @@ object KSError {
   def fromName(name: String): KSError = name match {
     case "EndOfStreamError" => EndOfStreamError
     case "UndecidedEndiannessError" => UndecidedEndiannessError
+    case "ConversionError" => ConversionError
     case RE_EXCEPTION_WITH_TYPE(excName, dataTypeStr) =>
       val dataType = DataType.pureFromString(dataTypeStr)
       val excClass = excName match {
@@ -88,4 +89,12 @@ case object UndecidedEndiannessError extends KSError {
   */
 case object EndOfStreamError extends KSError {
   def name = "EndOfStreamError"
+}
+
+/**
+ * Exception that maps to real target language exceptions resulting from invalid string-to-number
+ * conversions.
+ */
+case object ConversionError extends KSError {
+  def name = "ConversionError"
 }

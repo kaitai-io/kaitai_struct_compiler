@@ -1047,6 +1047,7 @@ class CppCompiler(
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "std::ifstream::failure"
     case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
+    case ConversionError => "std::invalid_argument"
     case validationErr: ValidationError =>
       val cppType = kaitaiType2NativeType(validationErr.dt, true)
       val cppErrName = validationErr match {

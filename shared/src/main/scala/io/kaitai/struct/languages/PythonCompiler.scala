@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError, NeedRaw}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -549,6 +549,7 @@ object PythonCompiler extends LanguageCompilerStatic
   override def kstructName: String = "KaitaiStruct"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "EOFError"
+    case ConversionError => "ValueError"
     case _ => s"kaitaistruct.${err.name}"
   }
 

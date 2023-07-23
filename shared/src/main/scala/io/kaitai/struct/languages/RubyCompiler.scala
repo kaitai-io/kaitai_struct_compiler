@@ -504,6 +504,7 @@ object RubyCompiler extends LanguageCompilerStatic
   override def kstructName: String = "Kaitai::Struct::Struct"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "EOFError"
+    case ConversionError => "ArgumentError"
     case _ => s"Kaitai::Struct::${err.name}"
   }
 

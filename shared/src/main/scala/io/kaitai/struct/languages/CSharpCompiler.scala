@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{CSharpTranslator, TypeDetector}
+import io.kaitai.struct.translators.CSharpTranslator
 
 class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -682,6 +682,7 @@ object CSharpCompiler extends LanguageCompilerStatic
   override def kstreamName = "KaitaiStream"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "EndOfStreamException"
+    case ConversionError => "System.FormatException"
     case _ => err.name
   }
 }
