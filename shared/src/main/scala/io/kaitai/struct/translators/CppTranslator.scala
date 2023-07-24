@@ -178,9 +178,10 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {
     val baseStr = translate(base)
-    s"std::stoi(${translate(s)}" + (baseStr match {
+
+    s"${CppCompiler.kstreamName}::string_to_int(${translate(s)}" + (baseStr match {
       case "10" => ""
-      case _ => s", 0, $baseStr"
+      case _ => s", $baseStr"
     }) + ")"
   }
   override def enumToInt(v: expr, et: EnumType): String =
