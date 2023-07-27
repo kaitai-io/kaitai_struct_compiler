@@ -41,6 +41,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
+
+    // https://github.com/kaitai-io/kaitai_struct/issues/675
+    // TODO: Make conditional once we'll have Python type annotations
+    outHeader.puts("# type: ignore")
+
     outHeader.puts
 
     importList.add("import kaitaistruct")
