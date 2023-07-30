@@ -658,5 +658,8 @@ object GoCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "kaitai.Stream"
   override def kstructName: String = "interface{}"
-  override def ksErrorName(err: KSError): String = s"kaitai.${err.name}"
+  override def ksErrorName(err: KSError): String = err match {
+    case ConversionError => "strconv.NumError"
+    case _ => s"kaitai.${err.name}"
+  }
 }
