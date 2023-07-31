@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec}
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec, MetaSpec}
 import io.kaitai.struct.languages.{GoCompiler, NimCompiler, RustCompiler}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile._
@@ -50,13 +50,21 @@ object Main {
     *
     * @param classSpecs [[format.ClassSpecs]] container with all types loaded into it
     * @param topClass one top type to precompile
-    * @param config runtime configuration to be passed to precompile steps
+    * @param conf runtime configuration to be passed to precompile steps
     * @return a list of compilation problems encountered during precompilation steps
     */
-  def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig): Iterable[CompilationProblem] = {
-    classSpecs.foreach { case (_, curClass) => MarkupClassNames.markupClassNames(curClass) }
-    val opaqueTypes = topClass.meta.opaqueTypes.getOrElse(config.opaqueTypes)
-    new ResolveTypes(classSpecs, opaqueTypes).run()
+  def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, conf: RuntimeConfig): Iterable[CompilationProblem] = {
+    val config = updateConfigFromMeta(conf, topClass.meta)
+
+    new MarkupClassNames(classSpecs).run()
+    val resolveTypeProblems = new ResolveTypes(classSpecs, config.opaqueTypes).run()
+
+    // For now, bail out early in case we have any type resolution problems
+    // TODO: try to recover and do some more passes even in face of these
+    if (resolveTypeProblems.nonEmpty) {
+      return resolveTypeProblems
+    }
+
     new ParentTypes(classSpecs).run()
     new SpecsValueTypeDerive(classSpecs).run()
     new CalculateSeqSizes(classSpecs).run()
@@ -64,10 +72,11 @@ object Main {
 
     // Warnings
     val styleWarnings = new StyleCheckIds(classSpecs, topClass).run()
+    val encodingProblems = new CanonicalizeEncodingNames(classSpecs).run()
 
     topClass.parentClass = GenericStructClassSpec
 
-    typeValidatorProblems ++ styleWarnings
+    resolveTypeProblems ++ typeValidatorProblems ++ styleWarnings ++ encodingProblems
   }
 
   /**
@@ -80,7 +89,7 @@ object Main {
     * @return a container that contains all compiled files and results
     */
   def compile(specs: ClassSpecs, spec: ClassSpec, lang: LanguageCompilerStatic, conf: RuntimeConfig): CompileLog.SpecSuccess = {
-    val config = updateConfig(conf, spec)
+    val config = updateConfigFromMeta(conf, spec.meta)
 
     val cc = lang match {
       case GraphvizClassCompiler =>
@@ -103,16 +112,31 @@ object Main {
 
   /**
     * Updates runtime configuration with "enforcement" options that came from a source file itself.
-    * Currently only used to enforce debug when "ks-debug: true" is specified in top-level "meta" key.
+    * Currently used to enforce:
+    * * debug when "ks-debug: true" is specified in top-level "meta" key
+    * * zero copy stream usage when "ks-zero-copy-stream" is specified
+    *
     * @param config original runtime configuration
-    * @param topClass top-level class spec
+    * @param meta meta spec for top-level type
     * @return updated runtime configuration with applied enforcements
     */
-  private def updateConfig(config: RuntimeConfig, topClass: ClassSpec): RuntimeConfig = {
-    if (topClass.meta.forceDebug) {
+  private def updateConfigFromMeta(config: RuntimeConfig, meta: MetaSpec): RuntimeConfig = {
+    val config1 = if (meta.forceDebug) {
       config.copy(autoRead = false, readStoresPos = true)
     } else {
       config
     }
+
+    val config2 = meta.zeroCopySubstream match {
+      case Some(value) => config1.copy(zeroCopySubstream = value)
+      case None => config1
+    }
+
+    val config3 = meta.opaqueTypes match {
+      case Some(value) => config2.copy(opaqueTypes = value)
+      case None => config2
+    }
+
+    config3
   }
 }

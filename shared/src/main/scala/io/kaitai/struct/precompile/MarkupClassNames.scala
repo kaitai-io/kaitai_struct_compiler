@@ -1,8 +1,14 @@
 package io.kaitai.struct.precompile
 
-import io.kaitai.struct.format.ClassSpec
+import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
+import io.kaitai.struct.problems.CompilationProblem
 
-object MarkupClassNames {
+class MarkupClassNames(classSpecs: ClassSpecs) extends PrecompileStep {
+  override def run(): Iterable[CompilationProblem] = {
+    classSpecs.foreach { case (_, curClass) => markupClassNames(curClass) }
+    None
+  }
+
   def markupClassNames(curClass: ClassSpec): Unit = {
     curClass.enums.foreach { case (enumName, enumSpec) =>
       enumSpec.name = curClass.name ::: List(enumName)

@@ -85,14 +85,13 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
     enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
   }
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    if (op == Ast.cmpop.Eq) {
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = op match {
+    case Ast.cmpop.Eq =>
       s"${translate(left)}.equals(${translate(right)})"
-    } else if (op == Ast.cmpop.NotEq) {
+    case Ast.cmpop.NotEq =>
       s"!(${translate(left)}).equals(${translate(right)})"
-    } else {
+    case _ =>
       s"(${translate(left)}.compareTo(${translate(right)}) ${cmpOp(op)} 0)"
-    }
   }
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
@@ -132,9 +131,27 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
     doCast(v, CalcIntType)
   override def intToStr(i: expr, base: expr): String =
     s"Long.toString(${translate(i)}, ${translate(base)})"
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
-    importList.add("java.nio.charset.Charset")
-    s"new String($bytesExpr, Charset.forName(${translate(encoding)}))"
+  override def bytesToStr(bytesExpr: String, encoding: String): String = {
+    // Java has a small number of standard charsets preloaded. Accessing them as constants is more
+    // efficient than looking them up by string in a map, so we utilize this when as possible.
+    // See https://docs.oracle.com/javase/7/docs/api/java/nio/charset/StandardCharsets.html
+    val standardCharsetsMap = Map(
+      "ISO-8859-1" -> "ISO_8859_1",
+      "ASCII" -> "US_ASCII",
+      "UTF-16BE" -> "UTF_16BE",
+      "UTF-16LE" -> "UTF_16LE",
+      "UTF-8" -> "UTF_8",
+    )
+
+    val charsetExpr = standardCharsetsMap.get(encoding) match {
+      case Some(charsetConst) =>
+        importList.add("java.nio.charset.StandardCharsets")
+        s"StandardCharsets.${charsetConst}"
+      case None =>
+        importList.add("java.nio.charset.Charset")
+        s"""Charset.forName("$encoding")"""
+    }
+    s"new String($bytesExpr, $charsetExpr)"
   }
   override def bytesIndexOf(b: expr, byte: expr): String =
     s"${JavaCompiler.kstreamName}.byteArrayIndexOf(${translate(b)}, ${doCast(byte, Int1Type(true))})"
@@ -165,8 +182,10 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
     s"new StringBuilder(${translate(s)}).reverse().toString()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
     s"(${translate(s)}).substring(${translate(from)}, ${translate(to)})"
-  override def strToBytes(s: expr, encoding: expr): String =
+  override def strToBytes(s: expr, encoding: expr): String = {
+    importList.add("java.nio.charset.Charset")
     s"(${translate(s)}).getBytes(Charset.forName(${translate(encoding)}))"
+  }
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}.get(0)"

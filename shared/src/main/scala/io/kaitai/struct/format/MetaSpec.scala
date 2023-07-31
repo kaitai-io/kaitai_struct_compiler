@@ -9,9 +9,10 @@ case class MetaSpec(
   id: Option[String],
   endian: Option[Endianness],
   bitEndian: Option[BitEndianness],
-  encoding: Option[String],
+  var encoding: Option[String],
   forceDebug: Boolean,
   opaqueTypes: Option[Boolean],
+  zeroCopySubstream: Option[Boolean],
   imports: List[String]
 ) extends YAMLPath {
   def fillInDefaults(defSpec: MetaSpec): MetaSpec = {
@@ -63,6 +64,7 @@ object MetaSpec {
     encoding = None,
     forceDebug = false,
     opaqueTypes = None,
+    zeroCopySubstream = None,
     imports = List()
   )
 
@@ -76,6 +78,7 @@ object MetaSpec {
     "ks-version",
     "ks-debug",
     "ks-opaque-types",
+    "ks-zero-copy-substream",
     "license",
     "file-extension",
     "xref",
@@ -107,9 +110,21 @@ object MetaSpec {
 
     val forceDebug = ParseUtils.getOptValueBool(srcMap, "ks-debug", path).getOrElse(false)
     val opaqueTypes = ParseUtils.getOptValueBool(srcMap, "ks-opaque-types", path)
+    val zeroCopySubstream = ParseUtils.getOptValueBool(srcMap, "ks-zero-copy-substream", path)
 
     val imports = ParseUtils.getListStr(srcMap, "imports", path)
 
-    MetaSpec(path, isOpaque = false, id, endian, bitEndian, encoding, forceDebug, opaqueTypes, imports)
+    MetaSpec(
+      path,
+      isOpaque = false,
+      id,
+      endian,
+      bitEndian,
+      encoding,
+      forceDebug,
+      opaqueTypes,
+      zeroCopySubstream,
+      imports
+    )
   }
 }

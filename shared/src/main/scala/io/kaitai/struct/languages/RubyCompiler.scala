@@ -366,6 +366,12 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
+    val ioName = s"_io_${idToStr(id)}"
+    out.puts(s"$ioName = $io.substream(${translator.translate(sizeExpr)})")
+    ioName
+  }
+
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName::bytes_strip_right($expr0, $padByte)"
@@ -494,6 +500,7 @@ object RubyCompiler extends LanguageCompilerStatic
   override def kstructName: String = "Kaitai::Struct::Struct"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "EOFError"
+    case ConversionError => "ArgumentError"
     case _ => s"Kaitai::Struct::${err.name}"
   }
 

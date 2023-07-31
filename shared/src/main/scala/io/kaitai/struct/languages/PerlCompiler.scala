@@ -233,10 +233,10 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
     if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = ();")
+      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
     if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ();")
-    out.puts(s"${privateMemberName(id)} = ();")
+      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
+    out.puts(s"${privateMemberName(id)} = [];")
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
@@ -389,6 +389,18 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
+
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("use overload '\"\"' => \\&_to_string;")
+    out.puts
+    out.puts("sub _to_string {")
+    out.inc
+    out.puts("my ($self) = @_;")
+    out.puts(s"return ${translator.translate(toStringExpr)}")
+    out.dec
+    out.puts("}")
+  }
 
   override def idToStr(id: Identifier): String = PerlCompiler.idToStr(id)
 

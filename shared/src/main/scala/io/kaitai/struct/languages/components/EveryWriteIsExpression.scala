@@ -347,7 +347,7 @@ trait EveryWriteIsExpression
         }
 
         /** @note Must be kept in sync with [[ExtraAttrs.writeNeedsInnerSize]] */
-        val innerSize = if (writeNeedsInnerSize(utb)) {
+        val innerSize = if (writeNeedsInnerSize(utb.bytes)) {
           translator.translate(itemExpr(InnerSizeIdentifier(id), rep))
         } else {
           outerSize

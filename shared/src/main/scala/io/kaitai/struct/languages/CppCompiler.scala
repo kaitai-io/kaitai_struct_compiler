@@ -45,9 +45,9 @@ class CppCompiler(
   var accessMode: AccessMode = PublicAccess
 
   override def indent: String = "    "
-  override def outFileName(topClassName: String): String = topClassName
-  def outFileNameSource(className: String): String = outFileName(className) + ".cpp"
-  def outFileNameHeader(className: String): String = outFileName(className) + ".h"
+  def typeToFileName(topClassName: String): String = topClassName
+  def outFileNameSource(className: String): String = typeToFileName(className) + ".cpp"
+  def outFileNameHeader(className: String): String = typeToFileName(className) + ".h"
 
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")
@@ -334,7 +334,7 @@ class CppCompiler(
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning)} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
+    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning())} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -669,7 +669,7 @@ class CppCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${translator.doName("_")};")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -885,10 +885,10 @@ class CppCompiler(
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${publicMemberName(instName)}();")
+    outHdr.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${publicMemberName(instName)}();")
 
     outSrc.puts
-    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning, true)} ${types2class(className)}::${publicMemberName(instName)}() {")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning(), true)} ${types2class(className)}::${publicMemberName(instName)}() {")
     outSrc.inc
   }
 
@@ -906,6 +906,17 @@ class CppCompiler(
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit =
     outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
+
+  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
+    if (config.readStoresPos)
+      attrDebugStart(instName, dataType, None, NoRepeat)
+    val valExpr = expression(value)
+    val isOwningInExpr = dataType match {
+      case ct: ComplexDataType => ct.isOwningInExpr
+      case _ => false
+    }
+    handleAssignmentSimple(instName, if (isOwningInExpr) s"$valExpr.get()" else valExpr)
+  }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val enumClass = types2class(List(enumName))
@@ -926,6 +937,28 @@ class CppCompiler(
 
     outHdr.dec
     outHdr.puts("};")
+  }
+
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    ensureMode(PublicAccess)
+    // _to_string() method
+    outHdr.puts(s"std::string _to_string() const;")
+    outSrc.puts
+    outSrc.puts(s"std::string ${types2class(typeProvider.nowClass.name)}::_to_string() const {")
+    outSrc.inc
+    outSrc.puts(s"return ${translator.translate(toStringExpr)};")
+    outSrc.dec
+    outSrc.puts("}")
+
+    // operator<< that trivially calls ._to_string()
+    outHdr.puts(s"friend std::ostream& operator<<(std::ostream& os, const ${types2class(typeProvider.nowClass.name)}& obj);")
+    outSrc.puts
+    outSrc.puts(s"std::ostream& operator<<(std::ostream& os, const ${types2class(typeProvider.nowClass.name)}& obj) {")
+    outSrc.inc
+    outSrc.puts("os << obj._to_string();")
+    outSrc.puts("return os;")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   def value2Const(enumName: String, label: String) = Utils.upperUnderscoreCase(enumName + "_" + label)
@@ -1010,6 +1043,7 @@ class CppCompiler(
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "std::ifstream::failure"
     case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
+    case ConversionError => "std::invalid_argument"
     case validationErr: ValidationError =>
       val cppType = kaitaiType2NativeType(validationErr.dt, true)
       val cppErrName = validationErr match {
@@ -1109,7 +1143,7 @@ object CppCompiler extends LanguageCompilerStatic
         case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
         case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
       }
-      case CalcArrayType(inType) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
+      case CalcArrayType(inType, _) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
       case OwnedKaitaiStreamType => config.pointers match {
         case RawPointers => s"$kstreamName*"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstreamName>"
@@ -1120,7 +1154,7 @@ object CppCompiler extends LanguageCompilerStatic
         case SharedPointers => s"std::shared_ptr<$kstructName>"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstructName>"
       }
-      case CalcKaitaiStructType => config.pointers match {
+      case CalcKaitaiStructType(_) => config.pointers match {
         case RawPointers => s"$kstructName*"
         case SharedPointers => s"std::shared_ptr<$kstructName>"
         case UniqueAndRawPointers => s"$kstructName*"
@@ -1151,7 +1185,7 @@ object CppCompiler extends LanguageCompilerStatic
     if (st.isOwning) {
       ct1
     } else {
-      ct1.asNonOwning
+      ct1.asNonOwning()
     }
   }
 

@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError, NeedRaw}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -47,6 +47,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
+
+    // https://github.com/kaitai-io/kaitai_struct/issues/675
+    // TODO: Make conditional once we'll have Python type annotations
+    outHeader.puts("# type: ignore")
+
     outHeader.puts
 
     importList.add("import kaitaistruct")
@@ -533,9 +538,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (config.readWrite) {
       dataType match {
         case utb: UserTypeFromBytes =>
-          if (writeNeedsOuterSize(utb))
+          if (writeNeedsOuterSize(utb.bytes))
             out.puts(s"${privateMemberName(OuterSizeIdentifier(id))} = []")
-          if (writeNeedsInnerSize(utb))
+          if (writeNeedsInnerSize(utb.bytes))
             out.puts(s"${privateMemberName(InnerSizeIdentifier(id))} = []")
         case _ => // do nothing
       }
@@ -944,6 +949,7 @@ object PythonCompiler extends LanguageCompilerStatic
   override def kstructName: String = "KaitaiStruct"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "EOFError"
+    case ConversionError => "ValueError"
     case _ => s"kaitaistruct.${err.name}"
   }
 

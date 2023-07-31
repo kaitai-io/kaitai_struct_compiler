@@ -58,8 +58,8 @@ object JavaMain {
       }
 
       opt[Unit]('w', "read-write")  action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(readWrite = true, autoRead = false))
-      } text("generate read-write support in classes (implies --no-auto-read, Java and Python only, default: read-only)")
+        c.copy(runtime = c.runtime.copy(readWrite = true, autoRead = false, zeroCopySubstream = false))
+      } text("generate read-write support in classes (implies --no-auto-read --zero-copy-substream=false, Java and Python only, default: read-only)")
 
       opt[File]('d', "outdir") valueName("<directory>") action { (x, c) =>
         c.copy(outDir = x)
@@ -132,6 +132,10 @@ object JavaMain {
       opt[Boolean]("opaque-types") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(opaqueTypes = x))
       } text("opaque types allowed, default: false")
+
+      opt[Boolean]("zero-copy-substream") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(zeroCopySubstream = x))
+      } text("zero-copy substreams allowed, default: true")
 
       opt[Unit]("ksc-exceptions") action { (x, c) =>
         c.copy(throwExceptions = true)

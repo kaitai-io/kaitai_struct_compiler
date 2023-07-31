@@ -114,8 +114,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
 
     s"$func(${translate(i)})"
   }
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"($bytesExpr).decode(${translate(encoding)})"
+  override def bytesToStr(bytesExpr: String, encoding: String): String =
+    s"""($bytesExpr).decode("$encoding")"""
   override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String =
     s"${PythonCompiler.kstreamName}.byte_array_index_of(${translate(b)}, ${translate(byte)})"
 

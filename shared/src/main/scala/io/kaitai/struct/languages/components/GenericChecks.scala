@@ -371,7 +371,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
   def attrUserTypeCheck(id: Identifier, utExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean]): Unit = {
     /** @note Must be kept in sync with [[JavaCompiler.parseExpr]] */
     if (!ut.isOpaque) {
-      attrUserTypeParamCheck(id, ut, utExpr, RootIdentifier, CalcKaitaiStructType, Ast.expr.Name(Ast.identifier(Identifier.ROOT)), shouldDependOnIo)
+      attrUserTypeParamCheck(id, ut, utExpr, RootIdentifier, CalcKaitaiStructType(), Ast.expr.Name(Ast.identifier(Identifier.ROOT)), shouldDependOnIo)
     }
     attrParentParamCheck(id, Ast.expr.Attribute(utExpr, Ast.identifier(Identifier.PARENT)), ut, shouldDependOnIo)
     (ut.classSpec.get.params, ut.args).zipped.foreach { (paramDef, argExpr) =>

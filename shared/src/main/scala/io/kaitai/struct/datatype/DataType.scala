@@ -10,7 +10,7 @@ sealed trait DataType {
     * @return Data type as non-owning data type. Default implementation
     *         always returns itself, complex types
     */
-  def asNonOwning: DataType = this
+  def asNonOwning(isOwningInExpr: Boolean = false): DataType = this
 }
 
 /**
@@ -90,7 +90,7 @@ object DataType {
 
   abstract class StrType extends DataType
   case object CalcStrType extends StrType
-  case class StrFromBytesType(bytes: BytesType, encoding: String) extends StrType
+  case class StrFromBytesType(bytes: BytesType, var encoding: String) extends StrType
 
   case object CalcBooleanType extends BooleanType
 
@@ -110,6 +110,22 @@ object DataType {
       *         and its destruction.
       */
     def isOwning: Boolean
+    /**
+      * @return If true, this type acts like an owning type in expressions, BUT the
+      *         data block is already owned by another type.
+      *
+      *         The only situation when this can be `true` is when subscripting
+      *         an array with owning inner type. Although the element
+      *         obtained from such an array has the "owning" type (behaves in
+      *         expressions like that), we can't save it in a value instance with
+      *         owning type as well, because the data block representing the element
+      *         is already owned by the array, so the instance CAN'T OWN IT too.
+      *         So [[isOwning]] = false and [[isOwningInExpr]] = true.
+      *
+      *         If [[isOwning]] == true, [[isOwningInExpr]] can't be `true` as well,
+      *         this MUST stay `false` in owning types.
+      */
+    def isOwningInExpr: Boolean = false
   }
 
   abstract class StructType extends ComplexDataType
@@ -139,8 +155,8 @@ object DataType {
     _args: Seq[Ast.expr] = Seq()
   ) extends UserType(_name, _forcedParent, _args) {
     def isOwning = true
-    override def asNonOwning: UserType = {
-      val r = CalcUserType(name, forcedParent, args)
+    override def asNonOwning(isOwningInExpr: Boolean = false): UserType = {
+      val r = CalcUserType(name, forcedParent, args, isOwningInExpr)
       r.classSpec = classSpec
       r
     }
@@ -153,8 +169,8 @@ object DataType {
     override val process: Option[ProcessExpr]
   ) extends UserType(_name, _forcedParent, _args) with Processing {
     override def isOwning = true
-    override def asNonOwning: UserType = {
-      val r = CalcUserTypeFromBytes(name, forcedParent, args, bytes, process)
+    override def asNonOwning(isOwningInExpr: Boolean = false): UserType = {
+      val r = CalcUserTypeFromBytes(name, forcedParent, args, bytes, process, isOwningInExpr)
       r.classSpec = classSpec
       r
     }
@@ -162,7 +178,8 @@ object DataType {
   case class CalcUserType(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
-    _args: Seq[Ast.expr] = Seq()
+    _args: Seq[Ast.expr] = Seq(),
+    override val isOwningInExpr: Boolean = false
   ) extends UserType(_name, _forcedParent, _args) {
     override def isOwning = false
   }
@@ -171,7 +188,8 @@ object DataType {
     _forcedParent: Option[Ast.expr],
     _args: Seq[Ast.expr] = Seq(),
     bytes: BytesType,
-    override val process: Option[ProcessExpr]
+    override val process: Option[ProcessExpr],
+    override val isOwningInExpr: Boolean = false
   ) extends UserType(_name, _forcedParent, _args) with Processing {
     override def isOwning = false
   }
@@ -180,9 +198,9 @@ object DataType {
 
   case class ArrayTypeInStream(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = true
-    override def asNonOwning: CalcArrayType = CalcArrayType(elType)
+    override def asNonOwning(isOwningInExpr: Boolean = false): CalcArrayType = CalcArrayType(elType, isOwningInExpr)
   }
-  case class CalcArrayType(_elType: DataType) extends ArrayType(_elType) {
+  case class CalcArrayType(_elType: DataType, override val isOwningInExpr: Boolean = false) extends ArrayType(_elType) {
     override def isOwning: Boolean = false
   }
 
@@ -191,14 +209,14 @@ object DataType {
   case object AnyType extends DataType
   case object KaitaiStructType extends StructType {
     def isOwning = true
-    override def asNonOwning: DataType = CalcKaitaiStructType
+    override def asNonOwning(isOwningInExpr: Boolean = false): DataType = CalcKaitaiStructType(isOwningInExpr)
   }
-  case object CalcKaitaiStructType extends StructType {
+  case class CalcKaitaiStructType(override val isOwningInExpr: Boolean = false) extends StructType {
     def isOwning = false
   }
   case object OwnedKaitaiStreamType extends ComplexDataType {
     def isOwning = true
-    override def asNonOwning: DataType = KaitaiStreamType
+    override def asNonOwning(isOwningInExpr: Boolean = false): DataType = KaitaiStreamType
   }
   case object KaitaiStreamType extends ComplexDataType {
     def isOwning = false
@@ -208,7 +226,12 @@ object DataType {
     var enumSpec: Option[EnumSpec] = None
   }
 
-  case class SwitchType(on: Ast.expr, cases: Map[Ast.expr, DataType], isOwning: Boolean = true) extends ComplexDataType {
+  case class SwitchType(
+    on: Ast.expr,
+    cases: Map[Ast.expr, DataType],
+    isOwning: Boolean = true,
+    override val isOwningInExpr: Boolean = false
+  ) extends ComplexDataType {
     def combinedType: DataType = TypeDetector.combineTypes(cases.values)
 
     /**
@@ -246,7 +269,7 @@ object DataType {
         t.isInstanceOf[UserTypeFromBytes] || t.isInstanceOf[BytesType]
       )
 
-    override def asNonOwning: DataType = SwitchType(on, cases, false)
+    override def asNonOwning(isOwningInExpr: Boolean = false): DataType = SwitchType(on, cases, false, isOwningInExpr)
   }
 
   object SwitchType {
@@ -461,7 +484,7 @@ object DataType {
         }
       case "str" => CalcStrType
       case "bool" => CalcBooleanType
-      case "struct" => CalcKaitaiStructType
+      case "struct" => CalcKaitaiStructType()
       case "io" => KaitaiStreamType
       case "any" => AnyType
       case _ => CalcUserType(classNameToList(singleId), None)

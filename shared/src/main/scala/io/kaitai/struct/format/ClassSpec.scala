@@ -15,10 +15,10 @@ sealed trait ClassSpecLike {
   def toDataType: DataType
 }
 case object UnknownClassSpec extends ClassSpecLike {
-  override def toDataType: DataType = CalcKaitaiStructType
+  override def toDataType: DataType = CalcKaitaiStructType()
 }
 case object GenericStructClassSpec extends ClassSpecLike {
-  override def toDataType: DataType = CalcKaitaiStructType
+  override def toDataType: DataType = CalcKaitaiStructType()
 }
 
 sealed trait Sized

@@ -425,6 +425,14 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("end")
   }
+
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts(s"function ${types2class(typeProvider.nowClass.name)}:__tostring()")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)}")
+    out.dec
+    out.puts("end")
+  }
 }
 
 object LuaCompiler extends LanguageCompilerStatic

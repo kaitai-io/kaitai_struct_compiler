@@ -2,7 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, NeedRaw}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -415,8 +415,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
-    val javaName = idToStr(varName)
-    val ioName = s"_io_$javaName"
+    val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
       case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
@@ -429,8 +428,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def allocateIOFixed(varName: Identifier, size: String): String = {
-    val javaName = idToStr(varName)
-    val ioName = s"_io_$javaName"
+    val ioName = idToStr(IoStorageIdentifier(varName))
 
     out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($size);")
     ioName
@@ -557,9 +555,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (config.readWrite) {
       dataType match {
         case utb: UserTypeFromBytes =>
-          if (writeNeedsOuterSize(utb))
+          if (writeNeedsOuterSize(utb.bytes))
             out.puts(s"${privateMemberName(OuterSizeIdentifier(id))} = new ArrayList<Integer>();")
-          if (writeNeedsInnerSize(utb))
+          if (writeNeedsInnerSize(utb.bytes))
             out.puts(s"${privateMemberName(InnerSizeIdentifier(id))} = new ArrayList<Integer>();")
         case _ => // do nothing
       }
@@ -688,6 +686,28 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     castIfNeeded(expr, dataType, assignType)
+  }
+
+  override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
+    val ioName = idToStr(IoStorageIdentifier(id))
+    handleAssignmentTempVar(KaitaiStreamType, ioName, s"$io.substream(${translator.translate(sizeExpr)});")
+    ioName
+  }
+
+  override def extraRawAttrForUserTypeFromBytes(id: Identifier, ut: UserTypeFromBytes, condSpec: ConditionalSpec): List[AttrSpec] = {
+    if (config.zeroCopySubstream) {
+      ut.bytes match {
+        case BytesLimitType(sizeExpr, None, _, None, None) =>
+          // substream will be used, no need for store raws
+          List()
+        case _ =>
+          // buffered implementation will be used, fall back to raw storage
+          super.extraRawAttrForUserTypeFromBytes(id, ut, condSpec)
+      }
+    } else {
+      // zero-copy streams disabled, fall back to raw storage
+      super.extraRawAttrForUserTypeFromBytes(id, ut, condSpec)
+    }
   }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
@@ -959,6 +979,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public static String[] _seqFields = new String[] { $seqStr };")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("@Override")
+    out.puts("public String toString() {")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)};")
+    out.dec
+    out.puts("}")
+  }
+
   override def attrPrimitiveWrite(
     io: String,
     valueExpr: Ast.expr,
@@ -1097,6 +1127,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => config.java.endOfStreamErrorClass
+    case ConversionError => "NumberFormatException"
     case _ => s"KaitaiStream.${err.name}"
   }
 
@@ -1180,12 +1211,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case AnyType => "Object"
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
-      case KaitaiStructType | CalcKaitaiStructType => kstructNameFull
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull
 
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
-      case ArrayTypeInStream(_) | CalcArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
+      case ArrayTypeInStream(_) | CalcArrayType(_, _) => kaitaiType2JavaTypeBoxed(attrType)
 
       case st: SwitchType => kaitaiType2JavaTypePrim(st.combinedType)
     }
@@ -1224,13 +1255,13 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       case AnyType => "Object"
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
-      case KaitaiStructType | CalcKaitaiStructType => kstructNameFull
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull
 
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
       case ArrayTypeInStream(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
-      case CalcArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
+      case CalcArrayType(inType, _) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
       case st: SwitchType => kaitaiType2JavaTypeBoxed(st.combinedType)
     }
@@ -1253,6 +1284,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+      case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
       case OuterSizeIdentifier(innerId) => s"${idToStr(innerId)}_OuterSize"
       case InnerSizeIdentifier(innerId) => s"${idToStr(innerId)}_InnerSize"
     }

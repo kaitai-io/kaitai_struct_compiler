@@ -51,7 +51,7 @@ trait EveryReadIsExpression
 
         attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, isNullable, st.combinedType)
       case t: StrFromBytesType =>
-        val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), Ast.expr.Str(t.encoding))
+        val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), t.encoding)
         handleAssignment(id, expr, rep, isRaw)
       case t: EnumType =>
         val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, t.basedOn, io, defEndian))
@@ -103,52 +103,7 @@ trait EveryReadIsExpression
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
-        val rawId = RawIdentifier(id)
-        val byteType = knownSizeType.bytes
-
-        attrParse2(rawId, byteType, io, rep, true, defEndian)
-
-        if (config.readWrite) {
-          if (writeNeedsOuterSize(knownSizeType)) {
-            /** @note Must be kept in sync with [[attrBytesTypeParse]] */
-            val rawRawId = knownSizeType.process match {
-              case None => rawId
-              case Some(_) => RawIdentifier(rawId)
-            }
-            val item = itemExpr(rawRawId, rep)
-            val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
-            /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
-             * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
-            if (rep == NoRepeat) {
-              handleAssignmentSimple(OuterSizeIdentifier(id), itemSizeExprStr)
-            } else {
-              handleAssignmentRepeatEos(OuterSizeIdentifier(id), itemSizeExprStr)
-            }
-          }
-          if (writeNeedsInnerSize(knownSizeType)) {
-            val item = itemExpr(rawId, rep)
-            val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
-            /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
-             * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
-            if (rep == NoRepeat) {
-              handleAssignmentSimple(InnerSizeIdentifier(id), itemSizeExprStr)
-            } else {
-              handleAssignmentRepeatEos(InnerSizeIdentifier(id), itemSizeExprStr)
-            }
-          }
-        }
-
-        val extraType = rep match {
-          case NoRepeat => byteType
-          case _ => ArrayTypeInStream(byteType)
-        }
-
-        this match {
-          case thisStore: AllocateAndStoreIO =>
-            thisStore.allocateIO(rawId, rep)
-          case thisLocal: AllocateIOLocalVar =>
-            thisLocal.allocateIO(rawId, rep)
-        }
+        createSubstream(id, knownSizeType.bytes, io, rep, defEndian)
       case _: UserTypeInstream =>
         // no fixed buffer, just use regular IO
         io
@@ -171,6 +126,111 @@ trait EveryReadIsExpression
           userTypeDebugRead(tempVarName, dataType, assignType)
           handleAssignment(id, tempVarName, rep, false)
       }
+    }
+  }
+
+  /**
+    * Creates a substream for a specific member `id`. A substream will be using underlying bytes
+    * type `byteType`, repeat specification `rep` and default endianness of `defEndian`.
+    *
+    * @param id
+    * @param byteType underlying bytes type
+    * @param io parent stream to derive substream from
+    * @param rep repeat specification for underlying bytes type
+    * @param defEndian default endianness specification
+    * @return string reference to a freshly created substream
+    */
+  def createSubstream(id: Identifier, byteType: BytesType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
+    if (config.zeroCopySubstream) {
+      byteType match {
+        case BytesLimitType(sizeExpr, None, _, None, None) =>
+          createSubstreamFixedSize(id, sizeExpr, io)
+        case _ =>
+          // fall back to buffered implementation
+          createSubstreamBuffered(id, byteType, io, rep, defEndian)
+      }
+    } else {
+      // if zero-copy substreams were declined, always use buffered implementation
+      createSubstreamBuffered(id, byteType, io, rep, defEndian)
+    }
+  }
+
+  /**
+    * Creates a substream for a specific member `id` of fixed sized `sizeExpr`, based off a parent
+    * stream of `io`.
+    *
+    * Default implementation just short-circuits this to `createSubstreamBuffered`, which is an
+    * inefficient, but guaranteed to work implementation.
+    *
+    * @param id identifier of a member that this stream is for
+    * @param sizeExpr expression designating size of substream in bytes
+    * @param io parent stream to derive substream from
+    * @return string reference to a freshly created substream
+    */
+  def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String =
+    createSubstreamBuffered(
+      id,
+      BytesLimitType(sizeExpr, None, false, None, None),
+      io,
+      NoRepeat,
+      None
+    )
+
+  /**
+    * Creates a substream by reading bytes that will comprise the stream first into a buffer in
+    * memory, and then wrapping that buffer as a new stream.
+    * @param id identifier of a member that this stream is for
+    * @param byteType underlying bytes type
+    * @param io parent stream to derive substream from
+    * @param rep repeat specification for underlying bytes type
+    * @param defEndian default endianness specification
+    * @return string reference to a freshly created substream
+    */
+  def createSubstreamBuffered(id: Identifier, byteType: BytesType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
+    val rawId = RawIdentifier(id)
+
+    attrParse2(rawId, byteType, io, rep, true, defEndian)
+
+    if (config.readWrite) {
+      if (writeNeedsOuterSize(byteType)) {
+        /** @note Must be kept in sync with [[attrBytesTypeParse]] */
+        val rawRawId = byteType.process match {
+          case None => rawId
+          case Some(_) => RawIdentifier(rawId)
+        }
+        val item = itemExpr(rawRawId, rep)
+        val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
+        /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
+         * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
+        if (rep == NoRepeat) {
+          handleAssignmentSimple(OuterSizeIdentifier(id), itemSizeExprStr)
+        } else {
+          handleAssignmentRepeatEos(OuterSizeIdentifier(id), itemSizeExprStr)
+        }
+      }
+      if (writeNeedsInnerSize(byteType)) {
+        val item = itemExpr(rawId, rep)
+        val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
+        /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
+         * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
+        if (rep == NoRepeat) {
+          handleAssignmentSimple(InnerSizeIdentifier(id), itemSizeExprStr)
+        } else {
+          handleAssignmentRepeatEos(InnerSizeIdentifier(id), itemSizeExprStr)
+        }
+      }
+    }
+
+    val extraType = rep match {
+      case NoRepeat => byteType
+      case _ => ArrayTypeInStream(byteType)
+    }
+
+    this match {
+      case thisStore: AllocateAndStoreIO =>
+        thisStore.allocateIO(rawId, rep)
+      case thisLocal: AllocateIOLocalVar =>
+        thisLocal.allocateIO(rawId, rep)
     }
   }
 

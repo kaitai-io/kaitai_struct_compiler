@@ -288,28 +288,23 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   val IMPORT_CHARMAP = "golang.org/x/text/encoding/charmap"
 
   val ENCODINGS = Map(
-    "cp437" -> ("charmap.CodePage437", IMPORT_CHARMAP),
-    "iso8859-1" -> ("charmap.ISO8859_1", IMPORT_CHARMAP),
-    "iso8859-2" -> ("charmap.ISO8859_2", IMPORT_CHARMAP),
-    "iso8859-3" -> ("charmap.ISO8859_3", IMPORT_CHARMAP),
-    "iso8859-4" -> ("charmap.ISO8859_4", IMPORT_CHARMAP),
-    "sjis" -> ("japanese.ShiftJIS", "golang.org/x/text/encoding/japanese"),
-    "big5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese"),
-    "utf-16le" -> ("unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
-    "utf-16be" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode")
+    "IBM437" -> ("charmap.CodePage437", IMPORT_CHARMAP),
+    "ISO-8859-1" -> ("charmap.ISO8859_1", IMPORT_CHARMAP),
+    "ISO-8859-2" -> ("charmap.ISO8859_2", IMPORT_CHARMAP),
+    "ISO-8859-3" -> ("charmap.ISO8859_3", IMPORT_CHARMAP),
+    "ISO-8859-4" -> ("charmap.ISO8859_4", IMPORT_CHARMAP),
+    "SJIS" -> ("japanese.ShiftJIS", "golang.org/x/text/encoding/japanese"),
+    "BIG5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese"),
+    "UTF-16LE" -> ("unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
+    "UTF-16BE" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode")
   )
 
-  override def bytesToStr(value: Ast.expr, expr: Ast.expr): TranslatorResult =
-    bytesToStr(translate(value), expr)
+  override def bytesToStr(value: Ast.expr, encoding: String): TranslatorResult =
+    bytesToStr(translate(value), encoding)
 
-  def bytesToStr(bytesExpr: String, encoding: Ast.expr): TranslatorResult = {
-    val enc = encoding match {
-      case Ast.expr.Str(s) => s
-      case _ => throw new RuntimeException("Variable encodings are not supported in Go yet")
-    }
-
-    enc.toLowerCase match {
-      case "ascii" | "utf-8" | "utf8" =>
+  def bytesToStr(bytesExpr: String, encoding: String): TranslatorResult = {
+    encoding match {
+      case "ASCII" | "UTF-8" =>
         // no conversion
         // FIXME: may be add some checks for valid ASCII/UTF-8
         ResultString(s"string($bytesExpr)")
