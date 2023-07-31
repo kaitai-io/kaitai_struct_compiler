@@ -1,20 +1,28 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
-import io.kaitai.struct.datatype.DataType.EnumType
+import io.kaitai.struct.{ImportList, Utils}
+import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.languages.JuliaCompiler
+import io.kaitai.struct.languages.{JuliaCompiler, RubyCompiler}
 
-class JuliaTranslator(provider: TypeProvider) extends BaseTranslator(provider)
-  with ByteArraysAsTrueArrays[String] {
-  override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"${super.doByteArrayLiteral(arr)}.pack('C*')"
-  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
-    s"[${elts.map(translate).mkString(", ")}].pack('C*')"
+class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Div) =>
+        s"${translate(left)} // ${translate(right)}"
+      case _ =>
+        super.numericBinOp(left, op, right)
+    }
+  }
 
-  // https://github.com/ruby/ruby/blob/trunk/doc/syntax/literals.rdoc#strings
-  // https://github.com/ruby/ruby/blob/trunk/string.c - see "rb_str_inspect"
+  override def doStringLiteral(s: String): String = "u" + super.doStringLiteral(s)
+  override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
+
+  /**
+    * https://docs.Julia.org/2.7/reference/lexical_analysis.html#string-literals
+    * https://docs.Julia.org/3.6/reference/lexical_analysis.html#string-and-bytes-literals
+    */
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",
@@ -22,110 +30,117 @@ class JuliaTranslator(provider: TypeProvider) extends BaseTranslator(provider)
     '"' -> "\\\"",
     '\\' -> "\\\\",
 
-    '#' -> "\\#",
     '\u0007' -> "\\a",
     '\f' -> "\\f",
     '\u000b' -> "\\v",
-    '\u001b' -> "\\e",
     '\b' -> "\\b"
   )
 
-  override def doName(s: String) = {
-    s match {
-      case Identifier.INDEX => "i" // FIXME: probably would clash with attribute named "i"
-      case _ => s
-    }
+  override def doByteArrayLiteral(arr: Seq[Byte]): String =
+    "b\"" + Utils.hexEscapeByteArray(arr) + "\""
+  override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = {
+    importList.add("import struct")
+    s"struct.pack('${elts.length}b', ${elts.map(translate).mkString(", ")})"
   }
 
+  override def doLocalName(s: String) = {
+    s match {
+      case Identifier.ITERATOR => "_"
+      case Identifier.INDEX => "i"
+      case _ => s"self.${doName(s)}"
+    }
+  }
+  override def doName(s: String) =
+    s
   override def doInternalName(id: Identifier): String =
-    JuliaCompiler.publicMemberName(id)
+    s"self.${JuliaCompiler.publicMemberName(id)}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s":${enumTypeAbs.last}_$label"
-  override def doEnumById(enumType: List[String], id: String): String =
-    s"${JuliaCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumType)}, $id)"
+    s"${JuliaCompiler.types2class(enumTypeAbs)}.$label"
+  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+    s"${JuliaCompiler.kstreamName}.resolve_enum(${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
 
-  def enumDirectMap(enumTypeAndName: List[String]): String = {
-    val enumTypeAbs = enumTypeAndName.dropRight(1)
-    val enumTypeName = Utils.upperUnderscoreCase(enumTypeAndName.last)
-
-    val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
-
-    if (enumTypeRel.nonEmpty) {
-      (enumTypeRel.map((x) => Utils.upperCamelCase(x)) ++ List(enumTypeName)).mkString("::")
-    } else {
-      enumTypeName
-    }
+  override def booleanOp(op: Ast.boolop) = op match {
+    case Ast.boolop.Or => "or"
+    case Ast.boolop.And => "and"
   }
 
-  def enumInverseMap(et: EnumType): String = {
-    val enumTypeAndName = et.enumSpec.get.name
-    val enumDirectMap = this.enumDirectMap(enumTypeAndName)
-    val enumNameDirect = Utils.upperUnderscoreCase(enumTypeAndName.last)
-    val enumNameInverse = JuliaCompiler.inverseEnumName(enumNameDirect)
-
-    enumDirectMap.replace(enumNameDirect, enumNameInverse)
+  override def unaryOp(op: Ast.unaryop) = op match {
+    case Ast.unaryop.Not => "not "
+    case _ => super.unaryOp(op)
   }
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
-    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
+    s"(${translate(ifTrue)} if ${translate(condition)} else ${translate(ifFalse)})"
 
   // Predefined methods of various types
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
-    translate(s) + ".to_i" + (baseStr match {
+    val add = baseStr match {
       case "10" => ""
-      case _ => s"($baseStr)"
-    })
+      case _ => s", $baseStr"
+    }
+    s"int(${translate(s)}$add)"
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
-    s"${enumInverseMap(et)}[${translate(v)}]"
+    s"${translate(v)}.value"
+  override def boolToInt(v: Ast.expr): String =
+    s"int(${translate(v)})"
   override def floatToInt(v: Ast.expr): String =
-    s"(${translate(v)}).to_i"
-  override def intToStr(i: Ast.expr, base: Ast.expr): String =
-    translate(i) + s".to_s(${translate(base)})"
+    s"int(${translate(v)})"
+  override def intToStr(i: Ast.expr, base: Ast.expr): String = {
+    val baseStr = translate(base)
+    val func = baseStr match {
+      case "2" => "bin"
+      case "8" => "oct"
+      case "10" => "str"
+      case "16" => "hex"
+      case _ => throw new UnsupportedOperationException(baseStr)
+    }
 
+    s"$func(${translate(i)})"
+  }
   override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"($bytesExpr).force_encoding(${translate(encoding)})"
-  override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.size"
-  /**
-    * Alternatives considered:
-    *
-    * * value[0].ord => 6341 => winner by performance
-    * * value.bytes[0] => 8303
-    */
-  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${translate(container)}[${translate(idx)}].ord"
-  override def bytesFirst(b: Ast.expr): String =
-    s"${translate(b)}[0].ord"
-  override def bytesLast(b: Ast.expr): String =
-    s"${translate(b)}[-1].ord"
-  override def bytesMin(b: Ast.expr): String =
-    s"${translate(b)}.bytes.min"
-  override def bytesMax(b: Ast.expr): String =
-    s"${translate(b)}.bytes.max"
+    s"($bytesExpr).decode(${translate(encoding)})"
 
-  override def strLength(s: Ast.expr): String =
-    s"${translate(s)}.size"
-  override def strReverse(s: Ast.expr): String =
-    s"${translate(s)}.reverse"
+  override def bytesLength(value: Ast.expr): String =
+    s"len(${translate(value)})"
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+    s"${JuliaCompiler.kstreamName}.byte_array_index(${translate(container)}, ${translate(idx)})"
+  override def bytesFirst(a: Ast.expr): String =
+    bytesSubscript(a, Ast.expr.IntNum(0))
+  override def bytesLast(a: Ast.expr): String =
+    bytesSubscript(a, Ast.expr.IntNum(-1))
+  override def bytesMin(b: Ast.expr): String =
+    s"${JuliaCompiler.kstreamName}.byte_array_min(${translate(b)})"
+  override def bytesMax(b: Ast.expr): String =
+    s"${JuliaCompiler.kstreamName}.byte_array_max(${translate(b)})"
+
+
+  override def strLength(value: Ast.expr): String =
+    s"len(${translate(value)})"
+  override def strReverse(value: Ast.expr): String =
+    s"(${translate(value)})[::-1]"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s)}[${translate(from)}..(${translate(to)} - 1)]"
+    s"(${translate(s)})[${translate(from)}:${translate(to)}]"
 
   override def arrayFirst(a: Ast.expr): String =
-    s"${translate(a)}.first"
+    s"${translate(a)}[0]"
   override def arrayLast(a: Ast.expr): String =
-    s"${translate(a)}.last"
+    s"${translate(a)}[-1]"
   override def arraySize(a: Ast.expr): String =
-    s"${translate(a)}.length"
+    s"len(${translate(a)})"
   override def arrayMin(a: Ast.expr): String =
-    s"${translate(a)}.min"
+    s"min(${translate(a)})"
   override def arrayMax(a: Ast.expr): String =
-    s"${translate(a)}.max"
+    s"max(${translate(a)})"
 
+  override def kaitaiStreamSize(value: Ast.expr): String =
+    s"${translate(value)}.size()"
   override def kaitaiStreamEof(value: Ast.expr): String =
-    s"${translate(value)}.eof?"
+    s"${translate(value)}.is_eof()"
+  override def kaitaiStreamPos(value: Ast.expr): String =
+    s"${translate(value)}.pos()"
 }
