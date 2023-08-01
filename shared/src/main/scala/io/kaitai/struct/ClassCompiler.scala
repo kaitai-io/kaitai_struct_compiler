@@ -140,9 +140,9 @@ class ClassCompiler(
       curClass.params
     )
     compileInit(curClass)
+    curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     if (config.readWrite) {
       curClass.instances.foreach { case (instName, instSpec) =>
-        lang.instanceClear(instName)
         instSpec match {
           case _: ParseInstanceSpec =>
             lang.instanceWriteFlagInit(instName)
