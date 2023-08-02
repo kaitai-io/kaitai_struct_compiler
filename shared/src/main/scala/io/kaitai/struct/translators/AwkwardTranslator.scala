@@ -178,9 +178,10 @@ class AwkwardTranslator(provider: TypeProvider, importListSrc: CppImportList, im
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {
     val baseStr = translate(base)
-    s"std::stoi(${translate(s)}" + (baseStr match {
+
+    s"${AwkwardCompiler.kstreamName}::string_to_int(${translate(s)}" + (baseStr match {
       case "10" => ""
-      case _ => s", 0, $baseStr"
+      case _ => s", $baseStr"
     }) + ")"
   }
   override def enumToInt(v: expr, et: EnumType): String =
@@ -199,8 +200,8 @@ class AwkwardTranslator(provider: TypeProvider, importListSrc: CppImportList, im
       case _ => throw new UnsupportedOperationException(baseStr)
     }
   }
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"${AwkwardCompiler.kstreamName}::bytes_to_str($bytesExpr, ${translate(encoding)})"
+  override def bytesToStr(bytesExpr: String, encoding: String): String =
+    s"""${AwkwardCompiler.kstreamName}::bytes_to_str($bytesExpr, "$encoding")"""
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.length()"
 

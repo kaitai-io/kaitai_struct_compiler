@@ -8,9 +8,11 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{CppTranslator, TypeDetector}
+import io.kaitai.struct.translators.{AwkwardTranslator, TypeDetector}
 
-class CppCompiler(
+import scala.collection.mutable.ListBuffer
+
+class AwkwardCompiler(
   typeProvider: ClassTypeProvider,
   config: RuntimeConfig
 ) extends LanguageCompiler(typeProvider, config)
@@ -20,12 +22,12 @@ class CppCompiler(
     with UniversalDoc
     with SwitchIfOps
     with EveryReadIsExpression {
-  import CppCompiler._
+  import AwkwardCompiler._
 
   val importListSrc = new CppImportList
   val importListHdr = new CppImportList
 
-  override val translator = new CppTranslator(typeProvider, importListSrc, importListHdr, config)
+  override val translator = new AwkwardTranslator(typeProvider, importListSrc, importListHdr, config)
   val outSrcHeader = new StringLanguageOutputWriter(indent)
   val outHdrHeader = new StringLanguageOutputWriter(indent)
   val outSrc = new StringLanguageOutputWriter(indent)
@@ -38,6 +40,24 @@ class CppCompiler(
       outFileNameHeader(className) -> (outHdrHeader.result + importListHdr.result + outHdr.result)
     )
   }
+
+  trait LayoutBuilder {}
+
+  case class NumpyBuilder(
+    dataType: String
+  ) extends LayoutBuilder {}
+
+  case class ListOffsetBuilder(
+    offsets: String,
+    content: LayoutBuilder
+  ) extends LayoutBuilder {}
+
+  case class RecordBuilder(
+    fields: ListBuffer[String],
+    contents: Map[String, LayoutBuilder]
+  ) extends LayoutBuilder {}
+
+  var layoutBuilder = RecordBuilder(ListBuffer(), Map())
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -316,6 +336,7 @@ class CppCompiler(
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PrivateAccess)
+    println(s"\nattrName: ${attrName.humanReadable}")
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
     declareNullFlag(attrName, isNullable)
   }
@@ -989,9 +1010,9 @@ class CppCompiler(
   def nullFlagForName(ksName: Identifier) =
     s"n_${idToStr(ksName)}"
 
-  override def idToStr(id: Identifier): String = CppCompiler.idToStr(id)
+  override def idToStr(id: Identifier): String = AwkwardCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = CppCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String = AwkwardCompiler.publicMemberName(id)
 
   override def privateMemberName(id: Identifier): String = s"m_${idToStr(id)}"
 
@@ -1009,10 +1030,12 @@ class CppCompiler(
     }
   }
 
-  override def type2class(className: String): String = CppCompiler.type2class(className)
+  override def type2class(className: String): String = AwkwardCompiler.type2class(className)
 
-  def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String =
-    CppCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
+  def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
+    println(s"type: $attrType")
+    AwkwardCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
+  }
 
   def nullPtr: String = config.cppConfig.pointers match {
     case RawPointers => "0"
@@ -1077,12 +1100,12 @@ class CppCompiler(
   }
 }
 
-object CppCompiler extends LanguageCompilerStatic
+object AwkwardCompiler extends LanguageCompilerStatic
   with StreamStructNames {
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
-  ): LanguageCompiler = new CppCompiler(tp, config)
+  ): LanguageCompiler = new AwkwardCompiler(tp, config)
 
   def idToStr(id: Identifier): String =
     id match {
