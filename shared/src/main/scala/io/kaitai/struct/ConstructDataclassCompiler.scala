@@ -216,8 +216,6 @@ class ConstructDataclassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec)
 
   private def getDataclassFieldType(dataType: DataType): String = {
     dataType match {
-      case utb: UserTypeFromBytes => s"subcsfield(${convertTypeToClass(utb.classSpec.get.name)}_t, "
-      case ut: UserTypeInstream => s"subcsfield(${convertTypeToClass(ut.classSpec.get.name)}_t, "
       case et: EnumType => s"tfield(${convertTypeToClass(et.enumSpec.get.name)}, "
       case _ => "csfield("
     }
