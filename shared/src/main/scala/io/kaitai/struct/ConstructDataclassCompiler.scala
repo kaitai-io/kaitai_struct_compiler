@@ -170,11 +170,17 @@ class ConstructDataclassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec)
       bytes match {
         case BytesEosType(_, _, _, _) => s"GreedyString(encoding='$encoding')"
         case blt: BytesLimitType =>
+          if (blt.terminator.isEmpty && blt.padRight.isEmpty) {
+            return s"PaddedString(${translator.translate(blt.size)}, encoding='$encoding')"
+          }
           createBytesLimitTypeConstruct(blt, s"GreedyString(encoding='$encoding')")
         case btt: BytesTerminatedType =>
           createBytesTerminatedTypeConstruct(btt, s"GreedyString(encoding='$encoding')")
       }
     case blt: BytesLimitType =>
+      if (blt.terminator.isEmpty && blt.padRight.isEmpty) {
+        return s"Bytes(${translator.translate(blt.size)})"
+      }
       createBytesLimitTypeConstruct(blt)
     case btt: BytesTerminatedType =>
       createBytesTerminatedTypeConstruct(btt, "GreedyBytes")
