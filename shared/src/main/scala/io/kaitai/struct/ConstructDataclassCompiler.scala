@@ -183,7 +183,7 @@ class ConstructDataclassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec)
     case utb: UserTypeFromBytes =>
       utb.bytes match {
         case BytesLimitType(size, _, _, _, _) =>
-          s"FixedSized(${translator.translate(size)}, LazyBound(lambda: ${convertTypeToClass(utb.classSpec.get.name)}.struct))"
+          s"FixedSized(${translator.translate(size)}, LazyBound(lambda: ${convertTypeToClass(utb.classSpec.get.name)}))"
         case _ => "???"
       }
     case BitsType1(endianness) =>
