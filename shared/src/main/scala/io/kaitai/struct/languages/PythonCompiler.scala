@@ -483,8 +483,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)")
 
-  // NOTE: the compiler does not need to output alignToByte() calls for Python anymore, since the byte
-  // alignment is handled by the runtime library since commit
+  // NOTE: the compiler does not need to output align_to_byte() calls for Python anymore,
+  // since the byte alignment is handled by the runtime library since commit
   // https://github.com/kaitai-io/kaitai_struct_python_runtime/commit/1cb84b84d358e1cdffe35845d1e6688bff923952
   override def alignToByte(io: String): Unit = {}
 
