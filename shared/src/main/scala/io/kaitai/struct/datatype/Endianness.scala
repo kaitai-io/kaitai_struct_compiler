@@ -57,7 +57,7 @@ object Endianness {
   def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String, path: List[String]): Option[FixedEndian] = s match {
     case Some("le") => Some(LittleEndian)
     case Some("be") => Some(BigEndian)
-    case _ =>
+    case None =>
       defaultEndian match {
         case Some(e: FixedEndian) => Some(e)
         case Some(_: CalcEndian) | Some(InheritedEndian) => None // to be overridden during compile
