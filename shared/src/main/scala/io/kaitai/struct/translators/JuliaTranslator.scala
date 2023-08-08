@@ -93,7 +93,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
       case "10" => ""
       case _ => s", $baseStr"
     }
-    s"int(${translate(s)}$add)"
+    s"parse(Int64, ${translate(s)}, $add)"
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
     s"Int(${translate(v)})"
