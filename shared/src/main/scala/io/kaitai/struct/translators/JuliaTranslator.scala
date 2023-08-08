@@ -96,11 +96,11 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     s"int(${translate(s)}$add)"
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
-    s"${translate(v)}.value"
+    s"Int(${translate(v)})"
   override def boolToInt(v: Ast.expr): String =
-    s"int(${translate(v)})"
+    s"Int(${translate(v)})"
   override def floatToInt(v: Ast.expr): String =
-    s"int(${translate(v)})"
+    s"trunc(${translate(v)})"
   override def intToStr(i: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
     s"string(${translate(i)}, base = $baseStr)"
