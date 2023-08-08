@@ -77,7 +77,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     s"this.${JuliaCompiler.publicMemberName(id)}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${JuliaCompiler.types2class(enumTypeAbs)}_$label"
+    s"${JuliaCompiler.enumToStr(enumTypeAbs, label)}"
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     s"${JuliaCompiler.types2class(enumTypeAbs)}($id)"
 
@@ -145,9 +145,9 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     s"maximum(${translate(a)})"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
-    s"${translate(value)}.size()"
+    s"size(${translate(value)})"
   override def kaitaiStreamEof(value: Ast.expr): String =
-    s"${translate(value)}.is_eof()"
+    s"iseof(${translate(value)})"
   override def kaitaiStreamPos(value: Ast.expr): String =
-    s"${translate(value)}.pos()"
+    s"pos(${translate(value)})"
 }
