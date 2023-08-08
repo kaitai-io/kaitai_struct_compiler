@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError, NeedRaw}
+import io.kaitai.struct.datatype.DataType.{BooleanType, _}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, NeedRaw, UndecidedEndiannessError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -19,31 +19,43 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with AllocateIOLocalVar
     with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
-    with SwitchIfOps
-    with NoNeedForFullClassPath {
+    with SwitchIfOps {
 
   import JuliaCompiler._
 
   override val translator = new JuliaTranslator(typeProvider, importList)
+  private val abstractTypes = new StringLanguageOutputWriter(indent)
 
   override def innerDocstrings = true
+
+  override def innerClasses: Boolean = false
 
   override def universalFooter: Unit = {
     out.dec
     out.puts("end")
+    out.puts
+  }
+
+  override def results(topClass: ClassSpec): Map[String, String] =
+    Map(outFileName(topClass.nameAsStr) ->
+      (outHeader.result + outImports(topClass) + abstractTypes.result + out.result)
+    )
+
+  override def classForwardDeclaration(name: List[String]): Unit = {
+    abstractTypes.puts(s"abstract type ${types2class("Abstract" :: name)} end")
   }
 
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"$topClassName.jl"
 
-  override def outImports(topClass: ClassSpec) =
+  override def outImports(topClass: ClassSpec): String =
     importList.toList.mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
     outHeader.puts
 
-    importList.add("using kaitaistruct")
+    importList.add("include(\"../../../runtime/julia/kaitaistruct.jl\")")
 
     out.puts
     // out.puts
@@ -82,49 +94,56 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
   }
 
-  override def classHeader(name: String): Unit = {
-    out.puts(s"mutable struct ${type2class(name)}")
+  override def classHeader(name: List[String]): Unit = {
+    val subtype = if (typeProvider.nowClass.isTopLevel) "" else s" <: ${types2class("Abstract" :: name)}"
+    out.puts(s"mutable struct ${types2class(name)}$subtype")
     out.inc
+    typeProvider.nowClass.meta.endian match {
+      case Some(_: CalcEndian) | Some(InheritedEndian) =>
+        out.puts(s"_is_le::Bool")
+      case _ =>
+      // no _is_le variable
+    }
   }
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
-    val endianAdd = if (isHybrid) ", _is_le=None" else ""
-    val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
+  override def classFooter(name: List[String]): Unit = {
+    universalFooter
+  }
 
-    out.puts(s"${type2class(name)}(_io, _parent = nothing, _root = nothing$endianAdd, $paramsList) = (")
+  override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
+    val endianAdd = if (isHybrid) ", _is_le=None" else ""
+    val paramsList = Utils.join(params.map(p => paramName(p.id)), "", ", ", ",")
+
+    out.puts(s"function ${types2class(name)}(${paramsList}_io, _parent = nothing, _root = nothing$endianAdd)")
     out.inc
+    out.puts("this = new()")
 
     // Store parameters passed to us
-    params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+    params.foreach(p => handleAssignmentSimple(p.id, paramName(p.id)))
   }
 
   override def runRead(name: List[String]): Unit = {
-    out.puts("x =  new();")
-    out.puts("x._io = _io;")
-    out.puts("x._parent = _parent;")
-    out.puts("x._root = _root === nothing ? x : _root;")
-    out.puts("_read(x);")
-    out.puts("x")
-  }
-
-  override def classConstructorFooter(): Unit = {
-    out.dec
-    out.puts(")")
+    typeProvider.nowClass.instances.keys.foreach(instanceIdentifier => out.puts(s"this.${idToStr(instanceIdentifier)} = nothing"))
+    out.puts("this._io = _io")
+    out.puts("this._parent = _parent")
+    out.puts("this._root = _root === nothing ? this : _root")
+    out.puts("_read(this)")
+    out.puts("this")
   }
 
   override def runReadCalc(): Unit = {
-    out.puts(s"if not hasattr(self, '_is_le'):")
+    out.puts(s"if !hasfield(${types2class(typeProvider.nowClass.name)}, :_is_le)")
     out.inc
-    out.puts(s"raise ${ksErrorName(UndecidedEndiannessError)}(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\")")
+    out.puts(s"throw(${ksErrorName(UndecidedEndiannessError)}(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\"))")
     out.dec
-    out.puts(s"elif self._is_le == True:")
+    out.puts(s"elseif this._is_le == true")
     out.inc
-    out.puts("self._read_le()")
+    out.puts("_read_le(this)")
     out.dec
-    out.puts("elif self._is_le == False:")
+    out.puts("elseif this._is_le == false")
     out.inc
-    out.puts("self._read_be()")
-    out.dec
+    out.puts("_read_be(this)")
+    universalFooter
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
@@ -132,17 +151,30 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case Some(e) => s"_${e.toSuffix}"
       case None => ""
     }
-    out.puts(s"function _read$suffix(this::${type2class(typeProvider.nowClass.name.last)})")
+    out.puts(s"function _read$suffix(this::${types2class(typeProvider.nowClass.name)})")
     out.inc
   }
 
-  override def readFooter() = {
+  override def readFooter(): Unit = {
     out.puts("nothing")
     universalFooter
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"${idToStr(attrName)}::$attrType")
+    out.puts(s"${idToStr(attrName)}::${kaitaiType2NativeType(attrType)}")
+  }
+
+  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"${idToStr(attrName)}::Union{Nothing, ${kaitaiType2NativeType(attrType)}}")
+  }
+
+  def fromFile(name: List[String]): Unit = {
+    if (typeProvider.nowClass.params.isEmpty) {
+      out.puts(s"function from_file(filename::String)::${types2class(name)}")
+      out.inc
+      out.puts(s"${types2class(name)}($kstreamName(open(filename, ${'"'}r${'"'})))")
+      universalFooter
+    }
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
@@ -200,8 +232,8 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
-        importList.add("import zlib")
-        s"zlib.decompress($srcExpr)"
+        importList.add("using Zlib")
+        s"decompress($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
@@ -224,18 +256,17 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"_process = $procClass(${args.map(expression).mkString(", ")})")
         s"_process.decode($srcExpr)"
     }
-    handleAssignment(varDest, expr, rep, false)
+    handleAssignment(varDest, expr, rep, isRaw = false)
   }
 
   override def normalIO: String = "this._io"
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
-    val varStr = privateMemberName(varName)
     val ioName = s"_io_${idToStr(varName)}"
 
     val args = getRawIdExpr(varName, rep)
 
-    out.puts(s"$ioName = $kstreamName(BytesIO($args))")
+    out.puts(s"$ioName = $kstreamName(IOBuffer($args))")
     ioName
   }
 
@@ -244,7 +275,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     rep match {
       case NoRepeat => memberName
       case RepeatExpr(_) => s"$memberName[i]"
-      case _ => s"$memberName[-1]"
+      case _ => s"$memberName[end]"
     }
   }
 
@@ -254,19 +285,19 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def pushPos(io: String): Unit =
-    out.puts(s"_pos = $io.pos()")
+    out.puts(s"_pos = pos($io)")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"$io.seek(${expression(pos)})")
+    out.puts(s"seek($io, ${expression(pos)})")
 
   override def popPos(io: String): Unit =
-    out.puts(s"$io.seek(_pos)")
+    out.puts(s"seek($io, _pos)")
 
   override def alignToByte(io: String): Unit =
-    out.puts(s"$io.align_to_byte()")
+    out.puts(s"align_to_byte($io)")
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
-    ios.foreach { (io) =>
+    ios.foreach { io =>
       val name = attrId match {
         case _: RawIdentifier | _: SpecialIdentifier => return
         case _ => idToStr(attrId)
@@ -302,7 +333,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condIfHeader(expr: Ast.expr): Unit = {
-    out.puts(s"if ${expression(expr)}:")
+    out.puts(s"if ${expression(expr)}")
     out.inc
   }
 
@@ -316,11 +347,11 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("i = 0")
-    out.puts(s"while not $io.is_eof():")
+    out.puts(s"while !iseof($io)")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)}.append($expr)")
+    out.puts(s"push!(${privateMemberName(id)}, $expr)")
 
   override def condRepeatEosFooter: Unit = {
     out.puts("i += 1")
@@ -328,7 +359,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for i in range(${expression(repeatExpr)}):")
+    out.puts(s"for i in 0:${expression(repeatExpr)}-1")
     out.inc
   }
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
@@ -336,24 +367,24 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("i = 0")
-    out.puts("while True:")
+    out.puts("while true")
     out.inc
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
     out.puts(s"$tmpName = $expr")
-    out.puts(s"${privateMemberName(id)}.append($tmpName)")
+    out.puts(s"push!(${privateMemberName(id)}, $tmpName)")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts(s"if ${expression(untilExpr)}:")
+    out.puts(s"if ${expression(untilExpr)}")
     out.inc
     out.puts("break")
-    out.dec
+    universalFooter
     out.puts("i += 1")
-    out.dec
+    universalFooter
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
@@ -365,44 +396,44 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read_${t.apiCall(defEndian)}()"
+        s"read${Utils.capitalize(t.apiCall(defEndian))}($io)"
       case blt: BytesLimitType =>
-        s"$io.read_bytes(${expression(blt.size)})"
+        s"read_bytes($io, convert(UInt, ${expression(blt.size)}))"
       case _: BytesEosType =>
-        s"$io.read_bytes_full()"
+        s"read_bytes_full($io)"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.read_bytes_term($terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
+        s"read_bytes_term($io, convert(UInt8, $terminator), $include, $consume, $eosError)"
       case BitsType1(bitEndian) =>
-        s"$io.read_bits_int_${bitEndian.toSuffix}(1) != 0"
+        s"read_bits_int_${bitEndian.toSuffix}($io, 1) != 0"
       case BitsType(width: Int, bitEndian) =>
-        s"$io.read_bits_int_${bitEndian.toSuffix}($width)"
+        s"read_bits_int_${bitEndian.toSuffix}($io, $width)"
       case t: UserType =>
-        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
+        val addParams = Utils.join(t.args.map(a => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "None"
             case Some(fp) => translator.translate(fp)
-            case None => "self"
+            case None => "this"
           }
           val addEndian = t.classSpec.get.meta.endian match {
-            case Some(InheritedEndian) => ", self._is_le"
+            case Some(InheritedEndian) => ", this._is_le"
             case _ => ""
           }
-          s", $parent, self._root$addEndian"
+          s", $parent, this._root$addEndian"
         }
         s"${userType2class(t)}($addParams$io$addArgs)"
     }
   }
 
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName.bytes_strip_right($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName.bytes_terminate($expr1, $term, ${bool2Py(include)})"
+      case Some(term) => s"$kstreamName.bytes_terminate($expr1, $term, ${include})"
       case None => expr1
     }
     expr2
@@ -423,56 +454,75 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
-    out.puts(s"if _on == ${expression(condition)}:")
+    out.puts(s"if _on == ${expression(condition)}")
     out.inc
   }
 
   override def switchIfCaseStart(condition: Ast.expr): Unit = {
-    out.puts(s"elif _on == ${expression(condition)}:")
+    out.puts(s"elseif _on == ${expression(condition)}")
     out.inc
   }
 
-  override def switchIfCaseEnd(): Unit =
+  override def switchIfCaseEnd(): Unit = {
     out.dec
+  }
 
   override def switchIfElseStart(): Unit = {
-    out.puts(s"else:")
+    out.puts(s"else")
     out.inc
   }
 
-  override def switchIfEnd(): Unit = {}
+  override def switchIfEnd(): Unit = {
+    out.puts("end")
+  }
 
-  override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    out.puts("@property")
-    out.puts(s"def ${publicMemberName(instName)}(self):")
+  override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"function _get_${publicMemberName(instName)}(this::${types2class(className)})")
     out.inc
+  }
+
+  def overrideGetProperty(className: List[String], instances: Map[InstanceIdentifier, InstanceSpec]): Unit = {
+    if (instances.isEmpty)
+      return
+    out.puts(s"function Base.getproperty(obj::${types2class(className)}, sym::Symbol)")
+    out.inc
+    var c = "if"
+    instances.keys.foreach(instName => {
+      out.puts(s"$c sym === :${publicMemberName(instName)}")
+      c = "elseif"
+      out.inc
+      out.puts(s"return _get_${publicMemberName(instName)}(obj)")
+      out.dec
+    })
+    out.puts("else")
+    out.inc
+    out.puts("return getfield(obj, sym)")
+    universalFooter
+    universalFooter
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"if hasattr(self, '${idToStr(instName)}'):")
+    out.puts(s"if ${privateMemberName(instName)} !== nothing")
     out.inc
     out.puts(s"return ${privateMemberName(instName)}")
-    out.dec
-    out.puts
+    universalFooter
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     // workaround to avoid Python raising an "AttributeError: instance has no attribute"
-    out.puts(s"return getattr(self, '${idToStr(instName)}', None)")
+    out.puts(s"${privateMemberName(instName)}")
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
-    importList.add("from enum import Enum")
-
-    out.puts
-    out.puts(s"class ${type2class(enumName)}(Enum):")
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
+    val fullEnumName: List[String] = curClass ++ List(enumName)
+    out.puts(s"@enum ${types2class(fullEnumName)} begin")
     out.inc
-    enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = ${translator.doIntLiteral(id)}") }
-    out.dec
+    enumColl.foreach { case (id: Long, label: EnumValueSpec) => out.puts(s"${enumToStr(fullEnumName, label.name)} = ${translator.doIntLiteral(id)}") }
+    universalFooter
   }
 
-  override def debugClassSequence(seq: List[AttrSpec]) = {
-    val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
+  override def debugClassSequence(seq: List[AttrSpec]): Unit = {
+    val seqStr = seq.map(attr => "\"" + idToStr(attr.id) + "\"").mkString(", ")
     out.puts(s"SEQ_FIELDS = [$seqStr]")
   }
 
@@ -483,8 +533,6 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${translator.translate(toStringExpr)}")
     out.dec
   }
-
-  def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 
   override def idToStr(id: Identifier): String = JuliaCompiler.idToStr(id)
 
@@ -504,10 +552,10 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     errArgs: List[Ast.expr]
   ): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"if not ${translator.translate(checkExpr)}:")
+    out.puts(s"if !(${translator.translate(checkExpr)})")
     out.inc
-    out.puts(s"raise ${ksErrorName(err)}($errArgsStr)")
-    out.dec
+    out.puts(s"throw(${ksErrorName(err)}($errArgsStr))")
+    universalFooter
   }
 
   def userType2class(t: UserType): String = {
@@ -547,11 +595,54 @@ object JuliaCompiler extends LanguageCompilerStatic
     }
 
   override def kstreamName: String = "KaitaiStream"
-  override def kstructName: String = "KaitaiStruct"
+  override def kstructName: String = "Any"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "EOFError"
-    case _ => s"kaitaistruct.${err.name}"
+    case _ => s"${err.name}"
   }
 
-  def types2class(name: List[String]): String = name.map(x => type2class(x)).mkString(".")
+  def types2class(name: List[String]): String = name.map(x => type2class(x)).mkString("_")
+
+  def kaitaiType2NativeType(attrType: DataType): String = {
+    attrType match {
+      case Int1Type(false) => "UInt8"
+      case IntMultiType(false, Width2, _) => "UInt16"
+      case IntMultiType(false, Width4, _) => "UInt32"
+      case IntMultiType(false, Width8, _) => "UInt64"
+
+      case Int1Type(true) => "Int8"
+      case IntMultiType(true, Width2, _) => "Int16"
+      case IntMultiType(true, Width4, _) => "Int32"
+      case IntMultiType(true, Width8, _) => "Int64"
+
+      case FloatMultiType(Width4, _) => "Float32"
+      case FloatMultiType(Width8, _) => "Float64"
+
+      case BitsType(_, _) => "UInt64"
+
+      case _: BooleanType => "Bool"
+      case CalcIntType => "Int"
+      case CalcFloatType => "Float64"
+
+      case _: StrType => "String"
+      case _: BytesType => "Vector{UInt8}"
+
+      case AnyType => "Any"
+      case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
+      case KaitaiStructType | CalcKaitaiStructType => kstructName
+      case t: UserType => types2class(t.classSpec match {
+        case Some(cs) => if (cs.isTopLevel) cs.name else "Abstract" :: cs.name
+        case None => t.name
+      })
+
+      case t: EnumType => types2class(t.enumSpec.get.name)
+
+      case at: ArrayType => s"Vector{${kaitaiType2NativeType(at.elType)}}"
+
+      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
+    }
+
+  }
+  def enumToStr(typeName: List[String], enumName: String): String =
+    typeName.mkString("_") + "__" + enumName
 }
