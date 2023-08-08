@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype.DataType.{CalcIntType, KaitaiStreamType, UserTypeInstream}
-import io.kaitai.struct.datatype.{BigEndian, CalcEndian, Endianness, FixedEndian, InheritedEndian, LittleEndian}
+import io.kaitai.struct.datatype.DataType.{CalcIntType, KaitaiStreamType, UserType, UserTypeInstream}
+import io.kaitai.struct.datatype.{BigEndian, CalcEndian, Endianness, FixedEndian, LittleEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.JuliaCompiler
@@ -13,6 +13,8 @@ class JuliaClassCompiler(
   config: RuntimeConfig
 ) extends ClassCompiler(classSpecs, topClass, config, JuliaCompiler) {
 
+  private val julialang = lang.asInstanceOf[JuliaCompiler]
+
   override def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
@@ -21,6 +23,8 @@ class JuliaClassCompiler(
       AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None)),
       AttrSpec(List(), ParentIdentifier, curClass.parentType)
     ) ++ ExtraAttrs.forClassSpec(curClass, lang)
+
+    curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(curClass.name ++ List(typeName)) }
 
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
@@ -38,26 +42,18 @@ class JuliaClassCompiler(
     lang.classFooter(curClass.name)
 
     // Constructor = Read() function
+    if (curClass.isTopLevel)
+      julialang.fromFile(curClass.name)
+
     compileEagerRead(curClass.seq, curClass.meta.endian)
 
+    julialang.overrideGetProperty(curClass.name, curClass.instances)
     compileInstances(curClass)
 
     compileAttrReaders(curClass.seq ++ extraAttrs)
 
     // Recursive types
     compileSubclasses(curClass)
-  }
-
-  def compileReadFunction(curClass: ClassSpec) = {
-    lang.classConstructorHeader(
-      curClass.name,
-      curClass.parentType,
-      topClassName,
-      curClass.meta.endian.contains(InheritedEndian),
-      curClass.params
-    )
-    compileEagerRead(curClass.seq, curClass.meta.endian)
-    lang.classConstructorFooter
   }
 
   override def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, endian: Option[Endianness]): Unit = {
@@ -86,8 +82,8 @@ class JuliaClassCompiler(
   override def compileCalcEndian(ce: CalcEndian): Unit = {
     def renderProc(result: FixedEndian): Unit = {
       val v = result match {
-        case LittleEndian => Ast.expr.IntNum(1)
-        case BigEndian => Ast.expr.IntNum(0)
+        case LittleEndian => Ast.expr.Bool(true)
+        case BigEndian => Ast.expr.Bool(false)
       }
       lang.instanceCalculate(IS_LE_ID, CalcIntType, v)
     }
