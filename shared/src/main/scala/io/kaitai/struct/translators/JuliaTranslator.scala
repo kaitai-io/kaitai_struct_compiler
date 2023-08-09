@@ -89,11 +89,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   // Predefined methods of various types
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
-    val add = baseStr match {
-      case "10" => ""
-      case _ => s", $baseStr"
-    }
-    s"parse(Int64, ${translate(s)}, $add)"
+    s"parse(Int64, ${translate(s)}, $baseStr)"
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
     s"Int(${translate(v)})"

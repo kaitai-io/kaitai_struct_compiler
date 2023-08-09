@@ -514,7 +514,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
-    val fullEnumName: List[String] = curClass ++ List(enumName)
+    val fullEnumName: List[String] = curClass :+ enumName
     out.puts(s"@enum ${types2class(fullEnumName)} begin")
     out.inc
     enumColl.foreach { case (id: Long, label: EnumValueSpec) => out.puts(s"${enumToStr(fullEnumName, label.name)} = ${translator.doIntLiteral(id)}") }
