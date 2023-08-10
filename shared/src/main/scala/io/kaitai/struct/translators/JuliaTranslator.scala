@@ -5,6 +5,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.{JuliaCompiler, RubyCompiler}
+import io.kaitai.struct.exprlang.ConstEvaluator
 
 class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
@@ -82,7 +83,9 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     s"${JuliaCompiler.types2class(enumTypeAbs)}($id)"
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container)}[${translateIndex(idx)}]"
+  def translateIndex(idx: Ast.expr): String =
+    (ConstEvaluator.evaluateIntConst(idx).get + 1).toString
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 
@@ -127,10 +130,10 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def strReverse(value: Ast.expr): String =
     s"reverse(${translate(value)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"(${translate(s)})[${translate(from)}:${translate(to)}]"
+    s"${translate(s)}[${translate(from)}:${translate(to)}]"
 
   override def arrayFirst(a: Ast.expr): String =
-    s"${translate(a)}[1]"
+    s"${translate(a)}[begin]"
   override def arrayLast(a: Ast.expr): String =
     s"${translate(a)}[end]"
   override def arraySize(a: Ast.expr): String =
