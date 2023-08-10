@@ -24,7 +24,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   import JuliaCompiler._
 
   override val translator = new JuliaTranslator(typeProvider, importList)
-  private val abstractTypes = new StringLanguageOutputWriter(indent)
+  private val abstractTypesAndEnums = new StringLanguageOutputWriter(indent)
 
   override def innerDocstrings = true
 
@@ -38,11 +38,11 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def results(topClass: ClassSpec): Map[String, String] =
     Map(outFileName(topClass.nameAsStr) ->
-      (outHeader.result + outImports(topClass) + abstractTypes.result + out.result)
+      (outHeader.result + outImports(topClass) + abstractTypesAndEnums.result + out.result)
     )
 
   override def classForwardDeclaration(name: List[String]): Unit = {
-    abstractTypes.puts(s"abstract type ${types2class("Abstract" :: name)} end")
+    abstractTypesAndEnums.puts(s"abstract type ${types2class("Abstract" :: name)} end")
   }
 
   override def indent: String = "    "
@@ -111,6 +111,8 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"function ${types2class(name)}(${paramsList}_io, _parent = nothing, _root = nothing$endianAdd)")
     out.inc
     out.puts("this = new()")
+    if (isHybrid)
+      out.puts("this._is_le = _is_le")
 
     // Store parameters passed to us
     params.foreach(p => handleAssignmentSimple(p.id, paramName(p.id)))
@@ -509,10 +511,12 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val fullEnumName: List[String] = curClass :+ enumName
-    out.puts(s"@enum ${types2class(fullEnumName)} begin")
-    out.inc
-    enumColl.foreach { case (id: Long, label: EnumValueSpec) => out.puts(s"${enumToStr(fullEnumName, label.name)} = ${translator.doIntLiteral(id)}") }
-    universalFooter
+    abstractTypesAndEnums.puts(s"@enum ${types2class(fullEnumName)} begin")
+    abstractTypesAndEnums.inc
+    enumColl.foreach { case (id: Long, label: EnumValueSpec) => abstractTypesAndEnums.puts(s"${enumToStr(fullEnumName, label.name)} = ${translator.doIntLiteral(id)}") }
+    abstractTypesAndEnums.dec
+    abstractTypesAndEnums.puts("end")
+    abstractTypesAndEnums.puts
   }
 
   override def debugClassSequence(seq: List[AttrSpec]): Unit = {
