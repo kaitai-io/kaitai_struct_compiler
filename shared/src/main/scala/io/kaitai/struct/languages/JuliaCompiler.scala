@@ -85,13 +85,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = classSpec.name.head
-    out.puts(
-      if (config.pythonPackage.nonEmpty) {
-        s"from ${config.pythonPackage} import $name"
-      } else {
-        s"import $name"
-      }
-    )
+    out.puts(s"include(${'"'}$name.jl${'"'})")
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -211,14 +205,14 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents($contents)")
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
-    out.puts("if self._is_le:")
+    out.puts("if this._is_le")
     out.inc
     leProc()
     out.dec
-    out.puts("else:")
+    out.puts("else")
     out.inc
     beProc()
-    out.dec
+    universalFooter
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
@@ -566,7 +560,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       ""
     }
-    s"$prefix${types2class(name)}"
+    s"${types2class(name)}"
   }
 }
 
