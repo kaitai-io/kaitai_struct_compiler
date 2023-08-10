@@ -114,7 +114,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def bytesLength(value: Ast.expr): String =
     s"length(${translate(value)})"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${JuliaCompiler.kstreamName}.byte_array_index(${translate(container)}, ${translate(idx)})"
+    s"${translate(container)}[${translateIndex(idx)}]"
   override def bytesFirst(a: Ast.expr): String =
     bytesSubscript(a, Ast.expr.IntNum(0))
   override def bytesLast(a: Ast.expr): String =
