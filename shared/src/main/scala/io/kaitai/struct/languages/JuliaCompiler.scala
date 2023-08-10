@@ -429,11 +429,11 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
     val expr1 = padRight match {
-      case Some(padByte) => s"$kstreamName.bytes_strip_right($expr0, $padByte)"
+      case Some(padByte) => s"bytes_strip_right($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName.bytes_terminate($expr1, $term, ${include})"
+      case Some(term) => s"bytes_terminate($expr1, $term, ${include})"
       case None => expr1
     }
     expr2
