@@ -105,7 +105,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
-    val endianAdd = if (isHybrid) ", _is_le=None" else ""
+    val endianAdd = if (isHybrid) ", _is_le=nothing" else ""
     val paramsList = Utils.join(params.map(p => paramName(p.id)), "", ", ", ",")
 
     out.puts(s"function ${types2class(name)}(${paramsList}_io, _parent = nothing, _root = nothing$endianAdd)")
@@ -222,11 +222,11 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
-        val procName = translator.detectType(xorValue) match {
-          case _: IntType => "process_xor_one"
-          case _: BytesType => "process_xor_many"
+        val xorValueStr = translator.detectType(xorValue) match {
+          case _: IntType => translator.doCast(xorValue, Int1Type(true))
+          case _ => expression(xorValue)
         }
-        s"$kstreamName.$procName($srcExpr, ${expression(xorValue)})"
+        s"process_xor($srcExpr, UInt8($xorValueStr))"
       case ProcessZlib =>
         importList.add("using Zlib")
         s"decompress($srcExpr)"
@@ -236,7 +236,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$kstreamName.process_rotate_left($srcExpr, $expr, 1)"
+        s"process_rotate_left($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = if (name.length == 1) {
           val onlyName = name.head
@@ -355,7 +355,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for i in 0:${expression(repeatExpr)}-1")
+    out.puts(s"for i in 1:${expression(repeatExpr)}")
     out.inc
   }
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
@@ -409,7 +409,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           ""
         } else {
           val parent = t.forcedParent match {
-            case Some(USER_TYPE_NO_PARENT) => "None"
+            case Some(USER_TYPE_NO_PARENT) => "nothing"
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
@@ -633,7 +633,7 @@ object JuliaCompiler extends LanguageCompilerStatic
         case None => t.name
       })
 
-      case t: EnumType => types2class(t.enumSpec.get.name)
+      case t: EnumType => s"Union{${types2class(t.enumSpec.get.name)}, Integer}"
 
       case at: ArrayType => s"Vector{${kaitaiType2NativeType(at.elType)}}"
 
