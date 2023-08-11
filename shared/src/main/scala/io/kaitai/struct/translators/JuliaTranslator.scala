@@ -80,7 +80,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${JuliaCompiler.enumToStr(enumTypeAbs, label)}"
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"${JuliaCompiler.types2class(enumTypeAbs)}($id)"
+    s"resolve_enum(${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translateIndex(idx)}]"
@@ -92,7 +92,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   // Predefined methods of various types
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
-    s"parse(Int64, ${translate(s)}, $baseStr)"
+    s"parse(Int64, ${translate(s)}, base=$baseStr)"
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
     s"Int(${translate(v)})"
@@ -120,9 +120,9 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def bytesLast(a: Ast.expr): String =
     bytesSubscript(a, Ast.expr.IntNum(-1))
   override def bytesMin(b: Ast.expr): String =
-    s"${JuliaCompiler.kstreamName}.byte_array_min(${translate(b)})"
+    s"byte_array_min(${JuliaCompiler.kstreamName}, ${translate(b)})"
   override def bytesMax(b: Ast.expr): String =
-    s"${JuliaCompiler.kstreamName}.byte_array_max(${translate(b)})"
+    s"byte_array_max(${JuliaCompiler.kstreamName}, ${translate(b)})"
 
 
   override def strLength(value: Ast.expr): String =
@@ -137,7 +137,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def arrayLast(a: Ast.expr): String =
     s"${translate(a)}[end]"
   override def arraySize(a: Ast.expr): String =
-    s"size(${translate(a)}, 1)"
+    s"Base.size(${translate(a)}, 1)"
   override def arrayMin(a: Ast.expr): String =
     s"minimum(${translate(a)})"
   override def arrayMax(a: Ast.expr): String =
