@@ -11,7 +11,9 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"${translate(left)} ÷ ${translate(right)}"
+        s"fld(${translate(left)}, ${translate(right)})"
+      case (_: IntType, _: IntType, Ast.operator.Mod) =>
+        s"mod(${translate(left)}, ${translate(right)})"
       case _ =>
         super.numericBinOp(left, op, right)
     }
@@ -115,14 +117,14 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     s"length(${translate(value)})"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translateIndex(idx)}]"
-  override def bytesFirst(a: Ast.expr): String =
-    bytesSubscript(a, Ast.expr.IntNum(0))
-  override def bytesLast(a: Ast.expr): String =
-    bytesSubscript(a, Ast.expr.IntNum(-1))
+  override def bytesFirst(container: Ast.expr): String =
+    s"${translate(container)}[begin]"
+  override def bytesLast(container: Ast.expr): String =
+    s"${translate(container)}[end]"
   override def bytesMin(b: Ast.expr): String =
-    s"byte_array_min(${JuliaCompiler.kstreamName}, ${translate(b)})"
+    s"minimum(${translate(b)})"
   override def bytesMax(b: Ast.expr): String =
-    s"byte_array_max(${JuliaCompiler.kstreamName}, ${translate(b)})"
+    s"maximum(${translate(b)})"
 
 
   override def strLength(value: Ast.expr): String =
@@ -130,7 +132,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def strReverse(value: Ast.expr): String =
     s"reverse(${translate(value)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s)}[${translate(from)}:${translate(to)}]"
+    s"(${translate(s)})[${translateIndex(from)}:${translate(to)}]"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[begin]"
