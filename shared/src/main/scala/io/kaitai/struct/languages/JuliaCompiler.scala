@@ -94,7 +94,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
-        out.puts(s"_is_le::Bool")
+        out.puts(s"_is_le::Union{Bool, Nothing}")
       case _ =>
       // no _is_le variable
     }
@@ -128,17 +128,17 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def runReadCalc(): Unit = {
-    out.puts(s"if !hasfield(${types2class(typeProvider.nowClass.name)}, :_is_le)")
-    out.inc
-    out.puts(s"throw(${ksErrorName(UndecidedEndiannessError)}(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\"))")
-    out.dec
-    out.puts(s"elseif this._is_le == true")
+    out.puts(s"if this._is_le == true")
     out.inc
     out.puts("_read_le(this)")
     out.dec
     out.puts("elseif this._is_le == false")
     out.inc
     out.puts("_read_be(this)")
+    out.dec
+    out.puts(s"else")
+    out.inc
+    out.puts(s"throw(${ksErrorName(UndecidedEndiannessError)}(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\"))")
     universalFooter
   }
 
@@ -511,7 +511,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val fullEnumName: List[String] = curClass :+ enumName
-    abstractTypesAndEnums.puts(s"@enum ${types2class(fullEnumName)} begin")
+    abstractTypesAndEnums.puts(s"@enum ${types2class(fullEnumName)}::Int64 begin")
     abstractTypesAndEnums.inc
     enumColl.foreach { case (id: Long, label: EnumValueSpec) => abstractTypesAndEnums.puts(s"${enumToStr(fullEnumName, label.name)} = ${translator.doIntLiteral(id)}") }
     abstractTypesAndEnums.dec
@@ -595,7 +595,7 @@ object JuliaCompiler extends LanguageCompilerStatic
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "Any"
   override def ksErrorName(err: KSError): String = err match {
-    case EndOfStreamError => "EOFError"
+    case EndOfStreamError => "ErrorException"
     case _ => s"${err.name}"
   }
 
