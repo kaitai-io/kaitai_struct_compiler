@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, GenericStructClassSpec, MetaSpec}
-import io.kaitai.struct.languages.{GoCompiler, NimCompiler, RustCompiler}
+import io.kaitai.struct.languages.{AwkwardCompiler, GoCompiler, NimCompiler, RustCompiler}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile._
 import io.kaitai.struct.problems.CompilationProblem
@@ -104,6 +104,8 @@ object Main {
         new NimClassCompiler(specs, spec, config)
       case HtmlClassCompiler =>
         new HtmlClassCompiler(specs, spec)
+      case AwkwardCompiler =>
+        new AwkwardClassCompiler(specs, spec, config)
       case _ =>
         new ClassCompiler(specs, spec, config, lang)
     }
