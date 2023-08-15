@@ -9,8 +9,9 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{AwkwardTranslator, TypeDetector}
+import scala.collection.immutable.Map
+import scala.collection.mutable.{Map => MutableMap, ListBuffer}
 
-import scala.collection.mutable.ListBuffer
 
 class AwkwardCompiler(
   typeProvider: ClassTypeProvider,
@@ -54,10 +55,13 @@ class AwkwardCompiler(
 
   case class RecordBuilder(
     fields: ListBuffer[String],
-    contents: Map[String, LayoutBuilder]
+    contents: MutableMap[String, LayoutBuilder]
   ) extends LayoutBuilder {}
 
-  var layoutBuilder = RecordBuilder(ListBuffer(), Map())
+  var layoutBuilder =  MutableMap.empty[String, RecordBuilder]
+  // val idList = ListBuffer.empty[String]
+  // var builderLevel: Int = 0
+  // var parentBuilderId: String = ""
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -115,6 +119,8 @@ class AwkwardCompiler(
   }
 
   override def fileFooter(topClassName: String): Unit = {
+    println(s"layoutBuilder: $layoutBuilder")
+
     config.cppConfig.namespace.foreach { (_) =>
       outSrc.dec
       outSrc.puts("}")
@@ -251,6 +257,30 @@ class AwkwardCompiler(
 
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+
+    // builderLevel = name.size
+    // if (builderLevel == 1) {
+    //     layoutBuilder(name.last) = RecordBuilder(
+    //     ListBuffer.empty[String],
+    //     MutableMap.empty[String, LayoutBuilder]
+    //   )
+    // }
+    // else {
+    //   layoutBuilder(parentBuilderId).fields += name.last
+    //   layoutBuilder(parentBuilderId).contents(name.last) = RecordBuilder(
+    //     ListBuffer.empty[String],
+    //     MutableMap.empty[String, LayoutBuilder]
+    //   )
+    // }
+    // parentBuilderId = name.last
+    // println (s"a: $layoutBuilder")
+    // println (s"a: $builderLevel")
+    if (name.size == 1) {
+      layoutBuilder(name.last) = RecordBuilder(
+      ListBuffer.empty[String],
+      MutableMap.empty[String, LayoutBuilder]
+    )
+    }
   }
 
   override def classConstructorFooter: Unit = {
@@ -336,7 +366,6 @@ class AwkwardCompiler(
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PrivateAccess)
-    println(s"\nattrName: ${attrName.humanReadable}")
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
     declareNullFlag(attrName, isNullable)
   }
@@ -1033,8 +1062,58 @@ class AwkwardCompiler(
   override def type2class(className: String): String = AwkwardCompiler.type2class(className)
 
   def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
-    println(s"type: $attrType")
     AwkwardCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
+  }
+
+  var builderMaps =  MutableMap.empty[String, List[AttrSpec]]
+
+  def classSpecFun(cs: ClassSpec): Unit = {
+    builderMaps(cs.name.last) = cs.seq
+    // builderStructure(cs)
+  }
+
+  def builderStructure(cs: ClassSpec): Unit = {
+    printf(s"buildermap: $builderMaps")
+    val builder: MutableMap[String, LayoutBuilder] =  MutableMap(cs.name.head -> RecordBuilder(ListBuffer(), MutableMap.empty))
+    processMap(builderMaps, builder, cs.name.head, cs.name.head)
+    printf(s"builder: $builder")
+  }
+
+  def processMap(inputMap: MutableMap[String, List[AttrSpec]], builder: MutableMap[String, LayoutBuilder], key: String, id: String): Unit = {
+    inputMap(key) match {
+      case list: List[AttrSpec] =>
+        val recordBuilder = RecordBuilder(ListBuffer(), MutableMap.empty)
+        builder(key).asInstanceOf[RecordBuilder].contents(key) = recordBuilder
+
+        list.foreach { el =>
+          el.dataType match {
+            case userType: UserType => {
+              val userRecordBuilder = RecordBuilder(ListBuffer(), MutableMap.empty)
+              val elId = el.id
+              recordBuilder.fields += elId.humanReadable
+              recordBuilder.contents(elId.humanReadable) = userRecordBuilder
+              processMap(inputMap, userRecordBuilder.contents, userType.name.head, elId.humanReadable)
+            }
+            case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
+             _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  => 
+                val elId = el.id
+                recordBuilder.fields += elId.humanReadable
+                recordBuilder.contents(elId.humanReadable) = NumpyBuilder(kaitaiType2NativeType(el.dataType))
+              case _ =>
+         }
+        }
+    }
+  }
+
+  def type2builder(attrType: DataType, rep: RepeatSpec): LayoutBuilder = {
+    attrType match {
+      case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
+           _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  => 
+        NumpyBuilder(kaitaiType2NativeType(attrType))
+      case t: UserType => RecordBuilder(ListBuffer(), MutableMap())
+      case _ => throw new MatchError(s"Unsupported DataType: $attrType")
+
+    }
   }
 
   def nullPtr: String = config.cppConfig.pointers match {
