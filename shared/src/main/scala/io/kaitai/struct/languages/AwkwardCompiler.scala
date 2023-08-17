@@ -33,30 +33,74 @@ class AwkwardCompiler(
   val outHdrHeader = new StringLanguageOutputWriter(indent)
   val outSrc = new StringLanguageOutputWriter(indent)
   val outHdr = new StringLanguageOutputWriter(indent)
+  val outHdrAwkward = new StringLanguageOutputWriter(indent)
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     val className = topClass.nameAsStr
     Map(
       outFileNameSource(className) -> (outSrcHeader.result + importListSrc.result + outSrc.result),
-      outFileNameHeader(className) -> (outHdrHeader.result + importListHdr.result + outHdr.result)
+      outFileNameHeader(className) -> (outHdrHeader.result + importListHdr.result + outHdrAwkward.result + outHdr.result)
     )
   }
 
-  trait LayoutBuilder {}
+  trait LayoutBuilder {
+    def printStructure(indent: Int = 0, builderName: String): String
+  }
 
   case class NumpyBuilder(
     dataType: String
-  ) extends LayoutBuilder {}
+  ) extends LayoutBuilder {
+
+    override def printStructure(indent: Int, builderName: String): String = {
+      s"NumpyBuilder<$dataType>"
+    }
+  }
 
   case class ListOffsetBuilder(
     offsets: String,
     content: LayoutBuilder
-  ) extends LayoutBuilder {}
+  ) extends LayoutBuilder {
+
+    override def printStructure(indent: Int, builderName: String): String = {
+      var listOffsetContent = content.printStructure(indent, s"sub_${builderName}")      
+      s"ListOffsetBuilder<$offsets, ${listOffsetContent}>"
+    }    
+  }
 
   case class RecordBuilder(
     fields: ListBuffer[String],
     contents: ListBuffer[LayoutBuilder]
-  ) extends LayoutBuilder {}
+  ) extends LayoutBuilder {
+
+    override def printStructure(indent: Int, builderName: String): String = {
+      UserDefinedMap(builderName)
+
+      val fieldStrings = fields.zip(contents).zipWithIndex.map { case ((field, content), i) =>
+        s"${"\t" * (indent + 1)}RecordField<Field_${builderName}::$field, ${content.printStructure(indent + 1, s"${field}")}>"
+      }
+      
+      s"RecordBuilder<\n${fieldStrings.mkString(",\n")}\n${"\t" * (indent)}>"
+    }
+
+    /**
+      * Generates C++ strings to declare a user defined map for RecordBuilder fields.
+      * @param counter 
+      */
+    def UserDefinedMap(builderName: String): Unit = {
+      val mapStrings = fields.zipWithIndex.map { case (field, i) =>
+        s"""{Field_${builderName}::$field, "$field"}"""
+      }
+
+      val enumString = s"enum Field_${builderName} : std::size_t {${fields.mkString(", ")}};"
+
+      val builderString = fields.zipWithIndex.map { case (field, i) =>
+        s"""auto& ${field}_builder = ${builderName}_builder.content<Field_${builderName}::${field}>();"""
+      }
+
+      outHdrAwkward.puts(s"""$enumString 
+      \nUserDefinedMap ${builderName}_fields_map({\n\t${mapStrings.mkString(",\n\t")}});\n""")
+    }
+  }
 
   var layoutBuilder =  RecordBuilder(ListBuffer(), ListBuffer())
   var builderMap =  MutableMap.empty[String, List[AttrSpec]]
@@ -77,7 +121,6 @@ class AwkwardCompiler(
     outSrcHeader.puts
 
     importListSrc.addLocal(outFileNameHeader(topClassName))
-    importListSrc.addLocal("build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h")
 
     if (config.cppConfig.usePragmaOnce) {
       outHdrHeader.puts("#pragma once")
@@ -91,6 +134,7 @@ class AwkwardCompiler(
 
     importListHdr.addKaitai("kaitai/kaitaistruct.h")
     importListHdr.addSystem("stdint.h")
+    importListHdr.addLocal("build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h")
 
     config.cppConfig.pointers match {
       case SharedPointers | UniqueAndRawPointers =>
@@ -116,24 +160,23 @@ class AwkwardCompiler(
       outHdr.inc
     }
 
-    outHdr.puts
-    outHdr.puts("using UserDefinedMap = std::map<std::size_t, std::string>;");
-    outHdr.puts("template<class... BUILDERS>");
-    outHdr.puts("using RecordBuilder = awkward::LayoutBuilder::Record<UserDefinedMap, BUILDERS...>;");
-    outHdr.puts("template<std::size_t field_name, class BUILDER>");
-    outHdr.puts("using RecordField = awkward::LayoutBuilder::Field<field_name, BUILDER>;");
-    outHdr.puts("template<class PRIMITIVE, class BUILDER>");
-    outHdr.puts("using ListOffsetBuilder = awkward::LayoutBuilder::ListOffset<PRIMITIVE, BUILDER>;");
-    outHdr.puts("template<class PRIMITIVE>");
-    outHdr.puts("using NumpyBuilder = awkward::LayoutBuilder::Numpy<PRIMITIVE>;");
-    outHdr.puts
-
-    // layoutBuilder = MutableMap(topClassName -> RecordBuilder(ListBuffer(), MutableMap.empty))
+    outHdrAwkward.puts
+    outHdrAwkward.puts("using UserDefinedMap = std::map<std::size_t, std::string>;");
+    outHdrAwkward.puts("template<class... BUILDERS>");
+    outHdrAwkward.puts("using RecordBuilder = awkward::LayoutBuilder::Record<UserDefinedMap, BUILDERS...>;");
+    outHdrAwkward.puts("template<std::size_t field_name, class BUILDER>");
+    outHdrAwkward.puts("using RecordField = awkward::LayoutBuilder::Field<field_name, BUILDER>;");
+    outHdrAwkward.puts("template<class PRIMITIVE, class BUILDER>");
+    outHdrAwkward.puts("using ListOffsetBuilder = awkward::LayoutBuilder::ListOffset<PRIMITIVE, BUILDER>;");
+    outHdrAwkward.puts("template<class PRIMITIVE>");
+    outHdrAwkward.puts("using NumpyBuilder = awkward::LayoutBuilder::Numpy<PRIMITIVE>;");
+    outHdrAwkward.puts
   }
 
   override def fileFooter(topClassName: String): Unit = {
-    println(s"layoutBuilder: $layoutBuilder")
-
+    builderStructure(builderMap, layoutBuilder, topClassName, topClassName)
+    println(s"lb: $layoutBuilder")
+    outHdrAwkward.puts(s"${layoutBuilder.printStructure(0, s"${topClassName}")} ${topClassName}_builder;")
     config.cppConfig.namespace.foreach { (_) =>
       outSrc.dec
       outSrc.puts("}")
@@ -1054,50 +1097,39 @@ class AwkwardCompiler(
     AwkwardCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
   }
 
-  def createBuilderMap(cs: ClassSpec): Unit = {
+  override def createBuilderMap(cs: ClassSpec): Unit = {
     builderMap(cs.name.last) = cs.seq
   }
 
-  def builderStructure(cs: ClassSpec): Unit = {
-    layoutBuilder = RecordBuilder(ListBuffer(), ListBuffer())
-    processBuilderMap(builderMap, layoutBuilder, cs.name.head, cs.name.head)
-    println(s"lb: $layoutBuilder")
-  }
-
-  def processBuilderMap(inputMap: MutableMap[String, List[AttrSpec]], builder: RecordBuilder, key: String, builderId: String): Unit = {
-    println(s"key: $key, $builder, $inputMap\n")
-    inputMap(key) match {
-      case list: List[AttrSpec] =>
-        list.foreach { el =>
-          el.dataType match {
-            case userType: UserType => {
-              val elId = el.id
-              builder.fields += elId.humanReadable
-              el.cond.repeat match {
-                case NoRepeat =>
-                  builder.contents += RecordBuilder(ListBuffer(), ListBuffer())
-                  processBuilderMap(inputMap, builder.contents.last.asInstanceOf[RecordBuilder], userType.name.head, elId.humanReadable)
-                case _ => // fix
-                  builder.contents += RecordBuilder(ListBuffer(), ListBuffer())
-                  processBuilderMap(inputMap, builder.contents.last.asInstanceOf[RecordBuilder], userType.name.head, elId.humanReadable)
-                  // recordBuilder.contents(elId.humanReadable) = ListOffsetBuilder("int64_t", RecordBuilder(ListBuffer(), MutableMap.empty))
-                  // val listOffsetBuilderContent = recordBuilder.contents(elId.humanReadable).asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder]
-                  // processBuilderMap(inputMap, listOffsetBuilderContent.contents, userType.name.head, elId.humanReadable)
-              }
+  def builderStructure(inputMap: MutableMap[String, List[AttrSpec]], builder: RecordBuilder, key: String, builderId: String): Unit = {
+    inputMap(key) match { case list: List[AttrSpec] =>
+      list.foreach { el =>
+        el.dataType match {
+          case userType: UserType => {
+          val elId = el.id
+            builder.fields += elId.humanReadable
+            el.cond.repeat match {
+              case NoRepeat =>
+                builder.contents += RecordBuilder(ListBuffer(), ListBuffer())
+                builderStructure(inputMap, builder.contents.last.asInstanceOf[RecordBuilder], userType.name.head, elId.humanReadable)
+              case _ =>
+                builder.contents += ListOffsetBuilder("int64_t", RecordBuilder(ListBuffer(), ListBuffer()))
+                builderStructure(inputMap, builder.contents.last.asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder], userType.name.head, elId.humanReadable)
             }
-            case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
-             _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  => 
-              val elId = el.id
-              builder.fields += elId.humanReadable
-              el.cond.repeat match {
-                case NoRepeat =>
-                  builder.contents += NumpyBuilder(kaitaiType2NativeType(el.dataType))
-                case _ =>
-                  builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder(kaitaiType2NativeType(el.dataType)))
-              }
-            case _ =>
           }
+          case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
+           _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  => 
+            val elId = el.id
+            builder.fields += elId.humanReadable
+            el.cond.repeat match {
+              case NoRepeat =>
+                builder.contents += NumpyBuilder(kaitaiType2NativeType(el.dataType))
+              case _ =>
+                builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder(kaitaiType2NativeType(el.dataType)))
+            }
+          case _ =>
         }
+      }
     }
   }
 

@@ -14,21 +14,6 @@ class AwkwardClassCompiler(
   config: RuntimeConfig
 ) extends ClassCompiler(classSpecs, topClass, config, AwkwardCompiler) {
 
-  val awk = new AwkwardCompiler(provider, config)
-
-  override def compile: CompileLog.SpecSuccess = {
-    lang.fileHeader(topClassName.head)
-    compileOpaqueClasses(topClass)
-    compileClass(topClass)
-    awk.builderStructure(topClass)
-    lang.fileFooter(topClassName.head)
-
-    CompileLog.SpecSuccess(
-      lang.type2class(topClassName.head),
-      lang.results(topClass).map { case (fileName, contents) => FileSuccess(fileName, contents) }.toList
-    )
-  }
-
   override def compileConstructor(curClass: ClassSpec) = {
     lang.classConstructorHeader(
       curClass.name,
@@ -37,7 +22,7 @@ class AwkwardClassCompiler(
       curClass.meta.endian.contains(InheritedEndian),
       curClass.params
     )
-    awk.createBuilderMap(curClass)
+    lang.createBuilderMap(curClass)
     compileInit(curClass)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
     if (lang.config.autoRead)
