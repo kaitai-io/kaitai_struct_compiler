@@ -16,7 +16,7 @@ object JavaMain {
 
   case class CLIConfig(
     verbose: Seq[String] = Seq(),
-    srcFiles: Seq[File] = Seq(),
+    srcFiles: Seq[String] = Seq(),
     outDir: File = new File("."),
     targets: Seq[String] = Seq(),
     throwExceptions: Boolean = false,
@@ -35,7 +35,7 @@ object JavaMain {
 
       head(Version.name, Version.version)
 
-      arg[File]("<file>...") unbounded() action { (x, c) =>
+      arg[String]("<file>...") unbounded() action { (x, c) =>
         c.copy(srcFiles = c.srcFiles :+ x) } text("source files (.ksy)")
 
       //      opt[File]('o', "outfile") valueName("<file>") action { (x, c) =>
@@ -259,13 +259,13 @@ class JavaMain(config: CLIConfig) {
   def run(): Unit = {
     val logs: Map[String, InputEntry] = config.srcFiles.map { srcFile =>
       val log = if (config.throwExceptions) {
-        compileOneInput(srcFile.toString)
+        compileOneInput(srcFile)
       } else {
         try {
-          compileOneInput(srcFile.toString)
+          compileOneInput(srcFile)
         } catch {
           case ex: Throwable =>
-            InputFailure(List(exceptionToCompileError(ex, srcFile.toString)))
+            InputFailure(List(exceptionToCompileError(ex, srcFile)))
         }
       }
       if (!config.jsonOutput) {
@@ -276,7 +276,7 @@ class JavaMain(config: CLIConfig) {
         problems.foreach { (p) => Console.err.println(p.message) }
       }
 
-      srcFile.toString -> log
+      srcFile -> log
     }.toMap
 
     if (config.jsonOutput) {
