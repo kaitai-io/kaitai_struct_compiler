@@ -34,8 +34,5 @@ case class ProblemCoords(
 }
 
 object ProblemCoords {
-  def formatFileName(file: Option[String]): String = file match {
-    case Some(x) => x.replace('\\', '/')
-    case None => "(main)"
-  }
+  def formatFileName(file: Option[String]): String = file.getOrElse("(main)")
 }
