@@ -1127,12 +1127,11 @@ class AwkwardCompiler(
               case _ =>
                 builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder(kaitaiType2NativeType(el.dataType)))
             }
-          case _ =>
+          case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
         }
       }
     }
   }
-
 
   def nullPtr: String = config.cppConfig.pointers match {
     case RawPointers => "0"
