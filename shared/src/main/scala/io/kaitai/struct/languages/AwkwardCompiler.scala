@@ -34,11 +34,12 @@ class AwkwardCompiler(
   val outSrc = new StringLanguageOutputWriter(indent)
   val outHdr = new StringLanguageOutputWriter(indent)
   val outHdrAwkward = new StringLanguageOutputWriter(indent)
+  val outSrcAwkward = new StringLanguageOutputWriter(indent)
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     val className = topClass.nameAsStr
     Map(
-      outFileNameSource(className) -> (outSrcHeader.result + importListSrc.result + outSrc.result),
+      outFileNameSource(className) -> (outSrcHeader.result + importListSrc.result + outSrcAwkward.result + outSrc.result),
       outFileNameHeader(className) -> (outHdrHeader.result + importListHdr.result + outHdrAwkward.result + outHdr.result)
     )
   }
@@ -62,7 +63,7 @@ class AwkwardCompiler(
   ) extends LayoutBuilder {
 
     override def printStructure(indent: Int, builderName: String): String = {
-      var listOffsetContent = content.printStructure(indent, s"sub_${builderName}")      
+      var listOffsetContent = content.printStructure(indent, s"${builderName}")      
       s"ListOffsetBuilder<$offsets, ${listOffsetContent}>"
     }    
   }
@@ -74,7 +75,6 @@ class AwkwardCompiler(
 
     override def printStructure(indent: Int, builderName: String): String = {
       UserDefinedMap(builderName)
-
       val fieldStrings = fields.zip(contents).zipWithIndex.map { case ((field, content), i) =>
         s"${"\t" * (indent + 1)}RecordField<Field_${builderName}::$field, ${content.printStructure(indent + 1, s"${field}")}>"
       }
@@ -82,28 +82,22 @@ class AwkwardCompiler(
       s"RecordBuilder<\n${fieldStrings.mkString(",\n")}\n${"\t" * (indent)}>"
     }
 
-    /**
-      * Generates C++ strings to declare a user defined map for RecordBuilder fields.
-      * @param counter 
-      */
     def UserDefinedMap(builderName: String): Unit = {
       val mapStrings = fields.zipWithIndex.map { case (field, i) =>
         s"""{Field_${builderName}::$field, "$field"}"""
       }
-
-      val enumString = s"enum Field_${builderName} : std::size_t {${fields.mkString(", ")}};"
-
-      val builderString = fields.zipWithIndex.map { case (field, i) =>
-        s"""auto& ${field}_builder = ${builderName}_builder.content<Field_${builderName}::${field}>();"""
-      }
-
-      outHdrAwkward.puts(s"""$enumString 
-      \nUserDefinedMap ${builderName}_fields_map({\n\t${mapStrings.mkString(",\n\t")}});\n""")
+      outHdrAwkward.puts(s"enum Field_${builderName} : std::size_t {${fields.mkString(", ")}};")
+      outHdrAwkward.puts
+      outSrcAwkward.puts
+      outSrcAwkward.puts(s"UserDefinedMap ${builderName}_fields_map({\n\t${mapStrings.mkString(",\n\t")}});")
     }
   }
 
   var layoutBuilder =  RecordBuilder(ListBuffer(), ListBuffer())
-  var builderMap =  MutableMap.empty[String, List[AttrSpec]]
+  val builderMap = MutableMap.empty[String, List[AttrSpec]]
+  val type2idMap = MutableMap.empty[String, String]
+  val type2repeatMap = MutableMap.empty[String, RepeatSpec]
+  var nameList = List.empty[String]
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -171,10 +165,13 @@ class AwkwardCompiler(
     outHdrAwkward.puts("template<class PRIMITIVE>");
     outHdrAwkward.puts("using NumpyBuilder = awkward::LayoutBuilder::Numpy<PRIMITIVE>;");
     outHdrAwkward.puts
+
+    type2idMap(topClassName) = topClassName
+    type2repeatMap(topClassName) = NoRepeat
   }
 
   override def fileFooter(topClassName: String): Unit = {
-    builderStructure(builderMap, layoutBuilder, topClassName, topClassName)
+    builderStructure(layoutBuilder, topClassName)
     println(s"lb: $layoutBuilder")
     outHdrAwkward.puts(s"${layoutBuilder.printStructure(0, s"${topClassName}")} ${topClassName}_builder;")
     config.cppConfig.namespace.foreach { (_) =>
@@ -280,7 +277,10 @@ class AwkwardCompiler(
     outSrc.puts(s"${types2class(name)}::$classNameBrief($paramsArg" +
       s"$tIo $pIo, " +
       s"$tParent $pParent, " +
-      s"$tRoot $pRoot$endianSuffixSrc) : $kstructName($pIo) {"
+      s"$tRoot $pRoot$endianSuffixSrc) : $kstructName($pIo)" + 
+      s"${if (name.size > 1) ",\n\t" + type2id(name.last) + "_builder(p__parent->" + type2id(name.init.last) +
+      s"_builder.content<Field_${type2id(name.init.last)}::${type2id(name.last)}>()" +
+      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""}) {" else " {"}"
     )
     outSrc.inc
 
@@ -313,6 +313,8 @@ class AwkwardCompiler(
 
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
+    nameList = name
+    println(s"\nlist: $nameList\n")
   }
 
   override def classConstructorFooter: Unit = {
@@ -340,6 +342,8 @@ class AwkwardCompiler(
   override def classDestructorFooter = classConstructorFooter
 
   override def runRead(name: List[String]): Unit = {
+    outSrc.puts
+    outSrc.puts(s"${type2id(name.last)}_builder.set_fields(${type2id(name.last)}_fields_map);")
     val wrapToTryCatch = (config.cppConfig.pointers == CppRuntimeConfig.RawPointers);
     if (wrapToTryCatch) {
       outSrc.puts
@@ -581,6 +585,18 @@ class AwkwardCompiler(
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
     outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
 
+  override def attrParse2(
+    id: Identifier,
+    dataType: DataType,
+    io: String,
+    rep: RepeatSpec,
+    isRaw: Boolean,
+    defEndian: Option[FixedEndian],
+    assignTypeOpt: Option[DataType] = None
+  ): Unit = {
+    super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
+  }
+
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
@@ -720,12 +736,15 @@ class AwkwardCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
+    outSrc.puts(s"auto& sub_${type2id(nameList.last)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
+    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.begin_list();")
     outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(expr)});")
+    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.end_list();")
   }
 
   override def condRepeatEosFooter: Unit = {
@@ -740,6 +759,7 @@ class AwkwardCompiler(
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
+    outSrc.puts(s"auto& sub_${type2id(nameList.last)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
     outSrc.inc
   }
 
@@ -756,6 +776,7 @@ class AwkwardCompiler(
     outSrc.inc
     outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
+    outSrc.puts(s"auto& sub_${type2id(nameList.last)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -763,6 +784,7 @@ class AwkwardCompiler(
   private val ReStdUniquePtr = "^std::unique_ptr<(.*?)>\\((.*?)\\)$".r
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
+    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.begin_list();")
     val (typeDecl, tempVar) = if (isRaw) {
       ("std::string ", translator.doName(Identifier.ITERATOR2))
     } else {
@@ -783,6 +805,7 @@ class AwkwardCompiler(
     outSrc.puts(s"$typeDecl$tempVar = $rawPtrExpr;")
 
     outSrc.puts(s"${privateMemberName(id)}->push_back($wrappedTempVar);")
+    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.end_list();")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
@@ -1099,24 +1122,46 @@ class AwkwardCompiler(
 
   override def createBuilderMap(cs: ClassSpec): Unit = {
     builderMap(cs.name.last) = cs.seq
+    builderMap(cs.name.last) match {
+      case list: List[AttrSpec] =>
+        list.foreach { el =>
+          el.dataType match {
+            case userType: UserType => 
+              val elId = el.id
+              type2idMap(userType.name.last) = elId.humanReadable
+              type2repeatMap(userType.name.last) = el.cond.repeat
+            case _ =>
+          }
+        }
+      case _ =>
+    }
+    println(s"\n$builderMap, $type2idMap\n")
   }
 
-  def builderStructure(inputMap: MutableMap[String, List[AttrSpec]], builder: RecordBuilder, key: String, builderId: String): Unit = {
-    inputMap(key) match { case list: List[AttrSpec] =>
+  def type2id(dataType: String): String = {
+    type2idMap(dataType)
+  }
+
+  def type2repeat(dataType: String): RepeatSpec = {
+    type2repeatMap(dataType)
+  }
+
+  def builderStructure(builder: RecordBuilder, key: String): Unit = {
+    builderMap(key) match { case list: List[AttrSpec] =>
       list.foreach { el =>
         el.dataType match {
-          case userType: UserType => {
-          val elId = el.id
+          case userType: UserType =>
+            val elId = el.id
             builder.fields += elId.humanReadable
             el.cond.repeat match {
               case NoRepeat =>
                 builder.contents += RecordBuilder(ListBuffer(), ListBuffer())
-                builderStructure(inputMap, builder.contents.last.asInstanceOf[RecordBuilder], userType.name.head, elId.humanReadable)
+                builderStructure(builder.contents.last.asInstanceOf[RecordBuilder], userType.name.head)
               case _ =>
                 builder.contents += ListOffsetBuilder("int64_t", RecordBuilder(ListBuffer(), ListBuffer()))
-                builderStructure(inputMap, builder.contents.last.asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder], userType.name.head, elId.humanReadable)
+                builderStructure(builder.contents.last.asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder], userType.name.head)
             }
-          }
+
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
            _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  => 
             val elId = el.id
