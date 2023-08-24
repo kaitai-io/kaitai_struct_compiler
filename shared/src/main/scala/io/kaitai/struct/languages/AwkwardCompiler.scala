@@ -595,6 +595,17 @@ class AwkwardCompiler(
     assignTypeOpt: Option[DataType] = None
   ): Unit = {
     super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
+    dataType match {
+      case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
+        _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  =>
+
+        if (rep == NoRepeat)
+          outSrc.puts(s"auto& ${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+        else
+          outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${type2id(nameList.last)}_builder.content();")
+        outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)});")
+      case _ =>
+    }
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
@@ -739,15 +750,15 @@ class AwkwardCompiler(
     outSrc.puts(s"auto& sub_${type2id(nameList.last)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
+    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.begin_list();")
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.begin_list();")
     outSrc.puts(s"${privateMemberName(id)}->push_back(${stdMoveWrap(expr)});")
-    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.end_list();")
   }
 
   override def condRepeatEosFooter: Unit = {
+    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.end_list();")
     outSrc.puts("i++;")
     outSrc.dec
     outSrc.puts("}")
@@ -758,15 +769,17 @@ class AwkwardCompiler(
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
-    outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.puts(s"auto& sub_${type2id(nameList.last)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+    outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
+    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.begin_list();")
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
   override def condRepeatExprFooter: Unit = {
+    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.end_list();")
     outSrc.dec
     outSrc.puts("}")
   }
@@ -1163,7 +1176,7 @@ class AwkwardCompiler(
             }
 
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
-           _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  => 
+           _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  =>
             val elId = el.id
             builder.fields += elId.humanReadable
             el.cond.repeat match {
