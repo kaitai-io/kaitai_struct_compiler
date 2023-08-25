@@ -76,10 +76,10 @@ class AwkwardCompiler(
     override def printStructure(indent: Int, builderName: String): String = {
       UserDefinedMap(builderName)
       val fieldStrings = fields.zip(contents).zipWithIndex.map { case ((field, content), i) =>
-        s"${"\t" * (indent + 1)}RecordField<Field_${builderName}::$field, ${content.printStructure(indent + 1, s"${field}")}>"
+        s"${"\t" * (indent + 2)}RecordField<Field_${builderName}::$field, ${content.printStructure(indent + 1, s"${field}")}>"
       }
-      
-      s"RecordBuilder<\n${fieldStrings.mkString(",\n")}\n${"\t" * (indent)}>"
+      s"${if (indent == 0) "\nusing " + builderName.capitalize + "BuilderType =\n\t" else ""}" +
+      s"RecordBuilder<\n${fieldStrings.mkString(",\n")}\n${"\t" * (indent)}\t>"
     }
 
     def UserDefinedMap(builderName: String): Unit = {
@@ -87,7 +87,6 @@ class AwkwardCompiler(
         s"""{Field_${builderName}::$field, "$field"}"""
       }
       outHdrAwkward.puts(s"enum Field_${builderName} : std::size_t {${fields.mkString(", ")}};")
-      outHdrAwkward.puts
       outSrcAwkward.puts
       outSrcAwkward.puts(s"UserDefinedMap ${builderName}_fields_map({\n\t${mapStrings.mkString(",\n\t")}});")
     }
@@ -98,6 +97,7 @@ class AwkwardCompiler(
   val type2idMap = MutableMap.empty[String, String]
   val type2repeatMap = MutableMap.empty[String, RepeatSpec]
   var nameList = List.empty[String]
+  var builderDeclaration = ""
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -173,7 +173,8 @@ class AwkwardCompiler(
   override def fileFooter(topClassName: String): Unit = {
     builderStructure(layoutBuilder, topClassName)
     println(s"lb: $layoutBuilder")
-    outHdrAwkward.puts(s"${layoutBuilder.printStructure(0, s"${topClassName}")} ${topClassName}_builder;")
+    outHdrAwkward.puts(s"${layoutBuilder.printStructure(0, s"${topClassName}")};")
+    outHdrAwkward.puts(builderDeclaration)
     config.cppConfig.namespace.foreach { (_) =>
       outSrc.dec
       outSrc.puts("}")
@@ -221,6 +222,7 @@ class AwkwardCompiler(
   }
 
   override def classFooter(name: List[String]): Unit = {
+    outHdr.puts(s"${type2id(name.last).capitalize}BuilderType ${type2id(name.last)}_builder;")   
     outHdr.dec
     outHdr.puts("};")
   }
@@ -284,6 +286,11 @@ class AwkwardCompiler(
     )
     outSrc.inc
 
+    builderDeclaration += 
+      s"${if (name.size > 1) "using " + type2id(name.last).capitalize + "BuilderType = decltype(std::declval<" + type2id(name.init.last).capitalize + 
+      s"BuilderType>().content<Field_${type2id(name.init.last)}::${type2id(name.last)}>()" +
+      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""});\n" else ""}"
+
     // In shared pointers mode, this is required to be able to work with shared pointers to this
     // in a constructor. This is obviously a hack and not a good practice.
     // https://forum.libcinder.org/topic/solution-calling-shared-from-this-in-the-constructor
@@ -314,7 +321,6 @@ class AwkwardCompiler(
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
     nameList = name
-    println(s"\nlist: $nameList\n")
   }
 
   override def classConstructorFooter: Unit = {
@@ -1152,14 +1158,17 @@ class AwkwardCompiler(
   }
 
   def type2id(dataType: String): String = {
+    println(s"t2i: $type2idMap")
     type2idMap(dataType)
   }
 
   def type2repeat(dataType: String): RepeatSpec = {
+    println(s"t2r: $type2repeatMap")
     type2repeatMap(dataType)
   }
 
   def builderStructure(builder: RecordBuilder, key: String): Unit = {
+    println(s"bs: $key")
     builderMap(key) match { case list: List[AttrSpec] =>
       list.foreach { el =>
         el.dataType match {
