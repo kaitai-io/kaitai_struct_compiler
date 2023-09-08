@@ -608,10 +608,12 @@ class AwkwardCompiler(
         if (rep == NoRepeat)
           outSrc.puts(s"auto& ${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
         else
-          outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${type2id(nameList.last)}_builder.content();")
+          outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
         outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)});")
       case _ =>
     }
+    if (rep != NoRepeat)
+      outSrc.puts(s"sub_${id.humanReadable}_builder.end_list();")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
@@ -753,10 +755,10 @@ class AwkwardCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"auto& sub_${type2id(nameList.last)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
-    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.begin_list();")
+    outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
@@ -764,7 +766,6 @@ class AwkwardCompiler(
   }
 
   override def condRepeatEosFooter: Unit = {
-    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.end_list();")
     outSrc.puts("i++;")
     outSrc.dec
     outSrc.puts("}")
@@ -775,17 +776,16 @@ class AwkwardCompiler(
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
-    outSrc.puts(s"auto& sub_${type2id(nameList.last)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
-    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.begin_list();")
+    outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
   override def condRepeatExprFooter: Unit = {
-    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.end_list();")
     outSrc.dec
     outSrc.puts("}")
   }
@@ -795,7 +795,7 @@ class AwkwardCompiler(
     outSrc.inc
     outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
-    outSrc.puts(s"auto& sub_${type2id(nameList.last)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -803,7 +803,7 @@ class AwkwardCompiler(
   private val ReStdUniquePtr = "^std::unique_ptr<(.*?)>\\((.*?)\\)$".r
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.begin_list();")
+    outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
     val (typeDecl, tempVar) = if (isRaw) {
       ("std::string ", translator.doName(Identifier.ITERATOR2))
     } else {
@@ -824,7 +824,6 @@ class AwkwardCompiler(
     outSrc.puts(s"$typeDecl$tempVar = $rawPtrExpr;")
 
     outSrc.puts(s"${privateMemberName(id)}->push_back($wrappedTempVar);")
-    outSrc.puts(s"sub_${type2id(nameList.last)}_builder.end_list();")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
