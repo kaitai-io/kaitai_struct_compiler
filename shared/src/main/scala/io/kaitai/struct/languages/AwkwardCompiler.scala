@@ -601,19 +601,22 @@ class AwkwardCompiler(
     assignTypeOpt: Option[DataType] = None
   ): Unit = {
     super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
-    dataType match {
-      case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
-        _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  =>
+    if (!privateMemberName(id).contains("m__raw")) {
+      println(privateMemberName(id))
+      dataType match {
+        case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
+          _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  =>
 
-        if (rep == NoRepeat)
-          outSrc.puts(s"auto& ${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
-        else
-          outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
-        outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)});")
-      case _ =>
+          if (rep == NoRepeat)
+            outSrc.puts(s"auto& ${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+          else
+            outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
+          outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)});")
+        case _ =>
+      }
+      if (rep != NoRepeat)
+        outSrc.puts(s"sub_${id.humanReadable}_builder.end_list();")
     }
-    if (rep != NoRepeat)
-      outSrc.puts(s"sub_${id.humanReadable}_builder.end_list();")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
