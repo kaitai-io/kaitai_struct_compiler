@@ -280,16 +280,17 @@ class AwkwardCompiler(
       s"$tIo $pIo, " +
       s"$tParent $pParent, " +
       s"$tRoot $pRoot$endianSuffixSrc) : $kstructName($pIo)" + 
-      s"${if (name.size > 1) ",\n\t" + type2id(name.last) + "_builder(p__parent->" + type2id(name.init.last) +
-      s"_builder.content<Field_${type2id(name.init.last)}::${type2id(name.last)}>()" +
-      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""}) {" else " {"}"
+      s"${if (name.size > 1) ",\n\t" + type2id(name.last) + "_builder(p__parent->" + type2id(types2type(tParent)) +
+      s"_builder.content<Field_${type2id(types2type(tParent))}::${type2id(name.last)}>()" +
+      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""}) {" else " {"}" //fix
     )
     outSrc.inc
-
+    println(s"names: ${name},${name.last}\n")
+    if (name.size>1) println(s"${types2type(tParent)}\n")
     builderDeclaration += 
-      s"${if (name.size > 1) "using " + type2id(name.last).capitalize + "BuilderType = decltype(std::declval<" + type2id(name.init.last).capitalize + 
-      s"BuilderType>().content<Field_${type2id(name.init.last)}::${type2id(name.last)}>()" +
-      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""});\n" else ""}"
+      s"${if (name.size > 1) "using " + type2id(name.last).capitalize + "BuilderType = decltype(std::declval<" + type2id(types2type(tParent)).capitalize + 
+      s"BuilderType>().content<Field_${type2id(types2type(tParent))}::${type2id(name.last)}>()" +
+      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""});\n" else ""}" //fix
 
     // In shared pointers mode, this is required to be able to work with shared pointers to this
     // in a constructor. This is obviously a hack and not a good practice.
@@ -602,7 +603,6 @@ class AwkwardCompiler(
   ): Unit = {
     super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
     if (!privateMemberName(id).contains("m__raw")) {
-      println(privateMemberName(id))
       dataType match {
         case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
           _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  =>
@@ -1137,6 +1137,15 @@ class AwkwardCompiler(
 
   override def type2class(className: String): String = AwkwardCompiler.type2class(className)
 
+  def types2type(types: String): String = {
+    val lastIndex = types.lastIndexOf(":")
+
+    if (lastIndex != -1)
+      types.substring(lastIndex + 1).dropRight(3)
+    else
+      types.dropRight(3)
+  }
+
   def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String = {
     AwkwardCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
   }
@@ -1156,21 +1165,21 @@ class AwkwardCompiler(
         }
       case _ =>
     }
-    println(s"\n$builderMap, $type2idMap\n")
+    //println(s"\n$builderMap, $type2idMap\n")
   }
 
   def type2id(dataType: String): String = {
-    println(s"t2i: $type2idMap")
+    //println(s"t2i: $type2idMap")
     type2idMap(dataType)
   }
 
   def type2repeat(dataType: String): RepeatSpec = {
-    println(s"t2r: $type2repeatMap")
+    //println(s"t2r: $type2repeatMap")
     type2repeatMap(dataType)
   }
 
   def builderStructure(builder: RecordBuilder, key: String): Unit = {
-    println(s"bs: $key")
+    //println(s"bs: $key")
     builderMap(key) match { case list: List[AttrSpec] =>
       list.foreach { el =>
         el.dataType match {
