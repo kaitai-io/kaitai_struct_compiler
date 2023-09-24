@@ -115,5 +115,5 @@ trait CommonReads extends LanguageCompiler {
     * @param attr attribute to run validations for
     */
   def attrValidateAll(attr: AttrLikeSpec) =
-    attr.valid.foreach(valid => attrValidate(attr.id, attr, valid))
+    attr.valid.foreach(valid => attrValidate(attr.id, attr, valid, true))
 }

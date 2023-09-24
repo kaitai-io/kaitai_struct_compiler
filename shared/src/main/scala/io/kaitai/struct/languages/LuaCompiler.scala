@@ -402,24 +402,21 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = LuaCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    expected: Option[Ast.expr] = None
   ): Unit = {
-    val errArgsCode = errArgs.map(translator.translate)
+    val actualStr = expression(Ast.expr.InternalName(attr.id))
     out.puts(s"if not(${translator.translate(checkExpr)}) then")
     out.inc
     val msg = err match {
       case _: ValidationNotEqualError => {
-        val (expected, actual) = (
-          errArgsCode.lift(0).getOrElse("[expected]"),
-          errArgsCode.lift(1).getOrElse("[actual]")
-        )
-        s""""not equal, expected " ..  $expected .. ", but got " .. $actual"""
+        val expectedStr = expected.get
+        s""""not equal, expected " .. $expectedStr .. ", but got " .. $actualStr"""
       }
-      case _ => "\"" + ksErrorName(err) + "\""
+      case _ => expression(Ast.expr.Str(ksErrorName(err)))
     }
     out.puts(s"error($msg)")
     out.dec

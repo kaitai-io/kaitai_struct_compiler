@@ -42,7 +42,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     attr.valid.foreach { (valid) =>
       typeProvider._currentIteratorType = Some(attr.dataTypeComposite)
       if (bodyShouldDependOnIo.map(shouldDepend => validDependsOnIo(valid) == shouldDepend).getOrElse(true)) {
-        attrValidate(id, attr, valid)
+        attrValidate(id, attr, valid, false)
       }
     }
 

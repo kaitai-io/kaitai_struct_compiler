@@ -1057,17 +1057,21 @@ class CppCompiler(
   }
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    expected: Option[Ast.expr] = None
   ): Unit = {
-    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    val errArgsStr = expected.map(expression) ++ List(
+      expression(Ast.expr.InternalName(attr.id)),
+      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else nullPtr,
+      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
+    )
     importListSrc.addKaitai("kaitai/exceptions.h")
     outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
     outSrc.inc
-    outSrc.puts(s"throw ${ksErrorName(err)}($errArgsStr);")
+    outSrc.puts(s"throw ${ksErrorName(err)}(${errArgsStr.mkString(", ")});")
     outSrc.dec
     outSrc.puts("}")
   }
