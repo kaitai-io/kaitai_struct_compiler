@@ -64,7 +64,10 @@ class ConstructDataclassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec)
       case (_, spec) => this.compileClass(spec)
     })
 
-    // REVISIT: what if we have to process bitwise?
+    // See https://github.com/MatrixEditor/construct-dataclasses/pull/3
+    out.puts("@container")
+
+    // REVISIT: what if we have to process bitwise? Where do we specify to process bitwise?
     out.puts("@dc.dataclass")
     out.puts(s"class ${convertTypeToClass(cs.name)}_t:")
     out.inc
@@ -112,7 +115,7 @@ class ConstructDataclassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec)
     if (type_hint != null) {
       out.puts(s"$name: ${correctListTypeHint(type_hint, attributeSpec)} = $fieldType$body)")
     } else {
-      out.puts(s"$name = $fieldType($body)")
+      out.puts(s"$name = $fieldType$body)")
     }
 
     val docStr = PythonOps.compileUniversalDocs(attributeSpec.doc)
@@ -222,6 +225,11 @@ class ConstructDataclassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec)
 
   private def getDataclassFieldType(dataType: DataType): String = {
     dataType match {
+      // NOTE: Even though, there is an additional function since version 1.1.9 that
+      // introduces a shortcut for this case, using 'tfield' here is more consistent.
+      // The 'csenum' function takes the enum-type and subcon instance as input
+      // parameters. As we only return the start of a dataclass field, we can't control
+      // the structure of the converted enum string.
       case et: EnumType => s"tfield(${convertTypeToClass(et.enumSpec.get.name)}, "
       case _ => "csfield("
     }
