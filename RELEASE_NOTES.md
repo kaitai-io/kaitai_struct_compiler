@@ -214,7 +214,7 @@
 # 0.7 (2017-03-22)
 
 * New ksy features:
-  * Type importing system: `meta/import` can be used to import other
+  * Type importing system: `meta/imports` can be used to import other
     types as first-class citizens in current compilation unit; "opaque
     types" are now disabled by default (see below)
   * Byte-terminated notation (`terminator`, `include` and `consume`)
