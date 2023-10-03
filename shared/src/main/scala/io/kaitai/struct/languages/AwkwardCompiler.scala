@@ -27,6 +27,7 @@ class AwkwardCompiler(
 
   val importListSrc = new CppImportList
   val importListHdr = new CppImportList
+  val importListPybind11 = new CppImportList
 
   override val translator = new AwkwardTranslator(typeProvider, importListSrc, importListHdr, config)
   val outSrcHeader = new StringLanguageOutputWriter(indent)
@@ -35,12 +36,14 @@ class AwkwardCompiler(
   val outHdr = new StringLanguageOutputWriter(indent)
   val outHdrAwkward = new StringLanguageOutputWriter(indent)
   val outSrcAwkward = new StringLanguageOutputWriter(indent)
+  val outPybind11 = new StringLanguageOutputWriter(indent)
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     val className = topClass.nameAsStr
     Map(
       outFileNameSource(className) -> (outSrcHeader.result + importListSrc.result + outSrcAwkward.result + outSrc.result),
-      outFileNameHeader(className) -> (outHdrHeader.result + importListHdr.result + outHdrAwkward.result + outHdr.result)
+      outFileNameHeader(className) -> (outHdrHeader.result + importListHdr.result + outHdrAwkward.result + outHdr.result),
+      outFileNamePybind11(s"${className}_main") -> (importListPybind11.result + outPybind11.result)
     )
   }
 
@@ -109,6 +112,7 @@ class AwkwardCompiler(
   def typeToFileName(topClassName: String): String = topClassName
   def outFileNameSource(className: String): String = typeToFileName(className) + ".cpp"
   def outFileNameHeader(className: String): String = typeToFileName(className) + ".h"
+  def outFileNamePybind11(fileName: String): String = fileName + ".cpp"
 
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")
@@ -128,7 +132,7 @@ class AwkwardCompiler(
 
     importListHdr.addKaitai("kaitai/kaitaistruct.h")
     importListHdr.addSystem("stdint.h")
-    importListHdr.addLocal("build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h")
+    importListHdr.addLocal("../build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h")
 
     config.cppConfig.pointers match {
       case SharedPointers | UniqueAndRawPointers =>
@@ -154,6 +158,91 @@ class AwkwardCompiler(
       outHdr.inc
     }
 
+    // pybin11 code
+    importListPybind11.addSystem("pybind11/pybind11.h")
+    importListPybind11.addSystem("pybind11/numpy.h")
+    importListPybind11.addSystem("fstream")
+    importListPybind11.addSystem("iostream")
+    importListPybind11.addLocal("../build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h")
+    importListPybind11.addLocal(s"../src-${topClassName}/${topClassName}.h")
+
+    outPybind11.puts("namespace py = pybind11;")
+    outPybind11.puts("/**")
+    outPybind11.puts(" * Create a snapshot of the given builder, and return an `ak.Array` pyobject")
+    outPybind11.puts(" * @tparam T type of builder")
+    outPybind11.puts(" * @param builder builder")
+    outPybind11.puts(" * @return pyobject of Awkward Array")
+    outPybind11.puts(" */")
+    outPybind11.puts
+    outPybind11.puts("template<typename T>")
+    outPybind11.puts("py::object snapshot_builder(const T &builder) {")
+    outPybind11.inc
+    outPybind11.puts("// How much memory to allocate?")
+    outPybind11.puts("std::map <std::string, size_t> names_nbytes = {};")
+    outPybind11.puts("builder.buffer_nbytes(names_nbytes);")
+    outPybind11.puts
+    outPybind11.puts("// Allocate memory")
+    outPybind11.puts("std::map<std::string, void *> buffers = {};")
+    outPybind11.puts("for (auto it: names_nbytes) {")
+    outPybind11.inc
+    outPybind11.puts("uint8_t *ptr = new uint8_t[it.second];")
+    outPybind11.puts("buffers[it.first] = (void *) ptr;")
+    outPybind11.dec
+    outPybind11.puts("}")
+    outPybind11.puts
+    outPybind11.puts("// Write non-contiguous contents to memory")
+    outPybind11.puts("builder.to_buffers(buffers);")
+    outPybind11.puts(s"""auto from_buffers = py::module::import("awkward").attr("from_buffers");""")
+    outPybind11.puts
+    outPybind11.puts("// Build Python dictionary containing arrays")
+    outPybind11.puts("py::dict container;")
+    outPybind11.puts("for (auto it: buffers) {")
+    outPybind11.inc
+    outPybind11.puts("py::capsule free_when_done(it.second, [](void *data) {")
+    outPybind11.inc
+    outPybind11.puts("uint8_t *dataPtr = reinterpret_cast<uint8_t *>(data);")
+    outPybind11.puts("delete[] dataPtr;")
+    outPybind11.dec
+    outPybind11.puts("});")
+    outPybind11.puts
+    outPybind11.puts("uint8_t *data = reinterpret_cast<uint8_t *>(it.second);")
+    outPybind11.puts("container[py::str(it.first)] = py::array_t<uint8_t>(")
+    outPybind11.inc
+    outPybind11.inc
+    outPybind11.puts("{names_nbytes[it.first]},")
+    outPybind11.puts("{sizeof(uint8_t)},")
+    outPybind11.puts("data,")
+    outPybind11.puts("free_when_done")
+    outPybind11.dec
+    outPybind11.dec
+    outPybind11.puts(");")
+    outPybind11.dec
+    outPybind11.puts("}")
+    outPybind11.puts("return from_buffers(builder.form(), builder.length(), container);")
+    outPybind11.dec
+    outPybind11.puts("}")
+    outPybind11.puts
+    outPybind11.puts("/**")
+    outPybind11.puts(" * Pass the file path of binary data to create an array and return its snapshot")
+    outPybind11.puts(" * @param file_path of binary data file")
+    outPybind11.puts(" * @return pyobject of Awkward Array")
+    outPybind11.puts(" */")
+    outPybind11.puts("py::object load(std::string file_path) {")
+    outPybind11.inc
+    outPybind11.puts("std::ifstream infile(file_path, std::ifstream::binary);")
+    outPybind11.puts("kaitai::kstream ks(&infile);")
+    outPybind11.puts(s"${topClassName}_t obj = animal_t(&ks);")
+    outPybind11.puts(s"return snapshot_builder(obj.${topClassName}_builder);")
+    outPybind11.dec
+    outPybind11.puts("}")
+    outPybind11.puts
+    outPybind11.puts(s"PYBIND11_MODULE(awkward_${topClassName}, m) {")
+    outPybind11.inc
+    outPybind11.puts(s"""m.def("load", &load);""")
+    outPybind11.dec
+    outPybind11.puts("}")
+
+    // Defining LayoutBuilder
     outHdrAwkward.puts
     outHdrAwkward.puts("using UserDefinedMap = std::map<std::size_t, std::string>;");
     outHdrAwkward.puts("template<class... BUILDERS>");
