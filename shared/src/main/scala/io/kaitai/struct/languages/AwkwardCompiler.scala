@@ -132,7 +132,7 @@ class AwkwardCompiler(
 
     importListHdr.addKaitai("kaitai/kaitaistruct.h")
     importListHdr.addSystem("stdint.h")
-    importListHdr.addLocal("../build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h")
+    importListHdr.addLocal("awkward/LayoutBuilder.h")
 
     config.cppConfig.pointers match {
       case SharedPointers | UniqueAndRawPointers =>
@@ -163,8 +163,8 @@ class AwkwardCompiler(
     importListPybind11.addSystem("pybind11/numpy.h")
     importListPybind11.addSystem("fstream")
     importListPybind11.addSystem("iostream")
-    importListPybind11.addLocal("../build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h")
-    importListPybind11.addLocal(s"../src-${topClassName}/${topClassName}.h")
+    importListPybind11.addLocal("awkward/LayoutBuilder.h")
+    importListPybind11.addLocal(s"${topClassName}.h")
 
     outPybind11.puts("namespace py = pybind11;")
     outPybind11.puts("/**")
@@ -374,8 +374,7 @@ class AwkwardCompiler(
       s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""}) {" else " {"}" //fix
     )
     outSrc.inc
-    println(s"names: ${name},${name.last}\n")
-    if (name.size>1) println(s"${types2type(tParent)}\n")
+
     builderDeclaration += 
       s"${if (name.size > 1) "using " + type2id(name.last).capitalize + "BuilderType = decltype(std::declval<" + type2id(types2type(tParent)).capitalize + 
       s"BuilderType>().content<Field_${type2id(types2type(tParent))}::${type2id(name.last)}>()" +
