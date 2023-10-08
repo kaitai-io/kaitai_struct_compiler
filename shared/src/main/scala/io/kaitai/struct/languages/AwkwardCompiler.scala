@@ -10,7 +10,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{AwkwardTranslator, TypeDetector}
 import scala.collection.immutable.Map
-import scala.collection.mutable.{Map => MutableMap, ListBuffer}
+import scala.collection.mutable.{Map => MutableMap, ListBuffer, HashMap}
 
 
 class AwkwardCompiler(
@@ -37,6 +37,22 @@ class AwkwardCompiler(
   val outHdrAwkward = new StringLanguageOutputWriter(indent)
   val outSrcAwkward = new StringLanguageOutputWriter(indent)
   val outPybind11 = new StringLanguageOutputWriter(indent)
+
+  val enumIdNameMap = HashMap[String, Int]()
+  val userDefinedIdNameMap = HashMap[String, Int]()
+  val fieldStringsMap = HashMap[String, Int]()
+  val builderNameMap = HashMap[String, Int]()
+  val parentIdNameMap = HashMap[String, Int]()
+  val idNameMap = HashMap[String, Int]()
+  var pEncode = ""
+  var idEncode = ""
+
+  var layoutBuilder =  RecordBuilder(ListBuffer(), ListBuffer())
+  val builderMap = MutableMap.empty[String, List[AttrSpec]]
+  val type2idMap = MutableMap.empty[String, String]
+  val type2repeatMap = MutableMap.empty[String, RepeatSpec]
+  var nameList = List.empty[String]
+  var builderDeclaration = ""
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     val className = topClass.nameAsStr
@@ -77,9 +93,9 @@ class AwkwardCompiler(
   ) extends LayoutBuilder {
 
     override def printStructure(indent: Int, builderName: String): String = {
-      UserDefinedMap(builderName)
+      UserDefinedMap(builderName) //fix3 it will solve fix 4s
       val fieldStrings = fields.zip(contents).zipWithIndex.map { case ((field, content), i) =>
-        s"${"\t" * (indent + 2)}RecordField<Field_${builderName}::$field, ${content.printStructure(indent + 1, s"${field}")}>"
+        s"${"\t" * (indent + 2)}RecordField<Field_${builderName}::${encodeId(fieldStringsMap, field)}, ${content.printStructure(indent + 1, s"${field}")}>" //fix3
       }
       s"${if (indent == 0) "\nusing " + builderName.capitalize + "BuilderType =\n\t" else ""}" +
       s"RecordBuilder<\n${fieldStrings.mkString(",\n")}\n${"\t" * (indent)}\t>"
@@ -87,20 +103,16 @@ class AwkwardCompiler(
 
     def UserDefinedMap(builderName: String): Unit = {
       val mapStrings = fields.zipWithIndex.map { case (field, i) =>
-        s"""{Field_${builderName}::$field, "$field"}"""
+        s"""{Field_${builderName}::${encodeId(userDefinedIdNameMap, field)}, "$field"}""" //fix //fix4
       }
-      outHdrAwkward.puts(s"enum Field_${builderName} : std::size_t {${fields.mkString(", ")}};")
+      val enumStrings = fields.zipWithIndex.map { case (field, i) =>
+        s"${encodeId(enumIdNameMap, field)}" //fix
+      }      
+      outHdrAwkward.puts(s"enum Field_${builderName} : std::size_t {${enumStrings.mkString(", ")}};") //fix4
       outSrcAwkward.puts
-      outSrcAwkward.puts(s"UserDefinedMap ${builderName}_fields_map({\n\t${mapStrings.mkString(",\n\t")}});")
+      outSrcAwkward.puts(s"UserDefinedMap ${builderName}_fields_map({\n\t${mapStrings.mkString(",\n\t")}});") //fix4
     }
   }
-
-  var layoutBuilder =  RecordBuilder(ListBuffer(), ListBuffer())
-  val builderMap = MutableMap.empty[String, List[AttrSpec]]
-  val type2idMap = MutableMap.empty[String, String]
-  val type2repeatMap = MutableMap.empty[String, RepeatSpec]
-  var nameList = List.empty[String]
-  var builderDeclaration = ""
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -132,7 +144,7 @@ class AwkwardCompiler(
 
     importListHdr.addKaitai("kaitai/kaitaistruct.h")
     importListHdr.addSystem("stdint.h")
-    importListHdr.addLocal("awkward/LayoutBuilder.h")
+    importListHdr.addLocal("../build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h")
 
     config.cppConfig.pointers match {
       case SharedPointers | UniqueAndRawPointers =>
@@ -163,8 +175,8 @@ class AwkwardCompiler(
     importListPybind11.addSystem("pybind11/numpy.h")
     importListPybind11.addSystem("fstream")
     importListPybind11.addSystem("iostream")
-    importListPybind11.addLocal("awkward/LayoutBuilder.h")
-    importListPybind11.addLocal(s"${topClassName}.h")
+    importListPybind11.addLocal("../build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h")
+    importListPybind11.addLocal(s"../src-${topClassName}/${topClassName}.h")
 
     outPybind11.puts("namespace py = pybind11;")
     outPybind11.puts("/**")
@@ -231,7 +243,7 @@ class AwkwardCompiler(
     outPybind11.inc
     outPybind11.puts("std::ifstream infile(file_path, std::ifstream::binary);")
     outPybind11.puts("kaitai::kstream ks(&infile);")
-    outPybind11.puts(s"${topClassName}_t obj = animal_t(&ks);")
+    outPybind11.puts(s"${topClassName}_t obj = ${topClassName}_t(&ks);")
     outPybind11.puts(s"return snapshot_builder(obj.${topClassName}_builder);")
     outPybind11.dec
     outPybind11.puts("}")
@@ -354,6 +366,9 @@ class AwkwardCompiler(
     val tParent = kaitaiType2NativeType(parentType)
     val tRoot = kaitaiType2NativeType(CalcUserType(rootClassName, None))
 
+    encodeId(parentIdNameMap, type2id(name.last))
+    pEncode = s"${if (type2id(name.last) > 0) ${type2id(name.last)}${parentIdNameMap(type2id(name.last))-1} else type2id(name.last)}"
+
     // Parent type might be declared somewhere else - in this case we need to include it
     importDataType(parentType)
 
@@ -370,15 +385,15 @@ class AwkwardCompiler(
       s"$tParent $pParent, " +
       s"$tRoot $pRoot$endianSuffixSrc) : $kstructName($pIo)" + 
       s"${if (name.size > 1) ",\n\t" + type2id(name.last) + "_builder(p__parent->" + type2id(types2type(tParent)) +
-      s"_builder.content<Field_${type2id(types2type(tParent))}::${type2id(name.last)}>()" +
-      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""}) {" else " {"}" //fix
+      s"_builder.content<Field_${type2id(types2type(tParent))}::$fieldEncode>()" + //fix
+      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""}) {" else " {"}"
     )
     outSrc.inc
 
     builderDeclaration += 
       s"${if (name.size > 1) "using " + type2id(name.last).capitalize + "BuilderType = decltype(std::declval<" + type2id(types2type(tParent)).capitalize + 
-      s"BuilderType>().content<Field_${type2id(types2type(tParent))}::${type2id(name.last)}>()" +
-      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""});\n" else ""}" //fix
+      s"BuilderType>().content<Field_${type2id(types2type(tParent))}::$fieldEncode>()" + //fix
+      s"${if (type2repeat(name.last) != NoRepeat) ".content()" else ""});\n" else ""}"
 
     // In shared pointers mode, this is required to be able to work with shared pointers to this
     // in a constructor. This is obviously a hack and not a good practice.
@@ -696,7 +711,7 @@ class AwkwardCompiler(
           _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  =>
 
           if (rep == NoRepeat)
-            outSrc.puts(s"auto& ${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+            outSrc.puts(s"auto& ${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();") //fix2
           else
             outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
           outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)});")
@@ -846,7 +861,7 @@ class AwkwardCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")//fix2
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
     outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
@@ -867,7 +882,7 @@ class AwkwardCompiler(
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
-    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();") //fix2
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
     outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
@@ -886,7 +901,7 @@ class AwkwardCompiler(
     outSrc.inc
     outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
-    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();") //fix2
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -1224,6 +1239,24 @@ class AwkwardCompiler(
   }
 
   override def type2class(className: String): String = AwkwardCompiler.type2class(className)
+
+  def encodeId(idNameMap: HashMap[String, Int], idName: String): Unit = {
+    if (idNameMap.contains(idName))
+      idNameMap.update(idName, idNameMap(idName) + 1)
+    else
+      idNameMap(idName) = 1
+  }
+
+  def encodeIdString(idNameMap: HashMap[String, Int], idName: String): String = {
+    if (idNameMap.contains(idName)) {
+      idNameMap.update(idName, idNameMap(idName) + 1)
+      s"$idName${idNameMap(idName) - 1}"
+    }
+    else {
+      idNameMap(idName) = 1
+      s"$idName"
+    }
+  }
 
   def types2type(types: String): String = {
     val lastIndex = types.lastIndexOf(":")
