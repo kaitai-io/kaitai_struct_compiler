@@ -34,11 +34,11 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     }
   }
 
-//  override def doStringLiteral(s: String): String = super.doStringLiteral(s)
+// override def doStringLiteral(s: String): String = "raw" + super.doStringLiteral(s)
 //  override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
 
   /**
-    * https://docs.Julia.org/2.7/reference/lexical_analysis.html#string-literals
+    * https://docs.python.org/2.7/reference/lexical_analysis.html#string-literals
     * https://docs.Julia.org/3.6/reference/lexical_analysis.html#string-and-bytes-literals
     */
   override val asciiCharQuoteMap: Map[Char, String] = Map(
@@ -47,11 +47,11 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     '\r' -> "\\r",
     '"' -> "\\\"",
     '\\' -> "\\\\",
-
     '\u0007' -> "\\a",
     '\f' -> "\\f",
     '\u000b' -> "\\v",
-    '\b' -> "\\b"
+    '\b' -> "\\b",
+    '$' -> "\\$"
   )
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
