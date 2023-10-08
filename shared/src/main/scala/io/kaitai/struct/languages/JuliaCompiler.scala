@@ -326,7 +326,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
       rep match {
         case NoRepeat =>
-          out.puts("this._attrStart[\"" + name + "\"] = pos(" + io + ")")
+          out.puts("this._attrStart[\"" + name + "\"] = KaitaiStruct.pos(" + io + ")")
         case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
           getOrCreatePosList("_arrStart", name, io)
       }
@@ -340,7 +340,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     rep match {
       case NoRepeat =>
-        out.puts("this._attrEnd[\"" + name + "\"] = pos(" + io + ")")
+        out.puts("this._attrEnd[\"" + name + "\"] = KaitaiStruct.pos(" + io + ")")
       case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
         getOrCreatePosList("_arrEnd", name, io)
     }
@@ -364,7 +364,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("_posList = Vector{Integer}()")
     out.puts(listName + "[\"" + varName + "\"] = _posList")
     blockScopeFooter
-    out.puts(s"push!(_posList, pos($io))")
+    out.puts(s"push!(_posList, KaitaiStruct.pos($io))")
     blockScopeFooter
   }
 
@@ -383,7 +383,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("i = 0")
-    out.puts(s"while !iseof($io)")
+    out.puts(s"while !KaitaiStruct.iseof($io)")
     out.inc
   }
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
@@ -636,7 +636,7 @@ object JuliaCompiler extends LanguageCompilerStatic
   override def kstructName: String = "Any"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "ErrorException"
-    case _ => s"${err.name}"
+    case _ => s"KaitaiStruct.${err.name}"
   }
 
   def types2class(name: List[String]): String = name.map(x => type2class(x)).mkString("_")

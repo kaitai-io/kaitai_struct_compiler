@@ -13,7 +13,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"fld(${translate(left)}, ${translate(right)})"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"mod(${translate(left)}, ${translate(right)})"
+        s"KaitaiStruct.mod(${translate(left)}, ${translate(right)})"
       case _ =>
         super.numericBinOp(left, op, right)
     }
@@ -82,7 +82,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
     s"${JuliaCompiler.enumToStr(enumTypeAbs, label)}"
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"resolve_enum(${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
+    s"KaitaiStruct.resolve_enum(${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translateIndex(idx)}]"
@@ -146,9 +146,9 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     s"maximum(${translate(a)})"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
-    s"size(${translate(value)})"
+    s"KaitaiStruct.size(${translate(value)})"
   override def kaitaiStreamEof(value: Ast.expr): String =
-    s"iseof(${translate(value)})"
+    s"KaitaiStruct.iseof(${translate(value)})"
   override def kaitaiStreamPos(value: Ast.expr): String =
-    s"pos(${translate(value)})"
+    s"KaitaiStruct.pos(${translate(value)})"
 }
