@@ -254,7 +254,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _: IntType => s"UInt8(${translator.doCast(xorValue, Int1Type(true))})"
           case _ => expression(xorValue)
         }
-        s"process_xor($srcExpr, $xorValueStr)"
+        s"KaitaiStruct.process_xor($srcExpr, $xorValueStr)"
       case ProcessZlib =>
         importList.add("using CodecZlib")
         s"transcode(GzipDecompressor, $srcExpr)"
@@ -264,7 +264,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"process_rotate_left($srcExpr, $expr, 1)"
+        s"KaitaiStruct.process_rotate_left($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val procClass = if (name.length == 1) {
           val onlyName = name.head
@@ -307,16 +307,16 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def pushPos(io: String): Unit =
-    out.puts(s"_pos = pos($io)")
+    out.puts(s"_pos = KaitaiStruct.pos($io)")
 
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"seek($io, ${expression(pos)})")
+    out.puts(s"KaitaiStruct.seek($io, ${expression(pos)})")
 
   override def popPos(io: String): Unit =
-    out.puts(s"seek($io, _pos)")
+    out.puts(s"KaitaiStruct.seek($io, _pos)")
 
   override def alignToByte(io: String): Unit =
-    out.puts(s"align_to_byte($io)")
+    out.puts(s"KaitaiStruct.align_to_byte($io)")
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
@@ -432,17 +432,17 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"read${Utils.capitalize(t.apiCall(defEndian))}($io)"
+        s"KaitaiStruct.read${Utils.capitalize(t.apiCall(defEndian))}($io)"
       case blt: BytesLimitType =>
-        s"read_bytes($io, convert(UInt, ${expression(blt.size)}))"
+        s"KaitaiStruct.read_bytes($io, convert(UInt, ${expression(blt.size)}))"
       case _: BytesEosType =>
-        s"read_bytes_full($io)"
+        s"KaitaiStruct.read_bytes_full($io)"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"read_bytes_term($io, convert(UInt8, $terminator), $include, $consume, $eosError)"
+        s"KaitaiStruct.read_bytes_term($io, convert(UInt8, $terminator), $include, $consume, $eosError)"
       case BitsType1(bitEndian) =>
-        s"read_bits_int_${bitEndian.toSuffix}($io, 1) != 0"
+        s"KaitaiStruct.read_bits_int_${bitEndian.toSuffix}($io, 1) != 0"
       case BitsType(width: Int, bitEndian) =>
-        s"read_bits_int_${bitEndian.toSuffix}($io, $width)"
+        s"KaitaiStruct.read_bits_int_${bitEndian.toSuffix}($io, $width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map(a => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
@@ -465,11 +465,11 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
     val expr1 = padRight match {
-      case Some(padByte) => s"bytes_strip_right($expr0, $padByte)"
+      case Some(padByte) => s"KaitaiStruct.bytes_strip_right($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"bytes_terminate($expr1, $term, ${include})"
+      case Some(term) => s"KaitaiStruct.bytes_terminate($expr1, $term, ${include})"
       case None => expr1
     }
     expr2
@@ -632,7 +632,7 @@ object JuliaCompiler extends LanguageCompilerStatic
       case _ => idToStr(id)
     }
 
-  override def kstreamName: String = "KaitaiStream"
+  override def kstreamName: String = "KaitaiStruct.KaitaiStream"
   override def kstructName: String = "Any"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "ErrorException"
