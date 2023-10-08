@@ -55,7 +55,8 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts(s"# $headerComment")
     outHeader.puts
 
-    importList.add("include(\"../../../runtime/julia/kaitaistruct.jl\")")
+    importList.add("include(\"../../../runtime/julia/KaitaiStruct/src/KaitaiStruct.jl\")")
+    importList.add("using .KaitaiStruct")
 
     out.puts
     // out.puts
@@ -98,6 +99,12 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ =>
       // no _is_le variable
     }
+    if (config.readStoresPos) {
+      out.puts("_attrStart::Dict")
+      out.puts("_attrEnd::Dict")
+      out.puts("_arrStart::Dict")
+      out.puts("_arrEnd::Dict")
+    }
   }
 
   override def classFooter(name: List[String]): Unit = {
@@ -116,15 +123,32 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     // Store parameters passed to us
     params.foreach(p => handleAssignmentSimple(p.id, paramName(p.id)))
+
+    out.puts("this._io = _io")
+    out.puts("this._parent = _parent")
+    out.puts("this._root = _root === nothing ? this : _root")
+
+    if (config.readStoresPos) {
+      out.puts("this._attrStart = Dict()")
+      out.puts("this._attrEnd = Dict()")
+      out.puts("this._arrStart = Dict()")
+      out.puts("this._arrEnd = Dict()")
+    }
+  }
+
+  override def attrInit(attr: AttrLikeSpec): Unit = {
+    if (attr.isNullable)
+      out.puts(s"this.${idToStr(attr.id)} = nothing")
+  }
+
+  override def classConstructorFooter: Unit = {
+    out.puts("this")
+    universalFooter
   }
 
   override def runRead(name: List[String]): Unit = {
     typeProvider.nowClass.instances.keys.foreach(instanceIdentifier => out.puts(s"this.${idToStr(instanceIdentifier)} = nothing"))
-    out.puts("this._io = _io")
-    out.puts("this._parent = _parent")
-    out.puts("this._root = _root === nothing ? this : _root")
     out.puts("_read(this)")
-    out.puts("this")
   }
 
   override def runReadCalc(): Unit = {
@@ -157,7 +181,11 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"${idToStr(attrName)}::${kaitaiType2NativeType(attrType)}")
+    if (isNullable) {
+      out.puts(s"${idToStr(attrName)}::Union{Nothing, ${kaitaiType2NativeType(attrType)}}")
+    } else {
+      out.puts(s"${idToStr(attrName)}::${kaitaiType2NativeType(attrType)}")
+    }
   }
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
@@ -204,7 +232,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents($contents)")
+    out.puts(s"#ensure_fixed_content")
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
     out.puts("if this._is_le")
@@ -214,7 +242,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("else")
     out.inc
     beProc()
-    universalFooter
+    blockScopeFooter
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
@@ -223,13 +251,13 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val expr = proc match {
       case ProcessXor(xorValue) =>
         val xorValueStr = translator.detectType(xorValue) match {
-          case _: IntType => translator.doCast(xorValue, Int1Type(true))
+          case _: IntType => s"UInt8(${translator.doCast(xorValue, Int1Type(true))})"
           case _ => expression(xorValue)
         }
-        s"process_xor($srcExpr, UInt8($xorValueStr))"
+        s"process_xor($srcExpr, $xorValueStr)"
       case ProcessZlib =>
-        importList.add("using Zlib")
-        s"decompress($srcExpr)"
+        importList.add("using CodecZlib")
+        s"transcode(GzipDecompressor, $srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
@@ -241,16 +269,14 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val procClass = if (name.length == 1) {
           val onlyName = name.head
           val className = type2class(onlyName)
-          importList.add(s"from $onlyName import $className")
           className
         } else {
           val pkgName = name.init.mkString(".")
-          importList.add(s"import $pkgName")
           s"$pkgName.${type2class(name.last)}"
         }
 
-        out.puts(s"_process = $procClass(${args.map(expression).mkString(", ")})")
-        s"_process.decode($srcExpr)"
+        // out.puts(s"_process = $procClass(${args.map(expression).mkString(", ")})")
+        s"$procClass.decode(${args.map(expression).mkString(", ")}$srcExpr)"
     }
     handleAssignment(varDest, expr, rep, isRaw = false)
   }
@@ -293,22 +319,16 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"align_to_byte($io)")
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
-    ios.foreach { io =>
+    ios.foreach { (io) =>
       val name = attrId match {
         case _: RawIdentifier | _: SpecialIdentifier => return
         case _ => idToStr(attrId)
       }
       rep match {
         case NoRepeat =>
-          out.puts(s"self._debug['$name']['start'] = $io.pos()")
+          out.puts("this._attrStart[\"" + name + "\"] = pos(" + io + ")")
         case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-          /** TODO: move array initialization to [[condRepeatCommonInit]] - see
-           * [[JavaScriptCompiler.condRepeatCommonInit]] for inspiration */
-          out.puts(s"if not 'arr' in self._debug['$name']:")
-          out.inc
-          out.puts(s"self._debug['$name']['arr'] = []")
-          out.dec
-          out.puts(s"self._debug['$name']['arr'].append({'start': $io.pos()})")
+          getOrCreatePosList("_arrStart", name, io)
       }
     }
   }
@@ -320,12 +340,32 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     rep match {
       case NoRepeat =>
-        out.puts(s"self._debug['$name']['end'] = $io.pos()")
-      case _: RepeatExpr =>
-        out.puts(s"self._debug['$name']['arr'][i]['end'] = $io.pos()")
-      case RepeatEos | _: RepeatUntil =>
-        out.puts(s"self._debug['$name']['arr'][len(${privateMemberName(attrId)}) - 1]['end'] = $io.pos()")
+        out.puts("this._attrEnd[\"" + name + "\"] = pos(" + io + ")")
+      case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
+        getOrCreatePosList("_arrEnd", name, io)
     }
+  }
+
+  override def blockScopeHeader: Unit = {
+    out.puts("begin")
+    out.inc
+  }
+
+  override def blockScopeFooter: Unit = {
+    out.dec
+    out.puts("end")
+  }
+
+  def getOrCreatePosList(listName: String, varName: String, io: String): Unit = {
+    blockScopeHeader
+    out.puts("_posList = get(" + listName + ", \"" + varName + "\", nothing)")
+    out.puts("if _posList === nothing ")
+    out.inc
+    out.puts("_posList = Vector{Integer}()")
+    out.puts(listName + "[\"" + varName + "\"] = _posList")
+    blockScopeFooter
+    out.puts(s"push!(_posList, pos($io))")
+    blockScopeFooter
   }
 
   override def condIfHeader(expr: Ast.expr): Unit = {
@@ -351,7 +391,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatEosFooter: Unit = {
     out.puts("i += 1")
-    universalFooter
+    blockScopeFooter
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
@@ -378,9 +418,9 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"if ${expression(untilExpr)}")
     out.inc
     out.puts("break")
-    universalFooter
+    blockScopeFooter
     out.puts("i += 1")
-    universalFooter
+    blockScopeFooter
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
@@ -436,7 +476,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
-    out.puts(s"$id._read()")
+    out.puts(s"_read($id)")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
   override def switchCaseStart(condition: Ast.expr): Unit = {}
@@ -619,7 +659,7 @@ object JuliaCompiler extends LanguageCompilerStatic
       case BitsType(_, _) => "UInt64"
 
       case _: BooleanType => "Bool"
-      case CalcIntType => "Int"
+      case CalcIntType => "Int64"
       case CalcFloatType => "Float64"
 
       case _: StrType => "String"
@@ -628,10 +668,10 @@ object JuliaCompiler extends LanguageCompilerStatic
       case AnyType => "Any"
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
       case KaitaiStructType | CalcKaitaiStructType => kstructName
-      case t: UserType => types2class(t.classSpec match {
+      case t: UserType => "Union{" + types2class(t.classSpec match {
         case Some(cs) => if (cs.isTopLevel) cs.name else "Abstract" :: cs.name
         case None => t.name
-      })
+      }) + ", Nothing}"
 
       case t: EnumType => s"Union{${types2class(t.enumSpec.get.name)}, Integer}"
 
@@ -639,7 +679,6 @@ object JuliaCompiler extends LanguageCompilerStatic
 
       case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
-
   }
   def enumToStr(typeName: List[String], enumName: String): String =
     typeName.mkString("_") + "__" + enumName

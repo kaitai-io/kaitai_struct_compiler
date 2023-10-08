@@ -32,6 +32,9 @@ class JuliaClassCompiler(
     // Enums declaration defines types, so they need to go first
     compileEnums(curClass)
 
+    if (lang.config.readStoresPos)
+      lang.debugClassSequence(curClass.seq)
+
     // Basic struct declaration
     lang.classHeader(curClass.name)
     compileAttrDeclarations(curClass.seq ++ curClass.params ++ extraAttrs)
