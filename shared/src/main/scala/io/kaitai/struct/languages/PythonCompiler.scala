@@ -466,10 +466,10 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
-    importList.add("from enum import Enum")
+    importList.add("from enum import IntEnum")
 
     out.puts
-    out.puts(s"class ${type2class(enumName)}(Enum):")
+    out.puts(s"class ${type2class(enumName)}(IntEnum):")
     out.inc
     enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = ${translator.doIntLiteral(id)}") }
     out.dec

@@ -85,7 +85,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"int(${translate(s)}$add)"
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
-    s"${translate(v)}.value"
+    s"int(${translate(v)})"
   override def boolToInt(v: Ast.expr): String =
     s"int(${translate(v)})"
   override def floatToInt(v: Ast.expr): String =
