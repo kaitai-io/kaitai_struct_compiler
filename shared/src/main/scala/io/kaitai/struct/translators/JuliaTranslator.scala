@@ -6,8 +6,11 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.{JuliaCompiler, RubyCompiler}
 import io.kaitai.struct.exprlang.ConstEvaluator
+import scala.collection.immutable.HashSet
 
 class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+  var usedForeignImports: HashSet[String] = HashSet.empty[String]
+
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
@@ -79,10 +82,24 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def doInternalName(id: Identifier): String =
     s"this.${JuliaCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
+  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
+    if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))
+    && !usedForeignImports.contains(JuliaCompiler.type2class(enumTypeAbs.head))) {
+      usedForeignImports += JuliaCompiler.type2class(enumTypeAbs.head)
+      importList.add(s"using ..${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
+      importList.add(s"#${JuliaCompiler.types2class(provider.nowClass.name)} ${JuliaCompiler.type2class(enumTypeAbs.head)}")
+    }
     s"${JuliaCompiler.enumToStr(enumTypeAbs, label)}"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+  }
+  override def doEnumById(enumTypeAbs: List[String], id: String): String = {
+    if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))
+    && !usedForeignImports.contains(JuliaCompiler.type2class(enumTypeAbs.head))) {
+      usedForeignImports += JuliaCompiler.type2class(enumTypeAbs.head)
+      importList.add(s"using ..${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
+      importList.add(s"#${JuliaCompiler.types2class(provider.nowClass.name)} ${JuliaCompiler.type2class(enumTypeAbs.head)}")
+    }
     s"KaitaiStruct.resolve_enum(${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
+  }
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translateIndex(idx)}]"
