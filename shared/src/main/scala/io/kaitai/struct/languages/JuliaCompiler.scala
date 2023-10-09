@@ -38,7 +38,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def results(topClass: ClassSpec): Map[String, String] =
     Map(outFileName(topClass.nameAsStr) ->
-      (outHeader.result + outImports(topClass) + abstractTypesAndEnums.result + out.result)
+      (s"module ${types2class(topClass.name)}Module\n" + outHeader.result + outImports(topClass) + abstractTypesAndEnums.result + out.result + "end\n")
     )
 
   override def classForwardDeclaration(name: List[String]): Unit = {
@@ -55,8 +55,9 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts(s"# $headerComment")
     outHeader.puts
 
-    importList.add("include(\"../../../runtime/julia/KaitaiStruct/src/KaitaiStruct.jl\")")
-    importList.add("using .KaitaiStruct")
+    // importList.add("include(\"../../../runtime/julia/KaitaiStruct/src/KaitaiStruct.jl\")")
+    importList.add("export all")
+    importList.add("using ..KaitaiStruct")
 
     out.puts
     // out.puts
@@ -85,8 +86,8 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
-    val name = classSpec.name.head
-    out.puts(s"include(${'"'}$name.jl${'"'})")
+    // val name = classSpec.name.head
+    out.puts(s"using ..${types2class(classSpec.name)}Module: ${types2class(classSpec.name)}")
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -680,6 +681,8 @@ object JuliaCompiler extends LanguageCompilerStatic
       case st: SwitchType => kaitaiType2NativeType(st.combinedType)
     }
   }
-  def enumToStr(typeName: List[String], enumName: String): String =
+
+  def enumToStr(typeName: List[String], enumName: String): String = {
     typeName.mkString("_") + "__" + enumName
+  }
 }
