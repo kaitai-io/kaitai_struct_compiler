@@ -693,13 +693,20 @@ class AwkwardCompiler(
     if (!privateMemberName(id).contains("m__raw")) {
       dataType match {
         case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
-          _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  =>
+          _: BooleanType | CalcIntType | CalcFloatType  =>
 
           if (rep == NoRepeat)
             outSrc.puts(s"auto& ${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
           else
             outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
           outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)});")
+        case _: StrType | _: BytesType =>
+          outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
+          outSrc.puts(s"for (int i = 0; i < ${getRawIdExpr(id, rep)}.length(); i++) {")
+          outSrc.inc
+          outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)}[i]);")
+          outSrc.dec
+          outSrc.puts("}")
         case _ =>
       }
       if (rep != NoRepeat)
@@ -1284,7 +1291,7 @@ class AwkwardCompiler(
             }
 
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
-           _: BooleanType | CalcIntType | CalcFloatType | _: StrType | _: BytesType  =>
+           _: BooleanType | CalcIntType | CalcFloatType  =>
             val elId = el.id
             builder.fields += elId.humanReadable
             el.cond.repeat match {
@@ -1293,6 +1300,10 @@ class AwkwardCompiler(
               case _ =>
                 builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder(kaitaiType2NativeType(el.dataType)))
             }
+          case _: StrType | _: BytesType => 
+            val elId = el.id
+            builder.fields += elId.humanReadable
+            builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t"))
           case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
         }
       }
