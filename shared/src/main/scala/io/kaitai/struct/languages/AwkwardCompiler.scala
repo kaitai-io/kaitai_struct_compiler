@@ -701,12 +701,14 @@ class AwkwardCompiler(
             outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
           outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)});")
         case _: StrType | _: BytesType =>
+          outSrc.puts(s"sub_${id.humanReadable}_builder.end_list();")
           outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
           outSrc.puts(s"for (int i = 0; i < ${getRawIdExpr(id, rep)}.length(); i++) {")
           outSrc.inc
           outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)}[i]);")
           outSrc.dec
           outSrc.puts("}")
+          outSrc.puts(s"sub_${id.humanReadable}_builder.end_list();")
         case _ =>
       }
       if (rep != NoRepeat)
