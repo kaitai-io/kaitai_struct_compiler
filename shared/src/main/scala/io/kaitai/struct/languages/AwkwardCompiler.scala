@@ -701,7 +701,8 @@ class AwkwardCompiler(
             outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
           outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)});")
         case _: StrType | _: BytesType =>
-          outSrc.puts(s"sub_${id.humanReadable}_builder.end_list();")
+          outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${id.humanReadable}>();")
+          outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
           outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
           outSrc.puts(s"for (int i = 0; i < ${getRawIdExpr(id, rep)}.length(); i++) {")
           outSrc.inc
