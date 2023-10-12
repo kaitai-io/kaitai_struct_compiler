@@ -12,11 +12,6 @@ abstract class Identifier {
     *         error messaging purposes.
     */
   def humanReadable: String
-
-  /**
-    * @return Identifier ready to be used in KS expressions.
-    */
-  def toAstIdentifier: Ast.identifier = Ast.identifier(humanReadable)
 }
 
 /**

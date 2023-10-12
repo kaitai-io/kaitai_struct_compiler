@@ -44,6 +44,15 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts(s"proc `$$`(x: ${namespaced(typeProvider.nowClass.name)}): string =")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)}")
+    out.dec
+    out.puts
+  }
+
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
     out.puts("import \"" + classSpec.name.head + "\"")
   override def innerEnums = false
