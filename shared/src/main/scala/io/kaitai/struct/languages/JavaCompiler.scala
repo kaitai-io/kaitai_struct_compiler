@@ -430,7 +430,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def allocateIOFixed(varName: Identifier, size: String): String = {
     val ioName = idToStr(IoStorageIdentifier(varName))
 
-    out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($size);")
+    out.puts(s"final $kstreamName $ioName = new ByteBufferKaitaiStream($size);")
     ioName
   }
 
