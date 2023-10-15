@@ -370,9 +370,9 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
+  override def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
     val ioName = s"_io_${idToStr(id)}"
-    out.puts(s"$ioName = $io.substream(${translator.translate(sizeExpr)})")
+    out.puts(s"$ioName = $io.substream(${translator.translate(blt.size)})")
     ioName
   }
 

@@ -140,18 +140,18 @@ trait EveryReadIsExpression
     * @param defEndian default endianness specification
     * @return string reference to a freshly created substream
     */
-  def createSubstream(id: Identifier, byteType: BytesType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
+  def createSubstream(id: Identifier, bt: BytesType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
     if (config.zeroCopySubstream) {
-      byteType match {
-        case BytesLimitType(sizeExpr, None, _, None, None) =>
-          createSubstreamFixedSize(id, sizeExpr, io)
+      bt match {
+        case blt @ BytesLimitType(_, None, _, None, None)   =>
+          createSubstreamFixedSize(id, blt, io, rep, defEndian)
         case _ =>
           // fall back to buffered implementation
-          createSubstreamBuffered(id, byteType, io, rep, defEndian)
+          createSubstreamBuffered(id, bt, io, rep, defEndian)
       }
     } else {
       // if zero-copy substreams were declined, always use buffered implementation
-      createSubstreamBuffered(id, byteType, io, rep, defEndian)
+      createSubstreamBuffered(id, bt, io, rep, defEndian)
     }
   }
 
@@ -167,14 +167,8 @@ trait EveryReadIsExpression
     * @param io parent stream to derive substream from
     * @return string reference to a freshly created substream
     */
-  def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String =
-    createSubstreamBuffered(
-      id,
-      BytesLimitType(sizeExpr, None, false, None, None),
-      io,
-      NoRepeat,
-      None
-    )
+  def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String =
+    createSubstreamBuffered(id, blt, io, rep, defEndian)
 
   /**
     * Creates a substream by reading bytes that will comprise the stream first into a buffer in
