@@ -67,7 +67,7 @@ trait CommonReads extends LanguageCompiler {
 
   def attrParse0(id: Identifier, attr: AttrLikeSpec, io: String, defEndian: Option[FixedEndian]): Unit = {
     if (attr.cond.repeat != NoRepeat)
-      condRepeatCommonInit(id, attr.dataType, needRaw(attr.dataType))
+      (ExtraAttrs.forAttr(attr, this) ++ List(attr)).foreach(a => condRepeatInitAttr(a.id, a.dataType))
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosHeader(id, io, attr.dataType)

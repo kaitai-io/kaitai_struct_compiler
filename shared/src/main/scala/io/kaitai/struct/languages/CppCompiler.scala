@@ -619,18 +619,9 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     importListHdr.addSystem("vector")
 
-    if (needRaw.level >= 1) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
-      if (needRaw.hasIO) {
-        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(OwnedKaitaiStreamType)};")
-      }
-    }
-    if (needRaw.level >= 2) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
-    }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
   }
 

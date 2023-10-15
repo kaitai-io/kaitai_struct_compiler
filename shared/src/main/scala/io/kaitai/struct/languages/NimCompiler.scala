@@ -153,7 +153,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     // sequences don't have to be manually initialized in Nim - they're automatically initialized as
     // empty sequences (see https://narimiran.github.io/nim-basics/#_result_variable)
   }

@@ -1,6 +1,6 @@
 package io.kaitai.struct.languages.components
 
-import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian, InheritedEndian, NeedRaw}
+import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian, InheritedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.AbstractTranslator
@@ -131,7 +131,7 @@ abstract class LanguageCompiler(
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter(expr: Ast.expr): Unit
 
-  def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit
+  def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit
 
   def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit
   def condRepeatEosFooter: Unit
