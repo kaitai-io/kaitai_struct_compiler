@@ -275,6 +275,9 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$debugName = { $ioProps${if (ioProps != "" && enumNameProps != "") ", " else ""}$enumNameProps };")
   }
 
+  override def attrDebugArrInit(id: Identifier, attrType: DataType): Unit =
+    out.puts(s"this._debug.${idToStr(id)}.arr = [];")
+
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
     val debugName = attrDebugName(attrId, rep, true)
 
@@ -298,8 +301,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (needRaw.level >= 2)
       out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
     out.puts(s"${privateMemberName(id)} = [];")
-    if (config.readStoresPos)
-      out.puts(s"this._debug.${idToStr(id)}.arr = [];")
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {

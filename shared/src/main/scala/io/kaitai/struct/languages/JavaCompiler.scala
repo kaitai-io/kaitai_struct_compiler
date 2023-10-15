@@ -318,6 +318,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def attrDebugArrInit(attrName: Identifier, attrType: DataType): Unit = {
+    // no _debug[$name]['arr'] initialization needed in Java
+  }
+
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
     val name = idToStr(attrId)
     rep match {

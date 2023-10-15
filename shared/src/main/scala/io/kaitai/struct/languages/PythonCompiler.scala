@@ -276,16 +276,13 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case NoRepeat =>
           out.puts(s"self._debug['$name']['start'] = $io.pos()")
         case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-          /** TODO: move array initialization to [[condRepeatCommonInit]] - see
-           * [[JavaScriptCompiler.condRepeatCommonInit]] for inspiration */
-          out.puts(s"if not 'arr' in self._debug['$name']:")
-          out.inc
-          out.puts(s"self._debug['$name']['arr'] = []")
-          out.dec
           out.puts(s"self._debug['$name']['arr'].append({'start': $io.pos()})")
       }
     }
   }
+
+  override def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit =
+    out.puts(s"self._debug['${idToStr(attrId)}']['arr'] = []")
 
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
     val name = idToStr(attrId)

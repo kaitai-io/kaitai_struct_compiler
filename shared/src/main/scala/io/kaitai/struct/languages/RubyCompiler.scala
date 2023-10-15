@@ -248,12 +248,15 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case NoRepeat =>
           out.puts(s"(@_debug['$name'] ||= {})[:start] = $io.pos")
         case _: RepeatExpr =>
-          out.puts(s"(@_debug['$name'][:arr] ||= [])[i] = {:start => $io.pos}")
+          out.puts(s"@_debug['$name'][:arr][i] = {:start => $io.pos}")
         case RepeatEos | _: RepeatUntil =>
-          out.puts(s"(@_debug['$name'][:arr] ||= [])[${privateMemberName(attrId)}.size] = {:start => $io.pos}")
+          out.puts(s"@_debug['$name'][:arr][${privateMemberName(attrId)}.size] = {:start => $io.pos}")
       }
     }
   }
+
+  override def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit =
+    out.puts(s"@_debug['${idToStr(attrId)}'][:arr] = []")
 
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
     val name = idToStr(attrId)

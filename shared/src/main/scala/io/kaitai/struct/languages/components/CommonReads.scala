@@ -26,8 +26,11 @@ trait CommonReads extends LanguageCompiler {
         normalIO
     }
 
-    if (attrDebugNeeded(id))
+    if (attrDebugNeeded(id)) {
       attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
+      if (attr.cond.repeat != NoRepeat)
+        attrDebugArrInit(id, attr.dataType)
+    }
 
     defEndian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
@@ -108,6 +111,7 @@ trait CommonReads extends LanguageCompiler {
   }
 
   def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
+  def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit = {}
   def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
 
   def attrDebugNeeded(attrId: Identifier): Boolean = false
