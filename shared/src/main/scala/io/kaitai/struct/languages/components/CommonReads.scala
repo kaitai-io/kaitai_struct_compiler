@@ -26,7 +26,7 @@ trait CommonReads extends LanguageCompiler {
         normalIO
     }
 
-    if (config.readStoresPos)
+    if (attrDebugNeeded(id))
       attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
 
     defEndian match {
@@ -107,8 +107,10 @@ trait CommonReads extends LanguageCompiler {
     }
   }
 
-  def attrDebugStart(attrName: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
   def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
+
+  def attrDebugNeeded(attrId: Identifier): Boolean = false
 
   /**
     * Runs all validation procedures requested for an attribute.

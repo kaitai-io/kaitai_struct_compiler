@@ -912,7 +912,7 @@ class CppCompiler(
     outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
-    if (config.readStoresPos)
+    if (attrDebugNeeded(instName))
       attrDebugStart(instName, dataType, None, NoRepeat)
     val valExpr = expression(value)
     val isOwningInExpr = dataType match {

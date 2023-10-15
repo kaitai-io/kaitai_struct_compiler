@@ -260,9 +260,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$io.alignToByte();")
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], rep: RepeatSpec): Unit = {
-    if (!attrDebugNeeded(attrId))
-      return
-
     val debugName = attrDebugName(attrId, rep, false)
 
     val ioProps = io match {
@@ -279,8 +276,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
-    if (!attrDebugNeeded(attrId))
-      return
     val debugName = attrDebugName(attrId, rep, true)
 
     out.puts(s"$debugName.end = $io.pos;")
@@ -578,12 +573,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
     out.dec
     out.puts("}")
-  }
-
-  private
-  def attrDebugNeeded(attrId: Identifier) = attrId match {
-    case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
-    case _: RawIdentifier | _: SpecialIdentifier => false
   }
 
   def attrDebugName(attrId: Identifier, rep: RepeatSpec, end: Boolean) = {

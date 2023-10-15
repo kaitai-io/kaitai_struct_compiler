@@ -31,8 +31,9 @@ trait EveryReadIsExpression
     assignTypeOpt: Option[DataType] = None
   ): Unit = {
     val assignType = assignTypeOpt.getOrElse(dataType)
+    val needsDebug = attrDebugNeeded(id) && rep != NoRepeat
 
-    if (config.readStoresPos && rep != NoRepeat)
+    if (needsDebug)
       attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
@@ -61,7 +62,7 @@ trait EveryReadIsExpression
         handleAssignment(id, expr, rep, isRaw)
     }
 
-    if (config.readStoresPos && rep != NoRepeat)
+    if (needsDebug)
       attrDebugEnd(id, dataType, io, rep)
   }
 
@@ -250,8 +251,18 @@ trait EveryReadIsExpression
   def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = ???
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
-    if (config.readStoresPos)
+    if (attrDebugNeeded(instName))
       attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
+  }
+
+  override def attrDebugNeeded(attrId: Identifier): Boolean = {
+    if (!config.readStoresPos)
+      return false
+
+    attrId match {
+      case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
+      case _ => super.attrDebugNeeded(attrId)
+    }
   }
 }
