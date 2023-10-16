@@ -14,8 +14,6 @@ class AwkwardClassCompiler(
   config: RuntimeConfig
 ) extends ClassCompiler(classSpecs, topClass, config, AwkwardCompiler) {
 
-  val awk = new AwkwardCompiler(provider, config)
-
   /**
     * Generates code for one full class using a given [[format.ClassSpec]].
     * @param curClass current class to generate code for

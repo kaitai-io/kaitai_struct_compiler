@@ -197,6 +197,8 @@ class AwkwardCompiler(
       outHdr.puts("}")
     }
 
+    ctypesStrings(topClassName)
+
     if (!config.cppConfig.usePragmaOnce) {
       outHdr.puts
       outHdr.puts(s"#endif  // ${defineName(topClassName)}")
@@ -1225,6 +1227,132 @@ class AwkwardCompiler(
         }
       }
     }
+  }
+
+  def ctypesStrings(topClassName: String) {
+    val builderType = s"${topClassName.capitalize}BuilderType"
+    outHdr.puts 
+    outHdr.puts(s"std::map<std::string, $builderType*> builder_map;")
+    outHdr.puts 
+    outHdr.puts(s"$builderType* load(std::string file_path);")
+    outHdr.puts
+    outSrc.puts
+    outSrc.puts(s"$builderType* load(std::string file_path) {")
+    outSrc.inc
+    outSrc.puts("std::ifstream infile(file_path, std::ifstream::binary);")
+    outSrc.puts("kaitai::kstream ks(&infile);")
+    outSrc.puts(s"${topClassName}_t* obj = new ${topClassName}_t(&ks);")
+    outSrc.puts(s"builder_map[file_path] = &(obj->${topClassName}_builder);")
+    outSrc.puts("return builder_map[file_path];")
+    outSrc.dec
+    outSrc.puts(s"}")
+    outSrc.puts
+
+    outHdr.puts(s"""extern "C" {""")
+    outHdr.puts
+    outHdr.inc
+    outSrc.puts(s"""extern "C" {""")
+    outSrc.puts
+    outSrc.inc
+
+    outHdr.puts("struct Result {")
+    outHdr.inc
+    outHdr.puts("void* builder;")
+    outHdr.puts("const char* error_message;")
+    outHdr.dec
+    outHdr.puts("};")
+    outHdr.puts
+
+    outHdr.puts("Result fill(const char* file_path);")
+    outHdr.puts
+    outSrc.puts("Result fill(const char* file_path) {")
+    outSrc.inc
+    outSrc.puts("Result result;")
+    outSrc.puts("std::string error_message;")
+    outSrc.puts(s"$builderType* builder = load(file_path);")
+    outSrc.puts("bool is_valid = builder->is_valid(error_message);")
+    outSrc.puts("if (is_valid) {")
+    outSrc.inc
+    outSrc.puts("result.builder = builder;")
+    outSrc.puts("result.error_message = NULL;")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts("else {")
+    outSrc.inc
+    outSrc.puts("result.builder = NULL;")
+    outSrc.puts("result.error_message = error_message.c_str();")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts("return result;")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts
+
+    outHdr.puts("const char* form(void* builder);")
+    outHdr.puts
+    outSrc.puts("const char* form(void* builder) {")
+    outSrc.inc
+    outSrc.puts(s"return strdup(reinterpret_cast<$builderType*>(builder)->form().c_str());")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts
+
+    outHdr.puts("int64_t length(void* builder);")
+    outHdr.puts
+    outSrc.puts("int64_t length(void* builder) {")
+    outSrc.inc
+    outSrc.puts(s"return reinterpret_cast<$builderType*>(builder)->length();")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts
+
+    outHdr.puts("int64_t num_buffers(void* builder);")
+    outHdr.puts
+    outSrc.puts("int64_t num_buffers(void* builder) {")
+    outSrc.inc
+    outSrc.puts(s"return ::num_buffers_helper(reinterpret_cast<$builderType*>(builder));")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts
+
+    outHdr.puts("const char* buffer_name(void* builder, int64_t index);")
+    outHdr.puts
+    outSrc.puts("const char* buffer_name(void* builder, int64_t index) {")
+    outSrc.inc
+    outSrc.puts(s"return ::buffer_name_helper(reinterpret_cast<$builderType*>(builder))[index].c_str();")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts
+
+    outHdr.puts("int64_t buffer_size(void* builder, int64_t index);")
+    outHdr.puts
+    outSrc.puts("int64_t buffer_size(void* builder, int64_t index) {")
+    outSrc.inc
+    outSrc.puts(s"return ::buffer_size_helper(reinterpret_cast<$builderType*>(builder))[index];")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts
+
+    outHdr.puts("void copy_into(const char* name, void* from_builder, void* to_buffer, int64_t index);")
+    outHdr.puts
+    outSrc.puts("void copy_into(const char* name, void* from_builder, void* to_buffer, int64_t index) {")
+    outSrc.inc
+    outSrc.puts(s"reinterpret_cast<$builderType*>(from_builder)->to_buffer(to_buffer, name);")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.puts
+
+    outHdr.puts("void deallocate(void* builder);")
+    outHdr.dec
+    outSrc.puts("void deallocate(void* builder) {")
+    outSrc.inc
+    outSrc.puts(s"reinterpret_cast<$builderType*>(builder)->clear();")
+    outSrc.dec
+    outSrc.puts("}")
+    outSrc.dec
+
+    outHdr.puts("}")
+    outSrc.puts("}")
   }
 
   def nullPtr: String = config.cppConfig.pointers match {
