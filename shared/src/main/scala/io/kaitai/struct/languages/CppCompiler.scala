@@ -866,7 +866,17 @@ class CppCompiler(
       case ct: ComplexDataType => ct.isOwningInExpr
       case _ => false
     }
-    handleAssignmentSimple(instName, if (isOwningInExpr) s"$valExpr.get()" else valExpr)
+    val valExprConverted = if (isOwningInExpr) {
+      config.cppConfig.pointers match {
+        case RawPointers =>
+          valExpr
+        case UniqueAndRawPointers =>
+          s"$valExpr.get()"
+      }
+    } else {
+      valExpr
+    }
+    handleAssignmentSimple(instName, valExprConverted)
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
