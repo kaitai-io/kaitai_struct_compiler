@@ -54,11 +54,7 @@ Our [examples repository](https://github.com/kaitai-io/kaitai_struct_examples) c
 
 ## Plugging in
 
-> :information_source: Before the version 0.11.0 the `kaitai-struct-compiler`
-> module returned a _compiler constructor_ (called `KaitaiStructCompiler`) and
-> you would use it as `(new KaitaiStructCompiler()).compile(...)`, but since
-> 0.11.0 release it returns the _compiler object_ itself and you just need to
-> do `KaitaiStructCompiler.compile(...)`. Make sure to adapt your code.
+> **Note:** Before version 0.11.0, the `kaitai-struct-compiler` module returned a _compiler constructor_ (called `KaitaiStructCompiler`) and you would use it as `(new KaitaiStructCompiler()).compile(...)`, but since 0.11.0 it returns the _compiler object_ itself and you just need to do `KaitaiStructCompiler.compile(...)`. Make sure to adapt your code.
 
 We publish the compiler as a [UMD module](https://github.com/umdjs/umd), so it works from various environments, including server-side (e.g. Node.js) and client-side (e.g. web browser) ones.
 
