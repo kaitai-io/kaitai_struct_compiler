@@ -274,7 +274,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     // slices don't have to be manually initialized in Go: the built-in append()
     // function works even on `nil` slices (https://go.dev/tour/moretypes/15)
   }

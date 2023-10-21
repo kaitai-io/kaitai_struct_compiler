@@ -490,30 +490,21 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
-      val name = attrId match {
-        case _: RawIdentifier | _: SpecialIdentifier => return
-        case _ => idToStr(attrId)
-      }
+      val name = idToStr(attrId)
       rep match {
         case NoRepeat =>
           out.puts(s"self._debug['$name']['start'] = $io.pos()")
         case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-          /** TODO: move array initialization to [[condRepeatCommonInit]] - see
-           * [[JavaScriptCompiler.condRepeatCommonInit]] for inspiration */
-          out.puts(s"if not 'arr' in self._debug['$name']:")
-          out.inc
-          out.puts(s"self._debug['$name']['arr'] = []")
-          out.dec
           out.puts(s"self._debug['$name']['arr'].append({'start': $io.pos()})")
       }
     }
   }
 
+  override def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit =
+    out.puts(s"self._debug['${idToStr(attrId)}']['arr'] = []")
+
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
-    val name = attrId match {
-      case _: RawIdentifier | _: SpecialIdentifier => return
-      case _ => idToStr(attrId)
-    }
+    val name = idToStr(attrId)
     rep match {
       case NoRepeat =>
         out.puts(s"self._debug['$name']['end'] = $io.pos()")
@@ -530,30 +521,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("pass")
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
-    if (config.readWrite) {
-      dataType match {
-        case utb: UserTypeFromBytes =>
-          if (writeNeedsOuterSize(utb.bytes))
-            out.puts(s"${privateMemberName(OuterSizeIdentifier(id))} = []")
-          if (writeNeedsInnerSize(utb.bytes))
-            out.puts(s"${privateMemberName(InnerSizeIdentifier(id))} = []")
-        case _ => // do nothing
-      }
-    }
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = []")
-  }
-
-  override def condRepeatCommonWriteInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
-  }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("i = 0")

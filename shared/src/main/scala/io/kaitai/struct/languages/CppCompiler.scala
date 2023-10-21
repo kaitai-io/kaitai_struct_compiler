@@ -386,13 +386,13 @@ class CppCompiler(
       outSrc.inc
     }
 
-    val needRaw = this.needRaw(attr.dataType)
-    val innerType = attr.dataType match {
-      case st: SwitchType => st.combinedType
-      case t => t
+    (ExtraAttrs.forAttr(attr, this) ++ List(attr)).foreach { (attr) =>
+      val innerType = attr.dataType match {
+        case st: SwitchType => combineSwitchType(st)
+        case t => t
+      }
+      destructMember(attr.id, innerType, attr.isArray)
     }
-
-    destructMember(id, innerType, attr.isArray, needRaw)
 
     if (checks.nonEmpty) {
       outSrc.dec
@@ -400,73 +400,29 @@ class CppCompiler(
     }
   }
 
-  def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, needRaw: NeedRaw): Unit = {
-    def destructWithSafeguardHeader(ptr: String): Unit = {
-      outSrc.puts(s"if ($ptr) {")
-      outSrc.inc
-    }
-    def destructWithSafeguardFooter(ptr: String): Unit = {
-      outSrc.puts(s"delete $ptr; $ptr = $nullPtr;")
-      outSrc.dec
-      outSrc.puts("}")
-    }
-    def destructWithSafeguardSimple(ptr: String): Unit = {
-      destructWithSafeguardHeader(ptr)
-      destructWithSafeguardFooter(ptr)
-    }
-    if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
-      if (isArray) {
-        // raw is std::vector<string>*, no need to delete its contents, but we
-        // need to clean up the vector pointer itself
-        if (needRaw.level >= 1) {
-          destructWithSafeguardSimple(privateMemberName(RawIdentifier(id)))
+  def destructMember(id: Identifier, innerType: DataType, isArray: Boolean): Unit = {
+    if (config.cppConfig.pointers != CppRuntimeConfig.RawPointers)
+      return
 
-          // IO is std::vector<kstream*>*, needs destruction of both members
-          // and the vector pointer itself
-          if (needRaw.hasIO) {
-            val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-            destructWithSafeguardHeader(ioVar)
-            destructVector(s"$kstreamName*", ioVar)
-            destructWithSafeguardFooter(ioVar)
-          }
-        }
-        if (needRaw.level >= 2) {
-          // m__raw__raw_* is also std::vector<string>*, we just clean up the vector pointer
-          destructWithSafeguardSimple(privateMemberName(RawIdentifier(RawIdentifier(id))))
-        }
+    val ptr = privateMemberName(id)
+    val innerNeedsDestruct = needsDestruction(innerType)
 
-        val arrVar = privateMemberName(id)
-        destructWithSafeguardHeader(arrVar)
+    if (!isArray && !innerNeedsDestruct)
+      return
 
-        // main member contents
-        if (needsDestruction(innerType)) {
-          // C++ specific substitution: AnyType results from generic struct + raw bytes
-          // so we would assume that only generic struct needs to be cleaned up
-          val realType = innerType match {
-            case AnyType => KaitaiStructType
-            case _ => innerType
-          }
+    outSrc.puts(s"if ($ptr) {")
+    outSrc.inc
 
-          destructVector(kaitaiType2NativeType(realType), arrVar)
-        }
+    if (isArray && innerNeedsDestruct)
+      destructVector(kaitaiType2NativeType(innerType), ptr)
 
-        // main member is a std::vector of something, always needs destruction
-        destructWithSafeguardFooter(arrVar)
-      } else {
-        // raw is just a string, no need to cleanup => we ignore `needRaw.hasRaw`
-
-        // but needRaw.hasIO is important
-        if (needRaw.hasIO)
-          destructWithSafeguardSimple(privateMemberName(IoStorageIdentifier(RawIdentifier(id))))
-
-        if (needsDestruction(innerType))
-          destructWithSafeguardSimple(privateMemberName(id))
-      }
-    }
+    outSrc.puts(s"delete $ptr; $ptr = $nullPtr;")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   def needsDestruction(t: DataType): Boolean = t match {
-    case _: UserType | _: ArrayTypeInStream | KaitaiStructType | AnyType => true
+    case _: UserType | _: ArrayTypeInStream | KaitaiStructType | AnyType | OwnedKaitaiStreamType => true
     case _ => false
   }
 
@@ -615,18 +571,9 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     importListHdr.addSystem("vector")
 
-    if (needRaw.level >= 1) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
-      if (needRaw.hasIO) {
-        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(OwnedKaitaiStreamType)};")
-      }
-    }
-    if (needRaw.level >= 2) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
-    }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
   }
 
@@ -908,14 +855,24 @@ class CppCompiler(
     outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
-    if (config.readStoresPos)
+    if (attrDebugNeeded(instName))
       attrDebugStart(instName, dataType, None, NoRepeat)
     val valExpr = expression(value)
     val isOwningInExpr = dataType match {
       case ct: ComplexDataType => ct.isOwningInExpr
       case _ => false
     }
-    handleAssignmentSimple(instName, if (isOwningInExpr) s"$valExpr.get()" else valExpr)
+    val valExprConverted = if (isOwningInExpr) {
+      config.cppConfig.pointers match {
+        case RawPointers =>
+          valExpr
+        case UniqueAndRawPointers =>
+          s"$valExpr.get()"
+      }
+    } else {
+      valExpr
+    }
+    handleAssignmentSimple(instName, valExprConverted)
   }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {

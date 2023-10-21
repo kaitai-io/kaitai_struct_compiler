@@ -73,7 +73,9 @@ trait EveryWriteIsExpression
     checksShouldDependOnIo: Option[Boolean]
   ): Unit = {
     if (attr.cond.repeat != NoRepeat)
-      condRepeatCommonWriteInit(id, attr.dataType, needRaw(attr.dataType))
+      ExtraAttrs.forAttr(attr, this)
+        .filter(a => a.id.isInstanceOf[RawIdentifier])
+        .foreach(a => condRepeatInitAttr(a.id, a.dataType))
     attr.cond.repeat match {
       case RepeatEos =>
       case RepeatExpr(repeatExpr: Ast.expr) =>

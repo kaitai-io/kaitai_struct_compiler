@@ -11,12 +11,6 @@ import io.kaitai.struct.format._
 trait AllocateAndStoreIO extends ExtraAttrs {
   def allocateIO(id: Identifier, rep: RepeatSpec): String
 
-  override def extraAttrForIO(id: Identifier, rep: RepeatSpec): List[AttrSpec] = {
-    val ioId = IoStorageIdentifier(id)
-    val ioType = rep match {
-      case NoRepeat => OwnedKaitaiStreamType
-      case _ => ArrayTypeInStream(OwnedKaitaiStreamType)
-    }
-    List(AttrSpec(List(), ioId, ioType))
-  }
+  override def extraAttrForIO(id: Identifier, rep: RepeatSpec): List[AttrSpec] =
+    List(AttrSpec(List(), IoStorageIdentifier(id), OwnedKaitaiStreamType, ConditionalSpec(None, rep)))
 }

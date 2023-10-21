@@ -501,10 +501,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
-      val name = attrId match {
-        case _: RawIdentifier | _: SpecialIdentifier => return
-        case _ => idToStr(attrId)
-      }
+      val name = idToStr(attrId)
       rep match {
         case NoRepeat =>
           out.puts("_attrStart.put(\"" + name + "\", " + io + ".pos());")
@@ -514,11 +511,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def attrDebugArrInit(attrName: Identifier, attrType: DataType): Unit = {
+    // no _debug[$name]['arr'] initialization needed in Java
+  }
+
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
-    val name = attrId match {
-      case _: RawIdentifier | _: SpecialIdentifier => return
-      case _ => idToStr(attrId)
-    }
+    val name = idToStr(attrId)
     rep match {
       case NoRepeat =>
         out.puts("_attrEnd.put(\"" + name + "\", " + io + ".pos());")
@@ -547,30 +545,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new ArrayList<byte[]>();")
-    if (config.readWrite) {
-      dataType match {
-        case utb: UserTypeFromBytes =>
-          if (writeNeedsOuterSize(utb.bytes))
-            out.puts(s"${privateMemberName(OuterSizeIdentifier(id))} = new ArrayList<Integer>();")
-          if (writeNeedsInnerSize(utb.bytes))
-            out.puts(s"${privateMemberName(InnerSizeIdentifier(id))} = new ArrayList<Integer>();")
-        case _ => // do nothing
-      }
-    }
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}();")
-  }
-
-  override def condRepeatCommonWriteInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new ArrayList<byte[]>();")
-  }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("{")
@@ -688,9 +664,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     castIfNeeded(expr, dataType, assignType)
   }
 
-  override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
+  override def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
     val ioName = idToStr(IoStorageIdentifier(id))
-    handleAssignmentTempVar(KaitaiStreamType, ioName, s"$io.substream(${translator.translate(sizeExpr)});")
+    handleAssignmentTempVar(KaitaiStreamType, ioName, s"$io.substream(${translator.translate(blt.size)})")
     ioName
   }
 
