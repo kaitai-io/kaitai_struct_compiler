@@ -249,11 +249,9 @@ lazy val buildNpmPackageTask = Def.task {
   val licenseFile = new File("js/npm/LICENSE")
   val readMeFile = new File("js/npm/README.md")
   val packageJsonFile = new File("js/npm/package.json")
-  val warnFile = new File("js/npm/warn-about-constructor-bc-break.js")
 
   Files.copy(new File("LICENSE").toPath, licenseFile.toPath)
   Files.copy(new File("js/README.md").toPath, readMeFile.toPath)
-  Files.copy(new File("js/warn-about-constructor-bc-break.js").toPath, warnFile.toPath)
 
   val packageJsonTmpl = IO.read(new File("js/package.json"), UTF8)
   val packageJsonContents = packageJsonTmpl.replaceFirst(
@@ -266,7 +264,6 @@ lazy val buildNpmPackageTask = Def.task {
   Seq(
     licenseFile,
     readMeFile,
-    packageJsonFile,
-    warnFile,
+    packageJsonFile
   )
 }
