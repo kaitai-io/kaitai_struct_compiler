@@ -231,13 +231,8 @@ lazy val buildNpmJsFileTask = Def.task {
        |  }
        |}(typeof self !== 'undefined' ? self : this, function () {
        |
-       |var exports = {};
-       |var __ScalaJSEnv = { exportsNamespace: exports };
-       |
        |$compiledFileContents
-       |
-       |return exports.MainJs;
-       |
+       |return MainJs;
        |}));
        |""".stripMargin
 
