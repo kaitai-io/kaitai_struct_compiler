@@ -59,7 +59,13 @@ object Lexical {
     "\\" -> "\\"     // backslash
   )
 
-  def quotedchar[_: P] = P( CharIn("\"'\\abefnrtv").! ).map(QUOTED_CC)
+  // Note: `CharIn("\\\\")` is necessary to include a single literal backslash,
+  // because the contents of `CharIn` are translated to a regex character class
+  // `[...]` (and as in regexes, ranges like `a-z` are also supported, etc.).
+  // Therefore, to match either `+` or `-` literally, you would need
+  // `CharIn("+\\-")`; consequently, a literal backslash is `CharIn("\\\\")`.
+  def quotedchar[_: P] = P( CharIn("\"'\\\\abefnrtv").! ).map(QUOTED_CC)
+
   def quotedoctal[_: P]: P[String] = P( octdigit.rep(1).! ).map { (digits) =>
     val code = Integer.parseInt(digits, 8).toChar
     Character.toString(code)
