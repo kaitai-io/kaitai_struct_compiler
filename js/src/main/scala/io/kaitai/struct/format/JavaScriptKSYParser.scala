@@ -18,7 +18,7 @@ object JavaScriptKSYParser {
     val yamlScala = yamlJavascriptToScala(yaml)
     val firstSpec = ClassSpec.fromYaml(yamlScala, None)
     val specs = new JavaScriptClassSpecs(importer, firstSpec)
-    Main.importAndPrecompile(specs, config).map{ problems =>
+    Main.importAndPrecompile(specs, config).map { problems =>
       // throw the first (if any) severe (not a warning) problem as an exception
       problems.find(p => p.severity != ProblemSeverity.Warning) match {
         case Some(problem) => throw problem.toException
