@@ -347,6 +347,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaCompiler -> "a().get((int) 42)",
     JavaScriptCompiler -> "this.a[42]",
     LuaCompiler -> "self.a[43]",
+    PerlCompiler -> "@{$self->a()}[42]",
     PHPCompiler -> "$this->a()[42]",
     PythonCompiler -> "self.a[42]",
     RubyCompiler -> "a[42]"
@@ -359,6 +360,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaCompiler -> "a().get((42 - 2))",
     JavaScriptCompiler -> "this.a[(42 - 2)]",
     LuaCompiler -> "self.a[(43 - 2)]",
+    PerlCompiler -> "@{$self->a()}[(42 - 2)]",
     PHPCompiler -> "$this->a()[(42 - 2)]",
     PythonCompiler -> "self.a[(42 - 2)]",
     RubyCompiler -> "a[(42 - 2)]"
@@ -371,6 +373,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaCompiler -> "a().get(0)",
     JavaScriptCompiler -> "this.a[0]",
     LuaCompiler -> "self.a[1]",
+    PerlCompiler -> "@{$self->a()}[0]",
     PHPCompiler -> "$this->a()[0]",
     PythonCompiler -> "self.a[0]",
     RubyCompiler -> "a.first"
@@ -383,6 +386,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaCompiler -> "a().get(a().size() - 1)",
     JavaScriptCompiler -> "this.a[this.a.length - 1]",
     LuaCompiler -> "self.a[#self.a]",
+    PerlCompiler -> "@{$self->a()}[-1]",
     PHPCompiler -> "$this->a()[count($this->a()) - 1]",
     PythonCompiler -> "self.a[-1]",
     RubyCompiler -> "a.last"
