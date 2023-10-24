@@ -520,7 +520,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaCompiler -> "Long.parseLong(\"12345\", 10)",
     JavaScriptCompiler -> "Number.parseInt(\"12345\", 10)",
     LuaCompiler -> "tonumber(\"12345\")",
-    PerlCompiler -> "\"12345\"",
+    PerlCompiler -> "\"12345\" + 0",
     PHPCompiler -> "intval(\"12345\", 10)",
     PythonCompiler -> "int(u\"12345\")",
     RubyCompiler -> "\"12345\".to_i"
