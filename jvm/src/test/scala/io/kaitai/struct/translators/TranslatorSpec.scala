@@ -396,7 +396,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaScriptCompiler -> "this.a.length",
     LuaCompiler -> "#self.a",
     PHPCompiler -> "count($this->a())",
-    PerlCompiler -> "scalar($self->a())",
+    PerlCompiler -> "scalar(@{$self->a()})",
     PythonCompiler -> "len(self.a)",
     RubyCompiler -> "a.length"
   ))
