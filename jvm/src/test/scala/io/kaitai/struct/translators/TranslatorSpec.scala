@@ -297,7 +297,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
     JavaScriptCompiler -> "[0, 1, 100500]",
     LuaCompiler -> "{0, 1, 100500}",
-    PerlCompiler -> "(0, 1, 100500)",
+    PerlCompiler -> "[0, 1, 100500]",
     PHPCompiler -> "[0, 1, 100500]",
     PythonCompiler -> "[0, 1, 100500]",
     RubyCompiler -> "[0, 1, 100500]"
@@ -601,7 +601,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList())",
     JavaScriptCompiler -> "[]",
     LuaCompiler -> "{}",
-    PerlCompiler -> "()",
+    PerlCompiler -> "[]",
     PHPCompiler -> "[]",
     PythonCompiler -> "[]",
     RubyCompiler -> "[]"
@@ -614,7 +614,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaCompiler -> "new ArrayList<Double>(Arrays.asList())",
     JavaScriptCompiler -> "[]",
     LuaCompiler -> "{}",
-    PerlCompiler -> "()",
+    PerlCompiler -> "[]",
     PHPCompiler -> "[]",
     PythonCompiler -> "[]",
     RubyCompiler -> "[]"
@@ -641,7 +641,7 @@ class TranslatorSpec extends AnyFunSuite {
     JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 2))",
     JavaScriptCompiler -> "[0, 1, 2]",
     LuaCompiler -> "{0, 1, 2}",
-    PerlCompiler -> "(0, 1, 2)",
+    PerlCompiler -> "[0, 1, 2]",
     PHPCompiler -> "[0, 1, 2]",
     PythonCompiler -> "[0, 1, 2]",
     RubyCompiler -> "[0, 1, 2]"
