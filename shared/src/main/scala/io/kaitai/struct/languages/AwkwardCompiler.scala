@@ -141,6 +141,7 @@ class AwkwardCompiler(
     importListHdr.addSystem("stdint.h")
     importListHdr.addSystem("fstream")
     importListHdr.addLocal("awkward/LayoutBuilder.h")
+    importListHdr.addLocal("awkward/utils.h")
 
     config.cppConfig.pointers match {
       case SharedPointers | UniqueAndRawPointers =>
@@ -154,7 +155,7 @@ class AwkwardCompiler(
     outHdr.puts
     outHdr.puts(s"#if KAITAI_STRUCT_VERSION < ${minVer}L")
     outHdr.puts(
-      "#error \"Incompatible Kaitai Struct C++/STL API: version " +
+      "#error \"Incompatible Kaitai Struct Awkward API: version " +
         KSVersion.minimalRuntime + " or later is required\""
     )
     outHdr.puts("#endif")
@@ -1166,6 +1167,7 @@ class AwkwardCompiler(
   }
 
   override def createBuilderMap(cs: ClassSpec): Unit = {
+    println(s"cs: $cs \n\n")
     builderMap(cs.name.last) = cs.seq
     builderMap(cs.name.last) match {
       case list: List[AttrSpec] =>
@@ -1231,9 +1233,16 @@ class AwkwardCompiler(
 
   def ctypesStrings(topClassName: String) {
     val builderType = s"${topClassName.capitalize}BuilderType"
-    outHdr.puts 
+    
+    outHdr.puts
+    outHdr.puts(s"#ifndef USE_${topClassName.toUpperCase()}_")
+    outHdr.puts(s"#define USE_${topClassName.toUpperCase()}_")
+    outSrc.puts
+    outSrc.puts(s"#ifdef USE_${topClassName.toUpperCase()}_")
+
+    outHdr.puts
     outHdr.puts(s"std::map<std::string, $builderType*> builder_map;")
-    outHdr.puts 
+    outHdr.puts
     outHdr.puts(s"$builderType* load(std::string file_path);")
     outHdr.puts
     outSrc.puts
@@ -1310,7 +1319,7 @@ class AwkwardCompiler(
     outHdr.puts
     outSrc.puts("int64_t num_buffers(void* builder) {")
     outSrc.inc
-    outSrc.puts(s"return ::num_buffers_helper(reinterpret_cast<$builderType*>(builder));")
+    outSrc.puts(s"return awkward::num_buffers_helper(reinterpret_cast<$builderType*>(builder));")
     outSrc.dec
     outSrc.puts("}")
     outSrc.puts
@@ -1319,7 +1328,7 @@ class AwkwardCompiler(
     outHdr.puts
     outSrc.puts("const char* buffer_name(void* builder, int64_t index) {")
     outSrc.inc
-    outSrc.puts(s"return ::buffer_name_helper(reinterpret_cast<$builderType*>(builder))[index].c_str();")
+    outSrc.puts(s"return awkward::buffer_name_helper(reinterpret_cast<$builderType*>(builder))[index].c_str();")
     outSrc.dec
     outSrc.puts("}")
     outSrc.puts
@@ -1328,7 +1337,7 @@ class AwkwardCompiler(
     outHdr.puts
     outSrc.puts("int64_t buffer_size(void* builder, int64_t index) {")
     outSrc.inc
-    outSrc.puts(s"return ::buffer_size_helper(reinterpret_cast<$builderType*>(builder))[index];")
+    outSrc.puts(s"return awkward::buffer_size_helper(reinterpret_cast<$builderType*>(builder))[index];")
     outSrc.dec
     outSrc.puts("}")
     outSrc.puts
@@ -1352,7 +1361,13 @@ class AwkwardCompiler(
     outSrc.dec
 
     outHdr.puts("}")
+    outHdr.puts
+    outHdr.puts(s"#endif // USE_${topClassName.toUpperCase()}_")
+    outHdr.puts
     outSrc.puts("}")
+    outSrc.puts
+    outSrc.puts(s"#endif // USE_${topClassName.toUpperCase()}_")
+    outSrc.puts
   }
 
   def nullPtr: String = config.cppConfig.pointers match {
