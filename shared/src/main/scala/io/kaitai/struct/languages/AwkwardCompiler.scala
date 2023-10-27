@@ -1235,10 +1235,9 @@ class AwkwardCompiler(
     val builderType = s"${topClassName.capitalize}BuilderType"
     
     outHdr.puts
-    outHdr.puts(s"#ifndef USE_${topClassName.toUpperCase()}_")
-    outHdr.puts(s"#define USE_${topClassName.toUpperCase()}_")
+    outHdr.puts(s"#ifdef USE_${topClassName.toUpperCase()}")
     outSrc.puts
-    outSrc.puts(s"#ifdef USE_${topClassName.toUpperCase()}_")
+    outSrc.puts(s"#ifdef USE_${topClassName.toUpperCase()}")
 
     outHdr.puts
     outHdr.puts(s"std::map<std::string, $builderType*> builder_map;")
@@ -1362,11 +1361,11 @@ class AwkwardCompiler(
 
     outHdr.puts("}")
     outHdr.puts
-    outHdr.puts(s"#endif // USE_${topClassName.toUpperCase()}_")
+    outHdr.puts(s"#endif // USE_${topClassName.toUpperCase()}")
     outHdr.puts
     outSrc.puts("}")
     outSrc.puts
-    outSrc.puts(s"#endif // USE_${topClassName.toUpperCase()}_")
+    outSrc.puts(s"#endif // USE_${topClassName.toUpperCase()}")
     outSrc.puts
   }
 
