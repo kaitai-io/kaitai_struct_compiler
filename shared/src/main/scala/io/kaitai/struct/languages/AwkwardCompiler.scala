@@ -104,7 +104,7 @@ class AwkwardCompiler(
   }
 
   var layoutBuilder =  RecordBuilder(ListBuffer(), ListBuffer())
-  val builderMap = MutableMap.empty[String, List[AttrSpec]]
+  val builderMap = MutableMap.empty[String, ClassSpec]
   val type2idMap = MutableMap.empty[String, String]
   val type2repeatMap = MutableMap.empty[String, RepeatSpec]
   var nameList = List.empty[String]
@@ -643,6 +643,7 @@ class AwkwardCompiler(
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "process_xor_one"
           case _: BytesType => "process_xor_many"
+          case _ => ""
         }
         s"$kstreamName::$procName($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
@@ -693,6 +694,7 @@ class AwkwardCompiler(
             privateMemberName(ioId)
           case UniqueAndRawPointers =>
             s"${privateMemberName(ioId)}.get()"
+          case _ => ""
         }
       case _ =>
         val localIO = s"io_${idToStr(id)}"
@@ -914,6 +916,7 @@ class AwkwardCompiler(
             //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
             s"std::unique_ptr<${types2class(t.name)}>(new ${types2class(t.name)}($addParams$io$addArgs))"
         }
+      case _ => ""
     }
   }
 
@@ -925,6 +928,7 @@ class AwkwardCompiler(
       case UniqueAndRawPointers =>
         s"std::unique_ptr<std::vector<$cppElType>>(new std::vector<$cppElType>())"
         // TODO: C++14 with std::make_unique
+      case _ => ""
     }
   }
 
@@ -1166,23 +1170,28 @@ class AwkwardCompiler(
     AwkwardCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
   }
 
-  override def createBuilderMap(cs: ClassSpec): Unit = {
-    println(s"cs: $cs \n\n")
-    builderMap(cs.name.last) = cs.seq
-    builderMap(cs.name.last) match {
-      case list: List[AttrSpec] =>
-        list.foreach { el =>
-          el.dataType match {
-            case userType: UserType => 
-              val elId = el.id
-              type2idMap(userType.name.last) = elId.humanReadable
-              type2repeatMap(userType.name.last) = el.cond.repeat
-            case _ =>
+  override def createBuilderMap(curClass: ClassSpec, path: String) {
+    var newPath = path
+    builderMap(newPath) = curClass
+    curClass.types.foreach { case (_, intClass) => 
+      builderMap(newPath).seq match {
+        case list: List[AttrSpec] =>
+          list.foreach { el =>
+            val elId = el.id
+            el.dataType match {
+              case userType: UserType =>
+                type2idMap(userType.name.last) = newPath
+                type2repeatMap(userType.name.last) = el.cond.repeat
+              case _ =>
+            }
           }
-        }
-      case _ =>
+        case _ =>
+      }
+      newPath = curClass.name.mkString("A__Z") + "A__Z" + intClass
+      println(s"createMap: $newPath")
+      createBuilderMap(intClass, newPath)
     }
-    // println(s"\n$builderMap\n")
+    builderMap foreach {case (key, value) => println ("\n" + key + "-->" + value + "\n")}
   }
 
   def type2id(dataType: String): String = {
@@ -1196,25 +1205,30 @@ class AwkwardCompiler(
   }
 
   def builderStructure(builder: RecordBuilder, key: String): Unit = {
-    builderMap(key) match { case list: List[AttrSpec] =>
-      list.foreach { el =>
+    println(s"\nbefore builderStructure: $key")
+    var newPath = key
+    builderMap(newPath) match { case cs: ClassSpec =>
+      println(s"newPath: $newPath\n")
+      cs.seq.foreach { el =>
         el.dataType match {
           case userType: UserType =>
             val elId = el.id
-            builder.fields += elId.humanReadable
+            newPath = cs.name.mkString("A__Z") + "A__Z" + userType.name.head
+            println(s"newPath builderStructure: $newPath")
+            builder.fields += newPath
             el.cond.repeat match {
               case NoRepeat =>
                 builder.contents += RecordBuilder(ListBuffer(), ListBuffer())
-                builderStructure(builder.contents.last.asInstanceOf[RecordBuilder], userType.name.head)
+                builderStructure(builder.contents.last.asInstanceOf[RecordBuilder], newPath)
               case _ =>
                 builder.contents += ListOffsetBuilder("int64_t", RecordBuilder(ListBuffer(), ListBuffer()))
-                builderStructure(builder.contents.last.asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder], userType.name.head)
+                builderStructure(builder.contents.last.asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder], newPath)
             }
 
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
            _: BooleanType | CalcIntType | CalcFloatType  =>
             val elId = el.id
-            builder.fields += elId.humanReadable
+            builder.fields += newPath + "A__Z" + elId.humanReadable
             el.cond.repeat match {
               case NoRepeat =>
                 builder.contents += NumpyBuilder(kaitaiType2NativeType(el.dataType))
@@ -1223,21 +1237,31 @@ class AwkwardCompiler(
             }
           case _: StrType | _: BytesType => 
             val elId = el.id
-            builder.fields += elId.humanReadable
+            builder.fields += newPath + "A__Z" + elId.humanReadable
             builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t"))
           case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
         }
       }
+      case _ =>
     }
+    println(s"\nafter builderStructure: $key")
   }
 
-  def ctypesStrings(topClassName: String) {
+
+  /**
+    * Generates the C/C++ strings for methods that load the raw
+    * file and fill the Awkward buffers. These methods are accessed
+    * from Python via ctypes
+    * @param topClassName name of the root class
+    */
+  def ctypesStrings(topClassName: String): Unit = {
     val builderType = s"${topClassName.capitalize}BuilderType"
     
     outHdr.puts
-    outHdr.puts(s"#ifdef USE_${topClassName.toUpperCase()}")
+    outHdr.puts(s"#ifndef USE_${topClassName.toUpperCase()}_")
+    outHdr.puts(s"#define USE_${topClassName.toUpperCase()}_")
     outSrc.puts
-    outSrc.puts(s"#ifdef USE_${topClassName.toUpperCase()}")
+    outSrc.puts(s"#ifdef USE_${topClassName.toUpperCase()}_")
 
     outHdr.puts
     outHdr.puts(s"std::map<std::string, $builderType*> builder_map;")
@@ -1361,11 +1385,11 @@ class AwkwardCompiler(
 
     outHdr.puts("}")
     outHdr.puts
-    outHdr.puts(s"#endif // USE_${topClassName.toUpperCase()}")
+    outHdr.puts(s"#endif // USE_${topClassName.toUpperCase()}_")
     outHdr.puts
     outSrc.puts("}")
     outSrc.puts
-    outSrc.puts(s"#endif // USE_${topClassName.toUpperCase()}")
+    outSrc.puts(s"#endif // USE_${topClassName.toUpperCase()}_")
     outSrc.puts
   }
 
@@ -1391,6 +1415,7 @@ class AwkwardCompiler(
           case _ =>
             privateMemberName(attrName)
         }
+      case _ => ""
     }
   }
 
@@ -1501,11 +1526,13 @@ object AwkwardCompiler extends LanguageCompilerStatic
       case ArrayTypeInStream(inType) => config.pointers match {
         case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
         case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
+        case _ => ""
       }
       case CalcArrayType(inType, _) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
       case OwnedKaitaiStreamType => config.pointers match {
         case RawPointers => s"$kstreamName*"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstreamName>"
+        case _ => ""
       }
       case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {
@@ -1521,6 +1548,7 @@ object AwkwardCompiler extends LanguageCompilerStatic
 
       case st: SwitchType =>
         kaitaiType2NativeType(config, combineSwitchType(st), absolute)
+      case _ => ""
     }
   }
 

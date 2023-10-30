@@ -14,6 +14,26 @@ class AwkwardClassCompiler(
   config: RuntimeConfig
 ) extends ClassCompiler(classSpecs, topClass, config, AwkwardCompiler) {
 
+  override def compile: CompileLog.SpecSuccess = {
+    lang.createBuilderMap(topClass, topClassName.head)
+    lang.fileHeader(topClassName.head)
+    compileOpaqueClasses(topClass)
+    compileClass(topClass)
+    lang.fileFooter(topClassName.head)
+
+    CompileLog.SpecSuccess(
+      lang.type2class(topClassName.head),
+      lang.results(topClass).map { case (fileName, contents) => FileSuccess(fileName, contents) }.toList
+    )
+  }
+
+  override def compileOpaqueClasses(topClass: ClassSpec) = {
+    TypeProcessor.getOpaqueClasses(topClass).foreach((classSpec) =>
+      if (classSpec != topClass)
+        lang.opaqueClassDeclaration(classSpec)
+    )
+  }
+
   /**
     * Generates code for one full class using a given [[format.ClassSpec]].
     * @param curClass current class to generate code for
@@ -22,8 +42,6 @@ class AwkwardClassCompiler(
     provider.nowClass = curClass
 
     curClass.meta.imports.foreach(file => lang.importFile(file))
-
-    lang.createBuilderMap(curClass)
 
     if (!lang.innerDocstrings)
       compileClassDoc(curClass)

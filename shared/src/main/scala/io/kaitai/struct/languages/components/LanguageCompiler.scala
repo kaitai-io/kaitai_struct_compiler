@@ -200,5 +200,5 @@ abstract class LanguageCompiler(
   def blockScopeHeader: Unit = {}
   def blockScopeFooter: Unit = {}
 
-  def createBuilderMap(classSpec: ClassSpec): Unit = {}
+  def createBuilderMap(classSpec: ClassSpec, topClassName: String): Unit = {}
 }
