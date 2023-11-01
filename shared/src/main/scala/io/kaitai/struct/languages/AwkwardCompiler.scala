@@ -1054,8 +1054,13 @@ class AwkwardCompiler(
     outSrc.dec
   }
 
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit =
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+    println(s"auto& ${idToStr(instName)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(instName)}>();")
+    outSrc.puts(s"auto& ${idToStr(instName)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(instName)}>();")
+    println(s"\n${idToStr(instName)}_builder.append(${nonOwningPointer(instName, attrType)});\n")
+    outSrc.puts(s"${idToStr(instName)}_builder.append(${nonOwningPointer(instName, attrType)});")
     outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
+  }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (config.readStoresPos)
@@ -1171,23 +1176,26 @@ class AwkwardCompiler(
   }
 
   override def createBuilderMap(curClass: ClassSpec, path: String) {
-    var newPath = path 
-    builderMap(newPath) = curClass
+    println(s"start createBuilderMap\n")
+    builderMap(path) = curClass
+    // println(s"createBuilderMap1: $builderMap\n")
     curClass.seq.foreach { el =>
-      val elId = el.id
       el.dataType match {
         case userType: UserType =>
-          type2idMap(userType.name.head) = newPath + "A__Z" + elId.humanReadable
+          type2idMap(userType.name.head) = path + "A__Z" + idToStr(el.id)
           type2repeatMap(userType.name.head) = el.cond.repeat
         case _ =>
       }
     }
+    // println(s"outside loop1a: ${curClass.types}")
     curClass.types.foreach {
       case (_, intClass) => {
-        newPath = type2idMap(intClass.name.last)
-        createBuilderMap(intClass, newPath)
+        // println(s"outside loop2b: $path, newPath: ${type2idMap(intClass.name.last)}")
+        createBuilderMap(intClass, type2idMap(intClass.name.last))
       }
+      case _ =>
     }
+    // println(s"createBuilderMap1: $builderMap\n")
   }
 
   def type2id(dataType: String): String = {
@@ -1199,32 +1207,25 @@ class AwkwardCompiler(
   }
 
   def builderStructure(builder: RecordBuilder, key: String): Unit = {
-    var newPath = key
-    println(s"key: $key\n")
-    builderMap(newPath) match { case cs: ClassSpec =>
-      println(s"inside loop1: $newPath\n")
+    builderMap(key) match { case cs: ClassSpec =>
+      println(s"inside loop1: $key\n")
+      var newPath = type2id(cs.name.last)
       cs.seq.foreach { el =>
-        val elId = el.id
-        println(s"inside loop2: $newPath, elid: ${elId.humanReadable},")
         el.dataType match {
           case userType: UserType =>
-            println(s"inside1 userType loop3: $newPath\n")
-            newPath = type2id(userType.name.head)
-            println(s"inside2 userType loop3: $newPath\n")
-            println(s"userType : ${userType.name.head}\n\n")
-            builder.fields += newPath
+            println(s"inside userType loop3: $newPath\n")
+            builder.fields += newPath + "A__Z" + idToStr(el.id)
             el.cond.repeat match {
               case NoRepeat =>
                 builder.contents += RecordBuilder(ListBuffer(), ListBuffer())
-                builderStructure(builder.contents.last.asInstanceOf[RecordBuilder], newPath)
+                builderStructure(builder.contents.last.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
               case _ =>
                 builder.contents += ListOffsetBuilder("int64_t", RecordBuilder(ListBuffer(), ListBuffer()))
-                builderStructure(builder.contents.last.asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder], newPath)
+                builderStructure(builder.contents.last.asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
             }
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
            _: BooleanType | CalcIntType | CalcFloatType  =>
-            println(s"inside Int1Type loop3: $newPath\n")
-            builder.fields += newPath + "A__Z" + elId.humanReadable
+            builder.fields += newPath + "A__Z" + idToStr(el.id)
             el.cond.repeat match {
               case NoRepeat =>
                 builder.contents += NumpyBuilder(kaitaiType2NativeType(el.dataType))
@@ -1232,17 +1233,22 @@ class AwkwardCompiler(
                 builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder(kaitaiType2NativeType(el.dataType)))
             }
           case _: StrType | _: BytesType =>
-            println(s"inside StrType loop3: $newPath\n")
-            builder.fields += newPath + "A__Z" + elId.humanReadable
+            builder.fields += newPath + "A__Z" + idToStr(el.id)
             builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t"))
           case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
         }
-        println(s"outside loop3: $newPath\n")
       }
-      println(s"outside loop2: $newPath\n")
+      cs.instances.foreach { case (instName, instSpec) =>
+        builder.fields += newPath + "A__Z" + idToStr(instName)
+          instSpec match {
+            case pis: ParseInstanceSpec => println("\nParseInstanceSpec\n")
+            case _: ValueInstanceSpec => println("\nValueInstanceSpec\n")
+          }
+        builder.contents += NumpyBuilder(kaitaiType2NativeType(instSpec.dataTypeComposite.asNonOwning()))
+      }
       case _ =>
     }
-    println(s"outside loop1: $newPath\n")
+    println(s"outside loop1: $key\n")
   }
 
 
