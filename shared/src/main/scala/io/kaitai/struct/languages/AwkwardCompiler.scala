@@ -612,26 +612,26 @@ class AwkwardCompiler(
           _: BooleanType | CalcIntType | CalcFloatType  =>
 
           if (rep == NoRepeat)
-            outSrc.puts(s"auto& ${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + id.humanReadable}>();")
+            outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
           else
-            outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
-          outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)});")
+            outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.content();")
+          outSrc.puts(s"${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.append(${getRawIdExpr(id, rep)});")
         case _: StrType | _: BytesType =>
-          outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + id.humanReadable}>();")
-          outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
-          outSrc.puts(s"""sub_${id.humanReadable}_builder.set_parameters("\\"__array__\\": \\"string\\"");""")
-          outSrc.puts(s"auto& ${id.humanReadable}_builder = sub_${id.humanReadable}_builder.content();")
-          outSrc.puts(s"""${id.humanReadable}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
+          outSrc.puts(s"auto& sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
+          outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.begin_list();")
+          outSrc.puts(s"""sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.set_parameters("\\"__array__\\": \\"string\\"");""")
+          outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.content();")
+          outSrc.puts(s"""${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
           outSrc.puts(s"for (int i = 0; i < ${getRawIdExpr(id, rep)}.length(); i++) {")
           outSrc.inc
-          outSrc.puts(s"${id.humanReadable}_builder.append(${getRawIdExpr(id, rep)}[i]);")
+          outSrc.puts(s"${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.append(${getRawIdExpr(id, rep)}[i]);")
           outSrc.dec
           outSrc.puts("}")
-          outSrc.puts(s"sub_${id.humanReadable}_builder.end_list();")
+          outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.end_list();")
         case _ =>
       }
       if (rep != NoRepeat)
-        outSrc.puts(s"sub_${id.humanReadable}_builder.end_list();")
+        outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.end_list();")
     }
   }
 
@@ -776,10 +776,10 @@ class AwkwardCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + id.humanReadable}>();")
+    outSrc.puts(s"auto& sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
-    outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
+    outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.begin_list();")
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
@@ -797,10 +797,10 @@ class AwkwardCompiler(
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
-    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + id.humanReadable}>();")
+    outSrc.puts(s"auto& sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
-    outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
+    outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.begin_list();")
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
@@ -816,7 +816,7 @@ class AwkwardCompiler(
     outSrc.inc
     outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
-    outSrc.puts(s"auto& sub_${id.humanReadable}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + id.humanReadable}>();")
+    outSrc.puts(s"auto& sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -824,7 +824,7 @@ class AwkwardCompiler(
   private val ReStdUniquePtr = "^std::unique_ptr<(.*?)>\\((.*?)\\)$".r
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    outSrc.puts(s"sub_${id.humanReadable}_builder.begin_list();")
+    outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.begin_list();")
     val (typeDecl, tempVar) = if (isRaw) {
       ("std::string ", translator.doName(Identifier.ITERATOR2))
     } else {
@@ -1048,6 +1048,7 @@ class AwkwardCompiler(
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
+    outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(instName)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(instName)}>();")
     outSrc.puts(s"if (${calculatedFlagForName(instName)})")
     outSrc.inc
     instanceReturn(instName, dataType)
@@ -1055,12 +1056,9 @@ class AwkwardCompiler(
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    println(s"auto& ${idToStr(instName)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(instName)}>();")
-    outSrc.puts(s"auto& ${idToStr(instName)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(instName)}>();")
-    println(s"\n${idToStr(instName)}_builder.append(${nonOwningPointer(instName, attrType)});\n")
-    outSrc.puts(s"${idToStr(instName)}_builder.append(${nonOwningPointer(instName, attrType)});")
+    outSrc.puts(s"${type2id(nameList.last) + "A__Z" + idToStr(instName)}_builder.append(${nonOwningPointer(instName, attrType)});")
     outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
-  }
+    }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (config.readStoresPos)
@@ -1240,10 +1238,6 @@ class AwkwardCompiler(
       }
       cs.instances.foreach { case (instName, instSpec) =>
         builder.fields += newPath + "A__Z" + idToStr(instName)
-          instSpec match {
-            case pis: ParseInstanceSpec => println("\nParseInstanceSpec\n")
-            case _: ValueInstanceSpec => println("\nValueInstanceSpec\n")
-          }
         builder.contents += NumpyBuilder(kaitaiType2NativeType(instSpec.dataTypeComposite.asNonOwning()))
       }
       case _ =>
