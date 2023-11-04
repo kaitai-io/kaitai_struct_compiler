@@ -1213,25 +1213,34 @@ class AwkwardCompiler(
           case userType: UserType =>
             println(s"inside userType loop3: $newPath\n")
             builder.fields += newPath + "A__Z" + idToStr(el.id)
-            var builderContent = RecordBuilder(ListBuffer(), ListBuffer())
+            var builderContent = checkOption(el, RecordBuilder(ListBuffer(), ListBuffer()))
             builder.contents += checkRepeat(el.cond.repeat, builderContent)
-            el.cond.repeat match {
-              case NoRepeat =>
-                builderStructure(builder.contents.last.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
-              case _ =>
-                builderStructure(builder.contents.last.asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
+            builder.contents.last match {
+              case recordBuilder: AwkwardCompiler.this.RecordBuilder =>
+                builderStructure(recordBuilder, newPath + "A__Z" + idToStr(el.id))
+              case listOffsetBuilder: AwkwardCompiler.this.ListOffsetBuilder =>
+                listOffsetBuilder.content match {
+                  case rb: AwkwardCompiler.this.RecordBuilder =>
+                    builderStructure(rb, newPath + "A__Z" + idToStr(el.id))
+                  case ib: AwkwardCompiler.this.IndexedOptionBuilder =>
+                    builderStructure(ib.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
+                  case _ =>
+                }
+              case indexedOptionBuilder: AwkwardCompiler.this.IndexedOptionBuilder =>
+                builderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
+              case unsupportedBuilder => throw new UnsupportedOperationException(s"Unsupported builder: $unsupportedBuilder")
             }
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
            _: BooleanType | CalcIntType | CalcFloatType  =>
             builder.fields += newPath + "A__Z" + idToStr(el.id)
-            var builderContent = NumpyBuilder(kaitaiType2NativeType(el.dataType))
+            var builderContent = checkOption(el, NumpyBuilder(kaitaiType2NativeType(el.dataType)))
             builder.contents += checkRepeat(el.cond.repeat, builderContent)
           case _: StrType | _: BytesType =>
             builder.fields += newPath + "A__Z" + idToStr(el.id)
-            var builderContent = ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t"))
+            var builderContent = checkOption(el, ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t")))
             builder.contents += checkRepeat(el.cond.repeat, builderContent)
           case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
-        }qqq
+        }
       }
       cs.instances.foreach { case (instName, instSpec) =>
         builder.fields += newPath + "A__Z" + idToStr(instName)
@@ -1247,6 +1256,12 @@ class AwkwardCompiler(
       case NoRepeat => builderContent
       case _ => ListOffsetBuilder("int64_t", builderContent)
     }
+  }
+
+  def checkOption(el: AttrSpec, builderContent: LayoutBuilder): LayoutBuilder = {
+    if (el.cond.ifExpr.isDefined || el.dataType.isInstanceOf[SwitchType])
+      IndexedOptionBuilder("int64_t", builderContent)
+    else builderContent
   }
 
   /**
