@@ -91,5 +91,5 @@ object KSVersion {
     * language supports it) when trying to use generated file together
     * with this older runtime API.
     */
-  val minimalRuntime: KSVersion = KSVersion.fromStr("0.9")
+  val minimalRuntime: KSVersion = KSVersion.fromStr("0.11")
 }
