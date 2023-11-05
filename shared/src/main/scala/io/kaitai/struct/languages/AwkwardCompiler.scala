@@ -1213,28 +1213,25 @@ class AwkwardCompiler(
           case userType: UserType =>
             println(s"inside userType loop3: $newPath\n")
             builder.fields += newPath + "A__Z" + idToStr(el.id)
+            var builderContent = RecordBuilder(ListBuffer(), ListBuffer())
+            builder.contents += checkRepeat(el.cond.repeat, builderContent)
             el.cond.repeat match {
               case NoRepeat =>
-                builder.contents += RecordBuilder(ListBuffer(), ListBuffer())
                 builderStructure(builder.contents.last.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
               case _ =>
-                builder.contents += ListOffsetBuilder("int64_t", RecordBuilder(ListBuffer(), ListBuffer()))
                 builderStructure(builder.contents.last.asInstanceOf[ListOffsetBuilder].content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
             }
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
            _: BooleanType | CalcIntType | CalcFloatType  =>
             builder.fields += newPath + "A__Z" + idToStr(el.id)
-            el.cond.repeat match {
-              case NoRepeat =>
-                builder.contents += NumpyBuilder(kaitaiType2NativeType(el.dataType))
-              case _ =>
-                builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder(kaitaiType2NativeType(el.dataType)))
-            }
+            var builderContent = NumpyBuilder(kaitaiType2NativeType(el.dataType))
+            builder.contents += checkRepeat(el.cond.repeat, builderContent)
           case _: StrType | _: BytesType =>
             builder.fields += newPath + "A__Z" + idToStr(el.id)
-            builder.contents += ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t"))
+            var builderContent = ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t"))
+            builder.contents += checkRepeat(el.cond.repeat, builderContent)
           case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
-        }
+        }qqq
       }
       cs.instances.foreach { case (instName, instSpec) =>
         builder.fields += newPath + "A__Z" + idToStr(instName)
@@ -1245,6 +1242,12 @@ class AwkwardCompiler(
     println(s"outside loop1: $key\n")
   }
 
+  def checkRepeat(rep: RepeatSpec, builderContent: LayoutBuilder): LayoutBuilder = {
+    rep match {
+      case NoRepeat => builderContent
+      case _ => ListOffsetBuilder("int64_t", builderContent)
+    }
+  }
 
   /**
     * Generates the C/C++ strings for methods that load the raw
