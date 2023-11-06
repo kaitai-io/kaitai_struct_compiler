@@ -610,28 +610,33 @@ class AwkwardCompiler(
       dataType match {
         case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
           _: BooleanType | CalcIntType | CalcFloatType  =>
-
           if (rep == NoRepeat)
             outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
           else
-            outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.content();")
+            outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.content();")
           outSrc.puts(s"${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.append(${getRawIdExpr(id, rep)});")
         case _: StrType | _: BytesType =>
-          outSrc.puts(s"auto& sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
-          outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.begin_list();")
-          outSrc.puts(s"""sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.set_parameters("\\"__array__\\": \\"string\\"");""")
-          outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.content();")
+          var builderName = s"${type2id(nameList.last) + "A__Z" + idToStr(id)}"
+          if (rep == NoRepeat)
+            outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
+          else {
+            builderName = "sub_" + builderName
+            outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${type2id(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.content();")
+          }
+          outSrc.puts(s"${builderName}_listoffsetbuilder.begin_list();")
+          outSrc.puts(s"""${builderName}_listoffsetbuilder.set_parameters("\\"__array__\\": \\"string\\"");""")
+          outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${builderName}_listoffsetbuilder.content();")
           outSrc.puts(s"""${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
           outSrc.puts(s"for (int i = 0; i < ${getRawIdExpr(id, rep)}.length(); i++) {")
           outSrc.inc
           outSrc.puts(s"${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.append(${getRawIdExpr(id, rep)}[i]);")
           outSrc.dec
           outSrc.puts("}")
-          outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.end_list();")
+          outSrc.puts(s"${builderName}_listoffsetbuilder.end_list();")
         case _ =>
       }
       if (rep != NoRepeat)
-        outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.end_list();")
+        outSrc.puts(s"${type2id(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.end_list();")
     }
   }
 
@@ -776,10 +781,10 @@ class AwkwardCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"auto& sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
+    outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
-    outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.begin_list();")
+    outSrc.puts(s"${type2id(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.begin_list();")
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
@@ -797,10 +802,10 @@ class AwkwardCompiler(
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
-    outSrc.puts(s"auto& sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
+    outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
-    outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.begin_list();")
+    outSrc.puts(s"${type2id(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.begin_list();")
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
@@ -816,7 +821,7 @@ class AwkwardCompiler(
     outSrc.inc
     outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
-    outSrc.puts(s"auto& sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
+    outSrc.puts(s"auto& ${type2id(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = ${type2id(nameList.last)}_builder.content<Field_${type2id(nameList.last)}::${type2id(nameList.last) + "A__Z" + idToStr(id)}>();")
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -824,7 +829,7 @@ class AwkwardCompiler(
   private val ReStdUniquePtr = "^std::unique_ptr<(.*?)>\\((.*?)\\)$".r
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    outSrc.puts(s"sub_${type2id(nameList.last) + "A__Z" + idToStr(id)}_builder.begin_list();")
+    outSrc.puts(s"${type2id(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.begin_list();")
     val (typeDecl, tempVar) = if (isRaw) {
       ("std::string ", translator.doName(Identifier.ITERATOR2))
     } else {
@@ -1174,7 +1179,6 @@ class AwkwardCompiler(
   }
 
   override def createBuilderMap(curClass: ClassSpec, path: String) {
-    println(s"start createBuilderMap\n")
     builderMap(path) = curClass
     // println(s"createBuilderMap1: $builderMap\n")
     curClass.seq.foreach { el =>
@@ -1182,18 +1186,22 @@ class AwkwardCompiler(
         case userType: UserType =>
           type2idMap(userType.name.head) = path + "A__Z" + idToStr(el.id)
           type2repeatMap(userType.name.head) = el.cond.repeat
+        case switchType: SwitchType =>
+          switchType.cases.values.foreach {
+            case ut: UserType =>
+              type2idMap(ut.name.head) = path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head
+              type2repeatMap(ut.name.head) = el.cond.repeat
+            case _ =>
+          }
+        println(s"\n")
         case _ =>
       }
     }
-    // println(s"outside loop1a: ${curClass.types}")
     curClass.types.foreach {
-      case (_, intClass) => {
-        // println(s"outside loop2b: $path, newPath: ${type2idMap(intClass.name.last)}")
-        createBuilderMap(intClass, type2idMap(intClass.name.last))
-      }
+      case (_, intClass) => createBuilderMap(intClass, type2idMap(intClass.name.last))
       case _ =>
     }
-    // println(s"createBuilderMap1: $builderMap\n")
+    println(s"createBuilderMap1: $builderMap\n")
   }
 
   def type2id(dataType: String): String = {
@@ -1230,6 +1238,30 @@ class AwkwardCompiler(
                 builderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
               case unsupportedBuilder => throw new UnsupportedOperationException(s"Unsupported builder: $unsupportedBuilder")
             }
+          case switchType: SwitchType =>
+            println(s"builder: $builder, path: ${newPath + "A__Z" + idToStr(el.id)}")
+            switchType.cases.values.foreach {
+            case userType: UserType =>
+              builder.fields += newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head
+              var builderContent = checkOption(el, RecordBuilder(ListBuffer(), ListBuffer()))
+              builder.contents += checkRepeat(el.cond.repeat, builderContent)
+              builder.contents.last match {
+                case recordBuilder: AwkwardCompiler.this.RecordBuilder =>
+                  builderStructure(recordBuilder, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                case listOffsetBuilder: AwkwardCompiler.this.ListOffsetBuilder =>
+                  listOffsetBuilder.content match {
+                    case rb: AwkwardCompiler.this.RecordBuilder =>
+                      builderStructure(rb, newPath + "A__Z" + idToStr(el.id))
+                    case ib: AwkwardCompiler.this.IndexedOptionBuilder =>
+                      builderStructure(ib.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                    case _ =>
+                  }
+                case indexedOptionBuilder: AwkwardCompiler.this.IndexedOptionBuilder =>
+                  builderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                case unsupportedBuilder => throw new UnsupportedOperationException(s"Unsupported builder: $unsupportedBuilder")
+              }
+              case _ =>
+            }            
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
            _: BooleanType | CalcIntType | CalcFloatType  =>
             builder.fields += newPath + "A__Z" + idToStr(el.id)
