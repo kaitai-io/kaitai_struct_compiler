@@ -107,6 +107,21 @@ class AwkwardCompiler(
     }
   }
 
+  case class UnionBuilder(
+    contents: ListBuffer[LayoutBuilder]
+  ) extends LayoutBuilder {
+    var parent: Option[LayoutBuilder] = None
+    var caseField = MutableMap[Int, String]()
+
+    override def printStructure(indent: Int, builderName: String): String = {
+      val unionContent = contents.zipWithIndex.map { case (content, index) =>
+        s"${"\t" * (indent + 2)}${content.printStructure(indent + 1, s"${caseField.getOrElse(index, builderName)}")}"
+      }
+      s"UnionBuilder<\n${unionContent.mkString(",\n")}\n${"\t" * (indent)}\t>"
+    }
+  }
+
+
   var layoutBuilder =  RecordBuilder(ListBuffer(), ListBuffer())
   val builderMap = MutableMap.empty[String, ClassSpec]
   val type2idMap = MutableMap.empty[String, String]
@@ -184,6 +199,8 @@ class AwkwardCompiler(
     outHdrAwkward.puts("using NumpyBuilder = awkward::LayoutBuilder::Numpy<PRIMITIVE>;");
     outHdrAwkward.puts("template<class PRIMITIVE, class BUILDER>");
     outHdrAwkward.puts("using IndexedOptionBuilder = awkward::LayoutBuilder::IndexedOption<PRIMITIVE, BUILDER>;");
+    outHdrAwkward.puts("template<class... BUILDERS>");
+    outHdrAwkward.puts("using UnionBuilder = awkward::LayoutBuilder::Union<int8_t, uint32_t, BUILDERS...>;");
     outHdrAwkward.puts
 
     type2idMap(topClassName) = topClassName
@@ -1198,14 +1215,13 @@ class AwkwardCompiler(
           println(s"ut: ${userType.name.head}, ${path + "A__Z" + idToStr(el.id)}\n")
           type2idMap(userType.name.head) = path + "A__Z" + idToStr(el.id)
           type2repeatMap(userType.name.head) = el.cond.repeat
-        // case switchType: SwitchType =>
-        //   switchType.cases.values.foreach {
-        //     case ut: UserType =>
-        //       println(s"st: ${ut.name.head}, ${path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head}\n")
-        //       type2idMap(ut.name.head) = path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head
-        //       type2repeatMap(ut.name.head) = el.cond.repeat
-        //     case _ =>
-        //   }
+        case switchType: SwitchType =>
+          switchType.cases.values.foreach {
+            case ut: UserType =>
+              type2idMap(ut.name.head) = path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head
+              type2repeatMap(ut.name.head) = el.cond.repeat
+            case _ =>
+          }
         case _ =>
       }
     }
@@ -1254,30 +1270,35 @@ class AwkwardCompiler(
                 builderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
               case unsupportedBuilder => throw new UnsupportedOperationException(s"Unsupported builder: $unsupportedBuilder")
             }
-          // case switchType: SwitchType =>
-          //   println(s"builder: $builder, path: ${newPath + "A__Z" + idToStr(el.id)}")
-          //   switchType.cases.values.foreach {
-          //   case userType: UserType =>
-          //     builder.fields += newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head
-          //     var builderContent = checkOption(el, RecordBuilder(ListBuffer(), ListBuffer()))
-          //     builder.contents += checkRepeat(el.cond.repeat, builderContent)
-          //     builder.contents.last match {
-          //       case recordBuilder: AwkwardCompiler.this.RecordBuilder =>
-          //         builderStructure(recordBuilder, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
-          //       case listOffsetBuilder: AwkwardCompiler.this.ListOffsetBuilder =>
-          //         listOffsetBuilder.content match {
-          //           case rb: AwkwardCompiler.this.RecordBuilder =>
-          //             builderStructure(rb, newPath + "A__Z" + idToStr(el.id))
-          //           case ib: AwkwardCompiler.this.IndexedOptionBuilder =>
-          //             builderStructure(ib.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
-          //           case _ =>
-          //         }
-          //       case indexedOptionBuilder: AwkwardCompiler.this.IndexedOptionBuilder =>
-          //         builderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
-          //       case unsupportedBuilder => throw new UnsupportedOperationException(s"Unsupported builder: $unsupportedBuilder")
-          //     }
-          //     case _ =>
-          //   }            
+          case switchType: SwitchType =>
+            builder.fields += newPath + "A__Z" + idToStr(el.id)
+            builder.contents += UnionBuilder(ListBuffer())
+            val unionBuilder = builder.contents.last.asInstanceOf[UnionBuilder]
+            println(s"builder: $unionBuilder, path: ${newPath + "A__Z" + idToStr(el.id)}")
+            switchType.cases.values.zipWithIndex.foreach { case (dataType, index) =>
+              dataType match {
+                case userType: UserType =>
+                  unionBuilder.caseField(index) = newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head
+                  var builderContent = checkOption(el, RecordBuilder(ListBuffer(), ListBuffer()))
+                  unionBuilder.contents += checkRepeat(el.cond.repeat, builderContent)
+                  unionBuilder.contents.last match {
+                    case recordBuilder: AwkwardCompiler.this.RecordBuilder =>
+                      builderStructure(recordBuilder, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                    case listOffsetBuilder: AwkwardCompiler.this.ListOffsetBuilder =>
+                      listOffsetBuilder.content match {
+                        case rb: AwkwardCompiler.this.RecordBuilder =>
+                          builderStructure(rb, newPath + "A__Z" + idToStr(el.id))
+                        case ib: AwkwardCompiler.this.IndexedOptionBuilder =>
+                          builderStructure(ib.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                        case _ =>
+                      }
+                    case indexedOptionBuilder: AwkwardCompiler.this.IndexedOptionBuilder =>
+                      builderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                    case unsupportedBuilder => throw new UnsupportedOperationException(s"Unsupported builder: $unsupportedBuilder")
+                  }
+                  case _ =>
+              }
+            }
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
            _: BooleanType | CalcIntType | CalcFloatType  =>
             builder.fields += newPath + "A__Z" + idToStr(el.id)
