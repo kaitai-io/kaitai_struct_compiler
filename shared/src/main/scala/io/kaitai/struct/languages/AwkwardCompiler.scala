@@ -1287,7 +1287,7 @@ class AwkwardCompiler(
                     case listOffsetBuilder: AwkwardCompiler.this.ListOffsetBuilder =>
                       listOffsetBuilder.content match {
                         case rb: AwkwardCompiler.this.RecordBuilder =>
-                          builderStructure(rb, newPath + "A__Z" + idToStr(el.id))
+                          builderStructure(rb, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
                         case ib: AwkwardCompiler.this.IndexedOptionBuilder =>
                           builderStructure(ib.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
                         case _ =>
@@ -1296,7 +1296,7 @@ class AwkwardCompiler(
                       builderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
                     case unsupportedBuilder => throw new UnsupportedOperationException(s"Unsupported builder: $unsupportedBuilder")
                   }
-                  case _ =>
+                case _ =>
               }
             }
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
