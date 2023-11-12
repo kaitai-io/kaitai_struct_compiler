@@ -15,7 +15,7 @@ class AwkwardClassCompiler(
 ) extends ClassCompiler(classSpecs, topClass, config, AwkwardCompiler) {
 
   override def compile: CompileLog.SpecSuccess = {
-    lang.createBuilderMap(topClass, topClassName.head)
+    lang.createBuilderMap(topClass, topClass, topClassName.head)
     lang.fileHeader(topClassName.head)
     compileOpaqueClasses(topClass)
     compileClass(topClass)
