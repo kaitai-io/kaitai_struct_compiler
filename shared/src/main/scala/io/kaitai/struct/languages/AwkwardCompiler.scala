@@ -313,7 +313,7 @@ class AwkwardCompiler(
       s"_builder.content<Field_${typeToId(types2type(tParent))}::${fieldId}>()" +
       s"${if (isIndexedOption(typeToId(name.last)) == true) ".content()" else ""}" +
       s"${if (typeToRepeat(name.last) != NoRepeat) ".content()" else ""}" +
-      s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">" else ""}) {" else " {"}" //fix
+      s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""}) {" else " {"}" //fix
     )
     outSrc.inc
 
@@ -322,7 +322,7 @@ class AwkwardCompiler(
       s"BuilderType>().content<Field_${typeToId(types2type(tParent))}::${fieldId}>()" +
       s"${if (isIndexedOption(typeToId(name.last)) == true) ".content()" else ""}" +
       s"${if (typeToRepeat(name.last) != NoRepeat) ".content()" else ""}" +
-      s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">" else ""});\n" else ""}" //fix
+      s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""};\n" else ""}" //fix
 
     // In shared pointers mode, this is required to be able to work with shared pointers to this
     // in a constructor. This is obviously a hack and not a good practice.
@@ -664,7 +664,7 @@ class AwkwardCompiler(
           outSrc.puts(s"${builderName}_listoffsetbuilder.end_list();")
         case userType: UserType =>
           if (checkUnion.getOrElse(typeToId(userType.name.head), "").contains("child_")) {
-            outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_unionbuilder.append_content<${checkUnion(typeToId(userType.name.head)).split("_").last}>")
+            outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_unionbuilder.append_content<${checkUnion(typeToId(userType.name.head)).split("_").last}>;")
           }
         case _ =>
       }
@@ -1223,17 +1223,13 @@ class AwkwardCompiler(
   }
 
   override def createBuilderMap(curClass: ClassSpec, firstSpec: ClassSpec, path: String) {
-    println(s"start $path\n")
     builderMap(path) = curClass
     curClass.seq.foreach { el =>
       el.dataType match {
         case userType: UserType =>
-          println(s"userType ${userType.name.head}, map = $typeToId\n")
           typeToId(userType.name.head) = path + "A__Z" + idToStr(el.id)
-          println(s"userType2 ${userType.name.head}, map = $typeToId\n")
           typeToRepeat(userType.name.head) = el.cond.repeat
           createBuilderMap(firstSpec.types(userType.name.head), firstSpec, typeToId(userType.name.head))
-          println(s"iter2 ${userType.name.head}, upClass: ${curClass.upClass}\n")
         case switchType: SwitchType =>
           switchType.cases.values.foreach {
             case ut: UserType =>
@@ -1242,17 +1238,17 @@ class AwkwardCompiler(
               createBuilderMap(firstSpec.types(ut.name.head), firstSpec, typeToId(ut.name.head))
             case _ =>
           }
+        case et: EnumType => println(s"enum createBuilderMap $curClass\n")
         case _ =>
       }
     }
-    println(s"end $typeToId\n")
+    if (curClass == firstSpec) {
+      firstSpec.enums
+    }
   }
 
   def builderStructure(builder: RecordBuilder, key: String): Unit = {
-    println(s"key: $key\n,")
-    println(s"typeToId: $typeToId")
     builderMap(key) match { case cs: ClassSpec =>
-      println(s"inside loop1: $key\n")
       var newPath = typeToId(cs.name.last)
       cs.seq.foreach { el =>
         el.dataType match {
@@ -1284,7 +1280,6 @@ class AwkwardCompiler(
               case lb: AwkwardCompiler.this.ListOffsetBuilder => lb.content.asInstanceOf[UnionBuilder]
               case ub: AwkwardCompiler.this.UnionBuilder => ub.asInstanceOf[UnionBuilder]
             }
-            println(s"builder: $unionBuilder, path: ${newPath + "A__Z" + idToStr(el.id)}")
             switchType.cases.values.zipWithIndex.foreach { case (dataType, index) =>
               dataType match {
                 case userType: UserType =>
@@ -1319,19 +1314,21 @@ class AwkwardCompiler(
             builder.fields += newPath + "A__Z" + idToStr(el.id)
             var builderContent = checkOption(el, newPath + "A__Z" + idToStr(el.id), ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t")))
             builder.contents += checkRepeat(el.cond.repeat, builderContent)
+          case enumType: EnumType => println(s"enum builderStructure $cs\n")
           case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
         }
       }
       cs.instances.foreach { case (instName, instSpec) =>
         builder.fields += newPath + "A__Z" + idToStr(instName)
         instSpec.dataTypeComposite.asNonOwning() match {
-          case enumType: EnumType => builder.contents += NumpyBuilder(kaitaiType2NativeType(enumType.basedOn))
+          case et: EnumType => 
+            println(s"enum instance $cs\n")
+            builder.contents += NumpyBuilder(kaitaiType2NativeType(et.basedOn))
           case _ => builder.contents += NumpyBuilder(kaitaiType2NativeType(instSpec.dataTypeComposite.asNonOwning()))
         }
       }
       case _ =>
     }
-    println(s"outside loop1: $key\n")
   }
 
   def checkRepeat(rep: RepeatSpec, builderContent: LayoutBuilder): LayoutBuilder = {
