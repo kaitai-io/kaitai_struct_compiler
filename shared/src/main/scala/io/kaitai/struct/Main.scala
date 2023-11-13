@@ -100,6 +100,8 @@ object Main {
         new RustClassCompiler(specs, spec, config)
       case ConstructClassCompiler =>
         new ConstructClassCompiler(specs, spec)
+      case ConstructDataclassCompiler =>
+        new ConstructDataclassCompiler(specs, spec)
       case NimCompiler =>
         new NimClassCompiler(specs, spec, config)
       case HtmlClassCompiler =>

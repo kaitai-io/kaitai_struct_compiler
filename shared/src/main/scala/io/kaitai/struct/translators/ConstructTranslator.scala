@@ -11,7 +11,10 @@ class ConstructTranslator(provider: TypeProvider, importList: ImportList) extend
       case Identifier.ITERATOR => "obj_"
       case Identifier.INDEX => "i"
       case Identifier.ROOT => "this._root"
-      case Identifier.IO => "_io"
+      // In some cases the _io object is referenced within a lambda expression
+      // and hasn't been defined before. It would automatically run into errors.
+      // Using "this" as a local and global reference prevents this issue.
+      case Identifier.IO => "this._io"
       case _ => s"this.${doName(s)}"
     }
   }
