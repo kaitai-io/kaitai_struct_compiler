@@ -192,6 +192,8 @@ class AwkwardCompiler(
   val typeToRepeat = MutableMap.empty[String, RepeatSpec]
   val isIndexedOption = MutableMap.empty[String, Boolean]
   val checkUnion = MutableMap.empty[String, String]
+  val directedMap = MutableMap.empty[String, ListBuffer[String]]
+  val instancesMap = MutableMap.empty[String, ListBuffer[String]]
   var nameList = List.empty[String]
   var builderTypeDeclaration = ""
   var currId = ""
@@ -280,7 +282,8 @@ class AwkwardCompiler(
   override def fileFooter(topClassName: String): Unit = {
     println(s"lb: $layoutBuilder")
     outHdrAwkward.puts(s"${layoutBuilder.printBuilderStructure(0, s"${topClassName}")};")
-    outHdrAwkward.puts(builderTypeDeclaration)
+    outHdrAwkward.puts
+    builderTypeDeclaration(topClassName)
     config.cppConfig.namespace.foreach { (_) =>
       outSrc.dec
       outSrc.puts("}")
@@ -382,18 +385,10 @@ class AwkwardCompiler(
       s"${if (name.size > 1) ",\n\t" + typeToId(name.last) + "_builder(p__parent->" + typeToId(types2type(tParent)) +
       s"_builder.content<Field_${typeToId(types2type(tParent))}::${fieldId}>()" +
       s"${if (isIndexedOption(typeToId(name.last)) == true) ".content()" else ""}" +
-      s"${if (typeToRepeat(name.last) != NoRepeat) ".content()" else ""}" +
+      s"${if (typeToRepeat(typeToId(name.last)) != NoRepeat) ".content()" else ""}" +
       s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""}) {" else " {"}"
     )
     outSrc.inc
-
-    // Prints the builder type declarations for each class.
-    builderTypeDeclaration += 
-      s"${if (name.size > 1) "using " + typeToId(name.last).capitalize + "BuilderType = decltype(std::declval<" + typeToId(types2type(tParent)).capitalize + 
-      s"BuilderType>().content<Field_${typeToId(types2type(tParent))}::${fieldId}>()" +
-      s"${if (isIndexedOption(typeToId(name.last)) == true) ".content()" else ""}" +
-      s"${if (typeToRepeat(name.last) != NoRepeat) ".content()" else ""}" +
-      s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""});\n" else ""}"
 
     // In shared pointers mode, this is required to be able to work with shared pointers to this
     // in a constructor. This is obviously a hack and not a good practice.
@@ -1317,18 +1312,21 @@ class AwkwardCompiler(
     * @param path current path string
     */
   override def createBuilderMap(curClass: ClassSpec, firstSpec: ClassSpec, path: String) {
+    directedMap.getOrElseUpdate(path, ListBuffer.empty[String])
     builderMap(path) = curClass
     curClass.seq.foreach { el =>
       el.dataType match {
         case userType: UserType =>
+          directedMap(path) += path + "A__Z" + idToStr(el.id)
           typeToId(userType.name.head) = path + "A__Z" + idToStr(el.id)
-          typeToRepeat(userType.name.head) = el.cond.repeat
+          typeToRepeat(path + "A__Z" + idToStr(el.id)) = el.cond.repeat
           createBuilderMap(firstSpec.types(userType.name.head), firstSpec, typeToId(userType.name.head))
         case switchType: SwitchType =>
           switchType.cases.values.foreach {
             case ut: UserType =>
+              directedMap(path) += path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head
               typeToId(ut.name.head) = path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head
-              typeToRepeat(ut.name.head) = el.cond.repeat
+              typeToRepeat(path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head) = el.cond.repeat
               createBuilderMap(firstSpec.types(ut.name.head), firstSpec, typeToId(ut.name.head))
             case _ =>
           }
@@ -1336,6 +1334,7 @@ class AwkwardCompiler(
         case _ =>
       }
     }
+    println(s"\nmap: $directedMap\n")
     // if (curClass == firstSpec) {
     //   firstSpec.enums
     // }
@@ -1421,7 +1420,10 @@ class AwkwardCompiler(
           case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
         }
       }
+
+      instancesMap.getOrElseUpdate(newPath, ListBuffer.empty[String])
       cs.instances.foreach { case (instName, instSpec) =>
+        instancesMap(newPath) += idToStr(instName)
         builder.fields += newPath + "A__Z" + idToStr(instName)
         instSpec.dataTypeComposite.asNonOwning() match {
           case et: EnumType => 
@@ -1432,6 +1434,7 @@ class AwkwardCompiler(
       }
       case _ =>
     }
+    println(s"\ninstances: $instancesMap\n")
   }
 
   /**
@@ -1477,6 +1480,24 @@ class AwkwardCompiler(
       fieldId.substring(0, caseIndex)
     } else {
       fieldId
+    }
+  }
+
+  /**
+    * Prints the builder type declarations for each class recursively based on the directed Map order.
+    * @param parentClass name of the parent class.
+    */
+  def builderTypeDeclaration(parentClass: String): Unit = {
+    directedMap(parentClass).foreach { childClass =>
+      val unionIndex = checkUnion.getOrElse(childClass, "")
+      outHdrAwkward.puts(
+        s"${if (true) "using " + childClass.capitalize + "BuilderType = decltype(std::declval<" + parentClass.capitalize + 
+        s"BuilderType>().content<Field_${parentClass}::${getId(childClass)}>()" +
+        s"${if (isIndexedOption(childClass) == true) ".content()" else ""}" +
+        s"${if (typeToRepeat(childClass) != NoRepeat) ".content()" else ""}" +
+        s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""});" else ""}"
+      )
+      builderTypeDeclaration(childClass)
     }
   }
 
