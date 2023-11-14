@@ -83,20 +83,26 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     s"this.${JuliaCompiler.publicMemberName(id)}"
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
-    if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))
-    && !usedForeignImports.contains(JuliaCompiler.type2class(enumTypeAbs.head))) {
-      usedForeignImports += JuliaCompiler.type2class(enumTypeAbs.head)
-      importList.add(s"using ..${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
-      importList.add(s"#${JuliaCompiler.types2class(provider.nowClass.name)} ${JuliaCompiler.type2class(enumTypeAbs.head)}")
+    if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))){
+      importList.add(s"include(${'"'}../../compiled/julia/${enumTypeAbs.head}.jl${'"'})")
+      importList.add(s"using .${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
+      importList.add(s"#my code here 1")
     }
-    s"${JuliaCompiler.enumToStr(enumTypeAbs, label)}"
+
+    s"${JuliaCompiler.type2class(enumTypeAbs.head)}Module.${JuliaCompiler.enumToStr(enumTypeAbs, label)}"
   }
+
   override def doEnumById(enumTypeAbs: List[String], id: String): String = {
-    if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))
-    && !usedForeignImports.contains(JuliaCompiler.type2class(enumTypeAbs.head))) {
-      usedForeignImports += JuliaCompiler.type2class(enumTypeAbs.head)
-      importList.add(s"using ..${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
-      importList.add(s"#${JuliaCompiler.types2class(provider.nowClass.name)} ${JuliaCompiler.type2class(enumTypeAbs.head)}")
+    // if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))
+    // && !usedForeignImports.contains(JuliaCompiler.type2class(enumTypeAbs.head))) {
+    //   usedForeignImports += JuliaCompiler.type2class(enumTypeAbs.head)
+    //   importList.add(s"using ..${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
+    //   importList.add(s"#${JuliaCompiler.types2class(provider.nowClass.name)} ${JuliaCompiler.type2class(enumTypeAbs.head)}")
+    // }
+    if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))){
+      importList.add(s"include(${'"'}../../compiled/julia/${enumTypeAbs.head}.jl${'"'})")
+      importList.add(s"using .${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
+      importList.add(s"#my code here 2")
     }
     s"KaitaiStruct.resolve_enum(${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
   }
