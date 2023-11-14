@@ -54,12 +54,8 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
     outHeader.puts
-
-    // importList.add("include(\"../../../runtime/julia/KaitaiStruct/src/KaitaiStruct.jl\")")
     importList.add("export all")
     importList.add("using ..KaitaiStruct")
-
-    out.puts
     // out.puts
 
     // // API compatibility check
@@ -87,7 +83,8 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     // val name = classSpec.name.head
-    out.puts(s"using ..${types2class(classSpec.name)}Module: ${types2class(classSpec.name)}")
+    importList.add(s"include(${'"'}../../compiled/julia/${classSpec.name.head}.jl${'"'})")
+    importList.add(s"using .${types2class(classSpec.name)}Module: ${types2class(classSpec.name)}")
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -450,7 +447,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           ""
         } else {
           val parent = t.forcedParent match {
-            case Some(USER_TYPE_NO_PARENT) => "nothing"
+            case Some(USER_TYPE_NO_PARENT) => "Any"
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
@@ -567,9 +564,9 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
     out.puts
-    out.puts("def __repr__(self):")
-    out.inc
-    out.puts(s"return ${translator.translate(toStringExpr)}")
+    // out.puts("def __repr__(self):")
+    // out.inc
+    // out.puts(s"return ${translator.translate(toStringExpr)}")
     out.dec
   }
 
