@@ -195,7 +195,6 @@ class AwkwardCompiler(
   val directedMap = MutableMap.empty[String, ListBuffer[String]]
   val instancesMap = MutableMap.empty[String, ListBuffer[String]]
   var nameList = List.empty[String]
-  var builderTypeDeclaration = ""
   var currId = ""
 
   sealed trait AccessMode
@@ -280,7 +279,6 @@ class AwkwardCompiler(
   }
 
   override def fileFooter(topClassName: String): Unit = {
-    println(s"lb: $layoutBuilder")
     outHdrAwkward.puts(s"${layoutBuilder.printBuilderStructure(0, s"${topClassName}")};")
     outHdrAwkward.puts
     builderTypeDeclaration(topClassName)
@@ -385,11 +383,10 @@ class AwkwardCompiler(
       s"${if (name.size > 1) ",\n\t" + typeToId(name.last) + "_builder(p__parent->" + typeToId(types2type(tParent)) +
       s"_builder.content<Field_${typeToId(types2type(tParent))}::${fieldId}>()" +
       s"${if (isIndexedOption(typeToId(name.last)) == true) ".content()" else ""}" +
-      s"${if (typeToRepeat(typeToId(name.last)) != NoRepeat) ".content()" else ""}" +
+      s"${if (typeToRepeat(fieldId) != NoRepeat) ".content()" else ""}" +
       s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""}) {" else " {"}"
     )
     outSrc.inc
-
     // In shared pointers mode, this is required to be able to work with shared pointers to this
     // in a constructor. This is obviously a hack and not a good practice.
     // https://forum.libcinder.org/topic/solution-calling-shared-from-this-in-the-constructor
@@ -501,6 +498,9 @@ class AwkwardCompiler(
   }
 
   override def readFooter(): Unit = {
+    instancesMap(typeToId(nameList.last)).foreach { instName =>
+      outSrc.puts(s"$instName();")
+    }
     outSrc.dec
     outSrc.puts("}")
   }
@@ -716,11 +716,21 @@ class AwkwardCompiler(
         case _: StrType | _: BytesType =>
           // Prints the C++ strings for appending the string data type to the Layoutbuilder.
           var builderName = s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}"
-          if (rep == NoRepeat)
-            outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(id)}>();")
+          if (isIndexedOption(typeToId(nameList.last) + "A__Z" + idToStr(id)) == true) {
+            if (rep == NoRepeat)
+              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_indexedoptionbuilder.content();")
+            else {
+              builderName = "sub_" + builderName
+              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.content();")
+            }
+          }
           else {
-            builderName = "sub_" + builderName
-            outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.content();")
+            if (rep == NoRepeat)
+              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(id)}>();")
+            else {
+              builderName = "sub_" + builderName
+              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.content();")
+            }
           }
           outSrc.puts(s"${builderName}_listoffsetbuilder.begin_list();")
           outSrc.puts(s"""${builderName}_listoffsetbuilder.set_parameters("\\"__array__\\": \\"string\\"");""")
@@ -897,7 +907,11 @@ class AwkwardCompiler(
     outSrc.inc
     outSrc.puts("int i = 0;")
     // Initialize the ListOffsetBuilder for RepeatEos case and call `begin_list`
-    outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(id)}>();")
+    outSrc.puts(
+      s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = " +
+      s"${if (isIndexedOption(typeToId(nameList.last) + "A__Z" + idToStr(id)) == true) typeToId(nameList.last) + "A__Z" + idToStr(id) + "_indexedoptionbuilder.content();"
+      else typeToId(nameList.last) + "_builder.content<Field_" + typeToId(nameList.last) + "::" + typeToId(nameList.last) + "A__Z" + idToStr(id) + ">();"}"
+    )
     outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.begin_list();")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
@@ -921,7 +935,11 @@ class AwkwardCompiler(
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
     // Initialize the ListOffsetBuilder for RepeatExpr case and call `begin_list`
-    outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(id)}>();")
+    outSrc.puts(
+      s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = " +
+      s"${if (isIndexedOption(typeToId(nameList.last) + "A__Z" + idToStr(id)) == true) typeToId(nameList.last) + "A__Z" + idToStr(id) + "_indexedoptionbuilder.content();"
+      else typeToId(nameList.last) + "_builder.content<Field_" + typeToId(nameList.last) + "::" + typeToId(nameList.last) + "A__Z" + idToStr(id) + ">();"}"
+    )
     outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.begin_list();")
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
@@ -943,7 +961,11 @@ class AwkwardCompiler(
     outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
     // Initialize the ListOffsetBuilder for RepeatUntil case and call `begin_list`
-    outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(id)}>();")
+    outSrc.puts(
+      s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = " +
+      s"${if (isIndexedOption(typeToId(nameList.last) + "A__Z" + idToStr(id)) == true) typeToId(nameList.last) + "A__Z" + idToStr(id) + "_indexedoptionbuilder.content();"
+      else typeToId(nameList.last) + "_builder.content<Field_" + typeToId(nameList.last) + "::" + typeToId(nameList.last) + "A__Z" + idToStr(id) + ">();"}"
+    )
     outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.begin_list();")
     outSrc.puts("do {")
     outSrc.inc
@@ -1091,7 +1113,11 @@ class AwkwardCompiler(
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     // Initialize the UnionBuilder
-    outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_unionbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(id)}>();")
+    outSrc.puts(
+      s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_unionbuilder = " +
+      s"${if (typeToRepeat(typeToId(nameList.last) + "A__Z" + idToStr(id)) != NoRepeat) typeToId(nameList.last) + "A__Z" + idToStr(id) + "_listoffsetbuilder.content();"
+      else typeToId(nameList.last) + "_builder.content<Field_" + typeToId(nameList.last) + "::" + typeToId(nameList.last) + "A__Z" + idToStr(id) + ">();"}"
+    )
     outSrc.puts(s"switch (${expression(on)}) {")
   }
 
@@ -1181,10 +1207,11 @@ class AwkwardCompiler(
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(instName)}_builder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(instName)}>();")
-    outSrc.puts(s"if (${calculatedFlagForName(instName)})")
+    outSrc.puts(s"if (${calculatedFlagForName(instName)}) {")
     outSrc.inc
     instanceReturn(instName, dataType)
     outSrc.dec
+    outSrc.puts("}")
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
@@ -1322,22 +1349,18 @@ class AwkwardCompiler(
           typeToRepeat(path + "A__Z" + idToStr(el.id)) = el.cond.repeat
           createBuilderMap(firstSpec.types(userType.name.head), firstSpec, typeToId(userType.name.head))
         case switchType: SwitchType =>
+          typeToRepeat(path + "A__Z" + idToStr(el.id)) = el.cond.repeat
           switchType.cases.values.foreach {
             case ut: UserType =>
               directedMap(path) += path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head
               typeToId(ut.name.head) = path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head
-              typeToRepeat(path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head) = el.cond.repeat
+              typeToRepeat(path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head) = NoRepeat
               createBuilderMap(firstSpec.types(ut.name.head), firstSpec, typeToId(ut.name.head))
             case _ =>
           }
-        case et: EnumType => println(s"enum createBuilderMap $curClass\n")
         case _ =>
       }
     }
-    println(s"\nmap: $directedMap\n")
-    // if (curClass == firstSpec) {
-    //   firstSpec.enums
-    // }
   }
 
   /**
@@ -1354,8 +1377,8 @@ class AwkwardCompiler(
             // for UserType, RecordBuilder will be generated.
             checkUnion(newPath + "A__Z" + idToStr(el.id)) = ""
             builder.fields += newPath + "A__Z" + idToStr(el.id)
-            var builderContent = checkOption(el, newPath + "A__Z" + idToStr(el.id), RecordBuilder(ListBuffer(), ListBuffer()))
-            builder.contents += checkRepeat(el.cond.repeat, builderContent)
+            var builderContent = checkRepeat(el.cond.repeat, RecordBuilder(ListBuffer(), ListBuffer()))
+            builder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id), builderContent)
             builder.contents.last match {
               case recordBuilder: AwkwardCompiler.this.RecordBuilder =>
                 createBuilderStructure(recordBuilder, newPath + "A__Z" + idToStr(el.id))
@@ -1374,7 +1397,8 @@ class AwkwardCompiler(
           case switchType: SwitchType =>
             // for SwitchType, UnionBuilder will be generated.
             builder.fields += newPath + "A__Z" + idToStr(el.id)
-            builder.contents += checkRepeat(el.cond.repeat, UnionBuilder(ListBuffer()))
+            var builderContent = checkRepeat(el.cond.repeat, UnionBuilder(ListBuffer()))
+            builder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id), builderContent)
             checkUnion(newPath + "A__Z" + idToStr(el.id)) = "parent"
             val unionBuilder = builder.contents.last match {
               case lb: AwkwardCompiler.this.ListOffsetBuilder => lb.content.asInstanceOf[UnionBuilder]
@@ -1385,8 +1409,9 @@ class AwkwardCompiler(
                 case userType: UserType =>
                   checkUnion(newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head) = "child_" + index
                   unionBuilder.caseField(index) = newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head
-                  var builderContent = checkOption(el, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head, RecordBuilder(ListBuffer(), ListBuffer()))
-                  unionBuilder.contents += checkRepeat(el.cond.repeat, builderContent)
+                  var builderContent = checkRepeat(NoRepeat, RecordBuilder(ListBuffer(), ListBuffer()))
+                  unionBuilder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head, builderContent)
+
                   unionBuilder.contents.last match {
                     case recordBuilder: AwkwardCompiler.this.RecordBuilder =>
                       createBuilderStructure(recordBuilder, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
@@ -1409,32 +1434,35 @@ class AwkwardCompiler(
            _: BooleanType | CalcIntType | CalcFloatType  =>
             // for primitive types, NumpyBuilder will be generated.
             builder.fields += newPath + "A__Z" + idToStr(el.id)
-            var builderContent = checkOption(el, newPath + "A__Z" + idToStr(el.id), NumpyBuilder(kaitaiType2NativeType(el.dataType)))
-            builder.contents += checkRepeat(el.cond.repeat, builderContent)
+            var builderContent = checkRepeat(el.cond.repeat, NumpyBuilder(kaitaiType2NativeType(el.dataType)))
+            builder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id), builderContent)
           case _: StrType | _: BytesType =>
             // for strings, ListOffsetBuilder(int64_t, NumpyBuilder(uint8_t)) will be generated.
             builder.fields += newPath + "A__Z" + idToStr(el.id)
-            var builderContent = checkOption(el, newPath + "A__Z" + idToStr(el.id), ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t")))
-            builder.contents += checkRepeat(el.cond.repeat, builderContent)
-          case enumType: EnumType => println(s"enum createBuilderStructure $cs\n")
+            var builderContent = checkRepeat(el.cond.repeat, ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t")))
+            builder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id), builderContent)
+          case enumType: EnumType =>
+            // for enum types, NumpyBuilder of the given type will be generated.
+            builder.fields += newPath + "A__Z" + idToStr(el.id)
+            builder.contents += NumpyBuilder(kaitaiType2NativeType(enumType.basedOn))
           case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
         }
       }
 
       instancesMap.getOrElseUpdate(newPath, ListBuffer.empty[String])
+      // for adding the builders for the instances.
       cs.instances.foreach { case (instName, instSpec) =>
         instancesMap(newPath) += idToStr(instName)
         builder.fields += newPath + "A__Z" + idToStr(instName)
         instSpec.dataTypeComposite.asNonOwning() match {
-          case et: EnumType => 
-            println(s"enum instance $cs\n")
+          case et: EnumType =>
+            // for enum cases of the instances.
             builder.contents += NumpyBuilder(kaitaiType2NativeType(et.basedOn))
           case _ => builder.contents += NumpyBuilder(kaitaiType2NativeType(instSpec.dataTypeComposite.asNonOwning()))
         }
       }
       case _ =>
     }
-    println(s"\ninstances: $instancesMap\n")
   }
 
   /**
@@ -1494,7 +1522,7 @@ class AwkwardCompiler(
         s"${if (true) "using " + childClass.capitalize + "BuilderType = decltype(std::declval<" + parentClass.capitalize + 
         s"BuilderType>().content<Field_${parentClass}::${getId(childClass)}>()" +
         s"${if (isIndexedOption(childClass) == true) ".content()" else ""}" +
-        s"${if (typeToRepeat(childClass) != NoRepeat) ".content()" else ""}" +
+        s"${if (typeToRepeat(getId(childClass)) != NoRepeat) ".content()" else ""}" +
         s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""});" else ""}"
       )
       builderTypeDeclaration(childClass)
@@ -1518,6 +1546,7 @@ class AwkwardCompiler(
 
     outHdr.puts
     outHdr.puts(s"std::map<std::string, $builderType*> builder_map;")
+    outHdr.puts(s"std::vector<std::string>* builder_keys;")
     outHdr.puts
     outHdr.puts(s"$builderType* load(std::string file_path);")
     outHdr.puts
@@ -1526,6 +1555,7 @@ class AwkwardCompiler(
     outSrc.inc
     outSrc.puts("std::ifstream infile(file_path, std::ifstream::binary);")
     outSrc.puts("kaitai::kstream ks(&infile);")
+    outSrc.puts(s"builder_keys = new std::vector<std::string>();")
     outSrc.puts(s"${topClassName}_t* obj = new ${topClassName}_t(&ks);")
     outSrc.puts(s"builder_map[file_path] = &(obj->${topClassName}_builder);")
     outSrc.puts("return builder_map[file_path];")
@@ -1565,7 +1595,8 @@ class AwkwardCompiler(
     outSrc.puts("else {")
     outSrc.inc
     outSrc.puts("result.builder = NULL;")
-    outSrc.puts("result.error_message = error_message.c_str();")
+    outSrc.puts("builder_keys->push_back(error_message);")
+    outSrc.puts("result.error_message = builder_keys->back().c_str();")
     outSrc.dec
     outSrc.puts("}")
     outSrc.puts("return result;")
@@ -1577,7 +1608,8 @@ class AwkwardCompiler(
     outHdr.puts
     outSrc.puts("const char* form(void* builder) {")
     outSrc.inc
-    outSrc.puts(s"return strdup(reinterpret_cast<$builderType*>(builder)->form().c_str());")
+    outSrc.puts(s"builder_keys->push_back(reinterpret_cast<$builderType*>(builder)->form());")
+    outSrc.puts(s"return builder_keys->back().c_str();")
     outSrc.dec
     outSrc.puts("}")
     outSrc.puts
@@ -1604,7 +1636,8 @@ class AwkwardCompiler(
     outHdr.puts
     outSrc.puts("const char* buffer_name(void* builder, int64_t index) {")
     outSrc.inc
-    outSrc.puts(s"return awkward::buffer_name_helper(reinterpret_cast<$builderType*>(builder))[index].c_str();")
+    outSrc.puts(s"builder_keys->push_back(awkward::buffer_name_helper(reinterpret_cast<$builderType*>(builder))[index]);")
+    outSrc.puts(s"return builder_keys->back().c_str();")
     outSrc.dec
     outSrc.puts("}")
     outSrc.puts
@@ -1631,6 +1664,7 @@ class AwkwardCompiler(
     outHdr.dec
     outSrc.puts("void deallocate(void* builder) {")
     outSrc.inc
+    outSrc.puts(s"delete builder_keys;")
     outSrc.puts(s"reinterpret_cast<$builderType*>(builder)->clear();")
     outSrc.dec
     outSrc.puts("}")
