@@ -864,13 +864,12 @@ class AwkwardCompiler(
     outSrc.puts(s"${nullFlagForName(instName)} = true;")
     // Initialize the IndexedOptionBuilder
     outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(instName)}_indexedoptionbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(instName)}>();")
-  }
-
-  override def condIfSetNonNull(instName: Identifier): Unit = {
     // Appends valid index to the IndexedOptionBuilder
     outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(instName)}_indexedoptionbuilder.append_valid();")
-    outSrc.puts(s"${nullFlagForName(instName)} = false;")
   }
+
+  override def condIfSetNonNull(instName: Identifier): Unit =
+    outSrc.puts(s"${nullFlagForName(instName)} = false;")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     outSrc.puts(s"if (${expression(expr)}) {")
@@ -1208,7 +1207,6 @@ class AwkwardCompiler(
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(instName)}_builder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(instName)}>();")
     outSrc.puts(s"if (${calculatedFlagForName(instName)}) {")
     outSrc.inc
     instanceReturn(instName, dataType)
@@ -1217,7 +1215,6 @@ class AwkwardCompiler(
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(instName)}_builder.append(${nonOwningPointer(instName, attrType)});")
     outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
     }
 
