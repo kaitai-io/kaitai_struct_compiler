@@ -499,7 +499,8 @@ class AwkwardCompiler(
 
   override def readFooter(): Unit = {
     instancesMap(typeToId(nameList.last)).foreach { instName =>
-      outSrc.puts(s"$instName();")
+      outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + instName}_builder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + instName}>();")
+      outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + instName}_builder.append($instName());")
     }
     outSrc.dec
     outSrc.puts("}")
@@ -863,6 +864,8 @@ class AwkwardCompiler(
     outSrc.puts(s"${nullFlagForName(instName)} = true;")
     // Initialize the IndexedOptionBuilder
     outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(instName)}_indexedoptionbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(instName)}>();")
+    // Appends valid index to the IndexedOptionBuilder
+    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(instName)}_indexedoptionbuilder.append_valid();")
   }
 
   override def condIfSetNonNull(instName: Identifier): Unit =
@@ -874,8 +877,6 @@ class AwkwardCompiler(
   }
 
   override def condIfFooter(expr: Ast.expr): Unit = {
-    // Appends valid index to the IndexedOptionBuilder
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + currId}_indexedoptionbuilder.append_valid();")
     outSrc.dec
     outSrc.puts("}")
     outSrc.puts("else {")
