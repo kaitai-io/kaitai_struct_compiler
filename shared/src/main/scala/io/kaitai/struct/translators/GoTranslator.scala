@@ -319,6 +319,25 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
+  override def strToBytes(value: Ast.expr, encoding: String): TranslatorResult =
+    strToBytes(translate(value), encoding)
+
+  def strToBytes(strExpr: String, encoding: String): TranslatorResult = {
+    encoding match {
+      case "ASCII" | "UTF-8" =>
+        // no conversion
+        ResultString(s"[]byte($strExpr)")
+      case encStr =>
+        ENCODINGS.get(encStr) match {
+          case Some((encoderSrc, importName)) =>
+            importList.add(importName)
+            outVarCheckRes(s"kaitai.BytesToStr($bytesExpr, $encoderSrc.NewEncoder())")
+          case None =>
+            throw new RuntimeException(s"encoding '$encStr' in not supported in Go")
+        }
+    }
+  }
+
 //  override def strReverse(s: Ast.expr): String =
 //    s"new StringBuilder(${translate(s)}).reverse().toString()"
 //  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
