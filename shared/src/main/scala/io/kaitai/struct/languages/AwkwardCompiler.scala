@@ -734,9 +734,11 @@ class AwkwardCompiler(
             }
           }
           outSrc.puts(s"${builderName}_listoffsetbuilder.begin_list();")
-          outSrc.puts(s"""${builderName}_listoffsetbuilder.set_parameters("\\"__array__\\": \\"string\\"");""")
           outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder = ${builderName}_listoffsetbuilder.content();")
-          outSrc.puts(s"""${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
+          if(dataType.isInstanceOf[StrType]) {
+            outSrc.puts(s"""${builderName}_listoffsetbuilder.set_parameters("\\"__array__\\": \\"string\\"");""")
+            outSrc.puts(s"""${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
+          }
           outSrc.puts(s"for (int i = 0; i < ${getRawIdExpr(id, rep)}.length(); i++) {")
           outSrc.inc
           outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder.append(${getRawIdExpr(id, rep)}[i]);")
