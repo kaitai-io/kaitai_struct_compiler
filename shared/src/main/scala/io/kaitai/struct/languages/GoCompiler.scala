@@ -5,7 +5,7 @@ import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{GoTranslator, ResultString, TranslatorResult}
+import io.kaitai.struct.translators.GoTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
@@ -202,7 +202,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             s"kaitai.ProcessXOR($srcExpr, ${expression(xorValue)})"
         }
       case ProcessZlib =>
-        translator.resToStr(translator.outVarCheckRes(s"kaitai.ProcessZlib($srcExpr)"))
+        translator.outVarCheckRes(s"kaitai.ProcessZlib($srcExpr)")
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
@@ -214,7 +214,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // TODO(jchw): This hack is necessary because Go tests fail catastrophically otherwise...
         s"$srcExpr"
     }
-    handleAssignment(varDest, ResultString(expr), rep, false)
+    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
@@ -293,9 +293,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentRepeatEos(id: Identifier, r: TranslatorResult): Unit = {
+  override def handleAssignmentRepeatEos(id: Identifier, r: String): Unit = {
     val name = privateMemberName(id)
-    val expr = translator.resToStr(r)
+    val expr = r
     out.puts(s"$name = append($name, $expr)")
   }
 
@@ -310,7 +310,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("_ = i")
   }
 
-  override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit =
+  override def handleAssignmentRepeatExpr(id: Identifier, r: String): Unit =
     handleAssignmentRepeatEos(id, r)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
@@ -318,8 +318,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def handleAssignmentRepeatUntil(id: Identifier, r: TranslatorResult, isRaw: Boolean): Unit = {
-    val expr = translator.resToStr(r)
+  override def handleAssignmentRepeatUntil(id: Identifier, r: String, isRaw: Boolean): Unit = {
+    val expr = r
     val tempVar = translator.specialName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
     out.puts(s"$tempVar := $expr")
     out.puts(s"${privateMemberName(id)} = append(${privateMemberName(id)}, $tempVar)")
@@ -336,10 +336,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  private def castToType(r: TranslatorResult, dataType: DataType): TranslatorResult = {
+  private def castToType(r: String, dataType: DataType): String = {
     dataType match {
       case t @ (_: IntMultiType | _: FloatMultiType) =>
-        ResultString(s"${kaitaiType2NativeType(t)}(${translator.resToStr(r)})")
+        s"${kaitaiType2NativeType(t)}(${r})"
       case _ =>
         r
     }
@@ -352,7 +352,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  private def handleCompositeTypeCast(id: Identifier, r: TranslatorResult): TranslatorResult = {
+  private def handleCompositeTypeCast(id: Identifier, r: String): String = {
     id match {
       case NamedIdentifier(name) =>
         castToType(r, combinedType(typeProvider.determineType(name)))
@@ -361,8 +361,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def handleAssignmentSimple(id: Identifier, r: TranslatorResult): Unit = {
-    val expr = translator.resToStr(handleCompositeTypeCast(id, r))
+  override def handleAssignmentSimple(id: Identifier, r: String): Unit = {
+    val expr = handleCompositeTypeCast(id, r)
     out.puts(s"${privateMemberName(id)} = $expr")
   }
 

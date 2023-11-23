@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.translators.{GoTranslator, ResultLocalVar, ResultString, TranslatorResult}
+import io.kaitai.struct.translators.GoTranslator
 
 trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
   val translator: GoTranslator
@@ -66,17 +66,17 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
         attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, st.isNullableSwitchRaw, st.combinedType)
       case t: StrFromBytesType =>
         val r1 = parseExprBytes(translator.outVarCheckRes(parseExpr(t.bytes, io, defEndian)), t.bytes)
-        val expr = translator.bytesToStr(translator.resToStr(r1), t.encoding)
+        val expr = translator.bytesToStr(r1, t.encoding)
         handleAssignment(id, expr, rep, isRaw)
       case t: EnumType =>
         val r1 = translator.outVarCheckRes(parseExpr(t.basedOn, io, defEndian))
         val enumSpec = t.enumSpec.get
-        val expr = translator.trEnumById(enumSpec.name, translator.resToStr(r1))
+        val expr = translator.doEnumById(enumSpec.name, r1)
         handleAssignment(id, expr, rep, isRaw)
       case _: BitsType1 =>
         val expr = parseExpr(dataType, io, defEndian)
         val r1 = translator.outVarCheckRes(expr)
-        val r2 = ResultString(s"${translator.resToStr(r1)} != 0")
+        val r2 = s"${r1} != 0"
         handleAssignment(id, r2, rep, isRaw)
       case _ =>
         val expr = parseExpr(dataType, io, defEndian)
@@ -85,8 +85,8 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     }
   }
 
-  def bytesPadTermExpr(id: ResultLocalVar, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
-    val expr0 = translator.resToStr(id)
+  def bytesPadTermExpr(id: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+    val expr0 = id
     val expr1 = padRight match {
       case Some(padByte) => s"kaitai.BytesStripRight($expr0, $padByte)"
       case None => expr0
@@ -98,7 +98,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     expr2
   }
 
-  def parseExprBytes(id: ResultLocalVar, dataType: BytesType): ResultLocalVar = {
+  def parseExprBytes(id: String, dataType: BytesType): String = {
     dataType match {
       case BytesEosType(terminator, include, padRight, _) =>
         translator.outTransform(id, bytesPadTermExpr(id, padRight, terminator, include))
@@ -138,7 +138,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     handleAssignment(id, expr, rep, false)
   }
 
-  def handleAssignment(id: Identifier, expr: TranslatorResult, rep: RepeatSpec, isRaw: Boolean): Unit = {
+  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
     rep match {
       case RepeatEos => handleAssignmentRepeatEos(id, expr)
       case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
@@ -147,10 +147,10 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     }
   }
 
-  def handleAssignmentRepeatEos(id: Identifier, expr: TranslatorResult): Unit
-  def handleAssignmentRepeatExpr(id: Identifier, expr: TranslatorResult): Unit
-  def handleAssignmentRepeatUntil(id: Identifier, expr: TranslatorResult, isRaw: Boolean): Unit
-  def handleAssignmentSimple(id: Identifier, expr: TranslatorResult): Unit
+  def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
+  def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
+  def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit
+  def handleAssignmentSimple(id: Identifier, expr: String): Unit
 
   def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String
 }
