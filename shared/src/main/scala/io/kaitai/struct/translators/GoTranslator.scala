@@ -142,14 +142,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): TranslatorResult = {
     (detectType(left), detectType(right), op) match {
       case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
-        val v1 = allocateLocalVar()
-        out.puts(s"${localVarName(v1)} := ${translate(left)} % ${translate(right)}")
-        out.puts(s"if ${localVarName(v1)} < 0 {")
-        out.inc
-        out.puts(s"${localVarName(v1)} += ${translate(right)}")
-        out.dec
-        out.puts("}")
-        ResultLocalVar(v1)
+        ResultString(s"(${translate(left)} % ${translate(right)} + ${translate(right)}) % ${translate(right)}")
       case _ =>
         ResultString(numericBinOp(left, op, right))
     }
@@ -240,20 +233,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def arraySubscript(container: Ast.expr, idx: Ast.expr) =
     ResultString(s"${translate(container)}[${translate(idx)}]")
 
-  def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
+  def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultString = {
     val v1 = allocateLocalVar()
     val typ = detectType(ifTrue)
-    out.puts(s"var ${localVarName(v1)} ${GoCompiler.kaitaiType2NativeType(typ)};")
-    out.puts(s"if (${translate(condition)}) {")
-    out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifTrue)}")
-    out.dec
-    out.puts("} else {")
-    out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifFalse)}")
-    out.dec
-    out.puts("}")
-    ResultLocalVar(v1)
+    // TODO: fix it
+    ResultString(s"var ${localVarName(v1)} ${GoCompiler.kaitaiType2NativeType(typ)};if (${translate(condition)}) {${localVarName(v1)} = ${translate(ifTrue)}} else {${localVarName(v1)} = ${translate(ifFalse)}}")
   }
 
   def trEnumByLabel(enumTypeAbs: List[String], label: String) =
@@ -319,24 +303,24 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  override def strToBytes(value: Ast.expr, encoding: String): TranslatorResult =
-    strToBytes(translate(value), encoding)
+  // override def strToBytes(value: Ast.expr, encoding: String): TranslatorResult =
+  //   strToBytes(translate(value), encoding)
 
-  def strToBytes(strExpr: String, encoding: String): TranslatorResult = {
-    encoding match {
-      case "ASCII" | "UTF-8" =>
-        // no conversion
-        ResultString(s"[]byte($strExpr)")
-      case encStr =>
-        ENCODINGS.get(encStr) match {
-          case Some((encoderSrc, importName)) =>
-            importList.add(importName)
-            outVarCheckRes(s"kaitai.BytesToStr($bytesExpr, $encoderSrc.NewEncoder())")
-          case None =>
-            throw new RuntimeException(s"encoding '$encStr' in not supported in Go")
-        }
-    }
-  }
+  // def strToBytes(strExpr: String, encoding: String): TranslatorResult = {
+  //   encoding match {
+  //     case "ASCII" | "UTF-8" =>
+  //       // no conversion
+  //       ResultString(s"[]byte($strExpr)")
+  //     case encStr =>
+  //       ENCODINGS.get(encStr) match {
+  //         case Some((encoderSrc, importName)) =>
+  //           importList.add(importName)
+  //           outVarCheckRes(s"kaitai.StrToBytes($strExpr, $encoderSrc.NewEncoder())")
+  //         case None =>
+  //           throw new RuntimeException(s"encoding '$encStr' in not supported in Go")
+  //       }
+  //   }
+  // }
 
 //  override def strReverse(s: Ast.expr): String =
 //    s"new StringBuilder(${translate(s)}).reverse().toString()"
@@ -346,9 +330,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def arrayFirst(a: Ast.expr): TranslatorResult =
     ResultString(s"${translate(a)}[0]")
   override def arrayLast(a: Ast.expr): ResultString = {
-    val v = allocateLocalVar()
-    out.puts(s"${localVarName(v)} := ${translate(a)}")
-    ResultString(s"${localVarName(v)}[len(${localVarName(v)}) - 1]")
+    ResultString(s"${translate(a)}[len(${translate(a)}) - 1]")
   }
   override def arraySize(a: Ast.expr): TranslatorResult =
     ResultString(s"len(${translate(a)})")
