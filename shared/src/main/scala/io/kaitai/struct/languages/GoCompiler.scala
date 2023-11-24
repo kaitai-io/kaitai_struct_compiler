@@ -90,6 +90,96 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classConstructorFooter: Unit = {}
 
+  // override def attrFetchInstances(attr: AttrLikeSpec, id: Identifier): Unit = {}
+  // override def fetchInstancesHeader(): Unit = {}
+  // override def fetchInstancesFooter(): Unit = {}
+  // override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = ???
+  // override def attrInvokeInstance(instName: InstanceIdentifier): Unit = ???
+
+  override def runWriteCalc(): Unit = {
+    out.puts
+    out.puts(s"switch ${privateMemberName(EndianIdentifier)} {")
+    out.puts("case 0:")
+    out.inc
+    out.puts("err = this._write_be()")
+    out.dec
+    out.puts("case 1:")
+    out.inc
+    out.puts("err = this._wirte_le()")
+    out.dec
+    out.puts("default:")
+    out.inc
+    out.puts(s"err = ${GoCompiler.ksErrorName(UndecidedEndiannessError)}{}")
+    out.dec
+    out.puts("}")
+  }
+
+  override def writeHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    endian match {
+      case None =>
+        out.puts
+        out.puts(
+          s"func (this *${types2class(typeProvider.nowClass.name)}) Write(" +
+            s"io *$kstreamName, " +
+            s"parent ${kaitaiType2NativeType(typeProvider.nowClass.parentType)}, " +
+            s"root *${types2class(typeProvider.topClass.name)}) (err error) {"
+        )
+        out.inc
+        out.puts(s"${privateMemberName(IoIdentifier)} = io")
+        out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
+        out.puts(s"${privateMemberName(RootIdentifier)} = root")
+        typeProvider.nowClass.meta.endian match {
+          case Some(_: CalcEndian) =>
+            out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
+          case Some(InheritedEndian) =>
+            out.puts(s"${privateMemberName(EndianIdentifier)} = " +
+              s"${privateMemberName(ParentIdentifier)}." +
+              s"${idToStr(EndianIdentifier)}")
+          case _ =>
+        }
+        out.puts
+      case Some(e) =>
+        out.puts
+        out.puts(
+          s"func (this *${types2class(typeProvider.nowClass.name)}) " +
+            s"_write_${e.toSuffix}() (err error) {")
+        out.inc
+    }
+  }
+
+  override def writeFooter(): Unit = {
+    out.puts("return err")
+    universalFooter
+  }
+
+  // override def writeInstanceHeader(instName: InstanceIdentifier): Unit = ???
+  // override def writeInstanceFooter(): Unit = ???
+  // override def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
+
+  // override def checkHeader(): Unit = ???
+  // override def checkFooter(): Unit = ???
+  // override def checkInstanceHeader(instName: InstanceIdentifier): Unit = ???
+  // override def checkInstanceFooter(): Unit = ???
+  // override def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = ???
+
+  // override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {}
+  // override def condRepeatCommonFooter: Unit = {}
+  // override def pushPosForSubIOWriteBackHandler(io: String): Unit = ???
+  // override def seekRelative(io: String, relPos: String): Unit = ???
+  // override def exprIORemainingSize(io: String): String = ???
+
+  // override def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = ???
+  // override def subIOWriteBackFooter(subIO: String): Unit = ???
+
+  // override def addChildIO(io: String, childIO: String): Unit = ???
+  // override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = ???
+  // override def instanceWriteFlagInit(attrName: InstanceIdentifier): Unit = {}
+  // override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = ???
+  // override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = ???
+  // override def instanceToWriteSetter(instName: InstanceIdentifier): Unit = ???
+  // override def instanceInvalidate(instName: InstanceIdentifier): Unit = ???
+  // override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = ???
+
   override def runRead(name: List[String]): Unit = {
     out.puts("this.Read()")
   }
@@ -156,6 +246,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
+  override def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
+  def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit = {
+    out.puts(s"${expression(base)}.${publicMemberName(propName)} = $value")
+  }
 
   override def universalDoc(doc: DocSpec): Unit = {
     out.puts

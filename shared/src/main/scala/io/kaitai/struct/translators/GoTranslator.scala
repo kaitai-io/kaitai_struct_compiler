@@ -32,6 +32,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def byteSizeOfClassSpec(cs: ClassSpec): String =
     doIntLiteral(CommonSizeOf.getByteSizeOfClassSpec(cs))
 
+  override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String = {
+    importList.add("bytes")
+    s"bytes.IndexByte(${translate(b)}, ${translate(byte)})"
+  }
+
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
     (detectType(left), detectType(right), op) match {
       case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
