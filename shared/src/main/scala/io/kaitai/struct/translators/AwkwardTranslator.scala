@@ -109,6 +109,7 @@ class AwkwardTranslator(provider: TypeProvider, importListSrc: CppImportList, im
         case UniqueAndRawPointers =>
           s"std::unique_ptr<std::vector<$cppElType>>($rawInit)"
         // TODO: C++14
+        case _ => ""
       }
     } else {
       throw new RuntimeException("C++ literal arrays are not implemented yet")
