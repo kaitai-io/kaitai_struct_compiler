@@ -10,7 +10,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.{AwkwardTranslator, TypeDetector}
 import scala.collection.immutable.Map
-import scala.collection.mutable.{Map => MutableMap, ListBuffer, Stack, Set}
+import scala.collection.mutable.{Map => MutableMap, ListBuffer, Set, Stack}
 
 
 class AwkwardCompiler(
@@ -35,6 +35,7 @@ class AwkwardCompiler(
   val outHdr = new StringLanguageOutputWriter(indent)
   val outHdrAwkward = new StringLanguageOutputWriter(indent)
   val outSrcAwkward = new StringLanguageOutputWriter(indent)
+  val uniqueSetRecord: Set[String] = Set()
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     val className = topClass.nameAsStr
@@ -52,11 +53,10 @@ class AwkwardCompiler(
     /**
       * Prints the structure of the generated LayoutBuilder.
       * @param indent the number of spaces to indent the structure.
-      * @param builderName name of the builder.
       * @return strings containing the type of the builder, its contents and
       * other strings associated with the builder.
       */
-    def printBuilderStructure(indent: Int = 0, builderName: String): String
+    def printBuilderStructure(indent: Int = 0): String
   }
 
   /**
@@ -70,10 +70,9 @@ class AwkwardCompiler(
     /**
       * Prints the structure of NumpyBuilder.
       * @param indent the number of spaces to indent the structure.
-      * @param builderName name of the builder.
       * @return string containing the primitive data type of NumpyBuilder buffer.
       */
-    override def printBuilderStructure(indent: Int, builderName: String): String = {
+    override def printBuilderStructure(indent: Int): String = {
       s"NumpyBuilder<$dataType>"
     }
   }
@@ -90,11 +89,10 @@ class AwkwardCompiler(
     /**
       * Prints the structure of ListOffsetBuilder.
       * @param indent the number of spaces to indent the structure.
-      * @param builderName name of the builder.
       * @return string containing the offsets type and the content of ListOffsetBuilder.
       */
-    override def printBuilderStructure(indent: Int, builderName: String): String = {
-      var listOffsetContent = content.printBuilderStructure(indent, s"${builderName}")      
+    override def printBuilderStructure(indent: Int): String = {
+      val listOffsetContent = content.printBuilderStructure(indent)      
       s"ListOffsetBuilder<$offsets, ${listOffsetContent}>"
     }    
   }
@@ -106,21 +104,20 @@ class AwkwardCompiler(
     */
   case class RecordBuilder(
     fields: ListBuffer[String],
-    contents: ListBuffer[LayoutBuilder]
+    contents: ListBuffer[LayoutBuilder],
+    recordPath: String
   ) extends LayoutBuilder {
-
     /**
       * Prints the structure of RecordBuilder.
       * @param indent the number of spaces to indent the structure.
-      * @param builderName name of the builder.
       * @return strings containing the field names and the contents of RecordBuilder.
       */
-    override def printBuilderStructure(indent: Int, builderName: String): String = {
-      UserDefinedMap(builderName)
+    override def printBuilderStructure(indent: Int): String = {
+      UserDefinedMap()
       val fieldStrings = fields.zip(contents).zipWithIndex.map { case ((field, content), i) =>
-        s"${"\t" * (indent + 2)}RecordField<Field_${builderName}::$field, ${content.printBuilderStructure(indent + 1, s"${field}")}>"
+        s"${"\t" * (indent + 2)}RecordField<Field_${recordPath}::$field, ${content.printBuilderStructure(indent + 1)}>"
       }
-      s"${if (indent == 0) "\nusing " + builderName.capitalize + "BuilderType =\n\t" else ""}" +
+      s"${if (indent == 0) "\nusing " + recordPath.capitalize + "BuilderType =\n\t" else ""}" +
       s"RecordBuilder<\n${fieldStrings.mkString(",\n")}\n${"\t" * (indent)}\t>"
     }
 
@@ -130,13 +127,17 @@ class AwkwardCompiler(
       * @param builderName name of the builder.
       * @return strings containing user-defined field maps and enum strings with field ids.
       */
-    def UserDefinedMap(builderName: String): Unit = {
-      val mapStrings = fields.zipWithIndex.map { case (field, i) =>
-        s"""{Field_${builderName}::$field, "$field"}"""
+    def UserDefinedMap(): Unit = {
+      if (!uniqueSetRecord.contains(recordPath)) {
+        val mapStrings = fields.zipWithIndex.map { case (field, i) =>
+          val fieldPath = field.substring(0, field.lastIndexOf("A__Z"))
+          s"""{Field_${recordPath}::$field, "$field"}"""
+        }
+        outHdrAwkward.puts(s"enum Field_${recordPath} : std::size_t {${fields.mkString(", ")}};")
+        outSrcAwkward.puts
+        outSrcAwkward.puts(s"UserDefinedMap ${recordPath}_fields_map({\n\t${mapStrings.mkString(",\n\t")}});")
+        uniqueSetRecord.add(recordPath)
       }
-      outHdrAwkward.puts(s"enum Field_${builderName} : std::size_t {${fields.mkString(", ")}};")
-      outSrcAwkward.puts
-      outSrcAwkward.puts(s"UserDefinedMap ${builderName}_fields_map({\n\t${mapStrings.mkString(",\n\t")}});")
     }
   }
 
@@ -153,11 +154,10 @@ class AwkwardCompiler(
     /**
       * Prints the structure of IndexedOptionBuilder.
       * @param indent the number of spaces to indent the structure.
-      * @param builderName name of the builder.
       * @return strings containing the index type and the content of IndexedOptionBuilder.
       */
-    override def printBuilderStructure(indent: Int, builderName: String): String = {
-      var indexedOptionContent = content.printBuilderStructure(indent, s"${builderName}")      
+    override def printBuilderStructure(indent: Int): String = {
+      val indexedOptionContent = content.printBuilderStructure(indent)      
       s"IndexedOptionBuilder<$index, ${indexedOptionContent}>"
     }
   }
@@ -170,32 +170,31 @@ class AwkwardCompiler(
     contents: ListBuffer[LayoutBuilder]
   ) extends LayoutBuilder {
 
-    val caseField = MutableMap.empty[Int, String]
-
     /**
       * Prints the structure of UnionBuilder.
       * @param indent the number of spaces to indent the structure.
-      * @param builderName name of the builder.
       * @return strings containing the contents of UnionBuilder.
       */
-    override def printBuilderStructure(indent: Int, builderName: String): String = {
+    override def printBuilderStructure(indent: Int): String = {
       val unionContent = contents.zipWithIndex.map { case (content, index) =>
-        s"${"\t" * (indent + 2)}${content.printBuilderStructure(indent + 1, s"${caseField.getOrElse(index, builderName)}")}"
+        s"${"\t" * (indent + 2)}${content.printBuilderStructure(indent + 1)}"
       }
       s"UnionBuilder<\n${unionContent.mkString(",\n")}\n${"\t" * (indent)}\t>"
     }
   }
 
-  var layoutBuilder =  RecordBuilder(ListBuffer(), ListBuffer())
   val builderMap = MutableMap.empty[String, ClassSpec]
-  val typeToId = MutableMap.empty[String, String]
-  val typeToRepeat = MutableMap.empty[String, RepeatSpec]
-  val isIndexedOption = MutableMap.empty[String, Boolean]
   val checkUnion = MutableMap.empty[String, String]
-  val directedMap = MutableMap.empty[String, ListBuffer[String]]
-  val instancesMap = MutableMap.empty[String, ListBuffer[String]]
+  val builderTypeMap = MutableMap.empty[String, String]
+  val directedMap = MutableMap.empty[String, Set[String]]
+  val instancesMap = MutableMap.empty[String, Set[String]]
+
+  var isRepeat = false
+  var isIndexedOption = false
   var nameList = List.empty[String]
+  var orderedTypes = List.empty[String]
   var currId = ""
+  var layoutBuilder = RecordBuilder(ListBuffer(), ListBuffer(), "")
 
   sealed trait AccessMode
   case object PrivateAccess extends AccessMode
@@ -209,6 +208,7 @@ class AwkwardCompiler(
   def outFileNameHeader(className: String): String = typeToFileName(className) + ".h"
 
   override def fileHeader(topClassName: String): Unit = {
+    layoutBuilder = RecordBuilder(ListBuffer(), ListBuffer(), topClassName)
     outSrcHeader.puts(s"// $headerComment")
     outSrcHeader.puts
 
@@ -271,17 +271,17 @@ class AwkwardCompiler(
     outHdrAwkward.puts("using UnionBuilder = awkward::LayoutBuilder::Union<int8_t, uint32_t, BUILDERS...>;");
     outHdrAwkward.puts
 
-    typeToId(topClassName) = topClassName
-    typeToRepeat(topClassName) = NoRepeat
-    isIndexedOption(topClassName) = false
     checkUnion(topClassName) = ""
+    builderTypeMap(topClassName) = ""
     createBuilderStructure(layoutBuilder, topClassName)
+    orderedTypes = topologicalSort(directedMap.mapValues(_.toList).toMap)
+    println(s"List: $orderedTypes")
   }
 
   override def fileFooter(topClassName: String): Unit = {
-    outHdrAwkward.puts(s"${layoutBuilder.printBuilderStructure(0, s"${topClassName}")};")
+    outHdrAwkward.puts(s"${layoutBuilder.printBuilderStructure(0)};")
     outHdrAwkward.puts
-    builderTypeDeclaration(topClassName)
+    builderTypeDeclaration()
     config.cppConfig.namespace.foreach { (_) =>
       outSrc.dec
       outSrc.puts("}")
@@ -318,7 +318,7 @@ class AwkwardCompiler(
   }
 
   override def classFooter(name: List[String]): Unit = {
-    outHdr.puts(s"${typeToId(name.last).capitalize}BuilderType ${typeToId(name.last)}_builder;")   
+    outHdr.puts(s"${name.last.capitalize}BuilderType ${name.last}_builder;")   
     outHdr.dec
     outHdr.puts("};")
   }
@@ -366,25 +366,20 @@ class AwkwardCompiler(
 
     outHdr.puts
     outHdr.puts(s"$classNameBrief($paramsArg" +
+      s"${if (name.size > 1) name.last.capitalize + "BuilderType builder, " else ""}" +
       s"$tIo $pIo, " +
       s"$tParent $pParent = $nullPtr, " +
       s"$tRoot $pRoot = $nullPtr$endianSuffixHdr);"
     )
 
-    val fieldId = getId(typeToId(name.last))
-    val unionIndex = checkUnion.getOrElse(typeToId(name.last), "")
-
     outSrc.puts
     // Adds the constructor initiliazation for each RecordBuilder type.
     outSrc.puts(s"${types2class(name)}::$classNameBrief($paramsArg" +
+      s"${if (name.size > 1) name.last.capitalize + "BuilderType builder, " else ""}" +
       s"$tIo $pIo, " +
       s"$tParent $pParent, " +
       s"$tRoot $pRoot$endianSuffixSrc) : $kstructName($pIo)" + 
-      s"${if (name.size > 1) ",\n\t" + typeToId(name.last) + "_builder(p__parent->" + typeToId(types2type(tParent)) +
-      s"_builder.content<Field_${typeToId(types2type(tParent))}::${fieldId}>()" +
-      s"${if (isIndexedOption(typeToId(name.last)) == true) ".content()" else ""}" +
-      s"${if (typeToRepeat(fieldId) != NoRepeat) ".content()" else ""}" +
-      s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""}) {" else " {"}"
+      s"${if (name.size > 1) ",\n\t" + name.last + "_builder(builder) {" else " {"}"
     )
     outSrc.inc
     // In shared pointers mode, this is required to be able to work with shared pointers to this
@@ -445,7 +440,7 @@ class AwkwardCompiler(
 
   override def runRead(name: List[String]): Unit = {
     outSrc.puts
-    outSrc.puts(s"${typeToId(name.last)}_builder.set_fields(${typeToId(name.last)}_fields_map);")
+    outSrc.puts(s"${name.last}_builder.set_fields(${name.last}_fields_map);")
     val wrapToTryCatch = (config.cppConfig.pointers == CppRuntimeConfig.RawPointers);
     if (wrapToTryCatch) {
       outSrc.puts
@@ -498,9 +493,9 @@ class AwkwardCompiler(
   }
 
   override def readFooter(): Unit = {
-    instancesMap(typeToId(nameList.last)).foreach { instName =>
-      outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + instName}_builder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + instName}>();")
-      outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + instName}_builder.append($instName());")
+    instancesMap(nameList.last).foreach { instName =>
+      outSrc.puts(s"auto& ${instName}_instancebuilder = ${nameList.last}_builder.content<Field_${nameList.last}::${nameList.last + "A__Z" + instName}>();")
+      outSrc.puts(s"${instName}_instancebuilder.append($instName());")
     }
     outSrc.dec
     outSrc.puts("}")
@@ -700,6 +695,21 @@ class AwkwardCompiler(
     defEndian: Option[FixedEndian],
     assignTypeOpt: Option[DataType] = None
   ): Unit = {
+    dataType match {
+      case ut: UserType =>
+        if (checkUnion.getOrElse(nameList.last + "A__Z" + ut.name.head + "__case__" + idToStr(id), "").contains("child_")) {
+          outSrc.puts(s"${idToStr(id)}_unionbuilder.append_content<${checkUnion(nameList.last + "A__Z" + ut.name.head + "__case__" + idToStr(id)).split("_").last}>();")
+        }
+        val unionIndex = checkUnion.getOrElse(nameList.last + "A__Z" + ut.name.head + "__case__" + idToStr(id), "")
+        outSrc.puts(
+          s"auto& ${ut.name.head}_recordbuilder = ${nameList.last}_builder.content<Field_${nameList.last}::${nameList.last + "A__Z" + idToStr(id)}>()" +
+          s"${if (isIndexedOption == true) ".content()" else ""}" +
+          s"${if (isRepeat == true) ".content()" else ""}" +
+          s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""}" + 
+          s";"
+        )
+      case _ =>
+    }
     super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
     currId = idToStr(id)
     if (!privateMemberName(id).contains("m__raw")) {
@@ -710,49 +720,55 @@ class AwkwardCompiler(
           _: BooleanType | CalcIntType | CalcFloatType  =>
           // Prints the C++ strings for appending the primitive data type to the Layoutbuilder.
           if (rep == NoRepeat)
-            outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(id)}>();")
+            outSrc.puts(s"auto& ${idToStr(id)}_builder = ${nameList.last}_builder.content<Field_${nameList.last}::${nameList.last + "A__Z" + idToStr(id)}>();")
           else
-            outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder = ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.content();")
-          outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder.append(${getRawIdExpr(id, rep)});")
+            outSrc.puts(s"auto& ${idToStr(id)}_builder = ${idToStr(id)}_listoffsetbuilder.content();")
+          outSrc.puts(s"${idToStr(id)}_builder.append(${getRawIdExpr(id, rep)});")
         case _: StrType | _: BytesType =>
           // Prints the C++ strings for appending the string data type to the Layoutbuilder.
-          var builderName = s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}"
-          if (isIndexedOption(typeToId(nameList.last) + "A__Z" + idToStr(id)) == true) {
+          var builderName = idToStr(id)
+          if (isIndexedOption == true) {
             if (rep == NoRepeat)
-              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_indexedoptionbuilder.content();")
+              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${idToStr(id)}_indexedoptionbuilder.content();")
             else {
               builderName = "sub_" + builderName
-              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.content();")
+              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${idToStr(id)}_listoffsetbuilder.content();")
             }
           }
           else {
             if (rep == NoRepeat)
-              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(id)}>();")
+              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${nameList.last}_builder.content<Field_${nameList.last}::${nameList.last + "A__Z" + idToStr(id)}>();")
             else {
               builderName = "sub_" + builderName
-              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.content();")
+              outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${idToStr(id)}_listoffsetbuilder.content();")
             }
           }
           outSrc.puts(s"${builderName}_listoffsetbuilder.begin_list();")
-          outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder = ${builderName}_listoffsetbuilder.content();")
+          outSrc.puts(s"auto& ${idToStr(id)}_builder = ${builderName}_listoffsetbuilder.content();")
           if(dataType.isInstanceOf[StrType]) {
             outSrc.puts(s"""${builderName}_listoffsetbuilder.set_parameters("\\"__array__\\": \\"string\\"");""")
-            outSrc.puts(s"""${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
+            outSrc.puts(s"""${idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
           }
           outSrc.puts(s"for (int i = 0; i < ${getRawIdExpr(id, rep)}.length(); i++) {")
           outSrc.inc
-          outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_builder.append(${getRawIdExpr(id, rep)}[i]);")
+          outSrc.puts(s"${idToStr(id)}_builder.append(${getRawIdExpr(id, rep)}[i]);")
           outSrc.dec
           outSrc.puts("}")
           outSrc.puts(s"${builderName}_listoffsetbuilder.end_list();")
         case userType: UserType =>
           // Prints the C++ string to append the tags and index in the union builder buffers if a given
           // userType is a child of a UnionBuilder.
-          if (checkUnion.getOrElse(typeToId(userType.name.head), "").contains("child_")) {
-            outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_unionbuilder.append_content<${checkUnion(typeToId(userType.name.head)).split("_").last}>();")
-          }
+          val unionIndex = checkUnion.getOrElse(nameList.last + "A__Z" + userType.name.head + "__case__" + idToStr(id), "")
+          builderTypeMap(userType.name.head) =
+            s"${if (true) "using " + userType.name.head.capitalize + "BuilderType = decltype(std::declval<" + nameList.last.capitalize + 
+            s"BuilderType>().content<Field_${nameList.last}::${nameList.last}A__Z${idToStr(id)}>()" +
+            s"${if (isIndexedOption == true) ".content()" else ""}" +
+            s"${if (isRepeat == true) ".content()" else ""}" +
+            s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""}" + 
+            s");" else ""}"
         case _ => // do nothing
       }
+      isIndexedOption = false
     }
   }
 
@@ -865,16 +881,17 @@ class AwkwardCompiler(
   override def condIfSetNull(instName: Identifier): Unit = {
     outSrc.puts(s"${nullFlagForName(instName)} = true;")
     // Initialize the IndexedOptionBuilder
-    outSrc.puts(s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(instName)}_indexedoptionbuilder = ${typeToId(nameList.last)}_builder.content<Field_${typeToId(nameList.last)}::${typeToId(nameList.last) + "A__Z" + idToStr(instName)}>();")
+    outSrc.puts(s"auto& ${idToStr(instName)}_indexedoptionbuilder = ${nameList.last}_builder.content<Field_${nameList.last}::${nameList.last + "A__Z" + idToStr(instName)}>();")
   }
 
   override def condIfSetNonNull(instName: Identifier): Unit = {
     // Appends valid index to the IndexedOptionBuilder
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(instName)}_indexedoptionbuilder.append_valid();")
+    outSrc.puts(s"${idToStr(instName)}_indexedoptionbuilder.append_valid();")
     outSrc.puts(s"${nullFlagForName(instName)} = false;")
   }
 
   override def condIfHeader(expr: Ast.expr): Unit = {
+    isIndexedOption = true
     outSrc.puts(s"if (${expression(expr)}) {")
     outSrc.inc
   }
@@ -885,7 +902,7 @@ class AwkwardCompiler(
     outSrc.puts("else {")
     outSrc.inc
     // Appends invalid index to the IndexedOptionBuilder
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + currId}_indexedoptionbuilder.append_invalid();")
+    outSrc.puts(s"${currId}_indexedoptionbuilder.append_invalid();")
     outSrc.dec
     outSrc.puts("}") 
     outSrc.puts
@@ -910,13 +927,15 @@ class AwkwardCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
+    isRepeat =  true
+    currId = idToStr(id)
     // Initialize the ListOffsetBuilder for RepeatEos case and call `begin_list`
     outSrc.puts(
-      s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = " +
-      s"${if (isIndexedOption(typeToId(nameList.last) + "A__Z" + idToStr(id)) == true) typeToId(nameList.last) + "A__Z" + idToStr(id) + "_indexedoptionbuilder.content();"
-      else typeToId(nameList.last) + "_builder.content<Field_" + typeToId(nameList.last) + "::" + typeToId(nameList.last) + "A__Z" + idToStr(id) + ">();"}"
+      s"auto& ${idToStr(id)}_listoffsetbuilder = " +
+      s"${if (isIndexedOption == true) idToStr(id) + "_indexedoptionbuilder.content();"
+      else nameList.last + "_builder.content<Field_" + nameList.last + "::" + nameList.last + "A__Z" + idToStr(id) + ">();"}"
     )
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.begin_list();")
+    outSrc.puts(s"${idToStr(id)}_listoffsetbuilder.begin_list();")
     outSrc.puts(s"while (!$io->is_eof()) {")
     outSrc.inc
   }
@@ -930,7 +949,8 @@ class AwkwardCompiler(
     outSrc.dec
     outSrc.puts("}")
     // Calls `end_list` on the ListOffsetBuilder for RepeatEos case
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + currId}_listoffsetbuilder.end_list();")
+    outSrc.puts(s"${currId}_listoffsetbuilder.end_list();")
+    isRepeat = false
     outSrc.dec
     outSrc.puts("}")
   }
@@ -938,13 +958,15 @@ class AwkwardCompiler(
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     val lenVar = s"l_${idToStr(id)}"
     outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
+    isRepeat =  true
+    currId = idToStr(id)
     // Initialize the ListOffsetBuilder for RepeatExpr case and call `begin_list`
     outSrc.puts(
-      s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = " +
-      s"${if (isIndexedOption(typeToId(nameList.last) + "A__Z" + idToStr(id)) == true) typeToId(nameList.last) + "A__Z" + idToStr(id) + "_indexedoptionbuilder.content();"
-      else typeToId(nameList.last) + "_builder.content<Field_" + typeToId(nameList.last) + "::" + typeToId(nameList.last) + "A__Z" + idToStr(id) + ">();"}"
+      s"auto& ${idToStr(id)}_listoffsetbuilder = " +
+      s"${if (isIndexedOption == true) idToStr(id) + "_indexedoptionbuilder.content();"
+      else nameList.last + "_builder.content<Field_" + nameList.last + "::" + nameList.last + "A__Z" + idToStr(id) + ">();"}"
     )
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.begin_list();")
+    outSrc.puts(s"${idToStr(id)}_listoffsetbuilder.begin_list();")
     outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
     outSrc.inc
   }
@@ -956,7 +978,8 @@ class AwkwardCompiler(
     outSrc.dec
     outSrc.puts("}")
     // Calls `end_list` on the ListOffsetBuilder for RepeatExpr case
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + currId}_listoffsetbuilder.end_list();")
+    outSrc.puts(s"${currId}_listoffsetbuilder.end_list();")
+    isRepeat = false
   }
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
@@ -964,13 +987,15 @@ class AwkwardCompiler(
     outSrc.inc
     outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
+    isRepeat =  true
+    currId = idToStr(id)
     // Initialize the ListOffsetBuilder for RepeatUntil case and call `begin_list`
     outSrc.puts(
-      s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder = " +
-      s"${if (isIndexedOption(typeToId(nameList.last) + "A__Z" + idToStr(id)) == true) typeToId(nameList.last) + "A__Z" + idToStr(id) + "_indexedoptionbuilder.content();"
-      else typeToId(nameList.last) + "_builder.content<Field_" + typeToId(nameList.last) + "::" + typeToId(nameList.last) + "A__Z" + idToStr(id) + ">();"}"
+      s"auto& ${idToStr(id)}_listoffsetbuilder = " +
+      s"${if (isIndexedOption == true) idToStr(id) + "_indexedoptionbuilder.content();"
+      else nameList.last + "_builder.content<Field_" + nameList.last + "::" + nameList.last + "A__Z" + idToStr(id) + ">();"}"
     )
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + idToStr(id)}_listoffsetbuilder.begin_list();")
+    outSrc.puts(s"${idToStr(id)}_listoffsetbuilder.begin_list();")
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -1006,7 +1031,8 @@ class AwkwardCompiler(
     outSrc.dec
     outSrc.puts(s"} while (!(${expression(untilExpr)}));")
     // Calls `end_list` on the ListOffsetBuilder for RepeatUntil case
-    outSrc.puts(s"${typeToId(nameList.last) + "A__Z" + currId}_listoffsetbuilder.end_list();")
+    outSrc.puts(s"${currId}_listoffsetbuilder.end_list();")
+    isRepeat = false
     outSrc.dec
     outSrc.puts("}")
   }
@@ -1042,7 +1068,7 @@ class AwkwardCompiler(
       case BitsType(width: Int, bitEndian) =>
         s"$io->read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
-        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
+        val addParams = s"${t.name.head}_recordbuilder, " + Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isOpaque) {
           ""
         } else {
@@ -1118,9 +1144,9 @@ class AwkwardCompiler(
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     // Initialize the UnionBuilder
     outSrc.puts(
-      s"auto& ${typeToId(nameList.last) + "A__Z" + idToStr(id)}_unionbuilder = " +
-      s"${if (typeToRepeat(typeToId(nameList.last) + "A__Z" + idToStr(id)) != NoRepeat) typeToId(nameList.last) + "A__Z" + idToStr(id) + "_listoffsetbuilder.content();"
-      else typeToId(nameList.last) + "_builder.content<Field_" + typeToId(nameList.last) + "::" + typeToId(nameList.last) + "A__Z" + idToStr(id) + ">();"}"
+      s"auto& ${idToStr(id)}_unionbuilder = " +
+      s"${if (isRepeat == true) idToStr(id) + "_listoffsetbuilder.content();"
+      else nameList.last + "_builder.content<Field_" + nameList.last + "::" + nameList.last + "A__Z" + idToStr(id) + ">();"}"
     )
     outSrc.puts(s"switch (${expression(on)}) {")
   }
@@ -1340,24 +1366,19 @@ class AwkwardCompiler(
     * @param firstSpec the first ClassSpec
     * @param path current path string
     */
-  override def createBuilderMap(curClass: ClassSpec, firstSpec: ClassSpec, path: String) {
-    directedMap.getOrElseUpdate(path, ListBuffer.empty[String])
-    builderMap(path) = curClass
+  override def createBuilderMap(curClass: ClassSpec, firstSpec: ClassSpec) {
+    directedMap.getOrElseUpdate(curClass.name.last, Set())
+    builderMap(curClass.name.last) = curClass
     curClass.seq.foreach { el =>
       el.dataType match {
         case userType: UserType =>
-          directedMap(path) += path + "A__Z" + idToStr(el.id)
-          typeToId(userType.name.head) = path + "A__Z" + idToStr(el.id)
-          typeToRepeat(path + "A__Z" + idToStr(el.id)) = el.cond.repeat
-          createBuilderMap(firstSpec.types(userType.name.head), firstSpec, typeToId(userType.name.head))
+          directedMap(curClass.name.last) += userType.name.head
+          createBuilderMap(firstSpec.types(userType.name.head), firstSpec)
         case switchType: SwitchType =>
-          typeToRepeat(path + "A__Z" + idToStr(el.id)) = el.cond.repeat
           switchType.cases.values.foreach {
             case ut: UserType =>
-              directedMap(path) += path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head
-              typeToId(ut.name.head) = path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head
-              typeToRepeat(path + "A__Z" + idToStr(el.id) + "_case_" + ut.name.head) = NoRepeat
-              createBuilderMap(firstSpec.types(ut.name.head), firstSpec, typeToId(ut.name.head))
+              directedMap(curClass.name.last) += ut.name.head
+              createBuilderMap(firstSpec.types(ut.name.head), firstSpec)
             case _ =>
           }
         case _ =>
@@ -1372,61 +1393,58 @@ class AwkwardCompiler(
     */
   def createBuilderStructure(builder: RecordBuilder, key: String): Unit = {
     builderMap(key) match { case cs: ClassSpec =>
-      var newPath = typeToId(cs.name.last)
       cs.seq.foreach { el =>
         el.dataType match {
           case userType: UserType =>
             // for UserType, RecordBuilder will be generated.
-            checkUnion(newPath + "A__Z" + idToStr(el.id)) = ""
-            builder.fields += newPath + "A__Z" + idToStr(el.id)
-            var builderContent = checkRepeat(el.cond.repeat, RecordBuilder(ListBuffer(), ListBuffer()))
-            builder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id), builderContent)
+            builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
+            var builderContent = checkRepeat(el.cond.repeat, RecordBuilder(ListBuffer(), ListBuffer(), userType.name.head))
+            builder.contents += checkOption(el, builderContent)
             builder.contents.last match {
               case recordBuilder: AwkwardCompiler.this.RecordBuilder =>
-                createBuilderStructure(recordBuilder, newPath + "A__Z" + idToStr(el.id))
+                createBuilderStructure(recordBuilder, userType.name.head)
               case listOffsetBuilder: AwkwardCompiler.this.ListOffsetBuilder =>
                 listOffsetBuilder.content match {
                   case rb: AwkwardCompiler.this.RecordBuilder =>
-                    createBuilderStructure(rb, newPath + "A__Z" + idToStr(el.id))
+                    createBuilderStructure(rb, userType.name.head)
                   case ib: AwkwardCompiler.this.IndexedOptionBuilder =>
-                    createBuilderStructure(ib.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
+                    createBuilderStructure(ib.content.asInstanceOf[RecordBuilder], userType.name.head)
                   case _ =>
                 }
               case indexedOptionBuilder: AwkwardCompiler.this.IndexedOptionBuilder =>
-                createBuilderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id))
+                createBuilderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], userType.name.head)
               case unsupportedBuilder => throw new UnsupportedOperationException(s"Unsupported builder: $unsupportedBuilder")
             }
           case switchType: SwitchType =>
             // for SwitchType, UnionBuilder will be generated.
-            builder.fields += newPath + "A__Z" + idToStr(el.id)
+            builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
             var builderContent = checkRepeat(el.cond.repeat, UnionBuilder(ListBuffer()))
-            builder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id), builderContent)
-            checkUnion(newPath + "A__Z" + idToStr(el.id)) = "parent"
+            builder.contents += checkOption(el,builderContent)
+            checkUnion(cs.name.last + "A__Z" + idToStr(el.id)) = "parent"
             val unionBuilder = builder.contents.last match {
               case lb: AwkwardCompiler.this.ListOffsetBuilder => lb.content.asInstanceOf[UnionBuilder]
               case ub: AwkwardCompiler.this.UnionBuilder => ub.asInstanceOf[UnionBuilder]
             }
             switchType.cases.values.zipWithIndex.foreach { case (dataType, index) =>
               dataType match {
-                case userType: UserType =>
-                  checkUnion(newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head) = "child_" + index
-                  unionBuilder.caseField(index) = newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head
-                  var builderContent = checkRepeat(NoRepeat, RecordBuilder(ListBuffer(), ListBuffer()))
-                  unionBuilder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head, builderContent)
+                case ut: UserType =>
+                  checkUnion(cs.name.last + "A__Z" + ut.name.head + "__case__" + idToStr(el.id)) = "child_" + index
+                  var builderContent = checkRepeat(NoRepeat, RecordBuilder(ListBuffer(), ListBuffer(), ut.name.head))
+                  unionBuilder.contents += checkOption(el, builderContent)
 
                   unionBuilder.contents.last match {
                     case recordBuilder: AwkwardCompiler.this.RecordBuilder =>
-                      createBuilderStructure(recordBuilder, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                      createBuilderStructure(recordBuilder, ut.name.head)
                     case listOffsetBuilder: AwkwardCompiler.this.ListOffsetBuilder =>
                       listOffsetBuilder.content match {
                         case rb: AwkwardCompiler.this.RecordBuilder =>
-                          createBuilderStructure(rb, newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                          createBuilderStructure(rb, ut.name.head)
                         case ib: AwkwardCompiler.this.IndexedOptionBuilder =>
-                          createBuilderStructure(ib.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                          createBuilderStructure(ib.content.asInstanceOf[RecordBuilder], ut.name.head)
                         case _ =>
                       }
                     case indexedOptionBuilder: AwkwardCompiler.this.IndexedOptionBuilder =>
-                      createBuilderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], newPath + "A__Z" + idToStr(el.id) + "_case_" + userType.name.head)
+                      createBuilderStructure(indexedOptionBuilder.content.asInstanceOf[RecordBuilder], ut.name.head)
                     case unsupportedBuilder => throw new UnsupportedOperationException(s"Unsupported builder: $unsupportedBuilder")
                   }
                 case _ =>
@@ -1435,27 +1453,27 @@ class AwkwardCompiler(
           case Int1Type(_) | IntMultiType(_, _, _) | FloatMultiType(_, _) | BitsType(_, _) |
            _: BooleanType | CalcIntType | CalcFloatType  =>
             // for primitive types, NumpyBuilder will be generated.
-            builder.fields += newPath + "A__Z" + idToStr(el.id)
+            builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
             var builderContent = checkRepeat(el.cond.repeat, NumpyBuilder(kaitaiType2NativeType(el.dataType)))
-            builder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id), builderContent)
+            builder.contents += checkOption(el, builderContent)
           case _: StrType | _: BytesType =>
             // for strings, ListOffsetBuilder(int64_t, NumpyBuilder(uint8_t)) will be generated.
-            builder.fields += newPath + "A__Z" + idToStr(el.id)
+            builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
             var builderContent = checkRepeat(el.cond.repeat, ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t")))
-            builder.contents += checkOption(el, newPath + "A__Z" + idToStr(el.id), builderContent)
+            builder.contents += checkOption(el, builderContent)
           case enumType: EnumType =>
             // for enum types, NumpyBuilder of the given type will be generated.
-            builder.fields += newPath + "A__Z" + idToStr(el.id)
+            builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
             builder.contents += NumpyBuilder(kaitaiType2NativeType(enumType.basedOn))
           case _ => throw new UnsupportedOperationException(s"Unsupported data type: ${el.dataType}")
         }
       }
 
-      instancesMap.getOrElseUpdate(newPath, ListBuffer.empty[String])
+      instancesMap.getOrElseUpdate(cs.name.last, Set())
       // for adding the builders for the instances.
       cs.instances.foreach { case (instName, instSpec) =>
-        instancesMap(newPath) += idToStr(instName)
-        builder.fields += newPath + "A__Z" + idToStr(instName)
+        instancesMap(cs.name.last) += idToStr(instName)
+        builder.fields += cs.name.last + "A__Z" + idToStr(instName)
         instSpec.dataTypeComposite.asNonOwning() match {
           case et: EnumType =>
             // for enum cases of the instances.
@@ -1483,51 +1501,58 @@ class AwkwardCompiler(
   /**
     * Checks the repeat condition for adding IndexedOptionBuilder.
     * @param spec the AttrSpec of the current Class.
-    * @param key path of the id to be checked.
     * @param builderContent last content of the current builder.
     * @return the builder content obtained after checking the conditions.
     */
-  def checkOption(spec: AttrSpec, key: String, builderContent: LayoutBuilder): LayoutBuilder = {
+  def checkOption(spec: AttrSpec, builderContent: LayoutBuilder): LayoutBuilder = {
     if (spec.cond.ifExpr.isDefined) {
-      isIndexedOption(key) = true
       IndexedOptionBuilder("int64_t", builderContent)
     }
     else {
-      isIndexedOption(key) = false
       builderContent
     }
   }
 
   /**
-    * Checks if the field id comes from a union builder content.
-    * @param fieldId current field id.
-    * @return extracted field id.
+    * Topologically sorts and converts the map into list of types.
+    * @param graph directed map of types 
+    * @return sorted list of stypes
     */
-  def getId(fieldId: String): String = {
-    val caseIndex = fieldId.lastIndexOf("_case_")
+  def topologicalSort(graph: Map[String, List[String]]): List[String] = {
+    val inDegree = MutableMap[String, Int]().withDefaultValue(0)
+    val stack = Stack[String]()
+    val result = ListBuffer[String]()
 
-    if (caseIndex != -1 && !fieldId.substring(caseIndex + "_case_".length).contains("A__Z")) {
-      fieldId.substring(0, caseIndex)
-    } else {
-      fieldId
+    graph.values.flatten.foreach { node =>
+      inDegree(node) += 1
     }
+
+    graph.keys.foreach { node =>
+      if (inDegree(node) == 0) {
+        stack.push(node)
+      }
+    }
+
+    while (stack.nonEmpty) {
+      val current = stack.pop()
+      result += current
+
+      graph(current).foreach { neighbor =>
+        inDegree(neighbor) -= 1
+        if (inDegree(neighbor) == 0) {
+          stack.push(neighbor)
+        }
+      }
+    }
+    result.toList
   }
 
   /**
-    * Prints the builder type declarations for each class recursively based on the directed Map order.
-    * @param parentClass name of the parent class.
+    * Prints the builder type declarations for each class recursively based on the order of types.
     */
-  def builderTypeDeclaration(parentClass: String): Unit = {
-    directedMap(parentClass).foreach { childClass =>
-      val unionIndex = checkUnion.getOrElse(childClass, "")
-      outHdrAwkward.puts(
-        s"${if (true) "using " + childClass.capitalize + "BuilderType = decltype(std::declval<" + parentClass.capitalize + 
-        s"BuilderType>().content<Field_${parentClass}::${getId(childClass)}>()" +
-        s"${if (isIndexedOption(childClass) == true) ".content()" else ""}" +
-        s"${if (typeToRepeat(getId(childClass)) != NoRepeat) ".content()" else ""}" +
-        s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""});" else ""}"
-      )
-      builderTypeDeclaration(childClass)
+  def builderTypeDeclaration(): Unit = {
+    for (childClass <- orderedTypes) {
+      outHdrAwkward.puts(builderTypeMap(childClass))
     }
   }
 
