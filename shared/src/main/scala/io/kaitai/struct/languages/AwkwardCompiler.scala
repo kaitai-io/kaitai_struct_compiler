@@ -275,7 +275,6 @@ class AwkwardCompiler(
     builderTypeMap(topClassName) = ""
     createBuilderStructure(layoutBuilder, topClassName)
     orderedTypes = topologicalSort(directedMap.mapValues(_.toList).toMap)
-    println(s"List: $orderedTypes")
   }
 
   override def fileFooter(topClassName: String): Unit = {
