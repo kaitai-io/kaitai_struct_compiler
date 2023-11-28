@@ -432,7 +432,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   private def castToType(r: String, dataType: DataType): String = {
     dataType match {
-      case t @ (_: IntMultiType | _: FloatMultiType) =>
+      case t @ (_: IntMultiType | _: FloatMultiType | CalcIntType | CalcFloatType) =>
         s"${kaitaiType2NativeType(t)}(${r})"
       case _ =>
         r

@@ -42,7 +42,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
         s"(${translate(left)} % ${translate(right)} + ${translate(right)}) % ${translate(right)}"
       case _ =>
-        numericBinOp(left, op, right)
+        s"(${translate(left)} ${binOp(op)} ${translate(right)})"
     }
   }
 
@@ -352,7 +352,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   def outTransform(id: String, expr: String): String = {
-    out.puts(s"${id} = $expr")
+    out.puts(s"${id} = $expr // test")
     id
   }
 
