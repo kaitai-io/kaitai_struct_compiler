@@ -352,7 +352,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   def outTransform(id: String, expr: String): String = {
-    out.puts(s"${id} = $expr // test")
+    out.puts(s"${id} = $expr")
     id
   }
 
