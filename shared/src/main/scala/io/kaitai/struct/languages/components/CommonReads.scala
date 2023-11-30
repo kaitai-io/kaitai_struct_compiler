@@ -3,8 +3,11 @@ package io.kaitai.struct.languages.components
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
+import io.kaitai.struct.translators.BaseTranslator
 
 trait CommonReads extends LanguageCompiler {
+  val translator: BaseTranslator
+
   override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
     attrParseIfHeader(id, attr.cond.ifExpr)
 
@@ -87,6 +90,36 @@ trait CommonReads extends LanguageCompiler {
       case NoRepeat =>
     }
   }
+
+  def itemExpr(id: Identifier, rep: RepeatSpec): Ast.expr = {
+    val astId = Ast.expr.InternalName(id)
+    rep match {
+      case NoRepeat =>
+        astId
+      case _ =>
+        Ast.expr.Subscript(
+          astId,
+          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
+        )
+    }
+  }
+
+  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
+    rep match {
+      case RepeatEos => handleAssignmentRepeatEos(id, expr)
+      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
+      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr, isRaw)
+      case NoRepeat => handleAssignmentSimple(id, expr)
+    }
+  }
+
+  def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
+
+  def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
+
+  def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit
+
+  def handleAssignmentSimple(id: Identifier, expr: String): Unit
 
   def attrParse2(id: Identifier, dataType: DataType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], assignType: Option[DataType] = None): Unit
 

@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype.DataType.{CalcIntType, KaitaiStreamType, UserTypeInstream}
+import io.kaitai.struct.datatype.DataType.{CalcIntType, KaitaiStreamType, UserTypeInstream, UserType}
 import io.kaitai.struct.datatype.{BigEndian, CalcEndian, Endianness, FixedEndian, InheritedEndian, LittleEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -15,6 +15,62 @@ class GoClassCompiler(
 
   override def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
+
+    curClass.meta.imports.foreach(file => lang.importFile(file))
+
+    if (!lang.innerDocstrings)
+      compileClassDoc(curClass)
+    lang.classHeader(curClass.name)
+    if (lang.innerDocstrings)
+      compileClassDoc(curClass)
+
+    // Forward declarations for recursive types
+    curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(List(typeName)) }
+
+    // Forward declarations for params which reference types external to this type
+    curClass.params.foreach((paramDefSpec) =>
+      paramDefSpec.dataType match {
+        case ut: UserType =>
+          val externalTypeName = ut.classSpec.get.name
+          if (externalTypeName.head != curClass.name.head) {
+            lang.classForwardDeclaration(externalTypeName)
+          }
+        case _ => // no forward declarations needed
+      }
+    )
+
+    if (lang.innerEnums)
+      compileEnums(curClass)
+
+    if (lang.config.readStoresPos)
+      lang.debugClassSequence(curClass.seq)
+
+    // Constructor
+    compileConstructor(curClass)
+
+    // Read method(s)
+    compileEagerRead(curClass.seq, curClass.meta.endian)
+
+    compileFetchInstancesProc(curClass.seq ++ curClass.instances.values.collect {
+      case inst: AttrLikeSpec => inst
+    })
+
+    if (config.readWrite) {
+      compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
+      compileCheck(curClass.seq)
+    }
+
+    // Destructor
+    compileDestructor(curClass)
+
+    // Recursive types
+    if (lang.innerClasses) {
+      compileSubclasses(curClass)
+
+      provider.nowClass = curClass
+    }
+
+    compileInstances(curClass)
 
     val extraAttrs = List(
       AttrSpec(List(), IoIdentifier, KaitaiStreamType),
