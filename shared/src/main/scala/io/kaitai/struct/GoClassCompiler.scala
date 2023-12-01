@@ -16,41 +16,6 @@ class GoClassCompiler(
   override def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
-    curClass.meta.imports.foreach(file => lang.importFile(file))
-
-    if (!lang.innerDocstrings)
-      compileClassDoc(curClass)
-    lang.classHeader(curClass.name)
-    if (lang.innerDocstrings)
-      compileClassDoc(curClass)
-
-    // Forward declarations for recursive types
-    curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(List(typeName)) }
-
-    // Forward declarations for params which reference types external to this type
-    curClass.params.foreach((paramDefSpec) =>
-      paramDefSpec.dataType match {
-        case ut: UserType =>
-          val externalTypeName = ut.classSpec.get.name
-          if (externalTypeName.head != curClass.name.head) {
-            lang.classForwardDeclaration(externalTypeName)
-          }
-        case _ => // no forward declarations needed
-      }
-    )
-
-    if (lang.innerEnums)
-      compileEnums(curClass)
-
-    if (lang.config.readStoresPos)
-      lang.debugClassSequence(curClass.seq)
-
-    // Constructor
-    compileConstructor(curClass)
-
-    // Read method(s)
-    compileEagerRead(curClass.seq, curClass.meta.endian)
-
     compileFetchInstancesProc(curClass.seq ++ curClass.instances.values.collect {
       case inst: AttrLikeSpec => inst
     })
@@ -59,18 +24,6 @@ class GoClassCompiler(
       compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
       compileCheck(curClass.seq)
     }
-
-    // Destructor
-    compileDestructor(curClass)
-
-    // Recursive types
-    if (lang.innerClasses) {
-      compileSubclasses(curClass)
-
-      provider.nowClass = curClass
-    }
-
-    compileInstances(curClass)
 
     val extraAttrs = List(
       AttrSpec(List(), IoIdentifier, KaitaiStreamType),
@@ -124,6 +77,12 @@ class GoClassCompiler(
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
+    if (config.readWrite)
+      instSpec match {
+        case _: ParseInstanceSpec =>
+          lang.instanceCheckWriteFlagAndWrite(instName)
+        case _: ValueInstanceSpec => // do nothing
+      }
     lang.instanceCheckCacheAndReturn(instName, dataType)
 
     instSpec match {
@@ -138,6 +97,22 @@ class GoClassCompiler(
     lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
+
+    if (config.readWrite)
+      instSpec match {
+        case pi: ParseInstanceSpec =>
+          lang.attributeSetter(instName, dataType, instSpec.isNullable)
+          lang.instanceToWriteSetter(instName)
+          lang.writeInstanceHeader(instName)
+          lang.attrWrite(pi, instName, endian)
+          lang.writeInstanceFooter
+
+          lang.checkInstanceHeader(instName)
+          lang.attrCheck(pi, instName)
+          lang.checkInstanceFooter
+        case _: ValueInstanceSpec =>
+          lang.instanceInvalidate(instName)
+      }
   }
 
   override def compileCalcEndian(ce: CalcEndian): Unit = {

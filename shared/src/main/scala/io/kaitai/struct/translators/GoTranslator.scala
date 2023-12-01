@@ -5,17 +5,17 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{ClassSpec, Identifier}
 import io.kaitai.struct.languages.GoCompiler
-import io.kaitai.struct.precompile.TypeMismatchError
-import io.kaitai.struct.{ImportList, StringLanguageOutputWriter, Utils}
+import io.kaitai.struct.{ClassTypeProvider, ImportList, RuntimeConfig, StringLanguageOutputWriter, Utils}
 import io.kaitai.struct.format.SpecialIdentifier
 import io.kaitai.struct.format.NamedIdentifier
 import io.kaitai.struct.format.InstanceIdentifier
 
 
-class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   import io.kaitai.struct.languages.GoCompiler._
 
   var returnRes: Option[String] = None
+
 
   override def doByteSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
     CommonSizeOf.bitToByteSize(
@@ -85,6 +85,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def doName(s: String): String = Utils.upperCamelCase(s)
 
   override def doLocalName(s: String): String = {
+
     s match {
       case Identifier.ROOT |
            Identifier.PARENT |
@@ -126,16 +127,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def arraySubscript(container: Ast.expr, idx: Ast.expr) = s"${translate(container)}[${translate(idx)}]"
 
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String = {
+    val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
     val v1 = allocateLocalVar()
     val typ = detectType(ifTrue)
-    out.puts(s"var ${localVarName(v1)} ${GoCompiler.kaitaiType2NativeType(typ)};")
+    out.puts(s"var ${localVarName(v1)} ${compiler.kaitaiType2NativeType(typ)};")
     out.puts(s"if (${translate(condition)}) {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifTrue)}")
+    out.puts(s"${localVarName(v1)} = ${compiler.kaitaiType2NativeType(typ)}(${translate(ifTrue)})")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifFalse)}")
+    out.puts(s"${localVarName(v1)} = ${compiler.kaitaiType2NativeType(typ)}(${translate(ifFalse)})")
     out.dec
     out.puts("}")
     localVarName(v1)
@@ -144,10 +146,19 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def doEnumByLabel(enumTypeAbs: List[String], label: String) = GoCompiler.enumToStr(enumTypeAbs, label)
   override def doEnumById(enumTypeAbs: List[String], id: String) = s"${types2class(enumTypeAbs)}($id)"
 
-  override def doCast(value: Ast.expr, typeName: DataType): String = ???
+  override def doCast(value: Ast.expr, typeName: DataType): String = {
+    val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
+    if (value.isInstanceOf[Ast.expr.IntNum] || value.isInstanceOf[Ast.expr.FloatNum])
+      s"((${compiler.kaitaiType2NativeType(typeName)}) ${translate(value)})"
+    else
+      compiler.castIfNeeded(translate(value), AnyType, typeName)
+  }
 
-  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) =
-    s"[]${GoCompiler.kaitaiType2NativeType(t)}{${value.map(translate).mkString(", ")}}"
+  override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) = {
+    val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
+    s"[]${compiler.kaitaiType2NativeType(t)}{${value.map(translate).mkString(", ")}}"
+  }
+
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "[]uint8{" + arr.map(_ & 0xff).mkString(", ") + "}"

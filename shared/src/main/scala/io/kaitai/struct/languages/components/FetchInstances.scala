@@ -5,7 +5,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 
-trait FetchInstances extends LanguageCompiler with ObjectOrientedLanguage with EveryReadIsExpression {
+trait FetchInstances extends LanguageCompiler with ObjectOrientedLanguage with CommonReads {
   override def attrFetchInstances(attr: AttrLikeSpec, id: Identifier): Unit = {
     attrParseIfHeader(id, attr.cond.ifExpr)
 

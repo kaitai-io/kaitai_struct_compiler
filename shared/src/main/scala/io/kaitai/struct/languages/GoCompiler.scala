@@ -16,13 +16,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalFooter
     with UniversalDoc
     with GoWrites
+    with FetchInstances
     with AllocateIOLocalVar
     with GoReads {
   import GoCompiler._
 
   private var inSubIOWriteBackHandler = false
 
-  override val translator = new GoTranslator(out, typeProvider, importList)
+  override val translator = new GoTranslator(out, typeProvider, importList, config)
 
   override def innerClasses = false
 
@@ -47,14 +48,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         imp.map((x) => indent + "\"" + x + "\"").mkString("", "\n", "\n") +
         ")\n"
     }
-  }
-
-  def errorHandler(): Unit = {
-    out.puts("if err != nil {")
-    out.inc
-    out.puts("return err")
-    out.dec
-    out.puts("}")
   }
 
   override def fileHeader(topClassName: String): Unit = {
@@ -102,22 +95,28 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classConstructorFooter: Unit = {}
 
 
-  // override def attrFetchInstances(attr: AttrLikeSpec, id: Identifier): Unit = {}
   override def fetchInstancesHeader(): Unit = {
     out.puts
-    out.puts("func fetchInstances() {")
+    out.puts(
+      s"func (this *${types2class(typeProvider.nowClass.name)}) fetchInstances() (err error) {".stripMargin)
     out.inc
   }
 
-  override def fetchInstancesFooter(): Unit = universalFooter
+  override def fetchInstancesFooter(): Unit = {
+    out.puts("return err")
+    out.dec
+    out.puts("}")
+  }
 
   override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
     val expr = expression(baseExpr)
-    out.puts(s"$expr.fetchInstances()")
+    out.puts(s"err = $expr.fetchInstances()")
+    translator.outAddErrCheck()
   }
 
   override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {
-    out.puts(s"_ = ${publicMemberName(instName)}()")
+    out.puts(s"err = ${publicMemberName(instName)}()")
+    translator.outAddErrCheck()
   }
 
   override def runWriteCalc(): Unit = {
@@ -148,6 +147,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         )
         out.inc
         out.puts(s"${privateMemberName(IoIdentifier)} = io")
+        out.puts(s"${privateMemberName(ParentIdentifier)}.FetchInstances = this.fetchInstances")
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
@@ -182,14 +182,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def checkHeader(): Unit = {
     out.puts
-    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Check() {")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Check() error {")
     out.inc
   }
   // override def checkFooter(): Unit = ???
 
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
     out.puts
-    out.puts(s"func (this *aa}) Check${publicMemberName(instName)}() {")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Check${publicMemberName(instName)}() {")
   }
   // override def checkInstanceFooter(): Unit = ???
   // override def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = ???
@@ -393,20 +393,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
-    val javaName = privateMemberName(varName)
-
     val ioName = idToStr(IoStorageIdentifier(varName))
-
     val args = rep match {
       case RepeatUntil(_) => translator.specialName(Identifier.ITERATOR2)
       case _ => getRawIdExpr(varName, rep)
     }
 
     importList.add("bytes")
-
     out.puts(s"$ioName := kaitai.NewStream(bytes.NewReader($args))")
     ioName
   }
+
+  override def allocateIOFixed(varName: Identifier, size: String): String = {
+    val ioName = idToStr(IoStorageIdentifier(varName))
+    out.puts(s"$ioName := new kaitai.NewStream(bytes.NewReader($size))")
+    ioName
+  }
+
+  override def allocateIOGrowing(varName: Identifier): String =
+    allocateIOFixed(varName, "100000")
 
   def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(varName)
@@ -454,7 +459,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$io.AlignToByte()")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
-    out.puts(s"if (${expression(expr)}) {")
+    out.puts(s"if ${expression(expr)} {")
     out.inc
   }
 
@@ -536,7 +541,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  private def handleCompositeTypeCast(id: Identifier, r: String): String = {
+  def handleCompositeTypeCast(id: Identifier, r: String): String = {
     id match {
       case NamedIdentifier(name) =>
         castToType(r, combinedType(typeProvider.determineType(name)))
@@ -749,8 +754,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (exprType != targetType) {
       val castTypeId = kaitaiType2NativeType(targetType)
       targetType match {
-        case _: NumericType => s"((Number) ($exprRaw)).${castTypeId}Value()"
-        case _ => s"(($castTypeId) ($exprRaw))"
+        case _: NumericType => s"$castTypeId($exprRaw)"
+        // TODO: if the type is str or []byte, go will throw an error and can not
+        // be use in a function call directly, so we should convert the value before
+        // enter the function call
+        case _ => s"$exprRaw"
       }
     } else {
       exprRaw
@@ -781,7 +789,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, t: DataType, exprType: DataType): Unit = {
     val exprRaw = expression(valueExpr)
     val expr = castIfNeeded(exprRaw, exprType, t)
-    out.puts(s"$expr.writeSeq($io)")
+    out.puts(s"err = $expr.writeSeq($io)")
   }
 
   override def exprStreamToByteArray(ioFixed: String): String =
@@ -867,7 +875,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"if ${expression(checkExpr)} {")
     out.inc
-    out.puts(s"return NewConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
+    out.puts(s"return kaitai.NewConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
     out.dec
     out.puts("}")
   }
@@ -883,7 +891,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     out.puts(s"if $ifExpr {")
     out.inc
-    out.puts(s"return NewConsistencyError($msgStr, ${exprIORemainingSize(io)}, 0)")
+    out.puts(s"return kaitai.NewConsistencyError($msgStr, ${exprIORemainingSize(io)}, 0)")
     out.dec
     out.puts("}")
   }
@@ -891,10 +899,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
     val msgStr = expression(Ast.expr.Str(msg))
 
-    //TODO: fix here
-    out.puts(s"if !Objects.equals(${expression(actual)}, ${expression(expected)}) {")
+    importList.add("reflect")
+
+    out.puts(s"if !reflect.DeepEqual(${expression(actual)}, ${expression(expected)}) {")
     out.inc
-    out.puts(s"return NewConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
+    out.puts(s"return kaitai.NewConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
     out.dec
     out.puts("}")
   }
@@ -913,9 +922,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val msgStr = expression(Ast.expr.Str(msg))
 
-    out.puts(s"if !Objects.equals(${expression(actualParentExpr)}, $expectedParent) {")
+    out.puts(s"if !reflect.DeepEqual(${expression(actualParentExpr)}, $expectedParent) {")
     out.inc
-    out.puts(s"return NewConsistencyError($msgStr, ${expression(actualParentExpr)}, $expectedParent);")
+    out.puts(s"return kaitai.NewConsistencyError($msgStr, ${expression(actualParentExpr)}, $expectedParent);")
     out.dec
     out.puts("}")
   }
@@ -934,6 +943,53 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val expr = parseExprBytes(translator.outVarCheckRes(parseExpr(dataType, io, None)), dataType)
     handleAssignment(rawId, expr, rep, isRaw)
     dataType.process.foreach((proc) => attrProcess(proc, rawId, id, rep))
+  }
+
+  def kstructNameFull: String = {
+    kstructName.format((config.autoRead, config.readWrite) match{
+      case (_, true) => "ReadWrite"
+      case (_, false) => ""
+    })
+  }
+
+  def kaitaiType2NativeType(attrType: DataType): String = {
+    attrType match {
+      case Int1Type(false) => "uint8"
+      case IntMultiType(false, Width2, _) => "uint16"
+      case IntMultiType(false, Width4, _) => "uint32"
+      case IntMultiType(false, Width8, _) => "uint64"
+
+      case Int1Type(true) => "int8"
+      case IntMultiType(true, Width2, _) => "int16"
+      case IntMultiType(true, Width4, _) => "int32"
+      case IntMultiType(true, Width8, _) => "int64"
+
+      case FloatMultiType(Width4, _) => "float32"
+      case FloatMultiType(Width8, _) => "float64"
+
+      case BitsType(_, _) => "uint64"
+
+      case _: BooleanType => "bool"
+      case CalcIntType => "int"
+      case CalcFloatType => "float64"
+
+      case _: StrType => "string"
+      case _: BytesType => "[]byte"
+
+      case AnyType => "interface{}"
+      case KaitaiStructType | CalcKaitaiStructType(_) => "*" + kstructNameFull
+      case KaitaiStreamType | OwnedKaitaiStreamType => "*" + kstreamName
+
+      case t: UserType => "*" + types2class(t.classSpec match {
+        case Some(cs) => cs.name
+        case None => t.name
+      })
+      case t: EnumType => types2class(t.enumSpec.get.name)
+
+      case at: ArrayType => s"[]${kaitaiType2NativeType(at.elType)}"
+
+      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
+    }
   }
 }
 
@@ -972,45 +1028,6 @@ object GoCompiler extends LanguageCompilerStatic
     * @param attrType KS data type
     * @return Go data type
     */
-  def kaitaiType2NativeType(attrType: DataType): String = {
-    attrType match {
-      case Int1Type(false) => "uint8"
-      case IntMultiType(false, Width2, _) => "uint16"
-      case IntMultiType(false, Width4, _) => "uint32"
-      case IntMultiType(false, Width8, _) => "uint64"
-
-      case Int1Type(true) => "int8"
-      case IntMultiType(true, Width2, _) => "int16"
-      case IntMultiType(true, Width4, _) => "int32"
-      case IntMultiType(true, Width8, _) => "int64"
-
-      case FloatMultiType(Width4, _) => "float32"
-      case FloatMultiType(Width8, _) => "float64"
-
-      case BitsType(_, _) => "uint64"
-
-      case _: BooleanType => "bool"
-      case CalcIntType => "int"
-      case CalcFloatType => "float64"
-
-      case _: StrType => "string"
-      case _: BytesType => "[]byte"
-
-      case AnyType => "interface{}"
-      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
-      case KaitaiStreamType | OwnedKaitaiStreamType => "*" + kstreamName
-
-      case t: UserType => "*" + types2class(t.classSpec match {
-        case Some(cs) => cs.name
-        case None => t.name
-      })
-      case t: EnumType => types2class(t.enumSpec.get.name)
-
-      case at: ArrayType => s"[]${kaitaiType2NativeType(at.elType)}"
-
-      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
-    }
-  }
 
   def types2class(names: List[String]): String = names.map(x => type2class(x)).mkString("_")
 
@@ -1024,7 +1041,7 @@ object GoCompiler extends LanguageCompilerStatic
     types2class(typeName) + "__" + type2class(enumName)
 
   override def kstreamName: String = "kaitai.Stream"
-  override def kstructName: String = "interface{}"
+  override def kstructName: String = "kaitai.%sStream"
   override def ksErrorName(err: KSError): String = err match {
     case ConversionError => "strconv.NumError"
     case _ => s"kaitai.${err.name}"
