@@ -168,7 +168,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     "SJIS" -> ("japanese.ShiftJIS", "golang.org/x/text/encoding/japanese"),
     "BIG5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese"),
     "UTF-16LE" -> ("unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
-    "UTF-16BE" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode")
+    "UTF-16BE" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
+    "\"UTF-8\"" -> ("unicode.UTF8", "golang.org/x/text/encoding/unicode")
   )
 
   override def bytesToStr(value: String, encoding: String): String = {

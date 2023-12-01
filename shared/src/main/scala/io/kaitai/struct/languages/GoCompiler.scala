@@ -15,9 +15,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with ObjectOrientedLanguage
     with UniversalFooter
     with UniversalDoc
+    with GoWrites
     with AllocateIOLocalVar
     with GoReads {
   import GoCompiler._
+
+  private var inSubIOWriteBackHandler = false
 
   override val translator = new GoTranslator(out, typeProvider, importList)
 
@@ -44,6 +47,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         imp.map((x) => indent + "\"" + x + "\"").mkString("", "\n", "\n") +
         ")\n"
     }
+  }
+
+  def errorHandler(): Unit = {
+    out.puts("if err != nil {")
+    out.inc
+    out.puts("return err")
+    out.dec
+    out.puts("}")
   }
 
   override def fileHeader(topClassName: String): Unit = {
@@ -90,11 +101,24 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classConstructorFooter: Unit = {}
 
+
   // override def attrFetchInstances(attr: AttrLikeSpec, id: Identifier): Unit = {}
-  // override def fetchInstancesHeader(): Unit = {}
-  // override def fetchInstancesFooter(): Unit = {}
-  // override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = ???
-  // override def attrInvokeInstance(instName: InstanceIdentifier): Unit = ???
+  override def fetchInstancesHeader(): Unit = {
+    out.puts
+    out.puts("func fetchInstances() {")
+    out.inc
+  }
+
+  override def fetchInstancesFooter(): Unit = universalFooter
+
+  override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
+    val expr = expression(baseExpr)
+    out.puts(s"$expr.fetchInstances()")
+  }
+
+  override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {
+    out.puts(s"_ = ${publicMemberName(instName)}()")
+  }
 
   override def runWriteCalc(): Unit = {
     out.puts
@@ -115,19 +139,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def writeHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    out.puts
     endian match {
       case None =>
         out.puts
         out.puts(
-          s"func (this *${types2class(typeProvider.nowClass.name)}) Write(" +
-            s"io *$kstreamName, " +
-            s"parent ${kaitaiType2NativeType(typeProvider.nowClass.parentType)}, " +
-            s"root *${types2class(typeProvider.topClass.name)}) (err error) {"
+          s"func (this *${types2class(typeProvider.nowClass.name)}) WriteSeq(io *$kstreamName) (err error) {"
         )
         out.inc
         out.puts(s"${privateMemberName(IoIdentifier)} = io")
-        out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
-        out.puts(s"${privateMemberName(RootIdentifier)} = root")
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
@@ -141,8 +161,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case Some(e) =>
         out.puts
         out.puts(
-          s"func (this *${types2class(typeProvider.nowClass.name)}) " +
-            s"_write_${e.toSuffix}() (err error) {")
+          s"func (this *${types2class(typeProvider.nowClass.name)}) write${e.toSuffix}() (err error) {")
         out.inc
     }
   }
@@ -152,33 +171,95 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  // override def writeInstanceHeader(instName: InstanceIdentifier): Unit = ???
+  override def writeInstanceHeader(instName: InstanceIdentifier): Unit = {
+    out.puts
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Write${publicMemberName(instName)}() {")
+    out.inc
+    instanceClearWriteFlag(instName)
+  }
   // override def writeInstanceFooter(): Unit = ???
   // override def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
 
-  // override def checkHeader(): Unit = ???
+  override def checkHeader(): Unit = {
+    out.puts
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Check() {")
+    out.inc
+  }
   // override def checkFooter(): Unit = ???
-  // override def checkInstanceHeader(instName: InstanceIdentifier): Unit = ???
+
+  override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
+    out.puts
+    out.puts(s"func (this *aa}) Check${publicMemberName(instName)}() {")
+  }
   // override def checkInstanceFooter(): Unit = ???
   // override def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = ???
 
-  // override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {}
+  override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+    out.puts(s"for i := 0; i < len(${privateMemberName(id)}); i++ {")
+    out.inc
+  }
   // override def condRepeatCommonFooter: Unit = {}
-  // override def pushPosForSubIOWriteBackHandler(io: String): Unit = ???
-  // override def seekRelative(io: String, relPos: String): Unit = ???
-  // override def exprIORemainingSize(io: String): String = ???
 
-  // override def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = ???
-  // override def subIOWriteBackFooter(subIO: String): Unit = ???
+  override def exprIORemainingSize(io: String): String = {
+    out.puts(s"size, err := $io.Size()")
+    translator.outAddErrCheck()
+    out.puts(s"pos, err := $io.Pos()")
+    translator.outAddErrCheck()
+    s"$io.Size() - $io.Pos()"
+  }
 
-  // override def addChildIO(io: String, childIO: String): Unit = ???
-  // override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = ???
+  override def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = {
+    val parentIoName = "parent"
+
+    out.puts(s"type Sub$subIO struct {")
+    out.puts("}")
+    out.puts(s"$subIO.SetWriteBackHandler(&Sub$subIO{})")
+    out.puts(s"func (that *Sub$subIO) write($parentIoName $kstreamName) {")
+    out.inc
+
+    inSubIOWriteBackHandler = true
+    parentIoName
+  }
+
+  override def subIOWriteBackFooter(subIO: String): Unit = {
+    inSubIOWriteBackHandler = false
+    out.dec
+    out.puts("}")
+  }
+
+  override def addChildIO(io: String, childIO: String): Unit = {
+    out.puts(s"$io.AddChildStream($childIO)")
+  }
+
+  override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = {
+    out.puts(s"var _write${publicMemberName(attrName)} = false")
+    out.puts(s"var _toWrite${publicMemberName(attrName)} = false")
+  }
+
   // override def instanceWriteFlagInit(attrName: InstanceIdentifier): Unit = {}
-  // override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = ???
-  // override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = ???
-  // override def instanceToWriteSetter(instName: InstanceIdentifier): Unit = ???
-  // override def instanceInvalidate(instName: InstanceIdentifier): Unit = ???
-  // override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = ???
+  override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = {
+    out.puts(s"_write${publicMemberName(instName)} = _toWrite${publicMemberName(instName)}")
+  }
+
+  override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = {
+    out.puts(s"_write${publicMemberName(instName)} = false")
+  }
+
+  override def instanceToWriteSetter(instName: InstanceIdentifier): Unit = {
+    out.puts(s"func set${publicMemberName(instName)}ToWrite(_v bool) { _toWrite${publicMemberName(instName)} = _v }")
+  }
+
+  override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
+    out.puts(s"func invalidate${publicMemberName(instName)}() { ${privateMemberName(instName)} = nil }")
+  }
+
+  override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if _write${publicMemberName(instName)} {")
+    out.inc
+    out.puts(s"_write${publicMemberName(instName)}()")
+    out.dec
+    out.puts("}")
+  }
 
   override def runRead(name: List[String]): Unit = {
     out.puts("this.Read()")
@@ -235,7 +316,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
   }
-  override def readFooter(): Unit = {
+  override def readFooter: Unit = {
     out.puts("return err")
     universalFooter
   }
@@ -247,7 +328,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
   override def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
-  def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit = {
+  override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit = {
     out.puts(s"${expression(base)}.${publicMemberName(propName)} = $value")
   }
 
@@ -346,11 +427,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     translator.outAddErrCheck()
   }
 
+  override def pushPosForSubIOWriteBackHandler(io: String): Unit = {
+    out.puts(s"pos2, err := $io.Pos()")
+    translator.outAddErrCheck()
+  }
+
   override def seek(io: String, pos: Ast.expr): Unit = {
     importList.add("io")
 
     out.puts(s"_, err = $io.Seek(int64(${expression(pos)}), io.SeekStart)")
     translator.outAddErrCheck()
+  }
+
+  override def seekRelative(io: String, relPos: String): Unit = {
+    out.puts(s"$io.Seek(relPos, io.SeekCurrent)")
   }
 
   override def popPos(io: String): Unit = {
@@ -460,7 +550,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = $expr")
   }
 
-  def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"$id := $expr")
 
   override def blockScopeHeader: Unit = {
@@ -646,6 +736,204 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return $noValueAndErr")
     out.dec
     out.puts("}")
+  }
+
+  override def internalEnumIntType(basedOn: IntType): DataType = {
+    basedOn match {
+      case IntMultiType(signed, _, endian) => IntMultiType(signed, Width8, endian)
+      case _ => IntMultiType(signed = true, Width8, None)
+    }
+  }
+
+  def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType): String =
+    if (exprType != targetType) {
+      val castTypeId = kaitaiType2NativeType(targetType)
+      targetType match {
+        case _: NumericType => s"((Number) ($exprRaw)).${castTypeId}Value()"
+        case _ => s"(($castTypeId) ($exprRaw))"
+      }
+    } else {
+      exprRaw
+    }
+
+  override def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit = {
+    val exprType = exprTypeOpt.getOrElse(dt)
+    val exprRaw = expression(expr)
+    val exprProcessed = castIfNeeded(exprRaw, exprType, dt)
+
+    val stmt = dt match {
+      case t: ReadableType =>
+        s"$io.Write${Utils.capitalize(t.apiCall(defEndian))}($exprProcessed)"
+      case BitsType1(bitEndian) =>
+        s"$io.WriteBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1, ${translator.boolToInt(expr)})"
+      case BitsType(width: Int, bitEndian) =>
+        s"$io.WriteBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width, $exprProcessed)"
+      case _: BytesType =>
+        s"$io.WriteBytes($exprProcessed)"
+    }
+    out.puts(stmt)
+  }
+
+  override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit = {
+    out.puts(s"$io.WriteBytesLimit(${expression(expr)}, $size, $term, $padRight)")
+  }
+
+  override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, t: DataType, exprType: DataType): Unit = {
+    val exprRaw = expression(valueExpr)
+    val expr = castIfNeeded(exprRaw, exprType, t)
+    out.puts(s"$expr.writeSeq($io)")
+  }
+
+  override def exprStreamToByteArray(ioFixed: String): String =
+    s"$ioFixed.ToByteArray()"
+
+  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dt: BytesType, exprTypeOpt: Option[DataType]): Unit = {
+    val exprType = exprTypeOpt.getOrElse(dt)
+    val srcExprRaw = varSrc match {
+      // use `_raw_items[_raw_items.size - 1]`
+      case _: RawIdentifier => getRawIdExpr(varSrc, rep)
+      // but `items[_index]`
+      case _ => expression(itemExpr(varSrc, rep))
+    }
+    val srcExpr = castIfNeeded(srcExprRaw, exprType, dt)
+
+    val expr = proc match {
+      case ProcessXor(xorValue) =>
+        val argStr = if (inSubIOWriteBackHandler) "ProcessXorArg" else expression(xorValue)
+        val xorValueStr = translator.detectType(xorValue) match {
+          case _: IntType => castIfNeeded(argStr, AnyType, Int1Type(true))
+          case _ => argStr
+        }
+        s"$kstreamName.ProcessXor($srcExpr, $xorValueStr)"
+      case ProcessZlib =>
+        s"$kstreamName.UnprocessZlib($srcExpr)"
+      case ProcessRotate(isLeft, rotValue) =>
+        val argStr = if (inSubIOWriteBackHandler) "ProcessRotateArg" else expression(rotValue)
+        val expr = if (!isLeft) {
+          argStr
+        } else {
+          s"8 - ($argStr)"
+        }
+        s"$kstreamName.ProcessRotateLeft($srcExpr, $expr, 1)"
+      case ProcessCustom(name, args) =>
+        val namespace = name.init.mkString(".")
+        val procClass = namespace +
+          (if (namespace.nonEmpty) "." else "") +
+          type2class(name.last)
+        val procName = s"Process${idToStr(varSrc)}"
+        if (!inSubIOWriteBackHandler) {
+          out.puts(s"$procName := New$procClass(${args.map(expression).mkString(", ")})")
+        }
+        s"$procName.Encode($srcExpr)"
+    }
+    handleAssignment(varDest, expr, rep, isRaw = false)
+  }
+
+  override def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit = {
+    proc match {
+      case ProcessXor(xorValue) =>
+        val dataType = translator.detectType(xorValue)
+        out.puts(s"processXorArg := ${expression(xorValue)};")
+      case ProcessRotate(_, rotValue) =>
+        val dataType = translator.detectType(rotValue)
+        out.puts(s"processRotateArg := ${expression(rotValue)}")
+      case ProcessZlib => // no process arguments
+      case ProcessCustom(name, args) =>
+        val namespace = name.init.mkString(".")
+        val procClass = namespace +
+          (if (namespace.nonEmpty) "." else "") +
+          type2class(name.last)
+        val procName = s"Process${idToStr(varSrc)}"
+        out.puts(s"$procName := New$procClass(${args.map(expression).mkString(", ")})")
+    }
+  }
+
+  override def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit = {
+    val eofExpr = s"$io.Eof()"
+    val ifExpr = if (!wantedIsEof) {
+      s"$eofExpr == nil"
+    } else {
+      s"$eofExpr != nil"
+    }
+
+    out.puts(s"if $ifExpr {")
+    out.inc
+  }
+
+  override def condIfIsEofFooter: Unit = universalFooter
+
+  override def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    out.puts(s"if ${expression(checkExpr)} {")
+    out.inc
+    out.puts(s"return NewConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
+    out.dec
+    out.puts("}")
+  }
+
+  override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit = {
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    val eofExpr = s"$io.Eof()"
+    val ifExpr = if (expectedIsEof) {
+      s"$eofExpr != nil"
+    } else {
+      s"$eofExpr == nil"
+    }
+    out.puts(s"if $ifExpr {")
+    out.inc
+    out.puts(s"return NewConsistencyError($msgStr, ${exprIORemainingSize(io)}, 0)")
+    out.dec
+    out.puts("}")
+  }
+
+  override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    //TODO: fix here
+    out.puts(s"if !Objects.equals(${expression(actual)}, ${expression(expected)}) {")
+    out.inc
+    out.puts(s"return NewConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
+    out.dec
+    out.puts("}")
+  }
+
+  override def attrParentParamCheck(actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean], msg: String): Unit = {
+    if (ut.isOpaque)
+      return
+    val (expectedParent, dependsOnIo) = ut.forcedParent match {
+      case Some(USER_TYPE_NO_PARENT) => ("null", false)
+      case Some(fp) =>
+        (expression(fp), userExprDependsOnIo(fp))
+      case None => ("this", false)
+    }
+    if (shouldDependOnIo.map(shouldDepend => dependsOnIo != shouldDepend).getOrElse(false))
+      return
+
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    out.puts(s"if !Objects.equals(${expression(actualParentExpr)}, $expectedParent) {")
+    out.inc
+    out.puts(s"return NewConsistencyError($msgStr, ${expression(actualParentExpr)}, $expectedParent);")
+    out.dec
+    out.puts("}")
+  }
+
+  override def attrBytesTypeParse(
+    id: Identifier,
+    dataType: BytesType,
+    io: String,
+    rep: RepeatSpec,
+    isRaw: Boolean
+  ): Unit = {
+    val rawId = dataType.process match {
+      case None => id
+      case Some(_) => RawIdentifier(id)
+    }
+    val expr = parseExprBytes(translator.outVarCheckRes(parseExpr(dataType, io, None)), dataType)
+    handleAssignment(rawId, expr, rep, isRaw)
+    dataType.process.foreach((proc) => attrProcess(proc, rawId, id, rep))
   }
 }
 

@@ -261,19 +261,7 @@ trait EveryReadIsExpression
     )
   }
 
-  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
-    rep match {
-      case RepeatEos => handleAssignmentRepeatEos(id, expr)
-      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
-      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr, isRaw)
-      case NoRepeat => handleAssignmentSimple(id, expr)
-    }
-  }
 
-  def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
-  def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
-  def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit
-  def handleAssignmentSimple(id: Identifier, expr: String): Unit
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
 
   def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
@@ -293,19 +281,6 @@ trait EveryReadIsExpression
     attrId match {
       case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
       case _ => super.attrDebugNeeded(attrId)
-    }
-  }
-
-  def itemExpr(id: Identifier, rep: RepeatSpec): Ast.expr = {
-    val astId = Ast.expr.InternalName(id)
-    rep match {
-      case NoRepeat =>
-        astId
-      case _ =>
-        Ast.expr.Subscript(
-          astId,
-          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
-        )
     }
   }
 }
