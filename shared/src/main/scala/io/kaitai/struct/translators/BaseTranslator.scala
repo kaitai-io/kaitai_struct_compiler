@@ -82,7 +82,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
         }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
-          case (_: NumericType, _: NumericType) =>
+          case (l: NumericType, r: NumericType) =>
             doNumericCompareOp(left, op, right)
           case (_: BooleanType, _: BooleanType) =>
             op match {

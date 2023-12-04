@@ -87,6 +87,7 @@ abstract class LanguageCompiler(
   def classHeader(name: List[String]): Unit
   def classFooter(name: List[String]): Unit
   def classForwardDeclaration(name: List[String]): Unit = {}
+  def classExtendMarks(name: List[String]): Unit = {}
 
   def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit
   def classConstructorFooter: Unit
@@ -177,6 +178,7 @@ abstract class LanguageCompiler(
 
   def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = ???
   def subIOWriteBackFooter(subIO: String): Unit = ???
+  def subIOWriteBackSetter(subIO: String): Unit = ???
 
   def addChildIO(io: String, childIO: String): Unit = ???
 

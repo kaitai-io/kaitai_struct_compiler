@@ -28,7 +28,7 @@ class GoClassCompiler(
     val extraAttrs = List(
       AttrSpec(List(), IoIdentifier, KaitaiStreamType),
       AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None)),
-      AttrSpec(List(), ParentIdentifier, curClass.parentType)
+      AttrSpec(List(), ParentIdentifier, curClass.parentType),
     ) ++ ExtraAttrs.forClassSpec(curClass, lang)
 
     if (!curClass.doc.isEmpty)
@@ -39,6 +39,11 @@ class GoClassCompiler(
 
     // Basic struct declaration
     lang.classHeader(curClass.name)
+
+    if (config.readWrite) {
+      lang.classExtendMarks(List("kaitai.ReadWriteStream"))
+    }
+
     compileAttrDeclarations(curClass.seq ++ curClass.params ++ extraAttrs)
     curClass.instances.foreach { case (instName, instSpec) =>
       compileInstanceDeclaration(instName, instSpec)

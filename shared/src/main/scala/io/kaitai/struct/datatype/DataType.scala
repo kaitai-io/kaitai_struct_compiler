@@ -148,6 +148,7 @@ object DataType {
       val cs = classSpec.get
       cs.isTopLevel || cs.meta.isOpaque
     }
+
   }
   case class UserTypeInstream(
     _name: List[String],

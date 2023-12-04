@@ -63,6 +63,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
+  override def classExtendMarks(name: List[String]): Unit = {
+    name.foreach(x => out.puts(s"$x"))
+  }
+
   override def classHeader(name: List[String]): Unit = {
     out.puts(s"type ${types2class(name)} struct {")
     out.inc
@@ -111,12 +115,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
     val expr = expression(baseExpr)
     out.puts(s"err = $expr.fetchInstances()")
-    translator.outAddErrCheck()
+    translator.commonErrCheck()
   }
 
   override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {
     out.puts(s"err = ${publicMemberName(instName)}()")
-    translator.outAddErrCheck()
+    translator.commonErrCheck()
   }
 
   override def runWriteCalc(): Unit = {
@@ -143,11 +147,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case None =>
         out.puts
         out.puts(
-          s"func (this *${types2class(typeProvider.nowClass.name)}) WriteSeq(io *$kstreamName) (err error) {"
+          s"func (this *${types2class(typeProvider.nowClass.name)}) WriteSeq(inputIO *$kstreamName) (err error) {"
         )
         out.inc
-        out.puts(s"${privateMemberName(IoIdentifier)} = io")
-        out.puts(s"${privateMemberName(ParentIdentifier)}.FetchInstances = this.fetchInstances")
+        out.puts(s"${privateMemberName(IoIdentifier)} = inputIO")
+        out.puts(s"${privateMemberName(ParentIdentifier)}.FetchInstance = this.fetchInstances")
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
@@ -185,7 +189,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Check() error {")
     out.inc
   }
-  // override def checkFooter(): Unit = ???
+  override def checkFooter(): Unit = {
+    out.puts("return nil")
+    out.dec
+    out.puts("}")
+  }
 
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
     out.puts
@@ -205,26 +213,28 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     translator.outAddErrCheck()
     out.puts(s"pos, err := $io.Pos()")
     translator.outAddErrCheck()
-    s"$io.Size() - $io.Pos()"
+    s"size - pos"
   }
 
   override def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = {
     val parentIoName = "parent"
 
-    out.puts(s"type Sub$subIO struct {")
-    out.puts("}")
-    out.puts(s"$subIO.SetWriteBackHandler(&Sub$subIO{})")
-    out.puts(s"func (that *Sub$subIO) write($parentIoName $kstreamName) {")
-    out.inc
-
+    out.puts(s"$subIO.SetWriteBackHandler(kaitai.NewWriteBackHandler(pos2, func($parentIoName *$kstreamName) error {")
     inSubIOWriteBackHandler = true
+    out.inc
     parentIoName
+  }
+
+  override def subIOWriteBackSetter(subIO: String): Unit = {
+    out.puts(s"$subIO.SetWriteBackHandler(NewSubIO())")
   }
 
   override def subIOWriteBackFooter(subIO: String): Unit = {
     inSubIOWriteBackHandler = false
+    out.puts("return err")
     out.dec
-    out.puts("}")
+    out.puts("}))")
+    out.puts
   }
 
   override def addChildIO(io: String, childIO: String): Unit = {
@@ -250,7 +260,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
-    out.puts(s"func invalidate${publicMemberName(instName)}() { ${privateMemberName(instName)} = nil }")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) invalidate${publicMemberName(instName)}() { ${privateMemberName(instName)} = 0 }")
   }
 
   override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
@@ -406,7 +416,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def allocateIOFixed(varName: Identifier, size: String): String = {
     val ioName = idToStr(IoStorageIdentifier(varName))
-    out.puts(s"$ioName := new kaitai.NewStream(bytes.NewReader($size))")
+    out.puts(s"$ioName := kaitai.NewStream(bytes.NewReader(make([]byte, $size)))")
     ioName
   }
 
@@ -433,6 +443,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def pushPosForSubIOWriteBackHandler(io: String): Unit = {
+    importList.add("io")
     out.puts(s"pos2, err := $io.Pos()")
     translator.outAddErrCheck()
   }
@@ -445,7 +456,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def seekRelative(io: String, relPos: String): Unit = {
-    out.puts(s"$io.Seek(relPos, io.SeekCurrent)")
+    importList.add("io")
+    out.puts(s"$io.Seek($relPos, io.SeekCurrent)")
   }
 
   override def popPos(io: String): Unit = {
@@ -557,6 +569,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"$id := $expr")
+
+  def handleAssignmentError(id: Identifier, r: String): Unit = {
+    val expr = handleCompositeTypeCast(id, r)
+    out.puts(s"${privateMemberName(id)}, err = $expr")
+    translator.commonErrCheck()
+  }
 
   override def blockScopeHeader: Unit = {
     out.puts("{")
@@ -736,7 +754,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val errInst = s"kaitai.New${err.name}(${errArgsStr.mkString(", ")})"
     val noValueAndErr = translator.returnRes match {
       case None => errInst
-      case Some(r) => s"$r, $errInst"
+      case Some(r) => {
+        if (r == "nil") {
+          errInst
+        } else {
+          s"$r, $errInst"
+        }
+      }
     }
     out.puts(s"return $noValueAndErr")
     out.dec
@@ -779,7 +803,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesType =>
         s"$io.WriteBytes($exprProcessed)"
     }
-    out.puts(stmt)
+    out.puts(s"err = $stmt")
   }
 
   override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit = {
@@ -789,11 +813,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, t: DataType, exprType: DataType): Unit = {
     val exprRaw = expression(valueExpr)
     val expr = castIfNeeded(exprRaw, exprType, t)
-    out.puts(s"err = $expr.writeSeq($io)")
+    out.puts(s"err = $expr.WriteSeq($io)")
+    translator.commonErrCheck()
   }
 
-  override def exprStreamToByteArray(ioFixed: String): String =
-    s"$ioFixed.ToByteArray()"
+  override def exprStreamToByteArray(ioFixed: String): String = {
+    out.puts(s"fixedByteArray, err := $ioFixed.ToByteArray()")
+    s"fixedByteArray"
+  }
 
   override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dt: BytesType, exprTypeOpt: Option[DataType]): Unit = {
     val exprType = exprTypeOpt.getOrElse(dt)
@@ -857,13 +884,16 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit = {
-    val eofExpr = s"$io.Eof()"
+    val eofExpr = s"isEOF, err := $io.EOF()"
+    val eofVal = "isEOF"
     val ifExpr = if (!wantedIsEof) {
-      s"$eofExpr == nil"
+      s"!$eofVal"
     } else {
-      s"$eofExpr != nil"
+      s"$eofVal"
     }
 
+    out.puts(eofExpr)
+    translator.outAddErrCheck()
     out.puts(s"if $ifExpr {")
     out.inc
   }
@@ -875,6 +905,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"if ${expression(checkExpr)} {")
     out.inc
+
     out.puts(s"return kaitai.NewConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
     out.dec
     out.puts("}")
@@ -883,12 +914,16 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit = {
     val msgStr = expression(Ast.expr.Str(msg))
 
-    val eofExpr = s"$io.Eof()"
+    val eofExpr = s"isEOF, err := $io.EOF()"
+    val eofVal = "isEOF"
     val ifExpr = if (expectedIsEof) {
-      s"$eofExpr != nil"
+      s"$eofVal"
     } else {
-      s"$eofExpr == nil"
+      s"!$eofVal"
     }
+
+    out.puts(eofExpr)
+    translator.outAddErrCheck()
     out.puts(s"if $ifExpr {")
     out.inc
     out.puts(s"return kaitai.NewConsistencyError($msgStr, ${exprIORemainingSize(io)}, 0)")
@@ -976,7 +1011,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: StrType => "string"
       case _: BytesType => "[]byte"
 
-      case AnyType => "interface{}"
+      case AnyType => {
+        "interface{}"
+      }
       case KaitaiStructType | CalcKaitaiStructType(_) => "*" + kstructNameFull
       case KaitaiStreamType | OwnedKaitaiStreamType => "*" + kstreamName
 

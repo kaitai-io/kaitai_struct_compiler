@@ -85,7 +85,6 @@ trait GoWrites extends LanguageCompiler with CommonWrites with GoReads {
             val ioFixed = thisLocal.allocateIOFixed(rawId, innerSize)
             addChildIO(io, ioFixed)
 
-            blockScopeHeader
 
             pushPosForSubIOWriteBackHandler(io)
             seekRelative(io, outerSize)
@@ -106,6 +105,7 @@ trait GoWrites extends LanguageCompiler with CommonWrites with GoReads {
               attrUnprocessPrepareBeforeSubIOHandler(process, rawId)
             }
 
+
             {
               val parentIO = subIOWriteBackHeader(ioFixed, byteType.process)
               handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, true)
@@ -113,13 +113,10 @@ trait GoWrites extends LanguageCompiler with CommonWrites with GoReads {
               subIOWriteBackFooter(ioFixed)
             }
 
-            blockScopeFooter
-
             attrUserTypeInstreamWrite(ioFixed, expr, t, exprType)
         }
     }
   }
-
 
   def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit
 

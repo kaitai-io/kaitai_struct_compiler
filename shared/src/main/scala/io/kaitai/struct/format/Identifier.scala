@@ -112,3 +112,4 @@ object RootIdentifier extends SpecialIdentifier(Identifier.ROOT)
 object ParentIdentifier extends SpecialIdentifier(Identifier.PARENT)
 object IoIdentifier extends SpecialIdentifier(Identifier.IO)
 object EndianIdentifier extends SpecialIdentifier(Identifier.IS_LE)
+
