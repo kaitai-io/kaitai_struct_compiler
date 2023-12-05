@@ -23,6 +23,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   private var inSubIOWriteBackHandler = false
 
+  private var inSwitchCaseHandler = false
+
   override val translator = new GoTranslator(out, typeProvider, importList, config)
 
   override def innerClasses = false
@@ -114,7 +116,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
     val expr = expression(baseExpr)
-    out.puts(s"err = $expr.fetchInstances()")
+    var tmpVarName = "";
+    if (inSwitchCaseHandler && kaitaiType2NativeType(exprType) == "interface{}") {
+      tmpVarName = translator.interfaceTypeOfSwitchCase(expr, kaitaiType2NativeType(dataType))
+    }
+    out.puts(s"err = ${if (tmpVarName == "") expr else tmpVarName }.fetchInstances()")
     translator.commonErrCheck()
   }
 
@@ -213,6 +219,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     translator.outAddErrCheck()
     out.puts(s"pos, err := $io.Pos()")
     translator.outAddErrCheck()
+    out.puts("size = size")
+    out.puts("pos = pos")
     s"size - pos"
   }
 
@@ -457,13 +465,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def seekRelative(io: String, relPos: String): Unit = {
     importList.add("io")
-    out.puts(s"$io.Seek($relPos, io.SeekCurrent)")
+    out.puts(s"$io.Seek(int64($relPos), io.SeekCurrent)")
   }
 
   override def popPos(io: String): Unit = {
     importList.add("io")
 
-    out.puts(s"_, err = $io.Seek(_pos, io.SeekStart)")
+    out.puts(s"_, err = $io.Seek(int64(_pos), io.SeekStart)")
     translator.outAddErrCheck()
   }
 
@@ -625,24 +633,32 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"switch (${expression(on)}) {")
+    inSwitchCaseHandler = true
   }
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
     out.puts(s"case ${expression(condition)}:")
     out.inc
+
+    inSwitchCaseHandler = true
   }
 
   override def switchCaseEnd(): Unit = {
     out.dec
+    inSwitchCaseHandler = false
   }
 
   override def switchElseStart(): Unit = {
     out.puts("default:")
     out.inc
+
+    inSwitchCaseHandler = true
   }
 
-  override def switchEnd(): Unit =
+  override def switchEnd(): Unit = {
     out.puts("}")
+    inSwitchCaseHandler = false
+  }
 
   override def switchShouldUseCompareFn(onType: DataType): (Option[String], () => Unit) = {
     onType match {
@@ -656,6 +672,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchCaseStartCompareFn(compareFn: String, switchOn: Ast.expr, condition: Ast.expr): Unit = {
     out.puts(s"case ${compareFn}(${expression(switchOn)}, ${expression(condition)}):")
     out.inc
+
+    inSwitchCaseHandler = true
   }
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
@@ -813,7 +831,24 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, t: DataType, exprType: DataType): Unit = {
     val exprRaw = expression(valueExpr)
     val expr = castIfNeeded(exprRaw, exprType, t)
-    out.puts(s"err = $expr.WriteSeq($io)")
+
+    var changedExpr = valueExpr
+    var tmpVarName = ""
+    if (inSwitchCaseHandler && kaitaiType2NativeType(translator.detectType(valueExpr)) == "interface{}") {
+      val (changedActual, tmpName) = translator.interfaceTypeOfSwitchCaseInExpr(valueExpr, Option(t), (dt) => {
+        kaitaiType2NativeType(dt)
+      })
+      changedExpr = changedActual
+      tmpVarName = tmpName
+    }
+
+    if (tmpVarName != "") {
+      tmpVarName = expression(valueExpr).replace(expression(changedExpr), tmpVarName)
+    } else {
+      tmpVarName = expression(valueExpr)
+    }
+
+    out.puts(s"err = $tmpVarName.WriteSeq($io)")
     translator.commonErrCheck()
   }
 
@@ -932,13 +967,28 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
-    val msgStr = expression(Ast.expr.Str(msg))
-
     importList.add("reflect")
 
-    out.puts(s"if !reflect.DeepEqual(${expression(actual)}, ${expression(expected)}) {")
+    var changedExpr = actual
+    var tmpVarName = ""
+    val msgStr = expression(Ast.expr.Str(msg))
+    if (inSwitchCaseHandler) {
+      val (changedActual, tmpName) = translator.interfaceTypeOfSwitchCaseInExpr(actual, None, (dt) => {
+        kaitaiType2NativeType(dt)
+      })
+      changedExpr = changedActual
+      tmpVarName = tmpName
+    }
+
+    if (tmpVarName != "") {
+      tmpVarName = expression(actual).replace(expression(changedExpr), tmpVarName)
+    } else {
+      tmpVarName = expression(actual)
+    }
+
+    out.puts(s"if !reflect.DeepEqual($tmpVarName, ${expression(expected)}) {")
     out.inc
-    out.puts(s"return kaitai.NewConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
+    out.puts(s"return kaitai.NewConsistencyError($msgStr, $tmpVarName, ${expression(expected)})")
     out.dec
     out.puts("}")
   }
@@ -955,11 +1005,26 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (shouldDependOnIo.map(shouldDepend => dependsOnIo != shouldDepend).getOrElse(false))
       return
 
+    var changedExpr = actualParentExpr
+    var tmpVarName = ""
     val msgStr = expression(Ast.expr.Str(msg))
+    if (inSwitchCaseHandler) {
+      val (changedActual, tmpName) = translator.interfaceTypeOfSwitchCaseInExpr(actualParentExpr, None, (dt) => {
+        kaitaiType2NativeType(dt)
+      })
+      changedExpr = changedActual
+      tmpVarName = tmpName
+    }
 
-    out.puts(s"if !reflect.DeepEqual(${expression(actualParentExpr)}, $expectedParent) {")
+    if (tmpVarName != "") {
+      tmpVarName = expression(actualParentExpr).replace(expression(changedExpr), tmpVarName)
+    } else {
+      tmpVarName = expression(actualParentExpr)
+    }
+
+    out.puts(s"if !reflect.DeepEqual($tmpVarName, $expectedParent) {")
     out.inc
-    out.puts(s"return kaitai.NewConsistencyError($msgStr, ${expression(actualParentExpr)}, $expectedParent);")
+    out.puts(s"return kaitai.NewConsistencyError($msgStr, $tmpVarName, $expectedParent);")
     out.dec
     out.puts("}")
   }

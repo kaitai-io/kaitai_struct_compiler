@@ -17,109 +17,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   var returnRes: Option[String] = None
 
-  override def translate(v: Ast.expr): String = {
-    v match {
-      case Ast.expr.IntNum(n) =>
-        doIntLiteral(n)
-      case Ast.expr.FloatNum(n) =>
-        doFloatLiteral(n)
-      case Ast.expr.Str(s) =>
-        doStringLiteral(s)
-      case Ast.expr.Bool(n) =>
-        doBoolLiteral(n)
-      case Ast.expr.EnumById(enumType, id, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumById(enumSpec.name, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumByLabel(enumSpec.name, label.name)
-      case Ast.expr.Name(name: Ast.identifier) =>
-        if (name.name == Identifier.SIZEOF) {
-          byteSizeOfClassSpec(provider.nowClass)
-        } else {
-          doLocalName(name.name)
-        }
-      case Ast.expr.InternalName(id: Identifier) =>
-        doInternalName(id)
-      case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
-        val opStr = unaryOp(op)
-        (op, inner) match {
-          /** required by trait [[MinSignedIntegers]] - see also test cases in [[TranslatorSpec]] */
-          case (Ast.unaryop.Minus, Ast.expr.IntNum(n)) => translate(Ast.expr.IntNum(-n))
-          case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
-            s"$opStr${translate(inner)}"
-          case _ =>
-            s"$opStr(${translate(inner)})"
-        }
-      case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
-        (detectType(left), detectType(right)) match {
-          case (l: NumericType, r: NumericType) =>
-            doNumericCompareOp(left, op, right)
-          case (_: BooleanType, _: BooleanType) =>
-            op match {
-              case Ast.cmpop.Eq | Ast.cmpop.NotEq =>
-                // FIXME: probably for some languages we'll need non-numeric comparison
-                doNumericCompareOp(left, op, right)
-              case _ =>
-                throw new TypeMismatchError(s"can't compare booleans using $op operator")
-            }
-          case (_: StrType, _: StrType) =>
-            doStrCompareOp(left, op, right)
-          case (_: BytesType, _: BytesType) =>
-            doBytesCompareOp(left, op, right)
-          case (et1: EnumType, et2: EnumType) =>
-            val et1Spec = et1.enumSpec.get
-            val et2Spec = et2.enumSpec.get
-            if (et1Spec != et2Spec) {
-              throw new TypeMismatchError(s"can't compare enums type ${et1Spec.nameAsStr} and ${et2Spec.nameAsStr}")
-            } else {
-              doEnumCompareOp(left, op, right)
-            }
-          case (ltype, rtype) =>
-            throw new TypeMismatchError(s"can't compare $ltype and $rtype")
-        }
-      case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
-        (detectType(left), detectType(right), op) match {
-          case (_: NumericType, _: NumericType, _) =>
-            numericBinOp(left, op, right)
-          case (_: StrType, _: StrType, Ast.operator.Add) =>
-            strConcat(left, right)
-          case (ltype, rtype, _) =>
-            throw new TypeMismatchError(s"can't do $ltype $op $rtype")
-        }
-      case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
-        doBooleanOp(op, values)
-      case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
-        doIfExp(condition, ifTrue, ifFalse)
-      case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
-        detectType(idx) match {
-          case _: IntType =>
-            detectType(container) match {
-              case _: ArrayType =>
-                arraySubscript(container, idx)
-              case _: BytesType =>
-                bytesSubscript(container, idx)
-              case containerType =>
-                throw new TypeMismatchError(s"can't index $containerType as array")
-            }
-          case idxType =>
-            throw new TypeMismatchError(s"can't use $idx as array index (need int, got $idxType)")
-        }
-      case call: Ast.expr.Attribute =>
-        translateAttribute(call)
-      case call: Ast.expr.Call =>
-        translateCall(call)
-      case Ast.expr.List(values: Seq[Ast.expr]) =>
-        doGuessArrayLiteral(values)
-      case ctt: Ast.expr.CastToType =>
-        doCastOrArray(ctt)
-      case Ast.expr.ByteSizeOfType(typeName) =>
-        doByteSizeOfType(typeName)
-      case Ast.expr.BitSizeOfType(typeName) =>
-        doBitSizeOfType(typeName)
-    }
-  }
-
   override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     val castedType = doCast(right, detectType(left))
 
@@ -458,8 +355,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   def userType(t: UserType, io: String) = {
-    println(t.toString)
-    println(t.classSpec.get.parentClass)
     val v = allocateLocalVar()
     val parent = t.forcedParent match {
       case Some(USER_TYPE_NO_PARENT) => "nil"
@@ -528,4 +423,62 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def byteSizeOfValue(attrName: String, valType: DataType): String =
     doIntLiteral(CommonSizeOf.bitToByteSize(CommonSizeOf.getBitsSizeOfType(attrName, valType)))
+
+  def interfaceTypeOfSwitchCase(transStr: String, targetType: String): String = {
+    val transVar = allocateLocalVar()
+    val tmpVarName = localVarName(transVar)
+    out.puts(s"${tmpVarName}, ok := $transStr.($targetType)")
+    out.puts("if !ok {")
+    out.inc
+    out.puts("return nil")
+    out.dec
+    out.puts("}")
+
+    tmpVarName
+  }
+
+  def interfaceTypeOfSwitchCaseInExpr(expr: Ast.expr, dataType: Option[DataType], typeTransCallBack: (DataType) => String): (Ast.expr, String) = {
+    var changedExpr = expr
+    var tmpName = ""
+    expr match {
+      case call: Ast.expr.Attribute => {
+        val value = call.value
+
+        value match {
+          case ct: Ast.expr.CastToType => {
+            val dt = detectType(value)
+            val nativeType = typeTransCallBack(dt)
+            val transVar = allocateLocalVar()
+            val tmpVarName = localVarName(transVar)
+            out.puts(s"${tmpVarName}, ok := ${translate(value)}.($nativeType)")
+            out.puts("if !ok {")
+            out.inc
+            out.puts("return nil")
+            out.dec
+            out.puts("}")
+
+            changedExpr = value
+            tmpName = tmpVarName
+          }
+          case _ => {}
+        }
+      }
+      case name: Ast.expr.InternalName => {
+        val nativeType = typeTransCallBack(dataType.get)
+        val transVar = allocateLocalVar()
+        val tmpVarName = localVarName(transVar)
+        out.puts(s"${tmpVarName}, ok := ${translate(name)}.($nativeType)")
+        out.puts("if !ok {")
+        out.inc
+        out.puts("return nil")
+        out.dec
+        out.puts("}")
+
+        changedExpr = name
+        tmpName = tmpVarName
+      }
+      case _ => {}
+    }
+    (changedExpr, tmpName)
+  }
 }

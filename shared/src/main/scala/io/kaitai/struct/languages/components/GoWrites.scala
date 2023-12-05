@@ -85,7 +85,6 @@ trait GoWrites extends LanguageCompiler with CommonWrites with GoReads {
             val ioFixed = thisLocal.allocateIOFixed(rawId, innerSize)
             addChildIO(io, ioFixed)
 
-
             pushPosForSubIOWriteBackHandler(io)
             seekRelative(io, outerSize)
             byteType match {
@@ -104,7 +103,6 @@ trait GoWrites extends LanguageCompiler with CommonWrites with GoReads {
             byteType.process.foreach { (process) =>
               attrUnprocessPrepareBeforeSubIOHandler(process, rawId)
             }
-
 
             {
               val parentIO = subIOWriteBackHeader(ioFixed, byteType.process)
