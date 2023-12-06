@@ -120,14 +120,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (inSwitchCaseHandler && kaitaiType2NativeType(exprType) == "interface{}") {
       tmpVarName = translator.interfaceTypeOfSwitchCase(expr, kaitaiType2NativeType(dataType))
     }
+
     out.puts(s"err = ${if (tmpVarName == "") expr else tmpVarName }.fetchInstances()")
     translator.commonErrCheck()
   }
 
-  override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {
-    out.puts(s"err = ${publicMemberName(instName)}()")
-    translator.commonErrCheck()
-  }
+  override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {}
 
   override def runWriteCalc(): Unit = {
     out.puts
@@ -157,7 +155,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         )
         out.inc
         out.puts(s"${privateMemberName(IoIdentifier)} = inputIO")
+        out.puts(s"if ${privateMemberName(ParentIdentifier)} != nil {")
+        out.inc
         out.puts(s"${privateMemberName(ParentIdentifier)}.FetchInstance = this.fetchInstances")
+        out.dec
+        out.puts("}")
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
@@ -183,17 +185,26 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def writeInstanceHeader(instName: InstanceIdentifier): Unit = {
     out.puts
-    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Write${publicMemberName(instName)}() {")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Write${publicMemberName(instName)}() (err error) {")
     out.inc
     instanceClearWriteFlag(instName)
+
+    translator.returnRes = None
   }
-  // override def writeInstanceFooter(): Unit = ???
+
+  override def writeInstanceFooter(): Unit = {
+    out.puts("return nil")
+    out.dec
+    out.puts("}")
+  }
   // override def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
 
   override def checkHeader(): Unit = {
     out.puts
     out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Check() error {")
     out.inc
+
+    translator.returnRes = None
   }
   override def checkFooter(): Unit = {
     out.puts("return nil")
@@ -203,9 +214,17 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
     out.puts
-    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Check${publicMemberName(instName)}() {")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Check${publicMemberName(instName)}() (err error) {")
+    out.inc
+
+    translator.returnRes = None
   }
-  // override def checkInstanceFooter(): Unit = ???
+
+  override def checkInstanceFooter(): Unit = {
+    out.puts("return nil")
+    out.dec
+    out.puts("}")
+  }
   // override def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = ???
 
   override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {
@@ -250,21 +269,21 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = {
-    out.puts(s"var _write${publicMemberName(attrName)} = false")
-    out.puts(s"var _toWrite${publicMemberName(attrName)} = false")
+    out.puts(s"_write${publicMemberName(attrName)} bool")
+    out.puts(s"_toWrite${publicMemberName(attrName)} bool")
   }
 
   // override def instanceWriteFlagInit(attrName: InstanceIdentifier): Unit = {}
   override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = {
-    out.puts(s"_write${publicMemberName(instName)} = _toWrite${publicMemberName(instName)}")
+    out.puts(s"this._write${publicMemberName(instName)} = this._toWrite${publicMemberName(instName)}")
   }
 
   override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = {
-    out.puts(s"_write${publicMemberName(instName)} = false")
+    out.puts(s"this._write${publicMemberName(instName)} = false")
   }
 
   override def instanceToWriteSetter(instName: InstanceIdentifier): Unit = {
-    out.puts(s"func set${publicMemberName(instName)}ToWrite(_v bool) { _toWrite${publicMemberName(instName)} = _v }")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) set${publicMemberName(instName)}ToWrite(_v bool) { this._toWrite${publicMemberName(instName)} = _v }")
   }
 
   override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
@@ -272,9 +291,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if _write${publicMemberName(instName)} {")
+    out.puts(s"if this._write${publicMemberName(instName)} {")
     out.inc
-    out.puts(s"_write${publicMemberName(instName)}()")
+    out.puts(s"err := this.Write${publicMemberName(instName)}()")
+    translator.outAddErrCheck()
     out.dec
     out.puts("}")
   }
@@ -572,7 +592,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentSimple(id: Identifier, r: String): Unit = {
     val expr = handleCompositeTypeCast(id, r)
-    out.puts(s"${privateMemberName(id)} = $expr")
+    out.puts(s"${privateMemberName(id)}${if (translator.returnRes != None && translator.returnRes.get == "err") ", err" else "" } = $expr")
+    if (translator.returnRes != None && translator.returnRes.get == "err") {
+      translator.returnRes = None
+      translator.outAddErrCheck()
+    }
   }
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
@@ -793,13 +817,18 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType): String =
-    if (exprType != targetType) {
+    if (exprType != targetType || exprRaw.startsWith("(len")) {
       val castTypeId = kaitaiType2NativeType(targetType)
       targetType match {
-        case _: NumericType => s"$castTypeId($exprRaw)"
-        // TODO: if the type is str or []byte, go will throw an error and can not
-        // be use in a function call directly, so we should convert the value before
-        // enter the function call
+        case _: NumericType => {
+          val resType = exprType match {
+            case AnyType => s"$exprRaw.($castTypeId)"
+            case _ => s"$castTypeId($exprRaw)"
+          }
+
+          resType
+        }
+        // case _ : CalcUserType => s"${castTypeId.stripPrefix("*")}{ReadWriteStream: $exprRaw}"
         case _ => s"$exprRaw"
       }
     } else {
@@ -874,9 +903,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _: IntType => castIfNeeded(argStr, AnyType, Int1Type(true))
           case _ => argStr
         }
-        s"$kstreamName.ProcessXor($srcExpr, $xorValueStr)"
+        s"kaitai.ProcessXor($srcExpr, $xorValueStr)"
       case ProcessZlib =>
-        s"$kstreamName.UnprocessZlib($srcExpr)"
+        s"kaitai.UnprocessZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val argStr = if (inSubIOWriteBackHandler) "ProcessRotateArg" else expression(rotValue)
         val expr = if (!isLeft) {
@@ -884,7 +913,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           s"8 - ($argStr)"
         }
-        s"$kstreamName.ProcessRotateLeft($srcExpr, $expr, 1)"
+        s"kaitai.ProcessRotateLeft($srcExpr, $expr, 1)"
       case ProcessCustom(name, args) =>
         val namespace = name.init.mkString(".")
         val procClass = namespace +
@@ -896,6 +925,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$procName.Encode($srcExpr)"
     }
+    translator.returnRes = Some("err")
+
     handleAssignment(varDest, expr, rep, isRaw = false)
   }
 
@@ -922,9 +953,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val eofExpr = s"isEOF, err := $io.EOF()"
     val eofVal = "isEOF"
     val ifExpr = if (!wantedIsEof) {
-      s"!$eofVal"
-    } else {
       s"$eofVal"
+    } else {
+      s"!$eofVal"
     }
 
     out.puts(eofExpr)
@@ -952,9 +983,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val eofExpr = s"isEOF, err := $io.EOF()"
     val eofVal = "isEOF"
     val ifExpr = if (expectedIsEof) {
-      s"$eofVal"
-    } else {
       s"!$eofVal"
+    } else {
+      s"$eofVal"
     }
 
     out.puts(eofExpr)

@@ -389,21 +389,15 @@ object TypeDetector {
               if (t1.name == t2.name) {
                 t1
               } else {
-                if (t1.isOwning || t2.isOwning) {
-                  KaitaiStructType
-                } else {
-                  CalcKaitaiStructType()
-                }
+                // TODO: in go, only interface{} (like enum) can trans to other type, so
+                // change here
+                AnyType
               }
             case (Some(cs1), Some(cs2)) =>
               if (cs1 == cs2) {
                 t1
               } else {
-                if (t1.isOwning || t2.isOwning) {
-                  KaitaiStructType
-                } else {
-                  CalcKaitaiStructType()
-                }
+                AnyType
               }
             case (_, _) =>
               if (t1.isOwning || t2.isOwning) {

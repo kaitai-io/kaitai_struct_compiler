@@ -19,12 +19,13 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     val castedType = doCast(right, detectType(left))
+    val rawLeft = translate(left)
 
-    val r = detectType(right)
-
+    // TODO: resolve so many brackets
     detectType(right) match {
       case _: IntMultiType | _: FloatMultiType => s"${translate(left)} ${cmpOp(op)} $castedType"
-      case _ => s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+      // case _: IntType | _: FloatType => s"(${translate(left)}) ${cmpOp(op)} ${translate(right)}"
+      case _ => s"(($rawLeft) ${cmpOp(op)} ${if (rawLeft.startsWith("len(")) "int(" + s"${translate(right)})" else s"(${translate(right)})"})"
     }
   }
 
@@ -93,7 +94,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     case Ast.unaryop.Not => "!"
   }
 
-  override def doName(s: String): String = Utils.upperCamelCase(s)
+  override def doName(s: String): String = {
+    s match {
+      case Identifier.ROOT |
+           Identifier.PARENT |
+           Identifier.IO |
+           Identifier.ITERATOR | Identifier.ITERATOR2 =>
+        specialName(s)
+      case _ =>
+        Utils.upperCamelCase(s)
+    }
+  }
 
   override def doLocalName(s: String): String = {
 
@@ -160,9 +171,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def doCast(value: Ast.expr, typeName: DataType): String = {
     val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
     if (value.isInstanceOf[Ast.expr.IntNum] || value.isInstanceOf[Ast.expr.FloatNum])
-      s"(${compiler.kaitaiType2NativeType(typeName)}(${translate(value)}))"
+      s"${compiler.kaitaiType2NativeType(typeName)}(${translate(value)})"
     else
-      compiler.castIfNeeded(translate(value), AnyType, typeName)
+      compiler.castIfNeeded(translate(value), detectType(value), typeName)
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) = {
@@ -380,6 +391,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val v1 = allocateLocalVar()
     out.puts(s"${localVarName(v1)}, err := $expr")
     commonErrCheck()
+    out.puts(s"${localVarName(v1)} = ${localVarName(v1)}")
     localVarName(v1)
   }
 
