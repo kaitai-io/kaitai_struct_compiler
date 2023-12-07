@@ -25,6 +25,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   private var inSwitchCaseHandler = false
 
+  private var inswitchCaseDefaultHandler = false
+
   override val translator = new GoTranslator(out, typeProvider, importList, config)
 
   override def innerClasses = false
@@ -444,14 +446,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => getRawIdExpr(varName, rep)
     }
 
-    importList.add("bytes")
-    out.puts(s"$ioName := kaitai.NewStream(bytes.NewReader($args))")
+    importList.add("github.com/kaitai-io/kaitai_struct_go_runtime/buffer")
+    out.puts(s"$ioName := kaitai.NewStream(buffer.NewSeekableBufferWithBytes($args))")
     ioName
   }
 
   override def allocateIOFixed(varName: Identifier, size: String): String = {
     val ioName = idToStr(IoStorageIdentifier(varName))
-    out.puts(s"$ioName := kaitai.NewStream(bytes.NewReader(make([]byte, $size)))")
+    out.puts(s"$ioName := kaitai.NewStream(buffer.NewSeekableBufferWithBytes(make([]byte, $size)))")
     ioName
   }
 
@@ -513,7 +515,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     // slices don't have to be manually initialized in Go: the built-in append()
     // function works even on `nil` slices (https://go.dev/tour/moretypes/15)
-    out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayTypeInStream(dataType))})")
+    out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayTypeInStream(dataType))}, 0)")
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
@@ -825,23 +827,37 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType): String =
-    if (exprType != targetType || exprRaw.startsWith("(len")) {
-      val castTypeId = kaitaiType2NativeType(targetType)
-      targetType match {
-        case _: NumericType => {
-          val resType = exprType match {
-            case AnyType => s"$exprRaw.($castTypeId)"
-            case _ => s"$castTypeId($exprRaw)"
-          }
-
-          resType
-        }
-        // case _ : CalcUserType => s"${castTypeId.stripPrefix("*")}{ReadWriteStream: $exprRaw}"
-        case _ => s"$exprRaw"
-      }
+    if (exprRaw.contains(".(")) {
+      return exprRaw
     } else {
-      exprRaw
+      if (exprType != targetType || exprRaw.startsWith("(len")) {
+        val castTypeId = kaitaiType2NativeType(targetType)
+        targetType match {
+          case _: NumericType => {
+            val resType = exprType match {
+              case AnyType => s"$exprRaw.($castTypeId)"
+              case _ => s"$castTypeId($exprRaw)"
+            }
+            resType
+          }
+          case _: BytesType | _: BytesLimitType | _: BytesEosType => {
+            if (exprRaw.contains("_raw_")) {
+              return s"$exprRaw"
+            }
+            val resType = exprType match {
+              case AnyType => s"$exprRaw.($castTypeId)"
+              case _ => s"$exprRaw"
+            }
+            resType
+          }
+          // case _ : CalcUserType => s"${castTypeId.stripPrefix("*")}{ReadWriteStream: $exprRaw}"
+          case _ => s"$exprRaw"
+        }
+      } else {
+        exprRaw
+      }
     }
+
 
   override def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit = {
     val exprType = exprTypeOpt.getOrElse(dt)
