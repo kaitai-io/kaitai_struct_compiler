@@ -25,8 +25,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   private var inSwitchCaseHandler = false
 
-  private var inswitchCaseDefaultHandler = false
-
   override val translator = new GoTranslator(out, typeProvider, importList, config)
 
   override def innerClasses = false
