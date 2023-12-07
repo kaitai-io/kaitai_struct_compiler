@@ -106,6 +106,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(
       s"func (this *${types2class(typeProvider.nowClass.name)}) fetchInstances() (err error) {".stripMargin)
     out.inc
+
+    translator.returnRes = None
   }
 
   override def fetchInstancesFooter(): Unit = {
@@ -170,11 +172,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _ =>
         }
         out.puts
+        translator.returnRes = None
       case Some(e) =>
         out.puts
         out.puts(
           s"func (this *${types2class(typeProvider.nowClass.name)}) write${e.toSuffix}() (err error) {")
         out.inc
+        translator.returnRes = None
     }
   }
 
@@ -249,6 +253,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$subIO.SetWriteBackHandler(kaitai.NewWriteBackHandler(pos2, func($parentIoName *$kstreamName) error {")
     inSubIOWriteBackHandler = true
     out.inc
+    translator.returnRes = None
     parentIoName
   }
 
@@ -345,12 +350,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _ =>
         }
         out.puts
+        translator.returnRes = None
       case Some(e) =>
         out.puts
         out.puts(
           s"func (this *${types2class(typeProvider.nowClass.name)}) " +
             s"_read_${e.toSuffix}() (err error) {")
         out.inc
+        translator.returnRes = None
     }
 
   }
@@ -506,6 +513,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     // slices don't have to be manually initialized in Go: the built-in append()
     // function works even on `nil` slices (https://go.dev/tour/moretypes/15)
+    out.puts(s"${privateMemberName(id)} = make(${kaitaiType2NativeType(ArrayTypeInStream(dataType))})")
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {

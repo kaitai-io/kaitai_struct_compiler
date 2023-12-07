@@ -66,7 +66,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case Ast.cmpop.Eq =>
         s"bytes.Equal(${translate(left)}, ${translate(right)})"
       case _ =>
-        "(bytes.Compare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
+        s"(bytes.Compare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
     }
   }
 
