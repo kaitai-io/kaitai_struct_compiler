@@ -373,7 +373,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case None => {
         val content = t.classSpec.get.parentClass match {
           case ClassSpec(_, _, _, _, _, _, _, _, _, _, _) => "this"
-          case _ => "&this.ReadWriteStream"
+          case _ => "&this.Stream"
         }
         content
       }
@@ -390,7 +390,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def outVarCheckRes(expr: String): String = {
     val v1 = allocateLocalVar()
     out.puts(s"${localVarName(v1)}, err := $expr")
-    commonErrCheck()
+    outAddErrCheck()
     out.puts(s"${localVarName(v1)} = ${localVarName(v1)}")
     localVarName(v1)
   }
@@ -409,15 +409,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   def localVarName(n: Int) = s"tmp$n"
-
-  def commonErrCheck(): Unit = {
-    out.puts("if err != nil {")
-    out.inc
-
-    out.puts(s"return err")
-    out.dec
-    out.puts("}")
-  }
 
   def outAddErrCheck() {
     out.puts("if err != nil {")

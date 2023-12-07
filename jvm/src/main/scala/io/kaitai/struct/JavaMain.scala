@@ -11,6 +11,8 @@ import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException, ErrorInInput}
 
+import scala.collection.immutable.Map
+
 object JavaMain {
   KSVersion.current = Version.version
 
@@ -302,26 +304,54 @@ class JavaMain(config: CLIConfig) {
 
   private def compileOneInput(srcFile: String): InputEntry = {
     Log.fileOps.info(() => s"parsing $srcFile...")
-    val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(srcFile, config)
 
-    specsOpt match {
-      case Some(specs) =>
-        val output: Map[String, Map[String, SpecEntry]] = config.targets match {
-          case Seq(lang) =>
-            // single target, just use target directory as is
-            val out = compileOneLang(specs, lang, config.outDir.toString)
-            Map(lang -> out)
-          case _ =>
-            // multiple targets, use additional directories
-            compileAllLangs(specs, config)
+    val dir = new File(srcFile)
+
+    if ( dir.isDirectory ) {
+      for ( f: File <- dir.listFiles() ) {
+        val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(f.getPath, config)
+        specsOpt match {
+          case Some(specs) =>
+            val output: Map[String, Map[String, SpecEntry]] = config.targets match {
+              case Seq(lang) =>
+                // single target, just use target directory as is
+                val out = compileOneLang(specs, lang, config.outDir.toString)
+                Map(lang -> out)
+              case _ =>
+                // multiple targets, use additional directories
+                compileAllLangs(specs, config)
+            }
+            InputSuccess(
+              specs.firstSpec.nameAsStr,
+              output,
+              precompileProblems
+            )
+          case None =>
+            InputFailure(precompileProblems)
         }
-        InputSuccess(
-          specs.firstSpec.nameAsStr,
-          output,
-          precompileProblems
-        )
-      case None =>
-        InputFailure(precompileProblems)
+      }
+      null
+    } else {
+      val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(srcFile, config)
+      specsOpt match {
+        case Some(specs) =>
+          val output: Map[String, Map[String, SpecEntry]] = config.targets match {
+            case Seq(lang) =>
+              // single target, just use target directory as is
+              val out = compileOneLang(specs, lang, config.outDir.toString)
+              Map(lang -> out)
+            case _ =>
+              // multiple targets, use additional directories
+              compileAllLangs(specs, config)
+          }
+          InputSuccess(
+            specs.firstSpec.nameAsStr,
+            output,
+            precompileProblems
+          )
+        case None =>
+          InputFailure(precompileProblems)
+      }
     }
   }
 

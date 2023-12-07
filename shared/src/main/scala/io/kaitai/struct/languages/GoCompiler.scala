@@ -124,7 +124,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     out.puts(s"err = ${if (tmpVarName == "") expr else tmpVarName }.fetchInstances()")
-    translator.commonErrCheck()
+    translator.outAddErrCheck()
   }
 
   override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {}
@@ -151,17 +151,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     endian match {
       case None =>
+        out.puts(
+          s"func (this *${types2class(typeProvider.nowClass.name)}) Write(inputIO *$kstreamName) (err error) {"
+        )
+        out.inc
+        out.puts("err = this.WriteSeq(inputIO)")
+        translator.returnRes = None
+        translator.outAddErrCheck()
+        out.puts("err = this.fetchInstances()")
+        translator.returnRes = None
+        translator.outAddErrCheck()
+        out.puts("return this.WriteBackChildStreams()")
+        out.dec
+        out.puts("}")
         out.puts
         out.puts(
           s"func (this *${types2class(typeProvider.nowClass.name)}) WriteSeq(inputIO *$kstreamName) (err error) {"
         )
         out.inc
         out.puts(s"${privateMemberName(IoIdentifier)} = inputIO")
-        out.puts(s"if ${privateMemberName(ParentIdentifier)} != nil {")
-        out.inc
-        out.puts(s"${privateMemberName(ParentIdentifier)}.FetchInstance = this.fetchInstances")
-        out.dec
-        out.puts("}")
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
@@ -613,7 +621,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   def handleAssignmentError(id: Identifier, r: String): Unit = {
     val expr = handleCompositeTypeCast(id, r)
     out.puts(s"${privateMemberName(id)}, err = $expr")
-    translator.commonErrCheck()
+    translator.outAddErrCheck()
   }
 
   override def blockScopeHeader: Unit = {
@@ -900,7 +908,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     out.puts(s"err = $tmpVarName.WriteSeq($io)")
-    translator.commonErrCheck()
+    translator.outAddErrCheck()
   }
 
   override def exprStreamToByteArray(ioFixed: String): String = {
@@ -920,16 +928,16 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
-        val argStr = if (inSubIOWriteBackHandler) "ProcessXorArg" else expression(xorValue)
+        val argStr = if (inSubIOWriteBackHandler) "processXorArg" else expression(xorValue)
         val xorValueStr = translator.detectType(xorValue) match {
           case _: IntType => castIfNeeded(argStr, AnyType, Int1Type(true))
           case _ => argStr
         }
-        s"kaitai.ProcessXor($srcExpr, $xorValueStr)"
+        s"kaitai.ProcessXOR($srcExpr, $xorValueStr)"
       case ProcessZlib =>
         s"kaitai.UnprocessZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
-        val argStr = if (inSubIOWriteBackHandler) "ProcessRotateArg" else expression(rotValue)
+        val argStr = if (inSubIOWriteBackHandler) "processRotateArg" else expression(rotValue)
         val expr = if (!isLeft) {
           argStr
         } else {
@@ -956,7 +964,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     proc match {
       case ProcessXor(xorValue) =>
         val dataType = translator.detectType(xorValue)
-        out.puts(s"processXorArg := ${expression(xorValue)};")
+        out.puts(s"processXorArg := ${expression(xorValue)}")
       case ProcessRotate(_, rotValue) =>
         val dataType = translator.detectType(rotValue)
         out.puts(s"processRotateArg := ${expression(rotValue)}")
@@ -1100,7 +1108,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def kstructNameFull: String = {
     kstructName.format((config.autoRead, config.readWrite) match{
-      case (_, true) => "ReadWrite"
+      case (_, true) => ""
       case (_, false) => ""
     })
   }

@@ -41,7 +41,7 @@ class GoClassCompiler(
     lang.classHeader(curClass.name)
 
     if (config.readWrite) {
-      lang.classExtendMarks(List("kaitai.ReadWriteStream"))
+      lang.classExtendMarks(List("kaitai.Stream"))
     }
 
     compileAttrDeclarations(curClass.seq ++ curClass.params ++ extraAttrs)
