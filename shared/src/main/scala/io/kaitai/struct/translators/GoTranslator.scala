@@ -152,14 +152,14 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
     val v1 = allocateLocalVar()
     val typ = detectType(ifTrue)
-    out.puts(s"var ${localVarName(v1)} ${compiler.kaitaiType2NativeType(typ)};")
-    out.puts(s"if (${translate(condition)}) {")
+    out.puts(s"var ${localVarName(v1)} ${compiler.kaitaiType2NativeType(typ)}")
+    out.puts(s"if ${translate(condition)} {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${compiler.kaitaiType2NativeType(typ)}(${translate(ifTrue)})")
+    out.puts(s"${localVarName(v1)} = ${translate(ifTrue)}")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${compiler.kaitaiType2NativeType(typ)}(${translate(ifFalse)})")
+    out.puts(s"${localVarName(v1)} = ${translate(ifFalse)}")
     out.dec
     out.puts("}")
     localVarName(v1)
@@ -202,11 +202,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     "BIG5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese"),
     "UTF-16LE" -> ("unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
     "UTF-16BE" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
-    "\"UTF-8\"" -> ("unicode.UTF8", "golang.org/x/text/encoding/unicode")
+    "UTF-8" -> ("unicode.UTF8", "golang.org/x/text/encoding/unicode")
   )
 
   override def bytesToStr(value: String, encoding: String): String = {
-    encoding match {
+    val enc = encoding.stripPrefix("\"").stripSuffix("\"")
+    enc match {
       case "ASCII" | "UTF-8" =>
         // no conversion
         // FIXME: may be add some checks for valid ASCII/UTF-8
@@ -225,7 +226,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def strToBytes(value: Ast.expr, encoding: Ast.expr): String = {
     val strExpr = translate(value)
     val encodingExpr = translate(encoding)
-    encodingExpr match {
+
+    var enc = encodingExpr.stripPrefix("\"").stripSuffix("\"")
+    enc match {
       case "ASCII" | "UTF-8" =>
         // no conversion
         s"[]byte($strExpr)"

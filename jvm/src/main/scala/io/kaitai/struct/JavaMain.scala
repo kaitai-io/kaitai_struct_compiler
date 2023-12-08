@@ -308,6 +308,7 @@ class JavaMain(config: CLIConfig) {
     val dir = new File(srcFile)
 
     if ( dir.isDirectory ) {
+      var recordInput: InputSuccess = null
       for ( f: File <- dir.listFiles() ) {
         val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(f.getPath, config)
         specsOpt match {
@@ -321,7 +322,7 @@ class JavaMain(config: CLIConfig) {
                 // multiple targets, use additional directories
                 compileAllLangs(specs, config)
             }
-            InputSuccess(
+            recordInput = InputSuccess(
               specs.firstSpec.nameAsStr,
               output,
               precompileProblems
@@ -330,7 +331,7 @@ class JavaMain(config: CLIConfig) {
             InputFailure(precompileProblems)
         }
       }
-      null
+      recordInput
     } else {
       val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(srcFile, config)
       specsOpt match {

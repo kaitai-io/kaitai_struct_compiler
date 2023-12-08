@@ -3,6 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast.expr.IntNum
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.GoTranslator
@@ -118,7 +119,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
     val expr = expression(baseExpr)
-    var tmpVarName = "";
+    var tmpVarName = ""
     if (inSwitchCaseHandler && kaitaiType2NativeType(exprType) == "interface{}") {
       tmpVarName = translator.interfaceTypeOfSwitchCase(expr, kaitaiType2NativeType(dataType))
     }
@@ -134,11 +135,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"switch ${privateMemberName(EndianIdentifier)} {")
     out.puts("case 0:")
     out.inc
-    out.puts("err = this._write_be()")
+    out.puts("err = this.writebe()")
     out.dec
     out.puts("case 1:")
     out.inc
-    out.puts("err = this._wirte_le()")
+    out.puts("err = this.writele()")
     out.dec
     out.puts("default:")
     out.inc
@@ -170,6 +171,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         )
         out.inc
         out.puts(s"${privateMemberName(IoIdentifier)} = inputIO")
+
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
@@ -300,7 +302,21 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
-    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) invalidate${publicMemberName(instName)}() { ${privateMemberName(instName)} = 0 }")
+    // go can not convert num to bool directly
+    val actualNameAndType = instName.name.split("_insplit_")
+    var instType = "0"
+    if ( actualNameAndType.length == 2 ) {
+      if (actualNameAndType(1).contains("bool")) {
+        instType = "false"
+      } else if ( actualNameAndType(1).contains("usertype") || actualNameAndType(1).contains("arraytype")) {
+        instType = "nil"
+      } else if (actualNameAndType(1).contains("strtype")) {
+        instType = "\"\""
+      }
+    }
+
+    val actualInst = InstanceIdentifier(actualNameAndType(0))
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) invalidate${publicMemberName(actualInst)}() { ${privateMemberName(actualInst)} = $instType }")
   }
 
   override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
@@ -649,7 +665,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           ""
         } else {
           val parent = t.forcedParent match {
-            case Some(USER_TYPE_NO_PARENT) => "null"
+            case Some(USER_TYPE_NO_PARENT) => "nil"
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
@@ -742,7 +758,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"if (this.${calculatedFlagForName(instName)}) {")
+    out.puts(s"if this.${calculatedFlagForName(instName)} {")
     out.inc
     instanceReturn(instName, dataType)
     universalFooter
@@ -930,11 +946,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case ProcessXor(xorValue) =>
         val argStr = if (inSubIOWriteBackHandler) "processXorArg" else expression(xorValue)
         val xorValueStr = translator.detectType(xorValue) match {
-          case _: IntType => castIfNeeded(argStr, AnyType, Int1Type(true))
-          case _ => argStr
+          case _: IntType => s"kaitai.ProcessXOR($srcExpr, []byte{$argStr})"
+          case _ => s"kaitai.ProcessXOR($srcExpr, $argStr)"
         }
-        s"kaitai.ProcessXOR($srcExpr, $xorValueStr)"
+        translator.returnRes = None
+        xorValueStr
       case ProcessZlib =>
+        translator.returnRes = Some("err")
         s"kaitai.UnprocessZlib($srcExpr)"
       case ProcessRotate(isLeft, rotValue) =>
         val argStr = if (inSubIOWriteBackHandler) "processRotateArg" else expression(rotValue)
@@ -943,7 +961,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         } else {
           s"8 - ($argStr)"
         }
-        s"kaitai.ProcessRotateLeft($srcExpr, $expr, 1)"
+        translator.returnRes = None
+        s"kaitai.ProcessRotateLeft($srcExpr, int($expr))"
       case ProcessCustom(name, args) =>
         val namespace = name.init.mkString(".")
         val procClass = namespace +
@@ -953,9 +972,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         if (!inSubIOWriteBackHandler) {
           out.puts(s"$procName := New$procClass(${args.map(expression).mkString(", ")})")
         }
+        translator.returnRes = Some("err")
         s"$procName.Encode($srcExpr)"
     }
-    translator.returnRes = Some("err")
 
     handleAssignment(varDest, expr, rep, isRaw = false)
   }
@@ -964,7 +983,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     proc match {
       case ProcessXor(xorValue) =>
         val dataType = translator.detectType(xorValue)
-        out.puts(s"processXorArg := ${expression(xorValue)}")
+        out.puts(s"var processXorArg uint8 = ${expression(xorValue)}")
       case ProcessRotate(_, rotValue) =>
         val dataType = translator.detectType(rotValue)
         out.puts(s"processRotateArg := ${expression(rotValue)}")
@@ -1058,7 +1077,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (ut.isOpaque)
       return
     val (expectedParent, dependsOnIo) = ut.forcedParent match {
-      case Some(USER_TYPE_NO_PARENT) => ("null", false)
+      case Some(USER_TYPE_NO_PARENT) => ("nil", false)
       case Some(fp) =>
         (expression(fp), userExprDependsOnIo(fp))
       case None => ("this", false)
@@ -1085,7 +1104,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"if !reflect.DeepEqual($tmpVarName, $expectedParent) {")
     out.inc
-    out.puts(s"return kaitai.NewConsistencyError($msgStr, $tmpVarName, $expectedParent);")
+    out.puts(s"return kaitai.NewConsistencyError($msgStr, $tmpVarName, $expectedParent)")
     out.dec
     out.puts("}")
   }
@@ -1174,6 +1193,8 @@ object GoCompiler extends LanguageCompilerStatic
       case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
       case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
+      case OuterSizeIdentifier(innerId) => s"${idToStr(innerId)}_OuterSize"
+      case InnerSizeIdentifier(innerId) => s"${idToStr(innerId)}_InnerSize"
     }
 
   def publicMemberName(id: Identifier): String =

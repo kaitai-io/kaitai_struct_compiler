@@ -1,11 +1,12 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype.DataType.{CalcIntType, KaitaiStreamType, UserTypeInstream, UserType}
+import io.kaitai.struct.datatype.DataType.{CalcIntType, KaitaiStreamType, UserType, UserTypeInstream}
 import io.kaitai.struct.datatype.{BigEndian, CalcEndian, Endianness, FixedEndian, InheritedEndian, LittleEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.languages.components.ExtraAttrs
+import io.kaitai.struct.translators.GoTranslator
 
 class GoClassCompiler(
   classSpecs: ClassSpecs,
@@ -116,7 +117,11 @@ class GoClassCompiler(
           lang.attrCheck(pi, instName)
           lang.checkInstanceFooter
         case _: ValueInstanceSpec =>
-          lang.instanceInvalidate(instName)
+          var newInst = instName
+          if (lang.translator.isInstanceOf[GoTranslator]) {
+            newInst = InstanceIdentifier(instName.name.concat(s"_insplit_${dataType.toString.split('(')(0).toLowerCase()}"))
+          }
+          lang.instanceInvalidate(newInst)
       }
   }
 
