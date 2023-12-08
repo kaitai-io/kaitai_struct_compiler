@@ -33,8 +33,14 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String = s"$topClassName.rb"
   override def indent: String = "  "
 
-  override def outImports(topClass: ClassSpec) =
+  override def outImports(topClass: ClassSpec) = {
+    import java.nio.file.Paths
+    val path = topClass.fileName.get
+    val fileName = java.nio.file.Paths.get(path).getFileName.toString.replace(".ksy", "")
+    val spec = typeProvider.allClasses.get(fileName).get
+    spec.meta.imports.foreach(path => importList.add(path))
     importList.toList.map((x) => s"require '$x'").mkString("\n") + "\n"
+  }
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
@@ -478,7 +484,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"raise ${ksErrorName(err)}.new($errArgsStr) if not ${translator.translate(checkExpr)}")
   }
 
-  def types2class(names: List[String]) = names.map(type2class).mkString("::")
+  def types2class(names: List[String]) = type2class(names.last) //.map(type2class).mkString("::")
 }
 
 object RubyCompiler extends LanguageCompilerStatic
