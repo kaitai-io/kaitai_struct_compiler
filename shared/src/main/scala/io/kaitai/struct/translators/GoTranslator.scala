@@ -359,7 +359,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def boolToInt(value: Ast.expr): String = {
     val v = allocateLocalVar()
-    out.puts(s"${localVarName(v)} := 0")
+    out.puts(s"var ${localVarName(v)} uint64 = 0")
     out.puts(s"if ${translate(value)} {")
     out.inc
     out.puts(s"${localVarName(v)} = 1")
