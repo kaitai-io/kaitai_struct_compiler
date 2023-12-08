@@ -1,0 +1,18 @@
+diff --git a/lib/kaitai/struct/visualizer/parser.rb b/lib/kaitai/struct/visualizer/parser.rb
+index e109fd1..52e68e3 100644
+--- a/lib/kaitai/struct/visualizer/parser.rb
++++ b/lib/kaitai/struct/visualizer/parser.rb
+@@ -24,11 +24,11 @@ module Kaitai::Struct::Visualizer
+       main_class_name = @compiler.compile_formats_if(@formats_fn)
+ 
+       main_class = Kernel.const_get(main_class_name)
+-      @data = main_class.from_file(@bin_fn)
+ 
+       load_exc = nil
+       begin
+-        @data._read
++        @data = main_class.from_file(@bin_fn)
++        #@data._read
+       rescue EOFError => e
+         load_exc = e
+       rescue Kaitai::Struct::Stream::UnexpectedDataError => e
