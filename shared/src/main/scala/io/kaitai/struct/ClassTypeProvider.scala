@@ -68,7 +68,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     * @param inClass type specification to search member in
     * @param attrName name of a member to search for
     * @return member spec if found, or throws an exception
-    * @throws format.InvalidIdentifier if attribute name is not a valid name for a member
+    * @throws InvalidIdentifier if attribute name is not a valid name for a member
     * @throws precompile.FieldNotFoundError if attribute with such name is not found
     */
   def resolveMember(inClass: ClassSpec, attrName: String): MemberSpec = {
