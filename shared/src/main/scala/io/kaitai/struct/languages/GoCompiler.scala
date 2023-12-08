@@ -162,7 +162,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts("err = this.fetchInstances()")
         translator.returnRes = None
         translator.outAddErrCheck()
-        out.puts("return this.WriteBackChildStreams()")
+        out.puts("return this._io.WriteBackChildStreams()")
         out.dec
         out.puts("}")
         out.puts
