@@ -385,8 +385,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
     val root = if (t.isOpaque) "nil" else "this._root"
     val addParams = t.args.map((a) => translate(a)).mkString(", ")
-    out.puts(s"${localVarName(v)} := New${GoCompiler.types2class(t.classSpec.get.name)}($io, $parent, $root)")
-    out.puts(s"err = ${localVarName(v)}.Read()")
+    out.puts(s"${localVarName(v)} := New${GoCompiler.types2class(t.classSpec.get.name)}($addParams)")
+    out.puts(s"err = ${localVarName(v)}.Read($io, $parent, $root)")
     outAddErrCheck()
     localVarName(v)
   }

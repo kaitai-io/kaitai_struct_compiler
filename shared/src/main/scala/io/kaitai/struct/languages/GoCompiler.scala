@@ -91,14 +91,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val paramsArg = params.map((p) =>
       s"${paramName(p.id)} ${kaitaiType2NativeType(p.dataType)}"
     ).mkString(", ")
-    // TODO: change this
-    out.puts(s"func New${types2class(name)}(_io *kaitai.Stream, _parent ${kaitaiType2NativeType(parentType)}, _root *${types2class(rootClassName)}) *${types2class(name)} {")
-    out.inc
-    out.puts(s"return &${types2class(name)}{")
-    out.inc
-    out.puts("_io: _io, _parent: _parent, _root: _root,".stripMargin)
-    out.dec
-    out.puts("}")
+
+    if (types2class(name) == type2class(rootClassName.head)) {
+      out.puts(s"func New${types2class(name)}(_io *kaitai.Stream) *${types2class(name)} {")
+      out.inc
+      out.puts(s"return &${types2class(name)}{ _io: _io }")
+    } else {
+      out.puts(s"func New${types2class(name)}($paramsArg) *${types2class(name)} {")
+      out.inc
+      out.puts(s"return &${types2class(name)}{")
+      out.inc
+      params.foreach(p => out.puts(s"${idToStr(p.id)}: ${paramName(p.id)},"))
+      out.dec
+      out.puts("}")
+    }
     universalFooter
   }
 
@@ -156,10 +162,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     endian match {
       case None =>
         out.puts(
-          s"func (this *${types2class(typeProvider.nowClass.name)}) Write() (err error) {"
+          s"func (this *${types2class(typeProvider.nowClass.name)}) WriteWithIO(inputIO *$kstreamName) (err error) {"
         )
         out.inc
-        out.puts("err = this.WriteSeq()")
+        out.puts("err = this.WriteSeq(inputIO)")
         translator.returnRes = None
         translator.outAddErrCheck()
         out.puts("err = this.fetchInstances()")
@@ -170,10 +176,24 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts("}")
         out.puts
         out.puts(
-          s"func (this *${types2class(typeProvider.nowClass.name)}) WriteSeq() (err error) {"
+          s"func (this *${types2class(typeProvider.nowClass.name)}) Write() (err error) {"
         )
         out.inc
-
+        out.puts("err = this.WriteSeq(this._io)")
+        translator.returnRes = None
+        translator.outAddErrCheck()
+        out.puts("err = this.fetchInstances()")
+        translator.returnRes = None
+        translator.outAddErrCheck()
+        out.puts("return this._io.WriteBackChildStreams()")
+        out.dec
+        out.puts("}")
+        out.puts
+        out.puts(
+          s"func (this *${types2class(typeProvider.nowClass.name)}) WriteSeq(inputIO *$kstreamName) (err error) {"
+        )
+        out.inc
+        out.puts(s"${privateMemberName(IoIdentifier)} = inputIO")
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
@@ -356,8 +376,16 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     endian match {
       case None =>
         out.puts
-        out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Read() (err error) {")
+        out.puts(
+          s"func (this *${types2class(typeProvider.nowClass.name)}) Read(" +
+            s"io *$kstreamName, " +
+            s"parent ${kaitaiType2NativeType(typeProvider.nowClass.parentType)}, " +
+            s"root *${types2class(typeProvider.topClass.name)}) (err error) {"
+        )
         out.inc
+        out.puts(s"${privateMemberName(IoIdentifier)} = io")
+        out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
+        out.puts(s"${privateMemberName(RootIdentifier)} = root")
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
@@ -933,7 +961,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       tmpVarName = expression(valueExpr)
     }
 
-    out.puts(s"err = $tmpVarName.WriteSeq()")
+    out.puts(s"err = $tmpVarName.WriteSeq($io)")
     translator.outAddErrCheck()
   }
 

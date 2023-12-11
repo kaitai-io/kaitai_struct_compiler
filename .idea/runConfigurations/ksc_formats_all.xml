@@ -2,7 +2,7 @@
   <configuration default="false" name="ksc formats all" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="io.kaitai.struct.JavaMain" />
     <module name="kaitai-struct-compiler" />
-    <option name="PROGRAM_PARAMETERS" value="--verbose all -t go --ksc-exceptions -d ../tests/compiled --java-package io.kaitai.struct.testformats --php-namespace 'Kaitai\Struct\Tests' --go-package test_formats --nim-module &quot;kaitai_struct_nim_runtime&quot; --nim-opaque &quot;../../tests/spec/nim/opaque/&quot; --read-write /tmp/test_formats/cast_nested.ksy" />
+    <option name="PROGRAM_PARAMETERS" value="--verbose all -t go --ksc-exceptions -d ../tests/compiled --java-package io.kaitai.struct.testformats --php-namespace 'Kaitai\Struct\Tests' --go-package test_formats --nim-module &quot;kaitai_struct_nim_runtime&quot; --nim-opaque &quot;../../tests/spec/nim/opaque/&quot; --read-write /tmp/test.ksy" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="io.kaitai.struct.*" />
