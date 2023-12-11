@@ -92,19 +92,18 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"${paramName(p.id)} ${kaitaiType2NativeType(p.dataType)}"
     ).mkString(", ")
 
-    if (types2class(name) == type2class(rootClassName.head)) {
-      out.puts(s"func New${types2class(name)}(_io *kaitai.Stream) *${types2class(name)} {")
-      out.inc
-      out.puts(s"return &${types2class(name)}{ _io: _io }")
-    } else {
-      out.puts(s"func New${types2class(name)}($paramsArg) *${types2class(name)} {")
-      out.inc
-      out.puts(s"return &${types2class(name)}{")
-      out.inc
-      params.foreach(p => out.puts(s"${idToStr(p.id)}: ${paramName(p.id)},"))
-      out.dec
-      out.puts("}")
-    }
+    out.puts(s"func New${types2class(name)}(_io *kaitai.Stream, _parent ${kaitaiType2NativeType(parentType)}, _root *${type2class(rootClassName(0))}) *${types2class(name)} {")
+    out.inc
+    out.puts(s"if ${if (kaitaiType2NativeType(parentType) == "*kaitai.Stream") "_parent" else "_parent._io"} != nil {")
+    out.inc
+    out.puts(s"_io = ${if (kaitaiType2NativeType(parentType) == "*kaitai.Stream") "_parent" else "_parent._io"}")
+    out.dec
+    out.puts("}")
+    out.puts(s"return &${types2class(name)}{")
+    out.inc
+    out.puts("_io: _io, _parent: _parent, _root: _root,")
+    out.dec
+    out.puts("}")
     universalFooter
   }
 
@@ -161,20 +160,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     endian match {
       case None =>
-        out.puts(
-          s"func (this *${types2class(typeProvider.nowClass.name)}) WriteWithIO(inputIO *$kstreamName) (err error) {"
-        )
-        out.inc
-        out.puts("err = this.WriteSeq(inputIO)")
-        translator.returnRes = None
-        translator.outAddErrCheck()
-        out.puts("err = this.fetchInstances()")
-        translator.returnRes = None
-        translator.outAddErrCheck()
-        out.puts("return this._io.WriteBackChildStreams()")
-        out.dec
-        out.puts("}")
-        out.puts
         out.puts(
           s"func (this *${types2class(typeProvider.nowClass.name)}) Write() (err error) {"
         )
@@ -377,15 +362,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case None =>
         out.puts
         out.puts(
-          s"func (this *${types2class(typeProvider.nowClass.name)}) Read(" +
-            s"io *$kstreamName, " +
-            s"parent ${kaitaiType2NativeType(typeProvider.nowClass.parentType)}, " +
-            s"root *${types2class(typeProvider.topClass.name)}) (err error) {"
+          s"func (this *${types2class(typeProvider.nowClass.name)}) Read() (err error) {"
         )
         out.inc
-        out.puts(s"${privateMemberName(IoIdentifier)} = io")
-        out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
-        out.puts(s"${privateMemberName(RootIdentifier)} = root")
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
@@ -530,13 +509,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def pushPosForSubIOWriteBackHandler(io: String): Unit = {
     importList.add("io")
-    if (firstPos2InScopeHandler) {
-      out.puts(s"pos2, err := $io.Pos()")
-      firstPos2InScopeHandler = false
-    } else {
-      out.puts(s"pos2, err = $io.Pos()")
-    }
-
+    out.puts(s"pos2, err := $io.Pos()")
     translator.outAddErrCheck()
   }
 
