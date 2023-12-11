@@ -310,7 +310,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         instType = "false"
       } else if ( actualNameAndType(1).contains("usertype") || actualNameAndType(1).contains("arraytype") || actualNameAndType(1).contains("bytestype") ) {
         instType = "nil"
-      } else if (actualNameAndType(1).contains("strtype")) {
+      } else if (actualNameAndType(1).contains("str")) {
         instType = "\"\""
       }
     }
