@@ -323,7 +323,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     val actualInst = InstanceIdentifier(actualNameAndType(0))
-    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) invalidate${publicMemberName(actualInst)}() { ${privateMemberName(actualInst)} = $instType }")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Invalidate${publicMemberName(actualInst)}() { ${privateMemberName(actualInst)} = $instType; this.${calculatedFlagForName(actualInst)} = false; }")
   }
 
   override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
