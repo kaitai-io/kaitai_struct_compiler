@@ -760,7 +760,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts(s"func (this *$className) SizeOf() (uint64, error) {")
     out.inc
-    out.puts("return kaitai.Sizeof(this)")
+    out.puts("return kaitai.SizeOf(this)")
     out.dec
     out.puts("}")
   }
@@ -792,11 +792,27 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"this.${calculatedFlagForName(instName)} = true")
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
-    val fullEnumName: List[String] = curClass ++ List(enumName)
+    val actualNameAndType = enumName.split("_insplit_")
+    var typeName = "int"
+    val actualEnumName = actualNameAndType(0)
+
+    val fullEnumName: List[String] = curClass ++ List(actualEnumName)
     val fullEnumNameStr = types2class(fullEnumName)
 
+    if (actualNameAndType.length == 2) {
+      val splittedType = actualNameAndType(1).split(",")
+      if (splittedType(0).contains("false")) {
+        typeName = "uint"
+      }
+      splittedType(1) match {
+        case "Width1" => typeName += "8"
+        case "Width2" => typeName += "16"
+        case "Width8" => typeName += "64"
+      }
+    }
+
     out.puts
-    out.puts(s"type $fullEnumNameStr int")
+    out.puts(s"type $fullEnumNameStr $typeName")
     out.puts("const (")
     out.inc
 

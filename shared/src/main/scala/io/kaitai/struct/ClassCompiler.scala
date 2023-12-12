@@ -6,6 +6,7 @@ import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{AttrSpec, _}
 import io.kaitai.struct.languages.components.{ExtraAttrs, LanguageCompiler, LanguageCompilerStatic}
+import io.kaitai.struct.translators.GoTranslator
 
 class ClassCompiler(
   classSpecs: ClassSpecs,
@@ -467,8 +468,13 @@ class ClassCompiler(
       }
   }
 
-  def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =
-    lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
+  def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit = {
+    var enumName = enumColl.name.last
+    if (lang.translator.isInstanceOf[GoTranslator] && enumColl.enumType != null) {
+      enumName = s"${enumName}_insplit_${enumColl.enumType.toString()}"
+    }
+    lang.enumDeclaration(curClass.name, enumName, enumColl.sortedSeq)
+  }
 
   def isUnalignedBits(dt: DataType): Boolean =
     dt match {

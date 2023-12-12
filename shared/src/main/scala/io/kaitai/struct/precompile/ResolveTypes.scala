@@ -49,7 +49,7 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileSt
         ut.classSpec = resClassSpec
         problems
       case et: EnumType =>
-        et.enumSpec = resolveEnumSpec(curClass, et.name)
+        et.enumSpec = resolveEnumSpec(curClass, et.name, et.basedOn)
         if (et.enumSpec.isEmpty) {
           Some(EnumNotFoundErr(et.name, curClass, path))
         } else {
@@ -134,10 +134,10 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileSt
     }
   }
 
-  def resolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
+  def resolveEnumSpec(curClass: ClassSpec, typeName: List[String], basedOnType: DataType = null): Option[EnumSpec] = {
     Log.enumResolve.info(() => s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
 
-    val res = realResolveEnumSpec(curClass, typeName)
+    val res = realResolveEnumSpec(curClass, typeName, basedOnType)
     res match {
       case None => {
         Log.enumResolve.info(() => s"    => ???")
@@ -150,7 +150,7 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileSt
     }
   }
 
-  private def realResolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
+  private def realResolveEnumSpec(curClass: ClassSpec, typeName: List[String], basedOnType: DataType = null): Option[EnumSpec] = {
     // First, try to do it in current class
 
     // If we're seeking composite name, we only have to resolve the very first
@@ -158,10 +158,17 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileSt
     val firstName :: restNames = typeName
 
     val resolvedHere = if (restNames.isEmpty) {
-      curClass.enums.get(firstName)
+      val rawEnum = curClass.enums.get(firstName)
+      if (rawEnum.isEmpty) {
+        None
+      } else {
+        val gettedEnum = rawEnum.get
+        gettedEnum.enumType = basedOnType
+        Some(gettedEnum)
+      }
     } else {
       curClass.types.get(firstName).flatMap((nestedClass) =>
-        resolveEnumSpec(nestedClass, restNames)
+        resolveEnumSpec(nestedClass, restNames, basedOnType)
       )
     }
 
@@ -171,11 +178,11 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileSt
         // No luck resolving here, let's try upper levels, if they exist
         curClass.upClass match {
           case Some(upClass) =>
-            resolveEnumSpec(upClass, typeName)
+            resolveEnumSpec(upClass, typeName, basedOnType)
           case None =>
             // Check this class if it's top-level class
             if (curClass.name.head == firstName) {
-              resolveEnumSpec(curClass, restNames)
+              resolveEnumSpec(curClass, restNames, basedOnType)
             } else {
               // Check if top-level specs has this name
               // If there's None => no luck at all
@@ -186,7 +193,7 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileSt
                   // resolved everything, but this points to a type name, not enum name
                   None
                 } else {
-                  resolveEnumSpec(classSpec, restNames)
+                  resolveEnumSpec(classSpec, restNames, basedOnType)
                 }
               }
             }
