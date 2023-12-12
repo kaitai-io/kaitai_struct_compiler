@@ -92,6 +92,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"${paramName(p.id)} ${kaitaiType2NativeType(p.dataType)}"
     ).mkString(", ")
 
+    out.puts
     out.puts(s"func New${types2class(name)}(_io *kaitai.Stream, _parent ${kaitaiType2NativeType(parentType)}, _root *${type2class(rootClassName(0))}) *${types2class(name)} {")
     out.inc
     out.puts(s"if _io == nil {")
@@ -105,6 +106,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
     universalFooter
+    instanceSizeOf(types2class(name))
   }
 
   override def classConstructorFooter: Unit = {}
@@ -374,7 +376,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
               s"${idToStr(EndianIdentifier)}")
           case _ =>
         }
-        out.puts
         translator.returnRes = None
       case Some(e) =>
         out.puts
@@ -753,6 +754,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: StrType => "\"\""
       case _ => "nil"
     })
+  }
+
+  def instanceSizeOf(className: String): Unit = {
+    out.puts
+    out.puts(s"func (this *$className) SizeOf() (uint64, error) {")
+    out.inc
+    out.puts("return kaitai.Sizeof(this)")
+    out.dec
+    out.puts("}")
   }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
