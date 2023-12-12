@@ -152,6 +152,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
     val v1 = allocateLocalVar()
     val typ = detectType(ifTrue)
+    val rightTyp = detectType(ifFalse)
+
     out.puts(s"var ${localVarName(v1)} ${compiler.kaitaiType2NativeType(typ)}")
     out.puts(s"if ${translate(condition)} {")
     out.inc

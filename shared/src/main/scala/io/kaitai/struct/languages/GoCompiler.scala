@@ -801,13 +801,17 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     if (actualNameAndType.length == 2) {
       val splittedType = actualNameAndType(1).split(",")
-      if (splittedType(0).contains("false")) {
-        typeName = "uint"
-      }
-      splittedType(1) match {
-        case "Width1" => typeName += "8"
-        case "Width2" => typeName += "16"
-        case "Width8" => typeName += "64"
+      if (splittedType.length >= 1) {
+        if (splittedType(0).contains("false")) {
+          typeName = "uint"
+        }
+        if (splittedType.length >= 2) {
+          splittedType(1) match {
+            case "Width1" => typeName += "8"
+            case "Width2" => typeName += "16"
+            case "Width8" => typeName += "64"
+          }
+        }
       }
     }
 
