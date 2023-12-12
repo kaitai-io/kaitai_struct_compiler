@@ -281,13 +281,19 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String = {
-    s"${translate(s)}[${translate(from)}:${translate(to)}]"
+    val t = detectType(s)
+    s"${if (t.isInstanceOf[BytesTerminatedType]) translate(s) + "Bytes()" else translate(s)}[${translate(from)}:${translate(to)}]"
   }
 
-  override def arrayFirst(a: Ast.expr): String = s"${translate(a)}[0]"
+  override def arrayFirst(a: Ast.expr): String = {
+    val t = detectType(a)
+    s"${if (t.isInstanceOf[BytesTerminatedType]) translate(a) + "Bytes()" else translate(a)}[0]"
+  }
 
-  override def arrayLast(a: Ast.expr): String = s"${translate(a)}[len(${translate(a)}) - 1]"
-
+  override def arrayLast(a: Ast.expr): String = {
+    val t = detectType(a)
+    s"${if (t.isInstanceOf[BytesTerminatedType]) translate(a) + s".Bytes()[len(${translate(a)}) - 1]" else translate(a) + s"[len(${translate(a)}) - 1]"}"
+  }
   override def arraySize(a: Ast.expr): String = {
     val t = detectType(a)
     s"len(${if (t.isInstanceOf[BytesTerminatedType]) translate(a) + ".Bytes()" else translate(a)})"
@@ -296,8 +302,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def arrayMin(a: Ast.expr): String = {
     val min = allocateLocalVar()
     val value = allocateLocalVar()
-    out.puts(s"${localVarName(min)} := ${translate(a)}[0]")
-    out.puts(s"for _, ${localVarName(value)} := range ${translate(a)} {")
+
+    val t = detectType(a)
+    val translatedA = if (t.isInstanceOf[BytesTerminatedType]) translate(a) + ".Bytes()" else translate(a)
+
+    out.puts(s"${localVarName(min)} := $translatedA[0]")
+    out.puts(s"for _, ${localVarName(value)} := range $translatedA {")
     out.inc
     out.puts(s"if ${localVarName(min)} > ${localVarName(value)} {")
     out.inc
