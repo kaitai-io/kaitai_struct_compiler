@@ -152,16 +152,20 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
     val v1 = allocateLocalVar()
     val typ = detectType(ifTrue)
-    val rightTyp = detectType(ifFalse)
 
-    out.puts(s"var ${localVarName(v1)} ${compiler.kaitaiType2NativeType(typ)}")
+    var emuType = "int64"
+    if (compiler.kaitaiType2NativeType(typ).startsWith("uint")) {
+      emuType = "uint64"
+    }
+
+    out.puts(s"var ${localVarName(v1)} $emuType")
     out.puts(s"if ${translate(condition)} {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifTrue)}")
+    out.puts(s"${localVarName(v1)} = $emuType(${translate(ifTrue)})")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${compiler.kaitaiType2NativeType(typ)}(${translate(ifFalse)})")
+    out.puts(s"${localVarName(v1)} = $emuType(${translate(ifFalse)})")
     out.dec
     out.puts("}")
     localVarName(v1)
