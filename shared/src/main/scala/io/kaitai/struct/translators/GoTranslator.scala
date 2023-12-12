@@ -159,7 +159,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifFalse)}")
+    out.puts(s"${localVarName(v1)} = ${compiler.kaitaiType2NativeType(typ)}(${translate(ifFalse)})")
     out.dec
     out.puts("}")
     localVarName(v1)

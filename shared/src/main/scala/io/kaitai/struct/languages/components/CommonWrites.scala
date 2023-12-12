@@ -80,11 +80,14 @@ trait CommonWrites extends LanguageCompiler with GenericChecks with CommonReads 
     if (attr.cond.repeat != NoRepeat) {
       condRepeatCommonHeader(id, io, attr.dataType)
     }
-    attr.cond.repeat match {
-      case RepeatEos =>
-        attrIsEofCheck(id, false, io)
-      case _ =>
-    }
+
+    /**
+     * attr.cond.repeat match {
+     * case RepeatEos =>
+     * attrIsEofCheck(id, false, io)
+     * case _ =>
+     * }
+     */
     attrWrite2(id, attr.dataType, io, attr.cond.repeat, false, defEndian, checksShouldDependOnIo)
     attr.cond.repeat match {
       case repUntil: RepeatUntil =>

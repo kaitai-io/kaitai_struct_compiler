@@ -94,7 +94,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"func New${types2class(name)}(_io *kaitai.Stream, _parent ${kaitaiType2NativeType(parentType)}, _root *${type2class(rootClassName(0))}) *${types2class(name)} {")
     out.inc
-    out.puts(s"if ${if (kaitaiType2NativeType(parentType) == "*kaitai.Stream") "_parent" else "_parent._io"} != nil {")
+    out.puts(s"if _io == nil {")
     out.inc
     out.puts(s"_io = ${if (kaitaiType2NativeType(parentType) == "*kaitai.Stream") "_parent" else "_parent._io"}")
     out.dec
