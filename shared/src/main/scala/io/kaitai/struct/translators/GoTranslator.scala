@@ -46,7 +46,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String = {
     importList.add("bytes")
-    s"bytes.IndexByte(${translate(b)}, ${translate(byte)})"
+
+    val t = detectType(b)
+    s"bytes.IndexByte(${if (t.isInstanceOf[BytesTerminatedType]) translate(b) + ".Bytes()" else translate(b) }, ${translate(byte)})"
   }
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
@@ -229,23 +231,43 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
+  def rawTerminatedBytesToStr(value: String, rt: StrFromBytesType): String = {
+    val enc = rt.encoding.stripPrefix("\"").stripSuffix("\"")
+    rt.bytes match {
+      case bt: BytesTerminatedType => {
+        ENCODINGS.get(enc) match {
+          case Some((decoderSrc, importName)) =>
+            importList.add(importName)
+            s"kaitai.NewStringTerminatedType(string($value), $decoderSrc, ${bt.terminator}, ${bt.include}, ${bt.consume}, ${bt.eosError})"
+          case None =>
+            throw new RuntimeException(s"encoding '$enc' in not supported in Go")
+        }
+      }
+      case _ => bytesToStr(value, rt.encoding)
+    }
+  }
+
   override def strToBytes(value: Ast.expr, encoding: Ast.expr): String = {
     val strExpr = translate(value)
     val encodingExpr = translate(encoding)
-
-    var enc = encodingExpr.stripPrefix("\"").stripSuffix("\"")
-    enc match {
-      case "ASCII" | "UTF-8" =>
-        // no conversion
-        s"[]byte($strExpr)"
-      case encStr =>
-        ENCODINGS.get(encStr) match {
-          case Some((encoderSrc, importName)) =>
-            importList.add(importName)
-            outVarCheckRes(s"kaitai.StrToBytes($strExpr, $encoderSrc.NewEncoder())")
-          case None =>
-            throw new RuntimeException(s"encoding '$encStr' in not supported in Go")
+    val valueType = detectType(value)
+    valueType match {
+      case _: StrFromBytesType => s"[]byte($strExpr.String())"
+      case _ => {
+        encodingExpr.stripPrefix("\"").stripSuffix("\"") match {
+          case "ASCII" | "UTF-8" =>
+            // no conversion
+            s"[]byte($strExpr)"
+          case encStr =>
+            ENCODINGS.get(encStr) match {
+              case Some((encoderSrc, importName)) =>
+                importList.add(importName)
+                outVarCheckRes(s"kaitai.StrToBytes($strExpr, $encoderSrc.NewEncoder())")
+              case None =>
+                throw new RuntimeException(s"encoding '$encStr' in not supported in Go")
+            }
         }
+      }
     }
   }
 
@@ -266,7 +288,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def arrayLast(a: Ast.expr): String = s"${translate(a)}[len(${translate(a)}) - 1]"
 
-  override def arraySize(a: Ast.expr): String = s"len(${translate(a)})"
+  override def arraySize(a: Ast.expr): String = {
+    val t = detectType(a)
+    s"len(${if (t.isInstanceOf[BytesTerminatedType]) translate(a) + ".Bytes()" else translate(a)})"
+  }
 
   override def arrayMin(a: Ast.expr): String = {
     val min = allocateLocalVar()

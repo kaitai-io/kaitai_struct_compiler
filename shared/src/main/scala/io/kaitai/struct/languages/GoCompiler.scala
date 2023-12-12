@@ -3,7 +3,7 @@ package io.kaitai.struct.languages
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast.expr.IntNum
+import io.kaitai.struct.exprlang.Ast.expr.{IntNum, InternalName}
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.GoTranslator
@@ -402,7 +402,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val goType = kaitaiType2NativeType(attrType)
     val name = idToStr(attrName)
 
-    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Set${idToStr(attrName)}(_v $goType) *${types2class(typeProvider.nowClass.name)} { this.$name = _v; return this; }")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Set${idToStr(attrName)}(_v $goType) { this.$name = _v; }")
   }
   override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit = {
     out.puts(s"${expression(base)}.${publicMemberName(propName)} = $value")
@@ -811,6 +811,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case "Width2" => typeName += "16"
             case "Width4" => typeName += "32"
             case "Width8" => typeName += "64"
+            case _ => typeName
           }
         }
       }
@@ -892,7 +893,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType): String =
     if (exprRaw.contains(".(")) {
-      return exprRaw
+      exprRaw
     } else {
       if (exprType != targetType || exprRaw.startsWith("(len")) {
         val castTypeId = kaitaiType2NativeType(targetType)
@@ -926,7 +927,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit = {
     val exprType = exprTypeOpt.getOrElse(dt)
     val exprRaw = expression(expr)
-    val exprProcessed = castIfNeeded(exprRaw, exprType, dt)
+    var exprProcessed = castIfNeeded(exprRaw, exprType, dt)
+
+    if (exprType.isInstanceOf[BytesTerminatedType] && expr.isInstanceOf[InternalName]) {
+      exprProcessed = exprProcessed + ".Bytes()"
+    }
 
     val stmt = dt match {
       case t: ReadableType =>
@@ -1197,6 +1202,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case CalcIntType => "int"
       case CalcFloatType => "float64"
 
+      // Some specual cases
+      case _: StrFromBytesType => s"*${kTerminatedType.format("String")}"
+      case _: BytesTerminatedType => s"*${kTerminatedType.format("Bytes")}"
+      // Normal cases
       case _: StrType => "string"
       case _: BytesType => "[]byte"
 
@@ -1267,6 +1276,8 @@ object GoCompiler extends LanguageCompilerStatic
 
   def enumToStr(typeName: List[String], enumName: String): String =
     types2class(typeName) + "__" + type2class(enumName)
+
+  def kTerminatedType: String = "kaitai.%sTerminatedType"
 
   override def kstreamName: String = "kaitai.Stream"
   override def kstructName: String = "kaitai.%sStream"
