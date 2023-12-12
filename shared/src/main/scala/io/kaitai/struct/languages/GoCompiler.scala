@@ -809,6 +809,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           splittedType(1) match {
             case "Width1" => typeName += "8"
             case "Width2" => typeName += "16"
+            case "Width4" => typeName += "32"
             case "Width8" => typeName += "64"
           }
         }
