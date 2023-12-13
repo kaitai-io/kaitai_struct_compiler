@@ -116,6 +116,27 @@ trait GoWrites extends LanguageCompiler with CommonWrites with GoReads {
     }
   }
 
+  override def attrBytesTypeWrite2(
+     id: Identifier,
+     io: String,
+     expr: Ast.expr,
+     t: BytesType,
+     checksShouldDependOnIo: Option[Boolean],
+     exprTypeOpt: Option[DataType]
+   ): Unit = {
+    attrBytesCheck(id, expr, t, checksShouldDependOnIo)
+    t match {
+      case bt: BytesEosType =>
+        attrBytesLimitWrite2(io, expr, bt, exprIORemainingSize(io), bt.padRight, bt.terminator, bt.include, exprTypeOpt)
+        attrIsEofCheck(id, true, io)
+      case bt: BytesLimitType =>
+        attrBytesLimitWrite2(io, expr, bt, expression(bt.size), bt.padRight, bt.terminator, bt.include, exprTypeOpt)
+      case t: BytesTerminatedType =>
+        attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
+        // Changed: delete terminated output
+    }
+  }
+
   def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit
 
   def attrUserTypeInstreamWrite(io: String, expr: Ast.expr, t: DataType, exprType: DataType): Unit

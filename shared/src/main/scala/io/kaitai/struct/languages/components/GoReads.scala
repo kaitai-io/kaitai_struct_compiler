@@ -10,9 +10,15 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
   val translator: GoTranslator
 
   def attrRawBytesTypeParse(
-    t: BytesTerminatedType, value: String
+    id: Identifier, t: BytesTerminatedType, value: String
   ): String = {
-    s"kaitai.NewBytesTerminatedType($value, ${t.terminator})(${t.include}, ${t.consume}, ${t.eosError})"
+    translator.terminatedConstructorFact(id, t, Map(
+      "terminator" -> t.terminator,
+      "include"    -> t.include,
+      "consume"    -> t.consume,
+      "eosError"   -> t.eosError,
+    ))
+    s"New_${idToStr(id)}TerminatedType($value, ${t.terminator})(${t.include}, ${t.consume}, ${t.eosError})"
   }
 
   def attrBytesTypeParse(
@@ -68,14 +74,14 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
         attrUserTypeParse(id, t, io, rep, defEndian)
       case t: BytesTerminatedType =>
         val r1 = parseExprBytes(translator.outVarCheckRes(parseExpr(t, io, defEndian)), t)
-        attrRawBytesTypeParse(t, r1)
+        attrRawBytesTypeParse(id, t, r1)
       case t: BytesType =>
         attrBytesTypeParse(id, t, io, rep, isRaw)
       case st: SwitchType =>
         attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, st.isNullableSwitchRaw, st.combinedType)
       case t: StrFromBytesType =>
         val r1 = parseExprBytes(translator.outVarCheckRes(parseExpr(t.bytes, io, defEndian)), t.bytes)
-        val expr = translator.rawTerminatedBytesToStr(r1, t)
+        val expr = translator.rawTerminatedBytesToStr(r1, t, id)
         handleAssignment(id, expr, rep, isRaw)
       case t: EnumType =>
         val r1 = translator.outVarCheckRes(parseExpr(t.basedOn, io, defEndian))

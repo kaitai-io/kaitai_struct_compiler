@@ -8,6 +8,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.GoTranslator
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.precompile.TypeMismatchError
 
 class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -111,6 +112,24 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classConstructorFooter: Unit = {}
 
+  def terminatorConstructor(id: String, dt: DataType, params: Map[String, Any]): String = {
+    val (valueType, returnType, tag) = dt match {
+      case _: StrFromBytesType => ("string", kTerminatedType.format("String"), "String")
+      case _: BytesTerminatedType => ("[]byte", kTerminatedType.format("Bytes"), "Bytes")
+      case _ =>
+        throw new TypeMismatchError(s"bad terminator type, got ${dt.toString}")
+    }
+    out.puts
+    out.puts(s"func New_${id}TerminatedType(value $valueType) *$returnType {")
+    out.inc
+    out.puts(s"${valueType.stripPrefix("[]")}Type := kaitai.New${tag}TerminatedType(${params.map(kv => kv._2.toString).mkString(", ")})")
+    out.puts(s"${valueType.stripPrefix("[]")}Type.Data = value")
+    out.puts(s"return ${valueType.stripPrefix("[]")}Type")
+    out.dec
+    out.puts("}")
+
+    out.result
+  }
 
   override def fetchInstancesHeader(): Unit = {
     out.puts
@@ -390,6 +409,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def readFooter: Unit = {
     out.puts("return err")
     universalFooter
+    translator.terminatedTypesStack.foreach(fn => out.puts(fn()))
+    translator.terminatedTypesStack = List()
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
@@ -1203,7 +1224,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case CalcFloatType => "float64"
 
       // Some specual cases
-      case _: StrFromBytesType => s"*${kTerminatedType.format("String")}"
+      case sbt: StrFromBytesType => {
+        sbt.bytes match {
+          case _: BytesTerminatedType =>  s"*${kTerminatedType.format("String")}"
+          case _ => "string"
+        }
+      }
       case _: BytesTerminatedType => s"*${kTerminatedType.format("Bytes")}"
       // Normal cases
       case _: StrType => "string"

@@ -11,7 +11,6 @@ import io.kaitai.struct.format.NamedIdentifier
 import io.kaitai.struct.format.InstanceIdentifier
 import io.kaitai.struct.precompile.TypeMismatchError
 
-
 class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   import io.kaitai.struct.languages.GoCompiler._
 
@@ -213,6 +212,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     "UTF-8" -> ("unicode.UTF8", "golang.org/x/text/encoding/unicode")
   )
 
+  var terminatedTypesStack: List[() => String] = List()
+
   override def bytesToStr(value: String, encoding: String): String = {
     val enc = encoding.stripPrefix("\"").stripSuffix("\"")
     enc match {
@@ -231,14 +232,24 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  def rawTerminatedBytesToStr(value: String, rt: StrFromBytesType): String = {
+  def rawTerminatedBytesToStr(value: String, rt: StrFromBytesType, id: Identifier): String = {
     val enc = rt.encoding.stripPrefix("\"").stripSuffix("\"")
     rt.bytes match {
       case bt: BytesTerminatedType => {
+        if (bt.terminator == None) {
+          return bytesToStr(value, rt.encoding)
+        }
         ENCODINGS.get(enc) match {
           case Some((decoderSrc, importName)) =>
             importList.add(importName)
-            s"kaitai.NewStringTerminatedType(string($value), $decoderSrc, ${bt.terminator}, ${bt.include}, ${bt.consume}, ${bt.eosError})"
+            terminatedConstructorFact(id, rt, Map(
+              "encoding"   -> decoderSrc,
+              "terminator" -> bt.terminator,
+              "include"    -> bt.include,
+              "consume"    -> bt.consume,
+              "eosError"   -> bt.eosError
+            ))
+            s"New_${idToStr(id)}TerminatedType(string($value))"
           case None =>
             throw new RuntimeException(s"encoding '$enc' in not supported in Go")
         }
@@ -247,12 +258,21 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
+  def terminatedConstructorFact(id: Identifier, dt: DataType, params: Map[String, Any]) = {
+    val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
+    val idStr = idToStr(id)
+    terminatedTypesStack = terminatedTypesStack.:+(() => {
+      compiler.terminatorConstructor(idStr, dt, params)
+    })
+    null
+  }
+
   override def strToBytes(value: Ast.expr, encoding: Ast.expr): String = {
     val strExpr = translate(value)
     val encodingExpr = translate(encoding)
     val valueType = detectType(value)
     valueType match {
-      case _: StrFromBytesType => s"[]byte($strExpr.String())"
+      case sbt if (sbt.isInstanceOf[StrFromBytesType] && sbt.asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType]) => s"[]byte($strExpr.String())"
       case _ => {
         encodingExpr.stripPrefix("\"").stripSuffix("\"") match {
           case "ASCII" | "UTF-8" =>
