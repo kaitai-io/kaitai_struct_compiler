@@ -947,11 +947,24 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit = {
     val exprType = exprTypeOpt.getOrElse(dt)
-    val exprRaw = expression(expr)
+    var exprRaw = expression(expr)
     var exprProcessed = castIfNeeded(exprRaw, exprType, dt)
 
+    if (exprRaw.contains(";")) {
+      val newedExprRaw = exprRaw.split(";")
+      out.puts(newedExprRaw(0))
+      translator.returnRes = None
+      translator.outAddErrCheck()
+      exprRaw = newedExprRaw(1)
+      out.puts(s"${newedExprRaw(0).split(",")(0)} = ${newedExprRaw(0).split(",")(0)}")
+      exprProcessed = castIfNeeded(exprRaw, exprType, dt)
+    }
+
     if (exprType.isInstanceOf[BytesTerminatedType] && expr.isInstanceOf[InternalName]) {
-      exprProcessed = exprProcessed + ".Bytes()"
+      out.puts(s"byteProcesed := $exprProcessed.Write()")
+      translator.returnRes = None
+      translator.outAddErrCheck()
+      exprProcessed = "byteProcesed"
     }
 
     val stmt = dt match {

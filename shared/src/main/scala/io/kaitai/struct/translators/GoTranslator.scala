@@ -47,7 +47,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     importList.add("bytes")
 
     val t = detectType(b)
-    s"bytes.IndexByte(${if (t.isInstanceOf[BytesTerminatedType]) translate(b) + ".Bytes()" else translate(b) }, ${translate(byte)})"
+    s"bytes.IndexByte(${terminatedTypeConvert(b, t)}, ${translate(byte)})"
   }
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
@@ -271,8 +271,16 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val strExpr = translate(value)
     val encodingExpr = translate(encoding)
     val valueType = detectType(value)
+
+    var strId = strExpr
+    if (strId.contains(".")) {
+      strId = strId.split("\\.").last
+    }
     valueType match {
-      case sbt if (sbt.isInstanceOf[StrFromBytesType] && sbt.asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType]) => s"[]byte($strExpr.String())"
+      case sbt if (sbt.isInstanceOf[StrFromBytesType] && sbt.asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType]) => {
+        val v = allocateLocalVar()
+        s"wirte${strId}${v}Byte, err := $strExpr.Write();[]byte(wirte${strId}${v}Byte)"
+      }
       case _ => {
         encodingExpr.stripPrefix("\"").stripSuffix("\"") match {
           case "ASCII" | "UTF-8" =>
@@ -302,21 +310,38 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String = {
     val t = detectType(s)
-    s"${if (t.isInstanceOf[BytesTerminatedType]) translate(s) + "Bytes()" else translate(s)}[${translate(from)}:${translate(to)}]"
+    s"${terminatedTypeConvert(s, t)}[${translate(from)}:${translate(to)}]"
   }
 
   override def arrayFirst(a: Ast.expr): String = {
     val t = detectType(a)
-    s"${if (t.isInstanceOf[BytesTerminatedType]) translate(a) + "Bytes()" else translate(a)}[0]"
+    s"${terminatedTypeConvert(a, t)}}[0]"
   }
 
   override def arrayLast(a: Ast.expr): String = {
     val t = detectType(a)
-    s"${if (t.isInstanceOf[BytesTerminatedType]) translate(a) + s".Bytes()[len(${translate(a)}) - 1]" else translate(a) + s"[len(${translate(a)}) - 1]"}"
+    s"${terminatedTypeConvert(a, t)}[len(${translate(a)}) - 1]"
   }
   override def arraySize(a: Ast.expr): String = {
     val t = detectType(a)
-    s"len(${if (t.isInstanceOf[BytesTerminatedType]) translate(a) + ".Bytes()" else translate(a)})"
+    s"len(${terminatedTypeConvert(a, t)})"
+  }
+
+  def terminatedTypeConvert(a: Ast.expr, t: DataType) = {
+    val exprRaw = translate(a)
+    if (t.isInstanceOf[BytesTerminatedType]) {
+      val allocatedTempVar = allocateLocalVar()
+      s"$exprRaw.Write()"
+    } else {
+      if (exprRaw.contains(";")) {
+        val newedExprRaw = exprRaw.split(";")
+        out.puts(newedExprRaw(0))
+        returnRes = None
+        outAddErrCheck()
+        out.puts(s"${newedExprRaw(0).split(",")(0)} = ${newedExprRaw(0).split(",")(0)}")
+        newedExprRaw(1)
+      }
+    }
   }
 
   override def arrayMin(a: Ast.expr): String = {
