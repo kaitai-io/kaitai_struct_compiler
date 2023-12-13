@@ -12,13 +12,17 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
   def attrRawBytesTypeParse(
     id: Identifier, t: BytesTerminatedType, value: String
   ): String = {
+    val rawId = t.process match {
+      case None => id
+      case Some(_) => RawIdentifier(id)
+    }
     translator.terminatedConstructorFact(id, t, Map(
       "terminator" -> t.terminator,
       "include"    -> t.include,
       "consume"    -> t.consume,
       "eosError"   -> t.eosError,
     ))
-    s"New_${idToStr(id)}TerminatedType($value, ${t.terminator})(${t.include}, ${t.consume}, ${t.eosError})"
+    s"New_${idToStr(id)}TerminatedType($value)"
   }
 
   def attrBytesTypeParse(
@@ -73,8 +77,14 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
       case t: UserType =>
         attrUserTypeParse(id, t, io, rep, defEndian)
       case t: BytesTerminatedType =>
+        val rawId = t.process match {
+          case None => id
+          case Some(_) => RawIdentifier(id)
+        }
         val r1 = parseExprBytes(translator.outVarCheckRes(parseExpr(t, io, defEndian)), t)
-        attrRawBytesTypeParse(id, t, r1)
+        val expr = attrRawBytesTypeParse(id, t, r1)
+        handleAssignment(rawId, expr, rep, isRaw)
+        t.process.foreach((proc) => attrProcess(proc, rawId, id, rep))
       case t: BytesType =>
         attrBytesTypeParse(id, t, io, rep, isRaw)
       case st: SwitchType =>
