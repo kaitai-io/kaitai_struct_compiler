@@ -108,7 +108,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   override def doLocalName(s: String): String = {
-
     s match {
       case Identifier.ROOT |
            Identifier.PARENT |
@@ -155,18 +154,21 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val typ = detectType(ifTrue)
 
     var emuType = "int64"
-    if (compiler.kaitaiType2NativeType(typ).startsWith("uint")) {
+    val convertedType = compiler.kaitaiType2NativeType(typ)
+    if (convertedType.startsWith("uint")) {
       emuType = "uint64"
+    } else {
+      emuType = convertedType
     }
 
     out.puts(s"var ${localVarName(v1)} $emuType")
     out.puts(s"if ${translate(condition)} {")
     out.inc
-    out.puts(s"${localVarName(v1)} = $emuType(${translate(ifTrue)})")
+    out.puts(s"${localVarName(v1)} = ${if (typ.toString.contains("UserType")) translate(ifTrue) else s"$emuType(${translate(ifTrue)})"}")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts(s"${localVarName(v1)} = $emuType(${translate(ifFalse)})")
+    out.puts(s"${localVarName(v1)} = ${if (typ.toString.contains("UserType")) translate(ifFalse) else s"$emuType(${translate(ifFalse)})"}")
     out.dec
     out.puts("}")
     localVarName(v1)
@@ -209,7 +211,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     "BIG5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese"),
     "UTF-16LE" -> ("unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
     "UTF-16BE" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
-    "UTF-8" -> ("unicode.UTF8", "golang.org/x/text/encoding/unicode")
+    "UTF-8" -> ("unicode.UTF8", "golang.org/x/text/encoding/unicode"),
+    "ASCII" -> ("nil", "")
   )
 
   var terminatedTypesStack: List[() => String] = List()
@@ -241,7 +244,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         }
         ENCODINGS.get(enc) match {
           case Some((decoderSrc, importName)) =>
-            importList.add(importName)
+            if (importName != "") importList.add(importName)
             terminatedConstructorFact(id, rt, Map(
               "encoding"   -> decoderSrc,
               "terminator" -> bt.terminator,
@@ -466,7 +469,13 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case Some(fp) => translate(fp)
       case None => {
         val content = t.classSpec.get.parentClass match {
-          case ClassSpec(_, _, _, _, _, _, _, _, _, _, _) => "this"
+          case _: ClassSpec => {
+            if (t.classSpec.get.isTopLevel) {
+              "&this.Stream"
+            } else {
+              "this"
+            }
+          }
           case _ => "&this.Stream"
         }
         content

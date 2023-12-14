@@ -336,7 +336,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if ( actualNameAndType.length == 2 ) {
       if (actualNameAndType(1).contains("bool")) {
         instType = "false"
-      } else if ((actualNameAndType(1).contains("usertype") || actualNameAndType(1).contains("arraytype") || actualNameAndType(1).contains("bytestype")) && !actualNameAndType(1).contains("from")) {
+      } else if (actualNameAndType(1).contains("usertype") || actualNameAndType(1).contains("arraytype") || actualNameAndType(1).contains("bytestype")) {
         instType = "nil"
       } else if (actualNameAndType(1).contains("str")) {
         instType = "\"\""

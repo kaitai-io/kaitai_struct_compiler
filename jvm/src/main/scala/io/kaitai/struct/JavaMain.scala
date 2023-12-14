@@ -271,8 +271,8 @@ class JavaMain(config: CLIConfig) {
   def run(): Unit = {
     val logs: Map[String, InputEntry] = config.srcFiles.map { srcFile =>
       val log = if (config.throwExceptions) {
-        compileOneInput(srcFile)
-      } else {
+        compileOneInput(srcFile)      } else {
+
         try {
           compileOneInput(srcFile)
         } catch {

@@ -10,7 +10,7 @@ sealed trait DataType {
     * @return Data type as non-owning data type. Default implementation
     *         always returns itself, complex types
     */
-  def asNonOwning(isOwningInExpr: Boolean = false): DataType = this
+  def asNonOwningasNonOwning(isOwningInExpr: Boolean = false): DataType = this
 }
 
 /**
