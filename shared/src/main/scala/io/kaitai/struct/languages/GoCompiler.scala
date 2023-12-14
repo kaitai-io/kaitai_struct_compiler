@@ -961,10 +961,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     if (exprType.isInstanceOf[BytesTerminatedType] && expr.isInstanceOf[InternalName]) {
-      out.puts(s"byteProcesed := $exprProcessed.Write()")
+      val alByte = translator.allocateLocalVar()
+      out.puts(s"byte${alByte}Procesed, err := $exprProcessed.Write()")
       translator.returnRes = None
       translator.outAddErrCheck()
-      exprProcessed = "byteProcesed"
+      exprProcessed = s"byte${alByte}Procesed"
     }
 
     val stmt = dt match {

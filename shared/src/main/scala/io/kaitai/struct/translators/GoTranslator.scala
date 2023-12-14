@@ -331,7 +331,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val exprRaw = translate(a)
     if (t.isInstanceOf[BytesTerminatedType]) {
       val allocatedTempVar = allocateLocalVar()
-      s"$exprRaw.Write()"
+      out.puts(s"newBytes${allocatedTempVar}, err := $exprRaw.Write()")
+      returnRes = None
+      outAddErrCheck()
+      s"newBytes${allocatedTempVar}"
     } else {
       if (exprRaw.contains(";")) {
         val newedExprRaw = exprRaw.split(";")
@@ -340,6 +343,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         outAddErrCheck()
         out.puts(s"${newedExprRaw(0).split(",")(0)} = ${newedExprRaw(0).split(",")(0)}")
         newedExprRaw(1)
+      } else {
+        exprRaw
       }
     }
   }
