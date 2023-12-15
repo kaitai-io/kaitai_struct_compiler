@@ -19,12 +19,16 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     val castedType = doCast(right, detectType(left))
     val rawLeft = translate(left)
-
+    // TODO: very ugly
+    var oops = op
+    if (rawLeft.contains("newBytes") && op == Ast.cmpop.NotEq) {
+        oops = Ast.cmpop.Eq
+    }
     // TODO: resolve so many brackets
     detectType(right) match {
-      case _: IntMultiType | _: FloatMultiType => s"${translate(left)} ${cmpOp(op)} $castedType"
+      case _: IntMultiType | _: FloatMultiType => s"${translate(left)} ${cmpOp(oops)} $castedType"
       // case _: IntType | _: FloatType => s"(${translate(left)}) ${cmpOp(op)} ${translate(right)}"
-      case _ => s"(($rawLeft) ${cmpOp(op)} ${if (rawLeft.startsWith("len(")) "int(" + s"${translate(right)})" else s"(${translate(right)})"})"
+      case _ => s"(($rawLeft) ${cmpOp(oops)} ${if (rawLeft.startsWith("len(")) "int(" + s"${translate(right)})" else s"(${translate(right)})"})"
     }
   }
 
@@ -54,8 +58,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     (detectType(left), detectType(right), op) match {
       case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
         s"(${translate(left)} % ${translate(right)} + ${translate(right)}) % ${translate(right)}"
+      // TODO: for go, this is special
       case _ =>
-        s"(${translate(left)} ${binOp(op)} ${translate(right)})"
+        s"(uint32(${translate(left)}) ${binOp(op)} uint32(${translate(right)}))"
     }
   }
 

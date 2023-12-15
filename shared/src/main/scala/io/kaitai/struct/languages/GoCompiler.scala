@@ -786,9 +786,17 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
+  def preHandleGoAst(ast: Ast.expr): Ast.expr = {
+    ast match {
+      case Ast.expr.BinOp(left, op, right) => {
+        Ast.expr.BinOp(preHandleGoAst(left), op, preHandleGoAst(right))
+      }
+      case _ => ast
+    }
+  }
+
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     val r = translator.translate(value)
-    val rtype = translator.detectType(value)
 
     val converted = dataType match {
       case _: UserType => r
