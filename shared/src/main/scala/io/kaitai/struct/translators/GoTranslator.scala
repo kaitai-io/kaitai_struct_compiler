@@ -55,12 +55,40 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
+    val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
     (detectType(left), detectType(right), op) match {
       case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
         s"(${translate(left)} % ${translate(right)} + ${translate(right)}) % ${translate(right)}"
       // TODO: for go, this is special
+      case (t1: IntType, t2: IntType, _) => {
+        val t1T = compiler.kaitaiType2NativeType(t1)
+        val t1Size = t1 match {
+          case CalcIntType => 32
+          case it :IntMultiType => it.width.width * 8
+          case _: Int1Type => 8
+          case _ => 32
+        }
+        val t2T = compiler.kaitaiType2NativeType(t2)
+        val t2Size = t2 match {
+          case CalcIntType => 32
+          case it: IntMultiType => it.width.width * 8
+          case _: Int1Type => 8
+          case _ => 32
+        }
+        val res = if (t2T != t1T) {
+          if (t1Size > t2Size) {
+            s"(${t1T}(${translate(left)}) ${binOp(op)} ${t1T}(${translate(right)}))"
+          } else {
+            s"(${t2T}(${translate(left)}) ${binOp(op)} ${t2T}(${translate(right)}))"
+          }
+
+        } else {
+          s"(${translate(left)} ${binOp(op)} ${translate(right)})"
+        }
+        res
+      }
       case _ =>
-        s"(uint32(${translate(left)}) ${binOp(op)} uint32(${translate(right)}))"
+        s"(${translate(left)} ${binOp(op)} ${translate(right)})"
     }
   }
 
