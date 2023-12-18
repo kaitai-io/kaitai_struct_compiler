@@ -21,15 +21,33 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val rawLeft = translate(left)
     // TODO: very ugly
     var oops = op
-    if (rawLeft.contains("newBytes") && op == Ast.cmpop.NotEq) {
+    if (rawLeft.contains("newBytes") || (rawLeft.contains("wirte") && rawLeft.contains("Byte")) && op == Ast.cmpop.NotEq) {
         oops = Ast.cmpop.Eq
     }
     // TODO: resolve so many brackets
     detectType(right) match {
-      case _: IntMultiType | _: FloatMultiType => s"${translate(left)} ${cmpOp(oops)} $castedType"
+      case _: IntMultiType | _: FloatMultiType | CalcIntType => s"${translate(left)} ${cmpOp(oops)} $castedType"
       // case _: IntType | _: FloatType => s"(${translate(left)}) ${cmpOp(op)} ${translate(right)}"
       case _ => s"(($rawLeft) ${cmpOp(oops)} ${if (rawLeft.startsWith("len(")) "int(" + s"${translate(right)})" else s"(${translate(right)})"})"
     }
+  }
+
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
+    val fn = (side: Ast.expr) => {
+      detectType(side) match {
+        case bytesType: StrFromBytesType if bytesType.bytes.isInstanceOf[BytesTerminatedType] =>
+          val btt = bytesType.bytes.asInstanceOf[BytesTerminatedType]
+          if (btt != null) {
+            ".Write()"
+          } else {
+            ""
+          }
+        case _ =>
+          ""
+      }
+    }
+
+    s"${translate(left)}${fn(left)} ${cmpOp(op)} ${translate(right)}${fn(right)}"
   }
 
   override def doByteSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
@@ -92,7 +110,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  override def strConcat(left: Ast.expr, right: Ast.expr): String = translate(left) + " + " + translate(right)
+  override def strConcat(left: Ast.expr, right: Ast.expr): String = {
+    translate(left) + " + " + translate(right)
+  }
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     importList.add("bytes")
@@ -285,7 +305,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
               "consume"    -> bt.consume,
               "eosError"   -> bt.eosError
             ))
-            s"New_${idToStr(id)}TerminatedType(string($value))"
+            s"this.New_${idToStr(id)}TerminatedType(string($value))"
           case None =>
             throw new RuntimeException(s"encoding '$enc' in not supported in Go")
         }
@@ -311,6 +331,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     var strId = strExpr
     if (strId.contains(".")) {
       strId = strId.split("\\.").last
+      if (strId.contains("[") && strId.contains("]")) {
+        strId = strId.replace("[", "_").replace("]", "")
+      }
+    } else if (strId.contains("[") && strId.contains("]")) {
+      strId = strId.replace("[", "_").replace("]", "")
     }
     valueType match {
       case sbt if (sbt.isInstanceOf[StrFromBytesType] && sbt.asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType]) => {
@@ -370,6 +395,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       out.puts(s"newBytes${allocatedTempVar}, err := $exprRaw.Write()")
       returnRes = None
       outAddErrCheck()
+      out.puts(s"newBytes${allocatedTempVar} = newBytes${allocatedTempVar}")
       s"newBytes${allocatedTempVar}"
     } else {
       if (exprRaw.contains(";")) {
@@ -389,13 +415,27 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val min = allocateLocalVar()
     val value = allocateLocalVar()
 
+    var elemIsTerminatedType = false
+
     val t = detectType(a)
-    val translatedA = if (t.isInstanceOf[BytesTerminatedType]) translate(a) + ".Bytes()" else translate(a)
+    val translatedA = t match {
+      case _: BytesTerminatedType => {
+        s"${translate(a)}).Bytes()"
+      }
+      case sbt: StrFromBytesType if (sbt.bytes.isInstanceOf[BytesTerminatedType]) => {
+        s"${translate(a)}).String()"
+      }
+      case cat: ArrayType if (cat.elType.isInstanceOf[BytesTerminatedType] || (cat.isInstanceOf[StrFromBytesType] && cat.asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType])) => {
+        elemIsTerminatedType = true
+        translate(a)
+      }
+      case _ => translate(a)
+    }
 
     out.puts(s"${localVarName(min)} := $translatedA[0]")
     out.puts(s"for _, ${localVarName(value)} := range $translatedA {")
     out.inc
-    out.puts(s"if ${localVarName(min)} > ${localVarName(value)} {")
+    out.puts(s"if ${localVarName(min)}${if (elemIsTerminatedType) ".String()" else "" } > ${localVarName(value)}${if (elemIsTerminatedType) ".String()" else ""} {")
     out.inc
     out.puts(s"${localVarName(min)} = ${localVarName(value)}")
     out.dec

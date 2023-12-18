@@ -27,7 +27,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   private var inSwitchCaseHandler = false
 
-  private var firstPos2InScopeHandler = true
+  private var nowPosName = ""
 
   override val translator = new GoTranslator(out, typeProvider, importList, config)
 
@@ -120,7 +120,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         throw new TypeMismatchError(s"bad terminator type, got ${dt.toString}")
     }
     out.puts
-    out.puts(s"func New_${id}TerminatedType(value $valueType) *$returnType {")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) New_${id}TerminatedType(value $valueType) *$returnType {")
     out.inc
     out.puts(s"${valueType.stripPrefix("[]")}Type := kaitai.New${tag}TerminatedType(${params.map(kv => kv._2.toString).mkString(", ")})")
     out.puts(s"${valueType.stripPrefix("[]")}Type.Data = value")
@@ -288,7 +288,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = {
     val parentIoName = "parent"
 
-    out.puts(s"$subIO.SetWriteBackHandler(kaitai.NewWriteBackHandler(pos2, func($parentIoName *$kstreamName) error {")
+    out.puts(s"$subIO.SetWriteBackHandler(kaitai.NewWriteBackHandler(${nowPosName}, func($parentIoName *$kstreamName) error {")
     inSubIOWriteBackHandler = true
     out.inc
     translator.returnRes = None
@@ -531,7 +531,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def pushPosForSubIOWriteBackHandler(io: String): Unit = {
     importList.add("io")
-    out.puts(s"pos2, err := $io.Pos()")
+    nowPosName = s"pos${translator.allocateLocalVar()}"
+    out.puts(s"$nowPosName, err := $io.Pos()")
     translator.outAddErrCheck()
   }
 
@@ -559,7 +560,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)} {")
-    firstPos2InScopeHandler = true
     out.inc
   }
 
@@ -772,7 +772,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     translator.returnRes = Some(dataType match {
       case _: NumericType => "0"
       case _: BooleanType => "false"
-      case _: StrType => "\"\""
+      case st: StrType => {
+        st match {
+          case sbt: StrFromBytesType if sbt.bytes.isInstanceOf[BytesTerminatedType] => "nil"
+          case _ => "\"\""
+        }
+      }
       case _ => "nil"
     })
   }
@@ -800,6 +805,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val converted = dataType match {
       case _: UserType => r
+      case st: StrFromBytesType if st.bytes.isInstanceOf[BytesTerminatedType] => r
       case _ => s"${kaitaiType2NativeType(dataType)}($r)"
     }
     out.puts(s"${privateMemberName(instName)} = $converted")
@@ -809,7 +815,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"if this.${calculatedFlagForName(instName)} {")
     out.inc
     instanceReturn(instName, dataType)
-    firstPos2InScopeHandler = true
     universalFooter
   }
 
@@ -861,7 +866,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
     out.puts
-    out.puts(s"func (this ${types2class(typeProvider.nowClass.name)}) String() string {")
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) String() string {")
     out.inc
     out.puts(s"return ${translator.translate(toStringExpr)}")
     out.dec
@@ -895,7 +900,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
     )
     out.puts(s"if !(${translator.translate(checkExpr)}) {")
-    firstPos2InScopeHandler = true
     out.inc
     val errInst = s"kaitai.New${err.name}(${errArgsStr.mkString(", ")})"
     val noValueAndErr = translator.returnRes match {
@@ -1101,7 +1105,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(eofExpr)
     translator.outAddErrCheck()
     out.puts(s"if $ifExpr {")
-    firstPos2InScopeHandler = true
     out.inc
   }
 

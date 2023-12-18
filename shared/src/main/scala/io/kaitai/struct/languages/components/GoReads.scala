@@ -22,7 +22,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
       "consume"    -> t.consume,
       "eosError"   -> t.eosError,
     ))
-    s"New_${idToStr(id)}TerminatedType($value)"
+    s"this.New_${idToStr(id)}TerminatedType($value)"
   }
 
   def attrBytesTypeParse(
