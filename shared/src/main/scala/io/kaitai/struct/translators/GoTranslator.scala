@@ -351,7 +351,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def arrayFirst(a: Ast.expr): String = {
     val t = detectType(a)
-    s"${terminatedTypeConvert(a, t)}}[0]"
+    s"${terminatedTypeConvert(a, t)}[0]"
   }
 
   override def arrayLast(a: Ast.expr): String = {
