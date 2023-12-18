@@ -120,7 +120,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         throw new TypeMismatchError(s"bad terminator type, got ${dt.toString}")
     }
     out.puts
-    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) New_${id}TerminatedType(value $valueType) *$returnType {")
+    out.puts(s"func (this ${types2class(typeProvider.nowClass.name)}) New_${id}TerminatedType(value $valueType) *$returnType {")
     out.inc
     out.puts(s"${valueType.stripPrefix("[]")}Type := kaitai.New${tag}TerminatedType(${params.map(kv => kv._2.toString).mkString(", ")})")
     out.puts(s"${valueType.stripPrefix("[]")}Type.Data = value")
