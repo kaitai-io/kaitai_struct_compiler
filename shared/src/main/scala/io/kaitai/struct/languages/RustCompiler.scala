@@ -394,8 +394,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val procName = s"_process_${idToStr(varSrc)}"
 
         val mod_name = name.last
-        importList.add(s"""#[path = "$mod_name.rs"] mod $mod_name;""")
-        importList.add(s"use self::$mod_name::*;")
+        importList.add(s"use crate::$mod_name::*;")
 
         val argList = translate_args(args, into = false)
         val argListInParens = s"($argList)"
