@@ -27,7 +27,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     // TODO: resolve so many brackets
     detectType(right) match {
       case _: IntMultiType | _: FloatMultiType | CalcIntType => s"${translate(left)} ${cmpOp(oops)} $castedType"
-      // case _: IntType | _: FloatType => s"(${translate(left)}) ${cmpOp(op)} ${translate(right)}"
       case _ => s"(($rawLeft) ${cmpOp(oops)} ${if (rawLeft.startsWith("len(")) "int(" + s"${translate(right)})" else s"(${translate(right)})"})"
     }
   }
@@ -234,8 +233,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
     if (value.isInstanceOf[Ast.expr.IntNum] || value.isInstanceOf[Ast.expr.FloatNum])
       s"${compiler.kaitaiType2NativeType(typeName)}(${translate(value)})"
-    else
-      compiler.castIfNeeded(translate(value), detectType(value), typeName)
+    else {
+      typeName match {
+        case CalcIntType | CalcFloatType => s"${compiler.kaitaiType2NativeType(typeName)}(${translate(value)})"
+        case _ => compiler.castIfNeeded(translate(value), detectType(value), typeName)
+      }
+    }
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) = {

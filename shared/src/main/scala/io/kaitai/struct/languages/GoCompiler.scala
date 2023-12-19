@@ -800,8 +800,41 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  case class Mut[A](var value: A) {}
+
+  def walkAllAttrExpr(value: Ast.expr, mut_stack: Mut[List[String]]): String = {
+    value match {
+      case Ast.expr.Attribute(value, attr) => {
+        val dt = translator.detectType(value)
+        if (dt.isInstanceOf[CalcUserType]) {
+          return kaitaiType2NativeType(dt)
+        }
+        mut_stack.value = mut_stack.value.+:(attr.name)
+        walkAllAttrExpr(value, mut_stack)
+      }
+      case Ast.expr.CastToType(value, typeName) => {
+        val dt = translator.detectType(value)
+        if (dt.isInstanceOf[CalcUserType]) {
+          return kaitaiType2NativeType(dt)
+        }
+        mut_stack.value = mut_stack.value.+:(typeName.nameAsStr)
+        walkAllAttrExpr(value, mut_stack)
+      }
+      case _ => ""
+    }
+  }
+
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     val r = translator.translate(value)
+
+    /**
+     * val r = translator.translate(value)
+     * var walkedValue: Mut[List[String]] = Mut(List())
+     * val walkedValueRes = walkAllAttrExpr(value, walkedValue)
+     * if (walkedValueRes != "") {
+     * println(walkedValue)
+     * }
+     */
 
     val converted = dataType match {
       case _: UserType => r
