@@ -332,18 +332,23 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
     // go can not convert num to bool directly
     val actualNameAndType = instName.name.split("_insplit_")
+    val actualInst = InstanceIdentifier(actualNameAndType(0))
     var instType = "0"
     if ( actualNameAndType.length == 2 ) {
       if (actualNameAndType(1).contains("bool")) {
         instType = "false"
       } else if (actualNameAndType(1).contains("usertype") || actualNameAndType(1).contains("arraytype") || actualNameAndType(1).contains("bytestype")) {
-        instType = "nil"
+        if (out.result.contains(s"${privateMemberName(actualInst).split("\\.").last} string")) {
+          instType = "\"\""
+        } else {
+          instType = "nil"
+        }
       } else if (actualNameAndType(1).contains("str")) {
         instType = "\"\""
       }
     }
 
-    val actualInst = InstanceIdentifier(actualNameAndType(0))
+
     out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Invalidate${publicMemberName(actualInst)}() { ${privateMemberName(actualInst)} = $instType; this.${calculatedFlagForName(actualInst)} = false; }")
   }
 
@@ -802,44 +807,67 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   case class Mut[A](var value: A) {}
 
-  def walkAllAttrExpr(value: Ast.expr, mut_stack: Mut[List[String]]): String = {
+  def walkAllAttrExpr(value: Ast.expr, mut_stack: Mut[List[String]]): (Ast.expr, String) = {
     value match {
-      case Ast.expr.Attribute(value, attr) => {
-        val dt = translator.detectType(value)
+      case Ast.expr.Attribute(v, attr) => {
+        val dt = translator.detectType(v)
+        if (dt == AnyType) {
+          return (v, "interface{}")
+        }
         if (dt.isInstanceOf[CalcUserType]) {
-          return kaitaiType2NativeType(dt)
+          mut_stack.value = mut_stack.value.+:(attr.name)
+          return (v, kaitaiType2NativeType(dt))
         }
         mut_stack.value = mut_stack.value.+:(attr.name)
-        walkAllAttrExpr(value, mut_stack)
+        walkAllAttrExpr(v, mut_stack)
       }
-      case Ast.expr.CastToType(value, typeName) => {
-        val dt = translator.detectType(value)
-        if (dt.isInstanceOf[CalcUserType]) {
-          return kaitaiType2NativeType(dt)
+      case Ast.expr.CastToType(v, typeName) => {
+        val dt = translator.detectType(v)
+        if (dt == AnyType) {
+          return (v, "interface{}")
         }
-        mut_stack.value = mut_stack.value.+:(typeName.nameAsStr)
-        walkAllAttrExpr(value, mut_stack)
+        if (dt.isInstanceOf[CalcUserType]) {
+          mut_stack.value = mut_stack.value.+:(typeName.names.headOption.getOrElse(""))
+          return (v, kaitaiType2NativeType(dt))
+        }
+        mut_stack.value = mut_stack.value.+:(typeName.names.headOption.getOrElse(""))
+        walkAllAttrExpr(v, mut_stack)
       }
-      case _ => ""
+      case _ => (value, "")
     }
   }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
-    val r = translator.translate(value)
+    var r = translator.translate(value)
+    var walkedValue: Mut[List[String]] = Mut(List())
 
-    /**
-     * val r = translator.translate(value)
-     * var walkedValue: Mut[List[String]] = Mut(List())
-     * val walkedValueRes = walkAllAttrExpr(value, walkedValue)
-     * if (walkedValueRes != "") {
-     * println(walkedValue)
-     * }
-     */
+    val (backedValue, walkedValueRes) = walkAllAttrExpr(value, walkedValue)
+    if (walkedValueRes != "" && walkedValueRes != "interface{}") {
+      val (front, back) = r.splitAt(r.indexOf(walkedValue.value(0).capitalize))
+      val splitedFront = front.split("\\.")
+      if (kaitaiType2NativeType(translator.detectType(backedValue)) == "interface{}" || splitedFront.length >= 3) {
+        r = front ++ s"($walkedValueRes)." ++ back
+      } else {
+        r = front ++ back
+      }
+    } else if (walkedValueRes == "interface{}") {
+      r = s"$r.(${kaitaiType2NativeType(dataType)})"
+    }
 
     val converted = dataType match {
       case _: UserType => r
       case st: StrFromBytesType if st.bytes.isInstanceOf[BytesTerminatedType] => r
-      case _ => s"${kaitaiType2NativeType(dataType)}($r)"
+      case _ => {
+        // TODO: ugly
+        val tmpResult = out.result
+        if (tmpResult.contains(s"$r *kaitai.StringTerminatedType")) {
+          s"$r.String()"
+        } else if (tmpResult.contains(s"$r *kaitai.BytesTerminatedType")) {
+          s"$r.Bytes()"
+        } else {
+          s"${kaitaiType2NativeType(dataType)}($r)"
+        }
+      }
     }
     out.puts(s"${privateMemberName(instName)} = $converted")
   }
@@ -989,7 +1017,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
     }
 
-
   override def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit = {
     val exprType = exprTypeOpt.getOrElse(dt)
     var exprRaw = expression(expr)
@@ -1015,7 +1042,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val stmt = dt match {
       case t: ReadableType =>
-        s"$io.Write${Utils.capitalize(t.apiCall(defEndian))}($exprProcessed)"
+        s"$io.Write${Utils.capitalize(t.apiCall(defEndian))}(${if (exprProcessed.contains("(") && exprProcessed.contains(")")) exprProcessed else s"${kaitaiType2NativeType(dt)}($exprProcessed)"})"
       case BitsType1(bitEndian) =>
         s"$io.WriteBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1, ${translator.boolToInt(expr)})"
       case BitsType(width: Int, bitEndian) =>
@@ -1050,7 +1077,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       tmpVarName = expression(valueExpr)
     }
 
-    out.puts(s"err = $tmpVarName.WriteSeq($io)")
+    out.puts(s"err = $tmpVarName.${if (translator.detectType(valueExpr) == AnyType && !tmpVarName.contains("tmp")) s"(${kaitaiType2NativeType(t)})." else ""}WriteSeq($io)")
     translator.outAddErrCheck()
   }
 

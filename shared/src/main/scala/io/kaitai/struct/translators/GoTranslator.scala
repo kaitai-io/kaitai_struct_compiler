@@ -17,36 +17,43 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   var returnRes: Option[String] = None
 
   override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
-    val castedType = doCast(right, detectType(left))
+    val castedType = if (detectType(left) != detectType(right)) doCast(right, detectType(left)) else translate(right)
     val rawLeft = translate(left)
     // TODO: very ugly
     var oops = op
     if (rawLeft.contains("newBytes") || (rawLeft.contains("wirte") && rawLeft.contains("Byte")) && op == Ast.cmpop.NotEq) {
         oops = Ast.cmpop.Eq
     }
+    println(detectType(left))
+    println(detectType(right))
     // TODO: resolve so many brackets
     detectType(right) match {
-      case _: IntMultiType | _: FloatMultiType | CalcIntType => s"${translate(left)} ${cmpOp(oops)} $castedType"
+      case _: IntMultiType | _: FloatMultiType => s"${translate(left)} ${cmpOp(oops)} $castedType"
+      case CalcIntType => s"${translate(left)} ${cmpOp(oops)} ${if (rawLeft.startsWith("len(") && castedType.startsWith("(")) s"int$castedType" else castedType }"
       case _ => s"(($rawLeft) ${cmpOp(oops)} ${if (rawLeft.startsWith("len(")) "int(" + s"${translate(right)})" else s"(${translate(right)})"})"
     }
   }
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
-    val fn = (side: Ast.expr) => {
+    val fn = (side: Ast.expr, s: Boolean, translated: String) => {
       detectType(side) match {
         case bytesType: StrFromBytesType if bytesType.bytes.isInstanceOf[BytesTerminatedType] =>
           val btt = bytesType.bytes.asInstanceOf[BytesTerminatedType]
           if (btt != null) {
-            ".Write()"
+            val r = if (s) {
+              s"$translated.String()"
+            } else {
+              s"$translated.Write()"
+            }
+            r
           } else {
-            ""
+            s"$translated"
           }
         case _ =>
-          ""
+          s"$translated"
       }
     }
-
-    s"${translate(left)}${fn(left)} ${cmpOp(op)} ${translate(right)}${fn(right)}"
+    s"${fn(left, true, translate(left))} ${cmpOp(op)} ${fn(right, false, translate(right))}"
   }
 
   override def doByteSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
@@ -110,7 +117,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   override def strConcat(left: Ast.expr, right: Ast.expr): String = {
-    translate(left) + " + " + translate(right)
+    var translatedLeft = translate(left)
+    var translatedRight = translate(right)
+
+    if (detectType(left).isInstanceOf[StrFromBytesType]) {
+      translatedLeft = s"$translatedLeft.String()"
+    }
+    if (detectType(right).isInstanceOf[StrFromBytesType]) {
+      translatedRight = s"$translatedRight.String()"
+    }
+
+    translatedLeft + " + " + translatedRight
   }
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
@@ -214,15 +231,29 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
 
     out.puts(s"var ${localVarName(v1)} $emuType")
-    out.puts(s"if ${translate(condition)} {")
-    out.inc
-    out.puts(s"${localVarName(v1)} = ${if (typ.toString.contains("UserType")) translate(ifTrue) else s"$emuType(${translate(ifTrue)})"}")
-    out.dec
-    out.puts("} else {")
-    out.inc
-    out.puts(s"${localVarName(v1)} = ${if (typ.toString.contains("UserType")) translate(ifFalse) else s"$emuType(${translate(ifFalse)})"}")
-    out.dec
-    out.puts("}")
+    if (emuType == "*kaitai.BytesTerminatedType" || emuType == "*kaitai.StringTerminatedType") {
+      val translatedTrue = translate(ifTrue)
+      out.puts(s"if ${translate(condition)} {")
+      out.inc
+      out.puts(s"${localVarName(v1)} = $translatedTrue")
+      out.dec
+      out.puts("} else {")
+      out.inc
+      out.puts(s"${localVarName(v1)} = this.New_${translatedTrue.split("\\.").last}TerminatedType(${translate(ifFalse)})")
+      out.dec
+      out.puts("}")
+    } else {
+      out.puts(s"${localVarName(v1)} = ${localVarName(v1)}")
+      out.puts(s"if ${translate(condition)} {")
+      out.inc
+      out.puts(s"${localVarName(v1)} = ${if (typ.toString.contains("UserType")) translate(ifTrue) else s"$emuType(${translate(ifTrue)})"}")
+      out.dec
+      out.puts("} else {")
+      out.inc
+      out.puts(s"${localVarName(v1)} = ${if (typ.toString.contains("UserType")) translate(ifFalse) else s"$emuType(${translate(ifFalse)})"}")
+      out.dec
+      out.puts("}")
+    }
     localVarName(v1)
   }
 
@@ -414,12 +445,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  override def arrayMin(a: Ast.expr): String = {
-    val min = allocateLocalVar()
+  def doArray(a: Ast.expr, side: Boolean): String = {
+    val mm = allocateLocalVar()
     val value = allocateLocalVar()
-
     var elemIsTerminatedType = false
-
     val t = detectType(a)
     val translatedA = t match {
       case _: BytesTerminatedType => {
@@ -428,41 +457,29 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case sbt: StrFromBytesType if (sbt.bytes.isInstanceOf[BytesTerminatedType]) => {
         s"${translate(a)}).String()"
       }
-      case cat: ArrayType if (cat.elType.isInstanceOf[BytesTerminatedType] || (cat.isInstanceOf[StrFromBytesType] && cat.asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType])) => {
+      case cat: ArrayType if (cat.elType.isInstanceOf[BytesTerminatedType] || (cat.elType.isInstanceOf[StrFromBytesType] && cat.elType.asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType])) => {
         elemIsTerminatedType = true
         translate(a)
       }
       case _ => translate(a)
     }
 
-    out.puts(s"${localVarName(min)} := $translatedA[0]")
+    out.puts(s"${localVarName(mm)} := $translatedA[0]")
     out.puts(s"for _, ${localVarName(value)} := range $translatedA {")
     out.inc
-    out.puts(s"if ${localVarName(min)}${if (elemIsTerminatedType) ".String()" else "" } > ${localVarName(value)}${if (elemIsTerminatedType) ".String()" else ""} {")
+    out.puts(s"if ${localVarName(mm)}${if (elemIsTerminatedType) ".String()" else ""} ${if (side) ">" else "<"} ${localVarName(value)}${if (elemIsTerminatedType) ".String()" else ""} {")
     out.inc
-    out.puts(s"${localVarName(min)} = ${localVarName(value)}")
+    out.puts(s"${localVarName(mm)} = ${localVarName(value)}")
     out.dec
     out.puts("}")
     out.dec
     out.puts("}")
-    localVarName(min)
+    localVarName(mm)
   }
 
-  override def arrayMax(a: Ast.expr): String = {
-    val max = allocateLocalVar()
-    val value = allocateLocalVar()
-    out.puts(s"${localVarName(max)} := ${translate(a)}[0]")
-    out.puts(s"for _, ${localVarName(value)} := range ${translate(a)} {")
-    out.inc
-    out.puts(s"if ${localVarName(max)} < ${localVarName(value)} {")
-    out.inc
-    out.puts(s"${localVarName(max)} = ${localVarName(value)}")
-    out.dec
-    out.puts("}")
-    out.dec
-    out.puts("}")
-    localVarName(max)
-  }
+  override def arrayMin(a: Ast.expr): String = doArray(a, side = true)
+
+  override def arrayMax(a: Ast.expr): String = doArray(a, side = false)
 
 
   override def userTypeField(ut: UserType, value: Ast.expr, name: String): String = {

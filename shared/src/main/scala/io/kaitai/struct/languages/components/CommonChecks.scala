@@ -464,7 +464,7 @@ trait CommonChecks extends LanguageCompiler with CommonReads {
     typeProvider._currentIteratorType = Some(dataType)
     if (shouldDependOnIo.map(shouldDepend => userExprDependsOnIo(repUntil.expr) != shouldDepend).getOrElse(false))
       return
-    // blockScopeHeader
+    blockScopeHeader
     handleAssignmentTempVar(
       dataType,
       translator.doName(Identifier.ITERATOR),
@@ -479,7 +479,7 @@ trait CommonChecks extends LanguageCompiler with CommonReads {
       ),
       idToMsg(id)
     )
-    // blockScopeFooter
+    blockScopeFooter
   }
 
   def attrIsEofCheck(id: Identifier, expectedIsEof: Boolean, io: String): Unit =
