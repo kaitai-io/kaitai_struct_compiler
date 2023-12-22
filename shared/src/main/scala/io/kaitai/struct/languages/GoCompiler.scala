@@ -126,7 +126,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"encoder, _ := ${params.getOrElse("encoding", "").asInstanceOf[String]}")
       params("encoding") = "encoder"
     }
-    out.puts(s"${valueType.stripPrefix("[]")}Type := kaitai.New${tag}TerminatedType(${params("encoding") + ", " + params("terminator") + ", " + params("include") + ", " + params("consume") + ", " + params("eosError")})")
+    out.puts(s"${valueType.stripPrefix("[]")}Type := kaitai.New${tag}TerminatedType(${(if (params.get("encoding") == None) "" else params("encoding") + ", ") + params("terminator") + ", " + params("include") + ", " + params("consume") + ", " + params("eosError")})")
     out.puts(s"${valueType.stripPrefix("[]")}Type.Data = value")
     out.puts(s"return ${valueType.stripPrefix("[]")}Type")
     out.dec
@@ -1219,10 +1219,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       tmpVarName = tmpName
     }
 
+    var r = expression(actual)
+    var walkedValue: Mut[List[String]] = Mut(List())
+    val (backedValue, walkedValueRes) = walkAllAttrExpr(actual, walkedValue)
+    if (walkedValueRes != "" && walkedValueRes != "interface{}") {
+      val (front, back) = r.splitAt(r.indexOf(walkedValue.value(0).capitalize))
+      val splitedFront = front.split("\\.")
+      if (kaitaiType2NativeType(translator.detectType(backedValue)) == "interface{}" || splitedFront.length >= 3) {
+        r = front ++ s"($walkedValueRes)." ++ back
+      } else {
+        r = front ++ back
+      }
+    } else if (walkedValueRes == "interface{}") {
+      r = s"$r.(${kaitaiType2NativeType(translator.detectType(actual))})"
+    }
+
     if (tmpVarName != "") {
-      tmpVarName = expression(actual).replace(expression(changedExpr), tmpVarName)
+      tmpVarName = r.replace(expression(changedExpr), tmpVarName)
     } else {
-      tmpVarName = expression(actual)
+      tmpVarName = r
     }
 
     out.puts(s"if !reflect.DeepEqual($tmpVarName, ${expression(expected)}) {")
