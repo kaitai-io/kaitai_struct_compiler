@@ -58,6 +58,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
       {
         case dataType@(t: BytesType) =>
           attrParse2(RawIdentifier(id), dataType, io, rep, false, defEndian, Some(assignType))
+          handleAssignment(id, translator.getNowLocalVarName(), rep, false)
         case dataType =>
           attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
       }

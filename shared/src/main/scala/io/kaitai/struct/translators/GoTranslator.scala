@@ -24,8 +24,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     if (rawLeft.contains("newBytes") || (rawLeft.contains("wirte") && rawLeft.contains("Byte")) && op == Ast.cmpop.NotEq) {
         oops = Ast.cmpop.Eq
     }
-    println(detectType(left))
-    println(detectType(right))
     // TODO: resolve so many brackets
     detectType(right) match {
       case _: IntMultiType | _: FloatMultiType => s"${translate(left)} ${cmpOp(oops)} $castedType"
@@ -623,6 +621,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     localVarNum += 1
     localVarNum
   }
+
+  def getNowLocalVarName() = s"tmp$localVarNum"
 
   def localVarName(n: Int) = s"tmp$n"
 
