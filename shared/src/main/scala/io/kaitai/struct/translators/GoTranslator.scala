@@ -299,7 +299,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     "UTF-16LE" -> ("unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
     "UTF-16BE" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
     "UTF-8" -> ("unicode.UTF8", "golang.org/x/text/encoding/unicode"),
-    "ASCII" -> ("nil", "")
+    "ASCII" -> ("ianaindex.MIME.Encoding(\"US-ASCII\")", "golang.org/x/text/encoding/ianaindex")
   )
 
   var terminatedTypesStack: List[() => String] = List()
@@ -307,7 +307,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def bytesToStr(value: String, encoding: String): String = {
     val enc = encoding.stripPrefix("\"").stripSuffix("\"")
     enc match {
-      case "ASCII" | "UTF-8" =>
+      case "UTF-8" =>
         // no conversion
         // FIXME: may be add some checks for valid ASCII/UTF-8
         s"string($value)"
@@ -315,7 +315,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         ENCODINGS.get(encStr) match {
           case Some((decoderSrc, importName)) =>
             importList.add(importName)
-            outVarCheckRes(s"kaitai.BytesToStr($value, $decoderSrc.NewDecoder())")
+            var v = value
+            if (decoderSrc.contains("ASCII")) {
+              out.puts(s"decoder, _ := $decoderSrc")
+              v = "decoder"
+            }
+            outVarCheckRes(s"kaitai.BytesToStr($value, $v.NewDecoder())")
           case None =>
             throw new RuntimeException(s"encoding '$encStr' in not supported in Go")
         }
@@ -332,7 +337,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         ENCODINGS.get(enc) match {
           case Some((decoderSrc, importName)) =>
             if (importName != "") importList.add(importName)
-            terminatedConstructorFact(id, rt, Map(
+            terminatedConstructorFact(id, rt, scala.collection.mutable.Map(
               "encoding"   -> decoderSrc,
               "terminator" -> bt.terminator,
               "include"    -> bt.include,
@@ -348,7 +353,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  def terminatedConstructorFact(id: Identifier, dt: DataType, params: Map[String, Any]) = {
+  def terminatedConstructorFact(id: Identifier, dt: DataType, params: scala.collection.mutable.Map[String, Any]) = {
     val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
     val idStr = idToStr(id)
     terminatedTypesStack = terminatedTypesStack.:+(() => {
@@ -378,14 +383,19 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       }
       case _ => {
         encodingExpr.stripPrefix("\"").stripSuffix("\"") match {
-          case "ASCII" | "UTF-8" =>
+          case "UTF-8" =>
             // no conversion
             s"[]byte($strExpr)"
           case encStr =>
             ENCODINGS.get(encStr) match {
               case Some((encoderSrc, importName)) =>
                 importList.add(importName)
-                outVarCheckRes(s"kaitai.StrToBytes($strExpr, $encoderSrc.NewEncoder())")
+                var v = encoderSrc
+                if (encoderSrc.contains("ASCII")) {
+                  out.puts(s"encoder, _ := $encoderSrc")
+                  v = "encoder"
+                }
+                outVarCheckRes(s"kaitai.StrToBytes($strExpr, $v.NewEncoder())")
               case None =>
                 throw new RuntimeException(s"encoding '$encStr' in not supported in Go")
             }
@@ -499,7 +509,17 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       out.puts(s"$name = $name")
       name
     } else {
-      s"$valueStr.$call"
+      var suffix = ""
+      ut.classSpec.get.seq.foreach(f => {
+         if (f.id.humanReadable == name) {
+           if (f.dataType.isInstanceOf[StrFromBytesType] && f.dataType.asInstanceOf[StrFromBytesType].bytes != null) {
+             suffix = ".String()"
+           } else if (f.dataType.isInstanceOf[BytesTerminatedType]) {
+             suffix = ".Bytes()"
+           }
+         }
+      })
+      s"$valueStr.$call${suffix}"
     }
   }
 

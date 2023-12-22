@@ -112,7 +112,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classConstructorFooter: Unit = {}
 
-  def terminatorConstructor(id: String, dt: DataType, params: Map[String, Any]): String = {
+  def terminatorConstructor(id: String, dt: DataType, params: scala.collection.mutable.Map[String, Any]): String = {
     val (valueType, returnType, tag) = dt match {
       case _: StrFromBytesType => ("string", kTerminatedType.format("String"), "String")
       case _: BytesTerminatedType => ("[]byte", kTerminatedType.format("Bytes"), "Bytes")
@@ -122,7 +122,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts(s"func (this ${types2class(typeProvider.nowClass.name)}) New_${id}TerminatedType(value $valueType) *$returnType {")
     out.inc
-    out.puts(s"${valueType.stripPrefix("[]")}Type := kaitai.New${tag}TerminatedType(${params.map(kv => kv._2.toString).mkString(", ")})")
+    if (params.getOrElse("encoding", "").asInstanceOf[String].contains("US-ASCII")) {
+      out.puts(s"encoder, _ := ${params.getOrElse("encoding", "").asInstanceOf[String]}")
+      params("encoding") = "encoder"
+    }
+    out.puts(s"${valueType.stripPrefix("[]")}Type := kaitai.New${tag}TerminatedType(${params("encoding") + ", " + params("terminator") + ", " + params("include") + ", " + params("consume") + ", " + params("eosError")})")
     out.puts(s"${valueType.stripPrefix("[]")}Type.Data = value")
     out.puts(s"return ${valueType.stripPrefix("[]")}Type")
     out.dec

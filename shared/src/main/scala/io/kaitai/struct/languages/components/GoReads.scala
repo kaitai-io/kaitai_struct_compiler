@@ -16,7 +16,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
       case None => id
       case Some(_) => RawIdentifier(id)
     }
-    translator.terminatedConstructorFact(id, t, Map(
+    translator.terminatedConstructorFact(id, t, scala.collection.mutable.Map(
       "terminator" -> t.terminator,
       "include"    -> t.include,
       "consume"    -> t.consume,
