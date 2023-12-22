@@ -1220,20 +1220,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     var r = expression(actual)
-    var walkedValue: Mut[List[String]] = Mut(List())
-    val (backedValue, walkedValueRes) = walkAllAttrExpr(actual, walkedValue)
-    if (walkedValueRes != "" && walkedValueRes != "interface{}") {
-      val (front, back) = r.splitAt(r.indexOf(walkedValue.value(0).capitalize))
-      val splitedFront = front.split("\\.")
-      if (kaitaiType2NativeType(translator.detectType(backedValue)) == "interface{}" || splitedFront.length >= 3) {
-        r = front ++ s"($walkedValueRes)." ++ back
-      } else {
-        r = front ++ back
-      }
-    } else if (walkedValueRes == "interface{}") {
-      r = s"$r.(${kaitaiType2NativeType(translator.detectType(actual))})"
-    }
-
     if (tmpVarName != "") {
       tmpVarName = r.replace(expression(changedExpr), tmpVarName)
     } else {
