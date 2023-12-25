@@ -17,8 +17,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   var returnRes: Option[String] = None
 
   override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
-    val castedType = if (detectType(left) != detectType(right)) doCast(right, detectType(left)) else translate(right)
     val rawLeft = translate(left)
+    val castedType = doCast(right, detectType(left))
     // TODO: very ugly
     var oops = op
     if (rawLeft.contains("newBytes") || (rawLeft.contains("wirte") && rawLeft.contains("Byte")) && op == Ast.cmpop.NotEq) {
@@ -26,9 +26,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
     // TODO: resolve so many brackets
     detectType(right) match {
-      case _: IntMultiType | _: FloatMultiType => s"${translate(left)} ${cmpOp(oops)} $castedType"
-      case CalcIntType => s"${translate(left)} ${cmpOp(oops)} ${if (rawLeft.startsWith("len(") && castedType.startsWith("(")) s"int$castedType" else castedType }"
-      case _ => s"(($rawLeft) ${cmpOp(oops)} ${if (rawLeft.startsWith("len(")) "int(" + s"${translate(right)})" else s"(${translate(right)})"})"
+      case _: IntMultiType | _: FloatMultiType => s"$rawLeft ${cmpOp(oops)} $castedType"
+      case CalcIntType => s"$rawLeft ${cmpOp(oops)} ${if (rawLeft.startsWith("len(") && castedType.startsWith("(")) s"int$castedType" else castedType }"
+      case _ => s"(($rawLeft) ${cmpOp(oops)} ${if (rawLeft.startsWith("len(")) "int(" + s"$castedType)" else s"($castedType)"})"
     }
   }
 
@@ -118,10 +118,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     var translatedLeft = translate(left)
     var translatedRight = translate(right)
 
-    if (detectType(left).isInstanceOf[StrFromBytesType]) {
+    if (detectType(left).isInstanceOf[StrFromBytesType] && detectType(left).asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType]) {
       translatedLeft = s"$translatedLeft.String()"
     }
-    if (detectType(right).isInstanceOf[StrFromBytesType]) {
+    if (detectType(right).isInstanceOf[StrFromBytesType] && detectType(right).asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType]) {
       translatedRight = s"$translatedRight.String()"
     }
 
@@ -241,7 +241,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       out.dec
       out.puts("}")
     } else {
-      out.puts(s"${localVarName(v1)} = ${localVarName(v1)}")
+      // out.puts(s"${localVarName(v1)} = ${localVarName(v1)}")
       out.puts(s"if ${translate(condition)} {")
       out.inc
       out.puts(s"${localVarName(v1)} = ${if (typ.toString.contains("UserType")) translate(ifTrue) else s"$emuType(${translate(ifTrue)})"}")
@@ -260,7 +260,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def doCast(value: Ast.expr, typeName: DataType): String = {
     val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
-    if (value.isInstanceOf[Ast.expr.IntNum] || value.isInstanceOf[Ast.expr.FloatNum])
+    if (detectType(value) == typeName || value.isInstanceOf[Ast.expr.IntNum]) {
+      return translate(value)
+    }
+    if (value.isInstanceOf[Ast.expr.FloatNum])
       s"${compiler.kaitaiType2NativeType(typeName)}(${translate(value)})"
     else {
       typeName match {
@@ -313,10 +316,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         ENCODINGS.get(encStr) match {
           case Some((decoderSrc, importName)) =>
             importList.add(importName)
-            var v = value
+            var v = decoderSrc
             if (decoderSrc.contains("ASCII")) {
-              out.puts(s"decoder, _ := $decoderSrc")
-              v = "decoder"
+              val r = allocateLocalVar()
+              out.puts(s"decoder$r, _ := $decoderSrc")
+              v = s"decoder$r"
             }
             outVarCheckRes(s"kaitai.BytesToStr($value, $v.NewDecoder())")
           case None =>
@@ -390,8 +394,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
                 importList.add(importName)
                 var v = encoderSrc
                 if (encoderSrc.contains("ASCII")) {
-                  out.puts(s"encoder, _ := $encoderSrc")
-                  v = "encoder"
+                  val r = allocateLocalVar()
+                  out.puts(s"encoder$r, _ := $encoderSrc")
+                  v = s"encoder$r"
                 }
                 outVarCheckRes(s"kaitai.StrToBytes($strExpr, $v.NewEncoder())")
               case None =>
@@ -491,8 +496,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
 
   override def userTypeField(ut: UserType, value: Ast.expr, name: String): String = {
-    val valueStr = translate(value)
-
+    val compiler = new GoCompiler(provider.asInstanceOf[ClassTypeProvider], config)
+    var valueStr = translate(value)
     val (call, twoOuts) = name match {
       case Identifier.ROOT |
            Identifier.PARENT |
@@ -500,6 +505,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         (specialName(name), false)
       case _ =>
         (Utils.upperCamelCase(name), provider.isLazy(ut.classSpec.get, name))
+    }
+    if (value.isInstanceOf[Ast.expr.CastToType]) {
+      valueStr = s"$valueStr.(${compiler.kaitaiType2NativeType(ut)})"
     }
 
     if (twoOuts) {
@@ -509,8 +517,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     } else {
       var suffix = ""
       ut.classSpec.get.seq.foreach(f => {
-         if (f.id.humanReadable == name) {
-           if (f.dataType.isInstanceOf[StrFromBytesType] && f.dataType.asInstanceOf[StrFromBytesType].bytes != null) {
+         if (f.id.humanReadable == name && detectType(value) != ut) {
+           if (f.dataType.isInstanceOf[StrFromBytesType] && f.dataType.asInstanceOf[StrFromBytesType].bytes != null && f.dataType.asInstanceOf[StrFromBytesType].bytes.isInstanceOf[BytesTerminatedType]) {
              suffix = ".String()"
            } else if (f.dataType.isInstanceOf[BytesTerminatedType]) {
              suffix = ".Bytes()"
@@ -594,7 +602,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
 
     val root = if (t.isOpaque) "nil" else "this._root"
-    val addParams = t.args.map((a) => translate(a)).mkString(", ")
     out.puts(s"${localVarName(v)} := New${GoCompiler.types2class(t.classSpec.get.name)}($io, $parent, $root)")
     out.puts(s"err = ${localVarName(v)}.Read()")
     outAddErrCheck()
@@ -605,7 +612,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val v1 = allocateLocalVar()
     out.puts(s"${localVarName(v1)}, err := $expr")
     outAddErrCheck()
-    out.puts(s"${localVarName(v1)} = ${localVarName(v1)}")
+    // out.puts(s"${localVarName(v1)} = ${localVarName(v1)}")
     localVarName(v1)
   }
 
@@ -625,6 +632,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def getNowLocalVarName() = s"tmp$localVarNum"
 
   def localVarName(n: Int) = s"tmp$n"
+
+  def handleUnfinsiedSizeExpr(sizeExpr: String): Unit =
+    out.puts(s"_ = $sizeExpr")
 
   def outAddErrCheck() {
     out.puts("if err != nil {")

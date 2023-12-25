@@ -137,6 +137,43 @@ trait GoWrites extends LanguageCompiler with CommonWrites with GoReads {
     }
   }
 
+  override def attrBytesLimitWrite2(
+    io: String,
+    expr: Ast.expr,
+    bt: BytesType,
+    sizeExpr: String,
+    padRight: Option[Int],
+    terminator: Option[Int],
+    include: Boolean,
+    exprTypeOpt: Option[DataType]
+  ): Unit = {
+    val (termArg, padRightArg) = (terminator, padRight, include) match {
+      case (None, None, false) =>
+        // no terminator, no padding => just a regular output
+        // validation should check that expression's length matches size
+        attrPrimitiveWrite(io, expr, bt, None, exprTypeOpt)
+        translator.handleUnfinsiedSizeExpr(sizeExpr)
+        return
+      case (_, None, true) =>
+        // terminator included, no padding => pad with zeroes
+        (0, 0)
+      case (_, Some(p), true) =>
+        // terminator included, padding specified
+        (p, p)
+      case (Some(t), None, false) =>
+        // only terminator given, don't care about what's gonna go after that
+        // we'll just pad with zeroes
+        (t, 0)
+      case (None, Some(p), false) =>
+        // only padding given, just add terminator equal to padding
+        (p, p)
+      case (Some(t), Some(p), false) =>
+        // both terminator and padding specified
+        (t, p)
+    }
+    attrBytesLimitWrite(io, expr, sizeExpr, termArg, padRightArg)
+  }
+
   def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit
 
   def attrUserTypeInstreamWrite(io: String, expr: Ast.expr, t: DataType, exprType: DataType): Unit
