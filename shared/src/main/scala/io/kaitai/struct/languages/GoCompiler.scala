@@ -1059,7 +1059,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit = {
-    out.puts(s"$io.WriteBytesLimit(${expression(expr)}, $size, $term, $padRight)")
+    out.puts(s"$io.WriteBytesLimit(${expression(expr)}, int64($size), $term, $padRight)")
   }
 
   override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, t: DataType, exprType: DataType): Unit = {
