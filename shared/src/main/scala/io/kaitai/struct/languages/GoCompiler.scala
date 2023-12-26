@@ -672,7 +672,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = {}
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = {
+    out.puts(s"$id := $expr")
+  }
   def handleAssignmentError(id: Identifier, r: String): Unit = {
     val expr = handleCompositeTypeCast(id, r)
     out.puts(s"${privateMemberName(id)}, err = $expr")
@@ -1221,21 +1223,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
     importList.add("reflect")
-    var changedExpr = actual
-    var tmpVarName = ""
+    val tmpVarName = expression(actual)
     val msgStr = expression(Ast.expr.Str(msg))
-    if (inSwitchCaseHandler) {
-      val (changedActual, tmpName) = translator.interfaceTypeOfSwitchCaseInExpr(actual, None, (dt) => {
-        kaitaiType2NativeType(dt)
-      })
-      changedExpr = changedActual
-      tmpVarName = tmpName
-      if (tmpVarName == "") {
-        tmpVarName = expression(actual)
-      }
-    } else {
-      tmpVarName = expression(actual)
-    }
+
     out.puts(s"if !reflect.DeepEqual($tmpVarName, ${expression(expected)}) {")
     out.inc
     out.puts(s"return kaitai.NewConsistencyError($msgStr, $tmpVarName, ${expression(expected)})")
@@ -1255,21 +1245,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (shouldDependOnIo.map(shouldDepend => dependsOnIo != shouldDepend).getOrElse(false))
       return
 
-    var changedExpr = actualParentExpr
-    var tmpVarName = ""
+    val tmpVarName = expression(actualParentExpr)
     val msgStr = expression(Ast.expr.Str(msg))
-    if (inSwitchCaseHandler) {
-      val (changedActual, tmpName) = translator.interfaceTypeOfSwitchCaseInExpr(actualParentExpr, None, (dt) => {
-        kaitaiType2NativeType(dt)
-      })
-      changedExpr = changedActual
-      tmpVarName = tmpName
-      if (tmpVarName == "") {
-        tmpVarName = expression(changedExpr)
-      }
-    } else {
-      tmpVarName = expression(changedExpr)
-    }
+
     out.puts(s"if !reflect.DeepEqual($tmpVarName, $expectedParent) {")
     out.inc
     out.puts(s"return kaitai.NewConsistencyError($msgStr, $tmpVarName, $expectedParent)")

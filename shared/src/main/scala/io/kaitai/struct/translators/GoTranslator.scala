@@ -686,7 +686,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
             out.dec
             out.puts("}")
 
-            changedExpr = value
+            changedExpr = Ast.expr.Attribute(Ast.expr.Str(tmpVarName), call.attr)
             tmpName = tmpVarName
           }
           case _ => {}
