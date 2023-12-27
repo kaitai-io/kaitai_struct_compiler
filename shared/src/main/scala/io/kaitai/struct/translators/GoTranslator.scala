@@ -27,7 +27,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     // TODO: resolve so many brackets
     detectType(right) match {
       case _: IntMultiType | _: FloatMultiType => s"$rawLeft ${cmpOp(oops)} $castedType"
-      case CalcIntType => s"$rawLeft ${cmpOp(oops)} ${if (rawLeft.startsWith("len(") && castedType.startsWith("(")) s"int$castedType" else castedType }"
+      case CalcIntType => s"$rawLeft ${cmpOp(oops)} ${if (rawLeft.startsWith("len(") && castedType.startsWith("(")) s"int$castedType" else if (castedType.startsWith("tmp")) s"int($castedType)" else castedType }"
       case _ => s"(($rawLeft) ${cmpOp(oops)} ${if (rawLeft.startsWith("len(")) "int(" + s"$castedType)" else s"($castedType)"})"
     }
   }
