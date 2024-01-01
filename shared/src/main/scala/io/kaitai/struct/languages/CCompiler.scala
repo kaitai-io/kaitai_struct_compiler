@@ -214,7 +214,7 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outInstancesRead.puts("{")
     outInstancesRead.inc
     outInstancesRead.puts("int64_t i;")
-    outInstancesRead.puts("ks_stream* stream = HANDLE(data)->stream;")
+    outInstancesRead.puts("ks_stream* stream = ks_usertype_get_stream(&data->kaitai_base);")
     outInstancesRead.puts(s"ksx_${className}_internal* internal = (ksx_${className}_internal*)HANDLE(data)->internal_read;")
     outInstancesRead.puts("(void)i;")
     outInstancesRead.puts("(void)stream;")
@@ -543,7 +543,7 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outSrcInstancesGet.puts("{")
     outSrcInstancesGet.inc
     if (isInstance) {
-      outSrcInstancesGet.puts(s"ks_stream* stream = HANDLE(data)->stream;")
+      outSrcInstancesGet.puts(s"ks_stream* stream = ks_usertype_get_stream(&data->kaitai_base);")
       outSrcInstancesGet.puts(s"KS_CHECK(ksx_read_${currentClassName}_instance_${name}(ks_stream_get_root(stream), (void*)ks_usertype_get_root((void*)data), stream, data), data->$name);")
     }
     attrType match {

@@ -246,7 +246,7 @@ class CTranslator(provider: ClassTypeProvider, importList: CppImportList, isInte
   override def anyField(value: expr, attrName: String): String = {
     if (attrName == "_io")
     {
-      return s"HANDLE(${translate(value)})->stream"
+      return s"ks_usertype_get_stream((ks_usertype_generic*)${translate(value)})"
     }
     if (attrName == "_parent") {
       return s"HANDLE(${translate(value)})->parent"
