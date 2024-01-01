@@ -818,11 +818,11 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ptr = getPtrSuffix(dataTypeLast)
     val sizeof = s"sizeof(${kaitaiType2NativeType(dataTypeLast)}$ptr)"
     outMethodBody.puts(s"data->$name->size++;")
-    outMethodBody.puts(s"data->$name->data = ks_realloc(root_stream->config, data->$name->data, $sizeof * data->$name->size);")
+    outMethodBody.puts(s"data->$name->data = ks_realloc(ks_stream_get_config(stream), data->$name->data, $sizeof * data->$name->size);")
     outMethodBody.puts(s"memset(data->$name->data + data->$name->size - 1, 0, $sizeof);")
     if (isTypeGeneric(id)) {
       outMethodHasInternal = true
-      outMethodBody.puts(s"internal->_read_instances_$name = ks_realloc(root_stream->config, internal->_read_instances_$name, sizeof(ks_callback) * data->$name->size);")
+      outMethodBody.puts(s"internal->_read_instances_$name = ks_realloc(ks_stream_get_config(stream), internal->_read_instances_$name, sizeof(ks_callback) * data->$name->size);")
       outMethodBody.puts(s"internal->_read_instances_$name[data->$name->size -1] = 0;")
     }
     handleAssignmentCommon(id, expr, true)
@@ -850,10 +850,10 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outMethodBody.puts("/* Array (repeat-expr) */")
     outMethodBody.puts(s"data->$name = ks_alloc_obj(stream, sizeof(${kaitaiType2NativeType(dataTypeArray)}), $arrayTypeSize, 0, 0);")
     outMethodBody.puts(s"data->$name->size = $len;")
-    outMethodBody.puts(s"data->$name->data = ks_alloc_data(root_stream->config, sizeof(${kaitaiType2NativeType(dataType)}$ptr) * data->$name->size);")
+    outMethodBody.puts(s"data->$name->data = ks_alloc_data(ks_stream_get_config(stream), sizeof(${kaitaiType2NativeType(dataType)}$ptr) * data->$name->size);")
     if (isTypeGeneric(id)) {
       outMethodHasInternal = true
-      outMethodBody.puts(s"internal->_read_instances_$name = ks_alloc_data(root_stream->config, sizeof(ks_callback) * data->$name->size);")
+      outMethodBody.puts(s"internal->_read_instances_$name = ks_alloc_data(ks_stream_get_config(stream), sizeof(ks_callback) * data->$name->size);")
     }
     outMethodBody.puts(s"for ($pos = 0; $pos < data->$name->size; $pos++)")
     outMethodBody.puts("{")
@@ -902,11 +902,11 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ptr = getPtrSuffix(dataTypeLast)
     val sizeof = s"sizeof(${kaitaiType2NativeType(dataTypeLast)}$ptr)"
     outMethodBody.puts(s"data->$name->size++;")
-    outMethodBody.puts(s"data->$name->data = ks_realloc(root_stream->config, data->$name->data, $sizeof * data->$name->size);")
+    outMethodBody.puts(s"data->$name->data = ks_realloc(ks_stream_get_config(stream), data->$name->data, $sizeof * data->$name->size);")
     outMethodBody.puts(s"memset(data->$name->data + data->$name->size - 1, 0, $sizeof);")
     if (isTypeGeneric(id)) {
       outMethodHasInternal = true
-      outMethodBody.puts(s"internal->_read_instances_$name = ks_realloc(root_stream->config, internal->_read_instances_$name, sizeof(ks_callback) * data->$name->size);")
+      outMethodBody.puts(s"internal->_read_instances_$name = ks_realloc(ks_stream_get_config(stream), internal->_read_instances_$name, sizeof(ks_callback) * data->$name->size);")
       outMethodBody.puts(s"internal->_read_instances_$name[data->$name->size -1] = 0;")
     }
     handleAssignmentCommon(id, expr, true)
