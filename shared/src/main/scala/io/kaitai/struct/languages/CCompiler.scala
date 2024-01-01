@@ -89,7 +89,7 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     dataType match {
       case t: UserType => "*"
       case at: ArrayType => "*"
-      case KaitaiStructType | CalcKaitaiStructType => "*"
+      case KaitaiStructType | CalcKaitaiStructType(_) => "*"
       case AnyType => "*"
       case sw: SwitchType => getPtrSuffix(sw.combinedType)
       case _ => ""
@@ -763,7 +763,7 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   // Assignment helper
   // ##############################
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
   }
 
   def isTypeGenericInternal(idType : DataType): Boolean = {
@@ -1187,7 +1187,7 @@ object CCompiler extends LanguageCompilerStatic
       case t: EnumType => s"ksx_array_${makeName(t.enumSpec.get.name)}"
       case _: StrType => s"ks_array_string"
       case _: BytesType => s"ks_array_bytes"
-      case KaitaiStructType | CalcKaitaiStructType => s"ks_array_usertype_generic"
+      case KaitaiStructType | CalcKaitaiStructType(_) => s"ks_array_usertype_generic"
       case AnyType => "ks_array_any"
       case st: SwitchType => kaitaiType2NativeTypeArray(st.combinedType)
       case _ => s"ks_array_${kaitaiType2NativeType(attrType)}"
@@ -1219,7 +1219,7 @@ object CCompiler extends LanguageCompilerStatic
       case _: BytesType => "ks_bytes*"
 
       case AnyType => "void"
-      case KaitaiStructType | CalcKaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
 
       case t: UserType => "ksx_" + makeName(t.classSpec.get.name)

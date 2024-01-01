@@ -37,7 +37,7 @@ class CTranslator(provider: ClassTypeProvider, importList: CppImportList, isInte
       case CalcIntType => s"ks_array_int64_t_from_data(stream->config, $size, $args)"
       case CalcFloatType => s"ks_array_double_from_data(stream->config, $size, $args)"
       case CalcStrType => s"ks_array_string_from_data(stream->config, $size, $args)"
-      case KaitaiStructType | CalcKaitaiStructType => s"ks_array_usertype_generic_from_data(stream->config, $size, $args)"
+      case KaitaiStructType | CalcKaitaiStructType(_) => s"ks_array_usertype_generic_from_data(stream->config, $size, $args)"
       case _ => s"Missing list type: " + t.toString()
     }
   }
@@ -166,8 +166,8 @@ class CTranslator(provider: ClassTypeProvider, importList: CppImportList, isInte
   override def intToStr(i: expr, base: expr): String = {
     s"ks_string_from_int(stream->config, ${translate(i)}, ${translate(base)})"
   }
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"ks_string_from_bytes($bytesExpr, ${translate(encoding)})"
+  override def bytesToStr(bytesExpr: String, encoding: String): String =
+    s"ks_string_from_bytes($bytesExpr, ${doStringLiteral(encoding)})"
 
   override def strLength(s: expr): String =
     s"${translate(s)}->len"
