@@ -164,7 +164,7 @@ class CTranslator(provider: ClassTypeProvider, importList: CppImportList, isInte
   override def floatToInt(v: expr): String =
     s"(long) (${translate(v)})"
   override def intToStr(i: expr, base: expr): String = {
-    s"ks_string_from_int(stream->config, ${translate(i)}, ${translate(base)})"
+    s"ks_string_from_int(ks_usertype_get_config(&data->kaitai_base), ${translate(i)}, ${translate(base)})"
   }
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"ks_string_from_bytes($bytesExpr, ${doStringLiteral(encoding)})"
@@ -183,7 +183,7 @@ class CTranslator(provider: ClassTypeProvider, importList: CppImportList, isInte
   }
 
   override def doStringLiteral(s: String): String = {
-    s"ks_string_from_cstr(stream->config, ${super.doStringLiteral(s)})"
+    s"ks_string_from_cstr(ks_usertype_get_config(&data->kaitai_base), ${super.doStringLiteral(s)})"
   }
 
   override def bytesFirst(b: Ast.expr): String =
