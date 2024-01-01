@@ -206,7 +206,7 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outInstancesFill.puts(s"static void ksx_fill_${className}_instances(ksx_${className}* data)")
     outInstancesFill.puts("{")
     outInstancesFill.inc
-    outInstancesFill.puts(s"ksx_${className}_internal* internal = (ksx_${className}_internal*)HANDLE(data)->internal_read;")
+    outInstancesFill.puts(s"ksx_${className}_internal* internal = (ksx_${className}_internal*)ks_usertype_get_internal_read(&data->kaitai_base);")
     outInstancesFill.puts(s"(void)internal;")
 
     outSrcDefs.puts(s"static void ksx_read_${className}_instances(ksx_${className}* data);")
@@ -215,7 +215,7 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outInstancesRead.inc
     outInstancesRead.puts("int64_t i;")
     outInstancesRead.puts("ks_stream* stream = ks_usertype_get_stream(&data->kaitai_base);")
-    outInstancesRead.puts(s"ksx_${className}_internal* internal = (ksx_${className}_internal*)HANDLE(data)->internal_read;")
+    outInstancesRead.puts(s"ksx_${className}_internal* internal = (ksx_${className}_internal*)ks_usertype_get_internal_read(&data->kaitai_base);")
     outInstancesRead.puts("(void)i;")
     outInstancesRead.puts("(void)stream;")
     outInstancesRead.puts("(void)internal;")
@@ -376,7 +376,7 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       outMethodBody.puts("return data;")
     }
     if (outMethodHasInternal) {
-      outSrc.puts(s"internal = (ksx_${className}_internal*)HANDLE(data)->internal_read;")
+      outSrc.puts(s"internal = (ksx_${className}_internal*)ks_usertype_get_internal_read(&data->kaitai_base);")
       outMethodHasInternal = false
     }
     inEndianFunc = false
