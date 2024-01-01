@@ -118,8 +118,8 @@ class CTranslator(provider: ClassTypeProvider, importList: CppImportList, isInte
         case Identifier.SWITCH_ON => "on"
         case Identifier.INDEX => "i"
         case Identifier.IO => "stream"
-        case Identifier.PARENT => "HANDLE(data)->parent"
-        case Identifier.ROOT => "root_data"
+        case Identifier.PARENT => "(HANDLE(data)->parent)"
+        case Identifier.ROOT => s"(ksx_$currentClassName*)ks_usertype_get_root(&data->kaitai_base)"
         case Identifier.ITERATOR => "_temp"
         case _ => s"data->$s"
       }
