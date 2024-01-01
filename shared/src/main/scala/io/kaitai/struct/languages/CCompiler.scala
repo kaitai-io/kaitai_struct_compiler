@@ -290,7 +290,7 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     outMethodBody.inc
     outMethodHead.inc
-    outSrcMain.puts(s"ksx_${className}* data = ks_alloc(root_stream->config, sizeof(ksx_${className}));")
+    outSrcMain.puts(s"ksx_${className}* data = ks_alloc_obj(stream, sizeof(ksx_${className}), KS_TYPE_USERTYPE, sizeof(ksx_${className}), sizeof(ksx_${className}_internal), (ks_usertype_generic*)parent_data);")
 
     if (rootName == className) {
       outMethodBody.puts(s"root_data = root_data != 0 ? root_data : data;")
@@ -373,7 +373,6 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         outSrc.puts
     }
     if (!instance && !inEndianFunc) {
-      outSrc.puts(s"KS_CHECK_$CurrentCheck(HANDLE(data) = ks_handle_create(stream, data, KS_TYPE_USERTYPE, sizeof(ksx_${className}), sizeof(ksx_${className}_internal), (ks_usertype_generic*)parent_data));")
       outMethodBody.puts("return data;")
     }
     if (outMethodHasInternal) {
@@ -804,10 +803,9 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val io_new = makeIO(io)
     outMethodHasI = true
     outMethodBody.puts("/* Array (repeat-eos) */")
-    outMethodBody.puts(s"data->$name = ks_alloc(root_stream->config, sizeof(${kaitaiType2NativeType(dataTypeArray)}));")
+    outMethodBody.puts(s"data->$name = ks_alloc_obj(stream, sizeof(${kaitaiType2NativeType(dataTypeArray)}), $arrayTypeSize, 0, 0);")
     outMethodBody.puts(s"data->$name->size = 0;")
     outMethodBody.puts(s"data->$name->data = 0;")
-    outMethodBody.puts(s"KS_CHECK_$CurrentCheck(HANDLE(data->$name) = ks_handle_create(stream, data->$name, $arrayTypeSize, 0, 0));");
     outMethodBody.puts("{")
     outMethodBody.inc
     outMethodBody.puts(s"while (!ks_stream_is_eof($io_new)) {")
@@ -850,14 +848,13 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ptr = getPtrSuffix(dataType)
     outMethodHasI = true
     outMethodBody.puts("/* Array (repeat-expr) */")
-    outMethodBody.puts(s"data->$name = ks_alloc(root_stream->config, sizeof(${kaitaiType2NativeType(dataTypeArray)}));")
+    outMethodBody.puts(s"data->$name = ks_alloc_obj(stream, sizeof(${kaitaiType2NativeType(dataTypeArray)}), $arrayTypeSize, 0, 0);")
     outMethodBody.puts(s"data->$name->size = $len;")
-    outMethodBody.puts(s"data->$name->data = ks_alloc(root_stream->config, sizeof(${kaitaiType2NativeType(dataType)}$ptr) * data->$name->size);")
+    outMethodBody.puts(s"data->$name->data = ks_alloc_data(root_stream->config, sizeof(${kaitaiType2NativeType(dataType)}$ptr) * data->$name->size);")
     if (isTypeGeneric(id)) {
       outMethodHasInternal = true
-      outMethodBody.puts(s"internal->_read_instances_$name = ks_alloc(root_stream->config, sizeof(ks_callback) * data->$name->size);")
+      outMethodBody.puts(s"internal->_read_instances_$name = ks_alloc_data(root_stream->config, sizeof(ks_callback) * data->$name->size);")
     }
-    outMethodBody.puts(s"KS_CHECK_$CurrentCheck(HANDLE(data->$name) = ks_handle_create(stream, data->$name, $arrayTypeSize, 0, 0));");
     outMethodBody.puts(s"for ($pos = 0; $pos < data->$name->size; $pos++)")
     outMethodBody.puts("{")
     outMethodBody.inc
@@ -882,10 +879,9 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ptr = getPtrSuffix(dataType)
     outMethodHasI = true
     outMethodBody.puts("/* Array (repeat-until) */")
-    outMethodBody.puts(s"data->$name = ks_alloc(root_stream->config, sizeof(${kaitaiType2NativeType(dataTypeArray)}));")
+    outMethodBody.puts(s"data->$name = ks_alloc_obj(stream, sizeof(${kaitaiType2NativeType(dataTypeArray)}), $arrayTypeSize, 0, 0);")
     outMethodBody.puts(s"data->$name->size = 0;")
     outMethodBody.puts(s"data->$name->data = 0;")
-    outMethodBody.puts(s"KS_CHECK_$CurrentCheck(HANDLE(data->$name) = ks_handle_create(stream, data->$name, $arrayTypeSize, 0, 0));");
     outMethodBody.puts("{")
     outMethodBody.inc
     outMethodBody.puts(s"${kaitaiType2NativeType(dataType)}$ptr ${translator.doName("_")} = {0};")
