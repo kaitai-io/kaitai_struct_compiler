@@ -132,7 +132,7 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     importListSrc.addLocal(outFileNameHeader(topClassName))
 
-    importListHdr.addKaitai("kaitaistruct.h")
+    importListHdr.addKaitai("kaitaistruct_internal.h")
 
     outHdrDefs.puts
     outHdrDefs.puts("/* Forward declarations */")
