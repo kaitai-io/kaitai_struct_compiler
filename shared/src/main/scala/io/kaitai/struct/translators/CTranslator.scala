@@ -190,11 +190,11 @@ class CTranslator(provider: ClassTypeProvider, importList: CppImportList, isInte
     s"ks_bytes_get_at(${translate(b)}, 0)"
 
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}->length"
+    s"ks_bytes_get_length(${translate(b)})"
 
   override def bytesLast(b: Ast.expr): String = {
     val v = translate(b)
-    s"ks_bytes_get_at($v, $v->length - 1)"
+    s"ks_bytes_get_at($v, ks_bytes_get_length($v) - 1)"
   }
 
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
