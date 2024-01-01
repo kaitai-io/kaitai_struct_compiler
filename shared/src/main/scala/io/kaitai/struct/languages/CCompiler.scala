@@ -272,10 +272,10 @@ class CCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       outSrcMain.inc
       outSrcMain.puts(s"ksx_${className}* data;")
       outSrcMain.puts(s"data = ksx_read_$className(stream, 0, 0, stream$addParams);")
-      outSrcMain.puts(s"if (error) *error = stream->config->error;")
+      outSrcMain.puts(s"if (error) *error = ks_stream_get_error(stream);")
       outSrcMain.puts(s"KS_CHECK_DATA();")
       outSrcMain.puts(s"ksx_read_${className}_instances(data);")
-      outSrcMain.puts(s"if (error) *error = stream->config->error;")
+      outSrcMain.puts(s"if (error) *error = ks_stream_get_error(stream);")
       outSrcMain.puts(s"KS_CHECK_DATA();")
       outSrcMain.puts(s"return data;")
       outSrcMain.dec
