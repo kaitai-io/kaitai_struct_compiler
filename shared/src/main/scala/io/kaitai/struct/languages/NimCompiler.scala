@@ -13,7 +13,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with SingleOutputFile
     with EveryReadIsExpression
     with UpperCamelCaseClasses
-    with FixedContentsUsingArrayByteLiteral
     with UniversalFooter
     with AllocateIOLocalVar
     with SwitchIfOps
@@ -86,9 +85,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add(file)
   }
   override def alignToByte(io: String): Unit = out.puts(s"alignToByte($io)")
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    out.puts(s"this.${idToStr(attrName)} = $normalIO.ensureFixedContents($contents)")
-  }
   // def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
     out.puts("if this.isLe:")

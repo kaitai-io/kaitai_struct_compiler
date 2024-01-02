@@ -66,7 +66,7 @@ class RustClassCompiler(
     
     lang.readHeader(defEndian, false)
     
-    compileSeq(curClass.seq, defEndian)
+    compileSeqRead(curClass.seq, defEndian)
     lang.classConstructorFooter
   }
 

@@ -186,6 +186,36 @@ trait EveryReadIsExpression
 
     attrParse2(rawId, byteType, io, rep, true, defEndian)
 
+    if (config.readWrite) {
+      if (writeNeedsOuterSize(byteType)) {
+        /** @note Must be kept in sync with [[attrBytesTypeParse]] */
+        val rawRawId = byteType.process match {
+          case None => rawId
+          case Some(_) => RawIdentifier(rawId)
+        }
+        val item = itemExpr(rawRawId, rep)
+        val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
+        /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
+         * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
+        if (rep == NoRepeat) {
+          handleAssignmentSimple(OuterSizeIdentifier(id), itemSizeExprStr)
+        } else {
+          handleAssignmentRepeatEos(OuterSizeIdentifier(id), itemSizeExprStr)
+        }
+      }
+      if (writeNeedsInnerSize(byteType)) {
+        val item = itemExpr(rawId, rep)
+        val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
+        /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
+         * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
+        if (rep == NoRepeat) {
+          handleAssignmentSimple(InnerSizeIdentifier(id), itemSizeExprStr)
+        } else {
+          handleAssignmentRepeatEos(InnerSizeIdentifier(id), itemSizeExprStr)
+        }
+      }
+    }
+
     val extraType = rep match {
       case NoRepeat => byteType
       case _ => ArrayTypeInStream(byteType)
@@ -263,6 +293,19 @@ trait EveryReadIsExpression
     attrId match {
       case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
       case _ => super.attrDebugNeeded(attrId)
+    }
+  }
+
+  def itemExpr(id: Identifier, rep: RepeatSpec): Ast.expr = {
+    val astId = Ast.expr.InternalName(id)
+    rep match {
+      case NoRepeat =>
+        astId
+      case _ =>
+        Ast.expr.Subscript(
+          astId,
+          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
+        )
     }
   }
 }

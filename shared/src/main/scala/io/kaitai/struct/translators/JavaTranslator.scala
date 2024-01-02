@@ -1,6 +1,6 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{ImportList, Utils}
+import io.kaitai.struct.{ClassTypeProvider, ImportList, RuntimeConfig, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
@@ -8,7 +8,7 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.languages.JavaCompiler
 
-class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+class JavaTranslator(provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
     // Java's integer parsing behaves differently depending on whether you use decimal or hex syntax.
     // With decimal syntax, the parser/compiler rejects any number that cannot be stored in a long
@@ -32,7 +32,10 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
+    // FIXME
+    val compiler = new JavaCompiler(provider.asInstanceOf[ClassTypeProvider], config)
+
+    val javaType = compiler.kaitaiType2JavaTypeBoxed(t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
 
     importList.add("java.util.ArrayList")
@@ -53,6 +56,12 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
         super.numericBinOp(left, op, right)
     }
   }
+
+  override def doNumericCompareOp(left: expr, op: cmpop, right: expr): String =
+    s"(${super.doNumericCompareOp(left, op, right)})"
+
+  override def doEnumCompareOp(left: expr, op: cmpop, right: expr): String =
+    s"(${super.doEnumCompareOp(left, op, right)})"
 
   override def doName(s: String) =
     s match {
@@ -99,11 +108,19 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}.get((int) ${translate(idx)})"
+    s"${translate(container)}.get(${doCast(idx, CalcIntType)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"((${JavaCompiler.kaitaiType2JavaType(typeName)}) (${translate(value)}))"
+  override def doCast(value: Ast.expr, typeName: DataType): String = {
+    // FIXME
+    val compiler = new JavaCompiler(provider.asInstanceOf[ClassTypeProvider], config)
+    if (value.isInstanceOf[Ast.expr.IntNum] || value.isInstanceOf[Ast.expr.FloatNum])
+      // this branch is not really needed, but makes the code a bit cleaner -
+      // we can simplify casting to just this for numeric constants
+      s"((${compiler.kaitaiType2JavaType(typeName)}) ${translate(value)})"
+    else
+      compiler.castIfNeeded(translate(value), AnyType, typeName)
+  }
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
@@ -111,7 +128,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def enumToInt(v: expr, et: EnumType): String =
     s"${translate(v)}.id()"
   override def floatToInt(v: expr): String =
-    s"(int) (${translate(v)} + 0)"
+    doCast(v, CalcIntType)
   override def intToStr(i: expr, base: expr): String =
     s"Long.toString(${translate(i)}, ${translate(base)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
@@ -136,26 +153,39 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
     s"new String($bytesExpr, $charsetExpr)"
   }
+  override def bytesIndexOf(b: expr, byte: expr): String =
+    s"${JavaCompiler.kstreamName}.byteArrayIndexOf(${translate(b)}, ${doCast(byte, Int1Type(true))})"
 
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b)}.length"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"(${translate(container)}[${doCast(idx, CalcIntType)}] & 0xff)"
   override def bytesFirst(b: Ast.expr): String =
-    s"${translate(b)}[0]"
+    bytesSubscript(b, Ast.expr.IntNum(0))
   override def bytesLast(b: Ast.expr): String =
-    s"${translate(b)}[(${translate(b)}).length - 1]"
+    bytesSubscript(b, Ast.expr.BinOp(
+      Ast.expr.Attribute(
+        b,
+        Ast.identifier("length")
+      ),
+      Ast.operator.Sub,
+      Ast.expr.IntNum(1)
+    ))
   override def bytesMin(b: Ast.expr): String =
     s"${JavaCompiler.kstreamName}.byteArrayMin(${translate(b)})"
   override def bytesMax(b: Ast.expr): String =
     s"${JavaCompiler.kstreamName}.byteArrayMax(${translate(b)})"
 
   override def strLength(s: expr): String =
-    s"${translate(s)}.length()"
+    s"(${translate(s)}).length()"
   override def strReverse(s: expr): String =
     s"new StringBuilder(${translate(s)}).reverse().toString()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"(${translate(s)}).substring(${translate(from)}, ${translate(to)})"
+  override def strToBytes(s: expr, encoding: expr): String = {
+    importList.add("java.nio.charset.Charset")
+    s"(${translate(s)}).getBytes(Charset.forName(${translate(encoding)}))"
+  }
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}.get(0)"

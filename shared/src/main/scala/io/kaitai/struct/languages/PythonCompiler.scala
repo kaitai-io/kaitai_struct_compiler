@@ -16,8 +16,10 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with SingleOutputFile
     with UniversalFooter
     with EveryReadIsExpression
+    with FetchInstances
+    with EveryWriteIsExpression
+    with GenericChecks
     with AllocateIOLocalVar
-    with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
     with SwitchIfOps
     with NoNeedForFullClassPath {
@@ -27,6 +29,10 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override val translator = new PythonTranslator(typeProvider, importList)
 
   override def innerDocstrings = true
+
+  /** See [[subIOWriteBackHeader]] => the code generated when `true` will be inside the definition
+   * of the "write back handler" callback function. */
+  private var inSubIOWriteBackHandler = false
 
   override def universalFooter: Unit = {
     out.dec
@@ -49,7 +55,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
 
     importList.add("import kaitaistruct")
-    importList.add(s"from kaitaistruct import $kstructName, $kstreamName, BytesIO")
+    importList.add(s"from kaitaistruct import $kstructNameFull, $kstreamName, BytesIO")
 
     out.puts
     out.puts
@@ -89,7 +95,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classHeader(name: String): Unit = {
-    out.puts(s"class ${type2class(name)}($kstructName):")
+    out.puts(s"class ${type2class(name)}($kstructNameFull):")
     out.inc
   }
 
@@ -97,11 +103,16 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val endianAdd = if (isHybrid) ", _is_le=None" else ""
     val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
 
-    out.puts(s"def __init__(self$paramsList, _io, _parent=None, _root=None$endianAdd):")
+    val ioDefaultVal = if (config.readWrite) "=None" else ""
+    out.puts(s"def __init__(self$paramsList, _io$ioDefaultVal, _parent=None, _root=None$endianAdd):")
     out.inc
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
-    out.puts("self._root = _root if _root else self")
+    if (name == rootClassName) {
+      out.puts("self._root = _root if _root else self")
+    } else {
+      out.puts("self._root = _root")
+    }
 
     if (isHybrid)
       out.puts("self._is_le = _is_le")
@@ -120,17 +131,32 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def runReadCalc(): Unit = {
-    out.puts(s"if not hasattr(self, '_is_le'):")
+    out.puts("if not hasattr(self, '_is_le'):")
     out.inc
     out.puts(s"raise ${ksErrorName(UndecidedEndiannessError)}(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\")")
     out.dec
-    out.puts(s"elif self._is_le == True:")
+    out.puts("elif self._is_le == True:")
     out.inc
     out.puts("self._read_le()")
     out.dec
     out.puts("elif self._is_le == False:")
     out.inc
     out.puts("self._read_be()")
+    out.dec
+  }
+
+  override def runWriteCalc(): Unit = {
+    out.puts("if not hasattr(self, '_is_le'):")
+    out.inc
+    out.puts(s"raise ${ksErrorName(UndecidedEndiannessError)}(" + "\"" + typeProvider.nowClass.path.mkString("/", "/", "") + "\")")
+    out.dec
+    out.puts("elif self._is_le == True:")
+    out.inc
+    out.puts("self._write__seq_le()")
+    out.dec
+    out.puts("elif self._is_le == False:")
+    out.inc
+    out.puts("self._write__seq_be()")
     out.dec
   }
 
@@ -145,11 +171,81 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("pass")
   }
 
-  override def readFooter() = universalFooter
+  override def fetchInstancesHeader(): Unit = {
+    out.puts
+    out.puts("def _fetch_instances(self):")
+    out.inc
+    out.puts("pass")
+  }
+
+  override def fetchInstancesFooter: Unit = universalFooter
+
+  override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
+    val expr = expression(baseExpr)
+    out.puts(s"$expr._fetch_instances()")
+  }
+
+  override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {
+    out.puts(s"_ = self.${publicMemberName(instName)}")
+  }
+
+  override def writeHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    out.puts
+    endian match {
+      case Some(e) =>
+        out.puts(s"def _write__seq_${e.toSuffix}(self):")
+        out.inc
+        if (isEmpty)
+          out.puts("pass")
+      case None =>
+        out.puts("def _write__seq(self, io=None):")
+        out.inc
+        // FIXME: remove super() args when dropping support for Python 2 (see
+        // https://pylint.readthedocs.io/en/v2.16.2/user_guide/messages/refactor/super-with-arguments.html)
+        out.puts(s"super(${types2class(typeProvider.nowClass.name)}, self)._write__seq(io)")
+    }
+  }
+
+  override def checkHeader(): Unit = {
+    out.puts
+    out.puts("def _check(self):")
+    out.inc
+    out.puts("pass")
+  }
+
+  override def writeInstanceHeader(instName: InstanceIdentifier): Unit = {
+    out.puts
+    out.puts(s"def _write_${publicMemberName(instName)}(self):")
+    out.inc
+    instanceClearWriteFlag(instName)
+  }
+
+  override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
+    out.puts
+    out.puts(s"def _check_${publicMemberName(instName)}(self):")
+    out.inc
+    out.puts("pass")
+  }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
+
+  override def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
+    if (attrName.isInstanceOf[InstanceIdentifier]) {
+      val name = publicMemberName(attrName)
+
+      out.puts(s"@$name.setter")
+      out.puts(s"def $name(self, v):")
+      out.inc
+      handleAssignmentSimple(attrName, "v")
+      out.dec
+    }
+  }
+
+  override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit = {
+    out.puts(s"${expression(base)}.${publicMemberName(propName)} = $value")
+  }
 
   override def universalDoc(doc: DocSpec): Unit = {
     val docStr = doc.summary match {
@@ -178,9 +274,6 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.putsLines("", "\"\"\"" + docStr + refStr + "\"\"\"")
   }
-
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = self._io.ensure_fixed_contents($contents)")
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
     out.puts("if self._is_le:")
@@ -224,11 +317,87 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           importList.add(s"import $pkgName")
           s"$pkgName.${type2class(name.last)}"
         }
-
         out.puts(s"_process = $procClass(${args.map(expression).mkString(", ")})")
         s"_process.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
+  }
+
+  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dt: BytesType, exprTypeOpt: Option[DataType]): Unit = {
+    val srcExpr = varSrc match {
+      // use `_raw_items[_raw_items.size - 1]`
+      case _: RawIdentifier => getRawIdExpr(varSrc, rep)
+      // but `items[_index]`
+      case _ => expression(itemExpr(varSrc, rep))
+    }
+
+    val expr = proc match {
+      case ProcessXor(xorValue) =>
+        val argStr = if (inSubIOWriteBackHandler) "_process_val" else expression(xorValue)
+        val procName = translator.detectType(xorValue) match {
+          case _: IntType => "process_xor_one"
+          case _: BytesType => "process_xor_many"
+        }
+        s"$kstreamName.$procName($srcExpr, $argStr)"
+      case ProcessZlib =>
+        importList.add("import zlib")
+        s"zlib.compress($srcExpr)"
+      case ProcessRotate(isLeft, rotValue) =>
+        val argStr = if (inSubIOWriteBackHandler) "_process_val" else expression(rotValue)
+        val expr = if (!isLeft) {
+          argStr
+        } else {
+          s"8 - ($argStr)"
+        }
+        s"$kstreamName.process_rotate_left($srcExpr, $expr, 1)"
+      case ProcessCustom(name, args) =>
+        val procClass = if (name.length == 1) {
+          val onlyName = name.head
+          val className = type2class(onlyName)
+          importList.add(s"from $onlyName import $className")
+          className
+        } else {
+          val pkgName = name.init.mkString(".")
+          importList.add(s"import $pkgName")
+          s"$pkgName.${type2class(name.last)}"
+        }
+
+        val procName = if (inSubIOWriteBackHandler) {
+          "_process_val"
+        } else {
+          val procName = s"_process_${idToStr(varSrc)}"
+          out.puts(s"$procName = $procClass(${args.map(expression).mkString(", ")})")
+          procName
+        }
+        s"$procName.encode($srcExpr)"
+    }
+    handleAssignment(varDest, expr, rep, false)
+  }
+
+  override def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit = {
+    // NOTE: the local variable "_process_val" will be captured in a default value of a parameter
+    // when defining the "write back handler" function (in subIOWriteBackHeader), see
+    // https://docs.python.org/3/faq/programming.html#why-do-lambdas-defined-in-a-loop-with-different-values-all-return-the-same-result
+    proc match {
+      case ProcessXor(xorValue) =>
+        out.puts(s"_process_val = ${expression(xorValue)}")
+      case ProcessRotate(_, rotValue) =>
+        out.puts(s"_process_val = ${expression(rotValue)}")
+      case ProcessZlib => // no process arguments
+      case ProcessCustom(name, args) =>
+        val procClass = if (name.length == 1) {
+          val onlyName = name.head
+          val className = type2class(onlyName)
+          importList.add(s"from $onlyName import $className")
+          className
+        } else {
+          val pkgName = name.init.mkString(".")
+          importList.add(s"import $pkgName")
+          s"$pkgName.${type2class(name.last)}"
+        }
+        val procName = "_process_val"
+        out.puts(s"$procName = $procClass(${args.map(expression).mkString(", ")})")
+    }
   }
 
   override def normalIO: String = "self._io"
@@ -243,11 +412,53 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     ioName
   }
 
+  override def allocateIOFixed(varName: Identifier, size: String): String = {
+    val varStr = privateMemberName(varName)
+    val ioName = s"_io_${idToStr(varName)}"
+
+    // NOTE: in Python 2, bytes() converts an integer argument to a string (e.g. bytes(12) => '12'),
+    // so we have to use bytearray() instead
+    out.puts(s"$ioName = $kstreamName(BytesIO(bytearray($size)))")
+    ioName
+  }
+
+  override def exprIORemainingSize(io: String): String =
+    s"$io.size() - $io.pos()"
+
+  override def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = {
+    val parentIoName = "parent"
+    // NOTE: local variables "$subIO" and "_process_val" are captured here as default values of
+    // "handler" parameters, see
+    // https://docs.python.org/3/faq/programming.html#why-do-lambdas-defined-in-a-loop-with-different-values-all-return-the-same-result
+    val processValArg =
+      process.map(proc => proc match {
+        case _: ProcessXor | _: ProcessRotate | _: ProcessCustom =>
+          ", _process_val=_process_val"
+        case _ =>
+          ""
+      }).getOrElse("")
+    out.puts(s"def handler(parent, $subIO=$subIO$processValArg):")
+    out.inc
+
+    inSubIOWriteBackHandler = true
+
+    parentIoName
+  }
+
+  override def subIOWriteBackFooter(subIO: String): Unit = {
+    inSubIOWriteBackHandler = false
+
+    out.dec
+    out.puts(s"$subIO.write_back_handler = $kstreamName.WriteBackHandler(_pos2, handler)")
+  }
+
+  override def addChildIO(io: String, childIO: String): Unit =
+    out.puts(s"$io.add_child_stream($childIO)")
+
   def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(varName)
     rep match {
       case NoRepeat => memberName
-      case RepeatExpr(_) => s"$memberName[i]"
       case _ => s"$memberName[-1]"
     }
   }
@@ -260,14 +471,22 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def pushPos(io: String): Unit =
     out.puts(s"_pos = $io.pos()")
 
+  override def pushPosForSubIOWriteBackHandler(io: String): Unit =
+    out.puts(s"_pos2 = $io.pos()")
+
   override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io.seek(${expression(pos)})")
+
+  override def seekRelative(io: String, relPos: String): Unit =
+    out.puts(s"$io.seek($io.pos() + ($relPos))")
 
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)")
 
-  override def alignToByte(io: String): Unit =
-    out.puts(s"$io.align_to_byte()")
+  // NOTE: the compiler does not need to output align_to_byte() calls for Python anymore,
+  // since the byte alignment is handled by the runtime library since commit
+  // https://github.com/kaitai-io/kaitai_struct_python_runtime/commit/1cb84b84d358e1cdffe35845d1e6688bff923952
+  override def alignToByte(io: String): Unit = {}
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
@@ -299,6 +518,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)}:")
     out.inc
+    out.puts("pass")
   }
 
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
@@ -321,6 +541,16 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"for i in range(${expression(repeatExpr)}):")
     out.inc
   }
+
+  // used for all repetitions in _check()
+  override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+    // TODO: replace range(len()) with enumerate() (see
+    // https://pylint.readthedocs.io/en/v2.16.2/user_guide/messages/convention/consider-using-enumerate.html)
+    out.puts(s"for i in range(len(${privateMemberName(id)})):")
+    out.inc
+    out.puts("pass")
+  }
+
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
@@ -388,8 +618,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
     val expr1 = padRight match {
-      case Some(padByte) => s"$kstreamName.bytes_strip_right($expr0, $padByte)"
-      case None => expr0
+      case Some(padByte) if terminator.map(term => padByte != term).getOrElse(true) =>
+        s"$kstreamName.bytes_strip_right($expr0, $padByte)"
+      case _ => expr0
     }
     val expr2 = terminator match {
       case Some(term) => s"$kstreamName.bytes_terminate($expr1, $term, ${bool2Py(include)})"
@@ -415,11 +646,13 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchIfCaseFirstStart(condition: Ast.expr): Unit = {
     out.puts(s"if _on == ${expression(condition)}:")
     out.inc
+    out.puts("pass")
   }
 
   override def switchIfCaseStart(condition: Ast.expr): Unit = {
     out.puts(s"elif _on == ${expression(condition)}:")
     out.inc
+    out.puts("pass")
   }
 
   override def switchIfCaseEnd(): Unit =
@@ -428,9 +661,27 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchIfElseStart(): Unit = {
     out.puts(s"else:")
     out.inc
+    out.puts("pass")
   }
 
   override def switchIfEnd(): Unit = {}
+
+  override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = {}
+
+  override def instanceWriteFlagInit(attrName: InstanceIdentifier): Unit = {
+    instanceClearWriteFlag(attrName)
+    out.puts(s"self.${publicMemberName(attrName)}__to_write = True")
+  }
+
+  override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = {
+    out.puts(s"self._should_write_${publicMemberName(instName)} = self.${publicMemberName(instName)}__to_write")
+  }
+
+  override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = {
+    out.puts(s"self._should_write_${publicMemberName(instName)} = False")
+  }
+
+  override def instanceToWriteSetter(instName: InstanceIdentifier): Unit = {}
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts("@property")
@@ -446,9 +697,23 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
+  override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if self._should_write_${publicMemberName(instName)}:")
+    out.inc
+    out.puts(s"self._write_${publicMemberName(instName)}()")
+    out.dec
+  }
+
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     // workaround to avoid Python raising an "AttributeError: instance has no attribute"
     out.puts(s"return getattr(self, '${idToStr(instName)}', None)")
+  }
+
+  override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
+    out.puts(s"def _invalidate_${publicMemberName(instName)}(self):")
+    out.inc
+    out.puts(s"del ${privateMemberName(instName)}")
+    out.dec
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
@@ -460,6 +725,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = ${translator.doIntLiteral(id)}") }
     out.dec
   }
+
+  override def internalEnumIntType(basedOn: IntType): DataType =
+    basedOn
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
     val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
@@ -474,6 +742,107 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
+  override def attrPrimitiveWrite(
+    io: String,
+    valueExpr: Ast.expr,
+    dataType: DataType,
+    defEndian: Option[FixedEndian],
+    exprTypeOpt: Option[DataType]
+  ): Unit = {
+    val expr = expression(valueExpr)
+
+    val stmt = dataType match {
+      case t: ReadableType =>
+        s"$io.write_${t.apiCall(defEndian)}($expr)"
+      case BitsType1(bitEndian) =>
+        s"$io.write_bits_int_${bitEndian.toSuffix}(1, ${translator.boolToInt(valueExpr)})"
+      case BitsType(width: Int, bitEndian) =>
+        s"$io.write_bits_int_${bitEndian.toSuffix}($width, $expr)"
+      case _: BytesType =>
+        s"$io.write_bytes($expr)"
+    }
+    out.puts(stmt)
+  }
+
+  override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit =
+    out.puts(s"$io.write_bytes_limit(${expression(expr)}, $size, $term, $padRight)")
+
+  override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, dataType: DataType, exprType: DataType) = {
+    val expr = expression(valueExpr)
+    out.puts(s"$expr._write__seq($io)")
+  }
+
+  override def exprStreamToByteArray(io: String): String =
+    s"$io.to_byte_array()"
+
+  override def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    out.puts(s"if ${expression(checkExpr)}:")
+    out.inc
+    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
+    out.dec
+  }
+
+  override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    out.puts(s"if ${expression(actual)} != ${expression(expected)}:")
+    out.inc
+    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
+    out.dec
+  }
+
+  override def attrParentParamCheck(actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean], msg: String): Unit = {
+    if (ut.isOpaque)
+      return
+    /** @note Must be kept in sync with [[PythonCompiler.parseExpr]] */
+    val (expectedParent, dependsOnIo) = ut.forcedParent match {
+      case Some(USER_TYPE_NO_PARENT) => ("None", false)
+      case Some(fp) =>
+        (expression(fp), userExprDependsOnIo(fp))
+      case None => ("self", false)
+    }
+    if (shouldDependOnIo.map(shouldDepend => dependsOnIo != shouldDepend).getOrElse(false))
+      return
+
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    out.puts(s"if ${expression(actualParentExpr)} != $expectedParent:")
+    out.inc
+    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${expression(actualParentExpr)}, $expectedParent)")
+    out.dec
+  }
+
+  override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit = {
+    val msgStr = expression(Ast.expr.Str(msg))
+
+    val eofExpr = s"$io.is_eof()"
+    val ifExpr = if (expectedIsEof) {
+      s"not $eofExpr"
+    } else {
+      eofExpr
+    }
+    out.puts(s"if $ifExpr:")
+    out.inc
+    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${exprIORemainingSize(io)}, 0)")
+    out.dec
+  }
+
+  override def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit = {
+    val eofExpr = s"$io.is_eof()"
+    val ifExpr = if (!wantedIsEof) {
+      s"not $eofExpr"
+    } else {
+      eofExpr
+    }
+
+    out.puts(s"if $ifExpr:")
+    out.inc
+  }
+
+  override def condIfIsEofFooter: Unit = universalFooter
+
   def bool2Py(b: Boolean): String = if (b) { "True" } else { "False" }
 
   override def idToStr(id: Identifier): String = PythonCompiler.idToStr(id)
@@ -487,17 +856,28 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = PythonCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    expected: Option[Ast.expr] = None
   ): Unit = {
-    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    val errArgsStr = expected.map(expression) ++ List(
+      expression(Ast.expr.InternalName(attr.id)),
+      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "None",
+      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
+    )
     out.puts(s"if not ${translator.translate(checkExpr)}:")
     out.inc
-    out.puts(s"raise ${ksErrorName(err)}($errArgsStr)")
+    out.puts(s"raise ${ksErrorName(err)}(${errArgsStr.mkString(", ")})")
     out.dec
+  }
+
+  def kstructNameFull: String = {
+    ((config.autoRead, config.readWrite) match {
+      case (_, true) => "ReadWrite"
+      case (_, false) => ""
+    }) + kstructName
   }
 
   def userType2class(t: UserType): String = {
@@ -528,6 +908,8 @@ object PythonCompiler extends LanguageCompilerStatic
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => s"_m_$name"
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+      case OuterSizeIdentifier(innerId) => s"${idToStr(innerId)}__outer_size"
+      case InnerSizeIdentifier(innerId) => s"${idToStr(innerId)}__inner_size"
     }
 
   def publicMemberName(id: Identifier): String =

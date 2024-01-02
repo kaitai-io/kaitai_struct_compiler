@@ -16,6 +16,18 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     }
   }
 
+  override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+    s"(${super.doNumericCompareOp(left, op, right)})"
+
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+    s"(${super.doStrCompareOp(left, op, right)})"
+
+  override def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+    s"(${super.doEnumCompareOp(left, op, right)})"
+
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+    s"(${super.doBytesCompareOp(left, op, right)})"
+
   override def doStringLiteral(s: String): String = "u" + super.doStringLiteral(s)
   override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
 
@@ -104,6 +116,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   }
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""($bytesExpr).decode("$encoding")"""
+  override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String =
+    s"${PythonCompiler.kstreamName}.byte_array_index_of(${translate(b)}, ${translate(byte)})"
 
   override def bytesLength(value: Ast.expr): String =
     s"len(${translate(value)})"
@@ -125,6 +139,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"(${translate(value)})[::-1]"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"(${translate(s)})[${translate(from)}:${translate(to)}]"
+  override def strToBytes(s: Ast.expr, encoding: Ast.expr): String =
+    s"(${translate(s)}).encode(${translate(encoding)})"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[0]"

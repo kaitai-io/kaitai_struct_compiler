@@ -190,25 +190,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)}, err = $normalIO.ReadBytes(${contents.length})")
-
-    out.puts(s"if err != nil {")
-    out.inc
-    out.puts("return err")
-    out.dec
-    out.puts("}")
-
-    importList.add("bytes")
-    importList.add("errors")
-    val expected = translator.resToStr(translator.doByteArrayLiteral(contents))
-    out.puts(s"if !bytes.Equal(${privateMemberName(attrName)}, $expected) {")
-    out.inc
-    out.puts("return errors.New(\"Unexpected fixed contents\")")
-    out.dec
-    out.puts("}")
-  }
-
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
@@ -550,16 +531,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = GoCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    expected: Option[Ast.expr] = None
   ): Unit = {
-    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    val errArgsStr = expected.map(expression) ++ List(
+      expression(Ast.expr.InternalName(attr.id)),
+      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "nil",
+      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
+    )
     out.puts(s"if !(${translator.translate(checkExpr)}) {")
     out.inc
-    val errInst = s"kaitai.New${err.name}($errArgsStr)"
+    val errInst = s"kaitai.New${err.name}(${errArgsStr.mkString(", ")})"
     val noValueAndErr = translator.returnRes match {
       case None => errInst
       case Some(r) => s"$r, $errInst"

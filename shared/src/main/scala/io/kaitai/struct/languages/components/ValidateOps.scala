@@ -13,17 +13,17 @@ trait ValidateOps extends ExceptionNames {
   val translator: AbstractTranslator
   val typeProvider: ClassTypeProvider
 
-  def attrValidate(attrId: Identifier, attr: AttrLikeSpec, valid: ValidationSpec): Unit = {
+  def attrValidate(attrId: Identifier, attr: AttrLikeSpec, valid: ValidationSpec, useIo: Boolean): Unit = {
     valid match {
       case ValidationEq(expected) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.Eq, expected, ValidationNotEqualError(attr.dataTypeComposite))
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.Eq, expected, ValidationNotEqualError(attr.dataTypeComposite), useIo)
       case ValidationMin(min) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataTypeComposite))
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataTypeComposite), useIo)
       case ValidationMax(max) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataTypeComposite))
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataTypeComposite), useIo)
       case ValidationRange(min, max) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataTypeComposite))
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataTypeComposite))
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataTypeComposite), useIo)
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataTypeComposite), useIo)
       case ValidationAnyOf(values) =>
         val bigOrExpr = Ast.expr.BoolOp(
           Ast.boolop.Or,
@@ -37,15 +37,10 @@ trait ValidateOps extends ExceptionNames {
         )
 
         attrValidateExpr(
-          attrId,
-          attr.dataTypeComposite,
+          attr,
           checkExpr = bigOrExpr,
           err = ValidationNotAnyOfError(attr.dataTypeComposite),
-          errArgs = List(
-            Ast.expr.InternalName(attrId),
-            Ast.expr.InternalName(IoIdentifier),
-            Ast.expr.Str(attr.path.mkString("/", "/", ""))
-          )
+          useIo
         )
       case ValidationExpr(expr) =>
         blockScopeHeader
@@ -56,40 +51,37 @@ trait ValidateOps extends ExceptionNames {
           translator.translate(Ast.expr.InternalName(attrId))
         )
         attrValidateExpr(
-          attrId,
-          attr.dataTypeComposite,
+          attr,
           expr,
           ValidationExprError(attr.dataTypeComposite),
-          List(
-            Ast.expr.InternalName(attrId),
-            Ast.expr.InternalName(IoIdentifier),
-            Ast.expr.Str(attr.path.mkString("/", "/", ""))
-          )
+          useIo
         )
         blockScopeFooter
     }
   }
 
-  def attrValidateExprCompare(attrId: Identifier, attr: AttrLikeSpec, op: Ast.cmpop, expected: Ast.expr, err: KSError): Unit = {
+  def attrValidateExprCompare(
+    attrId: Identifier,
+    attr: AttrLikeSpec,
+    op: Ast.cmpop,
+    expected: Ast.expr,
+    err: KSError,
+    useIo: Boolean
+  ): Unit = {
     attrValidateExpr(
-      attrId,
-      attr.dataTypeComposite,
+      attr,
       checkExpr = Ast.expr.Compare(
         Ast.expr.InternalName(attrId),
         op,
         expected
       ),
       err = err,
-      errArgs = List(
-        expected,
-        Ast.expr.InternalName(attrId),
-        Ast.expr.InternalName(IoIdentifier),
-        Ast.expr.Str(attr.path.mkString("/", "/", ""))
-      )
+      useIo = useIo,
+      expected = Some(expected)
     )
   }
 
-  def attrValidateExpr(attrId: Identifier, attrType: DataType, checkExpr: Ast.expr, err: KSError, errArgs: List[Ast.expr]): Unit = {}
+  def attrValidateExpr(attr: AttrLikeSpec, checkExpr: Ast.expr, err: KSError, useIo: Boolean, expected: Option[Ast.expr] = None): Unit = {}
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit
   def blockScopeHeader: Unit
   def blockScopeFooter: Unit

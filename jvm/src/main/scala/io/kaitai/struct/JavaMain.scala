@@ -57,6 +57,10 @@ object JavaMain {
         }
       }
 
+      opt[Unit]('w', "read-write") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(readWrite = true, autoRead = false))
+      } text("generate read-write support in classes (implies `--no-auto-read --zero-copy-substream false`, Java and Python only, default: read-only)")
+
       opt[File]('d', "outdir") valueName("<directory>") action { (x, c) =>
         c.copy(outDir = x)
       } text("output directory (filenames will be auto-generated); on Unix-like shells, the short form `-d` requires arguments to be preceded by `--`")
@@ -172,7 +176,13 @@ object JavaMain {
       version("version") text("output version information and exit")
     }
 
-    parser.parse(args, CLIConfig())
+    parser.parse(args, CLIConfig()).map { c =>
+      if (c.runtime.readWrite) {
+        c.copy(runtime = c.runtime.copy(zeroCopySubstream = false))
+      } else {
+        c
+      }
+    }
   }
 
   /**
