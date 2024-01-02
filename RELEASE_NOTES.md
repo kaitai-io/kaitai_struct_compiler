@@ -1,3 +1,8 @@
+# 0.11 (TBD)
+
+* Packaging / infrastructure improvements:
+  * [npm package `kaitai-struct-compiler`](https://www.npmjs.com/package/kaitai-struct-compiler/) now returns the compiler object itself instead of a constructor function (called `KaitaiStructCompiler`). Make sure to adapt your code: replace `(new KaitaiStructCompiler()).compile(...)` with `KaitaiStructCompiler.compile(...)` ([#222](https://github.com/kaitai-io/kaitai_struct_compiler/pull/222))
+
 # 0.10 (2022-07-08)
 
 * General compilation improvements:

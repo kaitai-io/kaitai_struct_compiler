@@ -19,7 +19,8 @@ lazy val root = project.in(file(".")).
     publishLocal := {}
   )
 
-lazy val compiler = crossProject.in(file(".")).
+lazy val compiler = crossProject(JSPlatform, JVMPlatform).
+  in(file(".")).
   enablePlugins(JavaAppPackaging).
   settings(
     organization := "io.kaitai",
@@ -39,7 +40,7 @@ lazy val compiler = crossProject.in(file(".")).
       }
     },
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.12.12",
+    scalaVersion := "2.12.18",
 
     // Repo publish options
     publishTo := version { (v: String) =>
@@ -70,9 +71,9 @@ lazy val compiler = crossProject.in(file(".")).
     Compile / sourceGenerators += generateVersionTask.taskValue, // update automatically on every rebuild
 
     libraryDependencies ++= Seq(
-      "com.github.scopt" %%% "scopt" % "3.6.0",
-      "com.lihaoyi" %%% "fastparse" % "1.0.0",
-      "org.yaml" % "snakeyaml" % "1.28"
+      "com.github.scopt" %%% "scopt" % "4.1.0",
+      "com.lihaoyi" %%% "fastparse" % "2.3.3",
+      "org.yaml" % "snakeyaml" % "2.0"
     )
   ).
   jvmSettings(
@@ -80,7 +81,9 @@ lazy val compiler = crossProject.in(file(".")).
 
     Compile / mainClass := Some("io.kaitai.struct.JavaMain"),
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.12" % "test"
+      "org.scalatest" %% "scalatest-funspec" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest-funsuite" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest-shouldmatchers" % "3.2.15" % "test",
     ),
 
     Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test_out"),
@@ -228,13 +231,8 @@ lazy val buildNpmJsFileTask = Def.task {
        |  }
        |}(typeof self !== 'undefined' ? self : this, function () {
        |
-       |var exports = {};
-       |var __ScalaJSEnv = { exportsNamespace: exports };
-       |
        |$compiledFileContents
-       |
-       |return exports.io.kaitai.struct.MainJs;
-       |
+       |return MainJs;
        |}));
        |""".stripMargin
 
