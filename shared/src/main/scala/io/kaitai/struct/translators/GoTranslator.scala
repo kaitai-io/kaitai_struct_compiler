@@ -105,7 +105,14 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           }
 
         } else {
-          s"(${translate(left)} ${binOp(op)} ${translate(right)})"
+          val tl = translate(left)
+          val tr = translate(right)
+          val r = if (!tl.contains(s"($t1T(") || !tr.contains(s"($t2T(")) {
+            s"($t1T($tl) ${binOp(op)} $t2T($tr))"
+          } else {
+            s"($tl ${binOp(op)} $tr})"
+          }
+          r
         }
         res
       }
@@ -548,7 +555,14 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def strLength(s: Ast.expr): String = {
     importList.add("unicode/utf8")
-    s"utf8.RuneCountInString(${translate(s)})"
+
+    val sType = detectType(s)
+    sType match {
+      case sbt: StrFromBytesType if sbt.bytes != null && sbt.bytes.isInstanceOf[BytesTerminatedType] =>
+        s"utf8.RuneCountInString(${translate(s)}.String())"
+      case _ =>
+        s"utf8.RuneCountInString(${translate(s)})"
+    }
   }
 
   override def intToStr(value: Ast.expr, base: Ast.expr): String = {
