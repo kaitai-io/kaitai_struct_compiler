@@ -89,9 +89,9 @@ class ParentTypes(classSpecs: ClassSpecs) {
         } else {
           // conflicting types, would be bad for statically typed languages
           // throw new RuntimeException(s"type '${attr.dataType}' has more than 1 conflicting parent types: ${otherName} and ${curClassName}")
-          child.parentClass = GenericStructClassSpec
+          child.parentClass = MultiParentClassSpec
         }
-      case GenericStructClassSpec =>
+      case _ =>
         // already most generic case, do nothing
     }
   }

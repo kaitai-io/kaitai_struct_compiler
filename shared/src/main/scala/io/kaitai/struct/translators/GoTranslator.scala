@@ -3,12 +3,9 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{ClassSpec, Identifier}
+import io.kaitai.struct.format.{ClassSpec, Identifier, InstanceIdentifier, MultiParentClassSpec, NamedIdentifier, SpecialIdentifier}
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.{ClassTypeProvider, ImportList, RuntimeConfig, StringLanguageOutputWriter, Utils}
-import io.kaitai.struct.format.SpecialIdentifier
-import io.kaitai.struct.format.NamedIdentifier
-import io.kaitai.struct.format.InstanceIdentifier
 import io.kaitai.struct.precompile.TypeMismatchError
 
 class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
@@ -609,6 +606,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
               "this"
             }
           }
+          case MultiParentClassSpec => "this"
           case _ => "&this.Stream"
         }
         content
