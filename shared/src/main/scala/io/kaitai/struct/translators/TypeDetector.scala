@@ -391,13 +391,13 @@ object TypeDetector {
               } else {
                 // TODO: in go, only interface{} (like enum) can trans to other type, so
                 // change here
-                AnyType
+                CalcAnyType
               }
             case (Some(cs1), Some(cs2)) =>
               if (cs1 == cs2) {
                 t1
               } else {
-                AnyType
+                CalcAnyType
               }
             case (_, _) =>
               if (t1.isOwning || t2.isOwning) {
@@ -418,10 +418,10 @@ object TypeDetector {
             t.enumSpec = t1.enumSpec
             t
           } else {
-            AnyType
+            CalcAnyType
           }
         case (a1: ArrayType, a2: ArrayType) => CalcArrayType(combineTypesAndFail(a1.elType, a2.elType))
-        case _ => AnyType
+        case _ => CalcAnyType
       }
     }
   }

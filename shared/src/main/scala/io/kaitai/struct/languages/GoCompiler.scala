@@ -156,7 +156,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
     val expr = expression(baseExpr)
     var tmpVarName = ""
-    if (inSwitchCaseHandler && kaitaiType2NativeType(exprType) == "kaitai.AnyTypeInterface") {
+    if (inSwitchCaseHandler && (exprType == AnyType || exprType == CalcAnyType)) {
       tmpVarName = translator.interfaceTypeOfSwitchCase(expr, kaitaiType2NativeType(dataType))
     }
 
@@ -824,7 +824,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     value match {
       case Ast.expr.Attribute(v, attr) => {
         val dt = translator.detectType(v)
-        if (dt == AnyType) {
+        if (dt == AnyType || dt == CalcAnyType) {
           return (v, "kaitai.AnyTypeInterface")
         }
         if (dt.isInstanceOf[CalcUserType]) {
@@ -836,7 +836,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
       case Ast.expr.CastToType(v, typeName) => {
         val dt = translator.detectType(v)
-        if (dt == AnyType) {
+        if (dt == AnyType || dt == CalcAnyType) {
           return (v, "kaitai.AnyTypeInterface")
         }
         if (dt.isInstanceOf[CalcUserType]) {
@@ -855,15 +855,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     var walkedValue: Mut[List[String]] = Mut(List())
 
     val (backedValue, walkedValueRes) = walkAllAttrExpr(value, walkedValue)
-    if (walkedValueRes != "" && walkedValueRes != "kaitai.AnyTypeInterface" && !r.contains(".(*") ) {
+    if (walkedValueRes != "" && walkedValueRes != "kaitai.AnyTypeInterface" && walkedValueRes != "interface{}" && !r.contains(".(*") ) {
       val (front, back) = r.splitAt(r.indexOf(walkedValue.value(0).capitalize))
       val splitedFront = front.split("\\.")
-      if (kaitaiType2NativeType(translator.detectType(backedValue)) == "kaitai.AnyTypeInterface" || splitedFront.length >= 3) {
+      if (kaitaiType2NativeType(translator.detectType(backedValue)) == "kaitai.AnyTypeInterface" || kaitaiType2NativeType(translator.detectType(backedValue))  == "interface{}" || splitedFront.length >= 3) {
         r = front ++ s"($walkedValueRes)." ++ back
       } else {
         r = front ++ back
       }
-    } else if (walkedValueRes == "kaitai.AnyTypeInterface") {
+    } else if (walkedValueRes == "kaitai.AnyTypeInterface" || walkedValueRes == "interface{}") {
       r = s"$r.(${kaitaiType2NativeType(dataType)})"
     }
 
@@ -1007,7 +1007,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         targetType match {
           case _: NumericType => {
             val resType = exprType match {
-              case AnyType => s"$exprRaw.($castTypeId)"
+              case AnyType | CalcAnyType => s"$exprRaw.($castTypeId)"
               case _ => s"$castTypeId($exprRaw)"
             }
             resType
@@ -1017,7 +1017,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
               return s"$exprRaw"
             }
             val resType = exprType match {
-              case AnyType => s"$exprRaw.($castTypeId)"
+              case AnyType | CalcAnyType => s"$exprRaw.($castTypeId)"
               case _ => s"$exprRaw"
             }
             resType
@@ -1073,7 +1073,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, t: DataType, exprType: DataType): Unit = {
     var changedExpr = valueExpr
     var tmpVarName = ""
-    if (inSwitchCaseHandler && kaitaiType2NativeType(translator.detectType(valueExpr)) == "kaitai.AnyTypeInterface") {
+    if (inSwitchCaseHandler && (kaitaiType2NativeType(translator.detectType(valueExpr)) == "kaitai.AnyTypeInterface" || kaitaiType2NativeType(translator.detectType(valueExpr)) == "interface{}")) {
       val (changedActual, tmpName) = translator.interfaceTypeOfSwitchCaseInExpr(valueExpr, Option(t), (dt) => {
         kaitaiType2NativeType(dt)
       })
@@ -1317,9 +1317,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: StrType => "string"
       case _: BytesType => "[]byte"
 
-      case AnyType => {
-        "kaitai.AnyTypeInterface"
-      }
+      case AnyType => "kaitai.AnyTypeInterface"
+      case CalcAnyType => "interface{}"
+
       case KaitaiStructType | CalcKaitaiStructType(_) => "*" + kstructNameFull
       case KaitaiStreamType | OwnedKaitaiStreamType => "*" + kstreamName
 
