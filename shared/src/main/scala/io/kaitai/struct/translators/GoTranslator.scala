@@ -94,20 +94,25 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case _: Int1Type => 8
           case _ => 32
         }
-        val res = if (t2T != t1T) {
-          if (t1Size > t2Size) {
-            s"(${t1T}(${translate(left)}) ${binOp(op)} ${t1T}(${translate(right)}))"
-          } else {
-            s"(${t2T}(${translate(left)}) ${binOp(op)} ${t2T}(${translate(right)}))"
-          }
 
+        val binsOp = binOp(op)
+        val res = if (t2T != t1T) {
+          if (binsOp == "<<" || binsOp == ">>") {
+            s"int(${translate(left)}) $binsOp int(${translate(right)})"
+          } else {
+            if (t1Size > t2Size) {
+              s"(${t1T}(${translate(left)}) $binsOp ${t1T}(${translate(right)}))"
+            } else {
+              s"(${t2T}(${translate(left)}) $binsOp ${t2T}(${translate(right)}))"
+            }
+          }
         } else {
           val tl = translate(left)
           val tr = translate(right)
           val r = if (!tl.contains(s"($t1T(") || !tr.contains(s"($t2T(")) {
-            s"($t1T($tl) ${binOp(op)} $t2T($tr))"
+            s"($t1T($tl) $binsOp $t2T($tr))"
           } else {
-            s"($tl ${binOp(op)} $tr})"
+            s"($tl $binsOp $tr})"
           }
           r
         }
