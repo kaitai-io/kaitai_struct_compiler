@@ -1,11 +1,12 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype.DataType.{CalcIntType, KaitaiStreamType, UserTypeInstream}
+import io.kaitai.struct.datatype.DataType.{CalcIntType, KaitaiStreamType, UserType, UserTypeInstream}
 import io.kaitai.struct.datatype.{BigEndian, CalcEndian, Endianness, FixedEndian, InheritedEndian, LittleEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.GoCompiler
 import io.kaitai.struct.languages.components.ExtraAttrs
+import io.kaitai.struct.translators.GoTranslator
 
 class GoClassCompiler(
   classSpecs: ClassSpecs,
@@ -16,10 +17,19 @@ class GoClassCompiler(
   override def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
+    compileFetchInstancesProc(curClass.seq ++ curClass.instances.values.collect {
+      case inst: AttrLikeSpec => inst
+    })
+
+    if (config.readWrite) {
+      compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
+      compileCheck(curClass.seq)
+    }
+
     val extraAttrs = List(
       AttrSpec(List(), IoIdentifier, KaitaiStreamType),
       AttrSpec(List(), RootIdentifier, UserTypeInstream(topClassName, None)),
-      AttrSpec(List(), ParentIdentifier, curClass.parentType)
+      AttrSpec(List(), ParentIdentifier, curClass.parentType),
     ) ++ ExtraAttrs.forClassSpec(curClass, lang)
 
     if (!curClass.doc.isEmpty)
@@ -30,6 +40,11 @@ class GoClassCompiler(
 
     // Basic struct declaration
     lang.classHeader(curClass.name)
+
+    if (config.readWrite) {
+      lang.classExtendMarks(List("kaitai.Stream"))
+    }
+
     compileAttrDeclarations(curClass.seq ++ curClass.params ++ extraAttrs)
     curClass.instances.foreach { case (instName, instSpec) =>
       compileInstanceDeclaration(instName, instSpec)
@@ -68,6 +83,12 @@ class GoClassCompiler(
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
+    if (config.readWrite)
+      instSpec match {
+        case _: ParseInstanceSpec =>
+          lang.instanceCheckWriteFlagAndWrite(instName)
+        case _: ValueInstanceSpec => // do nothing
+      }
     lang.instanceCheckCacheAndReturn(instName, dataType)
 
     instSpec match {
@@ -82,6 +103,26 @@ class GoClassCompiler(
     lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
+
+    if (config.readWrite)
+      instSpec match {
+        case pi: ParseInstanceSpec =>
+          lang.attributeSetter(instName, dataType, instSpec.isNullable)
+          lang.instanceToWriteSetter(instName)
+          lang.writeInstanceHeader(instName)
+          lang.attrWrite(pi, instName, endian)
+          lang.writeInstanceFooter
+
+          lang.checkInstanceHeader(instName)
+          lang.attrCheck(pi, instName)
+          lang.checkInstanceFooter
+        case _: ValueInstanceSpec =>
+          var newInst = instName
+          if (lang.translator.isInstanceOf[GoTranslator]) {
+            newInst = InstanceIdentifier(instName.name.concat(s"_insplit_${dataType.toString.split('(')(0).toLowerCase()}"))
+          }
+          lang.instanceInvalidate(newInst)
+      }
   }
 
   override def compileCalcEndian(ce: CalcEndian): Unit = {

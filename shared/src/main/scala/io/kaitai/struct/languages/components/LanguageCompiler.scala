@@ -87,6 +87,7 @@ abstract class LanguageCompiler(
   def classHeader(name: List[String]): Unit
   def classFooter(name: List[String]): Unit
   def classForwardDeclaration(name: List[String]): Unit = {}
+  def classExtendMarks(name: List[String]): Unit = {}
 
   def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit
   def classConstructorFooter: Unit
@@ -116,6 +117,7 @@ abstract class LanguageCompiler(
 
   def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
   def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit
+  def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = ???
   def attributeDoc(id: Identifier, doc: DocSpec): Unit = {}
 
   def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit
@@ -123,13 +125,29 @@ abstract class LanguageCompiler(
   def attrInit(attr: AttrLikeSpec): Unit = {}
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
-  // TODO: delete
-  def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
+  def attrFetchInstances(attr: AttrLikeSpec, id: Identifier): Unit = {}
+  def fetchInstancesHeader(): Unit = {}
+  def fetchInstancesFooter(): Unit = {}
+  def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = ???
+  def attrInvokeInstance(instName: InstanceIdentifier): Unit = ???
+
+  def writeHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = ???
+  def writeFooter(): Unit = ???
+  def writeInstanceHeader(instName: InstanceIdentifier): Unit = ???
+  def writeInstanceFooter(): Unit = ???
+  def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
+  def runWriteCalc(): Unit = ???
+
+  def checkHeader(): Unit = ???
+  def checkFooter(): Unit = ???
+  def checkInstanceHeader(instName: InstanceIdentifier): Unit = ???
+  def checkInstanceFooter(): Unit = ???
+  def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = ???
 
   def condIfSetNull(instName: Identifier): Unit = {}
   def condIfSetNonNull(instName: Identifier): Unit = {}
   def condIfHeader(expr: Ast.expr): Unit
-  def condIfFooter(expr: Ast.expr): Unit
+  def condIfFooter: Unit
 
   def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit
 
@@ -142,24 +160,44 @@ abstract class LanguageCompiler(
   def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit
   def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit
 
+  def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {}
+  def condRepeatCommonFooter: Unit = {}
+
   def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit
 
   def normalIO: String
   def useIO(ioEx: Ast.expr): String
   def pushPos(io: String): Unit
+  def pushPosForSubIOWriteBackHandler(io: String): Unit = ???
   def seek(io: String, pos: Ast.expr): Unit
+  def seekRelative(io: String, relPos: String): Unit = ???
   def popPos(io: String): Unit
   def alignToByte(io: String): Unit
+
+  def exprIORemainingSize(io: String): String = ???
+
+  def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = ???
+  def subIOWriteBackFooter(subIO: String): Unit = ???
+  def subIOWriteBackSetter(subIO: String): Unit = ???
+
+  def addChildIO(io: String, childIO: String): Unit = ???
 
   def instanceDeclHeader(className: List[String]): Unit = {}
   def instanceClear(instName: InstanceIdentifier): Unit = {}
   def instanceSetCalculated(instName: InstanceIdentifier): Unit = {}
   def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = attributeDeclaration(attrName, attrType, isNullable)
+  def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = ???
+  def instanceWriteFlagInit(attrName: InstanceIdentifier): Unit = {}
+  def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = ???
+  def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = ???
+  def instanceToWriteSetter(instName: InstanceIdentifier): Unit = ???
   def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit
   def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr)
+  def instanceInvalidate(instName: InstanceIdentifier): Unit = ???
+  def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = ???
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit
 
@@ -192,7 +230,7 @@ abstract class LanguageCompiler(
 
   def attrParseIfFooter(ifExpr: Option[Ast.expr]): Unit = {
     ifExpr match {
-      case Some(e) => condIfFooter(e)
+      case Some(e) => condIfFooter
       case None => // ignore
     }
   }

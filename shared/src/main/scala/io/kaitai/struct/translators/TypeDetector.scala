@@ -249,7 +249,9 @@ class TypeDetector(provider: TypeProvider) {
         (objType, methodName.name) match {
           case (_: StrType, "substring") => CalcStrType
           case (_: StrType, "to_i") => CalcIntType
+          case (_: StrType, "to_b") => CalcBytesType
           case (_: BytesType, "to_s") => CalcStrType
+          case (_: BytesType, "index_of") => CalcIntType
           case _ =>
             throw new MethodNotFoundError(methodName.name, objType)
         }
@@ -387,21 +389,15 @@ object TypeDetector {
               if (t1.name == t2.name) {
                 t1
               } else {
-                if (t1.isOwning || t2.isOwning) {
-                  KaitaiStructType
-                } else {
-                  CalcKaitaiStructType()
-                }
+                // TODO: in go, only interface{} (like enum) can trans to other type, so
+                // change here
+                CalcAnyType
               }
             case (Some(cs1), Some(cs2)) =>
               if (cs1 == cs2) {
                 t1
               } else {
-                if (t1.isOwning || t2.isOwning) {
-                  KaitaiStructType
-                } else {
-                  CalcKaitaiStructType()
-                }
+                CalcAnyType
               }
             case (_, _) =>
               if (t1.isOwning || t2.isOwning) {
@@ -422,10 +418,10 @@ object TypeDetector {
             t.enumSpec = t1.enumSpec
             t
           } else {
-            AnyType
+            CalcAnyType
           }
         case (a1: ArrayType, a2: ArrayType) => CalcArrayType(combineTypesAndFail(a1.elType, a2.elType))
-        case _ => AnyType
+        case _ => CalcAnyType
       }
     }
   }

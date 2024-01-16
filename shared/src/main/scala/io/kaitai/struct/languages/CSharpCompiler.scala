@@ -17,7 +17,6 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with AllocateIOLocalVar
     with EveryReadIsExpression
     with UniversalDoc
-    with FixedContentsUsingArrayByteLiteral
     with SwitchIfOps
     with NoNeedForFullClassPath {
   import CSharpCompiler._
@@ -193,9 +192,6 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents($contents);")
-
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
@@ -272,7 +268,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condIfFooter(expr: expr): Unit = fileFooter(null)
+  override def condIfFooter: Unit = fileFooter(null)
 
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     importList.add("System.Collections.Generic")
@@ -580,17 +576,21 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = CSharpCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    expected: Option[Ast.expr] = None
   ): Unit = {
-    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    val errArgsStr = expected.map(expression) ++ List(
+      expression(Ast.expr.InternalName(attr.id)),
+      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "null",
+      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
+    )
     out.puts(s"if (!(${translator.translate(checkExpr)}))")
     out.puts("{")
     out.inc
-    out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
+    out.puts(s"throw new ${ksErrorName(err)}(${errArgsStr.mkString(", ")});")
     out.dec
     out.puts("}")
   }

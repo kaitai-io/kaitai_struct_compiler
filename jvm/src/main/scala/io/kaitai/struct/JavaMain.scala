@@ -11,6 +11,8 @@ import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException, ErrorInInput}
 
+import scala.collection.immutable.Map
+
 object JavaMain {
   KSVersion.current = Version.version
 
@@ -56,6 +58,10 @@ object JavaMain {
           failure(s"'$x' is not a valid target language; valid ones are: ${VALID_LANGS.mkString(", ")}")
         }
       }
+
+      opt[Unit]('w', "read-write") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(readWrite = true, autoRead = false))
+      } text("generate read-write support in classes (implies `--no-auto-read --zero-copy-substream false`, Java and Python only, default: read-only)")
 
       opt[File]('d', "outdir") valueName("<directory>") action { (x, c) =>
         c.copy(outDir = x)
@@ -172,7 +178,13 @@ object JavaMain {
       version("version") text("output version information and exit")
     }
 
-    parser.parse(args, CLIConfig())
+    parser.parse(args, CLIConfig()).map { c =>
+      if (c.runtime.readWrite) {
+        c.copy(runtime = c.runtime.copy(zeroCopySubstream = false))
+      } else {
+        c
+      }
+    }
   }
 
   /**
@@ -259,8 +271,8 @@ class JavaMain(config: CLIConfig) {
   def run(): Unit = {
     val logs: Map[String, InputEntry] = config.srcFiles.map { srcFile =>
       val log = if (config.throwExceptions) {
-        compileOneInput(srcFile)
-      } else {
+        compileOneInput(srcFile)      } else {
+
         try {
           compileOneInput(srcFile)
         } catch {
@@ -292,26 +304,55 @@ class JavaMain(config: CLIConfig) {
 
   private def compileOneInput(srcFile: String): InputEntry = {
     Log.fileOps.info(() => s"parsing $srcFile...")
-    val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(srcFile, config)
 
-    specsOpt match {
-      case Some(specs) =>
-        val output: Map[String, Map[String, SpecEntry]] = config.targets match {
-          case Seq(lang) =>
-            // single target, just use target directory as is
-            val out = compileOneLang(specs, lang, config.outDir.toString)
-            Map(lang -> out)
-          case _ =>
-            // multiple targets, use additional directories
-            compileAllLangs(specs, config)
+    val dir = new File(srcFile)
+
+    if ( dir.isDirectory ) {
+      var recordInput: InputSuccess = null
+      for ( f: File <- dir.listFiles() ) {
+        val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(f.getPath, config)
+        specsOpt match {
+          case Some(specs) =>
+            val output: Map[String, Map[String, SpecEntry]] = config.targets match {
+              case Seq(lang) =>
+                // single target, just use target directory as is
+                val out = compileOneLang(specs, lang, config.outDir.toString)
+                Map(lang -> out)
+              case _ =>
+                // multiple targets, use additional directories
+                compileAllLangs(specs, config)
+            }
+            recordInput = InputSuccess(
+              specs.firstSpec.nameAsStr,
+              output,
+              precompileProblems
+            )
+          case None =>
+            InputFailure(precompileProblems)
         }
-        InputSuccess(
-          specs.firstSpec.nameAsStr,
-          output,
-          precompileProblems
-        )
-      case None =>
-        InputFailure(precompileProblems)
+      }
+      recordInput
+    } else {
+      val (specsOpt, precompileProblems) = JavaKSYParser.localFileToSpecs(srcFile, config)
+      specsOpt match {
+        case Some(specs) =>
+          val output: Map[String, Map[String, SpecEntry]] = config.targets match {
+            case Seq(lang) =>
+              // single target, just use target directory as is
+              val out = compileOneLang(specs, lang, config.outDir.toString)
+              Map(lang -> out)
+            case _ =>
+              // multiple targets, use additional directories
+              compileAllLangs(specs, config)
+          }
+          InputSuccess(
+            specs.firstSpec.nameAsStr,
+            output,
+            precompileProblems
+          )
+        case None =>
+          InputFailure(precompileProblems)
+      }
     }
   }
 

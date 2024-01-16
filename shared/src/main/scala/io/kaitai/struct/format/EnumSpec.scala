@@ -1,12 +1,13 @@
 package io.kaitai.struct.format
 
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.problems.KSYParseError
 
 import scala.collection.mutable
 
 case class EnumSpec(path: List[String], map: Map[Long, EnumValueSpec]) extends YAMLPath {
   var name = List[String]()
-
+  var enumType: DataType = null
   /**
     * @return Absolute name of enum as string, components separated by
     *         double colon operator `::`

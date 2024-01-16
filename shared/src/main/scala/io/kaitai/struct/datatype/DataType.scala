@@ -148,6 +148,7 @@ object DataType {
       val cs = classSpec.get
       cs.isTopLevel || cs.meta.isOpaque
     }
+
   }
   case class UserTypeInstream(
     _name: List[String],
@@ -206,7 +207,10 @@ object DataType {
 
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
 
+  // 2024/1/10 change: why add calc any type here
   case object AnyType extends DataType
+  case object CalcAnyType extends DataType
+
   case object KaitaiStructType extends StructType {
     def isOwning = true
     override def asNonOwning(isOwningInExpr: Boolean = false): DataType = CalcKaitaiStructType(isOwningInExpr)

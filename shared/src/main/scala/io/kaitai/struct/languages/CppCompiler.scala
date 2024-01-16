@@ -16,7 +16,6 @@ class CppCompiler(
 ) extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
-    with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
     with SwitchIfOps
     with EveryReadIsExpression {
@@ -452,9 +451,6 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
-
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
@@ -570,7 +566,7 @@ class CppCompiler(
     outSrc.inc
   }
 
-  override def condIfFooter(expr: Ast.expr): Unit = {
+  override def condIfFooter: Unit = {
     outSrc.dec
     outSrc.puts("}")
   }
@@ -1018,17 +1014,21 @@ class CppCompiler(
   }
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    expected: Option[Ast.expr] = None
   ): Unit = {
-    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+    val errArgsStr = expected.map(expression) ++ List(
+      expression(Ast.expr.InternalName(attr.id)),
+      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else nullPtr,
+      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
+    )
     importListSrc.addKaitai("kaitai/exceptions.h")
     outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
     outSrc.inc
-    outSrc.puts(s"throw ${ksErrorName(err)}($errArgsStr);")
+    outSrc.puts(s"throw ${ksErrorName(err)}(${errArgsStr.mkString(", ")});")
     outSrc.dec
     outSrc.puts("}")
   }

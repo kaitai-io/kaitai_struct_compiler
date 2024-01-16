@@ -21,6 +21,10 @@ case object GenericStructClassSpec extends ClassSpecLike {
   override def toDataType: DataType = CalcKaitaiStructType()
 }
 
+case object MultiParentClassSpec extends ClassSpecLike {
+  override def toDataType: DataType = AnyType
+}
+
 sealed trait Sized
 case object DynamicSized extends Sized
 case object NotCalculatedSized extends Sized

@@ -696,8 +696,8 @@ class TranslatorSpec extends AnyFunSuite {
     val langs = Map[LanguageCompilerStatic, AbstractTranslator with TypeDetector](
       CppCompiler -> new CppTranslator(tp, new CppImportList(), new CppImportList(), RuntimeConfig()),
       CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
-      GoCompiler -> new GoTranslator(goOutput, tp, new ImportList()),
-      JavaCompiler -> new JavaTranslator(tp, new ImportList()),
+      GoCompiler -> new GoTranslator(goOutput, tp, new ImportList(), RuntimeConfig()),
+      JavaCompiler -> new JavaTranslator(tp, new ImportList(), RuntimeConfig()),
       JavaScriptCompiler -> new JavaScriptTranslator(tp),
       LuaCompiler -> new LuaTranslator(tp, new ImportList()),
       PerlCompiler -> new PerlTranslator(tp, new ImportList()),

@@ -3,12 +3,15 @@ package io.kaitai.struct.languages.components
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.format._
+import io.kaitai.struct.RuntimeConfig
 
 /**
   * Trait to be implemented by all [[LanguageCompiler]] compilers: supplies extra attributes
   * when we'll be allocating new IOs.
   */
 trait ExtraAttrs {
+  val config: RuntimeConfig
+
   /**
     * Provides a collection of extra attributes which will be necessary to store in a class for
     * handling of a single "normal" attribute. Primarily
@@ -29,8 +32,24 @@ trait ExtraAttrs {
         }
       case utb: UserTypeFromBytes =>
         // User type in a substream
+        val dynamicSizeAttributes: List[AttrSpec] = if (config.readWrite) {
+          val outerSizeOpt: Option[AttrSpec] = if (writeNeedsOuterSize(utb.bytes)) {
+            Some(AttrSpec(List(), OuterSizeIdentifier(id), CalcIntType, condSpec))
+          } else {
+            None
+          }
+          val innerSizeOpt: Option[AttrSpec] = if (writeNeedsInnerSize(utb.bytes)) {
+            Some(AttrSpec(List(), InnerSizeIdentifier(id), CalcIntType, condSpec))
+          } else {
+            None
+          }
+          List(innerSizeOpt, outerSizeOpt).flatten
+        } else {
+          List()
+        }
         val rawId = RawIdentifier(id)
         (extraRawAttrForUserTypeFromBytes(id, utb, condSpec) ++
+          dynamicSizeAttributes ++
           extraAttrForIO(rawId, condSpec.repeat) ++
           extraAttrsForAttribute(rawId, utb.bytes, condSpec)).toList.distinct
       case st: SwitchType =>
@@ -59,15 +78,39 @@ trait ExtraAttrs {
     List(AttrSpec(List(), RawIdentifier(id), ut.bytes, condSpec))
 
   def extraAttrForIO(id: Identifier, rep: RepeatSpec): List[AttrSpec]
+  def writeNeedsOuterSize(bytes: BytesType): Boolean = {
+    bytes match {
+      case _: BytesTerminatedType => true
+      case _ => false
+    }
+  }
+  def writeNeedsInnerSize(bytes: BytesType): Boolean = {
+    val unknownInnerSizeProcess = bytes.process match {
+      case Some(process) => process match {
+        case ProcessZlib | _: ProcessCustom => true
+        case _: ProcessXor | _: ProcessRotate => false
+      }
+      case None => false
+    }
+    val unknownInnerSizePadTerm = bytes match {
+      case bt: BytesLimitType =>
+        bt.padRight.isDefined || bt.terminator.isDefined
+      case bt: BytesEosType =>
+        bt.padRight.isDefined || bt.terminator.isDefined
+      case _ => false
+    }
+    unknownInnerSizeProcess || unknownInnerSizePadTerm
+  }
 }
 
 /**
   * Generates list of extra attributes required to store intermediate /
   * virtual stuff for every attribute like:
   *
-  * * buffered raw value byte arrays
-  * * IO objects (?)
-  * * unprocessed / postprocessed byte arrays
+  * - buffered raw value byte arrays
+  * - IO objects (?)
+  * - unprocessed / postprocessed byte arrays
+  * - outer and inner sizes of fields with substreams
   */
 object ExtraAttrs {
   def forClassSpec(curClass: ClassSpec, compiler: ExtraAttrs): List[AttrSpec] = {

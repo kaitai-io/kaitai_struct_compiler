@@ -59,7 +59,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
     out.puts
 
     // Sequence
-    compileSeq(className, curClass)
+    compileSeqRead(className, curClass)
 
     curClass.instances.foreach { case (instName, instSpec) =>
       instSpec match {
@@ -84,7 +84,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
     out.puts("}")
   }
 
-  def compileSeq(className: List[String], curClass: ClassSpec): Unit = {
+  def compileSeqRead(className: List[String], curClass: ClassSpec): Unit = {
     tableStart(className, "seq")
 
     CalculateSeqSizes.forEachSeqAttr(curClass, (attr, seqPos, _, _) => {
