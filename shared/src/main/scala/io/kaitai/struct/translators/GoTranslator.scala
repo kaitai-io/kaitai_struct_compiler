@@ -422,7 +422,15 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     importList.add("strconv")
-    outVarCheckRes(s"strconv.ParseInt(${translate(s)}, ${translate(base)}, 0)")
+    val sType = detectType(s)
+    val suffix = sType match {
+      case bytesType: StrFromBytesType if bytesType.bytes != None =>
+        ".String()"
+      case _ =>
+        ""
+    }
+
+    outVarCheckRes(s"strconv.ParseInt(${translate(s)}$suffix, ${translate(base)}, 0)")
   }
 
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String = {
