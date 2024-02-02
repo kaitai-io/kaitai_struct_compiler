@@ -266,6 +266,8 @@ class AwkwardCompiler(
     outHdrAwkward.puts("template<class PRIMITIVE>");
     outHdrAwkward.puts("using NumpyBuilder = awkward::LayoutBuilder::Numpy<PRIMITIVE>;");
     outHdrAwkward.puts("template<class PRIMITIVE, class BUILDER>");
+    outHdrAwkward.puts("using IndexedBuilder = awkward::LayoutBuilder::Indexed<PRIMITIVE, BUILDER>;");
+    outHdrAwkward.puts("template<class PRIMITIVE, class BUILDER>");
     outHdrAwkward.puts("using IndexedOptionBuilder = awkward::LayoutBuilder::IndexedOption<PRIMITIVE, BUILDER>;");
     outHdrAwkward.puts("template<class... BUILDERS>");
     outHdrAwkward.puts("using UnionBuilder = awkward::LayoutBuilder::Union<int8_t, uint32_t, BUILDERS...>;");
