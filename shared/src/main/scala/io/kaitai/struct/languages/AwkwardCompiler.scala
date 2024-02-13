@@ -754,6 +754,9 @@ class AwkwardCompiler(
           outSrc.dec
           outSrc.puts("}")
           outSrc.puts(s"${builderName}_listoffsetbuilder.end_list();")
+        case enumType: EnumType =>
+          outSrc.puts(s"auto& ${idToStr(id)}_builder = ${nameList.last}_builder.content<Field_${nameList.last}::${nameList.last + "A__Z" + idToStr(id)}>();")
+          outSrc.puts(s"${idToStr(id)}_builder.append(${getRawIdExpr(id, rep)});")
         case userType: UserType =>
           // Prints the C++ string to append the tags and index in the union builder buffers if a given
           // userType is a child of a UnionBuilder.
