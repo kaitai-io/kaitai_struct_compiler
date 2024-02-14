@@ -29,20 +29,21 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outImports(topClass: ClassSpec) = {
     val impList = importList.toList
     val quotedImpList = impList.map((x) => s"'$x'")
-    val defineArgs = quotedImpList.mkString(", ")
-    val moduleArgs = quotedImpList.map((x) => s"require($x)").mkString(", ")
-    val argClasses = impList.map((x) => x.split('/').last)
-    val rootArgs = argClasses.map((x) => s"root.$x").mkString(", ")
+    val defineArgs = ("'exports'" +: quotedImpList).mkString(", ")
+    val exportsArgs = ("exports" +: quotedImpList.map((x) => s"require($x)")).mkString(", ")
+    val argClasses = types2class(topClass.name) +: impList.map((x) => x.split('/').last)
+    val rootArgs = argClasses.map((x) => if (x == "KaitaiStream") s"root.$x" else s"root.$x || (root.$x = {})").mkString(", ")
+    val factoryParams = argClasses.map((x) => if (x == "KaitaiStream") x else s"${x}_").mkString(", ")
 
     "(function (root, factory) {\n" +
       indent + "if (typeof define === 'function' && define.amd) {\n" +
       indent * 2 + s"define([$defineArgs], factory);\n" +
-      indent + "} else if (typeof module === 'object' && module.exports) {\n" +
-      indent * 2 + s"module.exports = factory($moduleArgs);\n" +
+      indent + "} else if (typeof exports === 'object' && exports !== null && typeof exports.nodeType !== 'number') {\n" +
+      indent * 2 + s"factory($exportsArgs);\n" +
       indent + "} else {\n" +
-      indent * 2 + s"root.${types2class(topClass.name)} = factory($rootArgs);\n" +
+      indent * 2 + s"factory($rootArgs);\n" +
       indent + "}\n" +
-      s"}(typeof self !== 'undefined' ? self : this, function (${argClasses.mkString(", ")}) {"
+      s"})(typeof self !== 'undefined' ? self : this, function ($factoryParams) {"
   }
 
   override def fileHeader(topClassName: String): Unit = {
@@ -53,8 +54,8 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def fileFooter(name: String): Unit = {
-    out.puts(s"return ${type2class(name)};")
-    out.puts("}));")
+    out.puts(s"${type2class(name)}_.${type2class(name)} = ${type2class(name)};")
+    out.puts("});")
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
@@ -215,7 +216,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
         importList.add(s"$pkgName$procClass")
 
-        out.puts(s"var _process = new $procClass(${args.map(expression).mkString(", ")});")
+        out.puts(s"var _process = new ${procClass}_.${procClass}(${args.map(expression).mkString(", ")});")
         s"_process.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
@@ -379,7 +380,17 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _ => ""
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-        s"new ${types2class(t.name)}($io, $parent, $root$addEndian$addParams)"
+        // If the first segment of the name path refers to a top-level type, we
+        // must prepend the name of top-level module (which ends with an
+        // underscore `_` according to our own convention for clarity) before the
+        // path because of https://github.com/kaitai-io/kaitai_struct/issues/1074
+        val topLevelModulePrefix =
+          if (t.classSpec.map((classSpec) => t.name == classSpec.name).getOrElse(false)) {
+            s"${type2class(t.name(0))}_."
+          } else {
+            ""
+          }
+        s"new ${topLevelModulePrefix}${types2class(t.name)}($io, $parent, $root$addEndian$addParams)"
     }
   }
 
