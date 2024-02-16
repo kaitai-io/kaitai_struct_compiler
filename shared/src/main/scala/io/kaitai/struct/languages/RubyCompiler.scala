@@ -243,26 +243,23 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
-      val name = attrId match {
-        case _: RawIdentifier | _: SpecialIdentifier => return
-        case _ => idToStr(attrId)
-      }
+      val name = idToStr(attrId)
       rep match {
         case NoRepeat =>
           out.puts(s"(@_debug['$name'] ||= {})[:start] = $io.pos")
         case _: RepeatExpr =>
-          out.puts(s"(@_debug['$name'][:arr] ||= [])[i] = {:start => $io.pos}")
+          out.puts(s"@_debug['$name'][:arr][i] = {:start => $io.pos}")
         case RepeatEos | _: RepeatUntil =>
-          out.puts(s"(@_debug['$name'][:arr] ||= [])[${privateMemberName(attrId)}.size] = {:start => $io.pos}")
+          out.puts(s"@_debug['$name'][:arr][${privateMemberName(attrId)}.size] = {:start => $io.pos}")
       }
     }
   }
 
+  override def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit =
+    out.puts(s"@_debug['${idToStr(attrId)}'][:arr] = []")
+
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
-    val name = attrId match {
-      case _: RawIdentifier | _: SpecialIdentifier => return
-      case _ => idToStr(attrId)
-    }
+    val name = idToStr(attrId)
     rep match {
       case NoRepeat =>
         out.puts(s"(@_debug['$name'] ||= {})[:end] = $io.pos")
@@ -278,13 +275,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = []")
-  }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("i = 0")
@@ -370,9 +362,9 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
+  override def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
     val ioName = s"_io_${idToStr(id)}"
-    out.puts(s"$ioName = $io.substream(${translator.translate(sizeExpr)})")
+    out.puts(s"$ioName = $io.substream(${translator.translate(blt.size)})")
     ioName
   }
 
@@ -504,6 +496,7 @@ object RubyCompiler extends LanguageCompilerStatic
   override def kstructName: String = "Kaitai::Struct::Struct"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "EOFError"
+    case ConversionError => "ArgumentError"
     case _ => s"Kaitai::Struct::${err.name}"
   }
 

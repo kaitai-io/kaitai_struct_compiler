@@ -1,8 +1,10 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct._
-import io.kaitai.struct.datatype.DataType.{ReadableType, _}
+//import io.kaitai.struct.datatype.DataType.{ReadableType, _}
 import io.kaitai.struct.datatype._
+import io.kaitai.struct.datatype.DataType._
+//import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
@@ -280,7 +282,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-   override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     // this line required for handleAssignmentRepeatUntil
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"*${RustCompiler.privateMemberName(id, writeAccess = true)} = Vec::new();")
@@ -806,7 +808,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case None => s"Some(${self_name()}._self.clone())"
           }
           t.classSpec.get.parentType match {
-            case CalcKaitaiStructType => parent = "None"
+            case CalcKaitaiStructType(_) => parent = "None"
             case _ =>
           }
           s", $root, $parent"
@@ -1191,8 +1193,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: ArrayType => s"Arr${switchVariantName(id, t.elType)}"
     }
 
-  override def ksErrorName(err: io.kaitai.struct.datatype.KSError): String =
-    s"KaitaiStream.$err"
+  override def ksErrorName(err: KSError): String = err match {
+    case EndOfStreamError => "KError::EncounteredEOF"
+    case UndecidedEndiannessError => "KError::UndecidedEndiannessError"
+    case ConversionError => "KError::CastError"
+    case _: ValidationError => s"KError::ValidationNotEqual"
+  }
+
 
   override def attrValidateExpr(
     attrId: Identifier,
@@ -1347,7 +1354,7 @@ object RustCompiler
         if (excludeOptionWrapper) typeName else s"Option<$typeName>"
 
       case KaitaiStreamType => "BytesReader"
-      case CalcKaitaiStructType => kstructUnitName
+      case CalcKaitaiStructType(_) => kstructUnitName
     }
 
   def kaitaiPrimitiveToNativeType(attrType: DataType): String = attrType match {

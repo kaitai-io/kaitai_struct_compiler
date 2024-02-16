@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{CSharpTranslator, TypeDetector}
+import io.kaitai.struct.translators.CSharpTranslator
 
 class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -274,13 +274,9 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condIfFooter(expr: expr): Unit = fileFooter(null)
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     importList.add("System.Collections.Generic")
 
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new List<byte[]>();")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new List<byte[]>();")
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayTypeInStream(dataType))}();")
   }
 
@@ -549,6 +545,16 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("public override string ToString()")
+    out.puts("{")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)};")
+    out.dec
+    out.puts("}")
+  }
+
   def idToStr(id: Identifier): String =
     id match {
       case SpecialIdentifier(name) => name
@@ -639,7 +645,7 @@ object CSharpCompiler extends LanguageCompilerStatic
       case _: BytesType => "byte[]"
 
       case AnyType => "object"
-      case KaitaiStructType | CalcKaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
 
       case t: UserType => types2class(t.name)
@@ -672,6 +678,7 @@ object CSharpCompiler extends LanguageCompilerStatic
   override def kstreamName = "KaitaiStream"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "EndOfStreamException"
+    case ConversionError => "System.FormatException"
     case _ => err.name
   }
 }

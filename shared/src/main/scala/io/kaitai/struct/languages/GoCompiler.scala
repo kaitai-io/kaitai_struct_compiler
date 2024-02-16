@@ -293,7 +293,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     // slices don't have to be manually initialized in Go: the built-in append()
     // function works even on `nil` slices (https://go.dev/tour/moretypes/15)
   }
@@ -526,6 +526,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(")")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts(s"func (this ${types2class(typeProvider.nowClass.name)}) String() string {")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)}")
+    out.dec
+    out.puts("}")
+  }
+
   override def idToStr(id: Identifier): String = GoCompiler.idToStr(id)
 
   override def publicMemberName(id: Identifier): String = GoCompiler.publicMemberName(id)
@@ -621,8 +630,8 @@ object GoCompiler extends LanguageCompilerStatic
       case _: BytesType => "[]byte"
 
       case AnyType => "interface{}"
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
       case KaitaiStreamType | OwnedKaitaiStreamType => "*" + kstreamName
-      case KaitaiStructType | CalcKaitaiStructType => kstructName
 
       case t: UserType => "*" + types2class(t.classSpec match {
         case Some(cs) => cs.name
@@ -649,5 +658,8 @@ object GoCompiler extends LanguageCompilerStatic
 
   override def kstreamName: String = "kaitai.Stream"
   override def kstructName: String = "interface{}"
-  override def ksErrorName(err: KSError): String = s"kaitai.${err.name}"
+  override def ksErrorName(err: KSError): String = err match {
+    case ConversionError => "strconv.NumError"
+    case _ => s"kaitai.${err.name}"
+  }
 }

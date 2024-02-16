@@ -39,6 +39,8 @@ class GoClassCompiler(
     // Constructor = Read() function
     compileReadFunction(curClass)
 
+    curClass.toStringExpr.foreach(expr => lang.classToString(expr))
+
     compileInstances(curClass)
 
     compileAttrReaders(curClass.seq ++ extraAttrs)

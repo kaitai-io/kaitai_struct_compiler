@@ -45,6 +45,15 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts(s"proc `$$`(x: ${namespaced(typeProvider.nowClass.name)}): string =")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)}")
+    out.dec
+    out.puts
+  }
+
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
     out.puts("import \"" + classSpec.name.head + "\"")
   override def innerEnums = false
@@ -144,7 +153,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     // sequences don't have to be manually initialized in Nim - they're automatically initialized as
     // empty sequences (see https://narimiran.github.io/nim-basics/#_result_variable)
   }
@@ -560,7 +569,7 @@ object NimCompiler extends LanguageCompilerStatic
       case _: StrType => "string"
       case _: BytesType => "seq[byte]"
 
-      case KaitaiStructType | CalcKaitaiStructType => "KaitaiStruct"
+      case KaitaiStructType | CalcKaitaiStructType(_) => "KaitaiStruct"
       case KaitaiStreamType | OwnedKaitaiStreamType => "KaitaiStream"
 
       case t: UserType => namespaced(t.classSpec match {

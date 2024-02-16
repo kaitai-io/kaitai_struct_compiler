@@ -196,9 +196,9 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def kaitaiStreamPos(value: Ast.expr): String = anyField(value, "pos")
 
   // Special convenience definition method + helper
-  override def bytesToStr(value: Ast.expr, expr: Ast.expr): String =
-    bytesToStr(translate(value), expr)
-  def bytesToStr(value: String, expr: Ast.expr): String
+  override def bytesToStr(value: Ast.expr, encoding: String): String =
+    bytesToStr(translate(value), encoding)
+  def bytesToStr(value: String, encoding: String): String
 
   // Helper that does simple "one size fits all" attribute calling, if it is useful
   // for the language

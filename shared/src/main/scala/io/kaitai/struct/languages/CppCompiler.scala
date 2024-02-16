@@ -335,7 +335,7 @@ class CppCompiler(
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning)} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
+    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning())} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -387,13 +387,13 @@ class CppCompiler(
       outSrc.inc
     }
 
-    val needRaw = this.needRaw(attr.dataType)
-    val innerType = attr.dataType match {
-      case st: SwitchType => st.combinedType
-      case t => t
+    (ExtraAttrs.forAttr(attr, this) ++ List(attr)).foreach { (attr) =>
+      val innerType = attr.dataType match {
+        case st: SwitchType => combineSwitchType(st)
+        case t => t
+      }
+      destructMember(attr.id, innerType, attr.isArray)
     }
-
-    destructMember(id, innerType, attr.isArray, needRaw)
 
     if (checks.nonEmpty) {
       outSrc.dec
@@ -401,73 +401,29 @@ class CppCompiler(
     }
   }
 
-  def destructMember(id: Identifier, innerType: DataType, isArray: Boolean, needRaw: NeedRaw): Unit = {
-    def destructWithSafeguardHeader(ptr: String): Unit = {
-      outSrc.puts(s"if ($ptr) {")
-      outSrc.inc
-    }
-    def destructWithSafeguardFooter(ptr: String): Unit = {
-      outSrc.puts(s"delete $ptr; $ptr = $nullPtr;")
-      outSrc.dec
-      outSrc.puts("}")
-    }
-    def destructWithSafeguardSimple(ptr: String): Unit = {
-      destructWithSafeguardHeader(ptr)
-      destructWithSafeguardFooter(ptr)
-    }
-    if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
-      if (isArray) {
-        // raw is std::vector<string>*, no need to delete its contents, but we
-        // need to clean up the vector pointer itself
-        if (needRaw.level >= 1) {
-          destructWithSafeguardSimple(privateMemberName(RawIdentifier(id)))
+  def destructMember(id: Identifier, innerType: DataType, isArray: Boolean): Unit = {
+    if (config.cppConfig.pointers != CppRuntimeConfig.RawPointers)
+      return
 
-          // IO is std::vector<kstream*>*, needs destruction of both members
-          // and the vector pointer itself
-          if (needRaw.hasIO) {
-            val ioVar = privateMemberName(IoStorageIdentifier(RawIdentifier(id)))
-            destructWithSafeguardHeader(ioVar)
-            destructVector(s"$kstreamName*", ioVar)
-            destructWithSafeguardFooter(ioVar)
-          }
-        }
-        if (needRaw.level >= 2) {
-          // m__raw__raw_* is also std::vector<string>*, we just clean up the vector pointer
-          destructWithSafeguardSimple(privateMemberName(RawIdentifier(RawIdentifier(id))))
-        }
+    val ptr = privateMemberName(id)
+    val innerNeedsDestruct = needsDestruction(innerType)
 
-        val arrVar = privateMemberName(id)
-        destructWithSafeguardHeader(arrVar)
+    if (!isArray && !innerNeedsDestruct)
+      return
 
-        // main member contents
-        if (needsDestruction(innerType)) {
-          // C++ specific substitution: AnyType results from generic struct + raw bytes
-          // so we would assume that only generic struct needs to be cleaned up
-          val realType = innerType match {
-            case AnyType => KaitaiStructType
-            case _ => innerType
-          }
+    outSrc.puts(s"if ($ptr) {")
+    outSrc.inc
 
-          destructVector(kaitaiType2NativeType(realType), arrVar)
-        }
+    if (isArray && innerNeedsDestruct)
+      destructVector(kaitaiType2NativeType(innerType), ptr)
 
-        // main member is a std::vector of something, always needs destruction
-        destructWithSafeguardFooter(arrVar)
-      } else {
-        // raw is just a string, no need to cleanup => we ignore `needRaw.hasRaw`
-
-        // but needRaw.hasIO is important
-        if (needRaw.hasIO)
-          destructWithSafeguardSimple(privateMemberName(IoStorageIdentifier(RawIdentifier(id))))
-
-        if (needsDestruction(innerType))
-          destructWithSafeguardSimple(privateMemberName(id))
-      }
-    }
+    outSrc.puts(s"delete $ptr; $ptr = $nullPtr;")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   def needsDestruction(t: DataType): Boolean = t match {
-    case _: UserType | _: ArrayTypeInStream | KaitaiStructType | AnyType => true
+    case _: UserType | _: ArrayTypeInStream | KaitaiStructType | AnyType | OwnedKaitaiStreamType => true
     case _ => false
   }
 
@@ -619,18 +575,9 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     importListHdr.addSystem("vector")
 
-    if (needRaw.level >= 1) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(id))} = ${newVector(CalcBytesType)};")
-      if (needRaw.hasIO) {
-        outSrc.puts(s"${privateMemberName(IoStorageIdentifier(RawIdentifier(id)))} = ${newVector(OwnedKaitaiStreamType)};")
-      }
-    }
-    if (needRaw.level >= 2) {
-      outSrc.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = ${newVector(CalcBytesType)};")
-    }
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
   }
 
@@ -673,7 +620,7 @@ class CppCompiler(
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${translator.doName("_")};")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
     outSrc.puts("do {")
     outSrc.inc
   }
@@ -889,10 +836,10 @@ class CppCompiler(
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(dataType.asNonOwning)} ${publicMemberName(instName)}();")
+    outHdr.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${publicMemberName(instName)}();")
 
     outSrc.puts
-    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning, true)} ${types2class(className)}::${publicMemberName(instName)}() {")
+    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning(), true)} ${types2class(className)}::${publicMemberName(instName)}() {")
     outSrc.inc
   }
 
@@ -910,6 +857,27 @@ class CppCompiler(
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit =
     outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
+
+  override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
+    if (attrDebugNeeded(instName))
+      attrDebugStart(instName, dataType, None, NoRepeat)
+    val valExpr = expression(value)
+    val isOwningInExpr = dataType match {
+      case ct: ComplexDataType => ct.isOwningInExpr
+      case _ => false
+    }
+    val valExprConverted = if (isOwningInExpr) {
+      config.cppConfig.pointers match {
+        case RawPointers =>
+          valExpr
+        case UniqueAndRawPointers =>
+          s"$valExpr.get()"
+      }
+    } else {
+      valExpr
+    }
+    handleAssignmentSimple(instName, valExprConverted)
+  }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val enumClass = types2class(List(enumName))
@@ -930,6 +898,28 @@ class CppCompiler(
 
     outHdr.dec
     outHdr.puts("};")
+  }
+
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    ensureMode(PublicAccess)
+    // _to_string() method
+    outHdr.puts(s"std::string _to_string() const;")
+    outSrc.puts
+    outSrc.puts(s"std::string ${types2class(typeProvider.nowClass.name)}::_to_string() const {")
+    outSrc.inc
+    outSrc.puts(s"return ${translator.translate(toStringExpr)};")
+    outSrc.dec
+    outSrc.puts("}")
+
+    // operator<< that trivially calls ._to_string()
+    outHdr.puts(s"friend std::ostream& operator<<(std::ostream& os, const ${types2class(typeProvider.nowClass.name)}& obj);")
+    outSrc.puts
+    outSrc.puts(s"std::ostream& operator<<(std::ostream& os, const ${types2class(typeProvider.nowClass.name)}& obj) {")
+    outSrc.inc
+    outSrc.puts("os << obj._to_string();")
+    outSrc.puts("return os;")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   def value2Const(enumName: String, label: String) = Utils.upperUnderscoreCase(enumName + "_" + label)
@@ -1014,6 +1004,7 @@ class CppCompiler(
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "std::ifstream::failure"
     case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
+    case ConversionError => "std::invalid_argument"
     case validationErr: ValidationError =>
       val cppType = kaitaiType2NativeType(validationErr.dt, true)
       val cppErrName = validationErr match {
@@ -1113,7 +1104,7 @@ object CppCompiler extends LanguageCompilerStatic
         case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
         case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
       }
-      case CalcArrayType(inType) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
+      case CalcArrayType(inType, _) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
       case OwnedKaitaiStreamType => config.pointers match {
         case RawPointers => s"$kstreamName*"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstreamName>"
@@ -1124,7 +1115,7 @@ object CppCompiler extends LanguageCompilerStatic
         case SharedPointers => s"std::shared_ptr<$kstructName>"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstructName>"
       }
-      case CalcKaitaiStructType => config.pointers match {
+      case CalcKaitaiStructType(_) => config.pointers match {
         case RawPointers => s"$kstructName*"
         case SharedPointers => s"std::shared_ptr<$kstructName>"
         case UniqueAndRawPointers => s"$kstructName*"
@@ -1155,7 +1146,7 @@ object CppCompiler extends LanguageCompilerStatic
     if (st.isOwning) {
       ct1
     } else {
-      ct1.asNonOwning
+      ct1.asNonOwning()
     }
   }
 

@@ -260,9 +260,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$io.alignToByte();")
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], rep: RepeatSpec): Unit = {
-    if (!attrDebugNeeded(attrId))
-      return
-
     val debugName = attrDebugName(attrId, rep, false)
 
     val ioProps = io match {
@@ -278,9 +275,10 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$debugName = { $ioProps${if (ioProps != "" && enumNameProps != "") ", " else ""}$enumNameProps };")
   }
 
+  override def attrDebugArrInit(id: Identifier, attrType: DataType): Unit =
+    out.puts(s"this._debug.${idToStr(id)}.arr = [];")
+
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
-    if (!attrDebugNeeded(attrId))
-      return
     val debugName = attrDebugName(attrId, rep, true)
 
     out.puts(s"$debugName.end = $io.pos;")
@@ -297,15 +295,8 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = [];")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = [];")
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = [];")
-    if (config.readStoresPos)
-      out.puts(s"this._debug.${idToStr(id)}.arr = [];")
-  }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("var i = 0;")
@@ -578,12 +569,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
     out.dec
     out.puts("}")
-  }
-
-  private
-  def attrDebugNeeded(attrId: Identifier) = attrId match {
-    case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
-    case _: RawIdentifier | _: SpecialIdentifier => false
   }
 
   def attrDebugName(attrId: Identifier, rep: RepeatSpec, end: Boolean) = {

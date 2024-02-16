@@ -2,7 +2,7 @@ package io.kaitai.struct.languages
 
 import io.kaitai.struct._
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, NeedRaw}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -308,10 +308,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
-      val name = attrId match {
-        case _: RawIdentifier | _: SpecialIdentifier => return
-        case _ => idToStr(attrId)
-      }
+      val name = idToStr(attrId)
       rep match {
         case NoRepeat =>
           out.puts("_attrStart.put(\"" + name + "\", " + io + ".pos());")
@@ -321,11 +318,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def attrDebugArrInit(attrName: Identifier, attrType: DataType): Unit = {
+    // no _debug[$name]['arr'] initialization needed in Java
+  }
+
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
-    val name = attrId match {
-      case _: RawIdentifier | _: SpecialIdentifier => return
-      case _ => idToStr(attrId)
-    }
+    val name = idToStr(attrId)
     rep match {
       case NoRepeat =>
         out.puts("_attrEnd.put(\"" + name + "\", " + io + ".pos());")
@@ -354,13 +352,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = new ArrayList<byte[]>();")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = new ArrayList<byte[]>();")
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}();")
-  }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("{")
@@ -476,9 +469,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def createSubstreamFixedSize(id: Identifier, sizeExpr: Ast.expr, io: String): String = {
+  override def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
     val ioName = idToStr(IoStorageIdentifier(id))
-    handleAssignmentTempVar(KaitaiStreamType, ioName, s"$io.substream(${translator.translate(sizeExpr)});")
+    handleAssignmentTempVar(KaitaiStreamType, ioName, s"$io.substream(${translator.translate(blt.size)})")
     ioName
   }
 
@@ -736,6 +729,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public static String[] _seqFields = new String[] { $seqStr };")
   }
 
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts
+    out.puts("@Override")
+    out.puts("public String toString() {")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)};")
+    out.dec
+    out.puts("}")
+  }
+
   def value2Const(s: String) = Utils.upperUnderscoreCase(s)
 
   override def idToStr(id: Identifier): String = JavaCompiler.idToStr(id)
@@ -748,6 +751,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => config.java.endOfStreamErrorClass
+    case ConversionError => "NumberFormatException"
     case _ => s"KaitaiStream.${err.name}"
   }
 
@@ -829,12 +833,12 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case AnyType => "Object"
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
-      case KaitaiStructType | CalcKaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
 
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
-      case ArrayTypeInStream(_) | CalcArrayType(_) => kaitaiType2JavaTypeBoxed(attrType)
+      case ArrayTypeInStream(_) | CalcArrayType(_, _) => kaitaiType2JavaTypeBoxed(attrType)
 
       case st: SwitchType => kaitaiType2JavaTypePrim(st.combinedType)
     }
@@ -873,13 +877,13 @@ object JavaCompiler extends LanguageCompilerStatic
 
       case AnyType => "Object"
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
-      case KaitaiStructType | CalcKaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
 
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
       case ArrayTypeInStream(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
-      case CalcArrayType(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
+      case CalcArrayType(inType, _) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
 
       case st: SwitchType => kaitaiType2JavaTypeBoxed(st.combinedType)
     }

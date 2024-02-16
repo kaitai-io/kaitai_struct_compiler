@@ -15,10 +15,10 @@ jobs:
       run:
         working-directory: compiler
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: compiler
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: kaitai-io/kaitai_struct_tests
           path: tests

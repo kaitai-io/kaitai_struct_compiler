@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError, NeedRaw}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -162,11 +162,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = {}")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = {}")
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     out.puts(s"${privateMemberName(id)} = {}")
   }
 
@@ -426,6 +422,14 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => "\"" + ksErrorName(err) + "\""
     }
     out.puts(s"error($msg)")
+    out.dec
+    out.puts("end")
+  }
+
+  override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts(s"function ${types2class(typeProvider.nowClass.name)}:__tostring()")
+    out.inc
+    out.puts(s"return ${translator.translate(toStringExpr)}")
     out.dec
     out.puts("end")
   }

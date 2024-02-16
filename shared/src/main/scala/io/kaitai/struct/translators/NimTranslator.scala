@@ -11,8 +11,8 @@ import io.kaitai.struct.languages.NimCompiler.{ksToNim, namespaced, camelCase}
 
 class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   // Members declared in io.kaitai.struct.translators.BaseTranslator
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
-    s"encode($bytesExpr, ${translate(encoding)})"
+  override def bytesToStr(bytesExpr: String, encoding: String): String = {
+    s"""encode($bytesExpr, "$encoding")"""
   }
   override def doEnumById(enumTypeAbs: List[String], id: String): String = s"${namespaced(enumTypeAbs)}($id)"
 //  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${namespaced(enumTypeAbs)}($label)"

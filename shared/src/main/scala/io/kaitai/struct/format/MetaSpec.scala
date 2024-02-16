@@ -9,7 +9,7 @@ case class MetaSpec(
   id: Option[String],
   endian: Option[Endianness],
   bitEndian: Option[BitEndianness],
-  encoding: Option[String],
+  var encoding: Option[String],
   forceDebug: Boolean,
   opaqueTypes: Option[Boolean],
   zeroCopySubstream: Option[Boolean],

@@ -1,7 +1,6 @@
 package io.kaitai.struct.problems
 
-import fastparse.StringReprOps
-import io.kaitai.struct.{JSON, Jsonable, Utils}
+import io.kaitai.struct.{JSON, Jsonable, Utils, problems}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Expressions
 import io.kaitai.struct.format.{ClassSpec, Identifier, KSVersion}
@@ -34,6 +33,10 @@ sealed abstract class CompilationProblem extends Jsonable {
     JSON.mapToJson(
       (coords.toSeq ++ Seq("message" -> text)).toMap
     )
+}
+
+trait PathLocalizable {
+  def localizedInPath(path: List[String]): CompilationProblem with PathLocalizable
 }
 
 /**
@@ -97,7 +100,7 @@ object KSYParseError {
 
   def expression(epe: Expressions.ParseException, path: List[String]) = {
     val f = epe.failure
-    val pos = StringReprOps.prettyIndex(f.extra.input, f.index)
+    val pos = f.extra.input.prettyIndex(f.index)
 
     // Try to diagnose most common errors and provide a friendly suggestion
     val lookup2 = Utils.safeLookup(epe.src, f.index, 2)
@@ -109,11 +112,11 @@ object KSYParseError {
       None
     }).map((x) => s", did you mean '$x'?").getOrElse("")
 
-    f.extra.traced.expected
+    val expected = f.extra.trace().msg.replaceAll("\n", "\\n")
 
     withText(
       s"parsing expression '${epe.src}' failed on $pos, " +
-        s"expected ${f.extra.traced.expected.replaceAll("\n", "\\n")}$suggestion",
+        s"expected $expected$suggestion",
       path
     )
   }
@@ -214,4 +217,28 @@ case class StyleWarningRepeatExprNum(goodName: String, badName: String, becauseO
 
   override def localizedInFile(fileName: String): CompilationProblem =
     copy(coords = coords.copy(file = Some(fileName)))
+}
+
+case class EncodingNameWarning(goodName: String, badName: String, override val coords: ProblemCoords = ProblemCoords()) extends StyleWarning(coords) with PathLocalizable {
+  override def warningText = s"use canonical encoding name `$goodName` instead of `$badName`"
+  override def styleGuideAnchor = "encoding-name"
+
+  override def localizedInFile(fileName: String): CompilationProblem =
+    copy(coords = coords.copy(file = Some(fileName)))
+
+  override def localizedInPath(path: List[String]): CompilationProblem with PathLocalizable =
+    copy(coords = coords.copy(path = Some(path)))
+}
+
+case class UnrecognizedEncodingError(
+  badName: String,
+  override val coords: ProblemCoords = ProblemCoords()
+) extends CompilationProblem with PathLocalizable {
+  override def severity: ProblemSeverity = ProblemSeverity.Warning
+  override def text = s"unrecognized encoding name '${badName}'"
+  override def localizedInFile(fileName: String): CompilationProblem =
+    copy(coords = coords.copy(file = Some(fileName)))
+
+  override def localizedInPath(path: List[String]): CompilationProblem with PathLocalizable =
+    copy(coords = coords.copy(path = Some(path)))
 }

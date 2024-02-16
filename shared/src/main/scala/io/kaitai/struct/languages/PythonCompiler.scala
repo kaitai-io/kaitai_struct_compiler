@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError, NeedRaw}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -41,6 +41,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
+
+    // https://github.com/kaitai-io/kaitai_struct/issues/675
+    // TODO: Make conditional once we'll have Python type annotations
+    outHeader.puts("# type: ignore")
+
     outHeader.puts
 
     importList.add("import kaitaistruct")
@@ -266,30 +271,21 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
-      val name = attrId match {
-        case _: RawIdentifier | _: SpecialIdentifier => return
-        case _ => idToStr(attrId)
-      }
+      val name = idToStr(attrId)
       rep match {
         case NoRepeat =>
           out.puts(s"self._debug['$name']['start'] = $io.pos()")
         case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-          /** TODO: move array initialization to [[condRepeatCommonInit]] - see
-           * [[JavaScriptCompiler.condRepeatCommonInit]] for inspiration */
-          out.puts(s"if not 'arr' in self._debug['$name']:")
-          out.inc
-          out.puts(s"self._debug['$name']['arr'] = []")
-          out.dec
           out.puts(s"self._debug['$name']['arr'].append({'start': $io.pos()})")
       }
     }
   }
 
+  override def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit =
+    out.puts(s"self._debug['${idToStr(attrId)}']['arr'] = []")
+
   override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
-    val name = attrId match {
-      case _: RawIdentifier | _: SpecialIdentifier => return
-      case _ => idToStr(attrId)
-    }
+    val name = idToStr(attrId)
     rep match {
       case NoRepeat =>
         out.puts(s"self._debug['$name']['end'] = $io.pos()")
@@ -305,13 +301,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = []")
-  }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("i = 0")
@@ -461,10 +452,10 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
-    importList.add("from enum import Enum")
+    importList.add("from enum import IntEnum")
 
     out.puts
-    out.puts(s"class ${type2class(enumName)}(Enum):")
+    out.puts(s"class ${type2class(enumName)}(IntEnum):")
     out.inc
     enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = ${translator.doIntLiteral(id)}") }
     out.dec
@@ -549,6 +540,7 @@ object PythonCompiler extends LanguageCompilerStatic
   override def kstructName: String = "KaitaiStruct"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "EOFError"
+    case ConversionError => "ValueError"
     case _ => s"kaitaistruct.${err.name}"
   }
 

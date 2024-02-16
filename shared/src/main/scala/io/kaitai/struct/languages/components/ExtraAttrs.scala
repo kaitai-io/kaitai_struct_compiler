@@ -25,8 +25,7 @@ trait ExtraAttrs {
           case None => List()
           case Some(_) =>
             val rawId = RawIdentifier(id)
-            List(AttrSpec(List(), rawId, bt, condSpec)) ++
-              extraAttrForIO(id, condSpec.repeat)
+            List(AttrSpec(List(), rawId, bt, condSpec))
         }
       case utb: UserTypeFromBytes =>
         // User type in a substream

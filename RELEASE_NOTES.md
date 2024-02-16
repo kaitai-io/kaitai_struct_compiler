@@ -1,3 +1,8 @@
+# 0.11 (TBD)
+
+* Packaging / infrastructure improvements:
+  * [npm package `kaitai-struct-compiler`](https://www.npmjs.com/package/kaitai-struct-compiler/) now returns the compiler object itself instead of a constructor function (called `KaitaiStructCompiler`). Make sure to adapt your code: replace `(new KaitaiStructCompiler()).compile(...)` with `KaitaiStructCompiler.compile(...)` ([#222](https://github.com/kaitai-io/kaitai_struct_compiler/pull/222))
+
 # 0.10 (2022-07-08)
 
 * General compilation improvements:
@@ -214,7 +219,7 @@
 # 0.7 (2017-03-22)
 
 * New ksy features:
-  * Type importing system: `meta/import` can be used to import other
+  * Type importing system: `meta/imports` can be used to import other
     types as first-class citizens in current compilation unit; "opaque
     types" are now disabled by default (see below)
   * Byte-terminated notation (`terminator`, `include` and `consume`)

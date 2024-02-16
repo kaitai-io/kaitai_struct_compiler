@@ -1,7 +1,6 @@
 package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.datatype._
-import io.kaitai.struct.datatype.DataType.{SwitchType, UserTypeFromBytes, BytesType}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 
@@ -26,8 +25,11 @@ trait CommonReads extends LanguageCompiler {
         normalIO
     }
 
-    if (config.readStoresPos)
+    if (attrDebugNeeded(id)) {
       attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
+      if (attr.cond.repeat != NoRepeat)
+        attrDebugArrInit(id, attr.dataType)
+    }
 
     defEndian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
@@ -64,7 +66,7 @@ trait CommonReads extends LanguageCompiler {
 
   def attrParse0(id: Identifier, attr: AttrLikeSpec, io: String, defEndian: Option[FixedEndian]): Unit = {
     if (attr.cond.repeat != NoRepeat)
-      condRepeatCommonInit(id, attr.dataType, needRaw(attr.dataType))
+      (ExtraAttrs.forAttr(attr, this) ++ List(attr)).foreach(a => condRepeatInitAttr(a.id, a.dataType))
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosHeader(id, io, attr.dataType)
@@ -88,27 +90,11 @@ trait CommonReads extends LanguageCompiler {
 
   def attrParse2(id: Identifier, dataType: DataType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], assignType: Option[DataType] = None): Unit
 
-  def needRaw(dataType: DataType): NeedRaw = {
-    val rawIo = dataType match {
-      case _: UserTypeFromBytes => true
-      case st: SwitchType => st.hasSize
-      case _ => false
-    }
-    val rawProcess = dataType match {
-      case bt: BytesType => bt.process.nonEmpty
-      case utfb: UserTypeFromBytes => utfb.bytes.process.nonEmpty
-      case _ => false
-    }
-    (rawIo, rawProcess) match {
-      case (true, false) => RawIo
-      case (false, true) => RawProcess
-      case (true, true) => RawIoProcess
-      case _ => NotRaw
-    }
-  }
-
-  def attrDebugStart(attrName: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
+  def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit = {}
   def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
+
+  def attrDebugNeeded(attrId: Identifier): Boolean = false
 
   /**
     * Runs all validation procedures requested for an attribute.

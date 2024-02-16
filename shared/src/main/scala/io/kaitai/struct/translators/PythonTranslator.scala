@@ -85,7 +85,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"int(${translate(s)}$add)"
   }
   override def enumToInt(v: Ast.expr, et: EnumType): String =
-    s"${translate(v)}.value"
+    s"int(${translate(v)})"
   override def boolToInt(v: Ast.expr): String =
     s"int(${translate(v)})"
   override def floatToInt(v: Ast.expr): String =
@@ -102,8 +102,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
 
     s"$func(${translate(i)})"
   }
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"($bytesExpr).decode(${translate(encoding)})"
+  override def bytesToStr(bytesExpr: String, encoding: String): String =
+    s"""($bytesExpr).decode("$encoding")"""
 
   override def bytesLength(value: Ast.expr): String =
     s"len(${translate(value)})"

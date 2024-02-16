@@ -123,21 +123,18 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     def findInClass(inClass: ClassSpec): Option[MemberSpec] = {
 
       inClass.seq.foreach { el =>
-        if (idToStr(el.id) == attrName) {
+        if (idToStr(el.id) == attrName)
           return Some(el)
-        }
       }
 
       inClass.params.foreach { el =>
-        if (idToStr(el.id) == attrName) {
+        if (idToStr(el.id) == attrName)
           return Some(el)
-        }
       }
 
       inClass.instances.foreach { case (instName, instSpec) =>
-        if (idToStr(instName) == attrName) {
+        if (idToStr(instName) == attrName)
           return Some(instSpec)
-        }
       }
 
       inClass.types.foreach{ t =>
@@ -400,9 +397,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def strToInt(s: expr, base: expr): String =
     translate(base) match {
       case "10" =>
-        s"${translate(s)}.parse::<i32>().unwrap()"
+        s"${translate(s)}.parse::<i32>().map_err(|_| KError::CastError)?"
       case _ =>
-        s"i32::from_str_radix(${translate(s)}, ${translate(base)}).unwrap()"
+        s"i32::from_str_radix(${translate(s)}, ${translate(base)}).map_err(|_| KError::CastError)?"
     }
 
   override def enumToInt(v: expr, et: EnumType): String =
@@ -424,8 +421,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String =
-    s"decode_string(&$bytesExpr, &${translate(encoding)})?"
+  override def bytesToStr(bytesExpr: String, encoding: String): String =
+    s"""decode_string(&$bytesExpr, &"$encoding")?"""
 
   override def bytesLength(b: Ast.expr): String =
     s"${remove_deref(translate(b))}.len()"
