@@ -14,6 +14,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   import RustCompiler._
 
+  var lastFoundMemberClass: ClassSpec = provider.nowClass
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "vec![" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
@@ -119,22 +121,41 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       }
     }
 
-  def findMember(attrName: String, c: ClassSpec = provider.nowClass): Option[MemberSpec] = {
+  def updateLastFoundMemberClass(dt: DataType) {
+    if (dt.isInstanceOf[UserType]) {
+      val s = dt.asInstanceOf[UserType]
+      if (s.classSpec.isDefined) {
+        lastFoundMemberClass = s.classSpec.get
+      }
+    }
+  }
+
+  def resetLastFoundMemberClass() {
+    lastFoundMemberClass = provider.nowClass
+  }
+
+  def findMember(attrName: String, c: ClassSpec = lastFoundMemberClass): Option[MemberSpec] = {
     def findInClass(inClass: ClassSpec): Option[MemberSpec] = {
 
       inClass.seq.foreach { el =>
-        if (idToStr(el.id) == attrName)
+        if (idToStr(el.id) == attrName) {
+          updateLastFoundMemberClass(el.dataType)
           return Some(el)
+        }
       }
 
       inClass.params.foreach { el =>
-        if (idToStr(el.id) == attrName)
+        if (idToStr(el.id) == attrName) {
+          updateLastFoundMemberClass(el.dataType)
           return Some(el)
+        }
       }
 
       inClass.instances.foreach { case (instName, instSpec) =>
-        if (idToStr(instName) == attrName)
+        if (idToStr(instName) == attrName) {
+          updateLastFoundMemberClass(instSpec.dataType)
           return Some(instSpec)
+        }
       }
 
       inClass.types.foreach{ t =>
@@ -181,6 +202,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   }
 
   override def anyField(value: expr, attrName: String): String = {
+    resetLastFoundMemberClass()
     val t = translate(value)
     var a = doName(attrName)
     attrName match {
@@ -296,6 +318,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     case Identifier.ROOT => "_r"
     case Identifier.PARENT => unwrap("_prc")
     case _ =>
+      // reset "looking for variable" context
+      resetLastFoundMemberClass()
       val n = doName(s)
       val deref = !n.endsWith(".as_str()") && !n.endsWith(".as_slice()") && need_deref(s)
       if (deref) {
