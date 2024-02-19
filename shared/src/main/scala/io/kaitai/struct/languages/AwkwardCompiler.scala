@@ -743,7 +743,18 @@ class AwkwardCompiler(
           else
             outSrc.puts(s"auto& ${idToStr(id)}_builder = ${idToStr(id)}_listoffsetbuilder.content();")
           outSrc.puts(s"${idToStr(id)}_builder.append(${getRawIdExpr(id, rep)});")
-        case _: StrType | _: BytesType =>
+        case _: StrType =>
+          // Prints the C++ strings for appending the string data type to the Layoutbuilder.
+          var builderName = idToStr(id)
+          if (rep == NoRepeat)
+            outSrc.puts(s"auto& ${builderName}_stringbuilder = ${nameList.last}_builder.content<Field_${nameList.last}::${nameList.last + "A__Z" + idToStr(id)}>();")
+          else {
+            throw new NotImplementedError("StrType with repeat is not supported yet")
+            // builderName = "sub_" + builderName
+            // outSrc.puts(s"auto& ${builderName}_stringbuilder = ${idToStr(id)}_stringbuilder.content();")
+          }
+          outSrc.puts(s"${builderName}_stringbuilder.append(${getRawIdExpr(id, rep)});")
+        case _: BytesType =>
           // Prints the C++ strings for appending the string data type to the Layoutbuilder.
           var builderName = idToStr(id)
           if (isIndexedOption == true) {
@@ -764,10 +775,8 @@ class AwkwardCompiler(
           }
           outSrc.puts(s"${builderName}_listoffsetbuilder.begin_list();")
           outSrc.puts(s"auto& ${idToStr(id)}_builder = ${builderName}_listoffsetbuilder.content();")
-          if(dataType.isInstanceOf[StrType]) {
-            outSrc.puts(s"""${builderName}_listoffsetbuilder.set_parameters("\\"__array__\\": \\"string\\"");""")
-            outSrc.puts(s"""${idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
-          }
+          outSrc.puts(s"""${builderName}_listoffsetbuilder.set_parameters("\\"__array__\\": \\"string\\"");""")
+          outSrc.puts(s"""${idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
           outSrc.puts(s"for (int i = 0; i < ${getRawIdExpr(id, rep)}.length(); i++) {")
           outSrc.inc
           outSrc.puts(s"${idToStr(id)}_builder.append(${getRawIdExpr(id, rep)}[i]);")
@@ -1478,7 +1487,12 @@ class AwkwardCompiler(
             builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
             var builderContent = checkRepeat(el.cond.repeat, NumpyBuilder(kaitaiType2NativeType(el.dataType)))
             builder.contents += checkOption(el, builderContent)
-          case _: StrType | _: BytesType =>
+          case _: StrType =>
+            // for strings, ListOffsetBuilder(int64_t, NumpyBuilder(uint8_t)) will be generated.
+            builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
+            var builderContent = checkRepeat(el.cond.repeat, StringBuilder("int64_t"))
+            builder.contents += checkOption(el, builderContent)
+          case _: BytesType =>
             // for strings, ListOffsetBuilder(int64_t, NumpyBuilder(uint8_t)) will be generated.
             builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
             var builderContent = checkRepeat(el.cond.repeat, ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t")))
