@@ -76,6 +76,24 @@ class AwkwardCompiler(
       s"NumpyBuilder<$dataType>"
     }
   }
+
+  /**
+    * Generates the StringBuilder structure.
+    * @param dataType the type of data in StringBuilder.
+    */
+  case class StringBuilder(
+    dataType: String
+  ) extends LayoutBuilder {
+
+    /**
+      * Prints the structure of StringBuilder.
+      * @param indent the number of spaces to indent the structure.
+      * @return string containing the primitive data type of StringBuilder buffer.
+      */
+    override def printBuilderStructure(indent: Int): String = {
+      s"StringBuilder<$dataType>"
+    }
+  }
   /**
     * Generates the ListOffsetBuilder structure.
     * @param offsets the type of `offsets` buffer.
