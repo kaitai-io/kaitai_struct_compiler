@@ -23,3 +23,13 @@ project/boot/
 # Unpacking complete binaries for testing purposes
 /runnable
 js/npm
+
+# vscode files
+.bloop
+.metals
+.scalafmt.conf
+.vscode/
+jvm/test_artifacts/
+project/.bloop/
+project/metals.sbt
+test_artifacts/
