@@ -775,8 +775,8 @@ class AwkwardCompiler(
           }
           outSrc.puts(s"${builderName}_listoffsetbuilder.begin_list();")
           outSrc.puts(s"auto& ${idToStr(id)}_builder = ${builderName}_listoffsetbuilder.content();")
-          outSrc.puts(s"""${builderName}_listoffsetbuilder.set_parameters("\\"__array__\\": \\"string\\"");""")
-          outSrc.puts(s"""${idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"char\\"");""")
+          outSrc.puts(s"""${builderName}_listoffsetbuilder.set_parameters("\\"__array__\\": \\"bytestring\\"");""")
+          outSrc.puts(s"""${idToStr(id)}_builder.set_parameters("\\"__array__\\" : \\"byte\\"");""")
           outSrc.puts(s"for (int i = 0; i < ${getRawIdExpr(id, rep)}.length(); i++) {")
           outSrc.inc
           outSrc.puts(s"${idToStr(id)}_builder.append(${getRawIdExpr(id, rep)}[i]);")
