@@ -283,7 +283,7 @@ class AwkwardCompiler(
     outHdrAwkward.puts("using ListOffsetBuilder = awkward::LayoutBuilder::ListOffset<PRIMITIVE, BUILDER>;");
     outHdrAwkward.puts("template<class PRIMITIVE>");
     outHdrAwkward.puts("using NumpyBuilder = awkward::LayoutBuilder::Numpy<PRIMITIVE>;");
-    outHdrAwkward.puts("template<class PRIMITIVE");
+    outHdrAwkward.puts("template<class PRIMITIVE>");
     outHdrAwkward.puts("using StringBuilder = awkward::LayoutBuilder::String<PRIMITIVE>;");
     outHdrAwkward.puts("template<class PRIMITIVE, class BUILDER>");
     outHdrAwkward.puts("using IndexedOptionBuilder = awkward::LayoutBuilder::IndexedOption<PRIMITIVE, BUILDER>;");
