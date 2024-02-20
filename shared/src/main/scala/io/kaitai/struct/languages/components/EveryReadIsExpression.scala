@@ -124,8 +124,8 @@ trait EveryReadIsExpression
         case _ =>
           val tempVarName = localTemporaryName(id)
           handleAssignmentTempVar(dataType, tempVarName, expr)
-          userTypeDebugRead(tempVarName, dataType, assignType)
           handleAssignment(id, tempVarName, rep, false)
+          userTypeDebugRead(tempVarName, dataType, assignType)
       }
     }
   }
