@@ -566,7 +566,15 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
     out.puts(s"if (!(${translator.translate(checkExpr)})) {")
     out.inc
-    out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
+    val errObj = s"new ${ksErrorName(err)}($errArgsStr)"
+    if (attrDebugNeeded(attrId)) {
+      val debugName = attrDebugName(attrId, NoRepeat, true)
+      out.puts(s"var _err = $errObj;")
+      out.puts(s"$debugName.validationError = _err;")
+      out.puts("throw _err;")
+    } else {
+      out.puts(s"throw $errObj;")
+    }
     out.dec
     out.puts("}")
   }
