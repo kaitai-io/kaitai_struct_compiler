@@ -5,6 +5,7 @@ import io.kaitai.struct.datatype.DataType.StrFromBytesType
 import io.kaitai.struct.format._
 import io.kaitai.struct.precompile.CanonicalizeEncodingNames._
 import io.kaitai.struct.problems._
+import io.kaitai.struct.Platform
 
 class CanonicalizeEncodingNames(specs: ClassSpecs) extends PrecompileStep {
   override def run(): Iterable[CompilationProblem] = specs.mapRec(canonicalize)
@@ -48,7 +49,7 @@ object CanonicalizeEncodingNames {
       (original, None)
     } else {
       // See if any aliases match
-      aliasToCanonical.get(original.toUpperCase) match {
+      aliasToCanonical.get(Platform.toUpperLocaleInsensitive(original)) match {
         case Some(canonical) =>
           (
             canonical,
@@ -65,7 +66,7 @@ object CanonicalizeEncodingNames {
 
   private val aliasToCanonical: Map[String, String] =
     EncodingList.canonicalToAlias.flatMap { case (canonical, aliases) =>
-      aliases.map(alias => (alias.toUpperCase, canonical))
+      aliases.map(alias => (Platform.toUpperLocaleInsensitive(alias), canonical))
     } ++
-      EncodingList.canonicalToAlias.keys.map(x => x.toUpperCase -> x)
+      EncodingList.canonicalToAlias.keys.map(x => Platform.toUpperLocaleInsensitive(x) -> x)
 }
