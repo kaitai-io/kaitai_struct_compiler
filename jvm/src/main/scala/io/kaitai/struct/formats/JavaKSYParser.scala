@@ -85,7 +85,7 @@ object JavaKSYParser {
       case jlist: JList[AnyRef] =>
         jlist.asScala.toList.map(yamlJavaToScala)
       case jmap: JMap[String, AnyRef] =>
-        jmap.asScala.toMap.mapValues(yamlJavaToScala)
+        jmap.asScala.toMap.view.mapValues(yamlJavaToScala).toMap
       case _: String =>
         src
       case _: Double =>
