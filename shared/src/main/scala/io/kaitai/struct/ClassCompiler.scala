@@ -367,12 +367,12 @@ class ClassCompiler(
       case _ => false
     }
 
-  def compileClassDoc(curClass: ClassSpec) = {
+  def compileClassDoc(curClass: ClassSpec): Unit = {
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
   }
 
-  def compileInstanceDoc(instName: Identifier, instSpec: InstanceSpec) {
+  def compileInstanceDoc(instName: Identifier, instSpec: InstanceSpec): Unit = {
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
   }

@@ -183,7 +183,7 @@ object AttrSpec {
     val include = ParseUtils.getOptValueBool(srcMap, "include", path).getOrElse(false)
     val eosError = ParseUtils.getOptValueBool(srcMap, "eos-error", path).getOrElse(true)
     val padRight = ParseUtils.getOptValueInt(srcMap, "pad-right", path)
-    val enum = ParseUtils.getOptValueStr(srcMap, "enum", path)
+    val enumOpt = ParseUtils.getOptValueStr(srcMap, "enum", path)
     val parent = ParseUtils.getOptValueExpression(srcMap, "parent", path)
     val valid = srcMap.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
 
@@ -203,7 +203,7 @@ object AttrSpec {
     val yamlAttrArgs = YamlAttrArgs(
       size, sizeEos,
       encoding, terminator, include, consume, eosError, padRight,
-      contents, enum, parent, process
+      contents, enumOpt, parent, process
     )
 
     // Unfortunately, this monstrous match can't rewritten in simpler way due to Java type erasure

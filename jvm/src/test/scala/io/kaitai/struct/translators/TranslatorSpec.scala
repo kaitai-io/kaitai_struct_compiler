@@ -685,7 +685,7 @@ class TranslatorSpec extends AnyFunSuite {
     * @param expType Expected type that should be detected by [[TypeDetector]]
     * @param expOut Map with expected outputs for each language
     */
-  def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) {
+  def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap): Unit = {
     var eo: Option[Ast.expr] = None
     test(s"_expr:$src") {
       eo = Some(Expressions.parse(src))

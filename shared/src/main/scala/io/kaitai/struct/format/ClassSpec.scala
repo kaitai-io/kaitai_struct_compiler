@@ -228,7 +228,7 @@ object ClassSpec {
     }
   }
 
-  private def checkDupId(prevAttrOpt: Option[MemberSpec], id: String, nowAttr: YAMLPath) {
+  private def checkDupId(prevAttrOpt: Option[MemberSpec], id: String, nowAttr: YAMLPath): Unit = {
     prevAttrOpt match {
       case Some(prevAttr) =>
         throw KSYParseError.withText(
