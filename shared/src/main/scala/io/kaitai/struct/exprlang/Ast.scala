@@ -89,6 +89,7 @@ object Ast {
     /** For internal use in the compiler. It cannot appear in an AST parsed from a user-supplied string. */
     case class InternalName(id: Identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
+    case class InterpolatedStr(elts: Seq[expr]) extends expr
 
     /**
      * Implicit declaration of ordering, so expressions can be used for ordering operations, e.g.

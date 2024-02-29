@@ -54,6 +54,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doFloatLiteral(n)
       case Ast.expr.Str(s) =>
         doStringLiteral(s)
+      case Ast.expr.InterpolatedStr(s) =>
+        doInterpolatedStringLiteral(s)
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
       case Ast.expr.EnumById(enumType, id, inType) =>
@@ -204,4 +206,19 @@ abstract class BaseTranslator(val provider: TypeProvider)
   // for the language
   def anyField(value: Ast.expr, attrName: String): String =
     s"${translate(value)}.${doName(attrName)}"
+
+  // f-strings
+  def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
+    exprs.map(anyToStr).mkString(" + ")
+
+  def anyToStr(value: Ast.expr): String = {
+    detectType(value) match {
+      case _: IntType =>
+        intToStr(value, Ast.expr.IntNum(10))
+      case _: StrType =>
+        translate(value)
+      case otherType =>
+        throw new UnsupportedOperationException(s"unable to convert $otherType to string in format string (only integers and strings are supported)")
+    }
+  }
 }

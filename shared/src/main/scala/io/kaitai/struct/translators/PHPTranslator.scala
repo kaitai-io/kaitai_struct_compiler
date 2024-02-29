@@ -146,6 +146,9 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def arrayMax(a: Ast.expr): String =
     s"max(${translate(a)})"
 
+  override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
+    exprs.map(anyToStr).mkString(" . ")
+
   val namespaceRef = if (config.phpNamespace.isEmpty) {
     ""
   } else {

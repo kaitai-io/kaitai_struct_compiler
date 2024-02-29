@@ -8,16 +8,27 @@ trait CommonLiterals {
   def doIntLiteral(n: BigInt): String = n.toString
   def doFloatLiteral(n: Any): String = n.toString
 
-  def doStringLiteral(s: String): String = {
-    val encoded = s.toCharArray.map((code) =>
-      if (code <= 0xff) {
-        strLiteralAsciiChar(code)
-      } else {
-        strLiteralUnicode(code)
-      }
-    ).mkString
-    "\"" + encoded + "\""
-  }
+  /**
+   * Generates string literal enclosed in double quotes.
+   * @param s string to put in as literal
+   * @return string literal
+   */
+  def doStringLiteral(s: String): String =
+    "\"" + doStringLiteralBody(s) + "\""
+
+  /**
+   * Generates body of string literal for a given string, without enclosing quotes.
+   * @param s string to put in as literal
+   * @return body of a string literal
+   */
+  def doStringLiteralBody(s: String): String = s.toCharArray.map((code) =>
+    if (code <= 0xff) {
+      strLiteralAsciiChar(code)
+    } else {
+      strLiteralUnicode(code)
+    }
+  ).mkString
+
   def doBoolLiteral(n: Boolean): String = n.toString
 
   /**

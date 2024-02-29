@@ -128,7 +128,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
 
   def bytesToStr(value: Ast.expr, encoding: String): T
 
-  def intToStr(value: Ast.expr, num: Ast.expr): T
+  def intToStr(value: Ast.expr, base: Ast.expr): T
 
   def floatToInt(value: Ast.expr): T
 

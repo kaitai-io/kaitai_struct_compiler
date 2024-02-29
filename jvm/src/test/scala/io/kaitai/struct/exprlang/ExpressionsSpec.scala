@@ -261,6 +261,10 @@ class ExpressionsSpec extends AnyFunSpec {
       Expressions.parse("\"abc\\u21bbdef\"") should be (Str("abc\u21bbdef"))
     }
 
+    it("parses double-quoted string with double quote") {
+      Expressions.parse("\"this \\\" is a quote\"") should be(Str("this \" is a quote"))
+    }
+
     // Casts
     it("parses 123.as<u4>") {
       Expressions.parse("123.as<u4>") should be (
@@ -387,6 +391,68 @@ class ExpressionsSpec extends AnyFunSpec {
 
     it("parses foo.bar") {
       Expressions.parse("foo.bar") should be (Attribute(Name(identifier("foo")),identifier("bar")))
+    }
+
+    describe("f-strings") {
+      it("parses f-string with just a string") {
+        Expressions.parse("f\"abc\"") should be(InterpolatedStr(ArrayBuffer(
+          Str("abc")
+        )))
+      }
+
+      it("parses f-string with just one expression") {
+        Expressions.parse("f\"{123}\"") should be(InterpolatedStr(ArrayBuffer(
+          IntNum(123)
+        )))
+      }
+
+      it("parses f-string with string + expression") {
+        Expressions.parse("f\"foo={123}\"") should be(InterpolatedStr(ArrayBuffer(
+          Str("foo="),
+          IntNum(123)
+        )))
+      }
+
+      it("parses f-string with expression + string") {
+        Expressions.parse("f\"{123}=abc\"") should be(InterpolatedStr(ArrayBuffer(
+          IntNum(123),
+          Str("=abc")
+        )))
+      }
+
+      it("parses f-string with str + expression + str") {
+        Expressions.parse("f\"abc={123}=def\"") should be(InterpolatedStr(ArrayBuffer(
+          Str("abc="),
+          IntNum(123),
+          Str("=def")
+        )))
+      }
+
+      it("parses f-string string with newline in the middle") {
+        Expressions.parse("f\"abc\\ndef\"") should be(InterpolatedStr(ArrayBuffer(Str("abc\ndef"))))
+      }
+
+      it("parses f-string with double quote in the middle") {
+        Expressions.parse("f\"this \\\" is a quote\"") should be(InterpolatedStr(ArrayBuffer(
+          Str("this \" is a quote")
+        )))
+      }
+
+      it("parses f-string with string in it") {
+        Expressions.parse("f\"abc{\"def\"}ghi\"") should be(InterpolatedStr(ArrayBuffer(
+          Str("abc"),
+          Str("def"),
+          Str("ghi"),
+        )))
+      }
+
+      it("parses f-string with f-string in it") {
+        Expressions.parse("f\"abc{f\"def\"}ghi\"") should be(InterpolatedStr(ArrayBuffer(
+          Str("abc"),
+          InterpolatedStr(ArrayBuffer(Str("def"))),
+          Str("ghi"),
+        )))
+      }
     }
   }
 }

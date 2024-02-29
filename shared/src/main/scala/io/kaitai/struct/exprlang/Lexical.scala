@@ -43,6 +43,10 @@ object Lexical {
   def doublestring[$: P]: P[String] = P("\"" ~/ doublestringitem.rep ~ "\"").map(_.mkString)
   def doublestringitem[$: P] = P( doublestringchar.! | escapeseq )
   def doublestringchar[$: P] = P( CharsWhile(!"\\\"".contains(_)) )
+
+  def fstringItem[$: P] = P(fstringChar.! | Lexical.escapeseq)
+  def fstringChar[$: P] = P(CharsWhile(!"{\\\"".contains(_)))
+
   def escapeseq[$: P] = P( "\\" ~/ (quotedchar | quotedoctal | quotedhex) )
 
   val QUOTED_CC = Map(
