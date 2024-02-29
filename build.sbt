@@ -40,7 +40,8 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
       }
     },
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.12.18",
+    scalaVersion := "2.13.13",
+    scalacOptions := Seq("-unchecked", "-deprecation"),
 
     // Repo publish options
     publishTo := version { (v: String) =>

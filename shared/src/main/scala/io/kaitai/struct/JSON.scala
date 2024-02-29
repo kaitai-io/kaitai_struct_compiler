@@ -36,7 +36,7 @@ object JSON extends CommonLiterals {
   def seqToJson(obj: Seq[_]): String =
     "[" + obj.map((x) => stringify(x)).mkString(",") + "]"
 
-  def mapToJson(obj: Map[String, _]): String = {
+  def mapToJson(obj: Map[String, Any]): String = {
     val kvs = obj.map { case (k, v) =>
       stringToJson(k) + ": " + stringify(v)
     }

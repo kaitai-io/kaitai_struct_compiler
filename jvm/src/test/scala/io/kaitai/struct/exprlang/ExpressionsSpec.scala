@@ -185,7 +185,7 @@ class ExpressionsSpec extends AnyFunSpec {
 
     it("parses [1, 2, 0x1234]") {
       Expressions.parse("[1, 2, 0x1234]") should be (
-        List(ArrayBuffer(IntNum(1), IntNum(2), IntNum(4660)))
+        List(Seq(IntNum(1), IntNum(2), IntNum(4660)))
       )
     }
 
