@@ -5,6 +5,8 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.problems.KSYParseError
 import io.kaitai.struct.translators.TypeDetector
 
+import scala.collection.immutable.SortedMap
+
 sealed trait DataType {
   /**
     * @return Data type as non-owning data type. Default implementation
@@ -228,7 +230,7 @@ object DataType {
 
   case class SwitchType(
     on: Ast.expr,
-    cases: Map[Ast.expr, DataType],
+    cases: SortedMap[Ast.expr, DataType],
     isOwning: Boolean = true,
     override val isOwningInExpr: Boolean = false
   ) extends ComplexDataType {
@@ -303,12 +305,13 @@ object DataType {
       val (_on, _cases) = fromYaml1(switchSpec, path)
 
       val on = Expressions.parse(_on)
-      val cases: Map[Ast.expr, DataType] = _cases.map { case (condition, typeName) =>
-        Expressions.parse(condition) -> DataType.fromYaml(
-          Some(typeName), path ++ List("cases"), metaDef,
-          arg
-        )
-      }
+      val cases: Map[Ast.expr, DataType] = SortedMap.from(
+        _cases.map { case (condition, typeName) =>
+          Expressions.parse(condition) -> DataType.fromYaml(
+            Some(typeName), path ++ List("cases"), metaDef,
+            arg
+          )
+        })
 
       // If we have size defined, and we don't have any "else" case already, add
       // an implicit "else" case that will at least catch everything else as
@@ -328,7 +331,7 @@ object DataType {
         }
       }
 
-      SwitchType(on, cases ++ addCases)
+      SwitchType(on, SortedMap.from(cases ++ addCases))
     }
   }
 

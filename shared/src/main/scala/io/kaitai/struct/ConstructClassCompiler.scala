@@ -104,7 +104,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     importList.add("import enum")
     out.puts(s"class ${types2class(enumSpec.name)}(enum.IntEnum):")
     out.inc
-    enumSpec.sortedSeq.foreach { case (id, valueSpec) =>
+    enumSpec.map.foreach { case (id, valueSpec) =>
       out.puts(s"${valueSpec.name} = ${translator.doIntLiteral(id)}")
     }
     out.dec

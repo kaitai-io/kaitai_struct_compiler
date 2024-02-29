@@ -358,7 +358,7 @@ class ClassCompiler(
   }
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =
-    lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
+    lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.map.toSeq)
 
   def isUnalignedBits(dt: DataType): Boolean =
     dt match {

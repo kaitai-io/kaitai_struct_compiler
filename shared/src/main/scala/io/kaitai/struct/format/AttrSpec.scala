@@ -8,6 +8,8 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.problems.KSYParseError
 
+import scala.collection.immutable.SortedMap
+
 case class ConditionalSpec(ifExpr: Option[Ast.expr], repeat: RepeatSpec)
 
 trait AttrLikeSpec extends MemberSpec {
@@ -312,6 +314,6 @@ object AttrSpec {
       }
     }
 
-    SwitchType(on, cases ++ addCases)
+    SwitchType(on, SortedMap.from(cases ++ addCases))
   }
 }
