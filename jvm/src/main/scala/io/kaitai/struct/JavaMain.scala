@@ -190,13 +190,13 @@ object JavaMain {
     // we need to decode it as well.
     //
     // Linux, from IDE:
-    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.12/classes/
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.13/classes/
     //
     // Linux, from stage:
     // $HOME/git/kaitai_struct/compiler/jvm/target/universal/stage/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Linux, from "sbt compilerJVM/run"
-    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.12/classes/
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.13/classes/
     //
     // Linux, from universal, custom install path:
     // /tmp/a%20b/kaitai-struct-compiler-0.10-SNAPSHOT/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
