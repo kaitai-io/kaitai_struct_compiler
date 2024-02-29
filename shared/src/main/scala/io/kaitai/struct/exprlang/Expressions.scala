@@ -38,7 +38,7 @@ object Expressions {
   def fstring[$: P]: P[Ast.expr.InterpolatedStr] = P("f\"" ~/ fstringElement.rep ~ "\"").map(Ast.expr.InterpolatedStr)
   def fstringElement[$: P]: P[Ast.expr] = P(
     formatExpr |
-      Lexical.fstringItem.repX(min = 1).
+      Lexical.fstringItem.repX(1).
         map(_.mkString).
         map(Ast.expr.Str)
   )

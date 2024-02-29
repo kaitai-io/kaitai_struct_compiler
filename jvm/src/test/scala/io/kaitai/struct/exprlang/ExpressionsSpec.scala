@@ -395,33 +395,33 @@ class ExpressionsSpec extends AnyFunSpec {
 
     describe("f-strings") {
       it("parses f-string with just a string") {
-        Expressions.parse("f\"abc\"") should be(InterpolatedStr(ArrayBuffer(
+        Expressions.parse("f\"abc\"") should be(InterpolatedStr(Seq(
           Str("abc")
         )))
       }
 
       it("parses f-string with just one expression") {
-        Expressions.parse("f\"{123}\"") should be(InterpolatedStr(ArrayBuffer(
+        Expressions.parse("f\"{123}\"") should be(InterpolatedStr(Seq(
           IntNum(123)
         )))
       }
 
       it("parses f-string with string + expression") {
-        Expressions.parse("f\"foo={123}\"") should be(InterpolatedStr(ArrayBuffer(
+        Expressions.parse("f\"foo={123}\"") should be(InterpolatedStr(Seq(
           Str("foo="),
           IntNum(123)
         )))
       }
 
       it("parses f-string with expression + string") {
-        Expressions.parse("f\"{123}=abc\"") should be(InterpolatedStr(ArrayBuffer(
+        Expressions.parse("f\"{123}=abc\"") should be(InterpolatedStr(Seq(
           IntNum(123),
           Str("=abc")
         )))
       }
 
       it("parses f-string with str + expression + str") {
-        Expressions.parse("f\"abc={123}=def\"") should be(InterpolatedStr(ArrayBuffer(
+        Expressions.parse("f\"abc={123}=def\"") should be(InterpolatedStr(Seq(
           Str("abc="),
           IntNum(123),
           Str("=def")
@@ -429,17 +429,17 @@ class ExpressionsSpec extends AnyFunSpec {
       }
 
       it("parses f-string string with newline in the middle") {
-        Expressions.parse("f\"abc\\ndef\"") should be(InterpolatedStr(ArrayBuffer(Str("abc\ndef"))))
+        Expressions.parse("f\"abc\\ndef\"") should be(InterpolatedStr(Seq(Str("abc\ndef"))))
       }
 
       it("parses f-string with double quote in the middle") {
-        Expressions.parse("f\"this \\\" is a quote\"") should be(InterpolatedStr(ArrayBuffer(
+        Expressions.parse("f\"this \\\" is a quote\"") should be(InterpolatedStr(Seq(
           Str("this \" is a quote")
         )))
       }
 
       it("parses f-string with string in it") {
-        Expressions.parse("f\"abc{\"def\"}ghi\"") should be(InterpolatedStr(ArrayBuffer(
+        Expressions.parse("f\"abc{\"def\"}ghi\"") should be(InterpolatedStr(Seq(
           Str("abc"),
           Str("def"),
           Str("ghi"),
@@ -447,9 +447,9 @@ class ExpressionsSpec extends AnyFunSpec {
       }
 
       it("parses f-string with f-string in it") {
-        Expressions.parse("f\"abc{f\"def\"}ghi\"") should be(InterpolatedStr(ArrayBuffer(
+        Expressions.parse("f\"abc{f\"def\"}ghi\"") should be(InterpolatedStr(Seq(
           Str("abc"),
-          InterpolatedStr(ArrayBuffer(Str("def"))),
+          InterpolatedStr(Seq(Str("def"))),
           Str("ghi"),
         )))
       }
