@@ -19,6 +19,7 @@ src_managed/
 project/boot/
 .history
 .cache
+.bsp
 
 # Unpacking complete binaries for testing purposes
 /runnable
