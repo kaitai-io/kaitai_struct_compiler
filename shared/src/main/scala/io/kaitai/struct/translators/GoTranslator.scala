@@ -481,8 +481,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         importList.add("fmt")
 
         val piecesAndArgs: Seq[(String, Option[String])] = exprs.map {
-          case Ast.expr.Str(s) => (doStringLiteralBody(s), None)
-          case e => ("%v", Some(translate(e)))
+          case Ast.expr.Str(s) =>
+            // This string will be used as format string, so we need to escape all `%` as `%%`
+            val escapedFmtStr = s.replace("%", "%%")
+            (doStringLiteralBody(escapedFmtStr), None)
+          case e =>
+            ("%v", Some(translate(e)))
         }
 
         val fmtString = piecesAndArgs.map(x => x._1).mkString
