@@ -74,6 +74,8 @@ class ExpressionValidator(val provider: TypeProvider)
         CommonSizeOf.getBitsSizeOfType(typeName.nameAsStr, detectCastType(typeName))
       case Ast.expr.BitSizeOfType(typeName) =>
         CommonSizeOf.getBitsSizeOfType(typeName.nameAsStr, detectCastType(typeName))
+      case Ast.expr.InterpolatedStr(elts: Seq[Ast.expr]) =>
+        elts.foreach(validate)
     }
   }
 
