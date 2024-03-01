@@ -685,7 +685,7 @@ class TranslatorSpec extends AnyFunSuite {
   full("f\"abc{1}def\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
     CppCompiler -> "std::string(\"abc\") + kaitai::kstream::to_string(1) + std::string(\"def\")",
     CSharpCompiler -> "\"abc\" + Convert.ToString((long) (1), 10) + \"def\"",
-    GoCompiler -> "fmt.Sprintf(\"abc%ddef\", 1)",
+    GoCompiler -> "fmt.Sprintf(\"abc%vdef\", 1)",
     JavaCompiler -> "\"abc\" + Long.toString(1, 10) + \"def\"",
     JavaScriptCompiler -> "\"abc\" + (1).toString(10) + \"def\"",
     LuaCompiler -> "\"abc\" + tostring(1) + \"def\"",

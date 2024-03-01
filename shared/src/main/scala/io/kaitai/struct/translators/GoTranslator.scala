@@ -482,14 +482,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
         val piecesAndArgs: Seq[(String, Option[String])] = exprs.map {
           case Ast.expr.Str(s) => (doStringLiteralBody(s), None)
-          case e =>
-            detectType(e) match {
-              case _: IntType => ("%d", Some(translate(e)))
-              case _: StrType => ("%s", Some(translate(e)))
-              case _: BooleanType => ("%b", Some(translate(e)))
-              case otherType =>
-                throw new UnsupportedOperationException(s"unable to convert $otherType to string in format string")
-            }
+          case e => ("%v", Some(translate(e)))
         }
 
         val fmtString = piecesAndArgs.map(x => x._1).mkString
