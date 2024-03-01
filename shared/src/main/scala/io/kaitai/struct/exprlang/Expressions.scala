@@ -35,7 +35,7 @@ object Expressions {
   def FLOAT_NUMBER[$: P] = Lexical.floatnumber
   def STRING[$: P]: P[String] = Lexical.stringliteral
 
-  def fstring[$: P]: P[Ast.expr.InterpolatedStr] = P("f\"" ~/ fstringElement.rep ~ "\"").map(Ast.expr.InterpolatedStr)
+  def fstring[$: P]: P[Ast.expr.InterpolatedStr] = P("f\"" ~~/ fstringElement.repX ~~ "\"").map(Ast.expr.InterpolatedStr)
   def fstringElement[$: P]: P[Ast.expr] = P(
     formatExpr |
       Lexical.fstringItem.repX(1).
