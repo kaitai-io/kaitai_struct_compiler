@@ -203,4 +203,11 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"${translate(value)}->size()"
+
+  override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
+    if (exprs.isEmpty) {
+      doStringLiteral("")
+    } else {
+      exprs.map(anyToStr).mkString(" . ")
+    }
 }

@@ -43,6 +43,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         trFloatLiteral(n)
       case Ast.expr.Str(s) =>
         trStringLiteral(s)
+      case Ast.expr.InterpolatedStr(s) =>
+        trInterpolatedStringLiteral(s)
       case Ast.expr.Bool(n) =>
         trBoolLiteral(n)
       case Ast.expr.EnumById(enumType, id, inType) =>
@@ -467,6 +469,31 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     out.puts(s"err = ${localVarName(v)}.Read($io, $parent, $root)")
     outAddErrCheck()
     ResultLocalVar(v)
+  }
+
+  def trInterpolatedStringLiteral(exprs: Seq[Ast.expr]): TranslatorResult = {
+    exprs match {
+      case Seq(Ast.expr.Str(s)) =>
+        // exactly one string literal, no need for printf at all
+        trStringLiteral(s)
+
+      case _ =>
+        importList.add("fmt")
+
+        val piecesAndArgs: Seq[(String, Option[String])] = exprs.map {
+          case Ast.expr.Str(s) =>
+            // This string will be used as format string, so we need to escape all `%` as `%%`
+            val escapedFmtStr = s.replace("%", "%%")
+            (doStringLiteralBody(escapedFmtStr), None)
+          case e =>
+            ("%v", Some(translate(e)))
+        }
+
+        val fmtString = piecesAndArgs.map(x => x._1).mkString
+        val fmtArgs = piecesAndArgs.flatMap(x => x._2)
+
+        ResultString("fmt.Sprintf(\"" + fmtString + "\", " + fmtArgs.mkString(", ") + ")")
+    }
   }
 
   def outVarCheckRes(expr: String): ResultLocalVar = {

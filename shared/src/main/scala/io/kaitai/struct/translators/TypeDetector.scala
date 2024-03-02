@@ -48,6 +48,7 @@ class TypeDetector(provider: TypeProvider) {
         }
       case Ast.expr.FloatNum(_) => CalcFloatType
       case Ast.expr.Str(_) => CalcStrType
+      case Ast.expr.InterpolatedStr(_) => CalcStrType
       case Ast.expr.Bool(_) => CalcBooleanType
       case Ast.expr.EnumByLabel(enumType, _, inType) =>
         val t = EnumType(List(enumType.name), CalcIntType)

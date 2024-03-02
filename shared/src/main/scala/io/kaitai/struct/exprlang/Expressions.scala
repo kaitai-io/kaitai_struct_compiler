@@ -35,6 +35,15 @@ object Expressions {
   def FLOAT_NUMBER[$: P] = Lexical.floatnumber
   def STRING[$: P]: P[String] = Lexical.stringliteral
 
+  def fstring[$: P]: P[Ast.expr.InterpolatedStr] = P("f\"" ~~/ fstringElement.repX ~~ "\"").map(Ast.expr.InterpolatedStr)
+  def fstringElement[$: P]: P[Ast.expr] = P(
+    formatExpr |
+      Lexical.fstringItem.repX(1).
+        map(_.mkString).
+        map(Ast.expr.Str)
+  )
+  def formatExpr[$: P]: P[Ast.expr] = P("{" ~/ test ~ "}")
+
   def test[$: P]: P[Ast.expr] = P( or_test ~ ("?" ~ test ~ ":" ~ test).? ).map {
     case (x, None) => x
     case (condition, Some((ifTrue, ifFalse))) => Ast.expr.IfExp(condition, ifTrue, ifFalse)
@@ -119,6 +128,7 @@ object Expressions {
     enumByName |
     byteSizeOfType |
     bitSizeOfType |
+    fstring |
     STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
     NAME.map((x) => x.name match {
       case "true" => Ast.expr.Bool(true)

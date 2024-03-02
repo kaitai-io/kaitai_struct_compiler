@@ -3,14 +3,13 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.{Ast, Expressions}
-import io.kaitai.struct.format.{ClassSpec, FixedSized}
+import io.kaitai.struct.format.{ClassSpec, FixedSized, Identifier}
 import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.{CppImportList, LanguageCompilerStatic}
 import io.kaitai.struct.{ImportList, RuntimeConfig, StringLanguageOutputWriter}
 import org.scalatest.Tag
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers._
-import io.kaitai.struct.format.Identifier
 
 class TranslatorSpec extends AnyFunSuite {
 
@@ -676,6 +675,25 @@ class TranslatorSpec extends AnyFunSuite {
 
   // sizeof of fixed user type
   everybody("bitsizeof<block>", "56", CalcIntType)
+
+  // f-strings
+  everybodyExcept("f\"abc\"", "\"abc\"", Map(
+    CppCompiler -> "std::string(\"abc\")",
+    PythonCompiler -> "u\"abc\""
+  ), CalcStrType)
+
+  full("f\"abc{1}%def\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
+    CppCompiler -> "std::string(\"abc\") + kaitai::kstream::to_string(1) + std::string(\"%def\")",
+    CSharpCompiler -> "\"abc\" + Convert.ToString((long) (1), 10) + \"%def\"",
+    GoCompiler -> "fmt.Sprintf(\"abc%v%%def\", 1)",
+    JavaCompiler -> "\"abc\" + Long.toString(1, 10) + \"%def\"",
+    JavaScriptCompiler -> "\"abc\" + (1).toString(10) + \"%def\"",
+    LuaCompiler -> "\"abc\" + tostring(1) + \"%def\"",
+    PerlCompiler -> "\"abc\" . sprintf('%d', 1) . \"\\%def\"",
+    PHPCompiler -> "\"abc\" . strval(1) . \"%def\"",
+    PythonCompiler -> "u\"abc\" + str(1) + u\"%def\"",
+    RubyCompiler -> "\"abc\" + 1.to_s(10) + \"%def\"",
+  ))
 
   /**
     * Checks translation of expression `src` into target languages
