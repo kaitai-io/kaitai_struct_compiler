@@ -205,5 +205,9 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"${translate(value)}->size()"
 
   override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
-    exprs.map(anyToStr).mkString(" . ")
+    if (exprs.isEmpty) {
+      doStringLiteral("")
+    } else {
+      exprs.map(anyToStr).mkString(" . ")
+    }
 }

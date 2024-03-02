@@ -209,7 +209,11 @@ abstract class BaseTranslator(val provider: TypeProvider)
 
   // f-strings
   def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
-    exprs.map(anyToStr).mkString(" + ")
+    if (exprs.isEmpty) {
+      doStringLiteral("")
+    } else {
+      exprs.map(anyToStr).mkString(" + ")
+    }
 
   def anyToStr(value: Ast.expr): String = {
     detectType(value) match {
