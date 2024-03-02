@@ -160,6 +160,13 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"utils.array_max(${translate(a)})"
   }
 
+  override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
+    if (exprs.isEmpty) {
+      doStringLiteral("")
+    } else {
+      exprs.map(anyToStr).mkString(" .. ")
+    }
+
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"${translate(value)}:size()"
   override def kaitaiStreamEof(value: Ast.expr): String =
