@@ -127,4 +127,11 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"${translate(s)}.substr(${translate(from)}, ${translate(to)} - 1)"
   override def strToInt(s: expr, base: expr): String =
     s"${translate(s)}.parseInt(${translate(base)})"
+
+  override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
+    if (exprs.isEmpty) {
+      doStringLiteral("")
+    } else {
+      exprs.map(anyToStr).mkString(" & ")
+    }
 }
