@@ -32,6 +32,8 @@ class CanonicalizeEncodingNames$Test extends AnyFunSpec {
     }
 
     it("reports warning and fixes bad capitalization for 'iSo-8859-1' even in Turkish locale") {
+      // This test only covers the case conversion in the `canonicalizeName` implementation,
+      // not the case conversions used when initializing the `aliasToCanonical` map.
       val oldLocale = Locale.getDefault
       Locale.setDefault(new Locale("tr"))
       try {
