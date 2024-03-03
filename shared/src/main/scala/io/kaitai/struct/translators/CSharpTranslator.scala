@@ -100,10 +100,8 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     translate(v)
   override def floatToInt(v: expr): String =
     s"(long) (${translate(v)})"
-  override def intToStr(i: expr, base: expr): String = {
-    importList.add("System")
-    s"Convert.ToString((long) (${translate(i)}), ${translate(base)})"
-  }
+  override def intToStr(i: expr): String =
+    s"(${translate(i)}).ToString()"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""System.Text.Encoding.GetEncoding("$encoding").GetString($bytesExpr)"""
   override def strLength(s: expr): String =

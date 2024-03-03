@@ -104,9 +104,8 @@ class ExpressionValidator(val provider: TypeProvider)
     validate(value)
   }
 
-  override def intToStr(value: Ast.expr, num: Ast.expr): Unit = {
+  override def intToStr(value: Ast.expr): Unit = {
     validate(value)
-    validate(num)
   }
 
   override def floatToInt(value: Ast.expr): Unit = validate(value)

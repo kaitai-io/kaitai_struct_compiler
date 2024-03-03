@@ -103,13 +103,8 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"(${translate(v)} and 1 or 0)"
   override def floatToInt(v: Ast.expr): String =
     s"(${translate(v)} > 0) and math.floor(${translate(v)}) or math.ceil(${translate(v)})"
-  override def intToStr(i: Ast.expr, base: Ast.expr): String = {
-    val baseStr = translate(base)
-    baseStr match {
-      case "10" => s"tostring(${translate(i)})"
-      case _ => throw new UnsupportedOperationException(baseStr)
-    }
-  }
+  override def intToStr(i: Ast.expr): String =
+    s"tostring(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     importList.add("local str_decode = require(\"string_decode\")")
 

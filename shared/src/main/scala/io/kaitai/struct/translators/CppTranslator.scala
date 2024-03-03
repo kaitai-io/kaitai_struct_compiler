@@ -190,16 +190,10 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     s"((${translate(v)}) ? 1 : 0)"
   override def floatToInt(v: expr): String =
     s"static_cast<int>(${translate(v)})"
-  override def intToStr(i: expr, base: expr): String = {
-    val baseStr = translate(base)
-    baseStr match {
-      case "10" =>
-        // FIXME: proper way for C++11, but not available in earlier versions
-        //s"std::to_string(${translate(i)})"
-        s"${CppCompiler.kstreamName}::to_string(${translate(i)})"
-      case _ => throw new UnsupportedOperationException(baseStr)
-    }
-  }
+  override def intToStr(i: expr): String =
+    // FIXME: proper way for C++11, but not available in earlier versions
+    //s"std::to_string(${translate(i)})"
+    s"${CppCompiler.kstreamName}::to_string(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""${CppCompiler.kstreamName}::bytes_to_str($bytesExpr, "$encoding")"""
   override def bytesLength(b: Ast.expr): String =

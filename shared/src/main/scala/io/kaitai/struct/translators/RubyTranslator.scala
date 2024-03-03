@@ -84,8 +84,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
     s"${enumInverseMap(et)}[${translate(v)}]"
   override def floatToInt(v: Ast.expr): String =
     s"(${translate(v)}).to_i"
-  override def intToStr(i: Ast.expr, base: Ast.expr): String =
-    translate(i) + s".to_s(${translate(base)})"
+  override def intToStr(i: Ast.expr): String =
+    translate(i) + s".to_s"
 
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     // We can skip "encode to UTF8" if we're 100% sure that the string we're handling is already

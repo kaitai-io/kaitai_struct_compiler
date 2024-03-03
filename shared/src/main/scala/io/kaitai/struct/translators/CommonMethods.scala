@@ -46,7 +46,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
         }
       case _: IntType =>
         attr.name match {
-          case "to_s" => intToStr(value, Ast.expr.IntNum(10))
+          case "to_s" => intToStr(value)
         }
       case _: FloatType =>
         attr.name match {
@@ -128,7 +128,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
 
   def bytesToStr(value: Ast.expr, encoding: String): T
 
-  def intToStr(value: Ast.expr, base: Ast.expr): T
+  def intToStr(value: Ast.expr): T
 
   def floatToInt(value: Ast.expr): T
 

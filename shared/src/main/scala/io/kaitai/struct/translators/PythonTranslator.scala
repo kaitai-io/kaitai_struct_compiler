@@ -90,18 +90,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"int(${translate(v)})"
   override def floatToInt(v: Ast.expr): String =
     s"int(${translate(v)})"
-  override def intToStr(i: Ast.expr, base: Ast.expr): String = {
-    val baseStr = translate(base)
-    val func = baseStr match {
-      case "2" => "bin"
-      case "8" => "oct"
-      case "10" => "str"
-      case "16" => "hex"
-      case _ => throw new UnsupportedOperationException(baseStr)
-    }
-
-    s"$func(${translate(i)})"
-  }
+  override def intToStr(i: Ast.expr): String =
+    s"str(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""($bytesExpr).decode("$encoding")"""
 

@@ -114,7 +114,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def arraySize(a: expr): String = s"len(${translate(a)})"
   override def enumToInt(v: expr, et: EnumType): String = s"ord(${translate(v)})"
   override def floatToInt(v: expr): String = s"int(${translate(v)})"
-  override def intToStr(v: expr, base: expr): String = {
+  override def intToStr(v: expr): String = {
     importList.add("strutils")
     s"intToStr(int(${translate(v)}))"
   }

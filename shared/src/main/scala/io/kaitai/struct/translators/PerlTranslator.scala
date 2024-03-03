@@ -134,22 +134,8 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     translate(v)
   override def floatToInt(v: Ast.expr): String =
     s"int(${translate(v)})"
-  override def intToStr(i: Ast.expr, base: Ast.expr): String = {
-    val baseStr = translate(base)
-    val format = baseStr match {
-      case "2" =>
-        s"%b"
-      case "8" =>
-        s"%o"
-      case "10" =>
-        s"%d"
-      case "16" =>
-        s"0x%X"
-      case _ => throw new UnsupportedOperationException(baseStr)
-    }
-
-    s"sprintf('$format', ${translate(i)})"
-  }
+  override def intToStr(i: Ast.expr): String =
+    s"sprintf('%d', ${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     importList.add("Encode")
     s"""Encode::decode("$encoding", $bytesExpr)"""

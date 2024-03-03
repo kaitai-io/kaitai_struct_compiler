@@ -112,8 +112,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"${translate(v)}.id()"
   override def floatToInt(v: expr): String =
     s"(int) (${translate(v)} + 0)"
-  override def intToStr(i: expr, base: expr): String =
-    s"Long.toString(${translate(i)}, ${translate(base)})"
+  override def intToStr(i: expr): String =
+    s"Long.toString(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     // Java has a small number of standard charsets preloaded. Accessing them as constants is more
     // efficient than looking them up by string in a map, so we utilize this when as possible.

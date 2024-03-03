@@ -393,9 +393,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString(s"${translate(s)}[${translate(from)}:${translate(to)}]")
   }
 
-  override def intToStr(value: Ast.expr, base: Ast.expr): TranslatorResult = {
+  override def intToStr(value: Ast.expr): TranslatorResult = {
     importList.add("strconv")
-    ResultString(s"strconv.FormatInt(int64(${translate(value)}), ${translate(base)})")
+    ResultString(s"strconv.Itoa(int64(${translate(value)}))")
   }
 
   override def floatToInt(value: Ast.expr) =
@@ -518,7 +518,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   def localVarName(n: Int) = s"tmp$n"
 
-  def outAddErrCheck() {
+  def outAddErrCheck(): Unit = {
     out.puts("if err != nil {")
     out.inc
 

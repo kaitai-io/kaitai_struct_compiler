@@ -99,15 +99,9 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def floatToInt(v: expr): String =
     s"intval(${translate(v)})"
 
-  override def intToStr(i: expr, base: expr): String = {
-    val baseStr = translate(base)
-    baseStr match {
-      case "10" =>
-        s"strval(${translate(i)})"
-      case _ =>
-        s"base_convert(strval(${translate(i)}), 10, $baseStr)"
-    }
-  }
+  override def intToStr(i: expr): String =
+    s"strval(${translate(i)})"
+
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""${PHPCompiler.kstreamName}::bytesToStr($bytesExpr, "$encoding")"""
 

@@ -84,15 +84,9 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def floatToInt(v: expr): String =
     s"${translate(v)} as i32"
 
-  override def intToStr(i: expr, base: expr): String = {
-    val baseStr = translate(base)
-    baseStr match {
-      case "10" =>
-        s"${translate(i)}.to_string()"
-      case _ =>
-        s"base_convert(strval(${translate(i)}), 10, $baseStr)"
-    }
-  }
+  override def intToStr(i: expr): String =
+    s"${translate(i)}.to_string()"
+
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     encoding match {
       case "ASCII" =>

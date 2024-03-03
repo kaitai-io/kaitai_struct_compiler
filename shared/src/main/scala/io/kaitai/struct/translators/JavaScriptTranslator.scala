@@ -104,8 +104,8 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def floatToInt(v: expr): String =
     s"Math.trunc(${translate(v)})"
 
-  override def intToStr(i: expr, base: expr): String =
-    s"(${translate(i)}).toString(${translate(base)})"
+  override def intToStr(i: expr): String =
+    s"(${translate(i)}).toString()"
 
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""${JavaScriptCompiler.kstreamName}.bytesToStr($bytesExpr, "$encoding")"""

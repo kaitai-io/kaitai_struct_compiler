@@ -218,7 +218,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def anyToStr(value: Ast.expr): String = {
     detectType(value) match {
       case _: IntType =>
-        intToStr(value, Ast.expr.IntNum(10))
+        intToStr(value)
       case _: StrType =>
         translate(value)
       case otherType =>
