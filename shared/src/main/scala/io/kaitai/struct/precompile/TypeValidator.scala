@@ -17,8 +17,8 @@ import scala.reflect.ClassTag
   * @param specs bundle of class specifications (used only to find external references)
   * @param topClass class to start check with
   */
-class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileStep {
-  val provider = new ClassTypeProvider(specs, topClass)
+class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
+  val provider = new ClassTypeProvider(specs, specs.firstSpec)
   val detector = new ExpressionValidator(provider)
 
   /**

@@ -10,8 +10,9 @@ import io.kaitai.struct.problems._
   * A collection of methods that resolves user types and enum types, i.e.
   * converts names into ClassSpec / EnumSpec references.
   */
-class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileStep {
-  override def run(): Iterable[CompilationProblem] = specs.mapRec(resolveUserTypes)
+class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean) extends PrecompileStep {
+  override def run(): Iterable[CompilationProblem] =
+    topClass.mapRec(resolveUserTypes).map(problem => problem.localizedInType(topClass))
 
   /**
     * Resolves user types and enum types recursively starting from a certain

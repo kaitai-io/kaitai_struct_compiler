@@ -31,33 +31,19 @@ object Main {
 
   /**
     * Runs precompilation steps on every type in the given [[format.ClassSpecs]] collection,
-    * using provided configuration.
+    * using provided configuration. See individual precompile steps invocations for more
+    * in-depth description of what each step includes.
     *
     * @param specs [[format.ClassSpecs]] container with all types loaded into it
     * @param config runtime configuration to be passed to precompile steps
     * @return a list of compilation problems encountered during precompilation steps
     */
-  def precompile(specs: ClassSpecs, config: RuntimeConfig): Iterable[CompilationProblem] = {
-    specs.flatMap { case (_, classSpec) =>
-      precompile(specs, classSpec, config)
+  def precompile(specs: ClassSpecs, conf: RuntimeConfig): Iterable[CompilationProblem] = {
+    new MarkupClassNames(specs).run()
+    val resolveTypeProblems = specs.flatMap { case (_, topClass) =>
+      val config = updateConfigFromMeta(conf, topClass.meta)
+      new ResolveTypes(specs, topClass, config.opaqueTypes).run()
     }
-  }
-
-  /**
-    * Does all precompiles steps on a single [[format.ClassSpec]] using provided configuration.
-    * See individual precompile steps invocations for more in-depth description of
-    * what each step includes.
-    *
-    * @param classSpecs [[format.ClassSpecs]] container with all types loaded into it
-    * @param topClass one top type to precompile
-    * @param conf runtime configuration to be passed to precompile steps
-    * @return a list of compilation problems encountered during precompilation steps
-    */
-  def precompile(classSpecs: ClassSpecs, topClass: ClassSpec, conf: RuntimeConfig): Iterable[CompilationProblem] = {
-    val config = updateConfigFromMeta(conf, topClass.meta)
-
-    new MarkupClassNames(classSpecs).run()
-    val resolveTypeProblems = new ResolveTypes(classSpecs, config.opaqueTypes).run()
 
     // For now, bail out early in case we have any type resolution problems
     // TODO: try to recover and do some more passes even in face of these
@@ -65,16 +51,18 @@ object Main {
       return resolveTypeProblems
     }
 
-    new ParentTypes(classSpecs).run()
-    new SpecsValueTypeDerive(classSpecs).run()
-    new CalculateSeqSizes(classSpecs).run()
-    val typeValidatorProblems = new TypeValidator(classSpecs, topClass).run()
+    new ParentTypes(specs).run()
+    new SpecsValueTypeDerive(specs).run()
+    new CalculateSeqSizes(specs).run()
+    val typeValidatorProblems = new TypeValidator(specs).run()
 
     // Warnings
-    val styleWarnings = new StyleCheckIds(classSpecs, topClass).run()
-    val encodingProblems = new CanonicalizeEncodingNames(classSpecs).run()
+    val styleWarnings = new StyleCheckIds(specs).run()
+    val encodingProblems = new CanonicalizeEncodingNames(specs).run()
 
-    topClass.parentClass = GenericStructClassSpec
+    specs.forEachTopLevel((_, spec) => {
+      spec.parentClass = GenericStructClassSpec
+    })
 
     resolveTypeProblems ++ typeValidatorProblems ++ styleWarnings ++ encodingProblems
   }

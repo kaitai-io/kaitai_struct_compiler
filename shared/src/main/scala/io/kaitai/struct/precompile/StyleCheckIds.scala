@@ -6,11 +6,14 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.problems._
 
-class StyleCheckIds(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileStep {
-  val provider = new ClassTypeProvider(specs, topClass)
+class StyleCheckIds(specs: ClassSpecs) extends PrecompileStep {
+  val provider = new ClassTypeProvider(specs, specs.firstSpec)
 
   override def run(): Iterable[CompilationProblem] =
-    specs.mapRec(processType)
+    specs.mapTopLevel((_, typeSpec) => {
+      provider.topClass = typeSpec
+      typeSpec.mapRec(processType)
+    })
 
   def processType(spec: ClassSpec): Iterable[CompilationProblem] = {
     provider.nowClass = spec
