@@ -8,6 +8,9 @@ import java.io.{File, FileNotFoundException}
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.collection.concurrent
+import java.util.concurrent.ConcurrentHashMap
+import scala.jdk.CollectionConverters._
 
 /**
   * Java implementation of ClassSpec container, doing imports from local files.
@@ -15,8 +18,8 @@ import scala.concurrent.Future
 class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpec)
   extends ClassSpecs(firstSpec) {
 
-  private val relFiles = mutable.Map[String, ClassSpec]()
-  private val absFiles = mutable.Map[String, ClassSpec]()
+  private val relFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
+  private val absFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
 
   override def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] = Future {
     Log.importOps.info(() => s".. importing relative $name")

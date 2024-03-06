@@ -80,6 +80,7 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
           (Some(ClassSpec.opaquePlaceholder(typeName)), None)
         } else {
           // Opaque types are disabled => that is an error
+          Log.typeResolve.info(() => "    => ??? (opaque type are disabled => error)")
           (None, Some(TypeNotFoundErr(typeName, curClass, path)))
         }
       case Some(x) =>

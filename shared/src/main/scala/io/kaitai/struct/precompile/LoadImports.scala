@@ -76,8 +76,14 @@ class LoadImports(specs: ClassSpecs) {
           //
           // In theory, duplicate imports shouldn't be returned at all by
           // import* methods due to caching, but we won't rely on it here.
-          if (!specs.contains(specName)) {
-            specs(specName) = spec
+          val isNewSpec = specs.synchronized {
+            val isNew = !specs.contains(specName)
+            if (isNew) {
+              specs(specName) = spec
+            }
+            isNew
+          }
+          if (isNewSpec) {
             processClass(spec, ImportPath.updateWorkDir(workDir, impPath))
           } else {
             Log.importOps.warn(() => s"... we have that already, ignoring")
