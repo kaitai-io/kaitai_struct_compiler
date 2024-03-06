@@ -210,6 +210,7 @@ class AwkwardCompiler(
   var isRepeat = false
   var isIndexedOption = false
   var nameList = List.empty[String]
+  var typeName : String = ""
   var orderedTypes = List.empty[String]
   var currId = ""
   var layoutBuilder = RecordBuilder(ListBuffer(), ListBuffer(), "")
@@ -722,11 +723,14 @@ class AwkwardCompiler(
         val unionIndex = checkUnion.getOrElse(nameList.last + "A__Z" + ut.name.head + "__case__" + idToStr(id), "")
         outSrc.puts(
           s"auto& ${ut.name.head}_recordbuilder = ${nameList.last}_builder.content<Field_${nameList.last}::${nameList.last + "A__Z" + idToStr(id)}>()" +
-          s"${if (isIndexedOption == true) ".content()" else ""}" +
-          s"${if (isRepeat == true) ".content()" else ""}" +
+          s"${if (isIndexedOption) ".content()" else ""}" +
+          s"${if (isRepeat) ".content()" else ""}" +
           s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""}" + 
           s";"
         )
+        if (isIndexedOption) {
+          typeName = ut.name.head
+        }
       case _ =>
     }
     super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
@@ -755,9 +759,9 @@ class AwkwardCompiler(
           }
           outSrc.puts(s"${builderName}_stringbuilder.append(${getRawIdExpr(id, rep)});")
         case _: BytesType =>
-          // Prints the C++ strings for appending the string data type to the Layoutbuilder.
+          // Prints the C++ strings for appending the bytes data type to the Layoutbuilder.
           var builderName = idToStr(id)
-          if (isIndexedOption == true) {
+          if (isIndexedOption) {
             if (rep == NoRepeat)
               outSrc.puts(s"auto& ${builderName}_listoffsetbuilder = ${idToStr(id)}_indexedoptionbuilder.content();")
             else {
@@ -793,8 +797,8 @@ class AwkwardCompiler(
           builderTypeMap(userType.name.head) =
             s"${if (true) "using " + userType.name.head.capitalize + "BuilderType = decltype(std::declval<" + nameList.last.capitalize + 
             s"BuilderType>().content<Field_${nameList.last}::${nameList.last}A__Z${idToStr(id)}>()" +
-            s"${if (isIndexedOption == true) ".content()" else ""}" +
-            s"${if (isRepeat == true) ".content()" else ""}" +
+            s"${if (isIndexedOption) ".content()" else ""}" +
+            s"${if (isRepeat) ".content()" else ""}" +
             s"${if (unionIndex.contains("child")) ".content<" + unionIndex.split("_").last + ">()" else ""}" + 
             s");" else ""}"
         case _ => // do nothing
@@ -933,6 +937,7 @@ class AwkwardCompiler(
     outSrc.puts("else {")
     outSrc.inc
     // Appends invalid index to the IndexedOptionBuilder
+    outSrc.puts(s"${currId}_indexedoptionbuilder.content().set_fields(${typeName}_fields_map);")
     outSrc.puts(s"${currId}_indexedoptionbuilder.append_invalid();")
     outSrc.dec
     outSrc.puts("}") 
@@ -963,7 +968,7 @@ class AwkwardCompiler(
     // Initialize the ListOffsetBuilder for RepeatEos case and call `begin_list`
     outSrc.puts(
       s"auto& ${idToStr(id)}_listoffsetbuilder = " +
-      s"${if (isIndexedOption == true) idToStr(id) + "_indexedoptionbuilder.content();"
+      s"${if (isIndexedOption) idToStr(id) + "_indexedoptionbuilder.content();"
       else nameList.last + "_builder.content<Field_" + nameList.last + "::" + nameList.last + "A__Z" + idToStr(id) + ">();"}"
     )
     outSrc.puts(s"${idToStr(id)}_listoffsetbuilder.begin_list();")
@@ -994,7 +999,7 @@ class AwkwardCompiler(
     // Initialize the ListOffsetBuilder for RepeatExpr case and call `begin_list`
     outSrc.puts(
       s"auto& ${idToStr(id)}_listoffsetbuilder = " +
-      s"${if (isIndexedOption == true) idToStr(id) + "_indexedoptionbuilder.content();"
+      s"${if (isIndexedOption) idToStr(id) + "_indexedoptionbuilder.content();"
       else nameList.last + "_builder.content<Field_" + nameList.last + "::" + nameList.last + "A__Z" + idToStr(id) + ">();"}"
     )
     outSrc.puts(s"${idToStr(id)}_listoffsetbuilder.begin_list();")
@@ -1023,7 +1028,7 @@ class AwkwardCompiler(
     // Initialize the ListOffsetBuilder for RepeatUntil case and call `begin_list`
     outSrc.puts(
       s"auto& ${idToStr(id)}_listoffsetbuilder = " +
-      s"${if (isIndexedOption == true) idToStr(id) + "_indexedoptionbuilder.content();"
+      s"${if (isIndexedOption) idToStr(id) + "_indexedoptionbuilder.content();"
       else nameList.last + "_builder.content<Field_" + nameList.last + "::" + nameList.last + "A__Z" + idToStr(id) + ">();"}"
     )
     outSrc.puts(s"${idToStr(id)}_listoffsetbuilder.begin_list();")
@@ -1176,7 +1181,7 @@ class AwkwardCompiler(
     // Initialize the UnionBuilder
     outSrc.puts(
       s"auto& ${idToStr(id)}_unionbuilder = " +
-      s"${if (isRepeat == true) idToStr(id) + "_listoffsetbuilder.content();"
+      s"${if (isRepeat) idToStr(id) + "_listoffsetbuilder.content();"
       else nameList.last + "_builder.content<Field_" + nameList.last + "::" + nameList.last + "A__Z" + idToStr(id) + ">();"}"
     )
     outSrc.puts(s"switch (${expression(on)}) {")
@@ -1488,12 +1493,12 @@ class AwkwardCompiler(
             var builderContent = checkRepeat(el.cond.repeat, NumpyBuilder(kaitaiType2NativeType(el.dataType)))
             builder.contents += checkOption(el, builderContent)
           case _: StrType =>
-            // for strings, ListOffsetBuilder(int64_t, NumpyBuilder(uint8_t)) will be generated.
+            // for strings, StringBuilder(int64_t) will be generated.
             builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
             var builderContent = checkRepeat(el.cond.repeat, StringBuilder("int64_t"))
             builder.contents += checkOption(el, builderContent)
           case _: BytesType =>
-            // for strings, ListOffsetBuilder(int64_t, NumpyBuilder(uint8_t)) will be generated.
+            // for bytes, ListOffsetBuilder(int64_t, NumpyBuilder(uint8_t)) will be generated.
             builder.fields += cs.name.last + "A__Z" + idToStr(el.id)
             var builderContent = checkRepeat(el.cond.repeat, ListOffsetBuilder("int64_t", NumpyBuilder("uint8_t")))
             builder.contents += checkOption(el, builderContent)
