@@ -12,7 +12,7 @@ import io.kaitai.struct.precompile.EnumMemberNotFoundError
   *
   * Implemented essentially as a no-op translator, which does all the
   * recursive traversing that regular translator performs, but outputs
-  * not result.
+  * no result.
   *
   * @param provider TypeProvider that will answer queries on user types
   */
