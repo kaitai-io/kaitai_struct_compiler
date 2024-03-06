@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.PythonTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -152,31 +152,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
   override def universalDoc(doc: DocSpec): Unit = {
-    val docStr = doc.summary match {
-      case Some(summary) =>
-        val lastChar = summary.last
-        if (lastChar == '.' || lastChar == '\n') {
-          summary
-        } else {
-          summary + "."
-        }
-      case None =>
-        ""
-    }
-
-    val extraNewline = if (docStr.isEmpty || docStr.last == '\n') "" else "\n"
-    val refStr = doc.ref.map {
-      case TextRef(text) =>
-        val seeAlso = new StringLanguageOutputWriter("")
-        seeAlso.putsLines("   ", text)
-        s"$extraNewline\n.. seealso::\n${seeAlso.result}"
-      case ref: UrlRef =>
-        val seeAlso = new StringLanguageOutputWriter("")
-        seeAlso.putsLines("   ", s"${ref.text} - ${ref.url}")
-        s"$extraNewline\n.. seealso::\n${seeAlso.result}"
-    }.mkString("\n")
-
-    out.putsLines("", "\"\"\"" + docStr + refStr + "\"\"\"")
+    val docStr = PythonOps.compileUniversalDocs(doc)
+    out.putsLines("", "\"\"\"" + docStr + "\"\"\"")
   }
 
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
