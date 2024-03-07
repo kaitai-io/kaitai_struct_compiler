@@ -39,8 +39,8 @@ object MethodArgType {
     }
   }
 
-  def isArgAcceptable(actualType: DataType, expectedType: MethodArgType) =
-    byDataType(actualType).getOrElse(false) == expectedType
+  def isArgAcceptable(actualType: DataType, expectedType: MethodArgType): Boolean =
+    byDataType(actualType).map((t) => t == expectedType).getOrElse(false)
 }
 
 abstract trait CommonMethods[T] extends TypeDetector {
