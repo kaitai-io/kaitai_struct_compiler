@@ -21,7 +21,7 @@ object MethodArgType {
     override def toString = "boolean"
   }
   case object BytesArg extends MethodArgType {
-    override def toString = "bytes array"
+    override def toString = "byte array"
   }
   case object ArrayArg extends MethodArgType {
     override def toString = "array"
