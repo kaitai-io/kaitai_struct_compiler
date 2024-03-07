@@ -7,6 +7,7 @@ import io.kaitai.struct.languages._
 import io.kaitai.struct.languages.components.{CppImportList, LanguageCompilerStatic}
 import io.kaitai.struct.translators.TestTypeProviders._
 import io.kaitai.struct.{ImportList, RuntimeConfig, StringLanguageOutputWriter}
+import org.scalactic.source.Position
 import org.scalatest.Tag
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers._
@@ -703,7 +704,7 @@ class TranslatorSpec extends AnyFunSuite {
     * @param expType Expected type that should be detected by [[TypeDetector]]
     * @param expOut Map with expected outputs for each language
     */
-  def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap): Unit = {
+  def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap)(implicit pos: Position): Unit = {
     var eo: Option[Ast.expr] = None
     test(s"_expr:$src") {
       eo = Some(Expressions.parse(src))
@@ -753,16 +754,16 @@ class TranslatorSpec extends AnyFunSuite {
 
   lazy val ALL_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.values
 
-  def full(src: String, srcType: DataType, expType: DataType, expOut: ResultMap) =
+  def full(src: String, srcType: DataType, expType: DataType, expOut: ResultMap)(implicit pos: Position) =
     runTest(src, Always(srcType), expType, expOut)
 
-  def full(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap) =
+  def full(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap)(implicit pos: Position) =
     runTest(src, tp, expType, expOut)
 
-  def everybody(src: String, expOut: String, expType: DataType = CalcIntType) =
+  def everybody(src: String, expOut: String, expType: DataType = CalcIntType)(implicit pos: Position) =
     runTest(src, Always(CalcIntType), expType, ALL_LANGS.map((langObj) => langObj -> expOut).toMap)
 
-  def everybodyExcept(src: String, commonExpOut: String, rm: ResultMap, expType: DataType = CalcIntType) =
+  def everybodyExcept(src: String, commonExpOut: String, rm: ResultMap, expType: DataType = CalcIntType)(implicit pos: Position) =
     runTest(src, Always(CalcIntType), expType, ALL_LANGS.map((langObj) =>
       langObj -> rm.getOrElse(langObj, commonExpOut)
     ).toMap)
