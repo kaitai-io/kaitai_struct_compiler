@@ -120,7 +120,7 @@ class TranslatorSpec extends AnyFunSpec {
 
     everybody("1 + 2 + 5", "((1 + 2) + 5)")
 
-    everybody("1 + 2 * 5", "((1 + 2) * 5)")
+    everybody("1 + 2 * 5", "(1 + (2 * 5))")
 
     everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", Map(
       JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
