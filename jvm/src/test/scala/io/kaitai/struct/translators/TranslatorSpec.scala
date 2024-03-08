@@ -689,7 +689,7 @@ class TranslatorSpec extends AnyFunSuite {
     GoCompiler -> "fmt.Sprintf(\"abc%v%%def\", 1)",
     JavaCompiler -> "\"abc\" + Long.toString(1, 10) + \"%def\"",
     JavaScriptCompiler -> "\"abc\" + (1).toString(10) + \"%def\"",
-    LuaCompiler -> "\"abc\" + tostring(1) + \"%def\"",
+    LuaCompiler -> "\"abc\" .. tostring(1) .. \"%def\"",
     PerlCompiler -> "\"abc\" . sprintf('%d', 1) . \"\\%def\"",
     PHPCompiler -> "\"abc\" . strval(1) . \"%def\"",
     PythonCompiler -> "u\"abc\" + str(1) + u\"%def\"",
