@@ -452,7 +452,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("\"str\\u000anext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "std::string(\"str\\nnext\")",
         CSharpCompiler -> "\"str\\nnext\"",
-        GoCompiler -> "\"str\\u000anext\"",
+        GoCompiler -> "\"str\\nnext\"",
         JavaCompiler -> "\"str\\nnext\"",
         JavaScriptCompiler -> "\"str\\nnext\"",
         LuaCompiler -> "\"str\\nnext\"",
