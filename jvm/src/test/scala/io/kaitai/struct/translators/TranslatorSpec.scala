@@ -525,7 +525,7 @@ class TranslatorSpec extends AnyFunSpec {
 
       full("\"str\".reverse", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "kaitai::kstream::reverse(std::string(\"str\"))",
-        CSharpCompiler -> "new string(Array.Reverse(\"str\".ToCharArray()))",
+        CSharpCompiler -> "KaitaiStream.StringReverse(\"str\")",
         GoCompiler -> "kaitai.StringReverse(\"str\")",
         JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
         JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
