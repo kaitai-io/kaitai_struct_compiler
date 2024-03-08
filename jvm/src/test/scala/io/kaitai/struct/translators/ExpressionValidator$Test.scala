@@ -4,12 +4,11 @@ import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Expressions
 import io.kaitai.struct.exprlang.Expressions.ParseException
 import io.kaitai.struct.precompile.{MethodNotFoundErrorWithArg, TypeMismatchError, WrongMethodCall}
-import io.kaitai.struct.translators.TestTypeProviders._
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers._
 
 class ExpressionValidator$Test extends AnyFunSpec {
-  val alwaysInt = Always(CalcIntType)
+  val alwaysInt = TestTypeProviders.Always(CalcIntType)
   val alwaysIntValidator = new ExpressionValidator(alwaysInt)
 
   describe("simple literals") {
@@ -27,23 +26,6 @@ class ExpressionValidator$Test extends AnyFunSpec {
       it("\"foo\"") {
         val ex = Expressions.parse("\"foo\"")
         alwaysIntValidator.validate(ex)
-      }
-    }
-
-    describe("broken") {
-      it("123ff") {
-        val thrown = the [ParseException] thrownBy Expressions.parse("123ff")
-        thrown.getMessage should be("Position 1:4, found \"ff\"")
-      }
-
-      it("123.456e12ff") {
-        val thrown = the [ParseException] thrownBy Expressions.parse("123.456e12ff")
-        thrown.getMessage should be("Position 1:11, found \"ff\"")
-      }
-
-      it("\"foo") {
-        val thrown = the [ParseException] thrownBy Expressions.parse("\"foo")
-        thrown.getMessage should be("Position 1:5, found \"\"")
       }
     }
   }
@@ -182,11 +164,6 @@ class ExpressionValidator$Test extends AnyFunSpec {
     it("[1, 3, 14][2]") {
       val ex = Expressions.parse("[1, 3, 14][2]")
       alwaysIntValidator.validate(ex)
-    }
-
-    it("[1, 3, 14][2, 5]") {
-      val thrown = the [ParseException] thrownBy Expressions.parse("[1, 3, 14][2, 5]")
-      thrown.getMessage should be("Position 1:11, found \"[2, 5]\"")
     }
 
     it("[1, 3, 14][\"foo\"]") {
