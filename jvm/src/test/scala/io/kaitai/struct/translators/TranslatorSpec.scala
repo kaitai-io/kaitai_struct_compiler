@@ -276,7 +276,7 @@ class TranslatorSpec extends AnyFunSpec {
       CppCompiler -> "_root()->foo()",
       CSharpCompiler -> "M_Root.Foo",
       GoCompiler -> "this._root.Foo",
-      JavaCompiler -> "_root.foo()",
+      JavaCompiler -> "_root().foo()",
       JavaScriptCompiler -> "this._root.foo",
       LuaCompiler -> "self._root.foo",
       PerlCompiler -> "$self->_root()->foo()",
@@ -335,7 +335,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "\"\\255\\000\\255\"",
         PerlCompiler -> "pack('C*', (255, 0, 255))",
         PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
-        PythonCompiler -> "b\"\\255\\000\\255\"",
+        PythonCompiler -> "b\"\\xFF\\x00\\xFF\"",
         RubyCompiler -> "[255, 0, 255].pack('C*')"
       ))
     }
@@ -343,9 +343,11 @@ class TranslatorSpec extends AnyFunSpec {
     describe("operations") {
       full("[0, 1, 2].length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "std::string(\"\\x00\\x01\\x02\", 3).length()",
+        CSharpCompiler -> "new byte[] { 0, 1, 2 }.Length",
         GoCompiler -> "len([]uint8{0, 1, 2})",
         JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
-        LuaCompiler -> "string.len(\"str\")",
+        JavaScriptCompiler -> "[0, 1, 2].length",
+        LuaCompiler -> "#\"\\000\\001\\002\"",
         PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
         PHPCompiler -> "strlen(\"\\x00\\x01\\x02\")",
         PythonCompiler -> "len(b\"\\x00\\x01\\x02\")",
@@ -358,7 +360,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "this.A[42]",
         JavaCompiler -> "a().get((int) 42)",
         JavaScriptCompiler -> "this.a[42]",
-        LuaCompiler -> "self.a[43]",
+        LuaCompiler -> "self.a[42 + 1]", // TODO: self.a[43]
         PerlCompiler -> "@{$self->a()}[42]",
         PHPCompiler -> "$this->a()[42]",
         PythonCompiler -> "self.a[42]",
@@ -369,9 +371,9 @@ class TranslatorSpec extends AnyFunSpec {
         CppCompiler -> "a()->at((42 - 2))",
         CSharpCompiler -> "A[(42 - 2)]",
         GoCompiler -> "this.A[(42 - 2)]",
-        JavaCompiler -> "a().get((42 - 2))",
+        JavaCompiler -> "a().get((int) (42 - 2))",
         JavaScriptCompiler -> "this.a[(42 - 2)]",
-        LuaCompiler -> "self.a[(43 - 2)]",
+        LuaCompiler -> "self.a[(42 - 2) + 1]", // TODO: self.a[41]
         PerlCompiler -> "@{$self->a()}[(42 - 2)]",
         PHPCompiler -> "$this->a()[(42 - 2)]",
         PythonCompiler -> "self.a[(42 - 2)]",
@@ -394,7 +396,9 @@ class TranslatorSpec extends AnyFunSpec {
       full("a.last", ArrayTypeInStream(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "a()->back()",
         CSharpCompiler -> "A[A.Count - 1]",
-        GoCompiler -> "this.A[len(this.A)-1]",
+        GoCompiler ->
+          """tmp1 := this.A
+            |tmp1[len(tmp1) - 1]""".stripMargin,
         JavaCompiler -> "a().get(a().size() - 1)",
         JavaScriptCompiler -> "this.a[this.a.length - 1]",
         LuaCompiler -> "self.a[#self.a]",
@@ -450,7 +454,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("\"str\\u000anext\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "std::string(\"str\\nnext\")",
         CSharpCompiler -> "\"str\\nnext\"",
-        GoCompiler -> "\"str\\u000anext\"",
+        GoCompiler -> "\"str\\nnext\"",
         JavaCompiler -> "\"str\\nnext\"",
         JavaScriptCompiler -> "\"str\\nnext\"",
         LuaCompiler -> "\"str\\nnext\"",
@@ -465,7 +469,7 @@ class TranslatorSpec extends AnyFunSpec {
         CSharpCompiler -> "\"str\\0next\"",
         GoCompiler -> "\"str\\000next\"",
         JavaCompiler -> "\"str\\000next\"",
-        JavaScriptCompiler -> "\"str\\000next\"",
+        JavaScriptCompiler -> "\"str\\x00next\"",
         LuaCompiler -> "\"str\\000next\"",
         PerlCompiler -> "\"str\\000next\"",
         PHPCompiler -> "\"str\\000next\"",
@@ -525,7 +529,7 @@ class TranslatorSpec extends AnyFunSpec {
 
       full("\"str\".reverse", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "kaitai::kstream::reverse(std::string(\"str\"))",
-        CSharpCompiler -> "new string(Array.Reverse(\"str\".ToCharArray()))",
+        CSharpCompiler -> "KaitaiStream.StringReverse(\"str\")",
         GoCompiler -> "kaitai.StringReverse(\"str\")",
         JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
         JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
@@ -537,9 +541,14 @@ class TranslatorSpec extends AnyFunSpec {
       ))
 
       full("\"12345\".to_i", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
-        CppCompiler -> "std::stoi(std::string(\"12345\"))",
+        CppCompiler -> "kaitai::kstream::string_to_int(std::string(\"12345\"))",
         CSharpCompiler -> "Convert.ToInt64(\"12345\", 10)",
-        GoCompiler -> "func()(int){i, err := strconv.Atoi(\"12345\"); if (err != nil) { panic(err) }; return i}()",
+        GoCompiler ->
+          """tmp1, err := strconv.ParseInt("12345", 10, 0)
+            |if err != nil {
+            |  return err
+            |}
+            |tmp1""".stripMargin,
         JavaCompiler -> "Long.parseLong(\"12345\", 10)",
         JavaScriptCompiler -> "Number.parseInt(\"12345\", 10)",
         LuaCompiler -> "tonumber(\"12345\")",
@@ -550,9 +559,14 @@ class TranslatorSpec extends AnyFunSpec {
       ))
 
       full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
-        CppCompiler -> "std::stoi(std::string(\"1234fe\"), 0, 16)",
+        CppCompiler -> "kaitai::kstream::string_to_int(std::string(\"1234fe\"), 16)",
         CSharpCompiler -> "Convert.ToInt64(\"1234fe\", 16)",
-        GoCompiler -> "func()(int64){i, err := strconv.ParseInt(\"1234fe\", 16, 64); if (err != nil) { panic(err) }; return i}()",
+        GoCompiler ->
+          """tmp1, err := strconv.ParseInt("1234fe", 16, 0)
+            |if err != nil {
+            |  return err
+            |}
+            |tmp1""".stripMargin,
         JavaCompiler -> "Long.parseLong(\"1234fe\", 16)",
         JavaScriptCompiler -> "Number.parseInt(\"1234fe\", 16)",
         LuaCompiler -> "tonumber(\"1234fe\", 16)",
@@ -612,7 +626,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("[].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "std::string(\"\", 0)",
         CSharpCompiler -> "new byte[] {  }",
-        GoCompiler -> "\"\"",
+        GoCompiler -> "[]uint8{}",
         JavaCompiler -> "new byte[] {  }",
         JavaScriptCompiler -> "[]",
         LuaCompiler -> "\"\"",
@@ -654,7 +668,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("[0 + 1, 5].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "???",
         CSharpCompiler -> "new byte[] { (0 + 1), 5 }",
-        GoCompiler -> "string([]byte{(0 + 1), 5})",
+        GoCompiler -> "[]uint8{(0 + 1), 5}",
         JavaCompiler -> "new byte[] { (0 + 1), 5 }",
         JavaScriptCompiler -> "new Uint8Array([(0 + 1), 5])",
         LuaCompiler -> "???",
