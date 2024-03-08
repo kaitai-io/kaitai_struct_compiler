@@ -468,7 +468,7 @@ class TranslatorSpec extends AnyFunSpec {
         CSharpCompiler -> "\"str\\0next\"",
         GoCompiler -> "\"str\\000next\"",
         JavaCompiler -> "\"str\\000next\"",
-        JavaScriptCompiler -> "\"str\\000next\"",
+        JavaScriptCompiler -> "\"str\\x00next\"",
         LuaCompiler -> "\"str\\000next\"",
         PerlCompiler -> "\"str\\000next\"",
         PHPCompiler -> "\"str\\000next\"",
