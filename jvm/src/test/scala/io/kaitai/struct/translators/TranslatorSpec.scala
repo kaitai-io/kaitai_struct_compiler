@@ -203,7 +203,7 @@ class TranslatorSpec extends AnyFunSpec {
   }
 
   full("some_bool.to_i", CalcBooleanType, CalcIntType, Map[LanguageCompilerStatic, String](
-    CppCompiler -> "some_bool()",
+    CppCompiler -> "((some_bool()) ? 1 : 0)",
     CSharpCompiler -> "(SomeBool ? 1 : 0)",
     GoCompiler -> """tmp1 := 0
                     |if this.SomeBool {
