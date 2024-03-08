@@ -537,7 +537,7 @@ class TranslatorSpec extends AnyFunSpec {
       ))
 
       full("\"12345\".to_i", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
-        CppCompiler -> "std::stoi(std::string(\"12345\"))",
+        CppCompiler -> "kaitai::kstream::string_to_int(std::string(\"12345\"))",
         CSharpCompiler -> "Convert.ToInt64(\"12345\", 10)",
         GoCompiler -> "func()(int){i, err := strconv.Atoi(\"12345\"); if (err != nil) { panic(err) }; return i}()",
         JavaCompiler -> "Long.parseLong(\"12345\", 10)",
@@ -550,7 +550,7 @@ class TranslatorSpec extends AnyFunSpec {
       ))
 
       full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
-        CppCompiler -> "std::stoi(std::string(\"1234fe\"), 0, 16)",
+        CppCompiler -> "kaitai::kstream::string_to_int(std::string(\"1234fe\"), 16)",
         CSharpCompiler -> "Convert.ToInt64(\"1234fe\", 16)",
         GoCompiler -> "func()(int64){i, err := strconv.ParseInt(\"1234fe\", 16, 64); if (err != nil) { panic(err) }; return i}()",
         JavaCompiler -> "Long.parseLong(\"1234fe\", 16)",
