@@ -343,9 +343,11 @@ class TranslatorSpec extends AnyFunSpec {
     describe("operations") {
       full("[0, 1, 2].length", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "std::string(\"\\x00\\x01\\x02\", 3).length()",
+        CSharpCompiler -> "new byte[] { 0, 1, 2 }.Length",
         GoCompiler -> "len([]uint8{0, 1, 2})",
         JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
-        LuaCompiler -> "string.len(\"str\")",
+        JavaScriptCompiler -> "[0, 1, 2].length",
+        LuaCompiler -> "#\"\\000\\001\\002\"",
         PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
         PHPCompiler -> "strlen(\"\\x00\\x01\\x02\")",
         PythonCompiler -> "len(b\"\\x00\\x01\\x02\")",
