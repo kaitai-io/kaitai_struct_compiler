@@ -276,7 +276,7 @@ class TranslatorSpec extends AnyFunSpec {
       CppCompiler -> "_root()->foo()",
       CSharpCompiler -> "M_Root.Foo",
       GoCompiler -> "this._root.Foo",
-      JavaCompiler -> "_root.foo()",
+      JavaCompiler -> "_root().foo()",
       JavaScriptCompiler -> "this._root.foo",
       LuaCompiler -> "self._root.foo",
       PerlCompiler -> "$self->_root()->foo()",
