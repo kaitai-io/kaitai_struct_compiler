@@ -288,7 +288,7 @@ class TranslatorSpec extends AnyFunSpec {
     full("a != 2 and a != 5", CalcIntType, CalcBooleanType, Map[LanguageCompilerStatic, String](
       CppCompiler -> "a() != 2 && a() != 5",
       CSharpCompiler -> "A != 2 && A != 5",
-      GoCompiler -> "a != 2 && a != 5",
+      GoCompiler -> " ((this.A != 2) && (this.A != 5)) ",
       JavaCompiler -> "a() != 2 && a() != 5",
       JavaScriptCompiler -> "this.a != 2 && this.a != 5",
       LuaCompiler -> "self.a ~= 2 and self.a ~= 5",
