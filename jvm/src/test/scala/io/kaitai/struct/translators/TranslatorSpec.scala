@@ -623,7 +623,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("[].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "std::string(\"\", 0)",
         CSharpCompiler -> "new byte[] {  }",
-        GoCompiler -> "\"\"",
+        GoCompiler -> "[]uint8{}",
         JavaCompiler -> "new byte[] {  }",
         JavaScriptCompiler -> "[]",
         LuaCompiler -> "\"\"",
@@ -665,7 +665,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("[0 + 1, 5].as<bytes>", CalcIntType, CalcBytesType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "???",
         CSharpCompiler -> "new byte[] { (0 + 1), 5 }",
-        GoCompiler -> "string([]byte{(0 + 1), 5})",
+        GoCompiler -> "[]uint8{(0 + 1), 5}",
         JavaCompiler -> "new byte[] { (0 + 1), 5 }",
         JavaScriptCompiler -> "new Uint8Array([(0 + 1), 5])",
         LuaCompiler -> "???",
