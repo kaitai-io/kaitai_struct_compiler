@@ -135,8 +135,8 @@ class TranslatorSpec extends AnyFunSpec {
     everybody("1 == 2", "1 == 2", CalcBooleanType)
 
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, Map[LanguageCompilerStatic, String](
-      CppCompiler -> "(2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\"))",
-      CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
+      CppCompiler -> "((2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\")))",
+      CSharpCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
       GoCompiler ->
         """var tmp1 string;
           |if (2 < 3) {
@@ -145,13 +145,13 @@ class TranslatorSpec extends AnyFunSpec {
           |  tmp1 = "bar"
           |}
           |tmp1""".stripMargin,
-      JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
-      JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
-      LuaCompiler -> "utils.box_unwrap(2 < 3 and utils.box_wrap(\"foo\") or \"bar\")",
-      PerlCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
-      PHPCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
-      PythonCompiler -> "u\"foo\" if 2 < 3 else u\"bar\"",
-      RubyCompiler -> "2 < 3 ? \"foo\" : \"bar\""
+      JavaCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
+      JavaScriptCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
+      LuaCompiler -> "utils.box_unwrap((2 < 3) and utils.box_wrap(\"foo\") or (\"bar\"))",
+      PerlCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
+      PHPCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
+      PythonCompiler -> "(u\"foo\" if 2 < 3 else u\"bar\")",
+      RubyCompiler -> "(2 < 3 ? \"foo\" : \"bar\")"
     ))
 
     everybodyExcept("~777", "~777", Map[LanguageCompilerStatic, String](
@@ -203,7 +203,7 @@ class TranslatorSpec extends AnyFunSpec {
   }
 
   full("some_bool.to_i", CalcBooleanType, CalcIntType, Map[LanguageCompilerStatic, String](
-    CppCompiler -> "some_bool()",
+    CppCompiler -> "((some_bool()) ? 1 : 0)",
     CSharpCompiler -> "(SomeBool ? 1 : 0)",
     GoCompiler -> """tmp1 := 0
                     |if this.SomeBool {
@@ -212,7 +212,7 @@ class TranslatorSpec extends AnyFunSpec {
                     |tmp1""".stripMargin,
     JavaCompiler -> "(someBool() ? 1 : 0)",
     JavaScriptCompiler -> "(this.someBool | 0)",
-    LuaCompiler -> "self.some_bool and 1 or 0",
+    LuaCompiler -> "(self.some_bool and 1 or 0)",
     PerlCompiler -> "$self->some_bool()",
     PHPCompiler -> "intval($this->someBool())",
     PythonCompiler -> "int(self.some_bool)",
@@ -286,16 +286,16 @@ class TranslatorSpec extends AnyFunSpec {
     ))
 
     full("a != 2 and a != 5", CalcIntType, CalcBooleanType, Map[LanguageCompilerStatic, String](
-      CppCompiler -> "a() != 2 && a() != 5",
-      CSharpCompiler -> "A != 2 && A != 5",
-      GoCompiler -> "a != 2 && a != 5",
-      JavaCompiler -> "a() != 2 && a() != 5",
-      JavaScriptCompiler -> "this.a != 2 && this.a != 5",
-      LuaCompiler -> "self.a ~= 2 and self.a ~= 5",
-      PerlCompiler -> "$self->a() != 2 && $self->a() != 5",
-      PHPCompiler -> "$this->a() != 2 && $this->a() != 5",
-      PythonCompiler -> "self.a != 2 and self.a != 5",
-      RubyCompiler -> "a != 2 && a != 5"
+      CppCompiler -> " ((a() != 2) && (a() != 5)) ",
+      CSharpCompiler -> " ((A != 2) && (A != 5)) ",
+      GoCompiler -> " ((this.A != 2) && (this.A != 5)) ",
+      JavaCompiler -> " ((a() != 2) && (a() != 5)) ",
+      JavaScriptCompiler -> " ((this.a != 2) && (this.a != 5)) ",
+      LuaCompiler -> " ((self.a ~= 2) and (self.a ~= 5)) ",
+      PerlCompiler -> " (($self->a() != 2) && ($self->a() != 5)) ",
+      PHPCompiler -> " (($this->a() != 2) && ($this->a() != 5)) ",
+      PythonCompiler -> " ((self.a != 2) and (self.a != 5)) ",
+      RubyCompiler -> " ((a != 2) && (a != 5)) "
     ))
   }
 
@@ -536,7 +536,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "string.reverse(\"str\")",
         PerlCompiler -> "scalar(reverse(\"str\"))",
         PHPCompiler -> "strrev(\"str\")",
-        PythonCompiler -> "u\"str\"[::-1]",
+        PythonCompiler -> "(u\"str\")[::-1]",
         RubyCompiler -> "\"str\".reverse"
       ))
 
