@@ -396,7 +396,8 @@ class TranslatorSpec extends AnyFunSpec {
       full("a.last", ArrayTypeInStream(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "a()->back()",
         CSharpCompiler -> "A[A.Count - 1]",
-        GoCompiler -> "this.A[len(this.A)-1]",
+        GoCompiler -> """tmp1 := this.A
+                        |tmp1[len(tmp1) - 1]""".stripMargin,
         JavaCompiler -> "a().get(a().size() - 1)",
         JavaScriptCompiler -> "this.a[this.a.length - 1]",
         LuaCompiler -> "self.a[#self.a]",
