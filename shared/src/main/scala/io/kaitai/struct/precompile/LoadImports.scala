@@ -76,6 +76,15 @@ class LoadImports(specs: ClassSpecs) {
           //
           // In theory, duplicate imports shouldn't be returned at all by
           // import* methods due to caching, but we won't rely on it here.
+          //
+          // The `synchronized` block is necessary because this code is run
+          // concurrently by multiple threads (each resolving different imports)
+          // and `specs` is a shared non-thread-safe `HashMap`. Without this
+          // synchronization, a few imports were occasionally missing from
+          // `specs` due to a race condition, and even (though rarely) the
+          // implementation of `specs.contains()` could fail internally with an
+          // `ArrayIndexOutOfBoundsException`. For more details, see
+          // https://github.com/kaitai-io/kaitai_struct/issues/951
           val isNewSpec = specs.synchronized {
             val isNew = !specs.contains(specName)
             if (isNew) {

@@ -18,6 +18,12 @@ import scala.jdk.CollectionConverters._
 class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpec)
   extends ClassSpecs(firstSpec) {
 
+  // We're using thread-safe `ConcurrentHashMap` for `relFiles` and `absFiles`,
+  // because these hash maps may be mutated concurrently by multiple threads in
+  // `JavaClassSpecs.cached()`. Using a non-thread-safe hash map here could
+  // occasionally cause `cacheMap.get(name)` in `JavaClassSpecs.cached()` to
+  // fail internally and throw an `ArrayIndexOutOfBoundsException`, see
+  // https://github.com/kaitai-io/kaitai_struct/issues/951
   private val relFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
   private val absFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
 
