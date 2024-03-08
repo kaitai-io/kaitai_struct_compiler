@@ -1,9 +1,10 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.DataType.{ArrayType, BytesType, IntType}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.precompile.EnumMemberNotFoundError
+import io.kaitai.struct.precompile.{EnumMemberNotFoundError, TypeMismatchError}
 
 /**
   * Validates expressions usage of types (in typecasting operator,
@@ -59,8 +60,18 @@ class ExpressionValidator(val provider: TypeProvider)
         validate(ifTrue)
         validate(ifFalse)
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
-        validate(container)
-        validate(idx)
+        detectType(container) match {
+          case _: ArrayType | _: BytesType =>
+            validate(container)
+            detectType(idx) match {
+              case _: IntType =>
+                validate(idx)
+              case indexType =>
+                throw new TypeMismatchError(s"subscript operation on arrays require index to be integer, but found $indexType")
+            }
+          case x =>
+            throw new TypeMismatchError(s"subscript operation is not supported on object type $x")
+        }
       case call: Ast.expr.Attribute =>
         translateAttribute(call)
       case call: Ast.expr.Call =>

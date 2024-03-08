@@ -360,7 +360,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "this.A[42]",
         JavaCompiler -> "a().get((int) 42)",
         JavaScriptCompiler -> "this.a[42]",
-        LuaCompiler -> "self.a[42 + 1]",
+        LuaCompiler -> "self.a[42 + 1]", // TODO: self.a[43]
         PerlCompiler -> "@{$self->a()}[42]",
         PHPCompiler -> "$this->a()[42]",
         PythonCompiler -> "self.a[42]",
@@ -373,7 +373,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "this.A[(42 - 2)]",
         JavaCompiler -> "a().get((int) (42 - 2))",
         JavaScriptCompiler -> "this.a[(42 - 2)]",
-        LuaCompiler -> "self.a[(42 - 2) + 1]",
+        LuaCompiler -> "self.a[(42 - 2) + 1]", // TODO: self.a[41]
         PerlCompiler -> "@{$self->a()}[(42 - 2)]",
         PHPCompiler -> "$this->a()[(42 - 2)]",
         PythonCompiler -> "self.a[(42 - 2)]",
@@ -396,8 +396,9 @@ class TranslatorSpec extends AnyFunSpec {
       full("a.last", ArrayTypeInStream(CalcIntType), CalcIntType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "a()->back()",
         CSharpCompiler -> "A[A.Count - 1]",
-        GoCompiler -> """tmp1 := this.A
-                        |tmp1[len(tmp1) - 1]""".stripMargin,
+        GoCompiler ->
+          """tmp1 := this.A
+            |tmp1[len(tmp1) - 1]""".stripMargin,
         JavaCompiler -> "a().get(a().size() - 1)",
         JavaScriptCompiler -> "this.a[this.a.length - 1]",
         LuaCompiler -> "self.a[#self.a]",
@@ -542,11 +543,12 @@ class TranslatorSpec extends AnyFunSpec {
       full("\"12345\".to_i", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "kaitai::kstream::string_to_int(std::string(\"12345\"))",
         CSharpCompiler -> "Convert.ToInt64(\"12345\", 10)",
-        GoCompiler -> """tmp1, err := strconv.ParseInt("12345", 10, 0)
-                        |if err != nil {
-                        |  return err
-                        |}
-                        |tmp1""".stripMargin,
+        GoCompiler ->
+          """tmp1, err := strconv.ParseInt("12345", 10, 0)
+            |if err != nil {
+            |  return err
+            |}
+            |tmp1""".stripMargin,
         JavaCompiler -> "Long.parseLong(\"12345\", 10)",
         JavaScriptCompiler -> "Number.parseInt(\"12345\", 10)",
         LuaCompiler -> "tonumber(\"12345\")",
@@ -559,11 +561,12 @@ class TranslatorSpec extends AnyFunSpec {
       full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, Map[LanguageCompilerStatic, String](
         CppCompiler -> "kaitai::kstream::string_to_int(std::string(\"1234fe\"), 16)",
         CSharpCompiler -> "Convert.ToInt64(\"1234fe\", 16)",
-        GoCompiler -> """tmp1, err := strconv.ParseInt("1234fe", 16, 0)
-                        |if err != nil {
-                        |  return err
-                        |}
-                        |tmp1""".stripMargin,
+        GoCompiler ->
+          """tmp1, err := strconv.ParseInt("1234fe", 16, 0)
+            |if err != nil {
+            |  return err
+            |}
+            |tmp1""".stripMargin,
         JavaCompiler -> "Long.parseLong(\"1234fe\", 16)",
         JavaScriptCompiler -> "Number.parseInt(\"1234fe\", 16)",
         LuaCompiler -> "tonumber(\"1234fe\", 16)",
