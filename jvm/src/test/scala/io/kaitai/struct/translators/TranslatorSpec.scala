@@ -9,10 +9,10 @@ import io.kaitai.struct.translators.TestTypeProviders._
 import io.kaitai.struct.{ImportList, RuntimeConfig, StringLanguageOutputWriter}
 import org.scalactic.source.Position
 import org.scalatest.Tag
-import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers._
 
-class TranslatorSpec extends AnyFunSuite {
+class TranslatorSpec extends AnyFunSpec {
 
   // Integer literals + unary minus
   everybody("123", "123", Int1Type(true))
@@ -706,44 +706,46 @@ class TranslatorSpec extends AnyFunSuite {
     */
   def runTest(src: String, tp: TypeProvider, expType: DataType, expOut: ResultMap)(implicit pos: Position): Unit = {
     var eo: Option[Ast.expr] = None
-    test(s"_expr:$src") {
-      eo = Some(Expressions.parse(src))
-    }
+    describe(src) {
+      it(s"_expr:$src") {
+        eo = Some(Expressions.parse(src))
+      }
 
-    val goOutput = new StringLanguageOutputWriter("  ")
+      val goOutput = new StringLanguageOutputWriter("  ")
 
-    val langs = Map[LanguageCompilerStatic, AbstractTranslator with TypeDetector](
-      CppCompiler -> new CppTranslator(tp, new CppImportList(), new CppImportList(), RuntimeConfig()),
-      CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
-      GoCompiler -> new GoTranslator(goOutput, tp, new ImportList()),
-      JavaCompiler -> new JavaTranslator(tp, new ImportList()),
-      JavaScriptCompiler -> new JavaScriptTranslator(tp),
-      LuaCompiler -> new LuaTranslator(tp, new ImportList()),
-      PerlCompiler -> new PerlTranslator(tp, new ImportList()),
-      PHPCompiler -> new PHPTranslator(tp, RuntimeConfig()),
-      PythonCompiler -> new PythonTranslator(tp, new ImportList()),
-      RubyCompiler -> new RubyTranslator(tp)
-    )
+      val langs = Map[LanguageCompilerStatic, AbstractTranslator with TypeDetector](
+        CppCompiler -> new CppTranslator(tp, new CppImportList(), new CppImportList(), RuntimeConfig()),
+        CSharpCompiler -> new CSharpTranslator(tp, new ImportList()),
+        GoCompiler -> new GoTranslator(goOutput, tp, new ImportList()),
+        JavaCompiler -> new JavaTranslator(tp, new ImportList()),
+        JavaScriptCompiler -> new JavaScriptTranslator(tp),
+        LuaCompiler -> new LuaTranslator(tp, new ImportList()),
+        PerlCompiler -> new PerlTranslator(tp, new ImportList()),
+        PHPCompiler -> new PHPTranslator(tp, RuntimeConfig()),
+        PythonCompiler -> new PythonTranslator(tp, new ImportList()),
+        RubyCompiler -> new RubyTranslator(tp)
+      )
 
-    langs.foreach { case (langObj, tr) =>
-      val langName = LanguageCompilerStatic.CLASS_TO_NAME(langObj)
-      test(s"$langName:$src", Tag(langName), Tag(src)) {
-        eo match {
-          case Some(e) =>
-            expOut.get(langObj) match {
-              case Some(expResult) =>
-                tr.detectType(e) should be(expType)
-                val actResult1 = tr.translate(e)
-                val actResult2 = langObj match {
-                  case GoCompiler => goOutput.result + actResult1
-                  case _ => actResult1
-                }
-                actResult2 should be(expResult)
-              case None =>
-                fail(s"no expected result, but actual result is ${tr.translate(e)}")
-            }
-          case None =>
-            fail("expression didn't parse")
+      langs.foreach { case (langObj, tr) =>
+        val langName = LanguageCompilerStatic.CLASS_TO_NAME(langObj)
+        it(s"$langName:$src", Tag(langName), Tag(src)) {
+          eo match {
+            case Some(e) =>
+              expOut.get(langObj) match {
+                case Some(expResult) =>
+                  tr.detectType(e) should be(expType)
+                  val actResult1 = tr.translate(e)
+                  val actResult2 = langObj match {
+                    case GoCompiler => goOutput.result + actResult1
+                    case _ => actResult1
+                  }
+                  actResult2 should be(expResult)
+                case None =>
+                  fail(s"no expected result, but actual result is ${tr.translate(e)}")
+              }
+            case None =>
+              fail("expression didn't parse")
+          }
         }
       }
     }
