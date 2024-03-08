@@ -371,7 +371,7 @@ class TranslatorSpec extends AnyFunSpec {
         CppCompiler -> "a()->at((42 - 2))",
         CSharpCompiler -> "A[(42 - 2)]",
         GoCompiler -> "this.A[(42 - 2)]",
-        JavaCompiler -> "a().get((42 - 2))",
+        JavaCompiler -> "a().get((int) (42 - 2))",
         JavaScriptCompiler -> "this.a[(42 - 2)]",
         LuaCompiler -> "self.a[(43 - 2)]",
         PerlCompiler -> "@{$self->a()}[(42 - 2)]",
