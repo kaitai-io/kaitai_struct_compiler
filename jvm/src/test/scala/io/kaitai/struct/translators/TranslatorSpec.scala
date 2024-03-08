@@ -335,7 +335,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "\"\\255\\000\\255\"",
         PerlCompiler -> "pack('C*', (255, 0, 255))",
         PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
-        PythonCompiler -> "b\"\\255\\000\\255\"",
+        PythonCompiler -> "b\"\\xFF\\x00\\xFF\"",
         RubyCompiler -> "[255, 0, 255].pack('C*')"
       ))
     }
