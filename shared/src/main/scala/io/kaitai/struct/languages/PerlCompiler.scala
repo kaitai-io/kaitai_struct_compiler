@@ -92,7 +92,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def classConstructorFooter(): Unit = {
+  override def classConstructorFooter: Unit = {
     out.puts
     out.puts("return $self;")
     universalFooter
