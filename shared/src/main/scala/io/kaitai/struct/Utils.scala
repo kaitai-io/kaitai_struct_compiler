@@ -96,7 +96,7 @@ object Utils {
     if (s.isEmpty) {
       s
     } else {
-      s.charAt(0).toUpper + s.substring(1)
+      s.charAt(0).toUpper.toString + s.substring(1)
     }
   }
 
