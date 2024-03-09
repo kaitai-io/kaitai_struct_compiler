@@ -159,7 +159,7 @@ abstract class LanguageCompiler(
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit
   def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit
-  def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr)
+  def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit
 

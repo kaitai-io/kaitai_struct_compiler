@@ -75,7 +75,7 @@ object KSVersion {
     */
   private var _current: Option[KSVersion] = None
 
-  def current_=(str: String) {
+  def current_=(str: String): Unit = {
     _current = Some(KSVersion.fromStr(str))
   }
 
