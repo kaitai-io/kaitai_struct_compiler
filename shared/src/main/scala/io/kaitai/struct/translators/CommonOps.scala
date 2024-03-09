@@ -4,7 +4,7 @@ import io.kaitai.struct.exprlang.Ast
 
 trait CommonOps extends AbstractTranslator {
   def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
-    s"(${translate(left)} ${binOp(op)} ${translate(right)})"
+    s"${translate(left)} ${binOp(op)} ${translate(right)}"
   }
 
   def binOp(op: Ast.operator): String = {
