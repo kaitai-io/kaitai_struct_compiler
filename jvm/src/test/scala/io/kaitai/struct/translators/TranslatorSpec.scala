@@ -819,10 +819,10 @@ class TranslatorSpec extends AnyFunSpec {
     runTest(src, tp, expType, expOut)
 
   def everybody(src: String, expOut: String, expType: DataType = CalcIntType)(implicit pos: Position) =
-    runTest(src, Always(CalcIntType), expType, ALL_LANGS.map((langObj) => langObj -> expOut).to(ListMap))
+    runTest(src, Always(CalcIntType), expType, ResultMap(ALL_LANGS.map((langObj) => langObj -> expOut).toSeq:_*))
 
   def everybodyExcept(src: String, commonExpOut: String, rm: ResultMap, expType: DataType = CalcIntType)(implicit pos: Position) =
-    runTest(src, Always(CalcIntType), expType, ALL_LANGS.map((langObj) =>
+    runTest(src, Always(CalcIntType), expType, ResultMap(ALL_LANGS.map((langObj) =>
       langObj -> rm.getOrElse(langObj, commonExpOut)
-    ).to(ListMap))
+    ).toSeq:_*))
 }
