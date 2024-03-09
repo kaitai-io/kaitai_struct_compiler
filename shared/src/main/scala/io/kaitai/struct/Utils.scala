@@ -102,14 +102,14 @@ object Utils {
 
   /**
     * Joins collection together to make a single string. Makes extra exception for empty
-    * collections (not like [[TraversableOnce]] `mkString`).
+    * collections (not like [[IterableOnce]] `mkString`).
     * @param start the starting string.
     * @param sep   the separator string.
     * @param end   the ending string.
     * @return If the collection is empty, returns empty string, otherwise returns `start`,
     *         then elements of the collection, every pair separated with `sep`, then `end`.
     */
-  def join[T](coll: TraversableOnce[T], start: String, sep: String, end: String): String =
+  def join[T](coll: IterableOnce[T], start: String, sep: String, end: String): String =
     if (coll.isEmpty) "" else coll.mkString(start, sep, end)
 
   /**
