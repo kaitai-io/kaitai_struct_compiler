@@ -109,8 +109,10 @@ object Utils {
     * @return If the collection is empty, returns empty string, otherwise returns `start`,
     *         then elements of the collection, every pair separated with `sep`, then `end`.
     */
-  def join[T](coll: IterableOnce[T], start: String, sep: String, end: String): String =
-    if (coll.isEmpty) "" else coll.mkString(start, sep, end)
+  def join[T](coll: IterableOnce[T], start: String, sep: String, end: String): String = {
+    val it = coll.iterator
+    if (it.isEmpty) "" else it.mkString(start, sep, end)
+  }
 
   /**
     * Converts byte array (Seq[Byte]) into hex-escaped C-style literal characters
