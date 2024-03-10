@@ -21,6 +21,10 @@ project/boot/
 .cache
 .bsp
 
+# scalameta.metals VSCode Extension (Scala language server)
+.bloop/
+metals.sbt
+
 # Unpacking complete binaries for testing purposes
 /runnable
 js/npm
