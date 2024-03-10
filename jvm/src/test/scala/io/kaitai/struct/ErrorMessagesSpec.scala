@@ -38,7 +38,7 @@ class ErrorMessagesSpec extends AnyFunSuite with SimpleMatchers {
   def testOne(f: File): Unit = {
     val fileName = f.getName
     val testName = fileName.stripSuffix(".ksy")
-    val fn = f.toString
+    val fn = FORMATS_ERR_DIR + "/" + fileName
     test(testName) {
       val expected = getExpected(fn)
       val (_, problems) = JavaKSYParser.localFileToSpecs(fn, DEFAULT_CONFIG)
