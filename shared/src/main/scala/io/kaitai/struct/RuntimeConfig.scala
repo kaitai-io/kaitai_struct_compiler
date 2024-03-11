@@ -44,7 +44,19 @@ case class CppRuntimeConfig(
 
 object CppRuntimeConfig {
   sealed trait Pointers
+  /**
+    * Use `T*` for holding fields of kaitai-defined types and as return value
+    * of getters.
+    *
+    * Default setting for C++98 target.
+    */
   case object RawPointers extends Pointers
+  /**
+    * Use `std::unique_ptr<T>` for holding fields of kaitai-defined types.
+    * Use `T*` as return value of getters.
+    *
+    * Default setting for C++11 target.
+    */
   case object UniqueAndRawPointers extends Pointers
 }
 
