@@ -117,12 +117,13 @@ object Expressions {
     case (lhs, trailers) =>
       trailers.foldLeft(lhs)((l, t) => t(l))
   }
+  def group[$: P]: P[Ast.expr] = ("(" ~ test ~ ")").map(expr => Ast.expr.Group(expr))
   def empty_list[$: P] = P("[" ~ "]").map(_ => Ast.expr.List(Nil))
   // def empty_dict[_: P] = P("{" ~ "}").map(_ => Ast.expr.Dict(Nil, Nil))
   def atom[$: P]: P[Ast.expr] = P(
     empty_list |
     // empty_dict |
-    "(" ~ test ~ ")" |
+    group |
     "[" ~ list ~ "]" |
     // "{" ~ dictorsetmaker ~ "}" |
     enumByName |

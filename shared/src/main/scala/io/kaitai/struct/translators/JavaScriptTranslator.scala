@@ -31,7 +31,7 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${JavaScriptCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
       case (_: IntType, _: IntType, Ast.operator.RShift) =>
-        s"(${translate(left)} >>> ${translate(right)})"
+        s"${translate(left)} >>> ${translate(right)}"
       case _ =>
         super.numericBinOp(left, op, right)
     }
