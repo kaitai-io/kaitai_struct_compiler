@@ -39,12 +39,14 @@ class ParentTypes(classSpecs: ClassSpecs) {
   def markupParentTypesAdd(curClass: ClassSpec, dt: DataType): Unit = {
     dt match {
       case userType: UserType =>
-        (userType.forcedParent match {
+        userType.forcedParent match {
+          // `parent` key is not specified in attribute
           case None =>
-            Some(curClass)
+            markupParentAs(curClass, userType)
+          // `parent: false` specified in attribute
           case Some(DataType.USER_TYPE_NO_PARENT) =>
             Log.typeProcParent.info(() => s"..... no parent type added")
-            None
+          // `parent: <expression>` specified in attribute
           case Some(parent) =>
             val provider = new ClassTypeProvider(classSpecs, curClass)
             val detector = new TypeDetector(provider)
@@ -52,11 +54,11 @@ class ParentTypes(classSpecs: ClassSpecs) {
             Log.typeProcParent.info(() => s"..... enforced parent type = $parentType")
             parentType match {
               case ut: UserType =>
-                Some(ut.classSpec.get)
+                markupParentAs(ut.classSpec.get, userType)
               case other =>
                 throw new TypeMismatchError(s"parent=$parent is expected to be either of user type or `false`, but $other found")
             }
-        }).foreach((parentClass) => markupParentAs(parentClass, userType))
+        }
       case switchType: SwitchType =>
         switchType.cases.foreach {
           case (_, ut: UserType) =>
