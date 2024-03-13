@@ -6,6 +6,10 @@ import io.kaitai.struct.datatype.DataType.{ArrayTypeInStream, SwitchType, UserTy
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
+/**
+  * Pass that calculates actual parent types of KSY-defined types (the type of
+  * the `parent` key).
+  */
 class ParentTypes(classSpecs: ClassSpecs) {
   def run(): Unit = {
     classSpecs.foreach { case (_, curClass) => markup(curClass) }
@@ -15,7 +19,7 @@ class ParentTypes(classSpecs: ClassSpecs) {
   }
 
   def markup(curClass: ClassSpec): Unit = {
-    Log.typeProcParent.info(() => s"markupParentTypes(${curClass.nameAsStr})")
+    Log.typeProcParent.info(() => s"ParentTypes.markup(${curClass.nameAsStr})")
 
     if (curClass.seq.nonEmpty)
       Log.typeProcParent.info(() => s"... seq")
@@ -35,6 +39,7 @@ class ParentTypes(classSpecs: ClassSpecs) {
     }
   }
 
+  /** Calculates `parent` of `dt` */
   private
   def markupParentTypesAdd(curClass: ClassSpec, dt: DataType): Unit = {
     dt match {
@@ -82,6 +87,11 @@ class ParentTypes(classSpecs: ClassSpecs) {
     }
   }
 
+  /**
+    * If parent of `child` is not calculated yet, makes `parent` to be a parent type.
+    * Otherwise, if `parent` is different from existing parent, replaces parent type
+    * to the most generic kaitai type for user types.
+    */
   def markupParentAs(parent: ClassSpec, child: ClassSpec): Unit = {
     // Don't allow type usages across spec boundaries to affect parent resolution
     if (child.isExternal(parent)) {
