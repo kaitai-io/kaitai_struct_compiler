@@ -9,6 +9,9 @@ import io.kaitai.struct.translators.TypeDetector
 class ParentTypes(classSpecs: ClassSpecs) {
   def run(): Unit = {
     classSpecs.foreach { case (_, curClass) => markup(curClass) }
+    classSpecs.forEachTopLevel((_, spec) => {
+      spec.parentClass = GenericStructClassSpec
+    })
   }
 
   def markup(curClass: ClassSpec): Unit = {
