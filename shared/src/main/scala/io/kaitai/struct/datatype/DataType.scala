@@ -206,6 +206,7 @@ object DataType {
     override def isOwning: Boolean = false
   }
 
+  /** Represents `_parent: false` expression which means that type explicitly has no parent. */
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
 
   case object AnyType extends DataType
