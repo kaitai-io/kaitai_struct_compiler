@@ -36,7 +36,8 @@ object CanonicalizeEncodingNames {
       case strType: StrFromBytesType =>
         val (newEncoding, problem1) = canonicalizeName(strType.encoding)
         strType.encoding = newEncoding
-        problem1
+        // Do not report problem if encoding was derived from `meta/encoding` key
+        if (strType.isEncodingDerived) None else problem1
       case _ =>
         // not a string type = no problem
         None

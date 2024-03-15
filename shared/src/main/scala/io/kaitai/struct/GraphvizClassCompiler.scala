@@ -241,7 +241,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
     dataType match {
       case _: BytesEosType => END_OF_STREAM
       case blt: BytesLimitType => expressionSize(blt.size, attrName)
-      case StrFromBytesType(basedOn, _) => dataTypeSizeAsString(basedOn, attrName)
+      case StrFromBytesType(basedOn, _, _) => dataTypeSizeAsString(basedOn, attrName)
       case utb: UserTypeFromBytes => dataTypeSizeAsString(utb.bytes, attrName)
       case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
       case _ =>
@@ -425,7 +425,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
           args += "ignore EOS"
         args.mkString(", ")
       case _: BytesType => ""
-      case StrFromBytesType(basedOn, encoding) =>
+      case StrFromBytesType(basedOn, encoding, _) =>
         val bytesStr = dataTypeName(basedOn)
         val comma = if (bytesStr.isEmpty) "" else ", "
         s"str($bytesStr$comma$encoding)"
