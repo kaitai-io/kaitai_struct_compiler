@@ -13,6 +13,10 @@ case class ValueInstanceSpec(
   path: List[String],
   value: Ast.expr,
   ifExpr: Option[Ast.expr] = None,
+  /**
+    * Type of the `value`. Calculated by the [[DeriveValueInstanceTypes]] pass.
+    * `None` means "un-calculated yet".
+    */
   var dataTypeOpt: Option[DataType] = None,
   val _doc: DocSpec = DocSpec.EMPTY,
 ) extends InstanceSpec(_doc) {
