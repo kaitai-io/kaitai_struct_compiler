@@ -43,14 +43,27 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   )
 
   override def strLiteralUnicode(code: Char): String =
-    "\\u{%04x}".format(code.toInt)
+    decEscapeByteArray(String.valueOf(code).getBytes("UTF-8"))
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"math.floor(${translate(left)} / ${translate(right)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        op match {
+          case Ast.operator.BitAnd =>
+            s"bit.band(${translate(left)}, ${translate(right)})"
+          case Ast.operator.BitOr =>
+            s"bit.bor(${translate(left)}, ${translate(right)})"
+          case Ast.operator.BitXor =>
+            s"bit.bxor(${translate(left)}, ${translate(right)})"
+          case Ast.operator.LShift =>
+            s"bit.lshift(${translate(left)}, ${translate(right)})"
+          case Ast.operator.RShift =>
+            s"bit.rshift(${translate(left)}, ${translate(right)})"
+          case _ =>
+            super.numericBinOp(left, op, right)
+        }
     }
   }
 
@@ -68,11 +81,11 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doBoolLiteral(n: Boolean): String =
     if (n) "true" else "false"
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String =
-    "{" + value.map((v) => translate(v)).mkString(", ") + "}"
+    "{" + value.map(v => translate(v)).mkString(", ") + "}"
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + decEscapeByteArray(arr) + "\""
 
-  override def doLocalName(s: String) = s match {
+  override def doLocalName(s: String): String = s match {
     case Identifier.ITERATOR => "_"
     case Identifier.INDEX => "i"
     case _ => s"self.${doName(s)}"
@@ -117,7 +130,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"string.byte(${translate(a)}, 1)"
   override def bytesLast(a: Ast.expr): String = {
     val table = translate(a)
-    s"string.byte(${table}, #${table})"
+    s"string.byte($table, #$table)"
   }
   override def bytesMin(a: Ast.expr): String = {
     importList.add("local utils = require(\"utils\")")
@@ -140,7 +153,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"${translate(a)}[1]"
   override def arrayLast(a: Ast.expr): String = {
     val table = translate(a)
-    s"${table}[#${table}]"
+    s"$table[#$table]"
   }
   override def arraySize(a: Ast.expr): String =
     s"#${translate(a)}"
@@ -194,5 +207,5 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
    * @return array contents decimal-escaped as string
    */
   private def decEscapeByteArray(arr: Seq[Byte]): String =
-    arr.map((x) => "\\%03d".format(x & 0xff)).mkString
+    arr.map(x => "\\%03d".format(x & 0xff)).mkString
 }
