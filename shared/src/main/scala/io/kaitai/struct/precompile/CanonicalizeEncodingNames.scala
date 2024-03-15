@@ -43,7 +43,7 @@ class CanonicalizeEncodingNames(specs: ClassSpecs) extends PrecompileStep {
 }
 
 object CanonicalizeEncodingNames {
-  def canonicalizeName(original: String, unrecognizedIsError: Boolean = true): (String, Option[CompilationProblem with PathLocalizable]) = {
+  def canonicalizeName(original: String): (String, Option[CompilationProblem with PathLocalizable]) = {
     // Try exact match with canonical list
     if (EncodingList.canonicalToAlias.contains(original)) {
       (original, None)
