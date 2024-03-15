@@ -39,7 +39,7 @@ object Main {
     * @return a list of compilation problems encountered during precompilation steps
     */
   def precompile(specs: ClassSpecs, conf: RuntimeConfig): Iterable[CompilationProblem] = {
-    new MarkupClassNames(specs).run()
+    new CalculateFullNamesAndSetSurroundingType(specs).run()
     val resolveTypeProblems = specs.flatMap { case (_, topClass) =>
       val config = updateConfigFromMeta(conf, topClass.meta)
       new ResolveTypes(specs, topClass, config.opaqueTypes).run()
