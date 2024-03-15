@@ -52,7 +52,7 @@ object Main {
     }
 
     new ParentTypes(specs).run()
-    new SpecsValueTypeDerive(specs).run()
+    new DeriveValueInstanceTypes(specs).run()
     new CalculateSeqSizes(specs).run()
     val typeValidatorProblems = new TypeValidator(specs).run()
 
