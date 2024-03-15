@@ -3,6 +3,12 @@ package io.kaitai.struct.precompile
 import io.kaitai.struct.Log
 import io.kaitai.struct.format.ClassSpecs
 
+/**
+  * Assign types to value instances by deriving them from their expressions.
+  *
+  * Calculates value of the [[ValueInstanceSpec.dataTypeOpt]] field, which is
+  * a type of value instance.
+  */
 class DeriveValueInstanceTypes(specs: ClassSpecs) {
   def run(): Unit = {
     var iterNum = 1
