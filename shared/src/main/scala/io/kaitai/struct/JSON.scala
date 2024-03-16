@@ -2,6 +2,8 @@ package io.kaitai.struct
 
 import io.kaitai.struct.translators.CommonLiterals
 
+import scala.collection.mutable.ArrayBuffer
+
 /** Common trait for all objects that can be serialized as JSON. */
 trait Jsonable {
   /** Serialize current state of the object into JSON string. */
@@ -24,6 +26,7 @@ object JSON extends CommonLiterals {
       case v: String => stringToJson(v)
       case v: Seq[_] => seqToJson(v)
       case v: Map[String, _] => mapToJson(v)
+      case v: ArrayBuffer[_] => seqToJson(v.toSeq)
     }
   }
 
