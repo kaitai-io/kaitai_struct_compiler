@@ -37,6 +37,15 @@ class ParentTypes(classSpecs: ClassSpecs) {
           // value instances have no effect on parenting, just do nothing
       }
     }
+
+    if (curClass.types.nonEmpty)
+      Log.typeProcParent.info(() => s"... types")
+    curClass.types.foreach { case (_, ty) =>
+      // If parent is not decided yet, calculate it
+      if (ty.parentClass == UnknownClassSpec) {
+        markup(ty)
+      }
+    }
   }
 
   /** Calculates `parent` of `dt` */
