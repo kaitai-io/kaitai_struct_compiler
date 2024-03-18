@@ -113,12 +113,22 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
         // TODO: C++14
       }
     } else {
-      throw new RuntimeException("C++ literal arrays are not implemented yet")
+      throw new RuntimeException("C++ literal arrays are not implemented yet without list initializers")
     }
   }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "std::string(\"" + Utils.hexEscapeByteArray(arr) + "\", " + arr.length + ")"
+  override def doByteArrayNonLiteral(values: Seq[Ast.expr]): String = {
+    // It is assumed that every expression produces integer in the range [0; 255]
+    if (config.cppConfig.useListInitializers) {
+      "std::string({" + values.map(value => s"static_cast<char>(${translate(value)})").mkString(", ") + "})"
+    } else {
+      // TODO: We need to produce an expression, but this is possible only with initializer lists
+      // or variadic templates (if use a helper function) which both available only since C++11
+      throw new RuntimeException("C++ non-literal arrays are not implemented yet without list initializers")
+    }
+  }
 
   override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
