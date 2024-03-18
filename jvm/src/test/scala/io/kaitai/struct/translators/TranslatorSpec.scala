@@ -854,7 +854,7 @@ class TranslatorSpec extends AnyFunSpec {
     describe("to do type enforcement") {
       // type enforcement: casting to non-literal byte array
       full("[0 + 1, 5].as<bytes>", CalcIntType, CalcBytesType, ResultMap(
-        CppCompiler -> "???",
+        CppCompiler -> "std::string({static_cast<char>(0 + 1), static_cast<char>(5)})",
         CSharpCompiler -> "new byte[] { 0 + 1, 5 }",
         GoCompiler -> "[]uint8{0 + 1, 5}",
         JavaCompiler -> "new byte[] { 0 + 1, 5 }",
