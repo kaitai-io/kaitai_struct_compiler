@@ -859,7 +859,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "[]uint8{0 + 1, 5}",
         JavaCompiler -> "new byte[] { 0 + 1, 5 }",
         JavaScriptCompiler -> "new Uint8Array([0 + 1, 5])",
-        LuaCompiler -> "???",
+        LuaCompiler -> "string.char(0 + 1, 5)",
         PerlCompiler -> "pack('C*', (0 + 1, 5))",
         PHPCompiler -> "pack('C*', 0 + 1, 5)",
         PythonCompiler -> "struct.pack('2B', 0 + 1, 5)",
