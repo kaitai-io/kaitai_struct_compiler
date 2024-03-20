@@ -403,20 +403,24 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}($width)"
       case t: UserType =>
-        val addArgs = {
+        val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
+          ("nil", "nil")
+        } else {
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "nil"
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
-          s", this.root, $parent"
+          (parent, "this.root")
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         val concreteName = namespaced(t.classSpec match {
           case Some(cs) => cs.name
           case None => t.name
         })
-        s"${concreteName}.read($io$addArgs$addParams)"
+        // FIXME: apparently, the Nim compiler uses a different order of
+        // `$parent` and `$root` than literally every other language
+        s"${concreteName}.read($io, $root, $parent$addParams)"
     }
 
     if (assignType != dataType) {
