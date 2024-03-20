@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError, Terminator}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -318,7 +318,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"$io:read_bytes(${expression(blt.size)})"
     case _: BytesEosType =>
       s"$io:read_bytes_full()"
-    case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+    case BytesTerminatedType(Terminator(terminator, include, consume, eosError), _) =>
       s"$io:read_bytes_term($terminator, $include, $consume, $eosError)"
     case BitsType1(bitEndian) =>
       s"$io:read_bits_int_${bitEndian.toSuffix}(1) ~= 0"
@@ -342,13 +342,13 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
       s"${types2class(t.classSpec.get.name)}($addParams$io$addArgs)"
   }
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Terminator]): String = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName.bytes_strip_right($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName.bytes_terminate($expr1, $term, $include)"
+      case Some(Terminator(term, include, _, _)) => s"$kstreamName.bytes_terminate($expr1, $term, $include)"
       case None => expr1
     }
     expr2

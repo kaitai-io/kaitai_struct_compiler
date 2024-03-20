@@ -1,6 +1,6 @@
 package io.kaitai.struct
 
-import io.kaitai.struct.datatype.DataType
+import io.kaitai.struct.datatype.{DataType, Terminator}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -413,7 +413,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case rt: ReadableType => rt.apiCall(None) // FIXME
       case ut: UserType => type2display(ut.name)
       //case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
-      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+      case BytesTerminatedType(Terminator(terminator, include, consume, eosError), _) =>
         val args = ListBuffer[String]()
         if (terminator != 0)
           args += s"term=$terminator"
