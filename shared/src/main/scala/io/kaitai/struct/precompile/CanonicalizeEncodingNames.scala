@@ -9,7 +9,9 @@ import io.kaitai.struct.Platform
 
 class CanonicalizeEncodingNames(specs: ClassSpecs) extends PrecompileStep {
   override def run(): Iterable[CompilationProblem] = specs.mapRec(canonicalize)
+}
 
+object CanonicalizeEncodingNames {
   def canonicalize(curClass: ClassSpec): Iterable[CompilationProblem] = {
     val metaProblems = canonicalizeMeta(curClass.meta)
     val seqProblems = curClass.seq.flatMap(attr => canonicalizeMember(attr))
@@ -34,16 +36,15 @@ class CanonicalizeEncodingNames(specs: ClassSpecs) extends PrecompileStep {
       case strType: StrFromBytesType =>
         val (newEncoding, problem1) = canonicalizeName(strType.encoding)
         strType.encoding = newEncoding
-        problem1
+        // Do not report problem if encoding was derived from `meta/encoding` key
+        if (strType.isEncodingDerived) None else problem1
       case _ =>
         // not a string type = no problem
         None
     }).map(problem => problem.localizedInPath(member.path ++ List("encoding")))
   }
-}
 
-object CanonicalizeEncodingNames {
-  def canonicalizeName(original: String, unrecognizedIsError: Boolean = true): (String, Option[CompilationProblem with PathLocalizable]) = {
+  def canonicalizeName(original: String): (String, Option[CompilationProblem with PathLocalizable]) = {
     // Try exact match with canonical list
     if (EncodingList.canonicalToAlias.contains(original)) {
       (original, None)

@@ -92,7 +92,24 @@ object DataType {
 
   abstract class StrType extends DataType
   case object CalcStrType extends StrType
-  case class StrFromBytesType(bytes: BytesType, var encoding: String) extends StrType
+  /**
+    * A type that have the `str` and `strz` built-in Kaitai types.
+    *
+    * @param bytes An underlying bytes of the string
+    * @param encoding An encoding used to convert byte array into string
+    * @param isEncodingDerived A flag that is `true` when encoding is derived from
+    *        `meta/encoding` key of a type in which attribute with this type is
+    *        defined and `false` when encoding defined in the attribute
+    */
+  case class StrFromBytesType(
+    bytes: BytesType,
+    var encoding: String,
+    // FIXME: Actually, this should not be a part of KSY model used to code generation,
+    // but be a part of intermediate model. The current design of KSC does not have
+    // that intermediate model yet, so we put this flag here. See discussion at
+    // https://github.com/kaitai-io/kaitai_struct_compiler/pull/278#discussion_r1527312479
+    isEncodingDerived: Boolean,
+  ) extends StrType
 
   case object CalcBooleanType extends BooleanType
 
@@ -400,7 +417,7 @@ object DataType {
           }
 
           val bat = arg2.getByteArrayType(path)
-          StrFromBytesType(bat, enc)
+          StrFromBytesType(bat, enc, arg.encoding.isEmpty)
         case _ =>
           val typeWithArgs = Expressions.parseTypeRef(dt)
           if (arg.size.isEmpty && !arg.sizeEos && arg.terminator.isEmpty) {

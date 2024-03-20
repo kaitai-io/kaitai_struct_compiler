@@ -133,7 +133,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       attrBytesLimitType(blt)
     case btt: BytesTerminatedType =>
       attrBytesTerminatedType(btt, "GreedyBytes")
-    case StrFromBytesType(bytes, encoding) =>
+    case StrFromBytesType(bytes, encoding, _) =>
       bytes match {
         case BytesEosType(terminator, include, padRight, process) =>
           s"GreedyString(encoding='$encoding')"
