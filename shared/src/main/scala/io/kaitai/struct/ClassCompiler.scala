@@ -58,8 +58,8 @@ class ClassCompiler(
     curClass.params.foreach((paramDefSpec) =>
       paramDefSpec.dataType match {
         case ut: UserType =>
-          val externalTypeName = ut.classSpec.get.name
-          if (externalTypeName.head != curClass.name.head) {
+          if (ut.isExternal(curClass)) {
+            val externalTypeName = ut.classSpec.get.name
             lang.classForwardDeclaration(externalTypeName)
           }
         case _ => // no forward declarations needed

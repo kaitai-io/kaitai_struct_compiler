@@ -163,6 +163,13 @@ object DataType {
     var args: Seq[Ast.expr]
   ) extends StructType {
     var classSpec: Option[ClassSpec] = None
+    /**
+     * Determines whether the user type represented by this `UserType` instance
+     * is external from the perspective of the given `ClassSpec` in which it is
+     * used (via `seq`, `instances` or `params`).
+     */
+    def isExternal(curClass: ClassSpec): Boolean =
+      classSpec.get.isExternal(curClass)
     def isOpaque = {
       val cs = classSpec.get
       cs.isTopLevel || cs.meta.isOpaque
