@@ -368,7 +368,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {
@@ -502,9 +502,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def userType2class(t: UserType): String = {
     val name = t.classSpec.get.name
-    val firstName = name.head
-    val prefix = if (t.isOpaque && firstName != translator.provider.nowClass.name.head) {
-      s"$firstName."
+    val prefix = if (t.isExternal(typeProvider.nowClass)) {
+      s"${name.head}."
     } else {
       ""
     }

@@ -457,12 +457,16 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   def userType(t: UserType, io: String) = {
     val v = allocateLocalVar()
-    val parent = t.forcedParent match {
-      case Some(USER_TYPE_NO_PARENT) => "nil"
-      case Some(fp) => translate(fp)
-      case None => "this"
+    val (parent, root) = if (t.isExternal(provider.nowClass)) {
+      ("nil", "nil")
+    } else {
+      val parent = t.forcedParent match {
+        case Some(USER_TYPE_NO_PARENT) => "nil"
+        case Some(fp) => translate(fp)
+        case None => "this"
+      }
+      (parent, "this._root")
     }
-    val root = if (t.isOpaque) "nil" else "this._root"
     val addParams = t.args.map((a) => translate(a)).mkString(", ")
     out.puts(s"${localVarName(v)} := New${GoCompiler.types2class(t.classSpec.get.name)}($addParams)")
     out.puts(s"err = ${localVarName(v)}.Read($io, $parent, $root)")
