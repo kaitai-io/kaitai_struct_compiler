@@ -40,7 +40,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
     "b\"" + Utils.hexEscapeByteArray(arr) + "\""
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = {
     importList.add("import struct")
-    s"struct.pack('${elts.length}b', ${elts.map(translate).mkString(", ")})"
+    // Use `unsigned char` representation (see https://docs.python.org/3/library/struct.html#struct-format-strings)
+    s"struct.pack('${elts.length}B', ${elts.map(translate).mkString(", ")})"
   }
 
   override def doLocalName(s: String) = {

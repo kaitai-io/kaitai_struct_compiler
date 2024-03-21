@@ -675,7 +675,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "???",
         PerlCompiler -> "pack('C*', ((0 + 1), 5))",
         PHPCompiler -> "pack('C*', (0 + 1), 5)",
-        PythonCompiler -> "struct.pack('2b', (0 + 1), 5)",
+        PythonCompiler -> "struct.pack('2B', (0 + 1), 5)",
         RubyCompiler -> "[(0 + 1), 5].pack('C*')"
       ))
 
