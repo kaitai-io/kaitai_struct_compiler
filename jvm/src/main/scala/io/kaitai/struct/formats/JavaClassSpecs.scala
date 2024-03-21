@@ -55,7 +55,7 @@ class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpe
         }
       }
     }
-    throw new FileNotFoundException(s"Unable to find '$name' in import search paths, using: $absPaths")
+    throw new FileNotFoundException(s"unable to find '$name.ksy' in import search paths, using: $absPaths")
   }
 }
 
