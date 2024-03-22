@@ -15,91 +15,99 @@ import scala.collection.immutable.ListMap
 
 class TranslatorSpec extends AnyFunSpec {
   describe("integer literals + unary minus") {
-    everybody("123", "123", Int1Type(true))
-    everybody("223", "223", Int1Type(false))
-    everybody("1234", "1234")
-    everybody("-456", "-456")
-    everybody("0x1234", "4660")
-    // less and more than 32 Bit signed int
-    everybody("1000000000", "1000000000")
-    everybodyExcept("100000000000", "100000000000", ResultMap(
-      CppCompiler -> "100000000000LL",
-      GoCompiler -> "int64(100000000000)",
-      JavaCompiler -> "100000000000L"
-    ))
+    describe("simple") {
+      everybody("123", "123", Int1Type(true))
+      everybody("223", "223", Int1Type(false))
+      everybody("1234", "1234")
+      everybody("-456", "-456")
+      everybody("0x1234", "4660")
+      // less and more than 32 Bit signed int
+      everybody("1000000000", "1000000000")
+      everybodyExcept("100000000000", "100000000000", ResultMap(
+        CppCompiler -> "100000000000LL",
+        GoCompiler -> "int64(100000000000)",
+        JavaCompiler -> "100000000000L"
+      ))
+    }
 
-    // 0x7fff_ffff
-    everybody("2147483647", "2147483647")
-    // 0x8000_0000
-    everybodyExcept("2147483648", "2147483648", ResultMap(
-      CppCompiler -> "2147483648UL",
-      GoCompiler -> "uint32(2147483648)",
-      JavaCompiler -> "2147483648L",
-    ))
-    // 0xffff_ffff
-    everybodyExcept("4294967295", "4294967295", ResultMap(
-      CppCompiler -> "4294967295UL",
-      GoCompiler -> "uint32(4294967295)",
-      JavaCompiler -> "4294967295L",
-    ))
-    // 0x1_0000_0000
-    everybodyExcept("4294967296", "4294967296", ResultMap(
-      CppCompiler -> "4294967296LL",
-      GoCompiler -> "int64(4294967296)",
-      JavaCompiler -> "4294967296L",
-    ))
+    describe("extreme") {
+      // 0x7fff_ffff
+      everybody("2147483647", "2147483647")
+      // 0x8000_0000
+      everybodyExcept("2147483648", "2147483648", ResultMap(
+        CppCompiler -> "2147483648UL",
+        GoCompiler -> "uint32(2147483648)",
+        JavaCompiler -> "2147483648L",
+      ))
+      // 0xffff_ffff
+      everybodyExcept("4294967295", "4294967295", ResultMap(
+        CppCompiler -> "4294967295UL",
+        GoCompiler -> "uint32(4294967295)",
+        JavaCompiler -> "4294967295L",
+      ))
+      // 0x1_0000_0000
+      everybodyExcept("4294967296", "4294967296", ResultMap(
+        CppCompiler -> "4294967296LL",
+        GoCompiler -> "int64(4294967296)",
+        JavaCompiler -> "4294967296L",
+      ))
 
-    // -0x7fff_ffff
-    everybody("-2147483647", "-2147483647")
-    // -0x8000_0000
-    everybodyExcept("-2147483648", "-2147483648", ResultMap(
-      CppCompiler -> "(-2147483647 - 1)",
-      LuaCompiler -> "(-2147483647 - 1)",
-      PHPCompiler -> "(-2147483647 - 1)",
-    ))
-    // -0x8000_0001
-    everybodyExcept("-2147483649", "-2147483649", ResultMap(
-      CppCompiler -> "-2147483649LL",
-      GoCompiler -> "int64(-2147483649)",
-      JavaCompiler -> "-2147483649L",
-    ))
+      // -0x7fff_ffff
+      everybody("-2147483647", "-2147483647")
+      // -0x8000_0000
+      everybodyExcept("-2147483648", "-2147483648", ResultMap(
+        CppCompiler -> "-2147483647 - 1",
+        LuaCompiler -> "-2147483647 - 1",
+        PHPCompiler -> "-2147483647 - 1",
+      ))
+      // -0x8000_0001
+      everybodyExcept("-2147483649", "-2147483649", ResultMap(
+        CppCompiler -> "-2147483649LL",
+        GoCompiler -> "int64(-2147483649)",
+        JavaCompiler -> "-2147483649L",
+      ))
 
-    // 0x7fff_ffff_ffff_ffff
-    everybodyExcept("9223372036854775807", "9223372036854775807", ResultMap(
-      CppCompiler -> "9223372036854775807LL",
-      GoCompiler -> "int64(9223372036854775807)",
-      JavaCompiler -> "9223372036854775807L",
-    ))
-    // 0x8000_0000_0000_0000
-    everybodyExcept("9223372036854775808", "9223372036854775808", ResultMap(
-      CppCompiler -> "9223372036854775808ULL",
-      GoCompiler -> "uint64(9223372036854775808)",
-      JavaCompiler -> "0x8000000000000000L",
-      LuaCompiler -> "0x8000000000000000",
-      PHPCompiler -> "(-9223372036854775807 - 1)",
-    ))
-    // 0xffff_ffff_ffff_ffff
-    everybodyExcept("18446744073709551615", "18446744073709551615", ResultMap(
-      CppCompiler -> "18446744073709551615ULL",
-      GoCompiler -> "uint64(18446744073709551615)",
-      JavaCompiler -> "0xffffffffffffffffL",
-      LuaCompiler -> "0xffffffffffffffff",
-      PHPCompiler -> "-1",
-    ))
-    // -0x7fff_ffff_ffff_ffff
-    everybodyExcept("-9223372036854775807", "-9223372036854775807", ResultMap(
-      CppCompiler -> "-9223372036854775807LL",
-      GoCompiler -> "int64(-9223372036854775807)",
-      JavaCompiler -> "-9223372036854775807L",
-    ))
-    // -0x8000_0000_0000_0000
-    everybodyExcept("-9223372036854775808", "-9223372036854775808", ResultMap(
-      CppCompiler -> "(-9223372036854775807LL - 1)",
-      GoCompiler -> "int64(-9223372036854775808)",
-      JavaCompiler -> "-9223372036854775808L",
-      LuaCompiler -> "(-9223372036854775807 - 1)",
-      PHPCompiler -> "(-9223372036854775807 - 1)",
-    ))
+      // 0x7fff_ffff_ffff_ffff
+      everybodyExcept("9223372036854775807", "9223372036854775807", ResultMap(
+        CppCompiler -> "9223372036854775807LL",
+        GoCompiler -> "int64(9223372036854775807)",
+        JavaCompiler -> "9223372036854775807L",
+      ))
+      // 0x8000_0000_0000_0000
+      everybodyExcept("9223372036854775808", "9223372036854775808", ResultMap(
+        CppCompiler -> "9223372036854775808ULL",
+        GoCompiler -> "uint64(9223372036854775808)",
+        JavaCompiler -> "0x8000000000000000L",
+        LuaCompiler -> "0x8000000000000000",
+        PHPCompiler -> "-9223372036854775807 - 1",
+      ))
+      // 0xffff_ffff_ffff_ffff
+      everybodyExcept("18446744073709551615", "18446744073709551615", ResultMap(
+        CppCompiler -> "18446744073709551615ULL",
+        GoCompiler -> "uint64(18446744073709551615)",
+        JavaCompiler -> "0xffffffffffffffffL",
+        LuaCompiler -> "0xffffffffffffffff",
+        PHPCompiler -> "-1",
+      ))
+      // -0x7fff_ffff_ffff_ffff
+      everybodyExcept("-9223372036854775807", "-9223372036854775807", ResultMap(
+        CppCompiler -> "-9223372036854775807LL",
+        GoCompiler -> "int64(-9223372036854775807)",
+        JavaCompiler -> "-9223372036854775807L",
+      ))
+      // -0x8000_0000_0000_0000
+      everybodyExcept("-9223372036854775808", "-9223372036854775808", ResultMap(
+        CppCompiler -> "-9223372036854775807LL - 1",
+        GoCompiler -> "int64(-9223372036854775808)",
+        JavaCompiler -> "-9223372036854775808L",
+        LuaCompiler -> "-9223372036854775807 - 1",
+        PHPCompiler -> "-9223372036854775807 - 1",
+      ))
+    }
+  }
+
+  describe("extreme integer literals and operators") {
+    // TODO: repeat "integer literals / extreme" but add some math operations on top
   }
 
   describe("float literals") {
@@ -109,9 +117,9 @@ class TranslatorSpec extends AnyFunSpec {
   }
 
   describe("simple integer operations") {
-    everybody("1 + 2", "(1 + 2)")
+    everybody("1 + 2", "1 + 2")
 
-    everybodyExcept("3 / 2", "(3 / 2)", ResultMap(
+    everybodyExcept("3 / 2", "3 / 2", ResultMap(
       JavaScriptCompiler -> "Math.floor(3 / 2)",
       LuaCompiler -> "math.floor(3 / 2)",
       PerlCompiler -> "int(3 / 2)",
@@ -119,11 +127,23 @@ class TranslatorSpec extends AnyFunSpec {
       PythonCompiler -> "3 // 2"
     ))
 
-    everybody("1 + 2 + 5", "((1 + 2) + 5)")
+    everybody("1 + 2 + 5", "1 + 2 + 5")
+    everybody("(1 + 2) + 5", "1 + 2 + 5")
+    everybody("1 + (2 + 5)", "1 + 2 + 5")
 
-    everybody("1 + 2 * 5", "(1 + (2 * 5))")
+    everybody("1 - 2 + 5", "1 - 2 + 5")
+    everybody("(1 - 2) + 5", "1 - 2 + 5")
+    everybody("1 - (2 + 5)", "1 - (2 + 5)")
 
-    everybodyExcept("(1 + 2) / (7 * 8)", "((1 + 2) / (7 * 8))", ResultMap(
+    everybody("1 + 2 * 5", "1 + 2 * 5")
+    everybody("1 + (2 * 5)", "1 + 2 * 5")
+    everybody("(1 + 2) * 5", "(1 + 2) * 5")
+
+    everybody("1 * 2 + 5", "1 * 2 + 5")
+    everybody("1 * (2 + 5)", "1 * (2 + 5)")
+    everybody("(1 * 2) + 5", "1 * 2 + 5")
+
+    everybodyExcept("(1 + 2) / (7 * 8)", "(1 + 2) / (7 * 8)", ResultMap(
       JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
       LuaCompiler -> "math.floor((1 + 2) / (7 * 8))",
       PerlCompiler -> "int((1 + 2) / (7 * 8))",
@@ -131,10 +151,81 @@ class TranslatorSpec extends AnyFunSpec {
       PythonCompiler -> "(1 + 2) // (7 * 8)"
     ))
 
+    everybodyExcept("3 - ((1 + 2) / (7 * 8) + 5)", "3 - ((1 + 2) / (7 * 8) + 5)", ResultMap(
+      JavaScriptCompiler -> "3 - (Math.floor((1 + 2) / (7 * 8)) + 5)",
+      LuaCompiler -> "3 - (math.floor((1 + 2) / (7 * 8)) + 5)",
+      PerlCompiler -> "3 - (int((1 + 2) / (7 * 8)) + 5)",
+      PHPCompiler -> "3 - (intval((1 + 2) / (7 * 8)) + 5)",
+      PythonCompiler -> "3 - ((1 + 2) // (7 * 8) + 5)"
+    ))
+
+    everybody("1 + 2 << 5", "1 + 2 << 5")
+    everybody("(1 + 2) << 5", "1 + 2 << 5")
+    everybody("1 + (2 << 5)", "1 + (2 << 5)")
+
+    everybodyExcept("~777", "~777", ResultMap(
+      GoCompiler -> "^777"
+    ))
+    everybodyExcept("~(7+3)", "~(7 + 3)", ResultMap(
+      GoCompiler -> "^(7 + 3)"
+    ))
+
+    everybody("(0b01 & 0b11) << 1", "(1 & 3) << 1")
+
+    everybodyExcept("(0b01 & 0b10) >> 1", "(1 & 2) >> 1", ResultMap(
+      JavaScriptCompiler -> "(1 & 2) >>> 1"
+    ))
+  }
+
+  describe("integer comparisons") {
     everybody("1 < 2", "1 < 2", CalcBooleanType)
-
     everybody("1 == 2", "1 == 2", CalcBooleanType)
+  }
 
+  describe("integer method calls") {
+    describe(".to_s") {
+      full("42.to_s", CalcIntType, CalcStrType, ResultMap(
+        CppCompiler -> "kaitai::kstream::to_string(42)",
+        CSharpCompiler -> "42.ToString()",
+        GoCompiler -> "strconv.Itoa(int64(42))",
+        JavaCompiler -> "Long.toString(42)",
+        JavaScriptCompiler -> "(42).toString()",
+        LuaCompiler -> "tostring(42)",
+        PerlCompiler -> "sprintf('%d', 42)",
+        PHPCompiler -> "strval(42)",
+        PythonCompiler -> "str(42)",
+        RubyCompiler -> "42.to_s"
+      ))
+
+      full("(a + 42).to_s", CalcIntType, CalcStrType, ResultMap(
+        CppCompiler -> "kaitai::kstream::to_string(a() + 42)",
+        CSharpCompiler -> "(A + 42).ToString()",
+        GoCompiler -> "strconv.Itoa(int64(this.A + 42))",
+        JavaCompiler -> "Long.toString(a() + 42)",
+        JavaScriptCompiler -> "(this.a + 42).toString()",
+        LuaCompiler -> "tostring(self.a + 42)",
+        PerlCompiler -> "sprintf('%d', $self->a() + 42)",
+        PHPCompiler -> "strval($this->a() + 42)",
+        PythonCompiler -> "str(self.a + 42)",
+        RubyCompiler -> "(a + 42).to_s"
+      ))
+
+      full("a + 42.to_s", CalcStrType, CalcStrType, ResultMap(
+        CppCompiler -> "a() + kaitai::kstream::to_string(42)",
+        CSharpCompiler -> "A + 42.ToString()",
+        GoCompiler -> "this.A + strconv.Itoa(int64(42))",
+        JavaCompiler -> "a() + Long.toString(42)",
+        JavaScriptCompiler -> "this.a + (42).toString()",
+        LuaCompiler -> "self.a .. tostring(42)",
+        PerlCompiler -> "$self->a() . sprintf('%d', 42)",
+        PHPCompiler -> "$this->a() . strval(42)",
+        PythonCompiler -> "self.a + str(42)",
+        RubyCompiler -> "a + 42.to_s"
+      ))
+    }
+  }
+
+  describe("ternary operator") {
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, ResultMap(
       CppCompiler -> "((2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\")))",
       CSharpCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
@@ -154,25 +245,18 @@ class TranslatorSpec extends AnyFunSpec {
       PythonCompiler -> "(u\"foo\" if 2 < 3 else u\"bar\")",
       RubyCompiler -> "(2 < 3 ? \"foo\" : \"bar\")"
     ))
-
-    everybodyExcept("~777", "~777", ResultMap(
-      GoCompiler -> "^777"
-    ))
-    everybodyExcept("~(7+3)", "~((7 + 3))", ResultMap(
-      GoCompiler -> "^((7 + 3))"
-    ))
   }
 
   describe("simple float operations") {
-    everybody("1.2 + 3.4", "(1.2 + 3.4)", CalcFloatType)
-    everybody("1.2 + 3", "(1.2 + 3)", CalcFloatType)
-    everybody("1 + 3.4", "(1 + 3.4)", CalcFloatType)
+    everybody("1.2 + 3.4", "1.2 + 3.4", CalcFloatType)
+    everybody("1.2 + 3", "1.2 + 3", CalcFloatType)
+    everybody("1 + 3.4", "1 + 3.4", CalcFloatType)
 
     everybody("1.0 < 2", "1.0 < 2", CalcBooleanType)
 
-    everybody("3 / 2.0", "(3 / 2.0)", CalcFloatType)
+    everybody("3 / 2.0", "3 / 2.0", CalcFloatType)
 
-    everybody("(1 + 2) / (7 * 8.1)", "((1 + 2) / (7 * 8.1))", CalcFloatType)
+    everybody("(1 + 2) / (7 * 8.1)", "(1 + 2) / (7 * 8.1)", CalcFloatType)
   }
 
   describe("boolean literals") {
@@ -203,22 +287,25 @@ class TranslatorSpec extends AnyFunSpec {
     ))
   }
 
-  full("some_bool.to_i", CalcBooleanType, CalcIntType, ResultMap(
-    CppCompiler -> "((some_bool()) ? 1 : 0)",
-    CSharpCompiler -> "(SomeBool ? 1 : 0)",
-    GoCompiler -> """tmp1 := 0
-                    |if this.SomeBool {
-                    |  tmp1 = 1
-                    |}
-                    |tmp1""".stripMargin,
-    JavaCompiler -> "(someBool() ? 1 : 0)",
-    JavaScriptCompiler -> "(this.someBool | 0)",
-    LuaCompiler -> "(self.some_bool and 1 or 0)",
-    PerlCompiler -> "$self->some_bool()",
-    PHPCompiler -> "intval($this->someBool())",
-    PythonCompiler -> "int(self.some_bool)",
-    RubyCompiler -> "(some_bool ? 1 : 0)"
-  ))
+  describe("boolean operations") {
+    full("some_bool.to_i", CalcBooleanType, CalcIntType, ResultMap(
+      CppCompiler -> "((some_bool()) ? 1 : 0)",
+      CSharpCompiler -> "(SomeBool ? 1 : 0)",
+      GoCompiler ->
+        """tmp1 := 0
+          |if this.SomeBool {
+          |  tmp1 = 1
+          |}
+          |tmp1""".stripMargin,
+      JavaCompiler -> "(someBool() ? 1 : 0)",
+      JavaScriptCompiler -> "(this.someBool | 0)",
+      LuaCompiler -> "(self.some_bool and 1 or 0)",
+      PerlCompiler -> "$self->some_bool()",
+      PHPCompiler -> "intval($this->someBool())",
+      PythonCompiler -> "int(self.some_bool)",
+      RubyCompiler -> "(some_bool ? 1 : 0)"
+    ))
+  }
 
   describe("member access") {
     full("foo_str", CalcStrType, CalcStrType, ResultMap(
@@ -369,16 +456,16 @@ class TranslatorSpec extends AnyFunSpec {
       ))
 
       full("a[42 - 2]", ArrayTypeInStream(CalcStrType), CalcStrType, ResultMap(
-        CppCompiler -> "a()->at((42 - 2))",
-        CSharpCompiler -> "A[(42 - 2)]",
-        GoCompiler -> "this.A[(42 - 2)]",
+        CppCompiler -> "a()->at(42 - 2)",
+        CSharpCompiler -> "A[42 - 2]",
+        GoCompiler -> "this.A[42 - 2]",
         JavaCompiler -> "a().get((int) (42 - 2))",
-        JavaScriptCompiler -> "this.a[(42 - 2)]",
-        LuaCompiler -> "self.a[(42 - 2) + 1]", // TODO: self.a[41]
-        PerlCompiler -> "@{$self->a()}[(42 - 2)]",
-        PHPCompiler -> "$this->a()[(42 - 2)]",
-        PythonCompiler -> "self.a[(42 - 2)]",
-        RubyCompiler -> "a[(42 - 2)]"
+        JavaScriptCompiler -> "this.a[42 - 2]",
+        LuaCompiler -> "self.a[42 - 2 + 1]", // TODO: self.a[41]
+        PerlCompiler -> "@{$self->a()}[42 - 2]",
+        PHPCompiler -> "$this->a()[42 - 2]",
+        PythonCompiler -> "self.a[42 - 2]",
+        RubyCompiler -> "a[42 - 2]"
       ))
 
       full("a.first", ArrayTypeInStream(CalcIntType), CalcIntType, ResultMap(
@@ -528,6 +615,19 @@ class TranslatorSpec extends AnyFunSpec {
         RubyCompiler -> "\"str\".size"
       ))
 
+      full("(foo + bar).length", CalcStrType, CalcIntType, ResultMap(
+        CppCompiler -> "(foo() + bar()).length()",
+        CSharpCompiler -> "(Foo + Bar).Length",
+        GoCompiler -> "utf8.RuneCountInString(this.Foo + this.Bar)",
+        JavaCompiler -> "(foo() + bar()).length()",
+        JavaScriptCompiler -> "(this.foo + this.bar).length",
+        LuaCompiler -> "string.len(self.foo .. self.bar)",
+        PerlCompiler -> "length($self->foo() . $self->bar())",
+        PHPCompiler -> "strlen($this->foo() . $this->bar())",
+        PythonCompiler -> "len(self.foo + self.bar)",
+        RubyCompiler -> "(foo + bar).size"
+      ))
+
       full("\"str\".reverse", CalcIntType, CalcStrType, ResultMap(
         CppCompiler -> "kaitai::kstream::reverse(std::string(\"str\"))",
         CSharpCompiler -> "KaitaiStream.StringReverse(\"str\")",
@@ -539,6 +639,19 @@ class TranslatorSpec extends AnyFunSpec {
         PHPCompiler -> "strrev(\"str\")",
         PythonCompiler -> "(u\"str\")[::-1]",
         RubyCompiler -> "\"str\".reverse"
+      ))
+
+      full("(foo + bar).reverse", CalcStrType, CalcStrType, ResultMap(
+        CppCompiler -> "kaitai::kstream::reverse(foo() + bar())",
+        CSharpCompiler -> "KaitaiStream.StringReverse(Foo + Bar)",
+        GoCompiler -> "kaitai.StringReverse(this.Foo + this.Bar)",
+        JavaCompiler -> "new StringBuilder(foo() + bar()).reverse().toString()",
+        JavaScriptCompiler -> "Array.from(this.foo + this.bar).reverse().join('')",
+        LuaCompiler -> "string.reverse(self.foo .. self.bar)",
+        PerlCompiler -> "scalar(reverse($self->foo() . $self->bar()))",
+        PHPCompiler -> "strrev($this->foo() . $this->bar())",
+        PythonCompiler -> "(self.foo + self.bar)[::-1]",
+        RubyCompiler -> "(foo + bar).reverse"
       ))
 
       full("\"12345\".to_i", CalcIntType, CalcIntType, ResultMap(
@@ -576,6 +689,80 @@ class TranslatorSpec extends AnyFunSpec {
         PythonCompiler -> "int(u\"1234fe\", 16)",
         RubyCompiler -> "\"1234fe\".to_i(16)"
       ))
+
+      // substring() call on a single string literal
+      full("\"foobar\".substring(2, 4)", CalcStrType, CalcStrType, ResultMap(
+        CppCompiler -> "std::string(\"foobar\").substr(2, 4 - 2)",
+        CSharpCompiler -> "\"foobar\".Substring(2, 4 - 2)",
+        GoCompiler -> "\"foobar\"[2:4]",
+        JavaCompiler -> "\"foobar\".substring(2, 4)",
+        JavaScriptCompiler -> "\"foobar\".substring(2, 4)",
+        LuaCompiler -> "string.sub(\"foobar\", 2 + 1, 4)",
+        PerlCompiler -> "substr(\"foobar\", 2, 4 - 2)",
+        PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring(\"foobar\", 2, 4)",
+        PythonCompiler -> "u\"foobar\"[2:4]",
+        RubyCompiler -> "\"foobar\"[2..4 - 1]"
+      ))
+
+      // substring() call on concatenation of strings: for some languages, concatenation needs to be
+      // parenthesized
+      full("(foo + bar).substring(2, 4)", CalcStrType, CalcStrType, ResultMap(
+        CppCompiler -> "(foo() + bar()).substr(2, 4 - 2)",
+        CSharpCompiler -> "(Foo + Bar).Substring(2, 4 - 2)",
+        GoCompiler -> "(this.Foo + this.Bar)[2:4]",
+        JavaCompiler -> "(foo() + bar()).substring(2, 4)",
+        JavaScriptCompiler -> "(this.foo + this.bar).substring(2, 4)",
+        LuaCompiler -> "string.sub(self.foo .. self.bar, 2 + 1, 4)",
+        PerlCompiler -> "substr($self->foo() . $self->bar(), 2, 4 - 2)",
+        PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo() . $this->bar(), 2, 4)",
+        PythonCompiler -> "(self.foo + self.bar)[2:4]",
+        RubyCompiler -> "(foo + bar)[2..4 - 1]"
+      ))
+
+      // substring() call with non-left-associative "from" and "to": for languages where subtraction
+      // is used, it should be rendered as "to - (from)".
+      full("foo.substring(10 - 7, 10 - 3)", CalcStrType, CalcStrType, ResultMap(
+        CppCompiler -> "foo().substr(10 - 7, 10 - 3 - (10 - 7))",
+        CSharpCompiler -> "Foo.Substring(10 - 7, 10 - 3 - (10 - 7))",
+        GoCompiler -> "this.Foo[10 - 7:10 - 3]",
+        JavaCompiler -> "foo().substring(10 - 7, 10 - 3)",
+        JavaScriptCompiler -> "this.foo.substring(10 - 7, 10 - 3)",
+        LuaCompiler -> "string.sub(self.foo, 10 - 7 + 1, 10 - 3)",
+        PerlCompiler -> "substr($self->foo(), 10 - 7, 10 - 3 - (10 - 7))",
+        PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 - 3)",
+        PythonCompiler -> "self.foo[10 - 7:10 - 3]",
+        RubyCompiler -> "foo[10 - 7..10 - 3 - 1]"
+      ))
+
+      // substring() call with "to" using `<<` which is lower precedence than `+` or `-`: if such
+      // math is used on "to" in rendering, "to" should be parenthesized (Ruby)
+      full("foo.substring(10 - 7, 10 << 2)", CalcStrType, CalcStrType, ResultMap(
+        CppCompiler -> "foo().substr(10 - 7, (10 << 2) - (10 - 7))",
+        CSharpCompiler -> "Foo.Substring(10 - 7, (10 << 2) - (10 - 7))",
+        GoCompiler -> "this.Foo[10 - 7:10 << 2]",
+        JavaCompiler -> "foo().substring(10 - 7, 10 << 2)",
+        JavaScriptCompiler -> "this.foo.substring(10 - 7, 10 << 2)",
+        LuaCompiler -> "string.sub(self.foo, 10 - 7 + 1, 10 << 2)",
+        PerlCompiler -> "substr($self->foo(), 10 - 7, (10 << 2) - (10 - 7))",
+        PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 << 2)",
+        PythonCompiler -> "self.foo[10 - 7:10 << 2]",
+        RubyCompiler -> "foo[10 - 7..(10 << 2) - 1]"
+      ))
+
+      // substring() call with "from" using `<<` which is lower precedence than `+` or `-`: if such
+      // math is used on "from" in rendering, "from" should be parenthesized (Lua)
+      full("foo.substring(10 << 1, 42)", CalcStrType, CalcStrType, ResultMap(
+        CppCompiler -> "foo().substr(10 << 1, 42 - (10 << 1))",
+        CSharpCompiler -> "Foo.Substring(10 << 1, 42 - (10 << 1))",
+        GoCompiler -> "this.Foo[10 << 1:42]",
+        JavaCompiler -> "foo().substring(10 << 1, 42)",
+        JavaScriptCompiler -> "this.foo.substring(10 << 1, 42)",
+        LuaCompiler -> "string.sub(self.foo, (10 << 1) + 1, 42)",
+        PerlCompiler -> "substr($self->foo(), 10 << 1, 42 - (10 << 1))",
+        PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 << 1, 42)",
+        PythonCompiler -> "self.foo[10 << 1:42]",
+        RubyCompiler -> "foo[10 << 1..42 - 1]"
+      ))
     }
   }
 
@@ -610,16 +797,16 @@ class TranslatorSpec extends AnyFunSpec {
 
     describe("for primitive pure types") {
       full("(1 + 2).as<s2>", CalcIntType, IntMultiType(true, Width2, None), ResultMap(
-        CppCompiler -> "static_cast<int16_t>((1 + 2))",
-        CSharpCompiler -> "((short) ((1 + 2)))",
-        GoCompiler -> "int16((1 + 2))",
-        JavaCompiler -> "((short) ((1 + 2)))",
-        JavaScriptCompiler -> "(1 + 2)",
-        LuaCompiler -> "(1 + 2)",
-        PerlCompiler -> "(1 + 2)",
-        PHPCompiler -> "(1 + 2)",
-        PythonCompiler -> "(1 + 2)",
-        RubyCompiler -> "(1 + 2)"
+        CppCompiler -> "static_cast<int16_t>(1 + 2)",
+        CSharpCompiler -> "((short) (1 + 2))",
+        GoCompiler -> "int16(1 + 2)",
+        JavaCompiler -> "((short) (1 + 2))",
+        JavaScriptCompiler -> "1 + 2",
+        LuaCompiler -> "1 + 2",
+        PerlCompiler -> "1 + 2",
+        PHPCompiler -> "1 + 2",
+        PythonCompiler -> "1 + 2",
+        RubyCompiler -> "1 + 2"
       ))
     }
 
@@ -736,7 +923,7 @@ class TranslatorSpec extends AnyFunSpec {
 
     full("f\"abc{1}%def\"", CalcIntType, CalcStrType, ResultMap(
       CppCompiler -> "std::string(\"abc\") + kaitai::kstream::to_string(1) + std::string(\"%def\")",
-      CSharpCompiler -> "\"abc\" + (1).ToString() + \"%def\"",
+      CSharpCompiler -> "\"abc\" + 1.ToString() + \"%def\"",
       GoCompiler -> "fmt.Sprintf(\"abc%v%%def\", 1)",
       JavaCompiler -> "\"abc\" + Long.toString(1) + \"%def\"",
       JavaScriptCompiler -> "\"abc\" + (1).toString() + \"%def\"",
