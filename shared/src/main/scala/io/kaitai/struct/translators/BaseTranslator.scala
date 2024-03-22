@@ -44,9 +44,10 @@ abstract class BaseTranslator(val provider: TypeProvider)
     * to assist error reporting in KSC.
     *
     * @param v KS expression to translate
+    * @param extPrec precedence of external context of this expression
     * @return expression in target language as string
     */
-  def translate(v: Ast.expr): String = {
+  def translate(v: Ast.expr, extPrec: Int): String = {
     v match {
       case Ast.expr.IntNum(n) =>
         doIntLiteral(n)
@@ -112,9 +113,9 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
           case (_: NumericType, _: NumericType, _) =>
-            numericBinOp(left, op, right)
+            genericBinOp(left, op, right, extPrec)
           case (_: StrType, _: StrType, Ast.operator.Add) =>
-            strConcat(left, right)
+            strConcat(left, right, extPrec)
           case (ltype, rtype, _) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
@@ -189,7 +190,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def doEnumById(enumTypeAbs: List[String], id: String): String
 
   // Predefined methods of various types
-  def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} + ${translate(right)}"
+  def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int) =
+    genericBinOp(left, Ast.operator.Add, right, extPrec)
   def boolToInt(value: Ast.expr): String =
     doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0))
 
@@ -205,7 +207,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
   // Helper that does simple "one size fits all" attribute calling, if it is useful
   // for the language
   def anyField(value: Ast.expr, attrName: String): String =
-    s"${translate(value)}.${doName(attrName)}"
+    s"${translate(value, METHOD_PRECEDENCE)}.${doName(attrName)}"
 
   // f-strings
   def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =

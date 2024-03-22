@@ -24,16 +24,16 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def strLiteralGenericCC(code: Char): String =
     "\\x%02x".format(code.toInt)
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"Math.floor(${translate(left)} / ${translate(right)})"
+        s"Math.floor(${super.genericBinOp(left, op, right, 0)})"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${JavaScriptCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
       case (_: IntType, _: IntType, Ast.operator.RShift) =>
-        s"(${translate(left)} >>> ${translate(right)})"
+        genericBinOpStr(left, op, ">>>", right, extPrec)
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -111,14 +111,14 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     s"""${JavaScriptCompiler.kstreamName}.bytesToStr($bytesExpr, "$encoding")"""
 
   override def strLength(s: expr): String =
-    s"${translate(s)}.length"
+    s"${translate(s, METHOD_PRECEDENCE)}.length"
 
   // http://stackoverflow.com/a/36525647/2055163
   override def strReverse(s: expr): String =
     s"Array.from(${translate(s)}).reverse().join('')"
 
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"
@@ -127,12 +127,12 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     s"$v[$v.length - 1]"
   }
   override def arraySize(a: expr): String =
-    s"${translate(a)}.length"
+    s"${translate(a, METHOD_PRECEDENCE)}.length"
   override def arrayMin(a: expr): String =
     s"${JavaScriptCompiler.kstreamName}.arrayMin(${translate(a)})"
   override def arrayMax(a: expr): String =
     s"${JavaScriptCompiler.kstreamName}.arrayMax(${translate(a)})"
 
   override def kaitaiStreamEof(value: Ast.expr): String =
-    s"${translate(value)}.isEof()"
+    s"${translate(value, METHOD_PRECEDENCE)}.isEof()"
 }

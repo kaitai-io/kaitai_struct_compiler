@@ -45,12 +45,12 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${JavaCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -99,7 +99,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}.get((int) ${translate(idx)})"
+    s"${translate(container)}.get((int) ${translate(idx, METHOD_PRECEDENCE)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: DataType): String =
@@ -138,33 +138,33 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.length"
+    s"${translate(b, METHOD_PRECEDENCE)}.length"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
   override def bytesFirst(b: Ast.expr): String =
-    s"${translate(b)}[0]"
+    s"${translate(b, METHOD_PRECEDENCE)}[0]"
   override def bytesLast(b: Ast.expr): String =
-    s"${translate(b)}[(${translate(b)}).length - 1]"
+    s"${translate(b, METHOD_PRECEDENCE)}[(${translate(b)}).length - 1]"
   override def bytesMin(b: Ast.expr): String =
     s"${JavaCompiler.kstreamName}.byteArrayMin(${translate(b)})"
   override def bytesMax(b: Ast.expr): String =
     s"${JavaCompiler.kstreamName}.byteArrayMax(${translate(b)})"
 
   override def strLength(s: expr): String =
-    s"${translate(s)}.length()"
+    s"${translate(s, METHOD_PRECEDENCE)}.length()"
   override def strReverse(s: expr): String =
     s"new StringBuilder(${translate(s)}).reverse().toString()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}.get(0)"
+    s"${translate(a, METHOD_PRECEDENCE)}.get(0)"
   override def arrayLast(a: expr): String = {
-    val v = translate(a)
+    val v = translate(a, METHOD_PRECEDENCE)
     s"$v.get($v.size() - 1)"
   }
   override def arraySize(a: expr): String =
-    s"${translate(a)}.size()"
+    s"${translate(a, METHOD_PRECEDENCE)}.size()"
   override def arrayMin(a: Ast.expr): String = {
     importList.add("java.util.Collections")
     s"Collections.min(${translate(a)})"
