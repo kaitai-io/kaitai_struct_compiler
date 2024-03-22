@@ -26,17 +26,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def strLiteralUnicode(code: Char): String =
     "\\u{%x}".format(code.toInt)
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
-    (detectType(left), detectType(right), op) match {
-      case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"${translate(left)} / ${translate(right)}"
-      case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${translate(left)} % ${translate(right)}"
-      case _ =>
-        super.numericBinOp(left, op, right)
-    }
-  }
-
   override def doLocalName(s: String) = {
     s match {
       case Identifier.ITERATOR => "tmpa"
@@ -64,7 +53,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
 	translate(ifFalse) + "}"
 
   // Predefined methods of various types
-  override def strConcat(left: Ast.expr, right: Ast.expr): String =
+  override def strConcat(left: expr, right: expr, extPrec: Int) =
     "format!(\"{}{}\", " + translate(left) + ", " + translate(right) + ")"
 
   override def strToInt(s: expr, base: expr): String =
@@ -95,13 +84,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
         "panic!(\"Unimplemented encoding for bytesToStr: {}\", \"" + encoding + "\")"
     }
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.len()"
+    s"${translate(b, METHOD_PRECEDENCE)}.len()"
   override def strLength(s: expr): String =
-    s"${translate(s)}.len()"
+    s"${translate(s, METHOD_PRECEDENCE)}.len()"
   override def strReverse(s: expr): String =
-    s"${translate(s)}.graphemes(true).rev().flat_map(|g| g.chars()).collect()"
+    s"${translate(s, METHOD_PRECEDENCE)}.graphemes(true).rev().flat_map(|g| g.chars()).collect()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}.first()"

@@ -42,14 +42,14 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def strLiteralUnicode(code: Char): String =
     "\\u{%x}".format(code.toInt)
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"intval(${translate(left)} / ${translate(right)})"
+        s"intval(${super.genericBinOp(left, op, right, 0)})"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${PHPCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -84,8 +84,8 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 
   // Predefined methods of various types
-  override def strConcat(left: Ast.expr, right: Ast.expr): String =
-    s"${translate(left)} . ${translate(right)}"
+  override def strConcat(left: expr, right: expr, extPrec: Int) =
+    genericBinOpStr(left, Ast.operator.Add, ".", right, extPrec)
 
   override def strToInt(s: expr, base: expr): String =
     s"intval(${translate(s)}, ${translate(base)})"
@@ -108,11 +108,11 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def bytesLength(b: Ast.expr): String =
     s"strlen(${translate(b)})"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"ord(${translate(container)}[${translate(idx)}])"
+    s"ord(${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}])"
   override def bytesFirst(b: Ast.expr): String =
-    s"ord(${translate(b)}[0])"
+    s"ord(${translate(b, METHOD_PRECEDENCE)}[0])"
   override def bytesLast(b: Ast.expr): String =
-    s"ord(${translate(b)}[${bytesLength(b)} - 1])"
+    s"ord(${translate(b, METHOD_PRECEDENCE)}[${bytesLength(b)} - 1])"
   override def bytesMin(b: Ast.expr): String =
     s"${PHPCompiler.kstreamName}::byteArrayMin(${translate(b)})"
   override def bytesMax(b: Ast.expr): String =

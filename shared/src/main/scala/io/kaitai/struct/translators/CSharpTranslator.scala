@@ -38,12 +38,12 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def strLiteralGenericCC(code: Char): String = strLiteralUnicode(code)
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${CSharpCompiler.kstreamName}.Mod(${translate(left)}, ${translate(right)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -85,7 +85,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"(${CSharpCompiler.kstreamName}.ByteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
 
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: DataType): String =
@@ -101,39 +101,39 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def floatToInt(v: expr): String =
     s"(long) (${translate(v)})"
   override def intToStr(i: expr): String =
-    s"(${translate(i)}).ToString()"
+    s"${translate(i, METHOD_PRECEDENCE)}.ToString()"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""System.Text.Encoding.GetEncoding("$encoding").GetString($bytesExpr)"""
   override def strLength(s: expr): String =
-    s"${translate(s)}.Length"
+    s"${translate(s, METHOD_PRECEDENCE)}.Length"
 
   override def strReverse(s: expr): String =
     s"${CSharpCompiler.kstreamName}.StringReverse(${translate(s)})"
 
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.Substring(${translate(from)}, ${translate(to)} - ${translate(from)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.Substring(${translate(from)}, ${genericBinOp(to, Ast.operator.Sub, from, 0)})"
 
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.Length"
+    s"${translate(b, METHOD_PRECEDENCE)}.Length"
   override def bytesLast(b: Ast.expr): String = {
-    val v = translate(b)
+    val v = translate(b, METHOD_PRECEDENCE)
     s"$v[$v.Length - 1]"
   }
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}[0]"
+    s"${translate(a, METHOD_PRECEDENCE)}[0]"
   override def arrayLast(a: expr): String = {
-    val v = translate(a)
+    val v = translate(a, METHOD_PRECEDENCE)
     s"$v[$v.Count - 1]"
   }
   override def arraySize(a: expr): String =
-    s"${translate(a)}.Count"
+    s"${translate(a, METHOD_PRECEDENCE)}.Count"
   override def arrayMin(a: Ast.expr): String = {
     importList.add("System.Linq")
-    s"${translate(a)}.Min()"
+    s"${translate(a, METHOD_PRECEDENCE)}.Min()"
   }
   override def arrayMax(a: Ast.expr): String = {
     importList.add("System.Linq")
-    s"${translate(a)}.Max()"
+    s"${translate(a, METHOD_PRECEDENCE)}.Max()"
   }
 }

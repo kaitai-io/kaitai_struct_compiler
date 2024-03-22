@@ -118,12 +118,12 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "std::string(\"" + Utils.hexEscapeByteArray(arr) + "\", " + arr.length + ")"
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${CppCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -197,7 +197,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""${CppCompiler.kstreamName}::bytes_to_str($bytesExpr, "$encoding")"""
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.length()"
+    s"${translate(b, METHOD_PRECEDENCE)}.length()"
 
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
@@ -208,9 +208,10 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     }
   }
   override def bytesLast(b: Ast.expr): String = {
+    val bStr = translate(b, METHOD_PRECEDENCE)
     config.cppConfig.stdStringFrontBack match {
-      case true => s"${translate(b)}.back()"
-      case false => s"${translate(b)}[${translate(b)}.length() - 1]"
+      case true => s"$bStr.back()"
+      case false => s"$bStr[$bStr.length() - 1]"
     }
   }
   override def bytesMin(b: Ast.expr): String =
@@ -219,26 +220,26 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     s"${CppCompiler.kstreamName}::byte_array_max(${translate(b)})"
 
   override def strLength(s: expr): String =
-    s"${translate(s)}.length()"
+    s"${translate(s, METHOD_PRECEDENCE)}.length()"
   override def strReverse(s: expr): String =
     s"${CppCompiler.kstreamName}::reverse(${translate(s)})"
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substr(${translate(from)}, (${translate(to)}) - (${translate(from)}))"
+    s"${translate(s, METHOD_PRECEDENCE)}.substr(${translate(from)}, ${genericBinOp(to, Ast.operator.Sub, from, 0)})"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}->front()"
+    s"${translate(a, METHOD_PRECEDENCE)}->front()"
   override def arrayLast(a: expr): String =
-    s"${translate(a)}->back()"
+    s"${translate(a, METHOD_PRECEDENCE)}->back()"
   override def arraySize(a: expr): String =
-    s"${translate(a)}->size()"
+    s"${translate(a, METHOD_PRECEDENCE)}->size()"
   override def arrayMin(a: expr): String = {
     importListSrc.addSystem("algorithm")
-    val v = translate(a)
+    val v = translate(a, METHOD_PRECEDENCE)
     s"*std::min_element($v->begin(), $v->end())"
   }
   override def arrayMax(a: expr): String = {
     importListSrc.addSystem("algorithm")
-    val v = translate(a)
+    val v = translate(a, METHOD_PRECEDENCE)
     s"*std::max_element($v->begin(), $v->end())"
   }
 }

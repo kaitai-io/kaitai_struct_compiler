@@ -14,7 +14,13 @@ trait AbstractTranslator {
   /**
     * Translates KS expression into an expression in some target language.
     * @param v KS expression to translate
+    * @param extPrec precedence of external context of this expression:
+    *                it it's higher than inner expression we translate, we
+    *                will generate extra parenthesis to keep inner expression
+    *                safe
     * @return expression in target language as string
     */
-  def translate(v: Ast.expr): String
+  def translate(v: Ast.expr, extPrec: Int): String
+
+  def translate(v: Ast.expr): String = translate(v, 0)
 }

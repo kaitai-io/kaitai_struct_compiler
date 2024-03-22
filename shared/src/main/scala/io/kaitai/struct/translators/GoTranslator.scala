@@ -28,14 +28,14 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   var returnRes: Option[String] = None
 
-  override def translate(v: Ast.expr): String = resToStr(translateExpr(v))
+  override def translate(v: Ast.expr, extPrec: Int): String = resToStr(translateExpr(v, extPrec))
 
   def resToStr(r: TranslatorResult): String = r match {
     case ResultString(s) => s
     case ResultLocalVar(n) => localVarName(n)
   }
 
-  def translateExpr(v: Ast.expr): TranslatorResult = {
+  def translateExpr(v: Ast.expr, extPrec: Int = 0): TranslatorResult = {
     v match {
       case Ast.expr.IntNum(n) =>
         trIntLiteral(n)
@@ -91,9 +91,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
           case (_: NumericType, _: NumericType, _) =>
-            trNumericBinOp(left, op, right)
+            trNumericBinOp(left, op, right, extPrec)
           case (_: StrType, _: StrType, Ast.operator.Add) =>
-            trStrConcat(left, right)
+            trStrConcat(left, right, extPrec)
           case (ltype, rtype, _) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
@@ -141,7 +141,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]) =
     ResultString(doBooleanOp(op, values))
 
-  def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): TranslatorResult = {
+  def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): TranslatorResult = {
     (detectType(left), detectType(right), op) match {
       case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
         val v1 = allocateLocalVar()
@@ -153,12 +153,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         out.puts("}")
         ResultLocalVar(v1)
       case _ =>
-        ResultString(numericBinOp(left, op, right))
+        ResultString(genericBinOp(left, op, right, extPrec))
     }
   }
 
-  def trStrConcat(left: Ast.expr, right: Ast.expr): TranslatorResult =
-    ResultString(translate(left) + " + " + translate(right))
+  def trStrConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): TranslatorResult =
+    ResultString(genericBinOp(left, Ast.operator.Add, right, extPrec))
 
   def trNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
     ResultString(doNumericCompareOp(left, op, right))
@@ -389,9 +389,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     outVarCheckRes(s"strconv.ParseInt(${translate(s)}, ${translate(base)}, 0)")
   }
 
-  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): TranslatorResult = {
-    ResultString(s"${translate(s)}[${translate(from)}:${translate(to)}]")
-  }
+  override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): TranslatorResult =
+    ResultString(s"${translate(s, METHOD_PRECEDENCE)}[${translate(from)}:${translate(to)}]")
 
   override def intToStr(value: Ast.expr): TranslatorResult = {
     importList.add("strconv")
@@ -402,13 +401,13 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString(s"int(${translate(value)})")
 
   override def kaitaiStreamSize(value: Ast.expr) =
-    outVarCheckRes(s"${translate(value)}.Size()")
+    outVarCheckRes(s"${translate(value, METHOD_PRECEDENCE)}.Size()")
 
   override def kaitaiStreamEof(value: Ast.expr) =
-    outVarCheckRes(s"${translate(value)}.EOF()")
+    outVarCheckRes(s"${translate(value, METHOD_PRECEDENCE)}.EOF()")
 
   override def kaitaiStreamPos(value: Ast.expr) =
-    outVarCheckRes(s"${translate(value)}.Pos()")
+    outVarCheckRes(s"${translate(value, METHOD_PRECEDENCE)}.Pos()")
 
   override def arrayMin(a: Ast.expr): ResultLocalVar = {
     val min = allocateLocalVar()

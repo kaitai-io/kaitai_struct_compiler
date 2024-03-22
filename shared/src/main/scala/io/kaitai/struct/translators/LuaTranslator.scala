@@ -45,12 +45,12 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def strLiteralUnicode(code: Char): String =
     "\\u{%04x}".format(code.toInt)
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"math.floor(${translate(left)} / ${translate(right)})"
+        s"math.floor(${super.genericBinOp(left, op, right, 0)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -87,7 +87,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doEnumById(enumTypeAbs: List[String], id: String): String =
     s"${LuaCompiler.types2class(enumTypeAbs)}($id)"
 
-  override def strConcat(left: Ast.expr, right: Ast.expr): String =
+  override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
     s"${translate(left)} .. ${translate(right)}"
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
@@ -134,7 +134,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def strReverse(s: Ast.expr): String =
     s"string.reverse(${translate(s)})"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"string.sub(${translate(s)}, ${translate(from)} + 1, ${translate(to)})"
+    s"string.sub(${translate(s)}, ${genericBinOp(from, Ast.operator.Add, Ast.expr.IntNum(1), 0)}, ${translate(to)})"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[1]"
@@ -163,11 +163,11 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     }
 
   override def kaitaiStreamSize(value: Ast.expr): String =
-    s"${translate(value)}:size()"
+    s"${translate(value, METHOD_PRECEDENCE)}:size()"
   override def kaitaiStreamEof(value: Ast.expr): String =
-    s"${translate(value)}:is_eof()"
+    s"${translate(value, METHOD_PRECEDENCE)}:is_eof()"
   override def kaitaiStreamPos(value: Ast.expr): String =
-    s"${translate(value)}:pos()"
+    s"${translate(value, METHOD_PRECEDENCE)}:pos()"
 
   override def binOp(op: Ast.operator): String = op match {
     case Ast.operator.BitXor => "~"

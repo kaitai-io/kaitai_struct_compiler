@@ -136,6 +136,18 @@ abstract trait CommonMethods[T] extends TypeDetector {
   )
 
   /**
+    * Constant for precedence to use from within method call when we need to make sure parenthesis
+    * will appear when necessary. Mostly used when a language will use postfix method call on an
+    * object, like `obj.method(args)`:
+    *
+    *  - if `obj` is simple (like variable reference or a literal - `obj.method(args)` or
+    *    `42.method(args)`, no parenthesis are required.
+    *  - if `obj` is complex (like an expression `a + b`), then this will ensure framing as
+    *    `(a + b).method(args)`.
+    */
+  val METHOD_PRECEDENCE = 99
+
+  /**
     * Translates a certain attribute call (as in `foo.bar`) into a rendition
     * of expression in certain target language.
     * @note Must be kept in sync with [[TypeDetector.detectAttributeType]]
