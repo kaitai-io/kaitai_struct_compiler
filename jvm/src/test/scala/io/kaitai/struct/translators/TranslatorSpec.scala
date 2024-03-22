@@ -855,15 +855,15 @@ class TranslatorSpec extends AnyFunSpec {
       // type enforcement: casting to non-literal byte array
       full("[0 + 1, 5].as<bytes>", CalcIntType, CalcBytesType, ResultMap(
         CppCompiler -> "???",
-        CSharpCompiler -> "new byte[] { (0 + 1), 5 }",
-        GoCompiler -> "[]uint8{(0 + 1), 5}",
-        JavaCompiler -> "new byte[] { (0 + 1), 5 }",
-        JavaScriptCompiler -> "new Uint8Array([(0 + 1), 5])",
+        CSharpCompiler -> "new byte[] { 0 + 1, 5 }",
+        GoCompiler -> "[]uint8{0 + 1, 5}",
+        JavaCompiler -> "new byte[] { 0 + 1, 5 }",
+        JavaScriptCompiler -> "new Uint8Array([0 + 1, 5])",
         LuaCompiler -> "???",
-        PerlCompiler -> "pack('C*', ((0 + 1), 5))",
-        PHPCompiler -> "pack('C*', (0 + 1), 5)",
-        PythonCompiler -> "struct.pack('2B', (0 + 1), 5)",
-        RubyCompiler -> "[(0 + 1), 5].pack('C*')"
+        PerlCompiler -> "pack('C*', (0 + 1, 5))",
+        PHPCompiler -> "pack('C*', 0 + 1, 5)",
+        PythonCompiler -> "struct.pack('2B', 0 + 1, 5)",
+        RubyCompiler -> "[0 + 1, 5].pack('C*')"
       ))
 
       // type enforcement: casting to array of integers
