@@ -32,7 +32,7 @@ class LoadImports(specs: ClassSpecs) {
         loadImport(
           name,
           curClass.meta.path ++ List("imports", idx.toString),
-          Some(curClass.nameAsStr),
+          Some(curClass.fileNameAsStr),
           workDir
         )
       }).map((x) => x.flatten)
