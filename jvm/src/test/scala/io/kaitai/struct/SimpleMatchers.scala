@@ -29,7 +29,7 @@ trait SimpleMatchers {
     def shouldEqualPlainly(right: Any)(implicit equality: Equality[T]): Assertion =
       if (!equality.areEqual(leftSideValue, right)) {
         throw new exceptions.TestFailedException(
-          (e: exceptions.StackDepthException) => Some(s"""${leftSideValue} did not equal ${right}"""),
+          (e: exceptions.StackDepthException) => Some(s"""[${leftSideValue}]\n  did not equal\n[${right}]"""),
           None,
           Position.here
         )
