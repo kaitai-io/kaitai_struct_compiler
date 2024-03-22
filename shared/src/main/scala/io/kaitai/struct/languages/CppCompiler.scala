@@ -70,7 +70,7 @@ class CppCompiler(
     importListHdr.addSystem("stdint.h")
 
     config.cppConfig.pointers match {
-      case SharedPointers | UniqueAndRawPointers =>
+      case UniqueAndRawPointers =>
         importListHdr.addSystem("memory")
       case RawPointers =>
         // no extra includes
@@ -116,13 +116,8 @@ class CppCompiler(
   override def classHeader(name: List[String]): Unit = {
     val className = types2class(List(name.last))
 
-    val extraInherits = config.cppConfig.pointers match {
-      case RawPointers | UniqueAndRawPointers => ""
-      case SharedPointers => s", std::enable_shared_from_this<$className>"
-    }
-
     outHdr.puts
-    outHdr.puts(s"class $className : public $kstructName$extraInherits {")
+    outHdr.puts(s"class $className : public $kstructName {")
     outHdr.inc
     accessMode = PrivateAccess
     ensureMode(PublicAccess)
@@ -202,19 +197,9 @@ class CppCompiler(
     )
     outSrc.inc
 
-    // In shared pointers mode, this is required to be able to work with shared pointers to this
-    // in a constructor. This is obviously a hack and not a good practice.
-    // https://forum.libcinder.org/topic/solution-calling-shared-from-this-in-the-constructor
-    if (config.cppConfig.pointers == CppRuntimeConfig.SharedPointers) {
-      outSrc.puts(s"const auto weakPtrTrick = std::shared_ptr<$classNameBrief>(this, []($classNameBrief*){});")
-    }
-
     handleAssignmentSimple(ParentIdentifier, pParent)
     handleAssignmentSimple(RootIdentifier, if (name == rootClassName) {
-      config.cppConfig.pointers match {
-        case RawPointers | UniqueAndRawPointers => "this"
-        case SharedPointers => "shared_from_this()"
-      }
+      "this"
     } else {
       pRoot
     })
@@ -697,11 +682,7 @@ class CppCompiler(
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => nullPtr
             case Some(fp) => translator.translate(fp)
-            case None =>
-              config.cppConfig.pointers match {
-                case RawPointers | UniqueAndRawPointers => "this"
-                case SharedPointers => s"shared_from_this()"
-              }
+            case None => "this"
           }
           val addEndian = t.classSpec.get.meta.endian match {
             case Some(InheritedEndian) => ", m__is_le"
@@ -712,8 +693,6 @@ class CppCompiler(
         config.cppConfig.pointers match {
           case RawPointers =>
             s"new ${types2class(t.name)}($addParams$io$addArgs)"
-          case SharedPointers =>
-            s"std::make_shared<${types2class(t.name)}>($addParams$io$addArgs)"
           case UniqueAndRawPointers =>
             // C++14
             //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
@@ -973,7 +952,7 @@ class CppCompiler(
 
   def nullPtr: String = config.cppConfig.pointers match {
     case RawPointers => "0"
-    case SharedPointers | UniqueAndRawPointers => "nullptr"
+    case UniqueAndRawPointers => "nullptr"
   }
 
   def nonOwningPointer(attrName: Identifier, attrType: DataType): String = {
@@ -1088,7 +1067,6 @@ object CppCompiler extends LanguageCompilerStatic
         })
         config.pointers match {
           case RawPointers => s"$typeStr*"
-          case SharedPointers => s"std::shared_ptr<$typeStr>"
           case UniqueAndRawPointers =>
             if (t.isOwning) s"std::unique_ptr<$typeStr>" else s"$typeStr*"
         }
@@ -1112,14 +1090,9 @@ object CppCompiler extends LanguageCompilerStatic
       case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {
         case RawPointers => s"$kstructName*"
-        case SharedPointers => s"std::shared_ptr<$kstructName>"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstructName>"
       }
-      case CalcKaitaiStructType(_) => config.pointers match {
-        case RawPointers => s"$kstructName*"
-        case SharedPointers => s"std::shared_ptr<$kstructName>"
-        case UniqueAndRawPointers => s"$kstructName*"
-      }
+      case CalcKaitaiStructType(_) => s"$kstructName*"
 
       case st: SwitchType =>
         kaitaiType2NativeType(config, combineSwitchType(st), absolute)

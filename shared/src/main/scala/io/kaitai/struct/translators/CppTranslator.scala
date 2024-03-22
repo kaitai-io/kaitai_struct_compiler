@@ -2,7 +2,7 @@ package io.kaitai.struct.translators
 
 import java.nio.charset.Charset
 
-import io.kaitai.struct.CppRuntimeConfig.{RawPointers, SharedPointers, UniqueAndRawPointers}
+import io.kaitai.struct.CppRuntimeConfig.{RawPointers, UniqueAndRawPointers}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
@@ -161,18 +161,6 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
   override def doCast(value: Ast.expr, typeName: DataType): String =
-    config.cppConfig.pointers match {
-      case RawPointers | UniqueAndRawPointers =>
-        cppStaticCast(value, typeName)
-      case SharedPointers =>
-        typeName match {
-          case ut: UserType =>
-            s"std::static_pointer_cast<${CppCompiler.types2class(ut.classSpec.get.name)}>(${translate(value)})"
-          case _ => cppStaticCast(value, typeName)
-        }
-    }
-
-  def cppStaticCast(value: Ast.expr, typeName: DataType): String =
     s"static_cast<${CppCompiler.kaitaiType2NativeType(config.cppConfig, typeName)}>(${translate(value)})"
 
   // Predefined methods of various types
