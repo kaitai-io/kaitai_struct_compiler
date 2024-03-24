@@ -79,8 +79,10 @@ class ParentTypes(classSpecs: ClassSpecs) {
 
   def markupParentAs(parent: ClassSpec, child: ClassSpec): Unit = {
     // Don't allow type usages across spec boundaries to affect parent resolution
-    if (child.isExternal(parent))
+    if (child.isExternal(parent)) {
+      Log.typeProcParent.info(() => s"..... cross-spec usage of class=${child.nameAsStr} from parent=${parent.nameAsStr} ignored")
       return
+    }
     Log.typeProcParent.info(() => s"..... class=${child.nameAsStr} has parent=${parent.nameAsStr}")
     child.parentClass match {
       case UnknownClassSpec =>
