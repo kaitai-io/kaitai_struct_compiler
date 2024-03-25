@@ -145,7 +145,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
     *  - if `obj` is complex (like an expression `a + b`), then this will ensure framing as
     *    `(a + b).method(args)`.
     */
-  val METHOD_PRECEDENCE = 99
+  val METHOD_PRECEDENCE = 999
 
   /**
     * Translates a certain attribute call (as in `foo.bar`) into a rendition
