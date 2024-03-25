@@ -524,21 +524,35 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // doing this workaround for enums.
 
     val onType = typeProvider._currentSwitchType.get
-    val isNullable = onType match {
+    val isEnum = onType match {
       case _: EnumType => true
       case _ => false
     }
 
-    if (isNullable) {
-      val nameSwitchStr = expression(NAME_SWITCH_ON)
+    if (isEnum) {
+      val javaEnumName = kaitaiType2JavaType(onType)
+      // Open scope for "on" isolation
       out.puts("{")
       out.inc
-      out.puts(s"${kaitaiType2JavaType(onType)} $nameSwitchStr = ${expression(on)};")
-      out.puts(s"if ($nameSwitchStr != null) {")
+      out.puts(s"final $javaEnumName on = ${expression(on)};")
+      out.puts(s"if (on instanceof $javaEnumName.Known) {")
+      out.inc
+      out.puts(s"switch (($javaEnumName.Known)on) {")
       out.inc
 
-      super.switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
+      cases.foreach { case (condition, result) =>
+        condition match {
+          case SwitchType.ELSE_CONST =>
+            // skip for now
+          case _ =>
+            switchCaseStart(condition)
+            normalCaseProc(result)
+            switchCaseEnd()
+        }
+      }
 
+      out.dec
+      out.puts("} // switch")
       out.dec
       cases.get(SwitchType.ELSE_CONST) match {
         case Some(result) =>
@@ -551,6 +565,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           out.puts("}")
       }
 
+      // Close "on" isolation scope
       out.dec
       out.puts("}")
     } else {
@@ -690,7 +705,18 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = type2class(enumName)
 
     out.puts
-    out.puts(s"public enum $enumClass {")
+    out.puts(s"public interface $enumClass extends IKaitaiEnum {")
+    out.inc
+    out.puts(s"public static class Unknown extends IKaitaiEnum.Unknown implements $enumClass {")
+    out.inc
+    out.puts("Unknown(long id) { super(id); }")
+    out.puts
+    out.puts("@Override");
+    out.puts(s"public String toString() { return \"${enumClass}(\" + this.id + \")\"; }");
+    out.dec
+    out.puts("}")
+    out.puts
+    out.puts(s"public enum Known implements $enumClass {")
     out.inc
 
     if (enumColl.size > 1) {
@@ -705,23 +731,34 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts
     out.puts("private final long id;")
-    out.puts(s"$enumClass(long id) { this.id = id; }")
-    out.puts("public long id() { return id; }")
-    out.puts(s"private static final Map<Long, $enumClass> byId = new HashMap<Long, $enumClass>(${enumColl.size});")
+    out.puts(s"static final HashMap<Long, $enumClass> variants = new HashMap<>(${enumColl.size});")
     out.puts("static {")
     out.inc
-    out.puts(s"for ($enumClass e : $enumClass.values())")
+    out.puts(s"for (Known e : Known.values()) {")
     out.inc
-    out.puts(s"byId.put(e.id(), e);")
-    out.dec
+    out.puts(s"variants.put(e.id, e);")
     out.dec
     out.puts("}")
-    out.puts(s"public static $enumClass byId(long id) { return byId.get(id); }")
+    out.dec
+    out.puts("}")
+    out.puts
+    out.puts("private Known(long id) { this.id = id; }")
+    out.puts
+    out.puts("@Override")
+    out.puts("public long id() { return id; }")
+    out.dec
+    out.puts("}")
+    out.puts
+    out.puts(s"public static $enumClass byId(final long id) {")
+    out.inc
+    out.puts("return Known.variants.computeIfAbsent(id, _id -> new Unknown(id));")
+    out.dec
+    out.puts("}")
     out.dec
     out.puts("}")
 
-    importList.add("java.util.Map")
     importList.add("java.util.HashMap")
+    importList.add("io.kaitai.struct.IKaitaiEnum")
   }
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
