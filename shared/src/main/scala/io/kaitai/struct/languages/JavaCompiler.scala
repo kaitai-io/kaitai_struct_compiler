@@ -690,7 +690,15 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = type2class(enumName)
 
     out.puts
-    out.puts(s"public enum $enumClass {")
+    out.puts(s"public interface $enumClass implements IKaitaiEnum {")
+    out.inc
+    out.puts(s"public static class Unknown extends IKaitaiEnum.Unknown implements $enumClass {")
+    out.inc
+    out.puts("Unknown(long id) { super(id); }")
+    out.dec
+    out.puts("}")
+    out.puts
+    out.puts(s"public enum Known implements $enumClass {")
     out.inc
 
     if (enumColl.size > 1) {
@@ -705,23 +713,37 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts
     out.puts("private final long id;")
-    out.puts(s"$enumClass(long id) { this.id = id; }")
-    out.puts("public long id() { return id; }")
-    out.puts(s"private static final Map<Long, $enumClass> byId = new HashMap<Long, $enumClass>(${enumColl.size});")
+    out.puts(s"static final HashMap<Long, $enumClass> variants = new HashMap<>(${enumColl.size});")
     out.puts("static {")
     out.inc
-    out.puts(s"for ($enumClass e : $enumClass.values())")
+    out.puts(s"for ($enumClass e : $enumClass.values()) {")
     out.inc
-    out.puts(s"byId.put(e.id(), e);")
-    out.dec
+    out.puts(s"variants.put(e.id, e);")
     out.dec
     out.puts("}")
-    out.puts(s"public static $enumClass byId(long id) { return byId.get(id); }")
+    out.dec
+    out.puts("}")
+    out.puts
+    out.puts("private Known(long id) { this.id = id; }")
+    out.puts
+    out.puts("@Override")
+    out.puts("public long id() { return id; }")
+    out.puts
+    out.puts("@Override");
+    out.puts(s"public String toString() { return \"${enumClass}(\" + this.id + \")>\"; }");
+    out.dec
+    out.puts("}")
+    out.puts
+    out.puts(s"public static $enumClass byId(final long id) {")
+    out.inc
+    out.puts("return Known.variants.computeIfAbsent(id, _id -> new Unknown(id));")
+    out.dec
+    out.puts("}")
     out.dec
     out.puts("}")
 
-    importList.add("java.util.Map")
     importList.add("java.util.HashMap")
+    importList.add("io.kaitai.struct.IKaitaiEnum")
   }
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
