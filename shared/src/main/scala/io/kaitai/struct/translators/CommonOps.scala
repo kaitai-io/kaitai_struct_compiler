@@ -14,16 +14,16 @@ trait CommonOps extends AbstractTranslator {
    * @see https://docs.python.org/3/reference/expressions.html#operator-precedence
    */
   val OPERATOR_PRECEDENCE = Map[Ast.operator, Int](
-    Ast.operator.Mult -> 13,
-    Ast.operator.Div -> 13,
-    Ast.operator.Mod -> 13,
-    Ast.operator.Add -> 12,
-    Ast.operator.Sub -> 12,
-    Ast.operator.LShift -> 11,
-    Ast.operator.RShift -> 11,
-    Ast.operator.BitAnd -> 10,
-    Ast.operator.BitXor -> 9,
-    Ast.operator.BitOr -> 8,
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 90,
+    Ast.operator.BitOr -> 80,
   )
 
   def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): String =
