@@ -54,7 +54,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"pack('C*', (${elts.map(translate).mkString(", ")}))"
 
   override def anyField(value: Ast.expr, attrName: String): String =
-    s"${translate(value)}->${doName(attrName)}"
+    s"${translate(value, METHOD_PRECEDENCE)}->${doName(attrName)}"
 
   override def doLocalName(s: String) = {
     s match {
@@ -108,8 +108,6 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"@{${translate(container)}}[${translate(idx)}]"
-  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
-    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int) =

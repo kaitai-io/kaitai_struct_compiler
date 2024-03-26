@@ -69,8 +69,6 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
-  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
-    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 
   // Predefined methods of various types
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {

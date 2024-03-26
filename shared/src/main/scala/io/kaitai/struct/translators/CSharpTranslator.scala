@@ -86,8 +86,6 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: DataType): String =
     s"((${CSharpCompiler.kaitaiType2NativeType(typeName)}) (${translate(value)}))"
 

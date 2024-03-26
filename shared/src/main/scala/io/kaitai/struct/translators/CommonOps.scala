@@ -26,6 +26,8 @@ trait CommonOps extends AbstractTranslator {
     Ast.operator.BitOr -> 80,
   )
 
+  val IF_EXP_PRECEDENCE = 30
+
   def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): String =
     genericBinOpStr(left, op, binOp(op), right, extPrec)
 
@@ -96,5 +98,17 @@ trait CommonOps extends AbstractTranslator {
     case Ast.unaryop.Invert => "~"
     case Ast.unaryop.Minus => "-"
     case Ast.unaryop.Not => "!"
+  }
+
+  def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr, extPrec: Int): String = {
+    val conditionStr = translate(condition, IF_EXP_PRECEDENCE)
+    val ifTrueStr = translate(ifTrue, IF_EXP_PRECEDENCE)
+    val ifFalseStr = translate(ifFalse, IF_EXP_PRECEDENCE)
+    val fullStr = s"$conditionStr ? $ifTrueStr : $ifFalseStr"
+    if (IF_EXP_PRECEDENCE <= extPrec) {
+      s"($fullStr)"
+    } else {
+      fullStr
+    }
   }
 }
