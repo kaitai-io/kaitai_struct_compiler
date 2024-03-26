@@ -160,6 +160,7 @@ class TypeDetector(provider: TypeProvider) {
       case KaitaiStructType | CalcKaitaiStructType(_) =>
         attr.name match {
           case Identifier.PARENT => CalcKaitaiStructType()
+          case Identifier.IO => KaitaiStreamType
           case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case t: UserType =>

@@ -166,7 +166,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
     valType match {
       case KaitaiStructType | CalcKaitaiStructType(_) =>
         attr.name match {
-          case Identifier.PARENT => kaitaiStructField(value, attr.name)
+          case Identifier.PARENT | Identifier.IO => kaitaiStructField(value, attr.name)
         }
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
