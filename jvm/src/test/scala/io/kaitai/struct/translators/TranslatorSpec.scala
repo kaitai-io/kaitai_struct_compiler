@@ -226,9 +226,50 @@ class TranslatorSpec extends AnyFunSpec {
   }
 
   describe("ternary operator") {
+    everybodyExcept("2 < 3 ? 123 : 456", "2 < 3 ? 123 : 456", ResultMap(
+      GoCompiler ->
+        """var tmp1 int8;
+          |if (2 < 3) {
+          |  tmp1 = 123
+          |} else {
+          |  tmp1 = 456
+          |}
+          |tmp1""".stripMargin,
+      LuaCompiler -> "utils.box_unwrap((2 < 3) and utils.box_wrap(123) or (456))",
+      PythonCompiler -> "123 if 2 < 3 else 456",
+    ))
+
+    // When evaluated, must be 12 + 34 = 46
+    everybodyExcept("2 < 3 ? 12 + 34 : 45 + 67", "2 < 3 ? 12 + 34 : 45 + 67", ResultMap(
+      GoCompiler ->
+        """var tmp1 int;
+          |if (2 < 3) {
+          |  tmp1 = 12 + 34
+          |} else {
+          |  tmp1 = 45 + 67
+          |}
+          |tmp1""".stripMargin,
+      LuaCompiler -> "utils.box_unwrap((2 < 3) and utils.box_wrap(12 + 34) or (45 + 67))",
+      PythonCompiler -> "12 + 34 if 2 < 3 else 45 + 67",
+    ))
+
+    // When evaluated, must be (12 + 34) + 67 = 113
+    everybodyExcept("(2 < 3 ? 12 + 34 : 45) + 67", "(2 < 3 ? 12 + 34 : 45) + 67", ResultMap(
+      GoCompiler ->
+        """var tmp1 int;
+          |if (2 < 3) {
+          |  tmp1 = 12 + 34
+          |} else {
+          |  tmp1 = 45
+          |}
+          |tmp1 + 67""".stripMargin,
+      LuaCompiler -> "utils.box_unwrap((2 < 3) and utils.box_wrap(12 + 34) or (45)) + 67",
+      PythonCompiler -> "(12 + 34 if 2 < 3 else 45) + 67",
+    ))
+
     full("2 < 3 ? \"foo\" : \"bar\"", CalcIntType, CalcStrType, ResultMap(
-      CppCompiler -> "((2 < 3) ? (std::string(\"foo\")) : (std::string(\"bar\")))",
-      CSharpCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
+      CppCompiler -> "2 < 3 ? std::string(\"foo\") : std::string(\"bar\")",
+      CSharpCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       GoCompiler ->
         """var tmp1 string;
           |if (2 < 3) {
@@ -237,13 +278,53 @@ class TranslatorSpec extends AnyFunSpec {
           |  tmp1 = "bar"
           |}
           |tmp1""".stripMargin,
-      JavaCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
-      JavaScriptCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
+      JavaCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
+      JavaScriptCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
       LuaCompiler -> "utils.box_unwrap((2 < 3) and utils.box_wrap(\"foo\") or (\"bar\"))",
-      PerlCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
-      PHPCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
-      PythonCompiler -> "(u\"foo\" if 2 < 3 else u\"bar\")",
-      RubyCompiler -> "(2 < 3 ? \"foo\" : \"bar\")"
+      PerlCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
+      PHPCompiler -> "2 < 3 ? \"foo\" : \"bar\"",
+      PythonCompiler -> "u\"foo\" if 2 < 3 else u\"bar\"",
+      RubyCompiler -> "2 < 3 ? \"foo\" : \"bar\""
+    ))
+
+    full("true ? foo._io : bar._io", KaitaiStructType, KaitaiStreamType, ResultMap(
+      CppCompiler -> "true ? foo()->_io() : bar()->_io()",
+      CSharpCompiler -> "true ? Foo.M_Io : Bar.M_Io",
+      GoCompiler ->
+        """var tmp1 *kaitai.Stream;
+          |if (true) {
+          |  tmp1 = this.Foo._io
+          |} else {
+          |  tmp1 = this.Bar._io
+          |}
+          |tmp1""".stripMargin,
+      JavaCompiler -> "true ? foo()._io() : bar()._io()",
+      JavaScriptCompiler -> "true ? this.foo._io : this.bar._io",
+      LuaCompiler -> "utils.box_unwrap((true) and utils.box_wrap(self.foo._io) or (self.bar._io))",
+      PerlCompiler -> "1 ? $self->foo()->_io() : $self->bar()->_io()",
+      PHPCompiler -> "true ? $this->foo()->_io() : $this->bar()->_io()",
+      PythonCompiler -> "self.foo._io if True else self.bar._io",
+      RubyCompiler -> "true ? foo._io : bar._io",
+    ))
+
+    full("(true ? foo : bar)._io", KaitaiStructType, KaitaiStreamType, ResultMap(
+      CppCompiler -> "(true ? foo() : bar())->_io()",
+      CSharpCompiler -> "(true ? Foo : Bar).M_Io",
+      GoCompiler ->
+        """var tmp1 interface{};
+          |if (true) {
+          |  tmp1 = this.Foo
+          |} else {
+          |  tmp1 = this.Bar
+          |}
+          |tmp1._io""".stripMargin,
+      JavaCompiler -> "(true ? foo() : bar())._io()",
+      JavaScriptCompiler -> "(true ? this.foo : this.bar)._io",
+      LuaCompiler -> "utils.box_unwrap((true) and utils.box_wrap(self.foo) or (self.bar))._io",
+      PerlCompiler -> "(1 ? $self->foo() : $self->bar())->_io()",
+      PHPCompiler -> "(true ? $this->foo() : $this->bar())->_io()",
+      PythonCompiler -> "(self.foo if True else self.bar)._io",
+      RubyCompiler -> "(true ? foo : bar)._io",
     ))
   }
 

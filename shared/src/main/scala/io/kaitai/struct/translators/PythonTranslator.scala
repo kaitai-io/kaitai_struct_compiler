@@ -73,8 +73,17 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
-    s"(${translate(ifTrue)} if ${translate(condition)} else ${translate(ifFalse)})"
+  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr, extPrec: Int): String = {
+    val conditionStr = translate(condition, IF_EXP_PRECEDENCE)
+    val ifTrueStr = translate(ifTrue, IF_EXP_PRECEDENCE)
+    val ifFalseStr = translate(ifFalse, IF_EXP_PRECEDENCE)
+    val fullStr = s"$ifTrueStr if $conditionStr else $ifFalseStr"
+    if (IF_EXP_PRECEDENCE <= extPrec) {
+      s"($fullStr)"
+    } else {
+      fullStr
+    }
+  }
 
   // Predefined methods of various types
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
