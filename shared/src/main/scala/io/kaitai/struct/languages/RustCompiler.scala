@@ -25,7 +25,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def innerEnums = false
 
-  override val translator: RustTranslator = new RustTranslator(typeProvider, config)
+  override val translator: RustTranslator = new RustTranslator(typeProvider, importList)
 
   override def universalFooter: Unit = {
     out.dec

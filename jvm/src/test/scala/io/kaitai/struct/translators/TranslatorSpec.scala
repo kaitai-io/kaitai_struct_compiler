@@ -1084,7 +1084,7 @@ class TranslatorSpec extends AnyFunSpec {
         PHPCompiler -> new PHPTranslator(tp, RuntimeConfig()),
         PythonCompiler -> new PythonTranslator(tp, new ImportList()),
         RubyCompiler -> new RubyTranslator(tp),
-        RustCompiler -> new RustTranslator(tp, RuntimeConfig()),
+        RustCompiler -> new RustTranslator(tp, new ImportList()),
       )
 
       langs.foreach { case (langObj, tr) =>
