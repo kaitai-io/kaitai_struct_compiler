@@ -5,9 +5,9 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.RustCompiler
-import io.kaitai.struct.{RuntimeConfig, Utils}
+import io.kaitai.struct.{ImportList, Utils}
 
-class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseTranslator(provider) {
+class RustTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "vec!([" + arr.map((x) =>
     	     "%0#2x".format(x & 0xff)
@@ -61,13 +61,17 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
   override def strConcat(left: expr, right: expr, extPrec: Int) =
     "format!(\"{}{}\", " + translate(left) + ", " + translate(right) + ")"
 
-  override def strToInt(s: expr, base: expr): String =
-    translate(base) match {
+  // TODO: do not generate .unwrap(), generate ? instead
+  override def strToInt(s: expr, base: expr): String = {
+    val baseStr = translate(base)
+    baseStr match {
       case "10" =>
         s"${translate(s)}.parse().unwrap()"
       case _ =>
-        "panic!(\"Converting from string to int in base {} is unimplemented\", " + translate(base) + ")"
+        importList.add("kaitai_struct::FromStrRadix")
+        s"FromStrRadix::from_str_radix(${translate(s)}, $baseStr).unwrap()"
     }
+  }
 
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
