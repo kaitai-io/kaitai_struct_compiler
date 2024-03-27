@@ -219,7 +219,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "sprintf('%d', 42)",
         PHPCompiler -> "strval(42)",
         PythonCompiler -> "str(42)",
-        RubyCompiler -> "42.to_s"
+        RubyCompiler -> "42.to_s",
+        RustCompiler -> "42.to_string()",
       ))
 
       full("(a + 42).to_s", CalcIntType, CalcStrType, ResultMap(
@@ -233,7 +234,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "sprintf('%d', $self->a() + 42)",
         PHPCompiler -> "strval($this->a() + 42)",
         PythonCompiler -> "str(self.a + 42)",
-        RubyCompiler -> "(a + 42).to_s"
+        RubyCompiler -> "(a + 42).to_s",
+        RustCompiler -> "(self.a + 42).to_string()",
       ))
 
       full("a + 42.to_s", CalcStrType, CalcStrType, ResultMap(
@@ -247,7 +249,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "$self->a() . sprintf('%d', 42)",
         PHPCompiler -> "$this->a() . strval(42)",
         PythonCompiler -> "self.a + str(42)",
-        RubyCompiler -> "a + 42.to_s"
+        RubyCompiler -> "a + 42.to_s",
+        RustCompiler -> "format!(\"{}{}\", self.a, 42.to_string())",
       ))
     }
   }
@@ -271,7 +274,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
       PHPCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
       PythonCompiler -> "(u\"foo\" if 2 < 3 else u\"bar\")",
-      RubyCompiler -> "(2 < 3 ? \"foo\" : \"bar\")"
+      RubyCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
+      RustCompiler -> "if 2 < 3 { \"foo\" } else { \"bar\" }",
     ))
   }
 
@@ -299,7 +303,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "1",
       PHPCompiler -> "true",
       PythonCompiler -> "True",
-      RubyCompiler -> "true"
+      RubyCompiler -> "true",
+      RustCompiler -> "true",
     ))
 
     full("false", CalcBooleanType, CalcBooleanType, ResultMap(
@@ -313,7 +318,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "0",
       PHPCompiler -> "false",
       PythonCompiler -> "False",
-      RubyCompiler -> "false"
+      RubyCompiler -> "false",
+      RustCompiler -> "false",
     ))
   }
 
@@ -334,7 +340,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "$self->some_bool()",
       PHPCompiler -> "intval($this->someBool())",
       PythonCompiler -> "int(self.some_bool)",
-      RubyCompiler -> "(some_bool ? 1 : 0)"
+      RubyCompiler -> "(some_bool ? 1 : 0)",
+      RustCompiler -> "self.some_bool as i32",
     ))
   }
 
@@ -350,7 +357,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "$self->foo_str()",
       PHPCompiler -> "$this->fooStr()",
       PythonCompiler -> "self.foo_str",
-      RubyCompiler -> "foo_str"
+      RubyCompiler -> "foo_str",
+      RustCompiler -> "self.foo_str",
     ))
 
     full("foo_block", userOwnedType(List("block")), userBorrowedType(List("block")), ResultMap(
@@ -364,7 +372,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "$self->foo_block()",
       PHPCompiler -> "$this->fooBlock()",
       PythonCompiler -> "self.foo_block",
-      RubyCompiler -> "foo_block"
+      RubyCompiler -> "foo_block",
+      RustCompiler -> "self.foo_block",
     ))
 
     full("foo.bar", FooBarProvider, CalcStrType, ResultMap(
@@ -378,7 +387,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "$self->foo()->bar()",
       PHPCompiler -> "$this->foo()->bar()",
       PythonCompiler -> "self.foo.bar",
-      RubyCompiler -> "foo.bar"
+      RubyCompiler -> "foo.bar",
+      RustCompiler -> "self.foo.bar",
     ))
 
     full("foo.inner.baz", FooBarProvider, CalcIntType, ResultMap(
@@ -392,7 +402,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "$self->foo()->inner()->baz()",
       PHPCompiler -> "$this->foo()->inner()->baz()",
       PythonCompiler -> "self.foo.inner.baz",
-      RubyCompiler -> "foo.inner.baz"
+      RubyCompiler -> "foo.inner.baz",
+      RustCompiler -> "self.foo.inner.baz",
     ))
 
     full("_root.foo", userOwnedType(List("top_class", "block")), userBorrowedType(List("top_class", "block")), ResultMap(
@@ -406,7 +417,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "$self->_root()->foo()",
       PHPCompiler -> "$this->_root()->foo()",
       PythonCompiler -> "self._root.foo",
-      RubyCompiler -> "_root.foo"
+      RubyCompiler -> "_root.foo",
+      RustCompiler -> "self._root.foo",
     ))
 
     full("a != 2 and a != 5", CalcIntType, CalcBooleanType, ResultMap(
@@ -420,7 +432,8 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> " (($self->a() != 2) && ($self->a() != 5)) ",
       PHPCompiler -> " (($this->a() != 2) && ($this->a() != 5)) ",
       PythonCompiler -> " ((self.a != 2) and (self.a != 5)) ",
-      RubyCompiler -> " ((a != 2) && (a != 5)) "
+      RubyCompiler -> " ((a != 2) && (a != 5)) ",
+      RustCompiler -> " ((self.a != 2) && (self.a != 5)) ",
     ))
   }
 
@@ -437,7 +450,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "[0, 1, 100500]",
         PHPCompiler -> "[0, 1, 100500]",
         PythonCompiler -> "[0, 1, 100500]",
-        RubyCompiler -> "[0, 1, 100500]"
+        RubyCompiler -> "[0, 1, 100500]",
+        RustCompiler -> "[0, 1, 100500]",
       ))
 
       full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, ResultMap(
@@ -451,7 +465,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "pack('C*', (34, 0, 10, 64, 65, 66, 92))",
         PHPCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
         PythonCompiler -> "b\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
-        RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')"
+        RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')",
+        RustCompiler -> "vec!([0x22, 0x0, 0xa, 0x40, 0x41, 0x42, 0x5c])",
       ))
 
       full("[255, 0, 255]", CalcIntType, CalcBytesType, ResultMap(
@@ -465,7 +480,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "pack('C*', (255, 0, 255))",
         PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
         PythonCompiler -> "b\"\\xFF\\x00\\xFF\"",
-        RubyCompiler -> "[255, 0, 255].pack('C*')"
+        RubyCompiler -> "[255, 0, 255].pack('C*')",
+        RustCompiler -> "vec!([0xff, 0x0, 0xff])",
       ))
     }
 
@@ -481,7 +497,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
         PHPCompiler -> "strlen(\"\\x00\\x01\\x02\")",
         PythonCompiler -> "len(b\"\\x00\\x01\\x02\")",
-        RubyCompiler -> "[0, 1, 2].pack('C*').size"
+        RubyCompiler -> "[0, 1, 2].pack('C*').size",
+        RustCompiler -> "vec!([0x0, 0x1, 0x2]).len()",
       ))
 
       full("a[42]", ArrayTypeInStream(CalcStrType), CalcStrType, ResultMap(
@@ -495,7 +512,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "@{$self->a()}[42]",
         PHPCompiler -> "$this->a()[42]",
         PythonCompiler -> "self.a[42]",
-        RubyCompiler -> "a[42]"
+        RubyCompiler -> "a[42]",
+        RustCompiler -> "self.a[42]",
       ))
 
       full("a[42 - 2]", ArrayTypeInStream(CalcStrType), CalcStrType, ResultMap(
@@ -509,7 +527,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "@{$self->a()}[42 - 2]",
         PHPCompiler -> "$this->a()[42 - 2]",
         PythonCompiler -> "self.a[42 - 2]",
-        RubyCompiler -> "a[42 - 2]"
+        RubyCompiler -> "a[42 - 2]",
+        RustCompiler -> "self.a[42 - 2]",
       ))
 
       full("a.first", ArrayTypeInStream(CalcIntType), CalcIntType, ResultMap(
@@ -523,7 +542,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "@{$self->a()}[0]",
         PHPCompiler -> "$this->a()[0]",
         PythonCompiler -> "self.a[0]",
-        RubyCompiler -> "a.first"
+        RubyCompiler -> "a.first",
+        RustCompiler -> "self.a.first()",
       ))
 
       full("a.last", ArrayTypeInStream(CalcIntType), CalcIntType, ResultMap(
@@ -539,7 +559,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "@{$self->a()}[-1]",
         PHPCompiler -> "$this->a()[count($this->a()) - 1]",
         PythonCompiler -> "self.a[-1]",
-        RubyCompiler -> "a.last"
+        RubyCompiler -> "a.last",
+        RustCompiler -> "self.a.last()",
       ))
 
       full("a.size", ArrayTypeInStream(CalcIntType), CalcIntType, ResultMap(
@@ -553,7 +574,8 @@ class TranslatorSpec extends AnyFunSpec {
         PHPCompiler -> "count($this->a())",
         PerlCompiler -> "scalar(@{$self->a()})",
         PythonCompiler -> "len(self.a)",
-        RubyCompiler -> "a.length"
+        RubyCompiler -> "a.length",
+        RustCompiler -> "self.a.len()",
       ))
     }
   }
@@ -571,7 +593,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "\"str\"",
         PHPCompiler -> "\"str\"",
         PythonCompiler -> "u\"str\"",
-        RubyCompiler -> "\"str\""
+        RubyCompiler -> "\"str\"",
+        RustCompiler -> "\"str\"",
       ))
 
       full("\"str\\nnext\"", CalcIntType, CalcStrType, ResultMap(
@@ -585,7 +608,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "\"str\\nnext\"",
         PHPCompiler -> "\"str\\nnext\"",
         PythonCompiler -> "u\"str\\nnext\"",
-        RubyCompiler -> "\"str\\nnext\""
+        RubyCompiler -> "\"str\\nnext\"",
+        RustCompiler -> "\"str\\nnext\"",
       ))
 
       full("\"str\\u000anext\"", CalcIntType, CalcStrType, ResultMap(
@@ -599,7 +623,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "\"str\\nnext\"",
         PHPCompiler -> "\"str\\nnext\"",
         PythonCompiler -> "u\"str\\nnext\"",
-        RubyCompiler -> "\"str\\nnext\""
+        RubyCompiler -> "\"str\\nnext\"",
+        RustCompiler -> "\"str\\nnext\"",
       ))
 
       full("\"str\\0next\"", CalcIntType, CalcStrType, ResultMap(
@@ -613,7 +638,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "\"str\\x00next\"",
         PHPCompiler -> "\"str\\x00next\"",
         PythonCompiler -> "u\"str\\x00next\"",
-        RubyCompiler -> "\"str\\x00next\""
+        RubyCompiler -> "\"str\\x00next\"",
+        RustCompiler -> "\"str\\u{0}next\"",
       ))
     }
 
@@ -624,7 +650,8 @@ class TranslatorSpec extends AnyFunSpec {
         NimCompiler -> "$\"str1\" & $\"str2\"",
         PerlCompiler -> "\"str1\" . \"str2\"",
         PHPCompiler -> "\"str1\" . \"str2\"",
-        PythonCompiler -> "u\"str1\" + u\"str2\""
+        PythonCompiler -> "u\"str1\" + u\"str2\"",
+        RustCompiler -> "format!(\"{}{}\", \"str1\", \"str2\")",
       ), CalcStrType)
 
       everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", ResultMap(
@@ -665,7 +692,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "length(\"str\")",
         PHPCompiler -> "strlen(\"str\")",
         PythonCompiler -> "len(u\"str\")",
-        RubyCompiler -> "\"str\".size"
+        RubyCompiler -> "\"str\".size",
+        RustCompiler -> "\"str\".len()",
       ))
 
       full("(foo + bar).length", CalcStrType, CalcIntType, ResultMap(
@@ -679,7 +707,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "length($self->foo() . $self->bar())",
         PHPCompiler -> "strlen($this->foo() . $this->bar())",
         PythonCompiler -> "len(self.foo + self.bar)",
-        RubyCompiler -> "(foo + bar).size"
+        RubyCompiler -> "(foo + bar).size",
+        RustCompiler -> "format!(\"{}{}\", self.foo, self.bar).len()",
       ))
 
       full("\"str\".reverse", CalcIntType, CalcStrType, ResultMap(
@@ -693,7 +722,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "scalar(reverse(\"str\"))",
         PHPCompiler -> "strrev(\"str\")",
         PythonCompiler -> "(u\"str\")[::-1]",
-        RubyCompiler -> "\"str\".reverse"
+        RubyCompiler -> "\"str\".reverse",
+        RustCompiler -> "\"str\".graphemes(true).rev().flat_map(|g| g.chars()).collect()",
       ))
 
       full("(foo + bar).reverse", CalcStrType, CalcStrType, ResultMap(
@@ -707,7 +737,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "scalar(reverse($self->foo() . $self->bar()))",
         PHPCompiler -> "strrev($this->foo() . $this->bar())",
         PythonCompiler -> "(self.foo + self.bar)[::-1]",
-        RubyCompiler -> "(foo + bar).reverse"
+        RubyCompiler -> "(foo + bar).reverse",
+        RustCompiler -> "format!(\"{}{}\", self.foo, self.bar).graphemes(true).rev().flat_map(|g| g.chars()).collect()",
       ))
 
       full("\"12345\".to_i", CalcIntType, CalcIntType, ResultMap(
@@ -726,7 +757,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "\"12345\" + 0",
         PHPCompiler -> "intval(\"12345\", 10)",
         PythonCompiler -> "int(u\"12345\")",
-        RubyCompiler -> "\"12345\".to_i"
+        RubyCompiler -> "\"12345\".to_i",
+        RustCompiler -> "\"12345\".parse().unwrap()", // TODO: RustCompiler: Use ? instead of .unwrap()
       ))
 
       full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, ResultMap(
@@ -745,7 +777,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "hex(\"1234fe\")",
         PHPCompiler -> "intval(\"1234fe\", 16)",
         PythonCompiler -> "int(u\"1234fe\", 16)",
-        RubyCompiler -> "\"1234fe\".to_i(16)"
+        RubyCompiler -> "\"1234fe\".to_i(16)",
+        RustCompiler -> "FromStrRadix::from_str_radix(\"1234fe\", 16).unwrap()", // TODO: RustCompiler: Use ? instead of .unwrap()
       ))
 
       // substring() call on a single string literal
@@ -760,7 +793,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr(\"foobar\", 2, 4 - 2)",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring(\"foobar\", 2, 4)",
         PythonCompiler -> "u\"foobar\"[2:4]",
-        RubyCompiler -> "\"foobar\"[2..4 - 1]"
+        RubyCompiler -> "\"foobar\"[2..4 - 1]",
+        RustCompiler -> "\"foobar\".substring(2, 4)",
       ))
 
       // substring() call on concatenation of strings: for some languages, concatenation needs to be
@@ -776,7 +810,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo() . $self->bar(), 2, 4 - 2)",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo() . $this->bar(), 2, 4)",
         PythonCompiler -> "(self.foo + self.bar)[2:4]",
-        RubyCompiler -> "(foo + bar)[2..4 - 1]"
+        RubyCompiler -> "(foo + bar)[2..4 - 1]",
+        RustCompiler -> "format!(\"{}{}\", self.foo, self.bar).substring(2, 4)",
       ))
 
       // substring() call with non-left-associative "from" and "to": for languages where subtraction
@@ -792,7 +827,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo(), 10 - 7, (10 - 3) - (10 - 7))", // TODO: PerlCompiler -> "substr($self->foo(), 10 - 7, 10 - 3 - (10 - 7))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 - 3)",
         PythonCompiler -> "self.foo[10 - 7:10 - 3]",
-        RubyCompiler -> "foo[10 - 7..(10 - 3) - 1]" // TODO: RubyCompiler -> "foo[10 - 7..10 - 3 - 1]"
+        RubyCompiler -> "foo[10 - 7..(10 - 3) - 1]", // TODO: RubyCompiler -> "foo[10 - 7..10 - 3 - 1]"
+        RustCompiler -> "self.foo.substring(10 - 7, 10 - 3)",
       ))
 
       // substring() call with "to" using `<<` which is lower precedence than `+` or `-`: if such
@@ -808,7 +844,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo(), 10 - 7, (10 << 2) - (10 - 7))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 << 2)",
         PythonCompiler -> "self.foo[10 - 7:10 << 2]",
-        RubyCompiler -> "foo[10 - 7..(10 << 2) - 1]"
+        RubyCompiler -> "foo[10 - 7..(10 << 2) - 1]",
+        RustCompiler -> "self.foo.substring(10 - 7, 10 << 2)",
       ))
 
       // substring() call with "from" using `<<` which is lower precedence than `+` or `-`: if such
@@ -824,7 +861,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo(), 10 << 1, 42 - (10 << 1))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 << 1, 42)",
         PythonCompiler -> "self.foo[10 << 1:42]",
-        RubyCompiler -> "foo[10 << 1..42 - 1]"
+        RubyCompiler -> "foo[10 << 1..42 - 1]",
+        RustCompiler -> "self.foo.substring(10 << 1, 42)",
       ))
     }
   }
@@ -842,7 +880,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "$self->other()->bar()",
         PHPCompiler -> "$this->other()->bar()",
         PythonCompiler -> "self.other.bar",
-        RubyCompiler -> "other.bar"
+        RubyCompiler -> "other.bar",
+        RustCompiler -> "self.other.bar", // TODO: RustCompiler: check .as<> casts
       ))
 
       full("other.as<block::innerblock>.baz", FooBarProvider, CalcIntType, ResultMap(
@@ -856,7 +895,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "$self->other()->baz()",
         PHPCompiler -> "$this->other()->baz()",
         PythonCompiler -> "self.other.baz",
-        RubyCompiler -> "other.baz"
+        RubyCompiler -> "other.baz",
+        RustCompiler -> "self.other.baz", // TODO: RustCompiler: check .as<> casts
       ))
     }
 
@@ -872,7 +912,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "1 + 2",
         PHPCompiler -> "1 + 2",
         PythonCompiler -> "1 + 2",
-        RubyCompiler -> "1 + 2"
+        RubyCompiler -> "1 + 2",
+        RustCompiler -> "1 + 2",
       ))
     }
 
@@ -888,7 +929,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "pack('C*', ())",
         PHPCompiler -> "\"\"",
         PythonCompiler -> "b\"\"",
-        RubyCompiler -> "[].pack('C*')"
+        RubyCompiler -> "[].pack('C*')",
+        RustCompiler -> "vec!([])",
       ))
 
       full("[].as<u1[]>", CalcIntType, ArrayTypeInStream(Int1Type(false)), ResultMap(
@@ -902,7 +944,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "[]",
         PHPCompiler -> "[]",
         PythonCompiler -> "[]",
-        RubyCompiler -> "[]"
+        RubyCompiler -> "[]",
+        RustCompiler -> "[]",
       ))
 
       full("[].as<f8[]>", CalcIntType, ArrayTypeInStream(FloatMultiType(Width8, None)), ResultMap(
@@ -916,7 +959,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "[]",
         PHPCompiler -> "[]",
         PythonCompiler -> "[]",
-        RubyCompiler -> "[]"
+        RubyCompiler -> "[]",
+        RustCompiler -> "[]",
       ))
     }
 
@@ -933,7 +977,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "pack('C*', (0 + 1, 5))",
         PHPCompiler -> "pack('C*', 0 + 1, 5)",
         PythonCompiler -> "struct.pack('2B', 0 + 1, 5)",
-        RubyCompiler -> "[0 + 1, 5].pack('C*')"
+        RubyCompiler -> "[0 + 1, 5].pack('C*')",
+        RustCompiler -> "", // TODO: RustCompiler: Fix .as<bytes> conversion
       ))
 
       // type enforcement: casting to array of integers
@@ -948,7 +993,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "[0, 1, 2]",
         PHPCompiler -> "[0, 1, 2]",
         PythonCompiler -> "[0, 1, 2]",
-        RubyCompiler -> "[0, 1, 2]"
+        RubyCompiler -> "[0, 1, 2]",
+        RustCompiler -> "[0, 1, 2]",
       ))
     }
   }
@@ -1005,6 +1051,7 @@ class TranslatorSpec extends AnyFunSpec {
       PHPCompiler -> "\"abc\" . strval(1) . \"%def\"",
       PythonCompiler -> "u\"abc\" + str(1) + u\"%def\"",
       RubyCompiler -> "\"abc\" + 1.to_s + \"%def\"",
+      RustCompiler -> "\"abc\" + 1.to_string() + \"%def\"", // TODO: RustCompiler -> "format!(\"abc\"{}\"%def\", 1)",
     ))
   }
 
@@ -1036,7 +1083,8 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> new PerlTranslator(tp, new ImportList()),
         PHPCompiler -> new PHPTranslator(tp, RuntimeConfig()),
         PythonCompiler -> new PythonTranslator(tp, new ImportList(), RuntimeConfig()),
-        RubyCompiler -> new RubyTranslator(tp)
+        RubyCompiler -> new RubyTranslator(tp),
+        RustCompiler -> new RustTranslator(tp, RuntimeConfig()),
       )
 
       langs.foreach { case (langObj, tr) =>
