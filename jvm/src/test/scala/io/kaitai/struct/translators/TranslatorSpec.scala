@@ -413,6 +413,7 @@ class TranslatorSpec extends AnyFunSpec {
   describe("arrays") {
     describe("literals") {
       full("[0, 1, 100500]", CalcIntType, ArrayTypeInStream(CalcIntType), ResultMap(
+        CppCompiler -> "",
         CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
         GoCompiler -> "[]int{0, 1, 100500}",
         JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
@@ -891,6 +892,7 @@ class TranslatorSpec extends AnyFunSpec {
 
       // type enforcement: casting to array of integers
       full("[0, 1, 2].as<u1[]>", CalcIntType, ArrayTypeInStream(Int1Type(false)), ResultMap(
+        CppCompiler -> "",
         CSharpCompiler -> "new List<byte> { 0, 1, 2 }",
         GoCompiler -> "[]uint8{0, 1, 2}",
         JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 2))",
