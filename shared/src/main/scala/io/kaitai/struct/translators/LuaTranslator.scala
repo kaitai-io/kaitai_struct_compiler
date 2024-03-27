@@ -207,7 +207,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     case Ast.boolop.And => "and"
   }
   override def unaryOp(op: Ast.unaryop): String = op match {
-    case Ast.unaryop.Not => "not"
+    case Ast.unaryop.Not => "not "
     case _ => super.unaryOp(op)
   }
 }

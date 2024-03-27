@@ -70,9 +70,9 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   // Members declared in io.kaitai.struct.translators.CommonMethods
 
   override def unaryOp(op: Ast.unaryop): String = op match {
-    case Ast.unaryop.Invert => "not"
+    case Ast.unaryop.Invert => "not "
     case Ast.unaryop.Minus => "-"
-    case Ast.unaryop.Not => "not"
+    case Ast.unaryop.Not => "not "
   }
 
   override def booleanOp(op: Ast.boolop): String = op match {
