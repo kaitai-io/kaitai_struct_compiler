@@ -74,7 +74,17 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
 
-  override def strConcat(left: expr, right: expr, extPrec: Int) = "($" + s"${translate(left, METHOD_PRECEDENCE)} & " + "$" + s"${translate(right, METHOD_PRECEDENCE)})"
+  override def strConcat(left: expr, right: expr, extPrec: Int): String = {
+    val thisPrec = OPERATOR_PRECEDENCE(Ast.operator.Add)
+    // $ is a special method which converts everything to a string, so use METHOD_PRECEDENCE
+    val leftStr = "$" + translate(left, METHOD_PRECEDENCE)
+    val rightStr = "$" + translate(right, METHOD_PRECEDENCE)
+    if (thisPrec <= extPrec) {
+      s"($leftStr & $rightStr)"
+    } else {
+      s"$leftStr & $rightStr"
+    }
+  }
 
   // Members declared in io.kaitai.struct.translators.CommonMethods
 
@@ -109,7 +119,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
         importList.add("sequtils")
         s"${translate(value, METHOD_PRECEDENCE)}.mapIt(it.${ksToNim(at.elType)})"
       }
-      case _ => s"(${ksToNim(typeName)}(${translate(value)}))"
+      case _ => s"${ksToNim(typeName)}(${translate(value)})"
     }
   override def doIntLiteral(n: BigInt): String = {
     if (n <= -2147483649L) { // -9223372036854775808..-2147483649
