@@ -72,9 +72,9 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)}"
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
 
-  override def strConcat(left: expr, right: expr, extPrec: Int) = "($" + s"${translate(left)} & " + "$" + s"${translate(right)})"
+  override def strConcat(left: expr, right: expr, extPrec: Int) = "($" + s"${translate(left, METHOD_PRECEDENCE)} & " + "$" + s"${translate(right, METHOD_PRECEDENCE)})"
 
   // Members declared in io.kaitai.struct.translators.CommonMethods
 
@@ -107,7 +107,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     typeName match {
       case at: ArrayType => {
         importList.add("sequtils")
-        s"${translate(value)}.mapIt(it.${ksToNim(at.elType)})"
+        s"${translate(value, METHOD_PRECEDENCE)}.mapIt(it.${ksToNim(at.elType)})"
       }
       case _ => s"(${ksToNim(typeName)}(${translate(value)}))"
     }
@@ -139,8 +139,8 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   }
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"@[${elts.map(translate).mkString(", ")}]"
-  override def arrayFirst(a: expr): String = s"${translate(a)}[0]"
-  override def arrayLast(a: expr): String = s"${translate(a)}[^1]"
+  override def arrayFirst(a: expr): String = s"${translate(a, METHOD_PRECEDENCE)}[0]"
+  override def arrayLast(a: expr): String = s"${translate(a, METHOD_PRECEDENCE)}[^1]"
   override def arrayMax(a: expr): String = s"max(${translate(a)})"
   override def arrayMin(a: expr): String = s"min(${translate(a)})"
   override def arraySize(a: expr): String = s"len(${translate(a)})"
@@ -156,9 +156,9 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"reversed(${translate(s)})"
   }
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substr(${translate(from)}, ${translate(to)} - 1)"
+    s"${translate(s, METHOD_PRECEDENCE)}.substr(${translate(from)}, ${translate(to)} - 1)"
   override def strToInt(s: expr, base: expr): String =
-    s"${translate(s)}.parseInt(${translate(base)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.parseInt(${translate(base)})"
 
   override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
     if (exprs.isEmpty) {
