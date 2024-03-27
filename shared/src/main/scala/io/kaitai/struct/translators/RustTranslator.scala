@@ -73,13 +73,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     translate(v)
 
   override def boolToInt(v: expr): String =
-    s"${translate(v)} as i32"
+    s"${translate(v, METHOD_PRECEDENCE)} as i32"
 
   override def floatToInt(v: expr): String =
-    s"${translate(v)} as i32"
+    s"${translate(v, METHOD_PRECEDENCE)} as i32"
 
   override def intToStr(i: expr): String =
-    s"${translate(i)}.to_string()"
+    s"${translate(i, METHOD_PRECEDENCE)}.to_string()"
 
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     encoding match {
@@ -98,15 +98,15 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
     s"${translate(s, METHOD_PRECEDENCE)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}.first()"
+    s"${translate(a, METHOD_PRECEDENCE)}.first()"
   override def arrayLast(a: expr): String =
-    s"${translate(a)}.last()"
+    s"${translate(a, METHOD_PRECEDENCE)}.last()"
   override def arraySize(a: expr): String =
-    s"${translate(a)}.len()"
+    s"${translate(a, METHOD_PRECEDENCE)}.len()"
   override def arrayMin(a: Ast.expr): String =
-    s"${translate(a)}.iter().min()"
+    s"${translate(a, METHOD_PRECEDENCE)}.iter().min()"
   override def arrayMax(a: Ast.expr): String =
-    s"${translate(a)}.iter().max()"
+    s"${translate(a, METHOD_PRECEDENCE)}.iter().max()"
 
   def types2classAbs(names: List[String]) =
     names match {
