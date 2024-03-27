@@ -113,7 +113,9 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     val newIO = dataType match {
       case knownSizeType: UserTypeFromBytes =>
         createSubstreamBuffered(id, knownSizeType.bytes, io, rep, defEndian)
-      case _: UserTypeInstream =>
+      case knownSizeType: CalcUserTypeFromBytes =>
+        createSubstreamBuffered(id, knownSizeType.bytes, io, rep, defEndian)
+      case _: UserTypeInstream | _: CalcUserType =>
         // no fixed buffer, just use regular IO
         io
     }

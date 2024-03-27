@@ -105,7 +105,10 @@ trait EveryReadIsExpression
       case knownSizeType: UserTypeFromBytes =>
         // we have a fixed buffer, thus we shall create separate IO for it
         createSubstream(id, knownSizeType.bytes, io, rep, defEndian)
-      case _: UserTypeInstream =>
+      case knownSizeType: CalcUserTypeFromBytes =>
+        // we have a fixed buffer, thus we shall create separate IO for it
+        createSubstream(id, knownSizeType.bytes, io, rep, defEndian)
+      case _: UserTypeInstream | _: CalcUserType =>
         // no fixed buffer, just use regular IO
         io
     }
