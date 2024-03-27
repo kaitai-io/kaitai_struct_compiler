@@ -369,12 +369,16 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val parent = t.forcedParent match {
-          case Some(USER_TYPE_NO_PARENT) => "null"
-          case Some(fp) => translator.translate(fp)
-          case None => "this"
+        val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
+          ("null", "null")
+        } else {
+          val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "null"
+            case Some(fp) => translator.translate(fp)
+            case None => "this"
+          }
+          (parent, "this._root")
         }
-        val root = if (t.isOpaque) "null" else "this._root"
         val addEndian = t.classSpec.get.meta.endian match {
           case Some(InheritedEndian) => ", this._is_le"
           case _ => ""
@@ -547,7 +551,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
-    val className = type2class(translator.provider.nowClass.name.last)
+    val className = type2class(typeProvider.nowClass.name.last)
 
     out.puts
     out.puts(s"${className}.prototype.toString = function() {")

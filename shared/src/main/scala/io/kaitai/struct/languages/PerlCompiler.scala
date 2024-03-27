@@ -296,7 +296,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io->read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {

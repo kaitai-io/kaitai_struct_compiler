@@ -79,6 +79,16 @@ case class ClassSpec(
   def parentType: DataType = parentClass.toDataType
 
   /**
+    * Determines whether this `ClassSpec` represents a type that is external
+    * (i.e. not defined in the same .ksy file) from the perspective of the given
+    * `ClassSpec`.
+    * @param curClass class spec from which the local/external relationship
+    * should be evaluated
+    */
+  def isExternal(curClass: ClassSpec): Boolean =
+    name.head != curClass.name.head
+
+  /**
     * Recursively traverses tree of types starting from this type, calling
     * certain function for every type, starting from this one.
     *
