@@ -34,7 +34,7 @@ trait CommonLiterals {
   /**
     * Handle ASCII character conversion for inlining into string literals.
     * Default implementation consults [[asciiCharQuoteMap]] first, then
-    * just dumps it as is if it's a printable ASCII charcter, or calls
+    * just dumps it as is if it's a printable ASCII character, or calls
     * [[strLiteralGenericCC]] if it's a control character.
     * @param code character code to convert into string for inclusion in
     *             a string literal
@@ -53,18 +53,14 @@ trait CommonLiterals {
 
   /**
     * Converts generic control character code into something that's allowed
-    * inside a string literal. Default implementation uses octal encoding,
+    * inside a string literal. Default implementation uses hex encoding,
     * which is ok for most C-derived languages.
     *
-    * Note that we use strictly 3 octal digits to work around potential
-    * problems with following decimal digits, i.e. "\0" + "2" that would be
-    * parsed as single character "\02" = "\x02", instead of two characters
-    * "\x00\x32".
     * @param code character code to represent
     * @return string literal representation of given code
     */
   def strLiteralGenericCC(code: Char): String =
-    "\\%03o".format(code.toInt)
+    "\\x%02X".format(code.toInt)
 
   /**
     * Converts Unicode (typically, non-ASCII) character code into something
