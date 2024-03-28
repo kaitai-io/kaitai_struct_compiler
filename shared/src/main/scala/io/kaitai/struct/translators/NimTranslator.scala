@@ -33,6 +33,15 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
   )
 
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Div) =>
+        genericBinOpStr(left, op, "div", right, extPrec)
+      case _ =>
+        super.genericBinOp(left, op, right, extPrec)
+    }
+  }
+
   // Members declared in io.kaitai.struct.translators.BaseTranslator
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     s"""encode($bytesExpr, ${doStringLiteral(encoding)})"""
@@ -85,7 +94,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Ast.operator.Add => "+"
       case Ast.operator.Sub => "-"
       case Ast.operator.Mult => "*"
-      case Ast.operator.Div => "div"
+      case Ast.operator.Div => "/"
       case Ast.operator.Mod => "%%%"
       case Ast.operator.BitAnd => "and"
       case Ast.operator.BitOr => "or"
