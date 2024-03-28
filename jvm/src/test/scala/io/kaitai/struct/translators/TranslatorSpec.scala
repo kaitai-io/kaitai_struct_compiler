@@ -430,7 +430,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "[]uint8{34, 0, 10, 64, 65, 66, 92}",
         JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
         JavaScriptCompiler -> "new Uint8Array([34, 0, 10, 64, 65, 66, 92])",
-        LuaCompiler -> "\"\\034\\000\\010\\064\\065\\066\\092\"",
+        LuaCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
         PerlCompiler -> "pack('C*', (34, 0, 10, 64, 65, 66, 92))",
         PHPCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
         PythonCompiler -> "b\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
@@ -443,7 +443,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "[]uint8{255, 0, 255}",
         JavaCompiler -> "new byte[] { -1, 0, -1 }",
         JavaScriptCompiler -> "new Uint8Array([255, 0, 255])",
-        LuaCompiler -> "\"\\255\\000\\255\"",
+        LuaCompiler -> "\"\\xFF\\x00\\xFF\"",
         PerlCompiler -> "pack('C*', (255, 0, 255))",
         PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
         PythonCompiler -> "b\"\\xFF\\x00\\xFF\"",
@@ -458,7 +458,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "len([]uint8{0, 1, 2})",
         JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
         JavaScriptCompiler -> "new Uint8Array([0, 1, 2]).length",
-        LuaCompiler -> "#\"\\000\\001\\002\"",
+        LuaCompiler -> "#\"\\x00\\x01\\x02\"",
         PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
         PHPCompiler -> "strlen(\"\\x00\\x01\\x02\")",
         PythonCompiler -> "len(b\"\\x00\\x01\\x02\")",
@@ -578,14 +578,14 @@ class TranslatorSpec extends AnyFunSpec {
       full("\"str\\0next\"", CalcIntType, CalcStrType, ResultMap(
         CppCompiler -> "std::string(\"str\\000next\", 8)",
         CSharpCompiler -> "\"str\\0next\"",
-        GoCompiler -> "\"str\\000next\"",
+        GoCompiler -> "\"str\\x00next\"",
         JavaCompiler -> "\"str\\000next\"",
         JavaScriptCompiler -> "\"str\\x00next\"",
-        LuaCompiler -> "\"str\\000next\"",
-        PerlCompiler -> "\"str\\000next\"",
-        PHPCompiler -> "\"str\\000next\"",
-        PythonCompiler -> "u\"str\\000next\"",
-        RubyCompiler -> "\"str\\000next\""
+        LuaCompiler -> "\"str\\x00next\"",
+        PerlCompiler -> "\"str\\x00next\"",
+        PHPCompiler -> "\"str\\x00next\"",
+        PythonCompiler -> "u\"str\\x00next\"",
+        RubyCompiler -> "\"str\\x00next\""
       ))
     }
 
