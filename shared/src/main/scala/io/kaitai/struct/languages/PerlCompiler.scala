@@ -388,7 +388,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
+  def enumValue(enumName: String, variant: String) = translator.doEnumVariant(List(enumName), variant)
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
     out.puts

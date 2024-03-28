@@ -140,11 +140,11 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def doInternalName(id: Identifier): String =
     s"${CppCompiler.publicMemberName(id)}()"
 
-  override def doEnumByLabel(enumType: List[String], label: String): String =
+  override def doEnumVariant(enumType: List[String], variant: String): String =
     CppCompiler.types2class(enumType.dropRight(1)) + "::" +
-      Utils.upperUnderscoreCase(enumType.last + "_" + label)
-  override def doEnumById(enumType: List[String], id: String): String =
-    s"static_cast<${CppCompiler.types2class(enumType)}>($id)"
+      Utils.upperUnderscoreCase(enumType.last + "_" + variant)
+  override def doEnumCast(enumType: List[String], value: String): String =
+    s"static_cast<${CppCompiler.types2class(enumType)}>($value)"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     if (op == Ast.cmpop.Eq) {

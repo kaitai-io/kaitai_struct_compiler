@@ -59,12 +59,12 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doInterpolatedStringLiteral(s)
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
-      case Ast.expr.EnumById(enumType, id, inType) =>
+      case Ast.expr.EnumCast(enumType, value, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumById(enumSpec.name, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+        doEnumCast(enumSpec.name, translate(value))
+      case Ast.expr.EnumVariant(enumType, variant, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumByLabel(enumSpec.name, label.name)
+        doEnumVariant(enumSpec.name, variant.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
           byteSizeOfClassSpec(provider.nowClass)
@@ -186,8 +186,26 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def kaitaiStructField(value: Ast.expr, name: String): String =
     anyField(value, name)
 
-  def doEnumByLabel(enumTypeAbs: List[String], label: String): String
-  def doEnumById(enumTypeAbs: List[String], id: String): String
+  /**
+    * Translates reference to the enum variant into target language
+    *
+    * @param enumTypeAbs Absolute path to the enum definition. Contains at least one element.
+    *        The last element in the path is the enum name itself, other -- types in which it is defined
+    * @param variant Enum variant
+    *
+    * @return String in the target language with reference to the enum variant
+    */
+  def doEnumVariant(enumTypeAbs: List[String], variant: String): String
+  /**
+    * Translates cast of expression to the enumeration type.
+    *
+    * @param enumTypeAbs Absolute path to the enum definition. Contains at least one element.
+    *        The last element in the path is the enum name itself, other -- types in which it is defined
+    * @param value Translated expression which should have enum type
+    *
+    * @return String in the target language transformation of the expression result into enumeration type
+    */
+  def doEnumCast(enumTypeAbs: List[String], value: String): String
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int) =

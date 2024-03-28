@@ -82,10 +82,10 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doInternalName(id: Identifier): String =
     s"self.${LuaCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${LuaCompiler.types2class(enumTypeAbs)}.$label"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"${LuaCompiler.types2class(enumTypeAbs)}($id)"
+  override def doEnumVariant(enumTypeAbs: List[String], variant: String): String =
+    s"${LuaCompiler.types2class(enumTypeAbs)}.$variant"
+  override def doEnumCast(enumTypeAbs: List[String], value: String): String =
+    s"${LuaCompiler.types2class(enumTypeAbs)}($value)"
 
   override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
     s"${translate(left)} .. ${translate(right)}"
