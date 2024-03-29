@@ -192,25 +192,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit = {
-    out.puts(s"${privateMemberName(attrName)}, err = $normalIO.ReadBytes(${contents.length})")
-
-    out.puts(s"if err != nil {")
-    out.inc
-    out.puts("return err")
-    out.dec
-    out.puts("}")
-
-    importList.add("bytes")
-    importList.add("errors")
-    val expected = translator.resToStr(translator.doByteArrayLiteral(contents))
-    out.puts(s"if !bytes.Equal(${privateMemberName(attrName)}, $expected) {")
-    out.inc
-    out.puts("return errors.New(\"Unexpected fixed contents\")")
-    out.dec
-    out.puts("}")
-  }
-
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 

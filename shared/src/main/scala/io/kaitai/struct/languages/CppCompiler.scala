@@ -16,7 +16,6 @@ class CppCompiler(
 ) extends LanguageCompiler(typeProvider, config)
     with ObjectOrientedLanguage
     with AllocateAndStoreIO
-    with FixedContentsUsingArrayByteLiteral
     with UniversalDoc
     with SwitchIfOps
     with EveryReadIsExpression {
@@ -441,9 +440,6 @@ class CppCompiler(
     outSrc.dec
     outSrc.puts("}")
   }
-
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    outSrc.puts(s"${privateMemberName(attrName)} = $normalIO->ensure_fixed_contents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)

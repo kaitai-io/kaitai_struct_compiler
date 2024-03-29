@@ -18,7 +18,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalFooter
     with UniversalDoc
     with AllocateIOLocalVar
-    with FixedContentsUsingArrayByteLiteral
     with SwitchIfOps
     with NoNeedForFullClassPath {
   import JavaCompiler._
@@ -231,10 +230,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     beProc()
     out.dec
     out.puts("}")
-  }
-
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensureFixedContents($contents);")
   }
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {

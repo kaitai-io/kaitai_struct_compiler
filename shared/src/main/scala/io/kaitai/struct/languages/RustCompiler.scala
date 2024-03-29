@@ -16,7 +16,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with AllocateIOLocalVar
     with EveryReadIsExpression
-    with FixedContentsUsingArrayByteLiteral
     with ObjectOrientedLanguage
     with SingleOutputFile
     with UpperCamelCaseClasses
@@ -845,10 +844,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     expr2
   }
-
-  override def attrFixedContentsParse(attrName: Identifier,
-                                      contents: String): Unit =
-    out.puts(s"// attrFixedContentsParse($attrName, $contents)")
 
   override def publicMemberName(id: Identifier): String =
     s"// publicMemberName($id)"
