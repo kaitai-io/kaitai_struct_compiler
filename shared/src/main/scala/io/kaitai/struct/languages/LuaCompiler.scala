@@ -12,7 +12,6 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with AllocateIOLocalVar
     with EveryReadIsExpression
-    with FixedContentsUsingArrayByteLiteral
     with ObjectOrientedLanguage
     with SingleOutputFile
     with UniversalDoc
@@ -149,9 +148,6 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("end")
   }
-
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = self._io:ensure_fixed_contents($contents)")
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)} then")
