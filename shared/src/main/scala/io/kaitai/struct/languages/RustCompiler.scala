@@ -319,7 +319,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.read_bits_int($width)?"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {
