@@ -199,7 +199,7 @@ class CppCompiler(
 
     handleAssignmentSimple(ParentIdentifier, pParent)
     handleAssignmentSimple(RootIdentifier, if (name == rootClassName) {
-      "this"
+      s"${pRoot} ? ${pRoot} : this"
     } else {
       pRoot
     })
