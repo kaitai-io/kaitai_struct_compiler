@@ -362,7 +362,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.ReadBytes(${expression(blt.size)})"
       case _: BytesEosType =>
         s"$io.ReadBytesFull()"
-      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+      case BytesTerminatedType(Terminator(terminator, include, consume, eosError), _) =>
         s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1(bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
@@ -388,13 +388,13 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Terminator]) = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName.BytesStripRight($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName.BytesTerminate($expr1, $term, $include)"
+      case Some(Terminator(term, include, _, _)) => s"$kstreamName.BytesTerminate($expr1, $term, $include)"
       case None => expr1
     }
     expr2

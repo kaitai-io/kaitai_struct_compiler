@@ -2,7 +2,7 @@ package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{DataType, FixedEndian}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, Terminator}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.BaseTranslator
@@ -91,10 +91,10 @@ trait EveryReadIsExpression
 
     // apply pad stripping and termination
     dataType match {
-      case BytesEosType(terminator, include, padRight, _) =>
-        bytesPadTermExpr(expr, padRight, terminator, include)
-      case BytesLimitType(_, terminator, include, padRight, _) =>
-        bytesPadTermExpr(expr, padRight, terminator, include)
+      case BytesEosType(terminator, padRight, _) =>
+        bytesPadTermExpr(expr, padRight, terminator)
+      case BytesLimitType(_, terminator, padRight, _) =>
+        bytesPadTermExpr(expr, padRight, terminator)
       case _ =>
         expr
     }
@@ -247,7 +247,7 @@ trait EveryReadIsExpression
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
 
   def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
-  def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String
+  def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Terminator]): String
   def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = ???
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {

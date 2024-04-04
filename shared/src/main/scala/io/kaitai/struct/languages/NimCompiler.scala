@@ -352,13 +352,13 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
   // Members declared in io.kaitai.struct.languages.components.EveryReadIsExpression
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Terminator]): String = {
     val expr1 = padRight match {
       case Some(padByte) => s"$expr0.bytesStripRight($padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$expr1.bytesTerminate($term, $include)"
+      case Some(Terminator(term, include, _, _)) => s"$expr1.bytesTerminate($term, $include)"
       case None => expr1
     }
     expr2
@@ -396,7 +396,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.readBytes(int(${expression(blt.size)}))"
       case _: BytesEosType =>
         s"$io.readBytesFull()"
-      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+      case BytesTerminatedType(Terminator(terminator, include, consume, eosError), _) =>
         s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}(1) != 0"
