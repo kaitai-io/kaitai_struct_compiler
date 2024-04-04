@@ -87,7 +87,11 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts(s"$kstructName._init(self, io)")
     out.puts("self._parent = parent")
-    out.puts("self._root = root or self")
+    if (name == rootClassName) {
+      out.puts("self._root = root or self")
+    } else {
+      out.puts("self._root = root")
+    }
     if (isHybrid)
       out.puts("self._is_le = is_le")
 
