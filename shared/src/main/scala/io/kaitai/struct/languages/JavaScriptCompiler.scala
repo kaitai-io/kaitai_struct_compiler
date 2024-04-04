@@ -97,7 +97,11 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
-    out.puts("this._root = _root || this;")
+    if (name == rootClassName) {
+      out.puts("this._root = _root || this;")
+    } else {
+      out.puts("this._root = _root;")
+    }
 
     if (isHybrid)
       out.puts("this._is_le = _is_le;")
