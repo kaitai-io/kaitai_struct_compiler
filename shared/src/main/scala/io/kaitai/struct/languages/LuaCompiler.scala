@@ -33,7 +33,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.toList.mkString("", "\n", "\n")
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
-    out.puts("require(\"" + classSpec.name.head + "\")")
+    importList.add("require(\"" + classSpec.name.head + "\")")
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"-- $headerComment")

@@ -79,7 +79,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = classSpec.name.head
-    out.puts(
+    importList.add(
       if (config.pythonPackage.nonEmpty) {
         s"from ${config.pythonPackage} import $name"
       } else {

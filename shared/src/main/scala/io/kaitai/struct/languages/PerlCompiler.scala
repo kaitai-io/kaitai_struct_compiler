@@ -51,7 +51,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
-    out.puts(s"use ${type2class(classSpec.name.head)};")
+    importList.add(type2class(classSpec.name.head))
 
   override def classHeader(name: List[String]): Unit = {
     out.puts
