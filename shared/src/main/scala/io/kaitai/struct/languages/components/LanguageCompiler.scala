@@ -73,7 +73,6 @@ abstract class LanguageCompiler(
     * @param topClassName top-level name type in KS notation (lower underscore)
     */
   def fileFooter(topClassName: String): Unit = {}
-  def importFile(file: String): Unit = {}
 
   /**
     * Outputs declaration of "opaque class", i.e. class that will be referred to in this file, but

@@ -82,9 +82,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = "KaitaiError" // TODO: maybe add more debugging info
 
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
-  override def importFile(file: String): Unit = {
-    importList.add(file)
-  }
   override def alignToByte(io: String): Unit = out.puts(s"alignToByte($io)")
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
     out.puts(s"this.${idToStr(attrName)} = $normalIO.ensureFixedContents($contents)")
