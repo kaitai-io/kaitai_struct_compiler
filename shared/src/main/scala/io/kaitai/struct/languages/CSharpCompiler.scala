@@ -677,9 +677,11 @@ object CSharpCompiler extends LanguageCompilerStatic
     * Determine .NET data type corresponding to a KS data type.
     *
     * @param attrType KS data type
+    * @param absolute If `true` then the full name (with namespaces and enclosing types)
+             of the type will be generated. `true` is used in the test generator
     * @return .NET data type
     */
-  def kaitaiType2NativeType(importList: ImportList, attrType: DataType): String = {
+  def kaitaiType2NativeType(importList: ImportList, attrType: DataType, absolute: Boolean = false): String = {
     attrType match {
       case Int1Type(false) => "byte"
       case IntMultiType(false, Width2, _) => "ushort"
@@ -707,15 +709,25 @@ object CSharpCompiler extends LanguageCompilerStatic
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
 
-      case t: UserType => types2class(t.name)
-      case EnumType(name, _) => types2class(name)
+      case t: UserType =>
+        types2class(if (absolute) {
+          t.classSpec.get.name
+        } else {
+          t.name
+        })
+      case t: EnumType =>
+        types2class(if (absolute) {
+          t.enumSpec.get.name
+        } else {
+          t.name
+        })
 
       case at: ArrayType => {
         importList.add("System.Collections.Generic")
-        s"List<${kaitaiType2NativeType(importList, at.elType)}>"
+        s"List<${kaitaiType2NativeType(importList, at.elType, absolute)}>"
       }
 
-      case st: SwitchType => kaitaiType2NativeType(importList, st.combinedType)
+      case st: SwitchType => kaitaiType2NativeType(importList, st.combinedType, absolute)
     }
   }
 
