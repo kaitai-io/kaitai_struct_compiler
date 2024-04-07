@@ -404,6 +404,21 @@ class ExpressionsSpec extends AnyFunSpec {
       Expressions.parse("foo.bar") should be (Attribute(Name(identifier("foo")),identifier("bar")))
     }
 
+    describe("strings") {
+      it("single-quoted") {
+        // \" -> \"
+        // \\ -> \\
+        Expressions.parse(""" ' \" \\ ' """) should be(Str(" \\\" \\\\ "))
+        Expressions.parse(""" 'ASCII\\x' """) should be(Str("ASCII\\\\x"))
+      }
+      it("double-quoted") {
+        // \" -> "
+        // \\ -> \
+        Expressions.parse(""" " \" \\ " """) should be(Str(" \" \\ "))
+        Expressions.parse(""" "ASCII\\'x" """) should be(Str("ASCII\\'x"))
+      }
+    }
+
     describe("f-strings") {
       it("parses f-string with just a string") {
         Expressions.parse("f\"abc\"") should be(InterpolatedStr(Seq(

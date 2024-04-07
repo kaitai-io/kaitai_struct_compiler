@@ -103,7 +103,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     s"strval(${translate(i)})"
 
   override def bytesToStr(bytesExpr: String, encoding: String): String =
-    s"""${PHPCompiler.kstreamName}::bytesToStr($bytesExpr, "$encoding")"""
+    s"""${PHPCompiler.kstreamName}::bytesToStr($bytesExpr, ${doStringLiteral(encoding)})"""
 
   override def bytesLength(b: Ast.expr): String =
     s"strlen(${translate(b)})"

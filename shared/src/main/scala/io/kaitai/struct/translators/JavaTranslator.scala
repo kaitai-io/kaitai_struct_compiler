@@ -132,7 +132,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
         s"StandardCharsets.${charsetConst}"
       case None =>
         importList.add("java.nio.charset.Charset")
-        s"""Charset.forName("$encoding")"""
+        s"""Charset.forName(${doStringLiteral(encoding)})"""
     }
     s"new String($bytesExpr, $charsetExpr)"
   }
