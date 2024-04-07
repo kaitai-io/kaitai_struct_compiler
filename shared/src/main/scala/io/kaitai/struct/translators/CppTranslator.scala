@@ -60,6 +60,9 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     }
   }
 
+  /** Used by the KST translator. */
+  def doRawStringLiteral(s: String): String = super.doStringLiteral(s)
+
   /**
     * Handles string literal for C++ by wrapping a C `const char*`-style string
     * into a std::string constructor. Note that normally std::string
