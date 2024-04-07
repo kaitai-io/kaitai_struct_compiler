@@ -174,7 +174,7 @@ object DataType {
       classSpec.get.isExternal(curClass)
     def isOpaque = {
       val cs = classSpec.get
-      cs.isTopLevel || cs.meta.isOpaque
+      cs.meta.isOpaque
     }
   }
   case class UserTypeInstream(
