@@ -75,12 +75,12 @@ abstract class LanguageCompiler(
   def fileFooter(topClassName: String): Unit = {}
 
   /**
-    * Outputs declaration of "opaque class", i.e. class that will be referred to in this file, but
+    * Outputs declaration of "external class", i.e. class that will be referred to in this file, but
     * not declared here. Some languages require either a "forward declaration" in this case, or a
-    * statement to import that class, or something similar. Called once per each opaque class.
+    * statement to import that class, or something similar. Called once per each external class.
     * @param classSpec
     */
-  def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {}
+  def externalClassDeclaration(classSpec: ClassSpec): Unit = {}
 
   def classDoc(name: List[String], doc: DocSpec): Unit = {}
   def classHeader(name: List[String]): Unit

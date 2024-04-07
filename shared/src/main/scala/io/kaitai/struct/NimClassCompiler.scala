@@ -21,7 +21,7 @@ class NimClassCompiler(
 
   override def compile: CompileLog.SpecSuccess = {
     lang.fileHeader(classNameFlattened(topClass))
-    compileOpaqueClasses(topClass)
+    compileExternalClasses(topClass)
 
     // if there are any enums at all maybe we can detect it and not generate this template
 //    nimlang.enumTemplate

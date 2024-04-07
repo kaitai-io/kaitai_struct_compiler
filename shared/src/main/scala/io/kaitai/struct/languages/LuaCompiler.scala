@@ -32,7 +32,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outImports(topClass: ClassSpec) =
     importList.toList.mkString("", "\n", "\n")
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
+  override def externalClassDeclaration(classSpec: ClassSpec): Unit =
     importList.add("require(\"" + classSpec.name.head + "\")")
 
   override def fileHeader(topClassName: String): Unit = {

@@ -58,7 +58,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("});")
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+  override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
     val className = type2class(classSpec.name.head)
     importList.add(s"./$className")
   }

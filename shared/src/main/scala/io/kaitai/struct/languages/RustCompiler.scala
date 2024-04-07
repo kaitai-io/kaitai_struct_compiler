@@ -54,7 +54,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+  override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = type2class(classSpec.name.last)
     val pkg = type2classAbs(classSpec.name)
 

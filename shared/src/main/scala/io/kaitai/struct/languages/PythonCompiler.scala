@@ -77,7 +77,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+  override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
     val name = classSpec.name.head
     importList.add(
       if (config.pythonPackage.nonEmpty) {

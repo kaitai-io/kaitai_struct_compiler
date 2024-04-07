@@ -54,7 +54,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
+  override def externalClassDeclaration(classSpec: ClassSpec): Unit =
     importList.add(classSpec.name.head)
   override def innerEnums = false
   override val translator: NimTranslator = new NimTranslator(typeProvider, importList)
