@@ -94,7 +94,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def intToStr(i: Ast.expr): String =
     s"str(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
-    s"""($bytesExpr).decode("$encoding")"""
+    s"""($bytesExpr).decode(${doStringLiteral(encoding)})"""
 
   override def bytesLength(value: Ast.expr): String =
     s"len(${translate(value)})"
