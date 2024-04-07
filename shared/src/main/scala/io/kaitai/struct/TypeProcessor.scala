@@ -10,12 +10,12 @@ object TypeProcessor {
   def getOpaqueClasses(curClass: ClassSpec): Iterable[ClassSpec] = {
     val res = mutable.Set[ClassSpec]()
     curClass.seq.map((attr) =>
-      res ++= getOpaqueDataTypes(attr.dataType)
+      res ++= getOpaqueDataTypes(attr.dataType, curClass)
     )
     curClass.instances.foreach { case (_, inst) =>
       inst match {
         case pis: ParseInstanceSpec =>
-          res ++= getOpaqueDataTypes(pis.dataType)
+          res ++= getOpaqueDataTypes(pis.dataType, curClass)
         case _ => None
       }
     }
@@ -28,17 +28,17 @@ object TypeProcessor {
     res
   }
 
-  def getOpaqueDataTypes(dataType: DataType): Iterable[ClassSpec] = {
+  def getOpaqueDataTypes(dataType: DataType, curClass: ClassSpec): Iterable[ClassSpec] = {
     dataType match {
       case ut: UserType =>
-        if (ut.isOpaque) {
+        if (ut.isExternal(curClass)) {
           List(ut.classSpec.get)
         } else {
           List()
         }
       case st: SwitchType =>
         st.cases.flatMap { case (_, ut) =>
-          getOpaqueDataTypes(ut)
+          getOpaqueDataTypes(ut, curClass)
         }
       case _ =>
         // all other types are not opaque external user types
