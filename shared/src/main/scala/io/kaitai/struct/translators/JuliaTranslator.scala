@@ -1,23 +1,22 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{ImportList, Utils}
+import io.kaitai.struct.{ImportList}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.languages.{JuliaCompiler, RubyCompiler}
+import io.kaitai.struct.languages.{JuliaCompiler}
 import io.kaitai.struct.exprlang.ConstEvaluator
-import scala.collection.immutable.HashSet
 
 class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): String = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"fld(${translate(left)}, ${translate(right)})"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"KaitaiStruct.mod(${translate(left)}, ${translate(right)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -110,16 +109,16 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     s"Int(${translate(v)})"
   override def floatToInt(v: Ast.expr): String =
     s"trunc(${translate(v)})"
-  override def intToStr(i: Ast.expr, base: Ast.expr): String = {
-    val baseStr = translate(base)
-    s"string(${translate(i)}, base = $baseStr)"
+  override def intToStr(i: Ast.expr): String = {
+    s"string(${translate(i)})"
   }
-  override def bytesToStr(bytesExpr: String, encoding: Ast.expr): String = {
+  override def bytesToStr(bytesExpr: String, encoding: String): String = {
     importList.add("using StringEncodings")
-    s"decode(($bytesExpr), ${translate(encoding)})"
+    s"""decode(($bytesExpr), "$encoding")"""
   }
 
-  override def strConcat(left: Ast.expr, right: Ast.expr): String = s"${translate(left)} * ${translate(right)}"
+  override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
+    s"${translate(left)} * ${translate(right)}"
 
   override def bytesLength(value: Ast.expr): String =
     s"length(${translate(value)})"

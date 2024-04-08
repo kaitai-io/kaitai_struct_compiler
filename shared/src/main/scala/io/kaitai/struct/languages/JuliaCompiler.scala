@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType.{BooleanType, _}
-import io.kaitai.struct.datatype.{CalcEndian, DataType, EndOfStreamError, FixedEndian, InheritedEndian, KSError, NeedRaw, UndecidedEndiannessError}
+import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
@@ -24,7 +24,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   import JuliaCompiler._
 
   override val translator = new JuliaTranslator(typeProvider, importList)
-  private val abstractTypesAndEnums = new StringLanguageOutputWriter(indent)
+  private val enums = new StringLanguageOutputWriter(indent)
 
   override def innerDocstrings = true
 
@@ -38,7 +38,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     Map(outFileName(topClass.nameAsStr) ->
-      (s"module ${types2class(topClass.name)}Module\n" + outHeader.result + outImports(topClass) + abstractTypesAndEnums.result + out.result + "end\n")
+      (s"module ${types2class(topClass.name)}Module\n" + outHeader.result + outImports(topClass) + enums.result + out.result + "end\n")
     )
   }
 
@@ -60,7 +60,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
+  override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
     // val name = classSpec.name.head
     // importList.add(s"include(${'"'}../../compiled/julia/${classSpec.name.head}.jl${'"'})")
     // importList.add(s"using .${types2class(classSpec.name)}Module: ${types2class(classSpec.name)}")
@@ -290,7 +290,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"KaitaiStruct.align_to_byte($io)")
 
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
-    ios.foreach { (io) =>
+    ios.foreach { io =>
       val name = attrId match {
         case _: RawIdentifier | _: SpecialIdentifier => return
         case _ => idToStr(attrId)
@@ -344,11 +344,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatCommonInit(id: Identifier, dataType: DataType, needRaw: NeedRaw): Unit = {
-    if (needRaw.level >= 1)
-      out.puts(s"${privateMemberName(RawIdentifier(id))} = []")
-    if (needRaw.level >= 2)
-      out.puts(s"${privateMemberName(RawIdentifier(RawIdentifier(id)))} = []")
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     out.puts(s"${privateMemberName(id)} = []")
   }
 
@@ -440,7 +436,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"KaitaiStruct.bytes_terminate($expr1, $term, ${include})"
+      case Some(term) => s"KaitaiStruct.bytes_terminate($expr1, $term, $include)"
       case None => expr1
     }
     expr2
@@ -521,12 +517,12 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val fullEnumName: List[String] = curClass :+ enumName
-    abstractTypesAndEnums.puts(s"@enum ${types2class(fullEnumName)}::Int64 begin")
-    abstractTypesAndEnums.inc
-    enumColl.foreach { case (id: Long, label: EnumValueSpec) => abstractTypesAndEnums.puts(s"${enumToStr(fullEnumName, label.name)} = ${translator.doIntLiteral(id)}") }
-    abstractTypesAndEnums.dec
-    abstractTypesAndEnums.puts("end")
-    abstractTypesAndEnums.puts
+    enums.puts(s"@enum ${types2class(fullEnumName)}::Int64 begin")
+    enums.inc
+    enumColl.foreach { case (id: Long, label: EnumValueSpec) => enums.puts(s"${enumToStr(fullEnumName, label.name)} = ${translator.doIntLiteral(id)}") }
+    enums.dec
+    enums.puts("end")
+    enums.puts
   }
 
   override def debugClassSequence(seq: List[AttrSpec]): Unit = {
@@ -638,12 +634,12 @@ object JuliaCompiler extends LanguageCompilerStatic
 
       case AnyType => "Any"
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
-      case KaitaiStructType | CalcKaitaiStructType => kstructName
+      case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
       // case t: UserType => types2class(t.classSpec match {
       //   case Some(cs) => if (cs.isTopLevel) cs.name else "Abstract" :: cs.name
       //   case None => t.name
       // })
-      case t: UserType => "KaitaiStruct.UserType"
+      case _: UserType => "KaitaiStruct.UserType"
 
       case t: EnumType => s"Union{${types2class(t.enumSpec.get.name)},Integer}"
 
