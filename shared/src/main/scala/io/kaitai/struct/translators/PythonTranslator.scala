@@ -112,6 +112,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.$label"
   }
   override def doEnumById(enumSpec: EnumSpec, id: String): String = {
+    importList.add(s"from kaitaistruct import ${PythonCompiler.kstreamName}")
+
     val isExternal = enumSpec.isExternal(provider.nowClass)
     s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumSpec.name, isExternal)}, $id)"
   }
@@ -150,21 +152,33 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     s"str(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""($bytesExpr).decode(${doStringLiteral(encoding)})"""
-  override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String =
+  override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String = {
+    importList.add(s"from kaitaistruct import ${PythonCompiler.kstreamName}")
+
     s"${PythonCompiler.kstreamName}.byte_array_index_of(${translate(b)}, ${translate(byte)})"
+  }
 
   override def bytesLength(value: Ast.expr): String =
     s"len(${translate(value)})"
-  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
+  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String = {
+    importList.add(s"from kaitaistruct import ${PythonCompiler.kstreamName}")
+
     s"${PythonCompiler.kstreamName}.byte_array_index(${translate(container)}, ${translate(idx)})"
+  }
   override def bytesFirst(a: Ast.expr): String =
     bytesSubscript(a, Ast.expr.IntNum(0))
   override def bytesLast(a: Ast.expr): String =
     bytesSubscript(a, Ast.expr.IntNum(-1))
-  override def bytesMin(b: Ast.expr): String =
+  override def bytesMin(b: Ast.expr): String = {
+    importList.add(s"from kaitaistruct import ${PythonCompiler.kstreamName}")
+
     s"${PythonCompiler.kstreamName}.byte_array_min(${translate(b)})"
-  override def bytesMax(b: Ast.expr): String =
+  }
+  override def bytesMax(b: Ast.expr): String = {
+    importList.add(s"from kaitaistruct import ${PythonCompiler.kstreamName}")
+
     s"${PythonCompiler.kstreamName}.byte_array_max(${translate(b)})"
+  }
 
 
   override def strLength(value: Ast.expr): String =
