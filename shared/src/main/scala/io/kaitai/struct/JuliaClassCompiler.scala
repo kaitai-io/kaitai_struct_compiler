@@ -92,4 +92,15 @@ class JuliaClassCompiler(
     }
     lang.switchCases[FixedEndian](IS_LE_ID, ce.on, ce.cases, renderProc, renderProc)
   }
+
+  override def compileAttrDeclarations(attrs: List[MemberSpec]): Unit = {
+    attrs.foreach { (attr) =>
+      val isNullable = if (lang.switchBytesOnlyAsRaw) {
+        attr.isNullableSwitchRaw
+      } else {
+        attr.isNullable || attr.dataType.isInstanceOf[UserType]
+      }
+      lang.attributeDeclaration(attr.id, attr.dataTypeComposite, isNullable)
+    }
+  }
 }
