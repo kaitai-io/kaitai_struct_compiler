@@ -9,7 +9,6 @@ import io.kaitai.struct.exprlang.ConstEvaluator
 import scala.collection.immutable.HashSet
 
 class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
-  var usedForeignImports: HashSet[String] = HashSet.empty[String]
 
   override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr): String = {
     (detectType(left), detectType(right), op) match {
@@ -37,9 +36,6 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     }
   }
 
-// override def doStringLiteral(s: String): String = "raw" + super.doStringLiteral(s)
-//  override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
-
   /**
     * https://docs.python.org/2.7/reference/lexical_analysis.html#string-literals
     * https://docs.Julia.org/3.6/reference/lexical_analysis.html#string-and-bytes-literals
@@ -59,9 +55,8 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"Vector{UInt8}(${super.doByteArrayLiteral(arr)})"
+// "b\"" + Utils.hexEscapeByteArray(arr) + "\""
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = {
-//    importList.add("import struct")
-//    s"struct.pack('${elts.length}b', ${elts.map(translate).mkString(", ")})"
     s"Vector{UInt8}([${elts.map(translate).mkString(", ")}])"
   }
 
@@ -84,25 +79,15 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))){
-      importList.add(s"include(${'"'}../../compiled/julia/${enumTypeAbs.head}.jl${'"'})")
-      importList.add(s"using .${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
-      importList.add(s"#my code here 1")
+      importList.add(s"using ${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
     }
 
     s"${JuliaCompiler.type2class(enumTypeAbs.head)}Module.${JuliaCompiler.enumToStr(enumTypeAbs, label)}"
   }
 
   override def doEnumById(enumTypeAbs: List[String], id: String): String = {
-    // if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))
-    // && !usedForeignImports.contains(JuliaCompiler.type2class(enumTypeAbs.head))) {
-    //   usedForeignImports += JuliaCompiler.type2class(enumTypeAbs.head)
-    //   importList.add(s"using ..${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
-    //   importList.add(s"#${JuliaCompiler.types2class(provider.nowClass.name)} ${JuliaCompiler.type2class(enumTypeAbs.head)}")
-    // }
     if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))){
-      importList.add(s"include(${'"'}../../compiled/julia/${enumTypeAbs.head}.jl${'"'})")
-      importList.add(s"using .${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
-      importList.add(s"#my code here 2")
+      importList.add(s"using ${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
     }
     s"KaitaiStruct.resolve_enum(${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
   }
