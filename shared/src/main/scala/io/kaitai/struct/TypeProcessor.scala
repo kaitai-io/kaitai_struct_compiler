@@ -9,8 +9,11 @@ import scala.collection.mutable
 object TypeProcessor {
   def getExternalClasses(curClass: ClassSpec): Iterable[ClassSpec] = {
     val res = mutable.Set[ClassSpec]()
-    curClass.seq.map((attr) =>
+    curClass.seq.foreach((attr) =>
       res ++= getExternalDataTypes(attr.dataType, curClass)
+    )
+    curClass.params.foreach((param) =>
+      res ++= getExternalDataTypes(param.dataType, curClass)
     )
     curClass.instances.foreach { case (_, inst) =>
       inst match {
@@ -40,6 +43,8 @@ object TypeProcessor {
         st.cases.flatMap { case (_, ut) =>
           getExternalDataTypes(ut, curClass)
         }
+      case at: ArrayType =>
+        getExternalDataTypes(at.elType, curClass)
       case _ =>
         // all other types are not external user types
         List()
