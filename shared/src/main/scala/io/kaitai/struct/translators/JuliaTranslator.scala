@@ -78,7 +78,7 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
 
   override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
     if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))){
-      importList.add(s"using ${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
+      importList.add(s"import ${JuliaCompiler.type2class(enumTypeAbs.head)}Module")
     }
 
     s"${JuliaCompiler.type2class(enumTypeAbs.head)}Module.${JuliaCompiler.enumToStr(enumTypeAbs, label)}"
@@ -86,9 +86,9 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
 
   override def doEnumById(enumTypeAbs: List[String], id: String): String = {
     if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))){
-      importList.add(s"using ${JuliaCompiler.type2class(enumTypeAbs.head)}Module: ${JuliaCompiler.types2class(enumTypeAbs)}")
+      importList.add(s"import ${JuliaCompiler.type2class(enumTypeAbs.head)}Module")
     }
-    s"KaitaiStruct.resolve_enum(${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
+    s"KaitaiStruct.resolve_enum(${JuliaCompiler.type2class(enumTypeAbs.head)}Module.${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
   }
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
@@ -158,4 +158,11 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     s"KaitaiStruct.iseof(${translate(value)})"
   override def kaitaiStreamPos(value: Ast.expr): String =
     s"KaitaiStruct.pos(${translate(value)})"
+
+  override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
+    if (exprs.isEmpty) {
+      doStringLiteral("")
+    } else {
+      exprs.map(anyToStr).mkString(" * ")
+    }
 }

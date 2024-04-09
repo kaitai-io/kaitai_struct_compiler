@@ -38,7 +38,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def results(topClass: ClassSpec): Map[String, String] = {
     Map(outFileName(topClass.nameAsStr) ->
-      (s"module ${types2class(topClass.name)}Module\n" + outHeader.result + outImports(topClass) + enums.result + out.result + "end\n")
+      (outHeader.result + outImports(topClass) + enums.result + out.result)
     )
   }
 
@@ -53,6 +53,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.toList.mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
+    outHeader.puts(s"module ${type2class(topClassName)}Module")
     outHeader.puts(s"# $headerComment")
     outHeader.puts
     importList.add("export from_file")
@@ -60,11 +61,16 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
+  override def fileFooter(topClassName: String): Unit = {
+    fromFile(topClassName)
+    out.puts("end")
+  }
+
   override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
     // val name = classSpec.name.head
     // importList.add(s"include(${'"'}../../compiled/julia/${classSpec.name.head}.jl${'"'})")
     // importList.add(s"using .${types2class(classSpec.name)}Module: ${types2class(classSpec.name)}")
-    importList.add(s"import ${types2class(classSpec.name)}Module: ${types2class(classSpec.name)}")
+    importList.add(s"import ${type2class(classSpec.name.head)}Module: ${types2class(classSpec.name)}")
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -105,8 +111,12 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts("this._io = _io")
     out.puts("this._parent = _parent")
-    out.puts("this._root = _root === nothing ? this : _root")
-
+    if (name == rootClassName) {
+      out.puts("this._root = _root === nothing ? this : _root")
+    }
+    else {
+      out.puts("this._root = _root")
+    }
     if (config.readStoresPos) {
       out.puts("this._attrStart = Dict()")
       out.puts("this._attrEnd = Dict()")
@@ -171,13 +181,15 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${idToStr(attrName)}::Union{Nothing,${kaitaiType2NativeType(attrType)}}")
   }
 
-  def fromFile(name: List[String]): Unit = {
-    if (typeProvider.nowClass.params.isEmpty) {
-      out.puts(s"function from_file(filename::String)::${types2class(name)}")
-      out.inc
-      out.puts(s"${types2class(name)}($kstreamName(open(filename, ${'"'}r${'"'})))")
-      universalFooter
-    }
+
+
+  def fromFile(name: String): Unit = {
+    // if (typeProvider.nowClass.params.isEmpty) {
+    out.puts(s"function from_file(filename::String)::${type2class(name)}")
+    out.inc
+    out.puts(s"${type2class(name)}($kstreamName(open(filename, ${'"'}r${'"'})))")
+    universalFooter
+    // }
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
@@ -200,11 +212,11 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case TextRef(text) =>
         val seeAlso = new StringLanguageOutputWriter("")
         seeAlso.putsLines("   ", text)
-        s"$extraNewline\n.. seealso::\n${seeAlso.result}"
+        s"$extraNewline\nSee also ${seeAlso.result}"
       case ref: UrlRef =>
         val seeAlso = new StringLanguageOutputWriter("")
         seeAlso.putsLines("   ", s"${ref.text} - ${ref.url}")
-        s"$extraNewline\n.. seealso::\n${seeAlso.result}"
+        s"$extraNewline\nSee also ${seeAlso.result}"
     }.mkString("\n")
 
     out.putsLines("", "\"\"\"" + docStr + refStr + "\"\"\"")
@@ -412,7 +424,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"KaitaiStruct.read_bits_int_${bitEndian.toSuffix}($io, $width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map(a => translator.translate(a)), "", ", ", ", ")
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {
@@ -531,11 +543,8 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
+    out.puts(s"Base.show(io::IO, this::${types2class(typeProvider.nowClass.name)}) = print(io, ${translator.translate(toStringExpr)})")
     out.puts
-    // out.puts("def __repr__(self):")
-    // out.inc
-    // out.puts(s"return ${translator.translate(toStringExpr)}")
-    out.dec
   }
 
   override def idToStr(id: Identifier): String = JuliaCompiler.idToStr(id)
@@ -603,6 +612,7 @@ object JuliaCompiler extends LanguageCompilerStatic
   override def kstructName: String = "Any"
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => "ErrorException"
+    case ConversionError => "ArgumentError"
     case _ => s"KaitaiStruct.${err.name}"
   }
 
@@ -626,7 +636,7 @@ object JuliaCompiler extends LanguageCompilerStatic
       case BitsType(_, _) => "UInt64"
 
       case _: BooleanType => "Bool"
-      case CalcIntType => "Int64"
+      case CalcIntType => "Integer"
       case CalcFloatType => "Float64"
 
       case _: StrType => "String"
@@ -641,7 +651,8 @@ object JuliaCompiler extends LanguageCompilerStatic
       // })
       case _: UserType => "KaitaiStruct.UserType"
 
-      case t: EnumType => s"Union{${types2class(t.enumSpec.get.name)},Integer}"
+      // case t: EnumType => s"Union{${types2class(t.enumSpec.get.name)},Integer}"
+      case t: EnumType => s"Union{Enum,Integer}"
 
       case at: ArrayType => s"Vector{${kaitaiType2NativeType(at.elType)}}"
 
