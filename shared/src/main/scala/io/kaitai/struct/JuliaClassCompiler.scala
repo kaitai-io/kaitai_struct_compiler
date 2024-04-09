@@ -24,7 +24,7 @@ class JuliaClassCompiler(
       AttrSpec(List(), ParentIdentifier, curClass.parentType)
     ) ++ ExtraAttrs.forClassSpec(curClass, lang)
 
-    curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(curClass.name ++ List(typeName)) }
+    // curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(curClass.name ++ List(typeName)) }
 
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
@@ -44,9 +44,8 @@ class JuliaClassCompiler(
     compileConstructor(curClass)
     lang.classFooter(curClass.name)
 
-    // Constructor = Read() function
-    if (curClass.isTopLevel)
-      julialang.fromFile(curClass.name)
+    // if (curClass.isTopLevel)
+    //   julialang.fromFile(curClass.name)
 
     compileEagerRead(curClass.seq, curClass.meta.endian)
 
@@ -55,6 +54,7 @@ class JuliaClassCompiler(
 
     compileAttrReaders(curClass.seq ++ extraAttrs)
 
+    curClass.toStringExpr.foreach(expr => lang.classToString(expr))
     // Recursive types
     compileSubclasses(curClass)
   }
@@ -63,9 +63,13 @@ class JuliaClassCompiler(
     // Determine datatype
     val dataType = instSpec.dataTypeComposite
 
-    if (!instSpec.doc.isEmpty)
-      lang.attributeDoc(instName, instSpec.doc)
+    // compileInstanceDeclaration(instName, instSpec)
+
+    if (!lang.innerDocstrings)
+      compileInstanceDoc(instName, instSpec)
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
+    if (lang.innerDocstrings)
+      compileInstanceDoc(instName, instSpec)
     lang.instanceCheckCacheAndReturn(instName, dataType)
 
     instSpec match {
@@ -73,25 +77,25 @@ class JuliaClassCompiler(
         lang.attrParseIfHeader(instName, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
-      case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, endian)
+        lang.instanceSetCalculated(instName)
+      case pi: ParseInstanceSpec =>
+        lang.attrParse(pi, instName, endian)
     }
 
-    lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
   }
 
-  override def compileCalcEndian(ce: CalcEndian): Unit = {
-    def renderProc(result: FixedEndian): Unit = {
-      val v = result match {
-        case LittleEndian => Ast.expr.Bool(true)
-        case BigEndian => Ast.expr.Bool(false)
-      }
-      lang.instanceCalculate(IS_LE_ID, CalcIntType, v)
-    }
-    lang.switchCases[FixedEndian](IS_LE_ID, ce.on, ce.cases, renderProc, renderProc)
-  }
+  // override def compileCalcEndian(ce: CalcEndian): Unit = {
+  //   def renderProc(result: FixedEndian): Unit = {
+  //     val v = result match {
+  //       case LittleEndian => Ast.expr.Bool(true)
+  //       case BigEndian => Ast.expr.Bool(false)
+  //     }
+  //     lang.instanceCalculate(IS_LE_ID, CalcIntType, v)
+  //   }
+  //   lang.switchCases[FixedEndian](IS_LE_ID, ce.on, ce.cases, renderProc, renderProc)
+  // }
 
   override def compileAttrDeclarations(attrs: List[MemberSpec]): Unit = {
     attrs.foreach { (attr) =>
