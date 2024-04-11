@@ -65,6 +65,16 @@ class CppCompiler(
     outHdrHeader.puts
     outHdrHeader.puts(s"// $headerComment")
     outHdrHeader.puts
+    // Forward declaration of the top-level class defined later in this header
+    // file. It's important to do this before printing `importListHdr` because
+    // it contains `#include`s of header files of external .ksy modules that
+    // could circularly import this header file (which does nothing because of
+    // header guards, though, so if the other header files that tried to include
+    // this one refer to our top-level class by name, which is very likely, then
+    // we need to ensure that the C++ compiler has already seen the following
+    // forward declaration).
+    outHdrHeader.puts(s"class ${type2class(topClassName)};")
+    outHdrHeader.puts
 
     importListHdr.addKaitai("kaitai/kaitaistruct.h")
     importListHdr.addSystem("stdint.h")
@@ -108,10 +118,8 @@ class CppCompiler(
     }
   }
 
-  override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
-    classForwardDeclaration(classSpec.name)
+  override def externalClassDeclaration(classSpec: ClassSpec): Unit =
     importListHdr.addLocal(outFileNameHeader(classSpec.name.head))
-  }
 
   override def classHeader(name: List[String]): Unit = {
     val className = types2class(List(name.last))
