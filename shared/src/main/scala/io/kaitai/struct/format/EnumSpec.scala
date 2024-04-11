@@ -13,6 +13,16 @@ case class EnumSpec(path: List[String], map: SortedMap[Long, EnumValueSpec]) ext
     *         double colon operator `::`
     */
   def nameAsStr = name.mkString("::")
+
+  /**
+    * Determines whether this `EnumSpec` represents an enum that is external
+    * (i.e. not defined in the same .ksy file) from the perspective of the given
+    * `ClassSpec`.
+    * @param curClass class spec from which the local/external relationship
+    * should be evaluated
+    */
+  def isExternal(curClass: ClassSpec): Boolean =
+    name.head != curClass.name.head
 }
 
 object EnumSpec {

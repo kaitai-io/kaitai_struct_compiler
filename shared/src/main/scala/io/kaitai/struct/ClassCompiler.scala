@@ -19,7 +19,7 @@ class ClassCompiler(
 
   override def compile: CompileLog.SpecSuccess = {
     lang.fileHeader(topClassName.head)
-    compileExternalClasses(topClass)
+    compileExternalTypes(topClass)
     compileClass(topClass)
     lang.fileFooter(topClassName.head)
 
@@ -29,9 +29,9 @@ class ClassCompiler(
     )
   }
 
-  def compileExternalClasses(topClass: ClassSpec) = {
-    TypeProcessor.getExternalClasses(topClass).foreach((classSpec) =>
-      lang.externalClassDeclaration(classSpec)
+  def compileExternalTypes(topClass: ClassSpec) = {
+    TypeProcessor.getExternalTypes(topClass).foreach((name) =>
+      lang.externalTypeDeclaration(name)
     )
   }
 

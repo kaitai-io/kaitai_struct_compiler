@@ -54,8 +54,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def externalClassDeclaration(classSpec: ClassSpec): Unit =
-    importList.add(classSpec.name.head)
+  override def externalTypeDeclaration(name: List[String]): Unit =
+    importList.add(name.head)
   override def innerEnums = false
   override val translator: NimTranslator = new NimTranslator(typeProvider, importList)
   override def universalFooter: Unit = {

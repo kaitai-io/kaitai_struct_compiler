@@ -50,8 +50,8 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("1;")
   }
 
-  override def externalClassDeclaration(classSpec: ClassSpec): Unit =
-    importList.add(type2class(classSpec.name.head))
+  override def externalTypeDeclaration(name: List[String]): Unit =
+    importList.add(type2class(name.head))
 
   override def classHeader(name: List[String]): Unit = {
     out.puts

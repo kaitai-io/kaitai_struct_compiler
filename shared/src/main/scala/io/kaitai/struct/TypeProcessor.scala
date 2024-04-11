@@ -7,44 +7,50 @@ import io.kaitai.struct.format._
 import scala.collection.mutable
 
 object TypeProcessor {
-  def getExternalClasses(curClass: ClassSpec): Iterable[ClassSpec] = {
-    val res = mutable.Set[ClassSpec]()
+  def getExternalTypes(curClass: ClassSpec): Iterable[List[String]] = {
+    val res = mutable.Set[List[String]]()
     curClass.seq.foreach((attr) =>
-      res ++= getExternalDataTypes(attr.dataType, curClass)
+      res ++= getExternalTypesFromDataType(attr.dataType, curClass)
     )
     curClass.params.foreach((param) =>
-      res ++= getExternalDataTypes(param.dataType, curClass)
+      res ++= getExternalTypesFromDataType(param.dataType, curClass)
     )
     curClass.instances.foreach { case (_, inst) =>
       inst match {
         case pis: ParseInstanceSpec =>
-          res ++= getExternalDataTypes(pis.dataType, curClass)
+          res ++= getExternalTypesFromDataType(pis.dataType, curClass)
         case _ => None
       }
     }
 
     // Traverse all nested types recursively
     curClass.types.foreach { case (_, nestedType) =>
-      res ++= getExternalClasses(nestedType)
+      res ++= getExternalTypes(nestedType)
     }
 
     res
   }
 
-  def getExternalDataTypes(dataType: DataType, curClass: ClassSpec): Iterable[ClassSpec] = {
+  def getExternalTypesFromDataType(dataType: DataType, curClass: ClassSpec): Iterable[List[String]] = {
     dataType match {
       case ut: UserType =>
         if (ut.isExternal(curClass)) {
-          List(ut.classSpec.get)
+          List(ut.classSpec.get.name)
+        } else {
+          List()
+        }
+      case et: EnumType =>
+        if (et.isExternal(curClass)) {
+          List(et.enumSpec.get.name)
         } else {
           List()
         }
       case st: SwitchType =>
         st.cases.flatMap { case (_, ut) =>
-          getExternalDataTypes(ut, curClass)
+          getExternalTypesFromDataType(ut, curClass)
         }
       case at: ArrayType =>
-        getExternalDataTypes(at.elType, curClass)
+        getExternalTypesFromDataType(at.elType, curClass)
       case _ =>
         // all other types are not external user types
         List()

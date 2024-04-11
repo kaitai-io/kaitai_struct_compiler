@@ -77,13 +77,13 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
-    val name = classSpec.name.head
+  override def externalTypeDeclaration(name: List[String]): Unit = {
+    val moduleName = name.head
     importList.add(
       if (config.pythonPackage.nonEmpty) {
-        s"from ${config.pythonPackage} import $name"
+        s"from ${config.pythonPackage} import $moduleName"
       } else {
-        s"import $name"
+        s"import $moduleName"
       }
     )
   }

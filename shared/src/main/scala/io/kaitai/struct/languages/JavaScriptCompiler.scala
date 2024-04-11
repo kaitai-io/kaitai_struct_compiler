@@ -58,8 +58,8 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("});")
   }
 
-  override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
-    val className = type2class(classSpec.name.head)
+  override def externalTypeDeclaration(name: List[String]): Unit = {
+    val className = type2class(name.head)
     importList.add(s"./$className")
   }
 

@@ -75,12 +75,13 @@ abstract class LanguageCompiler(
   def fileFooter(topClassName: String): Unit = {}
 
   /**
-    * Outputs declaration of "external class", i.e. class that will be referred to in this file, but
-    * not declared here. Some languages require either a "forward declaration" in this case, or a
-    * statement to import that class, or something similar. Called once per each external class.
-    * @param classSpec
+    * Outputs declaration of "external type", i.e. class or enum that will be referred to in this
+    * file, but not declared here. Some languages require either a "forward declaration" in this
+    * case, or a statement to import that class, or something similar. Called once per each external
+    * type.
+    * @param name absolute path to the type in KS notation (lower underscore)
     */
-  def externalClassDeclaration(classSpec: ClassSpec): Unit = {}
+  def externalTypeDeclaration(name: List[String]): Unit = {}
 
   def classDoc(name: List[String], doc: DocSpec): Unit = {}
   def classHeader(name: List[String]): Unit

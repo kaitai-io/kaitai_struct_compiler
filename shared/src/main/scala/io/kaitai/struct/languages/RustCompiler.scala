@@ -54,11 +54,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
-    val name = type2class(classSpec.name.last)
-    val pkg = type2classAbs(classSpec.name)
+  override def externalTypeDeclaration(name: List[String]): Unit = {
+    val className = type2class(name.last)
+    val pkg = type2classAbs(name)
 
-    importList.add(s"$pkg::$name")
+    importList.add(s"$pkg::$className")
   }
 
   override def classHeader(name: List[String]): Unit =
