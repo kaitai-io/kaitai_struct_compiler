@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian, InheritedEn
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.AbstractTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, ExternalType}
 
 import scala.collection.mutable.ListBuffer
 
@@ -81,7 +81,7 @@ abstract class LanguageCompiler(
     * type.
     * @param name absolute path to the type in KS notation (lower underscore)
     */
-  def externalTypeDeclaration(name: List[String]): Unit = {}
+  def externalTypeDeclaration(extType: ExternalType): Unit = {}
 
   def classDoc(name: List[String], doc: DocSpec): Unit = {}
   def classHeader(name: List[String]): Unit

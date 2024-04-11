@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.PythonTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils, ExternalType}
 
 class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -77,8 +77,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def externalTypeDeclaration(name: List[String]): Unit = {
-    val moduleName = name.head
+  override def externalTypeDeclaration(extType: ExternalType): Unit = {
+    val moduleName = extType.name.head
     importList.add(
       if (config.pythonPackage.nonEmpty) {
         s"from ${config.pythonPackage} import $moduleName"

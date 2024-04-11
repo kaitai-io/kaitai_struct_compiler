@@ -30,8 +30,8 @@ class ClassCompiler(
   }
 
   def compileExternalTypes(topClass: ClassSpec) = {
-    TypeProcessor.getExternalTypes(topClass).foreach((name) =>
-      lang.externalTypeDeclaration(name)
+    TypeProcessor.getExternalTypes(topClass).foreach((extType) =>
+      lang.externalTypeDeclaration(extType)
     )
   }
 

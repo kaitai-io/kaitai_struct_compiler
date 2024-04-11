@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RustTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, ExternalType}
 
 class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -54,9 +54,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def externalTypeDeclaration(name: List[String]): Unit = {
-    val className = type2class(name.last)
-    val pkg = type2classAbs(name)
+  override def externalTypeDeclaration(extType: ExternalType): Unit = {
+    val className = type2class(extType.name.last)
+    val pkg = type2classAbs(extType.name)
 
     importList.add(s"$pkg::$className")
   }

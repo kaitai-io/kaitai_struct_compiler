@@ -118,8 +118,8 @@ class CppCompiler(
     }
   }
 
-  override def externalTypeDeclaration(name: List[String]): Unit =
-    importListHdr.addLocal(outFileNameHeader(name.head))
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    importListHdr.addLocal(outFileNameHeader(extType.name.head))
 
   override def classHeader(name: List[String]): Unit = {
     val className = types2class(List(name.last))

@@ -6,9 +6,22 @@ import io.kaitai.struct.format._
 
 import scala.collection.mutable
 
+sealed abstract class ExternalType {
+  def name: List[String]
+  def isOpaque: Boolean
+}
+case class ExternalUserType(classSpec: ClassSpec) extends ExternalType {
+  def name: List[String] = classSpec.name
+  def isOpaque: Boolean = classSpec.meta.isOpaque
+}
+case class ExternalEnum(enumSpec: EnumSpec) extends ExternalType {
+  def name: List[String] = enumSpec.name
+  def isOpaque: Boolean = false
+}
+
 object TypeProcessor {
-  def getExternalTypes(curClass: ClassSpec): Iterable[List[String]] = {
-    val res = mutable.Set[List[String]]()
+  def getExternalTypes(curClass: ClassSpec): Iterable[ExternalType] = {
+    val res = mutable.Set[ExternalType]()
     curClass.seq.foreach((attr) =>
       res ++= getExternalTypesFromDataType(attr.dataType, curClass)
     )
@@ -31,17 +44,17 @@ object TypeProcessor {
     res
   }
 
-  def getExternalTypesFromDataType(dataType: DataType, curClass: ClassSpec): Iterable[List[String]] = {
+  def getExternalTypesFromDataType(dataType: DataType, curClass: ClassSpec): Iterable[ExternalType] = {
     dataType match {
       case ut: UserType =>
         if (ut.isExternal(curClass)) {
-          List(ut.classSpec.get.name)
+          List(ExternalUserType(ut.classSpec.get))
         } else {
           List()
         }
       case et: EnumType =>
         if (et.isExternal(curClass)) {
-          List(et.enumSpec.get.name)
+          List(ExternalEnum(et.enumSpec.get))
         } else {
           List()
         }

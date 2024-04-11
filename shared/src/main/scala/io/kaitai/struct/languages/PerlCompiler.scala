@@ -8,6 +8,7 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{ExceptionNames, _}
 import io.kaitai.struct.translators.{PerlTranslator, TypeProvider}
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
+import io.kaitai.struct.ExternalType
 
 class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -50,8 +51,8 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("1;")
   }
 
-  override def externalTypeDeclaration(name: List[String]): Unit =
-    importList.add(type2class(name.head))
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    importList.add(type2class(extType.name.head))
 
   override def classHeader(name: List[String]): Unit = {
     out.puts
