@@ -26,6 +26,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   import io.kaitai.struct.languages.GoCompiler._
 
+  /**
+    * Dummy return value that should be returned in case of error just because
+    * we cannot return nothing.
+    */
   var returnRes: Option[String] = None
 
   /**
@@ -560,6 +564,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   def localVarName(n: Int) = s"tmp$n"
 
+  /**
+    * Puts to the output code to check variable `err` for error value and emit
+    * a premature return with value of error.
+    */
   def outAddErrCheck(): Unit = {
     out.puts("if err != nil {")
     out.inc
