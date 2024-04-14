@@ -1045,7 +1045,7 @@ class CppCompiler(
     case UndecidedEndiannessError => "kaitai::undecided_endianness_error"
     case ConversionError => "std::invalid_argument"
     case validationErr: ValidationError =>
-      val cppType = kaitaiType2NativeType(validationErr.dt, true)
+      val cppType = kaitaiType2NativeType(validationErr.dt)
       val cppErrName = validationErr match {
         case _: ValidationNotEqualError => "validation_not_equal_error"
         case _: ValidationLessThanError => "validation_less_than_error"
