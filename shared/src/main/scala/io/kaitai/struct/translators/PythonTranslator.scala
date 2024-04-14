@@ -46,7 +46,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def doLocalName(s: String) = {
     s match {
-      case Identifier.ITERATOR => "_"
+      case Identifier.THIS => "_"
       case Identifier.INDEX => "i"
       case _ => s"self.${doName(s)}"
     }

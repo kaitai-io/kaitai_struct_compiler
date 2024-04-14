@@ -55,7 +55,7 @@ trait ValidateOps extends ExceptionNames {
         // Store value of attribute in the temporary variable with a name that is
         // used for `_` variable, because in expression we refer to current value
         // using this variable
-        val borrowed = Ast.expr.Name(Ast.identifier(Identifier.ITERATOR))
+        val borrowed = Ast.expr.Name(Ast.identifier(Identifier.THIS))
         handleAssignmentTempVar(
           attrTypeRef,
           translator.translate(borrowed),

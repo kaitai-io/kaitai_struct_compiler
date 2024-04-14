@@ -28,8 +28,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
 
   override def doLocalName(s: String) = {
     s match {
-      case Identifier.ITERATOR => "tmpa"
-      case Identifier.ITERATOR2 => "tmpb"
+      case Identifier.THIS => "tmpa"
+      case Identifier.THIS_RAW => "tmpb"
       case Identifier.INDEX => "i"
       case _ => s"self.${doName(s)}"
     }
