@@ -478,7 +478,7 @@ class CppCompiler(
     val ioId = IoStorageIdentifier(id)
 
     val args = rep match {
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doName(Identifier.THIS_RAW)
       case _ => getRawIdExpr(id, rep)
     }
 
@@ -611,9 +611,9 @@ class CppCompiler(
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val (typeDecl, tempVar) = if (isRaw) {
-      ("std::string ", translator.doName(Identifier.ITERATOR2))
+      ("std::string ", translator.doName(Identifier.THIS_RAW))
     } else {
-      ("", translator.doName(Identifier.ITERATOR))
+      ("", translator.doName(Identifier.THIS))
     }
 
     val (wrappedTempVar, rawPtrExpr) = if (config.cppConfig.pointers == UniqueAndRawPointers) {

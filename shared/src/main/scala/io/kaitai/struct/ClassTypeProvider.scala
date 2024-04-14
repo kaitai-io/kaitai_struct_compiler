@@ -34,7 +34,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
         inClass.parentClass.toDataType
       case Identifier.IO =>
         KaitaiStreamType
-      case Identifier.ITERATOR =>
+      case Identifier.THIS =>
         currentIteratorType
       case Identifier.SWITCH_ON =>
         currentSwitchType

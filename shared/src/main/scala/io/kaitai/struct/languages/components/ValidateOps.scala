@@ -62,7 +62,7 @@ trait ValidateOps extends ExceptionNames {
         // using this variable
         handleAssignmentTempVar(
           attrTypeRef,
-          translator.translate(Ast.expr.Name(Ast.identifier(Identifier.ITERATOR))),
+          translator.translate(Ast.expr.Name(Ast.identifier(Identifier.THIS))),
           translator.translate(itemValue)
         )
         attrValidateExpr(
