@@ -1,13 +1,13 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.JavaScriptCompiler
 
-class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"new Uint8Array([${elts.map(translate).mkString(", ")}])"
 
@@ -56,8 +56,14 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def doInternalName(id: Identifier): String =
     s"this.${JavaScriptCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    s"${JavaScriptCompiler.types2class(enumSpec.name)}.${Utils.upperUnderscoreCase(label)}"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val isExternal = enumSpec.isExternal(provider.nowClass)
+    if (isExternal) {
+      val className = JavaScriptCompiler.type2class(enumSpec.name.head)
+      importList.add(s"./$className")
+    }
+    s"${JavaScriptCompiler.types2class(enumSpec.name, isExternal)}.${Utils.upperUnderscoreCase(label)}"
+  }
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id

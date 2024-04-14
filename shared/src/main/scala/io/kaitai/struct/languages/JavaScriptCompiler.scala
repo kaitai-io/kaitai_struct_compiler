@@ -21,7 +21,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with FixedContentsUsingArrayByteLiteral {
   import JavaScriptCompiler._
 
-  override val translator = new JavaScriptTranslator(typeProvider)
+  override val translator = new JavaScriptTranslator(typeProvider, importList)
 
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
@@ -31,7 +31,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val quotedImpList = impList.map((x) => s"'$x'")
     val defineArgs = ("'exports'" +: quotedImpList).mkString(", ")
     val exportsArgs = ("exports" +: quotedImpList.map((x) => s"require($x)")).mkString(", ")
-    val argClasses = types2class(topClass.name) +: impList.map((x) => x.split('/').last)
+    val argClasses = types2class(topClass.name, false) +: impList.map((x) => x.split('/').last)
     val rootArgs = argClasses.map((x) => if (x == "KaitaiStream") s"root.$x" else s"root.$x || (root.$x = {})").mkString(", ")
     val factoryParams = argClasses.map((x) => if (x == "KaitaiStream") x else s"${x}_").mkString(", ")
 
@@ -67,7 +67,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val shortClassName = type2class(name.last)
 
     val addNameExpr = if (name.size > 1) {
-      s" = ${types2class(name.takeRight(2))}"
+      s" = ${types2class(name.takeRight(2), false)}"
     } else {
       ""
     }
@@ -273,7 +273,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     val enumNameProps = attrType match {
-      case t: EnumType => s"""enumName: \"${types2class(t.enumSpec.get.name)}\""""
+      case t: EnumType => s"""enumName: \"${types2class(t.enumSpec.get.name, false)}\""""
       case _ => ""
     }
 
@@ -388,17 +388,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _ => ""
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-        // If the first segment of the name path refers to a top-level type, we
-        // must prepend the name of top-level module (which ends with an
-        // underscore `_` according to our own convention for clarity) before the
-        // path because of https://github.com/kaitai-io/kaitai_struct/issues/1074
-        val topLevelModulePrefix =
-          if (t.classSpec.map((classSpec) => t.name == classSpec.name).getOrElse(false)) {
-            s"${type2class(t.name(0))}_."
-          } else {
-            ""
-          }
-        s"new ${topLevelModulePrefix}${types2class(t.name)}($io, $parent, $root$addEndian$addParams)"
+        s"new ${types2class(t.name, t.isExternal(typeProvider.nowClass))}($io, $parent, $root$addEndian$addParams)"
     }
   }
 
@@ -643,5 +633,17 @@ object JavaScriptCompiler extends LanguageCompilerStatic
     case _ => s"KaitaiStream.${err.name}"
   }
 
-  def types2class(types: List[String]): String = types.map(type2class).mkString(".")
+  def types2class(types: List[String], isExternal: Boolean): String = {
+    // If the first segment of the name path refers to an external format module
+    // (which is the only way how external types can be referenced), we must
+    // prepend the name of top-level module (which ends with an underscore `_`
+    // according to our own convention for clarity) before the path because of
+    // https://github.com/kaitai-io/kaitai_struct/issues/1074
+    val prefix = if (isExternal) {
+      s"${type2class(types.head)}_."
+    } else {
+      ""
+    }
+    prefix + types.map(type2class).mkString(".")
+  }
 }
