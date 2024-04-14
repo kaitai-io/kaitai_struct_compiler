@@ -386,7 +386,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, self._root$addEndian"
         }
-        s"${userType2class(t)}($addParams$io$addArgs)"
+        s"${types2class(t.classSpec.get.name, t.isExternal(typeProvider.nowClass))}($addParams$io$addArgs)"
     }
   }
 
@@ -503,16 +503,6 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"raise ${ksErrorName(err)}($errArgsStr)")
     out.dec
   }
-
-  def userType2class(t: UserType): String = {
-    val name = t.classSpec.get.name
-    val prefix = if (t.isExternal(typeProvider.nowClass)) {
-      s"${name.head}."
-    } else {
-      ""
-    }
-    s"$prefix${types2class(name)}"
-  }
 }
 
 object PythonCompiler extends LanguageCompilerStatic
@@ -547,5 +537,12 @@ object PythonCompiler extends LanguageCompilerStatic
     case _ => s"kaitaistruct.${err.name}"
   }
 
-  def types2class(name: List[String]): String = name.map(x => type2class(x)).mkString(".")
+  def types2class(name: List[String], isExternal: Boolean): String = {
+    val prefix = if (isExternal) {
+      s"${name.head}."
+    } else {
+      ""
+    }
+    prefix + name.map(x => type2class(x)).mkString(".")
+  }
 }
