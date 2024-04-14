@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.PythonTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils, ExternalType}
+import io.kaitai.struct.{ClassTypeProvider, ImportList, RuntimeConfig, StringLanguageOutputWriter, Utils, ExternalType}
 
 class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -24,7 +24,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   import PythonCompiler._
 
-  override val translator = new PythonTranslator(typeProvider, importList)
+  override val translator = new PythonTranslator(typeProvider, importList, config)
 
   override def innerDocstrings = true
 
@@ -77,16 +77,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def externalTypeDeclaration(extType: ExternalType): Unit = {
-    val moduleName = extType.name.head
-    importList.add(
-      if (config.pythonPackage.nonEmpty) {
-        s"from ${config.pythonPackage} import $moduleName"
-      } else {
-        s"import $moduleName"
-      }
-    )
-  }
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    PythonCompiler.externalTypeDeclaration(extType, importList, config)
 
   override def classHeader(name: String): Unit = {
     out.puts(s"class ${type2class(name)}($kstructName):")
@@ -544,5 +536,16 @@ object PythonCompiler extends LanguageCompilerStatic
       ""
     }
     prefix + name.map(x => type2class(x)).mkString(".")
+  }
+
+  def externalTypeDeclaration(extType: ExternalType, importList: ImportList, config: RuntimeConfig): Unit = {
+    val moduleName = extType.name.head
+    importList.add(
+      if (config.pythonPackage.nonEmpty) {
+        s"from ${config.pythonPackage} import $moduleName"
+      } else {
+        s"import $moduleName"
+      }
+    )
   }
 }

@@ -1,12 +1,12 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{ImportList, Utils}
+import io.kaitai.struct.{ExternalEnum, ImportList, RuntimeConfig, Utils}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.{PythonCompiler, RubyCompiler}
 
-class PythonTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+class PythonTranslator(provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
@@ -56,8 +56,13 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def doInternalName(id: Identifier): String =
     s"self.${PythonCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    s"${PythonCompiler.types2class(enumSpec.name, enumSpec.isExternal(provider.nowClass))}.$label"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val isExternal = enumSpec.isExternal(provider.nowClass)
+    if (isExternal) {
+      PythonCompiler.externalTypeDeclaration(ExternalEnum(enumSpec), importList, config)
+    }
+    s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.$label"
+  }
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumSpec.name, enumSpec.isExternal(provider.nowClass))}, $id)"
 
