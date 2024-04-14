@@ -453,8 +453,6 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${inverseEnumName(enumConst)} = $enumConst.invert")
   }
 
-  def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
-
   def value2Const(s: String) = Utils.upperUnderscoreCase(s)
 
   override def debugClassSequence(seq: List[AttrSpec]) = {
@@ -521,6 +519,9 @@ object RubyCompiler extends LanguageCompilerStatic
     case ConversionError => "ArgumentError"
     case _ => s"Kaitai::Struct::${err.name}"
   }
+
+  def enumValue(enumName: String, label: String): String =
+    s":${enumName}_${label}"
 
   def inverseEnumName(enumName: String) = s"I__$enumName"
 }

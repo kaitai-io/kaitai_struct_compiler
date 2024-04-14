@@ -5,7 +5,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
@@ -66,10 +66,10 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doInternalName(id: Identifier): String =
     s"${JavaCompiler.publicMemberName(id)}()"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${enumClass(enumTypeAbs)}.${Utils.upperUnderscoreCase(label)}"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"${enumClass(enumTypeAbs)}.byId($id)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    s"${enumClass(enumSpec.name)}.${Utils.upperUnderscoreCase(label)}"
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+    s"${enumClass(enumSpec.name)}.byId($id)"
 
   def enumClass(enumTypeAbs: List[String]): String = {
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)

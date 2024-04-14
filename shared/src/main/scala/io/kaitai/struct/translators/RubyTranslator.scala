@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType.EnumType
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.RubyCompiler
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
@@ -40,10 +40,10 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def doInternalName(id: Identifier): String =
     RubyCompiler.publicMemberName(id)
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s":${enumTypeAbs.last}_$label"
-  override def doEnumById(enumType: List[String], id: String): String =
-    s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumType)}, $id)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    RubyCompiler.enumValue(enumSpec.name.last, label)
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+    s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumSpec.name)}, $id)"
 
   def enumDirectMap(enumTypeAndName: List[String]): String = {
     val enumTypeAbs = enumTypeAndName.dropRight(1)

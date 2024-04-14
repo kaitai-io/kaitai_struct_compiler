@@ -55,7 +55,7 @@ trait EveryReadIsExpression
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), t.encoding)
         handleAssignment(id, expr, rep, isRaw)
       case t: EnumType =>
-        val expr = translator.doEnumById(t.enumSpec.get.name, parseExpr(t.basedOn, t.basedOn, io, defEndian))
+        val expr = translator.doEnumById(t.enumSpec.get, parseExpr(t.basedOn, t.basedOn, io, defEndian))
         handleAssignment(id, expr, rep, isRaw)
       case _ =>
         val expr = parseExpr(dataType, assignType, io, defEndian)

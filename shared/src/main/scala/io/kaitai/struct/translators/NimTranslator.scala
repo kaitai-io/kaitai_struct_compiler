@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.NimCompiler.{ksToNim, namespaced, camelCase}
 
 class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
@@ -14,9 +14,9 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     s"""encode($bytesExpr, "$encoding")"""
   }
-  override def doEnumById(enumTypeAbs: List[String], id: String): String = s"${namespaced(enumTypeAbs)}($id)"
-//  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${namespaced(enumTypeAbs)}($label)"
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = s"${enumTypeAbs.head}.$label"
+  override def doEnumById(enumSpec: EnumSpec, id: String): String = s"${namespaced(enumSpec.name)}($id)"
+//  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = s"${namespaced(enumSpec.name)}($label)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = s"${enumSpec.name.head}.$label"
   override def doName(s: String): String =
     s match {
       case Identifier.ROOT => "root"

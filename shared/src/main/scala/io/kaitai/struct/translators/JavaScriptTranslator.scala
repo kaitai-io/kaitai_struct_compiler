@@ -4,7 +4,7 @@ import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.JavaScriptCompiler
 
 class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
@@ -56,11 +56,11 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def doInternalName(id: Identifier): String =
     s"this.${JavaScriptCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumType: List[String], label: String): String =
-    s"${JavaScriptCompiler.types2class(enumType)}.${Utils.upperUnderscoreCase(label)}"
-  override def doEnumById(enumTypeAbs: List[String], label: String): String =
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    s"${JavaScriptCompiler.types2class(enumSpec.name)}.${Utils.upperUnderscoreCase(label)}"
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    label
+    id
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"(${JavaScriptCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"

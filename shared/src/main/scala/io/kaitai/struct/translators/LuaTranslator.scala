@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.ImportList
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.languages.LuaCompiler
 import io.kaitai.struct.Utils
@@ -82,10 +82,10 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doInternalName(id: Identifier): String =
     s"self.${LuaCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${LuaCompiler.types2class(enumTypeAbs)}.$label"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"${LuaCompiler.types2class(enumTypeAbs)}($id)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    s"${LuaCompiler.types2class(enumSpec.name)}.$label"
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+    s"${LuaCompiler.types2class(enumSpec.name)}($id)"
 
   override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
     s"${translate(left)} .. ${translate(right)}"

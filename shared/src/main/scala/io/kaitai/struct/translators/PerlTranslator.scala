@@ -4,7 +4,7 @@ import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.PerlCompiler
 
 class PerlTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
@@ -76,13 +76,13 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doInternalName(id: Identifier): String =
     s"$$self->${PerlCompiler.publicMemberName(id)}()"
 
-  override def doEnumByLabel(enumType: List[String], label: String): String = {
-    val enumClass = PerlCompiler.types2class(enumType.init)
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val enumClass = PerlCompiler.types2class(enumSpec.name.init)
     val enumClassWithScope = if (enumClass.isEmpty) "" else s"$enumClass::"
-    val enumName = Utils.upperUnderscoreCase(enumType.last)
+    val enumName = Utils.upperUnderscoreCase(enumSpec.name.last)
     s"$$$enumClassWithScope${enumName}_${Utils.upperUnderscoreCase(label)}"
   }
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 

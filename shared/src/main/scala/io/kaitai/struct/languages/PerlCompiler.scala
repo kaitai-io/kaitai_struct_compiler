@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{ExceptionNames, _}
 import io.kaitai.struct.translators.{PerlTranslator, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 import io.kaitai.struct.ExternalType
 
 class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
@@ -389,8 +389,6 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
-
   override def classToString(toStringExpr: Ast.expr): Unit = {
     out.puts
     out.puts("use overload '\"\"' => \\&_to_string;")
@@ -442,4 +440,7 @@ object PerlCompiler extends LanguageCompilerStatic
   override def ksErrorName(err: KSError): String = ???
 
   def types2class(t: List[String]): String = t.map(type2class).mkString("::")
+
+  def enumValue(enumName: String, label: String): String =
+    s"$$${Utils.upperUnderscoreCase(enumName)}_${Utils.upperUnderscoreCase(label)}"
 }

@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.PHPCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
@@ -70,11 +70,11 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def doInternalName(id: Identifier): String =
     s"$$this->${PHPCompiler.publicMemberName(id)}()"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
-    val enumClass = types2classAbs(enumTypeAbs)
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val enumClass = types2classAbs(enumSpec.name)
     s"$enumClass::${Utils.upperUnderscoreCase(label)}"
   }
-  override def doEnumById(enumTypeAbs: List[String], id: String) =
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 

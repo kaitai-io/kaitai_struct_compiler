@@ -7,7 +7,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.CppImportList
 import io.kaitai.struct.{RuntimeConfig, Utils}
@@ -140,11 +140,11 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def doInternalName(id: Identifier): String =
     s"${CppCompiler.publicMemberName(id)}()"
 
-  override def doEnumByLabel(enumType: List[String], label: String): String =
-    CppCompiler.types2class(enumType.dropRight(1)) + "::" +
-      Utils.upperUnderscoreCase(enumType.last + "_" + label)
-  override def doEnumById(enumType: List[String], id: String): String =
-    s"static_cast<${CppCompiler.types2class(enumType)}>($id)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    CppCompiler.types2class(enumSpec.name.dropRight(1)) + "::" +
+      Utils.upperUnderscoreCase(enumSpec.name.last + "_" + label)
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+    s"static_cast<${CppCompiler.types2class(enumSpec.name)}>($id)"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
     if (op == Ast.cmpop.Eq) {

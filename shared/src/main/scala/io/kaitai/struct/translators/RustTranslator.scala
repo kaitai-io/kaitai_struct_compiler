@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{RuntimeConfig, Utils}
 
@@ -37,11 +37,11 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
 
   override def doName(s: String) = s
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
-    val enumClass = types2classAbs(enumTypeAbs)
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val enumClass = types2classAbs(enumSpec.name)
     s"$enumClass::${Utils.upperUnderscoreCase(label)}"
   }
-  override def doEnumById(enumTypeAbs: List[String], id: String) =
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 

@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.{PythonCompiler, RubyCompiler}
 
 class PythonTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
@@ -56,10 +56,10 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def doInternalName(id: Identifier): String =
     s"self.${PythonCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${PythonCompiler.types2class(enumTypeAbs, false)}.$label"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumTypeAbs, false)}, $id)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    s"${PythonCompiler.types2class(enumSpec.name, false)}.$label"
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumSpec.name, false)}, $id)"
 
   override def booleanOp(op: Ast.boolop) = op match {
     case Ast.boolop.Or => "or"

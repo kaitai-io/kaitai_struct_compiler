@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.{ClassSpec, Identifier}
+import io.kaitai.struct.format.{ClassSpec, EnumSpec, Identifier}
 import io.kaitai.struct.precompile.TypeMismatchError
 
 /**
@@ -61,10 +61,10 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doBoolLiteral(n)
       case Ast.expr.EnumById(enumType, id, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumById(enumSpec.name, translate(id))
+        doEnumById(enumSpec, translate(id))
       case Ast.expr.EnumByLabel(enumType, label, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumByLabel(enumSpec.name, label.name)
+        doEnumByLabel(enumSpec, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
           byteSizeOfClassSpec(provider.nowClass)
@@ -186,8 +186,8 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def kaitaiStructField(value: Ast.expr, name: String): String =
     anyField(value, name)
 
-  def doEnumByLabel(enumTypeAbs: List[String], label: String): String
-  def doEnumById(enumTypeAbs: List[String], id: String): String
+  def doEnumByLabel(enumSpec: EnumSpec, label: String): String
+  def doEnumById(enumSpec: EnumSpec, id: String): String
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int) =
