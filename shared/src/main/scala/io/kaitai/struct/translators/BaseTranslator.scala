@@ -10,10 +10,10 @@ import io.kaitai.struct.precompile.TypeMismatchError
   * BaseTranslator is a common semi-abstract implementation of a translator
   * API (i.e. [[AbstractTranslator]]), which fits target languages that
   * follow "every KS expression is translatable into expression" paradigm.
-  * Main [[AbstractTranslator.translate]] method is implemented as a huge
-  * case matching, which usually just calls relevant abstract methods for
-  * every particular piece of KS expression, i.e. literals, operations,
-  * method calls, etc.
+  * Main [[AbstractTranslator.translate(v:io\.kaitai\.struct\.exprlang\.Ast\.expr,extPrec:Int)*]]
+  * method is implemented as a huge case matching, which usually just calls
+  * relevant abstract methods for every particular piece of KS expression,
+  * i.e. literals, operations, method calls, etc.
   *
   * Given that there are many of these abstract methods, to make it more
   * maintainable, they are grouped into several abstract traits:
