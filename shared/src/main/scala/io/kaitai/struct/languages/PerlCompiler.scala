@@ -77,6 +77,12 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val endianSuffix = if (isHybrid) ", $_is_le" else ""
 
+    val pRootValue = if (name == rootClassName) {
+      "$_root || $self"
+    } else {
+      "$_root"
+    }
+
     out.puts
     out.puts("sub new {")
     out.inc
@@ -85,7 +91,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts("bless $self, $class;")
     handleAssignmentSimple(ParentIdentifier, "$_parent")
-    handleAssignmentSimple(RootIdentifier, "$_root || $self;")
+    handleAssignmentSimple(RootIdentifier, pRootValue)
 
     if (isHybrid)
       handleAssignmentSimple(EndianIdentifier, "$_is_le")
