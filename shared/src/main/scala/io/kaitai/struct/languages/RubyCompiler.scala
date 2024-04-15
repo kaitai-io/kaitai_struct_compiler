@@ -99,9 +99,15 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val paramsList = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
 
-    out.puts(s"def initialize(_io, _parent = nil, _root = self$endianSuffix$paramsList)")
+    val pRootValue = if (name == rootClassName) {
+      "_root || self"
+    } else {
+      "_root"
+    }
+
+    out.puts(s"def initialize(_io, _parent = nil, _root = nil$endianSuffix$paramsList)")
     out.inc
-    out.puts("super(_io, _parent, _root)")
+    out.puts(s"super(_io, _parent, $pRootValue)")
 
     if (isHybrid) {
       out.puts("@_is_le = _is_le")
