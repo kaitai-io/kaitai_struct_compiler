@@ -15,9 +15,20 @@ import scala.collection.mutable
 sealed trait ClassSpecLike {
   def toDataType: DataType
 }
+/**
+  * Type was not yet calculated. If that type returned during calculation, then
+  * cyclic reference is present and it is impossible to calculate actual type.
+  *
+  * Parent type of each KSY-defined type initialized to that value and refined
+  * later based on type usage.
+  */
 case object UnknownClassSpec extends ClassSpecLike {
   override def toDataType: DataType = CalcKaitaiStructType()
 }
+/**
+  * Type is calculated as a type that able to store any KSY-defined type.
+  * Usually it have a name `KaitaiStruct` in corresponding language runtime library.
+  */
 case object GenericStructClassSpec extends ClassSpecLike {
   override def toDataType: DataType = CalcKaitaiStructType()
 }
