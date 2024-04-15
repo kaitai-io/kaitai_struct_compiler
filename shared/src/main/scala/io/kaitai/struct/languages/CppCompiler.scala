@@ -46,9 +46,6 @@ class CppCompiler(
   var accessMode: AccessMode = PublicAccess
 
   override def indent: String = "    "
-  def typeToFileName(topClassName: String): String = topClassName
-  def outFileNameSource(className: String): String = typeToFileName(className) + ".cpp"
-  def outFileNameHeader(className: String): String = typeToFileName(className) + ".h"
 
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")
@@ -1027,6 +1024,10 @@ object CppCompiler extends LanguageCompilerStatic
     tp: ClassTypeProvider,
     config: RuntimeConfig
   ): LanguageCompiler = new CppCompiler(tp, config)
+
+  def typeToFileName(topClassName: String): String = topClassName
+  def outFileNameSource(className: String): String = typeToFileName(className) + ".cpp"
+  def outFileNameHeader(className: String): String = typeToFileName(className) + ".h"
 
   def idToStr(id: Identifier): String =
     id match {

@@ -140,9 +140,14 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def doInternalName(id: Identifier): String =
     s"${CppCompiler.publicMemberName(id)}()"
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val isExternal = enumSpec.isExternal(provider.nowClass)
+    if (isExternal) {
+      importListHdr.addLocal(CppCompiler.outFileNameHeader(enumSpec.name.head))
+    }
     CppCompiler.types2class(enumSpec.name.dropRight(1)) + "::" +
       Utils.upperUnderscoreCase(enumSpec.name.last + "_" + label)
+  }
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"static_cast<${CppCompiler.types2class(enumSpec.name)}>($id)"
 
