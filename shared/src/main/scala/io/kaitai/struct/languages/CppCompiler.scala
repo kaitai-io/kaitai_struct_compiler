@@ -953,7 +953,7 @@ class CppCompiler(
   override def type2class(className: String): String = CppCompiler.type2class(className)
 
   def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String =
-    CppCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
+    CppCompiler.kaitaiType2NativeType(config.cppConfig, importListHdr, attrType, absolute)
 
   def nullPtr: String = config.cppConfig.pointers match {
     case RawPointers => "0"
@@ -1044,7 +1044,7 @@ object CppCompiler extends LanguageCompilerStatic
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
 
-  def kaitaiType2NativeType(config: CppRuntimeConfig, attrType: DataType, absolute: Boolean = false): String = {
+  def kaitaiType2NativeType(config: CppRuntimeConfig, importListHdr: CppImportList, attrType: DataType, absolute: Boolean = false): String = {
     attrType match {
       case Int1Type(false) => "uint8_t"
       case IntMultiType(false, Width2, _) => "uint16_t"
@@ -1087,11 +1087,16 @@ object CppCompiler extends LanguageCompilerStatic
           t.name
         })
 
-      case ArrayTypeInStream(inType) => config.pointers match {
-        case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
-        case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
+      case at: ArrayType => {
+        importListHdr.addSystem("vector")
+        val vecType = s"std::vector<${kaitaiType2NativeType(config, importListHdr, at.elType, absolute)}>"
+        (at, config.pointers) match {
+          case (_: ArrayTypeInStream, UniqueAndRawPointers) =>
+            s"std::unique_ptr<$vecType>"
+          case _ =>
+            s"$vecType*"
+        }
       }
-      case CalcArrayType(inType, _) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
       case OwnedKaitaiStreamType => config.pointers match {
         case RawPointers => s"$kstreamName*"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstreamName>"
@@ -1104,7 +1109,7 @@ object CppCompiler extends LanguageCompilerStatic
       case CalcKaitaiStructType(_) => s"$kstructName*"
 
       case st: SwitchType =>
-        kaitaiType2NativeType(config, combineSwitchType(st), absolute)
+        kaitaiType2NativeType(config, importListHdr, combineSwitchType(st), absolute)
     }
   }
 

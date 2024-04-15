@@ -101,7 +101,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def doArrayLiteral(t: DataType, values: Seq[expr]): String = {
     if (config.cppConfig.useListInitializers) {
       importListHdr.addSystem("vector")
-      val cppElType = CppCompiler.kaitaiType2NativeType(config.cppConfig, t)
+      val cppElType = CppCompiler.kaitaiType2NativeType(config.cppConfig, importListHdr, t)
       val rawInit = s"new std::vector<$cppElType>{" + values.map((value) => translate(value)).mkString(", ") + "}"
       config.cppConfig.pointers match {
         case RawPointers =>
@@ -166,7 +166,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
   override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"static_cast<${CppCompiler.kaitaiType2NativeType(config.cppConfig, typeName)}>(${translate(value)})"
+    s"static_cast<${CppCompiler.kaitaiType2NativeType(config.cppConfig, importListHdr, typeName)}>(${translate(value)})"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {
