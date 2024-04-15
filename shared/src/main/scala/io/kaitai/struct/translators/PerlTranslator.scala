@@ -77,6 +77,10 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"$$self->${PerlCompiler.publicMemberName(id)}()"
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val isExternal = enumSpec.isExternal(provider.nowClass)
+    if (isExternal) {
+      importList.add(PerlCompiler.type2class(enumSpec.name.head))
+    }
     val enumClass = PerlCompiler.types2class(enumSpec.name.init)
     val enumClassWithScope = if (enumClass.isEmpty) "" else s"$enumClass::"
     val enumName = Utils.upperUnderscoreCase(enumSpec.name.last)
