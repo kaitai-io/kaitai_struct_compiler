@@ -10,7 +10,7 @@ import io.kaitai.struct.languages.CSharpCompiler
 
 class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
+    val nativeType = CSharpCompiler.kaitaiType2NativeType(importList, t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
 
     importList.add("System.Collections.Generic")
@@ -89,7 +89,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"((${CSharpCompiler.kaitaiType2NativeType(typeName)}) (${translate(value)}))"
+    s"((${CSharpCompiler.kaitaiType2NativeType(importList, typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {
