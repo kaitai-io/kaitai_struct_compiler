@@ -7,8 +7,8 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
 /**
-  * Pass that calculates actual parent types of KSY-defined types (the type of
-  * the `parent` key).
+  * Precompile step that calculates actual parent types of KSY-defined types
+  * (the type of the `_parent` built-in property).
   */
 class ParentTypes(classSpecs: ClassSpecs) {
   def run(): Unit = {
@@ -97,9 +97,9 @@ class ParentTypes(classSpecs: ClassSpecs) {
   }
 
   /**
-    * If parent of `child` is not calculated yet, makes `parent` to be a parent type.
-    * Otherwise, if `parent` is different from existing parent, replaces parent type
-    * to the most generic kaitai type for user types.
+    * If parent of `child` is not calculated yet, makes `parent` the parent
+    * type. Otherwise, if `parent` is different from existing parent, replaces
+    * parent type with the most generic KS type for user types.
     */
   def markupParentAs(parent: ClassSpec, child: ClassSpec): Unit = {
     // Don't allow type usages across spec boundaries to affect parent resolution
