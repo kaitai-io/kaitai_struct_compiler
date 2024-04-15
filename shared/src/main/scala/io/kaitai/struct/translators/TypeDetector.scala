@@ -51,7 +51,7 @@ class TypeDetector(provider: TypeProvider) {
       case Ast.expr.InterpolatedStr(_) => CalcStrType
       case Ast.expr.Bool(_) => CalcBooleanType
       case Ast.expr.EnumByLabel(enumType, _, inType) =>
-        val t = EnumType(List(enumType.name), CalcIntType)
+        val t = EnumType(inType.names.toList :+ enumType.name, CalcIntType)
         t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
       case Ast.expr.EnumById(enumType, _, inType) =>
