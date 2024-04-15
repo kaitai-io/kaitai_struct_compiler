@@ -749,6 +749,18 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
+  def kaitaiType2JavaType(attrType: DataType): String =
+    JavaCompiler.kaitaiType2JavaType(attrType, importList)
+
+  def kaitaiType2JavaType(attrType: DataType, isNullable: Boolean): String =
+    JavaCompiler.kaitaiType2JavaType(attrType, isNullable, importList)
+
+  def kaitaiType2JavaTypePrim(attrType: DataType): String =
+    JavaCompiler.kaitaiType2JavaTypePrim(attrType, importList)
+
+  def kaitaiType2JavaTypeBoxed(attrType: DataType): String =
+    JavaCompiler.kaitaiType2JavaTypeBoxed(attrType, importList)
+
   override def ksErrorName(err: KSError): String = err match {
     case EndOfStreamError => config.java.endOfStreamErrorClass
     case ConversionError => "NumberFormatException"
@@ -791,13 +803,13 @@ object JavaCompiler extends LanguageCompilerStatic
 
   def publicMemberName(id: Identifier) = idToStr(id)
 
-  def kaitaiType2JavaType(attrType: DataType): String = kaitaiType2JavaTypePrim(attrType)
+  def kaitaiType2JavaType(attrType: DataType, importList: ImportList): String = kaitaiType2JavaTypePrim(attrType, importList)
 
-  def kaitaiType2JavaType(attrType: DataType, isNullable: Boolean): String =
+  def kaitaiType2JavaType(attrType: DataType, isNullable: Boolean, importList: ImportList): String =
     if (isNullable) {
-      kaitaiType2JavaTypeBoxed(attrType)
+      kaitaiType2JavaTypeBoxed(attrType, importList)
     } else {
-      kaitaiType2JavaTypePrim(attrType)
+      kaitaiType2JavaTypePrim(attrType, importList)
     }
 
   /**
@@ -807,7 +819,7 @@ object JavaCompiler extends LanguageCompilerStatic
     * @param attrType KS data type
     * @return Java data type
     */
-  def kaitaiType2JavaTypePrim(attrType: DataType): String = {
+  def kaitaiType2JavaTypePrim(attrType: DataType, importList: ImportList): String = {
     attrType match {
       case Int1Type(false) => "int"
       case IntMultiType(false, Width2, _) => "int"
@@ -838,9 +850,9 @@ object JavaCompiler extends LanguageCompilerStatic
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
-      case ArrayTypeInStream(_) | CalcArrayType(_, _) => kaitaiType2JavaTypeBoxed(attrType)
+      case _: ArrayType => kaitaiType2JavaTypeBoxed(attrType, importList)
 
-      case st: SwitchType => kaitaiType2JavaTypePrim(st.combinedType)
+      case st: SwitchType => kaitaiType2JavaTypePrim(st.combinedType, importList)
     }
   }
 
@@ -851,7 +863,7 @@ object JavaCompiler extends LanguageCompilerStatic
     * @param attrType KS data type
     * @return Java data type
     */
-  def kaitaiType2JavaTypeBoxed(attrType: DataType): String = {
+  def kaitaiType2JavaTypeBoxed(attrType: DataType, importList: ImportList): String = {
     attrType match {
       case Int1Type(false) => "Integer"
       case IntMultiType(false, Width2, _) => "Integer"
@@ -882,10 +894,12 @@ object JavaCompiler extends LanguageCompilerStatic
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
-      case ArrayTypeInStream(inType) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
-      case CalcArrayType(inType, _) => s"ArrayList<${kaitaiType2JavaTypeBoxed(inType)}>"
+      case at: ArrayType => {
+        importList.add("java.util.ArrayList")
+        s"ArrayList<${kaitaiType2JavaTypeBoxed(at.elType, importList)}>"
+      }
 
-      case st: SwitchType => kaitaiType2JavaTypeBoxed(st.combinedType)
+      case st: SwitchType => kaitaiType2JavaTypeBoxed(st.combinedType, importList)
     }
   }
 

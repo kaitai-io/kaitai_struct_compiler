@@ -32,7 +32,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
+    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t, importList)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
 
     importList.add("java.util.ArrayList")
@@ -103,7 +103,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"((${JavaCompiler.kaitaiType2JavaType(typeName)}) (${translate(value)}))"
+    s"((${JavaCompiler.kaitaiType2JavaType(typeName, importList)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
