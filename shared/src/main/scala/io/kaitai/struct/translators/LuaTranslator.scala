@@ -67,10 +67,14 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
   override def doBoolLiteral(n: Boolean): String =
     if (n) "true" else "false"
+
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String =
     "{" + value.map((v) => translate(v)).mkString(", ") + "}"
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "\"" + decEscapeByteArray(arr) + "\""
+  override def doByteArrayNonLiteral(values: Seq[Ast.expr]): String =
+    // It is assumed that every expression produces integer in the range [0; 255]
+    "string.char(" + values.map(translate).mkString(", ") + ")"
 
   override def doLocalName(s: String) = s match {
     case Identifier.ITERATOR => "_"
