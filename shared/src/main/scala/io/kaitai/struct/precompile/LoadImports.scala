@@ -47,7 +47,7 @@ class LoadImports(specs: ClassSpecs) {
   private def loadImport(name: String, path: List[String], curClass: ClassSpec, workDir: ImportPath): Future[List[ClassSpec]] = {
     Log.importOps.info(() => s".. LoadImports: loadImport($name, workDir = $workDir)")
 
-    val inFile = Some(curClass.fileNameAsStr)
+    val inFile = curClass.fileNameAsStr
     val impPath = ImportPath.fromString(name)
     val fullPath = ImportPath.add(workDir, impPath)
 
