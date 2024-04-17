@@ -19,7 +19,7 @@ class ClassCompiler(
 
   override def compile: CompileLog.SpecSuccess = {
     lang.fileHeader(topClassName.head)
-    compileOpaqueClasses(topClass)
+    compileExternalTypes(topClass)
     compileClass(topClass)
     lang.fileFooter(topClassName.head)
 
@@ -29,10 +29,9 @@ class ClassCompiler(
     )
   }
 
-  def compileOpaqueClasses(topClass: ClassSpec) = {
-    TypeProcessor.getOpaqueClasses(topClass).foreach((classSpec) =>
-      if (classSpec != topClass)
-        lang.opaqueClassDeclaration(classSpec)
+  def compileExternalTypes(topClass: ClassSpec) = {
+    TypeProcessor.getExternalTypes(topClass).foreach((extType) =>
+      lang.externalTypeDeclaration(extType)
     )
   }
 
@@ -43,8 +42,6 @@ class ClassCompiler(
   def compileClass(curClass: ClassSpec): Unit = {
     provider.nowClass = curClass
 
-    curClass.meta.imports.foreach(file => lang.importFile(file))
-
     if (!lang.innerDocstrings)
       compileClassDoc(curClass)
     lang.classHeader(curClass.name)
@@ -53,18 +50,6 @@ class ClassCompiler(
 
     // Forward declarations for recursive types
     curClass.types.foreach { case (typeName, _) => lang.classForwardDeclaration(List(typeName)) }
-
-    // Forward declarations for params which reference types external to this type
-    curClass.params.foreach((paramDefSpec) =>
-      paramDefSpec.dataType match {
-        case ut: UserType =>
-          val externalTypeName = ut.classSpec.get.name
-          if (externalTypeName.head != curClass.name.head) {
-            lang.classForwardDeclaration(externalTypeName)
-          }
-        case _ => // no forward declarations needed
-      }
-    )
 
     if (lang.innerEnums)
       compileEnums(curClass)
@@ -358,7 +343,7 @@ class ClassCompiler(
   }
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =
-    lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.sortedSeq)
+    lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.map.toSeq)
 
   def isUnalignedBits(dt: DataType): Boolean =
     dt match {
@@ -367,12 +352,12 @@ class ClassCompiler(
       case _ => false
     }
 
-  def compileClassDoc(curClass: ClassSpec) = {
+  def compileClassDoc(curClass: ClassSpec): Unit = {
     if (!curClass.doc.isEmpty)
       lang.classDoc(curClass.name, curClass.doc)
   }
 
-  def compileInstanceDoc(instName: Identifier, instSpec: InstanceSpec) {
+  def compileInstanceDoc(instName: Identifier, instSpec: InstanceSpec): Unit = {
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
   }

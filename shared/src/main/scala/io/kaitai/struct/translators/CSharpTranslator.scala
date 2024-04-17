@@ -5,12 +5,12 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.CSharpCompiler
 
 class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    val nativeType = CSharpCompiler.kaitaiType2NativeType(t)
+    val nativeType = CSharpCompiler.kaitaiType2NativeType(importList, t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
 
     importList.add("System.Collections.Generic")
@@ -38,12 +38,12 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def strLiteralGenericCC(code: Char): String = strLiteralUnicode(code)
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${CSharpCompiler.kstreamName}.Mod(${translate(left)}, ${translate(right)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -61,10 +61,10 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def doInternalName(id: Identifier): String =
     s"${CSharpCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${enumClass(enumTypeAbs)}.${Utils.upperCamelCase(label)}"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"((${enumClass(enumTypeAbs)}) $id)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    s"${enumClass(enumSpec.name)}.${Utils.upperCamelCase(label)}"
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+    s"((${enumClass(enumSpec.name)}) $id)"
 
   def enumClass(enumTypeAbs: List[String]): String = {
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
@@ -85,11 +85,11 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"(${CSharpCompiler.kstreamName}.ByteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
 
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"((${CSharpCompiler.kaitaiType2NativeType(typeName)}) (${translate(value)}))"
+    s"((${CSharpCompiler.kaitaiType2NativeType(importList, typeName)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String = {
@@ -100,42 +100,40 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     translate(v)
   override def floatToInt(v: expr): String =
     s"(long) (${translate(v)})"
-  override def intToStr(i: expr, base: expr): String = {
-    importList.add("System")
-    s"Convert.ToString((long) (${translate(i)}), ${translate(base)})"
-  }
+  override def intToStr(i: expr): String =
+    s"${translate(i, METHOD_PRECEDENCE)}.ToString()"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""System.Text.Encoding.GetEncoding("$encoding").GetString($bytesExpr)"""
   override def strLength(s: expr): String =
-    s"${translate(s)}.Length"
+    s"${translate(s, METHOD_PRECEDENCE)}.Length"
 
   override def strReverse(s: expr): String =
     s"${CSharpCompiler.kstreamName}.StringReverse(${translate(s)})"
 
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.Substring(${translate(from)}, ${translate(to)} - ${translate(from)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.Substring(${translate(from)}, ${genericBinOp(to, Ast.operator.Sub, from, 0)})"
 
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.Length"
+    s"${translate(b, METHOD_PRECEDENCE)}.Length"
   override def bytesLast(b: Ast.expr): String = {
-    val v = translate(b)
+    val v = translate(b, METHOD_PRECEDENCE)
     s"$v[$v.Length - 1]"
   }
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}[0]"
+    s"${translate(a, METHOD_PRECEDENCE)}[0]"
   override def arrayLast(a: expr): String = {
-    val v = translate(a)
+    val v = translate(a, METHOD_PRECEDENCE)
     s"$v[$v.Count - 1]"
   }
   override def arraySize(a: expr): String =
-    s"${translate(a)}.Count"
+    s"${translate(a, METHOD_PRECEDENCE)}.Count"
   override def arrayMin(a: Ast.expr): String = {
     importList.add("System.Linq")
-    s"${translate(a)}.Min()"
+    s"${translate(a, METHOD_PRECEDENCE)}.Min()"
   }
   override def arrayMax(a: Ast.expr): String = {
     importList.add("System.Linq")
-    s"${translate(a)}.Max()"
+    s"${translate(a, METHOD_PRECEDENCE)}.Max()"
   }
 }

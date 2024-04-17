@@ -10,7 +10,7 @@ class TypeDetector$Test extends AnyFunSpec {
       val ut1 = CalcUserType(List("foo"), None)
       val ut2 = CalcUserType(List("bar"), None)
 
-      TypeDetector.combineTypes(ut1, ut2) should be(CalcKaitaiStructType)
+      TypeDetector.combineTypes(ut1, ut2) should be(CalcKaitaiStructType(false))
     }
   }
 }

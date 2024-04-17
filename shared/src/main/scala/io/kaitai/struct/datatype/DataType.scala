@@ -5,6 +5,8 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.problems.KSYParseError
 import io.kaitai.struct.translators.TypeDetector
 
+import scala.collection.immutable.SortedMap
+
 sealed trait DataType {
   /**
     * @return Data type as non-owning data type. Default implementation
@@ -90,7 +92,24 @@ object DataType {
 
   abstract class StrType extends DataType
   case object CalcStrType extends StrType
-  case class StrFromBytesType(bytes: BytesType, var encoding: String) extends StrType
+  /**
+    * A type that have the `str` and `strz` built-in Kaitai types.
+    *
+    * @param bytes An underlying bytes of the string
+    * @param encoding An encoding used to convert byte array into string
+    * @param isEncodingDerived A flag that is `true` when encoding is derived from
+    *        `meta/encoding` key of a type in which attribute with this type is
+    *        defined and `false` when encoding defined in the attribute
+    */
+  case class StrFromBytesType(
+    bytes: BytesType,
+    var encoding: String,
+    // FIXME: Actually, this should not be a part of KSY model used to code generation,
+    // but be a part of intermediate model. The current design of KSC does not have
+    // that intermediate model yet, so we put this flag here. See discussion at
+    // https://github.com/kaitai-io/kaitai_struct_compiler/pull/278#discussion_r1527312479
+    isEncodingDerived: Boolean,
+  ) extends StrType
 
   case object CalcBooleanType extends BooleanType
 
@@ -144,9 +163,18 @@ object DataType {
     var args: Seq[Ast.expr]
   ) extends StructType {
     var classSpec: Option[ClassSpec] = None
+    /**
+      * Determines whether the user type represented by this `UserType` instance
+      * is external from the perspective of the given `ClassSpec` in which it is
+      * used (via `seq`, `instances` or `params`).
+      * @param curClass class spec from which the local/external relationship
+      * should be evaluated
+      */
+    def isExternal(curClass: ClassSpec): Boolean =
+      classSpec.get.isExternal(curClass)
     def isOpaque = {
       val cs = classSpec.get
-      cs.isTopLevel || cs.meta.isOpaque
+      cs.meta.isOpaque
     }
   }
   case class UserTypeInstream(
@@ -204,6 +232,7 @@ object DataType {
     override def isOwning: Boolean = false
   }
 
+  /** Represents `_parent: false` expression which means that type explicitly has no parent. */
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
 
   case object AnyType extends DataType
@@ -224,11 +253,21 @@ object DataType {
 
   case class EnumType(name: List[String], basedOn: IntType) extends DataType {
     var enumSpec: Option[EnumSpec] = None
+
+    /**
+      * Determines whether the enum represented by this `EnumType` instance
+      * is external from the perspective of the given `ClassSpec` in which it is
+      * used (via `seq`, `instances` or `params`).
+      * @param curClass class spec from which the local/external relationship
+      * should be evaluated
+      */
+    def isExternal(curClass: ClassSpec): Boolean =
+      enumSpec.get.isExternal(curClass)
   }
 
   case class SwitchType(
     on: Ast.expr,
-    cases: Map[Ast.expr, DataType],
+    cases: SortedMap[Ast.expr, DataType],
     isOwning: Boolean = true,
     override val isOwningInExpr: Boolean = false
   ) extends ComplexDataType {
@@ -303,12 +342,13 @@ object DataType {
       val (_on, _cases) = fromYaml1(switchSpec, path)
 
       val on = Expressions.parse(_on)
-      val cases: Map[Ast.expr, DataType] = _cases.map { case (condition, typeName) =>
-        Expressions.parse(condition) -> DataType.fromYaml(
-          Some(typeName), path ++ List("cases"), metaDef,
-          arg
-        )
-      }
+      val cases: Map[Ast.expr, DataType] = SortedMap.from(
+        _cases.map { case (condition, typeName) =>
+          Expressions.parse(condition) -> DataType.fromYaml(
+            Some(typeName), path ++ List("cases"), metaDef,
+            arg
+          )
+        })
 
       // If we have size defined, and we don't have any "else" case already, add
       // an implicit "else" case that will at least catch everything else as
@@ -328,7 +368,7 @@ object DataType {
         }
       }
 
-      SwitchType(on, cases ++ addCases)
+      SwitchType(on, SortedMap.from(cases ++ addCases))
     }
   }
 
@@ -397,7 +437,7 @@ object DataType {
           }
 
           val bat = arg2.getByteArrayType(path)
-          StrFromBytesType(bat, enc)
+          StrFromBytesType(bat, enc, arg.encoding.isEmpty)
         case _ =>
           val typeWithArgs = Expressions.parseTypeRef(dt)
           if (arg.size.isEmpty && !arg.sizeEos && arg.terminator.isEmpty) {

@@ -5,7 +5,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.JavaCompiler
 
 class JavaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
@@ -32,7 +32,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t)
+    val javaType = JavaCompiler.kaitaiType2JavaTypeBoxed(t, importList)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
 
     importList.add("java.util.ArrayList")
@@ -45,12 +45,12 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${JavaCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -66,10 +66,10 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doInternalName(id: Identifier): String =
     s"${JavaCompiler.publicMemberName(id)}()"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${enumClass(enumTypeAbs)}.${Utils.upperUnderscoreCase(label)}"
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
-    s"${enumClass(enumTypeAbs)}.byId($id)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    s"${enumClass(enumSpec.name)}.${Utils.upperUnderscoreCase(label)}"
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+    s"${enumClass(enumSpec.name)}.byId($id)"
 
   def enumClass(enumTypeAbs: List[String]): String = {
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
@@ -99,11 +99,11 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}.get((int) ${translate(idx)})"
+    s"${translate(container)}.get((int) ${translate(idx, METHOD_PRECEDENCE)})"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"((${JavaCompiler.kaitaiType2JavaType(typeName)}) (${translate(value)}))"
+    s"((${JavaCompiler.kaitaiType2JavaType(typeName, importList)}) (${translate(value)}))"
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
@@ -112,8 +112,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"${translate(v)}.id()"
   override def floatToInt(v: expr): String =
     s"(int) (${translate(v)} + 0)"
-  override def intToStr(i: expr, base: expr): String =
-    s"Long.toString(${translate(i)}, ${translate(base)})"
+  override def intToStr(i: expr): String =
+    s"Long.toString(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     // Java has a small number of standard charsets preloaded. Accessing them as constants is more
     // efficient than looking them up by string in a map, so we utilize this when as possible.
@@ -138,33 +138,33 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.length"
+    s"${translate(b, METHOD_PRECEDENCE)}.length"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
   override def bytesFirst(b: Ast.expr): String =
-    s"${translate(b)}[0]"
+    s"${translate(b, METHOD_PRECEDENCE)}[0]"
   override def bytesLast(b: Ast.expr): String =
-    s"${translate(b)}[(${translate(b)}).length - 1]"
+    s"${translate(b, METHOD_PRECEDENCE)}[(${translate(b)}).length - 1]"
   override def bytesMin(b: Ast.expr): String =
     s"${JavaCompiler.kstreamName}.byteArrayMin(${translate(b)})"
   override def bytesMax(b: Ast.expr): String =
     s"${JavaCompiler.kstreamName}.byteArrayMax(${translate(b)})"
 
   override def strLength(s: expr): String =
-    s"${translate(s)}.length()"
+    s"${translate(s, METHOD_PRECEDENCE)}.length()"
   override def strReverse(s: expr): String =
     s"new StringBuilder(${translate(s)}).reverse().toString()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a)}.get(0)"
+    s"${translate(a, METHOD_PRECEDENCE)}.get(0)"
   override def arrayLast(a: expr): String = {
-    val v = translate(a)
+    val v = translate(a, METHOD_PRECEDENCE)
     s"$v.get($v.size() - 1)"
   }
   override def arraySize(a: expr): String =
-    s"${translate(a)}.size()"
+    s"${translate(a, METHOD_PRECEDENCE)}.size()"
   override def arrayMin(a: Ast.expr): String = {
     importList.add("java.util.Collections")
     s"Collections.min(${translate(a)})"

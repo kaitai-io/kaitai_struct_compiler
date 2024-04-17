@@ -102,6 +102,18 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val tParent = kaitaiType2NativeType(parentType)
     val tRoot = translator.types2classAbs(rootClassName)
 
+    val pRootValue = if (name == rootClassName) {
+      // We could technically use the [null coalescing operator
+      // (`??`)](https://www.php.net/manual/en/migration70.new-features.php#migration70.new-features.null-coalesce-op)
+      // available since PHP 7 (that's OK, we don't support any lower version
+      // than that), which does approximately this, but also has an additional
+      // feature of suppressing the error if the left-hand side is an undefined
+      // variable, which we don't need here.
+      s"$pRoot === null ? $$this : $pRoot"
+    } else {
+      pRoot
+    }
+
     out.puts(
       s"public function __construct($paramsArg" +
       s"$tIo $pIo, " +
@@ -109,7 +121,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       s"$tRoot $pRoot = null" + endianAdd + ") {"
     )
     out.inc
-    out.puts(s"parent::__construct($pIo, $pParent, $pRoot);")
+    out.puts(s"parent::__construct($pIo, $pParent, $pRootValue);")
 
     if (isHybrid)
       handleAssignmentSimple(EndianIdentifier, "$is_le")
@@ -336,7 +348,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io->readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {

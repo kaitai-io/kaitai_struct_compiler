@@ -370,7 +370,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {
@@ -577,6 +577,12 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
 
+  def kaitaiType2NativeType(attrType: DataType): String =
+    CSharpCompiler.kaitaiType2NativeType(importList, attrType)
+
+  def kaitaiType2NativeTypeNullable(t: DataType, isNullable: Boolean): String =
+    CSharpCompiler.kaitaiType2NativeTypeNullable(importList, t, isNullable)
+
   override def ksErrorName(err: KSError): String = CSharpCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
@@ -620,7 +626,7 @@ object CSharpCompiler extends LanguageCompilerStatic
     * @param attrType KS data type
     * @return .NET data type
     */
-  def kaitaiType2NativeType(attrType: DataType): String = {
+  def kaitaiType2NativeType(importList: ImportList, attrType: DataType): String = {
     attrType match {
       case Int1Type(false) => "byte"
       case IntMultiType(false, Width2, _) => "ushort"
@@ -651,14 +657,17 @@ object CSharpCompiler extends LanguageCompilerStatic
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
-      case at: ArrayType => s"List<${kaitaiType2NativeType(at.elType)}>"
+      case at: ArrayType => {
+        importList.add("System.Collections.Generic")
+        s"List<${kaitaiType2NativeType(importList, at.elType)}>"
+      }
 
-      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
+      case st: SwitchType => kaitaiType2NativeType(importList, st.combinedType)
     }
   }
 
-  def kaitaiType2NativeTypeNullable(t: DataType, isNullable: Boolean): String = {
-    val r = kaitaiType2NativeType(t)
+  def kaitaiType2NativeTypeNullable(importList: ImportList, t: DataType, isNullable: Boolean): String = {
+    val r = kaitaiType2NativeType(importList, t)
     if (isNullable) {
       t match {
         case _: NumericType | _: BooleanType => s"$r?"

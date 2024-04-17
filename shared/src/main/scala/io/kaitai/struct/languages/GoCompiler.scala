@@ -86,6 +86,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
     universalFooter
+
+    ioAccessor()
   }
 
   override def classConstructorFooter: Unit = {}
@@ -409,7 +411,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {
@@ -568,6 +570,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
   }
+
+  def ioAccessor(): Unit = {
+    out.puts
+    out.puts(s"func (this ${types2class(typeProvider.nowClass.name)}) IO_() *$kstreamName {")
+    out.inc
+    out.puts(s"return this._io")
+    out.dec
+    out.puts("}")
+  }
 }
 
 object GoCompiler extends LanguageCompilerStatic
@@ -631,7 +642,7 @@ object GoCompiler extends LanguageCompilerStatic
 
       case AnyType => "interface{}"
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
-      case KaitaiStreamType | OwnedKaitaiStreamType => "*" + kstreamName
+      case KaitaiStreamType | OwnedKaitaiStreamType => s"*$kstreamName"
 
       case t: UserType => "*" + types2class(t.classSpec match {
         case Some(cs) => cs.name
@@ -657,7 +668,7 @@ object GoCompiler extends LanguageCompilerStatic
     types2class(typeName) + "__" + type2class(enumName)
 
   override def kstreamName: String = "kaitai.Stream"
-  override def kstructName: String = "interface{}"
+  override def kstructName: String = "kaitai.Struct"
   override def ksErrorName(err: KSError): String = err match {
     case ConversionError => "strconv.NumError"
     case _ => s"kaitai.${err.name}"

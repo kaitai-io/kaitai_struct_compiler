@@ -3,8 +3,41 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.exprlang.Ast
 
 trait CommonOps extends AbstractTranslator {
-  def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
-    s"(${translate(left)} ${binOp(op)} ${translate(right)})"
+  /**
+   * Provides operator precedence table, used for deciding whether
+   * parenthesis guarding expression are necessary or not.
+   *
+   * This is the default table, based on Python operator precedence model.
+   * This is good enough for most C-like languages. Individual languages'
+   * translators can override it if and when necessary to alter behavior.
+   *
+   * @see https://docs.python.org/3/reference/expressions.html#operator-precedence
+   */
+  val OPERATOR_PRECEDENCE = Map[Ast.operator, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 90,
+    Ast.operator.BitOr -> 80,
+  )
+
+  def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): String =
+    genericBinOpStr(left, op, binOp(op), right, extPrec)
+
+  def genericBinOpStr(left: Ast.expr, op: Ast.operator, opStr: String, right: Ast.expr, extPrec: Int): String = {
+    val thisPrec = OPERATOR_PRECEDENCE(op)
+    val leftStr = translate(left, thisPrec)
+    val rightStr = translate(right, thisPrec)
+    if (thisPrec <= extPrec) {
+      s"($leftStr $opStr $rightStr)"
+    } else {
+      s"$leftStr $opStr $rightStr"
+    }
   }
 
   def binOp(op: Ast.operator): String = {

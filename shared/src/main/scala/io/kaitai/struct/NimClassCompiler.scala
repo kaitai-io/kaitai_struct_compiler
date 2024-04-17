@@ -21,8 +21,7 @@ class NimClassCompiler(
 
   override def compile: CompileLog.SpecSuccess = {
     lang.fileHeader(classNameFlattened(topClass))
-    compileOpaqueClasses(topClass)
-    compileImports(topClass)
+    compileExternalTypes(topClass)
 
     // if there are any enums at all maybe we can detect it and not generate this template
 //    nimlang.enumTemplate
@@ -110,16 +109,6 @@ class NimClassCompiler(
     lang.instanceFooter
   }
 
-  def compileImports(curClass: ClassSpec): Unit = {
-    provider.nowClass = curClass
-    curClass.meta.imports.foreach(file => lang.importFile(file))
-    compileImportsRec(curClass)
-  }
-
-  def compileImportsRec(curClass: ClassSpec): Unit = {
-    curClass.types.foreach { case (_, subClass) => compileImports(subClass) }
-  }
-
 //  def compileEnumsForAllTypes(curClass: ClassSpec) {
 //    provider.nowClass = curClass
 //    compileEnums(curClass)
@@ -153,7 +142,7 @@ class NimClassCompiler(
   def compileTypesRec(curClass: ClassSpec): Unit = {
     curClass.types.foreach { case (_, subClass) => compileTypes(subClass) }
   }
-  
+
 //  def compileEnumConstants(curClass: ClassSpec): Unit = {
 //    provider.nowClass = curClass
 //    curClass.enums.foreach { case(_, enumColl) => {
@@ -203,4 +192,3 @@ class NimClassCompiler(
   }
 
 }
-

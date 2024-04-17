@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType.EnumType
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.RubyCompiler
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
@@ -40,10 +40,10 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def doInternalName(id: Identifier): String =
     RubyCompiler.publicMemberName(id)
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s":${enumTypeAbs.last}_$label"
-  override def doEnumById(enumType: List[String], id: String): String =
-    s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumType)}, $id)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    RubyCompiler.enumValue(enumSpec.name.last, label)
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
+    s"${RubyCompiler.kstreamName}::resolve_enum(${enumDirectMap(enumSpec.name)}, $id)"
 
   def enumDirectMap(enumTypeAndName: List[String]): String = {
     val enumTypeAbs = enumTypeAndName.dropRight(1)
@@ -68,14 +68,14 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   }
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
     s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 
   // Predefined methods of various types
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
     val baseStr = translate(base)
-    translate(s) + ".to_i" + (baseStr match {
+    s"${translate(s, METHOD_PRECEDENCE)}.to_i" + (baseStr match {
       case "10" => ""
       case _ => s"($baseStr)"
     })
@@ -83,9 +83,9 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def enumToInt(v: Ast.expr, et: EnumType): String =
     s"${enumInverseMap(et)}[${translate(v)}]"
   override def floatToInt(v: Ast.expr): String =
-    s"(${translate(v)}).to_i"
-  override def intToStr(i: Ast.expr, base: Ast.expr): String =
-    translate(i) + s".to_s(${translate(base)})"
+    s"${translate(v, METHOD_PRECEDENCE)}.to_i"
+  override def intToStr(i: Ast.expr): String =
+    s"${translate(i, METHOD_PRECEDENCE)}.to_s"
 
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     // We can skip "encode to UTF8" if we're 100% sure that the string we're handling is already
@@ -98,7 +98,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   }
 
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b)}.size"
+    s"${translate(b, METHOD_PRECEDENCE)}.size"
   /**
     * Alternatives considered:
     *
@@ -106,34 +106,34 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
     * * value.bytes[0] => 8303
     */
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${translate(container)}[${translate(idx)}].ord"
+    s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}].ord"
   override def bytesFirst(b: Ast.expr): String =
-    s"${translate(b)}[0].ord"
+    s"${translate(b, METHOD_PRECEDENCE)}[0].ord"
   override def bytesLast(b: Ast.expr): String =
-    s"${translate(b)}[-1].ord"
+    s"${translate(b, METHOD_PRECEDENCE)}[-1].ord"
   override def bytesMin(b: Ast.expr): String =
-    s"${translate(b)}.bytes.min"
+    s"${translate(b, METHOD_PRECEDENCE)}.bytes.min"
   override def bytesMax(b: Ast.expr): String =
-    s"${translate(b)}.bytes.max"
+    s"${translate(b, METHOD_PRECEDENCE)}.bytes.max"
 
   override def strLength(s: Ast.expr): String =
-    s"${translate(s)}.size"
+    s"${translate(s, METHOD_PRECEDENCE)}.size"
   override def strReverse(s: Ast.expr): String =
-    s"${translate(s)}.reverse"
+    s"${translate(s, METHOD_PRECEDENCE)}.reverse"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s)}[${translate(from)}..(${translate(to)} - 1)]"
+    s"${translate(s, METHOD_PRECEDENCE)}[${translate(from)}..${genericBinOp(to, Ast.operator.Sub, Ast.expr.IntNum(1), 0)}]"
 
   override def arrayFirst(a: Ast.expr): String =
-    s"${translate(a)}.first"
+    s"${translate(a, METHOD_PRECEDENCE)}.first"
   override def arrayLast(a: Ast.expr): String =
-    s"${translate(a)}.last"
+    s"${translate(a, METHOD_PRECEDENCE)}.last"
   override def arraySize(a: Ast.expr): String =
-    s"${translate(a)}.length"
+    s"${translate(a, METHOD_PRECEDENCE)}.length"
   override def arrayMin(a: Ast.expr): String =
-    s"${translate(a)}.min"
+    s"${translate(a, METHOD_PRECEDENCE)}.min"
   override def arrayMax(a: Ast.expr): String =
-    s"${translate(a)}.max"
+    s"${translate(a, METHOD_PRECEDENCE)}.max"
 
   override def kaitaiStreamEof(value: Ast.expr): String =
-    s"${translate(value)}.eof?"
+    s"${translate(value, METHOD_PRECEDENCE)}.eof?"
 }

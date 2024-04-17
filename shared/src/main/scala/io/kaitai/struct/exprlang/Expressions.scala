@@ -24,31 +24,40 @@ import Lexical.kw
   */
 object Expressions {
   // Implicit rule which consume input in `~` and `.rep` operators
-  implicit val whitespace = { implicit ctx: ParsingRun[_] => Lexical.wscomment }
+  implicit val whitespace: P[_] => P[Unit] = { implicit ctx: ParsingRun[_] => Lexical.wscomment }
 
-  def NAME[_: P]: P[Ast.identifier] = Lexical.identifier
-  def TYPE_NAME[_: P]: P[Ast.typeId] = P("::".!.? ~ NAME.rep(1, "::") ~ ("[" ~ "]").!.?).map {
+  def NAME[$: P]: P[Ast.identifier] = Lexical.identifier
+  def TYPE_NAME[$: P]: P[Ast.typeId] = P("::".!.? ~ NAME.rep(1, "::") ~ ("[" ~ "]").!.?).map {
     case (first, names: Seq[Ast.identifier], arrayStr) =>
       Ast.typeId(first.nonEmpty, names.map((el) => el.name), arrayStr.nonEmpty)
   }
-  def INT_NUMBER[_: P] = Lexical.integer
-  def FLOAT_NUMBER[_: P] = Lexical.floatnumber
-  def STRING[_: P]: P[String] = Lexical.stringliteral
+  def INT_NUMBER[$: P] = Lexical.integer
+  def FLOAT_NUMBER[$: P] = Lexical.floatnumber
+  def STRING[$: P]: P[String] = Lexical.stringliteral
 
-  def test[_: P]: P[Ast.expr] = P( or_test ~ ("?" ~ test ~ ":" ~ test).? ).map {
+  def fstring[$: P]: P[Ast.expr.InterpolatedStr] = P("f\"" ~~/ fstringElement.repX ~~ "\"").map(Ast.expr.InterpolatedStr)
+  def fstringElement[$: P]: P[Ast.expr] = P(
+    formatExpr |
+      Lexical.fstringItem.repX(1).
+        map(_.mkString).
+        map(Ast.expr.Str)
+  )
+  def formatExpr[$: P]: P[Ast.expr] = P("{" ~/ test ~ "}")
+
+  def test[$: P]: P[Ast.expr] = P( or_test ~ ("?" ~ test ~ ":" ~ test).? ).map {
     case (x, None) => x
     case (condition, Some((ifTrue, ifFalse))) => Ast.expr.IfExp(condition, ifTrue, ifFalse)
   }
-  def or_test[_: P] = P( and_test.rep(1, kw("or")) ).map {
+  def or_test[$: P] = P( and_test.rep(1, kw("or")) ).map {
     case Seq(x) => x
     case xs => Ast.expr.BoolOp(Ast.boolop.Or, xs)
   }
-  def and_test[_: P] = P( not_test.rep(1, kw("and")) ).map {
+  def and_test[$: P] = P( not_test.rep(1, kw("and")) ).map {
     case Seq(x) => x
     case xs => Ast.expr.BoolOp(Ast.boolop.And, xs)
   }
-  def not_test[_: P]: P[Ast.expr] = P( (kw("not") ~ not_test).map(Ast.expr.UnaryOp(Ast.unaryop.Not, _)) | comparison )
-  def comparison[_: P]: P[Ast.expr] = P( expr ~ (comp_op ~ expr).? ).map {
+  def not_test[$: P]: P[Ast.expr] = P( (kw("not") ~ not_test).map(Ast.expr.UnaryOp(Ast.unaryop.Not, _)) | comparison )
+  def comparison[$: P]: P[Ast.expr] = P( expr ~ (comp_op ~ expr).? ).map {
     case (lhs, None) => lhs
     case (lhs, Some(chunks)) =>
       val (op, rhs) = chunks
@@ -57,40 +66,40 @@ object Expressions {
 
   // Common operators, mapped from their
   // strings to their type-safe representations
-  def op[_: P, T](s: P0, rhs: T) = s.!.map(_ => rhs)
-  def LShift[_: P] = op("<<", Ast.operator.LShift)
-  def RShift[_: P] = op(">>", Ast.operator.RShift)
-  def Lt[_: P] = op("<", Ast.cmpop.Lt)
-  def Gt[_: P] = op(">", Ast.cmpop.Gt)
-  def Eq[_: P] = op("==", Ast.cmpop.Eq)
-  def GtE[_: P] = op(">=", Ast.cmpop.GtE)
-  def LtE[_: P] = op("<=", Ast.cmpop.LtE)
-  def NotEq[_: P] = op("!=", Ast.cmpop.NotEq)
-  def comp_op[_: P] = P( LtE|GtE|Eq|Gt|Lt|NotEq )
-  def Add[_: P] = op("+", Ast.operator.Add)
-  def Sub[_: P] = op("-", Ast.operator.Sub)
+  def op[$: P, T](s: P0, rhs: T) = s.!.map(_ => rhs)
+  def LShift[$: P] = op("<<", Ast.operator.LShift)
+  def RShift[$: P] = op(">>", Ast.operator.RShift)
+  def Lt[$: P] = op("<", Ast.cmpop.Lt)
+  def Gt[$: P] = op(">", Ast.cmpop.Gt)
+  def Eq[$: P] = op("==", Ast.cmpop.Eq)
+  def GtE[$: P] = op(">=", Ast.cmpop.GtE)
+  def LtE[$: P] = op("<=", Ast.cmpop.LtE)
+  def NotEq[$: P] = op("!=", Ast.cmpop.NotEq)
+  def comp_op[$: P] = P( LtE|GtE|Eq|Gt|Lt|NotEq )
+  def Add[$: P] = op("+", Ast.operator.Add)
+  def Sub[$: P] = op("-", Ast.operator.Sub)
   // def Pow[_: P] = op("**", Ast.operator.Pow)
-  def Mult[_: P]= op("*", Ast.operator.Mult)
-  def Div[_: P] = op("/", Ast.operator.Div)
-  def Mod[_: P] = op("%", Ast.operator.Mod)
-  def BitOr[_: P] = op("|", Ast.operator.BitOr)
-  def BitAnd[_: P] = op("&", Ast.operator.BitAnd)
-  def BitXor[_: P] = op("^", Ast.operator.BitXor)
+  def Mult[$: P]= op("*", Ast.operator.Mult)
+  def Div[$: P] = op("/", Ast.operator.Div)
+  def Mod[$: P] = op("%", Ast.operator.Mod)
+  def BitOr[$: P] = op("|", Ast.operator.BitOr)
+  def BitAnd[$: P] = op("&", Ast.operator.BitAnd)
+  def BitXor[$: P] = op("^", Ast.operator.BitXor)
 
-  def Chain[_: P](p: => P[Ast.expr], op: => P[Ast.operator]) = P( p ~ (op ~ p).rep ).map {
+  def Chain[$: P](p: => P[Ast.expr], op: => P[Ast.operator]) = P( p ~ (op ~ p).rep ).map {
     case (lhs, chunks) =>
       chunks.foldLeft(lhs){case (lhs, (op, rhs)) =>
         Ast.expr.BinOp(lhs, op, rhs)
       }
   }
-  def expr[_: P]: P[Ast.expr] = P( Chain(xor_expr, BitOr) )
-  def xor_expr[_: P]: P[Ast.expr] = P( Chain(and_expr, BitXor) )
-  def and_expr[_: P]: P[Ast.expr] = P( Chain(shift_expr, BitAnd) )
-  def shift_expr[_: P]: P[Ast.expr] = P( Chain(arith_expr, LShift | RShift) )
+  def expr[$: P]: P[Ast.expr] = P( Chain(xor_expr, BitOr) )
+  def xor_expr[$: P]: P[Ast.expr] = P( Chain(and_expr, BitXor) )
+  def and_expr[$: P]: P[Ast.expr] = P( Chain(shift_expr, BitAnd) )
+  def shift_expr[$: P]: P[Ast.expr] = P( Chain(arith_expr, LShift | RShift) )
 
-  def arith_expr[_: P]: P[Ast.expr] = P( Chain(term, Add | Sub) )
-  def term[_: P]: P[Ast.expr] = P( Chain(factor, Mult | Div | Mod) )
-  def factor[_: P]: P[Ast.expr] = P(
+  def arith_expr[$: P]: P[Ast.expr] = P( Chain(term, Add | Sub) )
+  def term[$: P]: P[Ast.expr] = P( Chain(factor, Mult | Div | Mod) )
+  def factor[$: P]: P[Ast.expr] = P(
     ("+" ~ factor) |
     ("-" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Minus, _)) |
     ("~" ~ factor).map(Ast.expr.UnaryOp(Ast.unaryop.Invert, _)) |
@@ -104,13 +113,13 @@ object Expressions {
   //       case Some((op, right)) => Ast.expr.BinOp(left, op, right)
   //     }
   // }
-  def power[_: P]: P[Ast.expr] = P( atom ~ trailer.rep ).map {
+  def power[$: P]: P[Ast.expr] = P( atom ~ trailer.rep ).map {
     case (lhs, trailers) =>
       trailers.foldLeft(lhs)((l, t) => t(l))
   }
-  def empty_list[_: P] = P("[" ~ "]").map(_ => Ast.expr.List(Nil))
+  def empty_list[$: P] = P("[" ~ "]").map(_ => Ast.expr.List(Nil))
   // def empty_dict[_: P] = P("{" ~ "}").map(_ => Ast.expr.Dict(Nil, Nil))
-  def atom[_: P]: P[Ast.expr] = P(
+  def atom[$: P]: P[Ast.expr] = P(
     empty_list |
     // empty_dict |
     "(" ~ test ~ ")" |
@@ -119,6 +128,7 @@ object Expressions {
     enumByName |
     byteSizeOfType |
     bitSizeOfType |
+    fstring |
     STRING.rep(1).map(_.mkString).map(Ast.expr.Str) |
     NAME.map((x) => x.name match {
       case "true" => Ast.expr.Bool(true)
@@ -128,19 +138,19 @@ object Expressions {
     FLOAT_NUMBER.map(Ast.expr.FloatNum) |
     INT_NUMBER.map(Ast.expr.IntNum)
   )
-  def list_contents[_: P] = P( test.rep(1, ",") ~ ",".? )
-  def list[_: P] = P( list_contents ).map(Ast.expr.List(_))
+  def list_contents[$: P] = P( test.rep(1, ",") ~ ",".? )
+  def list[$: P] = P( list_contents ).map(Ast.expr.List(_))
 
-  def call[_: P] = P("(" ~ arglist ~ ")").map { case (args) => (lhs: Ast.expr) => Ast.expr.Call(lhs, args)}
-  def slice[_: P] = P("[" ~ test ~ "]").map { case (args) => (lhs: Ast.expr) => Ast.expr.Subscript(lhs, args)}
-  def cast[_: P] = P( "." ~ "as" ~ "<" ~ TYPE_NAME ~ ">" ).map(
+  def call[$: P] = P("(" ~ arglist ~ ")").map { case (args) => (lhs: Ast.expr) => Ast.expr.Call(lhs, args)}
+  def slice[$: P] = P("[" ~ test ~ "]").map { case (args) => (lhs: Ast.expr) => Ast.expr.Subscript(lhs, args)}
+  def cast[$: P] = P( "." ~ "as" ~ "<" ~ TYPE_NAME ~ ">" ).map(
     typeName => (lhs: Ast.expr) => Ast.expr.CastToType(lhs, typeName)
   )
-  def attr[_: P] = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id))
-  def trailer[_: P]: P[Ast.expr => Ast.expr] = P( call | slice | cast | attr )
+  def attr[$: P] = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id))
+  def trailer[$: P]: P[Ast.expr => Ast.expr] = P( call | slice | cast | attr )
 
-  def exprlist[_: P]: P[Seq[Ast.expr]] = P( expr.rep(1, sep = ",") ~ ",".? )
-  def testlist[_: P]: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") ~ ",".? )
+  def exprlist[$: P]: P[Seq[Ast.expr]] = P( expr.rep(1, sep = ",") ~ ",".? )
+  def testlist[$: P]: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") ~ ",".? )
 
   // def dict_item[_: P] = P( test ~ ":" ~ test )
   // def dict[_: P]: P[Ast.expr.Dict] = P(
@@ -151,13 +161,13 @@ object Expressions {
   // )
   // def dictorsetmaker[_: P]: P[Ast.expr] = P( /*dict_comp |*/ dict /*| set_comp | set*/)
 
-  def arglist[_: P]: P[Seq[Ast.expr]] = P( (test).rep(0, ",") )
+  def arglist[$: P]: P[Seq[Ast.expr]] = P( (test).rep(0, ",") )
 
-  def comp_if[_: P]: P[Ast.expr] = P( "if" ~ test )
+  def comp_if[$: P]: P[Ast.expr] = P( "if" ~ test )
 
-  def testlist1[_: P]: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") )
+  def testlist1[$: P]: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") )
 
-  def enumByName[_: P]: P[Ast.expr.EnumByLabel] = P("::".!.? ~ NAME.rep(2, "::")).map {
+  def enumByName[$: P]: P[Ast.expr.EnumByLabel] = P("::".!.? ~ NAME.rep(2, "::")).map {
     case (first, names: Seq[Ast.identifier]) =>
       val isAbsolute = first.nonEmpty
       val (enumName, enumLabel) = names.takeRight(2) match {
@@ -171,16 +181,16 @@ object Expressions {
       }
   }
 
-  def byteSizeOfType[_: P]: P[Ast.expr.ByteSizeOfType] =
+  def byteSizeOfType[$: P]: P[Ast.expr.ByteSizeOfType] =
     P("sizeof" ~ "<" ~ TYPE_NAME ~ ">").map(typeName => Ast.expr.ByteSizeOfType(typeName))
-  def bitSizeOfType[_: P]: P[Ast.expr.BitSizeOfType] =
+  def bitSizeOfType[$: P]: P[Ast.expr.BitSizeOfType] =
     P("bitsizeof" ~ "<" ~ TYPE_NAME ~ ">").map(typeName => Ast.expr.BitSizeOfType(typeName))
 
-  def topExpr[_: P]: P[Ast.expr] = P( test ~ End )
+  def topExpr[$: P]: P[Ast.expr] = P( test ~ End )
 
-  def topExprList[_: P]: P[Seq[Ast.expr]] = P(testlist1 ~ End)
+  def topExprList[$: P]: P[Seq[Ast.expr]] = P(testlist1 ~ End)
 
-  def typeRef[_: P]: P[Ast.TypeWithArguments] = P(Start ~ TYPE_NAME ~ ("(" ~ list ~ ")").? ~ End).map {
+  def typeRef[$: P]: P[Ast.TypeWithArguments] = P(Start ~ TYPE_NAME ~ ("(" ~ list ~ ")").? ~ End).map {
     case (path, None)       => Ast.TypeWithArguments(path, Ast.expr.List(Seq()))
     case (path, Some(args)) => Ast.TypeWithArguments(path, args)
   }

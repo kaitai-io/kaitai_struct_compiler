@@ -4,9 +4,149 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.precompile.TypeMismatchError
+import io.kaitai.struct.precompile.{MethodNotFoundError, MethodNotFoundErrorWithArg, TypeMismatchError, WrongMethodCall}
+
+sealed trait MethodArgType
+object MethodArgType {
+  case object IntArg extends MethodArgType {
+    override def toString = "integer"
+  }
+  case object FloatArg extends MethodArgType {
+    override def toString = "float"
+  }
+  case object StrArg extends MethodArgType {
+    override def toString = "string"
+  }
+  case object BooleanArg extends MethodArgType {
+    override def toString = "boolean"
+  }
+  case object BytesArg extends MethodArgType {
+    override def toString = "byte array"
+  }
+  case object ArrayArg extends MethodArgType {
+    override def toString = "array"
+  }
+
+  def byDataType(dataType: DataType): Option[MethodArgType] = {
+    dataType match {
+      case _: IntType => Some(IntArg)
+      case _: FloatType => Some(FloatArg)
+      case _: StrType => Some(StrArg)
+      case _: BooleanType => Some(BooleanArg)
+      case _: BytesType => Some(BytesArg)
+      case _: ArrayType => Some(ArrayArg)
+      case _ => None
+    }
+  }
+
+  def isArgAcceptable(actualType: DataType, expectedType: MethodArgType): Boolean =
+    byDataType(actualType).map((t) => t == expectedType).getOrElse(false)
+}
 
 abstract trait CommonMethods[T] extends TypeDetector {
+  import MethodArgType._
+
+  sealed trait MethodSig {
+    def name: String
+    def expectedArgs: String
+    def accepts(argsValues: Seq[Ast.expr]): Boolean
+  }
+
+  case class MethodSig0(
+    name: String,
+    returnType: DataType,
+    method: (Ast.expr) => T
+  ) extends MethodSig {
+    override def expectedArgs: String = "()"
+    override def accepts(argsValues: Seq[Ast.expr]): Boolean = argsValues.isEmpty
+  }
+
+  case class MethodSig1(
+    name: String,
+    returnType: DataType,
+    argTypes: MethodArgType,
+    method: (Ast.expr, Ast.expr) => T
+  ) extends MethodSig {
+    override def expectedArgs: String = s"($argTypes)"
+    override def accepts(argsValues: Seq[Ast.expr]): Boolean = argsValues match {
+      case Seq(arg0) => isArgAcceptable(detectType(arg0), argTypes)
+      case _ => false
+    }
+  }
+
+  case class MethodSig2(
+    name: String,
+    returnType: DataType,
+    argTypes: (MethodArgType, MethodArgType),
+    method: (Ast.expr, Ast.expr, Ast.expr) => T
+  ) extends MethodSig {
+    override def expectedArgs: String = s"(${argTypes._1}, ${argTypes._2})"
+    override def accepts(argsValues: Seq[Ast.expr]): Boolean = argsValues match {
+      case Seq(arg0, arg1) =>
+        isArgAcceptable(detectType(arg0), argTypes._1) &&
+          isArgAcceptable(detectType(arg1), argTypes._2)
+      case _ => false
+    }
+  }
+
+  val METHODS_BY_TYPE: Map[MethodArgType, List[MethodSig]] = Map(
+    BytesArg -> List(
+      MethodSig0("first", Int1Type(false), bytesFirst),
+      MethodSig0("last", Int1Type(false), bytesLast),
+      MethodSig0("length", CalcIntType, bytesLength),
+      MethodSig0("size", CalcIntType, bytesLength),
+      MethodSig0("min", Int1Type(false), bytesMin),
+      MethodSig0("max", Int1Type(false), bytesMax),
+
+      // TODO: implement a better way to signal that we want not just any string, but string literal
+      MethodSig1("to_s", CalcStrType, StrArg, { case (obj, arg0) =>
+        arg0 match {
+          case Ast.expr.Str(encoding) =>
+            bytesToStr(obj, encoding)
+          case x =>
+            throw new TypeMismatchError(s"to_s: argument #0: expected string literal, got $x")
+        }
+      })
+    ),
+    IntArg -> List(
+      MethodSig0("to_s", CalcStrType, intToStr),
+    ),
+    FloatArg -> List(
+      MethodSig0("to_i", CalcIntType, floatToInt),
+    ),
+    StrArg -> List(
+      MethodSig0("length", CalcIntType, strLength),
+      MethodSig0("reverse", CalcStrType, strReverse),
+      MethodSig0("to_i", CalcIntType, { strToInt(_, Ast.expr.IntNum(10)) }),
+      MethodSig1("to_i", CalcIntType, IntArg, strToInt),
+      MethodSig2("substring", CalcStrType, (IntArg, IntArg), strSubstring)
+    ),
+    BooleanArg -> List(
+      MethodSig0("to_i", CalcBooleanType, boolToInt)
+    ),
+
+    // TODO: do something about return type for arrays here
+    ArrayArg -> List(
+      MethodSig0("first", AnyType, arrayFirst),
+      MethodSig0("last", AnyType, arrayLast),
+      MethodSig0("size", AnyType, arraySize),
+      MethodSig0("min", AnyType, arrayMin),
+      MethodSig0("max", AnyType, arrayMax),
+    ),
+  )
+
+  /**
+    * Constant for precedence to use from within method call when we need to make sure parenthesis
+    * will appear when necessary. Mostly used when a language will use postfix method call on an
+    * object, like `obj.method(args)`:
+    *
+    *  - if `obj` is simple (like variable reference or a literal - `obj.method(args)` or
+    *    `42.method(args)`, no parenthesis are required.
+    *  - if `obj` is complex (like an expression `a + b`), then this will ensure framing as
+    *    `(a + b).method(args)`.
+    */
+  val METHOD_PRECEDENCE = 999
+
   /**
     * Translates a certain attribute call (as in `foo.bar`) into a rendition
     * of expression in certain target language.
@@ -26,40 +166,10 @@ abstract trait CommonMethods[T] extends TypeDetector {
     valType match {
       case KaitaiStructType | CalcKaitaiStructType(_) =>
         attr.name match {
-          case Identifier.PARENT => kaitaiStructField(value, attr.name)
+          case Identifier.PARENT | Identifier.IO => kaitaiStructField(value, attr.name)
         }
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
-      case _: BytesType =>
-        attr.name match {
-          case "first" => bytesFirst(value)
-          case "last" => bytesLast(value)
-          case "length" | "size" => bytesLength(value)
-          case "min" => bytesMin(value)
-          case "max" => bytesMax(value)
-        }
-      case _: StrType =>
-        attr.name match {
-          case "length" => strLength(value)
-          case "reverse" => strReverse(value)
-          case "to_i" => strToInt(value, Ast.expr.IntNum(10))
-        }
-      case _: IntType =>
-        attr.name match {
-          case "to_s" => intToStr(value, Ast.expr.IntNum(10))
-        }
-      case _: FloatType =>
-        attr.name match {
-          case "to_i" => floatToInt(value)
-        }
-      case _: ArrayType =>
-        attr.name match {
-          case "first" => arrayFirst(value)
-          case "last" => arrayLast(value)
-          case "size" => arraySize(value)
-          case "min" => arrayMin(value)
-          case "max" => arrayMax(value)
-        }
       case KaitaiStreamType | OwnedKaitaiStreamType =>
         attr.name match {
           case "size" => kaitaiStreamSize(value)
@@ -71,10 +181,10 @@ abstract trait CommonMethods[T] extends TypeDetector {
           case "to_i" => enumToInt(value, et)
           case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
         }
-      case _: BooleanType =>
-        attr.name match {
-          case "to_i" => boolToInt(value)
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+      case _ =>
+        MethodArgType.byDataType(valType) match {
+          case Some(argType) => invokeMethod(argType, attr.name, value)
+          case _ => throw new TypeMismatchError(s"internal compiler error: tried to call attribute '${attr.name}' on expression of type $valType")
         }
     }
   }
@@ -82,6 +192,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
   /**
     * Translates a certain function call (as in `foo.bar(arg1, arg2)`) into a
     * rendition of expression in certain target language.
+    *
     * @note Must be kept in sync with [[TypeDetector.detectCallType]]
     * @param call function call expression to translate
     * @return result of translation as [[T]]
@@ -93,21 +204,40 @@ abstract trait CommonMethods[T] extends TypeDetector {
     func match {
       case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
         val objType = detectType(obj)
-        (objType, methodName.name) match {
-          // TODO: check argument quantity
-          case (_: StrType, "substring") => strSubstring(obj, args(0), args(1))
-          case (_: StrType, "to_i") => strToInt(obj, args(0))
-          case (_: BytesType, "to_s") =>
-            args match {
-              case Seq(Ast.expr.Str(encoding)) =>
-                bytesToStr(obj, encoding)
-              case Seq(x) =>
-                throw new TypeMismatchError(s"to_s: argument #0: expected string literal, got $x")
-              case _ =>
-                throw new TypeMismatchError(s"to_s: expected 1 argument, got ${args.length}")
-            }
-          case _ => throw new TypeMismatchError(s"don't know how to call method '$methodName' of object type '$objType'")
+        MethodArgType.byDataType(objType) match {
+          case Some(argType) =>
+            invokeMethod(argType, methodName.name, obj, args)
+          case None =>
+            throw new MethodNotFoundError(methodName.name, objType)
         }
+    }
+  }
+
+  private def invokeMethod(argType: MethodArgType, methodName: String, obj: Ast.expr, args: Seq[Ast.expr] = Seq()): T = {
+    METHODS_BY_TYPE.get(argType) match {
+      case Some(methodList) =>
+        val methodSigs = methodList.filter(_.name == methodName)
+        if (methodSigs.isEmpty) {
+          throw new MethodNotFoundErrorWithArg(methodName, argType)
+        } else {
+          val expectedArgProblems: List[String] = methodSigs.map { methodSig =>
+            if (methodSig.accepts(args)) {
+              return methodSig match {
+                case ms0: MethodSig0 =>
+                  ms0.method(obj)
+                case ms1: MethodSig1 =>
+                  ms1.method(obj, args(0))
+                case ms2: MethodSig2 =>
+                  ms2.method(obj, args(0), args(1))
+              }
+            } else {
+              methodSig.expectedArgs
+            }
+          }
+          throw new WrongMethodCall(argType, methodName, expectedArgProblems, "(" + args.mkString(", ") + ")")
+        }
+      case None =>
+        throw new MethodNotFoundErrorWithArg(methodName, argType)
     }
   }
 
@@ -128,7 +258,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
 
   def bytesToStr(value: Ast.expr, encoding: String): T
 
-  def intToStr(value: Ast.expr, num: Ast.expr): T
+  def intToStr(value: Ast.expr): T
 
   def floatToInt(value: Ast.expr): T
 

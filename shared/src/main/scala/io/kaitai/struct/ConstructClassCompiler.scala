@@ -104,7 +104,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     importList.add("import enum")
     out.puts(s"class ${types2class(enumSpec.name)}(enum.IntEnum):")
     out.inc
-    enumSpec.sortedSeq.foreach { case (id, valueSpec) =>
+    enumSpec.map.foreach { case (id, valueSpec) =>
       out.puts(s"${valueSpec.name} = ${translator.doIntLiteral(id)}")
     }
     out.dec
@@ -133,7 +133,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       attrBytesLimitType(blt)
     case btt: BytesTerminatedType =>
       attrBytesTerminatedType(btt, "GreedyBytes")
-    case StrFromBytesType(bytes, encoding) =>
+    case StrFromBytesType(bytes, encoding, _) =>
       bytes match {
         case BytesEosType(terminator, include, padRight, process) =>
           s"GreedyString(encoding='$encoding')"

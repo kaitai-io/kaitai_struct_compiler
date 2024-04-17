@@ -10,8 +10,9 @@ import io.kaitai.struct.problems._
   * A collection of methods that resolves user types and enum types, i.e.
   * converts names into ClassSpec / EnumSpec references.
   */
-class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileStep {
-  override def run(): Iterable[CompilationProblem] = specs.mapRec(resolveUserTypes)
+class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean) extends PrecompileStep {
+  override def run(): Iterable[CompilationProblem] =
+    topClass.mapRec(resolveUserTypes).map(problem => problem.localizedInType(topClass))
 
   /**
     * Resolves user types and enum types recursively starting from a certain
@@ -45,13 +46,13 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileSt
   def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Iterable[CompilationProblem] = {
     dataType match {
       case ut: UserType =>
-        val (resClassSpec, problems) = resolveUserType(curClass, ut.name, path)
+        val (resClassSpec, problems) = resolveUserType(curClass, ut.name, path ++ List("type"))
         ut.classSpec = resClassSpec
         problems
       case et: EnumType =>
         et.enumSpec = resolveEnumSpec(curClass, et.name)
         if (et.enumSpec.isEmpty) {
-          Some(EnumNotFoundErr(et.name, curClass, path))
+          Some(EnumNotFoundErr(et.name, curClass, path ++ List("enum")))
         } else {
           None
         }
@@ -79,6 +80,7 @@ class ResolveTypes(specs: ClassSpecs, opaqueTypes: Boolean) extends PrecompileSt
           (Some(ClassSpec.opaquePlaceholder(typeName)), None)
         } else {
           // Opaque types are disabled => that is an error
+          Log.typeResolve.info(() => "    => ??? (opaque type are disabled => error)")
           (None, Some(TypeNotFoundErr(typeName, curClass, path)))
         }
       case Some(x) =>

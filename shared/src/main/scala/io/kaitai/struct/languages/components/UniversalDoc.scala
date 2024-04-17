@@ -9,5 +9,5 @@ trait UniversalDoc extends LanguageCompiler {
   override def classDoc(name: List[String], doc: DocSpec) = universalDoc(doc)
   override def attributeDoc(id: Identifier, doc: DocSpec) = universalDoc(doc)
 
-  def universalDoc(doc: DocSpec)
+  def universalDoc(doc: DocSpec): Unit
 }

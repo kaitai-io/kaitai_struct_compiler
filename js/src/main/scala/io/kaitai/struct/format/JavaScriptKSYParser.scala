@@ -34,7 +34,7 @@ object JavaScriptKSYParser {
       case _: String | _: Int | _: Double | _: Boolean =>
         src
       case dict =>
-        dict.asInstanceOf[js.Dictionary[AnyRef]].toMap.mapValues(yamlJavascriptToScala)
+        dict.asInstanceOf[js.Dictionary[AnyRef]].toMap.view.mapValues(yamlJavascriptToScala).toMap
     }
   }
 }

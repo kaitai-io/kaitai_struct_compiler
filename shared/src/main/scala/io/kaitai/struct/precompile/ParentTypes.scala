@@ -6,13 +6,20 @@ import io.kaitai.struct.datatype.DataType.{ArrayTypeInStream, SwitchType, UserTy
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.TypeDetector
 
+/**
+  * Precompile step that calculates actual parent types of KSY-defined types
+  * (the type of the `_parent` built-in property).
+  */
 class ParentTypes(classSpecs: ClassSpecs) {
   def run(): Unit = {
     classSpecs.foreach { case (_, curClass) => markup(curClass) }
+    classSpecs.forEachTopLevel((_, spec) => {
+      spec.parentClass = GenericStructClassSpec
+    })
   }
 
   def markup(curClass: ClassSpec): Unit = {
-    Log.typeProcParent.info(() => s"markupParentTypes(${curClass.nameAsStr})")
+    Log.typeProcParent.info(() => s"ParentTypes.markup(${curClass.nameAsStr})")
 
     if (curClass.seq.nonEmpty)
       Log.typeProcParent.info(() => s"... seq")
@@ -30,18 +37,30 @@ class ParentTypes(classSpecs: ClassSpecs) {
           // value instances have no effect on parenting, just do nothing
       }
     }
+
+    if (curClass.types.nonEmpty)
+      Log.typeProcParent.info(() => s"... types")
+    curClass.types.foreach { case (_, ty) =>
+      // If parent is not decided yet, calculate it
+      if (ty.parentClass == UnknownClassSpec) {
+        markup(ty)
+      }
+    }
   }
 
+  /** Calculates `parent` of `dt` */
   private
   def markupParentTypesAdd(curClass: ClassSpec, dt: DataType): Unit = {
     dt match {
       case userType: UserType =>
-        (userType.forcedParent match {
+        userType.forcedParent match {
+          // `parent` key is not specified in attribute
           case None =>
-            Some(curClass)
+            markupParentAs(curClass, userType)
+          // `parent: false` specified in attribute
           case Some(DataType.USER_TYPE_NO_PARENT) =>
             Log.typeProcParent.info(() => s"..... no parent type added")
-            None
+          // `parent: <expression>` specified in attribute
           case Some(parent) =>
             val provider = new ClassTypeProvider(classSpecs, curClass)
             val detector = new TypeDetector(provider)
@@ -49,11 +68,11 @@ class ParentTypes(classSpecs: ClassSpecs) {
             Log.typeProcParent.info(() => s"..... enforced parent type = $parentType")
             parentType match {
               case ut: UserType =>
-                Some(ut.classSpec.get)
+                markupParentAs(ut.classSpec.get, userType)
               case other =>
                 throw new TypeMismatchError(s"parent=$parent is expected to be either of user type or `false`, but $other found")
             }
-        }).foreach((parentClass) => markupParentAs(parentClass, userType))
+        }
       case switchType: SwitchType =>
         switchType.cases.foreach {
           case (_, ut: UserType) =>
@@ -68,7 +87,6 @@ class ParentTypes(classSpecs: ClassSpecs) {
   }
 
   def markupParentAs(curClass: ClassSpec, ut: UserType): Unit = {
-    Log.typeProcParent.info(() => s"..... class=$ut has parent=${curClass.nameAsStr}")
     ut.classSpec match {
       case Some(usedClass) =>
         markupParentAs(curClass, usedClass)
@@ -78,7 +96,18 @@ class ParentTypes(classSpecs: ClassSpecs) {
     }
   }
 
+  /**
+    * If parent of `child` is not calculated yet, makes `parent` the parent
+    * type. Otherwise, if `parent` is different from existing parent, replaces
+    * parent type with the most generic KS type for user types.
+    */
   def markupParentAs(parent: ClassSpec, child: ClassSpec): Unit = {
+    // Don't allow type usages across spec boundaries to affect parent resolution
+    if (child.isExternal(parent)) {
+      Log.typeProcParent.info(() => s"..... cross-spec usage of class=${child.nameAsStr} from parent=${parent.nameAsStr} ignored")
+      return
+    }
+    Log.typeProcParent.info(() => s"..... class=${child.nameAsStr} has parent=${parent.nameAsStr}")
     child.parentClass match {
       case UnknownClassSpec =>
         child.parentClass = parent

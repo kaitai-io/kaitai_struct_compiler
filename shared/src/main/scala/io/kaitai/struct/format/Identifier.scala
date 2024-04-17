@@ -80,6 +80,12 @@ object Identifier {
   val SWITCH_ON = "_on"
   val IS_LE = "_is_le"
   val SIZEOF = "_sizeof"
+
+  /**
+   * Implicit declaration of ordering, so identifiers can be used for ordering operations, e.g.
+   * for `SortedMap.from(...)`
+   */
+  implicit val InstanceIdentifierOrdering: Ordering[InstanceIdentifier] = Ordering.by(_.humanReadable)
 }
 
 case class RawIdentifier(innerId: Identifier) extends Identifier {

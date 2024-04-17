@@ -1,13 +1,13 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.Utils
+import io.kaitai.struct.{ImportList, Utils}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.JavaScriptCompiler
 
-class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
+class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"new Uint8Array([${elts.map(translate).mkString(", ")}])"
 
@@ -24,16 +24,16 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def strLiteralGenericCC(code: Char): String =
     "\\x%02x".format(code.toInt)
 
-  override def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"Math.floor(${translate(left)} / ${translate(right)})"
+        s"Math.floor(${super.genericBinOp(left, op, right, 0)})"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${JavaScriptCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
       case (_: IntType, _: IntType, Ast.operator.RShift) =>
-        s"(${translate(left)} >>> ${translate(right)})"
+        genericBinOpStr(left, op, ">>>", right, extPrec)
       case _ =>
-        super.numericBinOp(left, op, right)
+        super.genericBinOp(left, op, right, extPrec)
     }
   }
 
@@ -56,11 +56,17 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def doInternalName(id: Identifier): String =
     s"this.${JavaScriptCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumType: List[String], label: String): String =
-    s"${JavaScriptCompiler.types2class(enumType)}.${Utils.upperUnderscoreCase(label)}"
-  override def doEnumById(enumTypeAbs: List[String], label: String): String =
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val isExternal = enumSpec.isExternal(provider.nowClass)
+    if (isExternal) {
+      val className = JavaScriptCompiler.type2class(enumSpec.name.head)
+      importList.add(s"./$className")
+    }
+    s"${JavaScriptCompiler.types2class(enumSpec.name, isExternal)}.${Utils.upperUnderscoreCase(label)}"
+  }
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    label
+    id
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"(${JavaScriptCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
@@ -104,21 +110,21 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
   override def floatToInt(v: expr): String =
     s"Math.trunc(${translate(v)})"
 
-  override def intToStr(i: expr, base: expr): String =
-    s"(${translate(i)}).toString(${translate(base)})"
+  override def intToStr(i: expr): String =
+    s"(${translate(i)}).toString()"
 
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""${JavaScriptCompiler.kstreamName}.bytesToStr($bytesExpr, "$encoding")"""
 
   override def strLength(s: expr): String =
-    s"${translate(s)}.length"
+    s"${translate(s, METHOD_PRECEDENCE)}.length"
 
   // http://stackoverflow.com/a/36525647/2055163
   override def strReverse(s: expr): String =
     s"Array.from(${translate(s)}).reverse().join('')"
 
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substring(${translate(from)}, ${translate(to)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.substring(${translate(from)}, ${translate(to)})"
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"
@@ -127,12 +133,12 @@ class JavaScriptTranslator(provider: TypeProvider) extends BaseTranslator(provid
     s"$v[$v.length - 1]"
   }
   override def arraySize(a: expr): String =
-    s"${translate(a)}.length"
+    s"${translate(a, METHOD_PRECEDENCE)}.length"
   override def arrayMin(a: expr): String =
     s"${JavaScriptCompiler.kstreamName}.arrayMin(${translate(a)})"
   override def arrayMax(a: expr): String =
     s"${JavaScriptCompiler.kstreamName}.arrayMax(${translate(a)})"
 
   override def kaitaiStreamEof(value: Ast.expr): String =
-    s"${translate(value)}.isEof()"
+    s"${translate(value, METHOD_PRECEDENCE)}.isEof()"
 }

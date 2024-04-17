@@ -11,10 +11,10 @@ sealed abstract class InstanceSpec(val doc: DocSpec) extends MemberSpec {
 case class ValueInstanceSpec(
   id: InstanceIdentifier,
   path: List[String],
-  private val _doc: DocSpec,
   value: Ast.expr,
-  ifExpr: Option[Ast.expr],
-  var dataTypeOpt: Option[DataType]
+  ifExpr: Option[Ast.expr] = None,
+  var dataTypeOpt: Option[DataType] = None,
+  val _doc: DocSpec = DocSpec.EMPTY,
 ) extends InstanceSpec(_doc) {
   override def dataType: DataType = {
     dataTypeOpt match {
@@ -29,12 +29,12 @@ case class ValueInstanceSpec(
 case class ParseInstanceSpec(
   id: InstanceIdentifier,
   path: List[String],
-  private val _doc: DocSpec,
   dataType: DataType,
-  cond: ConditionalSpec,
-  pos: Option[Ast.expr],
-  io: Option[Ast.expr],
-  valid: Option[ValidationSpec]
+  cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
+  pos: Option[Ast.expr] = None,
+  io: Option[Ast.expr] = None,
+  valid: Option[ValidationSpec] = None,
+  val _doc: DocSpec = DocSpec.EMPTY,
 ) extends InstanceSpec(_doc) with AttrLikeSpec {
   override def isLazy = true
 }
@@ -69,10 +69,10 @@ object InstanceSpec {
         ValueInstanceSpec(
           id,
           path,
-          DocSpec.fromYaml(srcMap, path),
           value2,
           ifExpr,
-          None
+          None,
+          DocSpec.fromYaml(srcMap, path),
         )
       case None =>
         // normal parse instance
@@ -82,11 +82,11 @@ object InstanceSpec {
         val pos = ParseUtils.getOptValueExpression(srcMap, "pos", path)
         val io = ParseUtils.getOptValueExpression(srcMap, "io", path)
 
-        val fakeAttrMap = srcMap.filterKeys((key) => key != "pos" && key != "io")
+        val fakeAttrMap = srcMap.view.filterKeys((key) => key != "pos" && key != "io").toMap
         val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef, id)
         val valid = srcMap.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
 
-        ParseInstanceSpec(id, path, a.doc, a.dataType, a.cond, pos, io, valid)
+        ParseInstanceSpec(id, path, a.dataType, a.cond, pos, io, valid, a.doc)
     }
   }
 }

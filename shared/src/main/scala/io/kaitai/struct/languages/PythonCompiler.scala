@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.PythonTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils}
+import io.kaitai.struct.{ClassTypeProvider, ImportList, RuntimeConfig, StringLanguageOutputWriter, Utils, ExternalType}
 
 class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -24,7 +24,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   import PythonCompiler._
 
-  override val translator = new PythonTranslator(typeProvider, importList)
+  override val translator = new PythonTranslator(typeProvider, importList, config)
 
   override def innerDocstrings = true
 
@@ -77,16 +77,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
-    val name = classSpec.name.head
-    out.puts(
-      if (config.pythonPackage.nonEmpty) {
-        s"from ${config.pythonPackage} import $name"
-      } else {
-        s"import $name"
-      }
-    )
-  }
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    PythonCompiler.externalTypeDeclaration(extType, importList, config)
 
   override def classHeader(name: String): Unit = {
     out.puts(s"class ${type2class(name)}($kstructName):")
@@ -101,7 +93,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
-    out.puts("self._root = _root if _root else self")
+    if (name == rootClassName) {
+      out.puts("self._root = _root if _root else self")
+    } else {
+      out.puts("self._root = _root")
+    }
 
     if (isHybrid)
       out.puts("self._is_le = _is_le")
@@ -368,7 +364,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {
@@ -382,7 +378,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           }
           s", $parent, self._root$addEndian"
         }
-        s"${userType2class(t)}($addParams$io$addArgs)"
+        s"${types2class(t.classSpec.get.name, t.isExternal(typeProvider.nowClass))}($addParams$io$addArgs)"
     }
   }
 
@@ -499,17 +495,6 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"raise ${ksErrorName(err)}($errArgsStr)")
     out.dec
   }
-
-  def userType2class(t: UserType): String = {
-    val name = t.classSpec.get.name
-    val firstName = name.head
-    val prefix = if (t.isOpaque && firstName != translator.provider.nowClass.name.head) {
-      s"$firstName."
-    } else {
-      ""
-    }
-    s"$prefix${types2class(name)}"
-  }
 }
 
 object PythonCompiler extends LanguageCompilerStatic
@@ -544,5 +529,23 @@ object PythonCompiler extends LanguageCompilerStatic
     case _ => s"kaitaistruct.${err.name}"
   }
 
-  def types2class(name: List[String]): String = name.map(x => type2class(x)).mkString(".")
+  def types2class(name: List[String], isExternal: Boolean): String = {
+    val prefix = if (isExternal) {
+      s"${name.head}."
+    } else {
+      ""
+    }
+    prefix + name.map(x => type2class(x)).mkString(".")
+  }
+
+  def externalTypeDeclaration(extType: ExternalType, importList: ImportList, config: RuntimeConfig): Unit = {
+    val moduleName = extType.name.head
+    importList.add(
+      if (config.pythonPackage.nonEmpty) {
+        s"from ${config.pythonPackage} import $moduleName"
+      } else {
+        s"import $moduleName"
+      }
+    )
+  }
 }

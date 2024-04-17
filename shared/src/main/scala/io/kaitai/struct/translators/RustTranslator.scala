@@ -5,7 +5,7 @@ import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
-import io.kaitai.struct.format.{Identifier, IoIdentifier, ParentIdentifier, RootIdentifier}
+import io.kaitai.struct.format.{EnumSpec, Identifier, IoIdentifier, ParentIdentifier, RootIdentifier}
 import io.kaitai.struct.languages.RustCompiler
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
@@ -50,9 +50,10 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   def isAllDigits(x: String) = x forall Character.isDigit
 
-  override def numericBinOp(left: Ast.expr,
+  override def genericBinOp(left: Ast.expr,
                             op: Ast.operator,
-                            right: Ast.expr): String = {
+                            right: Ast.expr,
+                            extPrec: Int): String = {
     val lt = detectType(left)
     val rt = detectType(right)
     val tl = translate(left)
@@ -334,8 +335,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doInternalName(id: Identifier): String =
     s"${doLocalName(idToStr(id))}"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
-    s"${RustCompiler.types2class(enumTypeAbs)}::${Utils.upperCamelCase(label)}"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
+    s"${RustCompiler.types2class(enumSpec.name)}::${Utils.upperCamelCase(label)}"
 
   override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
     val lt = detectType(left)
@@ -351,7 +352,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
     s"${ensure_deref(translate(left))} ${cmpOp(op)} ${remove_deref(translate(right))}.to_string()"
 
-  override def doEnumById(enumTypeAbs: List[String], id: String): String =
+  override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"($id as i64).try_into()?"
 
   override def arraySubscript(container: expr, idx: expr): String =
@@ -415,7 +416,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def strConcat(left: Ast.expr, right: Ast.expr): String =
+  override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
     s"""format!("{}{}", ${translate(left)}, ${translate(right)})"""
 
   override def strToInt(s: expr, base: expr): String =
@@ -435,15 +436,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def floatToInt(v: expr): String =
     s"${translate(v)} as i32"
 
-  override def intToStr(i: expr, base: expr): String = {
-    val baseStr = translate(base)
-    baseStr match {
-      case "10" =>
-         s"${remove_deref(translate(i))}.to_string()"
-      case _ =>
-        s"base_convert(strval(${translate(i)}), 10, $baseStr)"
-    }
-  }
+  override def intToStr(i: expr): String =
+    s"${remove_deref(translate(i))}.to_string()"
 
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""decode_string(&$bytesExpr, &"$encoding")?"""
@@ -462,7 +456,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       s"reverse_string($e)?"
   }
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}[${translate(from)}..${translate(to)}]"
+    s"${translate(s, METHOD_PRECEDENCE)}[${translate(from)}..${translate(to)}]"
 
   override def arrayFirst(a: expr): String =
     s"${ensure_deref(translate(a))}.first().ok_or(KError::EmptyIterator)?"

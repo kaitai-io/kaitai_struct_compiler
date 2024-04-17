@@ -1,8 +1,8 @@
 package io.kaitai.struct
 
 sealed trait Logger {
-  def info(msgGen: () => String)
-  def warn(msgGen: () => String)
+  def info(msgGen: () => String): Unit
+  def warn(msgGen: () => String): Unit
 }
 
 case object NullLogger extends Logger {

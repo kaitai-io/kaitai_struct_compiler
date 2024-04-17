@@ -7,7 +7,8 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{ExceptionNames, _}
 import io.kaitai.struct.translators.{PerlTranslator, TypeProvider}
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.ExternalType
 
 class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -50,8 +51,8 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("1;")
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
-    out.puts(s"use ${type2class(classSpec.name.head)};")
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    importList.add(type2class(extType.name.head))
 
   override def classHeader(name: List[String]): Unit = {
     out.puts
@@ -76,6 +77,12 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val endianSuffix = if (isHybrid) ", $_is_le" else ""
 
+    val pRootValue = if (name == rootClassName) {
+      "$_root || $self"
+    } else {
+      "$_root"
+    }
+
     out.puts
     out.puts("sub new {")
     out.inc
@@ -84,7 +91,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts("bless $self, $class;")
     handleAssignmentSimple(ParentIdentifier, "$_parent")
-    handleAssignmentSimple(RootIdentifier, "$_root || $self;")
+    handleAssignmentSimple(RootIdentifier, pRootValue)
 
     if (isHybrid)
       handleAssignmentSimple(EndianIdentifier, "$_is_le")
@@ -92,7 +99,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def classConstructorFooter(): Unit = {
+  override def classConstructorFooter: Unit = {
     out.puts
     out.puts("return $self;")
     universalFooter
@@ -296,7 +303,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io->read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {
@@ -388,8 +395,6 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  def enumValue(enumName: String, enumLabel: String) = translator.doEnumByLabel(List(enumName), enumLabel)
-
   override def classToString(toStringExpr: Ast.expr): Unit = {
     out.puts
     out.puts("use overload '\"\"' => \\&_to_string;")
@@ -441,4 +446,7 @@ object PerlCompiler extends LanguageCompilerStatic
   override def ksErrorName(err: KSError): String = ???
 
   def types2class(t: List[String]): String = t.map(type2class).mkString("::")
+
+  def enumValue(enumName: String, label: String): String =
+    s"$$${Utils.upperUnderscoreCase(enumName)}_${Utils.upperUnderscoreCase(label)}"
 }

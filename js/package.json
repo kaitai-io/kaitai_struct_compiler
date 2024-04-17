@@ -6,7 +6,7 @@
   "bugs": {
     "url": "https://github.com/kaitai-io/kaitai_struct/issues"
   },
-  "bundleDependencies": false,
+  "bundleDependencies": [],
   "deprecated": false,
   "description": "Kaitai Struct Compiler",
   "homepage": "https://github.com/kaitai-io/kaitai_struct_compiler#readme",

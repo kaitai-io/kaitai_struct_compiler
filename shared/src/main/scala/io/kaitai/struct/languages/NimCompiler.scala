@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.NimTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, ExternalType}
 
 class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -54,8 +54,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
-    out.puts("import \"" + classSpec.name.head + "\"")
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    importList.add(extType.name.head)
   override def innerEnums = false
   override val translator: NimTranslator = new NimTranslator(typeProvider, importList)
   override def universalFooter: Unit = {
@@ -82,9 +82,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = "KaitaiError" // TODO: maybe add more debugging info
 
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
-  override def importFile(file: String): Unit = {
-    importList.add(file)
-  }
   override def alignToByte(io: String): Unit = out.puts(s"alignToByte($io)")
   override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
     out.puts(s"this.${idToStr(attrName)} = $normalIO.ensureFixedContents($contents)")
@@ -403,20 +400,24 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}($width)"
       case t: UserType =>
-        val addArgs = {
+        val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
+          ("nil", "nil")
+        } else {
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "nil"
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
-          s", this.root, $parent"
+          (parent, "this.root")
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         val concreteName = namespaced(t.classSpec match {
           case Some(cs) => cs.name
           case None => t.name
         })
-        s"${concreteName}.read($io$addArgs$addParams)"
+        // FIXME: apparently, the Nim compiler uses a different order of
+        // `$parent` and `$root` than literally every other language
+        s"${concreteName}.read($io, $root, $parent$addParams)"
     }
 
     if (assignType != dataType) {

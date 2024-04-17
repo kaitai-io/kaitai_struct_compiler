@@ -45,7 +45,6 @@ case class CppRuntimeConfig(
 object CppRuntimeConfig {
   sealed trait Pointers
   case object RawPointers extends Pointers
-  case object SharedPointers extends Pointers
   case object UniqueAndRawPointers extends Pointers
 }
 

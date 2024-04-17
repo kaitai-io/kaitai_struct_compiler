@@ -25,7 +25,9 @@ trait CommonReads extends LanguageCompiler {
         normalIO
     }
 
-    if (attrDebugNeeded(id)) {
+    val needsDebug = attrDebugNeeded(id)
+
+    if (needsDebug) {
       attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
       if (attr.cond.repeat != NoRepeat)
         attrDebugArrInit(id, attr.dataType)
@@ -43,7 +45,7 @@ trait CommonReads extends LanguageCompiler {
         attrParse0(id, attr, io, Some(fe))
     }
 
-    if (config.readStoresPos)
+    if (needsDebug)
       attrDebugEnd(id, attr.dataType, io, NoRepeat)
 
     // More position management + set calculated flag after parsing for ParseInstanceSpecs

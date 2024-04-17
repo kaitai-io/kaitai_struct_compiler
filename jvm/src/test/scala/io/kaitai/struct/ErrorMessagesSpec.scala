@@ -3,7 +3,6 @@ package io.kaitai.struct
 import io.kaitai.struct.JavaMain.CLIConfig
 import io.kaitai.struct.format.KSVersion
 import io.kaitai.struct.formats.JavaKSYParser
-import io.kaitai.struct.SimpleMatchers
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io._
@@ -27,21 +26,19 @@ class ErrorMessagesSpec extends AnyFunSuite with SimpleMatchers {
     var hasComment = true
     var expectedLines = mutable.ArrayBuffer[String]()
 
-    do {
-      val line = br.readLine()
-      hasComment = line != null && line.startsWith("#")
-      if (hasComment) {
-        expectedLines += line.substring(1).stripPrefix(" ")
-      }
-    } while (hasComment)
+    var line = br.readLine()
+    while (line != null && line.startsWith("#")) {
+      expectedLines += line.stripPrefix("#").stripPrefix(" ")
+      line = br.readLine()
+    }
 
     expectedLines.toList
   }
 
   def testOne(f: File): Unit = {
     val fileName = f.getName
-    val testName = fileName.substring(0, fileName.length - 4)
-    val fn = f.toString
+    val testName = fileName.stripSuffix(".ksy")
+    val fn = FORMATS_ERR_DIR + "/" + fileName
     test(testName) {
       val expected = getExpected(fn)
       val (_, problems) = JavaKSYParser.localFileToSpecs(fn, DEFAULT_CONFIG)

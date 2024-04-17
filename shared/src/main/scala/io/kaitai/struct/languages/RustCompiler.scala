@@ -9,7 +9,6 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.RustTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
 
 import scala.annotation.tailrec
 
@@ -68,9 +67,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
     importList.add(
-      s"use super::${classSpec.name.last}::${type2class(classSpec.name.last)};"
+      s"use super::${extType.name.last}::${type2class(extType.name.last)};"
     )
 
   override def classHeader(name: List[String]): Unit = {
@@ -93,7 +92,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     typeProvider.nowClass.params.foreach { p =>
       // Make sure the parameter is imported if necessary
       p.dataType match {
-        case u: UserType => if (u.isOpaque && u.classSpec.isDefined) opaqueClassDeclaration(u.classSpec.get)
+        case u: UserType => if (u.isExternal(typeProvider.nowClass)) externalTypeDeclaration(ExternalUserType(u.classSpec.get))
         case _ => ()
       }
 
@@ -799,7 +798,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             s"$baseName"
         }
         val root = s"Some(${self_name()}.${privateMemberName(RootIdentifier)}.clone())"
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ", None, None"
         } else {
           var parent = t.forcedParent match {

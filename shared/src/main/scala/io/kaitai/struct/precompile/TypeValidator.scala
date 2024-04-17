@@ -17,8 +17,8 @@ import scala.reflect.ClassTag
   * @param specs bundle of class specifications (used only to find external references)
   * @param topClass class to start check with
   */
-class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileStep {
-  val provider = new ClassTypeProvider(specs, topClass)
+class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
+  val provider = new ClassTypeProvider(specs, specs.firstSpec)
   val detector = new ExpressionValidator(provider)
 
   /**
@@ -168,7 +168,11 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileSt
       } else {
         None
       }
-      val problems2 = validateDataType(caseType, casePath)
+      // All properties of types is declared on the common level for all variants so
+      // we don't use `casePath` here
+      // FIXME: We need to filter repeated errors here, because some errors influences
+      // many cases
+      val problems2 = validateDataType(caseType, path)
       problems1 ++ problems2
     }
   }

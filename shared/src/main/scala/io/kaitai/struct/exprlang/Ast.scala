@@ -1,6 +1,6 @@
 package io.kaitai.struct.exprlang
 
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{Identifier, InstanceIdentifier}
 
 /**
   * Loosely based on /pythonparse/shared/src/main/scala/pythonparse/
@@ -89,6 +89,13 @@ object Ast {
     /** For internal use in the compiler. It cannot appear in an AST parsed from a user-supplied string. */
     case class InternalName(id: Identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
+    case class InterpolatedStr(elts: Seq[expr]) extends expr
+
+    /**
+     * Implicit declaration of ordering, so expressions can be used for ordering operations, e.g.
+     * for `SortedMap.from(...)`
+     */
+    implicit val ExprIdentifierOrdering: Ordering[expr] = Ordering.by(_.toString)
   }
 
   sealed trait boolop

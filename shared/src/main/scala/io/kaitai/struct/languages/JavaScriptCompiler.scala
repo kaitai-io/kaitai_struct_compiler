@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.JavaScriptTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, ExternalType}
 
 class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -21,7 +21,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with FixedContentsUsingArrayByteLiteral {
   import JavaScriptCompiler._
 
-  override val translator = new JavaScriptTranslator(typeProvider)
+  override val translator = new JavaScriptTranslator(typeProvider, importList)
 
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
@@ -29,20 +29,21 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outImports(topClass: ClassSpec) = {
     val impList = importList.toList
     val quotedImpList = impList.map((x) => s"'$x'")
-    val defineArgs = quotedImpList.mkString(", ")
-    val moduleArgs = quotedImpList.map((x) => s"require($x)").mkString(", ")
-    val argClasses = impList.map((x) => x.split('/').last)
-    val rootArgs = argClasses.map((x) => s"root.$x").mkString(", ")
+    val defineArgs = ("'exports'" +: quotedImpList).mkString(", ")
+    val exportsArgs = ("exports" +: quotedImpList.map((x) => s"require($x)")).mkString(", ")
+    val argClasses = types2class(topClass.name, false) +: impList.map((x) => x.split('/').last)
+    val rootArgs = argClasses.map((x) => if (x == "KaitaiStream") s"root.$x" else s"root.$x || (root.$x = {})").mkString(", ")
+    val factoryParams = argClasses.map((x) => if (x == "KaitaiStream") x else s"${x}_").mkString(", ")
 
     "(function (root, factory) {\n" +
       indent + "if (typeof define === 'function' && define.amd) {\n" +
       indent * 2 + s"define([$defineArgs], factory);\n" +
-      indent + "} else if (typeof module === 'object' && module.exports) {\n" +
-      indent * 2 + s"module.exports = factory($moduleArgs);\n" +
+      indent + "} else if (typeof exports === 'object' && exports !== null && typeof exports.nodeType !== 'number') {\n" +
+      indent * 2 + s"factory($exportsArgs);\n" +
       indent + "} else {\n" +
-      indent * 2 + s"root.${types2class(topClass.name)} = factory($rootArgs);\n" +
+      indent * 2 + s"factory($rootArgs);\n" +
       indent + "}\n" +
-      s"}(typeof self !== 'undefined' ? self : this, function (${argClasses.mkString(", ")}) {"
+      s"})(typeof self !== 'undefined' ? self : this, function ($factoryParams) {"
   }
 
   override def fileHeader(topClassName: String): Unit = {
@@ -53,12 +54,12 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def fileFooter(name: String): Unit = {
-    out.puts(s"return ${type2class(name)};")
-    out.puts("}));")
+    out.puts(s"${type2class(name)}_.${type2class(name)} = ${type2class(name)};")
+    out.puts("});")
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
-    val className = type2class(classSpec.name.head)
+  override def externalTypeDeclaration(extType: ExternalType): Unit = {
+    val className = type2class(extType.name.head)
     importList.add(s"./$className")
   }
 
@@ -66,7 +67,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val shortClassName = type2class(name.last)
 
     val addNameExpr = if (name.size > 1) {
-      s" = ${types2class(name.takeRight(2))}"
+      s" = ${types2class(name.takeRight(2), false)}"
     } else {
       ""
     }
@@ -96,7 +97,11 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
-    out.puts("this._root = _root || this;")
+    if (name == rootClassName) {
+      out.puts("this._root = _root || this;")
+    } else {
+      out.puts("this._root = _root;")
+    }
 
     if (isHybrid)
       out.puts("this._is_le = _is_le;")
@@ -215,7 +220,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
         importList.add(s"$pkgName$procClass")
 
-        out.puts(s"var _process = new $procClass(${args.map(expression).mkString(", ")});")
+        out.puts(s"var _process = new ${procClass}_.${procClass}(${args.map(expression).mkString(", ")});")
         s"_process.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
@@ -268,7 +273,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     val enumNameProps = attrType match {
-      case t: EnumType => s"""enumName: \"${types2class(t.enumSpec.get.name)}\""""
+      case t: EnumType => s"""enumName: \"${types2class(t.enumSpec.get.name, false)}\""""
       case _ => ""
     }
 
@@ -368,18 +373,22 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val parent = t.forcedParent match {
-          case Some(USER_TYPE_NO_PARENT) => "null"
-          case Some(fp) => translator.translate(fp)
-          case None => "this"
+        val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
+          ("null", "null")
+        } else {
+          val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "null"
+            case Some(fp) => translator.translate(fp)
+            case None => "this"
+          }
+          (parent, "this._root")
         }
-        val root = if (t.isOpaque) "null" else "this._root"
         val addEndian = t.classSpec.get.meta.endian match {
           case Some(InheritedEndian) => ", this._is_le"
           case _ => ""
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-        s"new ${types2class(t.name)}($io, $parent, $root$addEndian$addParams)"
+        s"new ${types2class(t.name, t.isExternal(typeProvider.nowClass))}($io, $parent, $root$addEndian$addParams)"
     }
   }
 
@@ -536,7 +545,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
-    val className = type2class(translator.provider.nowClass.name.last)
+    val className = type2class(typeProvider.nowClass.name.last)
 
     out.puts
     out.puts(s"${className}.prototype.toString = function() {")
@@ -566,7 +575,15 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
     out.puts(s"if (!(${translator.translate(checkExpr)})) {")
     out.inc
-    out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
+    val errObj = s"new ${ksErrorName(err)}($errArgsStr)"
+    if (attrDebugNeeded(attrId)) {
+      val debugName = attrDebugName(attrId, NoRepeat, true)
+      out.puts(s"var _err = $errObj;")
+      out.puts(s"$debugName.validationError = _err;")
+      out.puts("throw _err;")
+    } else {
+      out.puts(s"throw $errObj;")
+    }
     out.dec
     out.puts("}")
   }
@@ -616,5 +633,17 @@ object JavaScriptCompiler extends LanguageCompilerStatic
     case _ => s"KaitaiStream.${err.name}"
   }
 
-  def types2class(types: List[String]): String = types.map(type2class).mkString(".")
+  def types2class(types: List[String], isExternal: Boolean): String = {
+    // If the first segment of the name path refers to an external format module
+    // (which is the only way how external types can be referenced), we must
+    // prepend the name of top-level module (which ends with an underscore `_`
+    // according to our own convention for clarity) before the path because of
+    // https://github.com/kaitai-io/kaitai_struct/issues/1074
+    val prefix = if (isExternal) {
+      s"${type2class(types.head)}_."
+    } else {
+      ""
+    }
+    prefix + types.map(type2class).mkString(".")
+  }
 }

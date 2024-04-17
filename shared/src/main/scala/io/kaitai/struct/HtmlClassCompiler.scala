@@ -112,7 +112,7 @@ class HtmlClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends Doc
     out.puts("<th>ID</th><th>Name</th><th>Note</th>")
     out.puts("</tr>")
 
-    enumColl.sortedSeq.foreach { case (id, value) =>
+    enumColl.map.foreach { case (id, value) =>
       out.puts("<tr>")
       out.puts(s"<td>$id</td><td>${value.name}</td><td>${value.doc.summary.getOrElse("")}</td></tr>")
       out.puts("</tr>")

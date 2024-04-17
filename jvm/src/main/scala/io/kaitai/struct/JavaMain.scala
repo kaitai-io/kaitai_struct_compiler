@@ -35,14 +35,14 @@ object JavaMain {
 
       head(Version.name, Version.version)
 
-      arg[String]("<file>...") unbounded() action { (x, c) =>
+      arg[String]("<file>...").unbounded().action { (x, c) =>
         c.copy(srcFiles = c.srcFiles :+ x) } text("source files (.ksy)")
 
       //      opt[File]('o', "outfile") valueName("<file>") action { (x, c) =>
       //        c.copy(outDir = x)
       //      } text("output filename (only if processing 1 file)")
 
-      opt[String]('t', "target") required() unbounded() valueName("<language>") action { (x, c) =>
+      opt[String]('t', "target").required().unbounded().valueName("<language>").action { (x, c) =>
         // TODO: make support for something like "-t java,python"
         if (x == "all") {
           c.copy(targets = ALL_LANGS.toSeq)
@@ -62,7 +62,7 @@ object JavaMain {
       } text("output directory (filenames will be auto-generated); on Unix-like shells, the short form `-d` requires arguments to be preceded by `--`")
 
       val importPathExample = List("<directory>", "<directory>", "...").mkString(File.pathSeparator)
-      opt[String]('I', "import-path") optional() unbounded() valueName(importPathExample) action { (x, c) =>
+      opt[String]('I', "import-path").optional().unbounded().valueName(importPathExample).action { (x, c) =>
         c.copy(importPaths = c.importPaths ++ x.split(File.pathSeparatorChar))
       } text(".ksy library search path(s) for imports (see also KSPATH env variable)")
 
@@ -76,7 +76,7 @@ object JavaMain {
         )
       } text("C++ namespace (C++ only, default: none)")
 
-      opt[String]("cpp-standard") valueName("<standard>") action { (x, c) =>
+      opt[String]("cpp-standard").valueName("<standard>").action { (x, c) =>
         c.copy(
           runtime = c.runtime.copy(
             cppConfig = x match {
@@ -190,13 +190,13 @@ object JavaMain {
     // we need to decode it as well.
     //
     // Linux, from IDE:
-    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.12/classes/
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.13/classes/
     //
     // Linux, from stage:
     // $HOME/git/kaitai_struct/compiler/jvm/target/universal/stage/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
     //
     // Linux, from "sbt compilerJVM/run"
-    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.12/classes/
+    // $HOME/git/kaitai_struct/compiler/jvm/target/scala-2.13/classes/
     //
     // Linux, from universal, custom install path:
     // /tmp/a%20b/kaitai-struct-compiler-0.10-SNAPSHOT/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar

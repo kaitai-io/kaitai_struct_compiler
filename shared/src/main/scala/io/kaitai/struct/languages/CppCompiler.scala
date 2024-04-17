@@ -46,9 +46,6 @@ class CppCompiler(
   var accessMode: AccessMode = PublicAccess
 
   override def indent: String = "    "
-  def typeToFileName(topClassName: String): String = topClassName
-  def outFileNameSource(className: String): String = typeToFileName(className) + ".cpp"
-  def outFileNameHeader(className: String): String = typeToFileName(className) + ".h"
 
   override def fileHeader(topClassName: String): Unit = {
     outSrcHeader.puts(s"// $headerComment")
@@ -65,12 +62,22 @@ class CppCompiler(
     outHdrHeader.puts
     outHdrHeader.puts(s"// $headerComment")
     outHdrHeader.puts
+    // Forward declaration of the top-level class defined later in this header
+    // file. It's important to do this before printing `importListHdr` because
+    // it contains `#include`s of header files of external .ksy modules that
+    // could circularly import this header file (which does nothing because of
+    // header guards, though, so if the other header files that tried to include
+    // this one refer to our top-level class by name, which is very likely, then
+    // we need to ensure that the C++ compiler has already seen the following
+    // forward declaration).
+    outHdrHeader.puts(s"class ${type2class(topClassName)};")
+    outHdrHeader.puts
 
     importListHdr.addKaitai("kaitai/kaitaistruct.h")
     importListHdr.addSystem("stdint.h")
 
     config.cppConfig.pointers match {
-      case SharedPointers | UniqueAndRawPointers =>
+      case UniqueAndRawPointers =>
         importListHdr.addSystem("memory")
       case RawPointers =>
         // no extra includes
@@ -108,21 +115,14 @@ class CppCompiler(
     }
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
-    classForwardDeclaration(classSpec.name)
-    importListHdr.addLocal(outFileNameHeader(classSpec.name.head))
-  }
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    importListHdr.addLocal(outFileNameHeader(extType.name.head))
 
   override def classHeader(name: List[String]): Unit = {
     val className = types2class(List(name.last))
 
-    val extraInherits = config.cppConfig.pointers match {
-      case RawPointers | UniqueAndRawPointers => ""
-      case SharedPointers => s", std::enable_shared_from_this<$className>"
-    }
-
     outHdr.puts
-    outHdr.puts(s"class $className : public $kstructName$extraInherits {")
+    outHdr.puts(s"class $className : public $kstructName {")
     outHdr.inc
     accessMode = PrivateAccess
     ensureMode(PublicAccess)
@@ -202,19 +202,9 @@ class CppCompiler(
     )
     outSrc.inc
 
-    // In shared pointers mode, this is required to be able to work with shared pointers to this
-    // in a constructor. This is obviously a hack and not a good practice.
-    // https://forum.libcinder.org/topic/solution-calling-shared-from-this-in-the-constructor
-    if (config.cppConfig.pointers == CppRuntimeConfig.SharedPointers) {
-      outSrc.puts(s"const auto weakPtrTrick = std::shared_ptr<$classNameBrief>(this, []($classNameBrief*){});")
-    }
-
     handleAssignmentSimple(ParentIdentifier, pParent)
     handleAssignmentSimple(RootIdentifier, if (name == rootClassName) {
-      config.cppConfig.pointers match {
-        case RawPointers | UniqueAndRawPointers => "this"
-        case SharedPointers => "shared_from_this()"
-      }
+      s"${pRoot} ? ${pRoot} : this"
     } else {
       pRoot
     })
@@ -691,17 +681,13 @@ class CppCompiler(
         s"$io->read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => nullPtr
             case Some(fp) => translator.translate(fp)
-            case None =>
-              config.cppConfig.pointers match {
-                case RawPointers | UniqueAndRawPointers => "this"
-                case SharedPointers => s"shared_from_this()"
-              }
+            case None => "this"
           }
           val addEndian = t.classSpec.get.meta.endian match {
             case Some(InheritedEndian) => ", m__is_le"
@@ -712,8 +698,6 @@ class CppCompiler(
         config.cppConfig.pointers match {
           case RawPointers =>
             s"new ${types2class(t.name)}($addParams$io$addArgs)"
-          case SharedPointers =>
-            s"std::make_shared<${types2class(t.name)}>($addParams$io$addArgs)"
           case UniqueAndRawPointers =>
             // C++14
             //s"std::make_unique<${types2class(t.name)}>($addParams$io$addArgs)"
@@ -969,11 +953,11 @@ class CppCompiler(
   override def type2class(className: String): String = CppCompiler.type2class(className)
 
   def kaitaiType2NativeType(attrType: DataType, absolute: Boolean = false): String =
-    CppCompiler.kaitaiType2NativeType(config.cppConfig, attrType, absolute)
+    CppCompiler.kaitaiType2NativeType(config.cppConfig, importListHdr, attrType, absolute)
 
   def nullPtr: String = config.cppConfig.pointers match {
     case RawPointers => "0"
-    case SharedPointers | UniqueAndRawPointers => "nullptr"
+    case UniqueAndRawPointers => "nullptr"
   }
 
   def nonOwningPointer(attrName: Identifier, attrType: DataType): String = {
@@ -1041,6 +1025,10 @@ object CppCompiler extends LanguageCompilerStatic
     config: RuntimeConfig
   ): LanguageCompiler = new CppCompiler(tp, config)
 
+  def typeToFileName(topClassName: String): String = topClassName
+  def outFileNameSource(className: String): String = typeToFileName(className) + ".cpp"
+  def outFileNameHeader(className: String): String = typeToFileName(className) + ".h"
+
   def idToStr(id: Identifier): String =
     id match {
       case SpecialIdentifier(name) => Utils.lowerUnderscoreCase(name)
@@ -1056,7 +1044,7 @@ object CppCompiler extends LanguageCompilerStatic
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"
 
-  def kaitaiType2NativeType(config: CppRuntimeConfig, attrType: DataType, absolute: Boolean = false): String = {
+  def kaitaiType2NativeType(config: CppRuntimeConfig, importListHdr: CppImportList, attrType: DataType, absolute: Boolean = false): String = {
     attrType match {
       case Int1Type(false) => "uint8_t"
       case IntMultiType(false, Width2, _) => "uint16_t"
@@ -1088,7 +1076,6 @@ object CppCompiler extends LanguageCompilerStatic
         })
         config.pointers match {
           case RawPointers => s"$typeStr*"
-          case SharedPointers => s"std::shared_ptr<$typeStr>"
           case UniqueAndRawPointers =>
             if (t.isOwning) s"std::unique_ptr<$typeStr>" else s"$typeStr*"
         }
@@ -1100,11 +1087,16 @@ object CppCompiler extends LanguageCompilerStatic
           t.name
         })
 
-      case ArrayTypeInStream(inType) => config.pointers match {
-        case RawPointers => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
-        case UniqueAndRawPointers => s"std::unique_ptr<std::vector<${kaitaiType2NativeType(config, inType, absolute)}>>"
+      case at: ArrayType => {
+        importListHdr.addSystem("vector")
+        val vecType = s"std::vector<${kaitaiType2NativeType(config, importListHdr, at.elType, absolute)}>"
+        (at, config.pointers) match {
+          case (_: ArrayTypeInStream, UniqueAndRawPointers) =>
+            s"std::unique_ptr<$vecType>"
+          case _ =>
+            s"$vecType*"
+        }
       }
-      case CalcArrayType(inType, _) => s"std::vector<${kaitaiType2NativeType(config, inType, absolute)}>*"
       case OwnedKaitaiStreamType => config.pointers match {
         case RawPointers => s"$kstreamName*"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstreamName>"
@@ -1112,17 +1104,12 @@ object CppCompiler extends LanguageCompilerStatic
       case KaitaiStreamType => s"$kstreamName*"
       case KaitaiStructType => config.pointers match {
         case RawPointers => s"$kstructName*"
-        case SharedPointers => s"std::shared_ptr<$kstructName>"
         case UniqueAndRawPointers => s"std::unique_ptr<$kstructName>"
       }
-      case CalcKaitaiStructType(_) => config.pointers match {
-        case RawPointers => s"$kstructName*"
-        case SharedPointers => s"std::shared_ptr<$kstructName>"
-        case UniqueAndRawPointers => s"$kstructName*"
-      }
+      case CalcKaitaiStructType(_) => s"$kstructName*"
 
       case st: SwitchType =>
-        kaitaiType2NativeType(config, combineSwitchType(st), absolute)
+        kaitaiType2NativeType(config, importListHdr, combineSwitchType(st), absolute)
     }
   }
 

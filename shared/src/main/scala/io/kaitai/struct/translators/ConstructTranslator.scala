@@ -1,11 +1,11 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.ImportList
+import io.kaitai.struct.{ImportList, RuntimeConfig}
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.ConstructClassCompiler
 
-class ConstructTranslator(provider: TypeProvider, importList: ImportList) extends PythonTranslator(provider, importList) {
+class ConstructTranslator(provider: TypeProvider, importList: ImportList) extends PythonTranslator(provider, importList, RuntimeConfig()) {
   override def doLocalName(s: String) = {
     s match {
       case Identifier.ITERATOR => "obj_"
@@ -23,7 +23,7 @@ class ConstructTranslator(provider: TypeProvider, importList: ImportList) extend
     }
   }
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String =
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
     s"'$label'"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
