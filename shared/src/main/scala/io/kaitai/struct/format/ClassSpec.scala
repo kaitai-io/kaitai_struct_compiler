@@ -81,6 +81,9 @@ case class ClassSpec(
 
   var seqSize: Sized = NotCalculatedSized
 
+  /** The list of top-level type specifications which contains import of this type. */
+  var importedInto = mutable.ListBuffer[ClassSpec]()
+
   def toDataType: DataType = {
     val cut = CalcUserType(name, None)
     cut.classSpec = Some(this)

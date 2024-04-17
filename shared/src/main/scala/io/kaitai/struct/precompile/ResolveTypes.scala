@@ -9,8 +9,11 @@ import io.kaitai.struct.problems._
 /**
   * A collection of methods that resolves user types and enum types, i.e.
   * converts names into ClassSpec / EnumSpec references.
+  *
+  * This step runs for each top-level [[format.ClassSpec]].
   */
 class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean) extends PrecompileStep {
+  /** Resolves references to types and enums in `topClass` and all its nested types. */
   override def run(): Iterable[CompilationProblem] =
     topClass.mapRec(resolveUserTypes).map(problem => problem.localizedInType(topClass))
 
@@ -68,6 +71,14 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
     }
   }
 
+  /**
+    * Resolves `typeName` reference used in `curClass` to a type definition, or
+    * returns [[TypeNotFoundErr]] error.
+    *
+    * @param curClass Class that contains member
+    * @param typeName A reference to a type that need to be resolved
+    * @param path A path to the attribute in KSY where the error should be reported if reference is unknown
+    */
   def resolveUserType(curClass: ClassSpec, typeName: List[String], path: List[String]): (Option[ClassSpec], Option[CompilationProblem]) = {
     val res = realResolveUserType(curClass, typeName, path)
 
@@ -103,7 +114,7 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
         // No further names to resolve, here's our answer
         Some(nestedClass)
       } else {
-        // Try to resolve recursively
+        // Try to resolve recursively in all nested classes
         realResolveUserType(nestedClass, restNames, path)
       }
     )
@@ -124,12 +135,18 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
               // If there's None => no luck at all
               val resolvedTop = specs.get(firstName)
               resolvedTop match {
-                case None => None
-                case Some(classSpec) => if (restNames.isEmpty) {
-                  resolvedTop
-                } else {
-                  realResolveUserType(classSpec, restNames, path)
+                // We should use that spec if it is imported in our file (which is represented
+                // by our top-level class). It `topClass` imports `classSpec`, we could try to
+                // resolve type in it
+                // TODO: if type is defined in spec, we could add a suggestion to error to add missing import
+                case Some(classSpec) if (classSpec.importedInto.contains(topClass)) => {
+                  if (restNames.isEmpty) {
+                    resolvedTop
+                  } else {
+                    realResolveUserType(classSpec, restNames, path)
+                  }
                 }
+                case _ => None
               }
             }
         }
@@ -183,13 +200,19 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
               // If there's None => no luck at all
               val resolvedTop = specs.get(firstName)
               resolvedTop match {
-                case None => None
-                case Some(classSpec) => if (restNames.isEmpty) {
-                  // resolved everything, but this points to a type name, not enum name
-                  None
-                } else {
-                  resolveEnumSpec(classSpec, restNames)
+                // We should use that spec if it is imported in our file (which is represented
+                // by our top-level class). It `topClass` imports `classSpec`, we could try to
+                // resolve type in it
+                // TODO: if type is defined in spec, we could add a suggestion to error to add missing import
+                case Some(classSpec) if (classSpec.importedInto.contains(topClass)) => {
+                  if (restNames.isEmpty) {
+                    // resolved everything, but this points to a type name, not enum name
+                    None
+                  } else {
+                    resolveEnumSpec(classSpec, restNames)
+                  }
                 }
+                case _ => None
               }
             }
         }
