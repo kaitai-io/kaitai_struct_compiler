@@ -182,8 +182,12 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
           case Some(upClass) => resolveTypeName(upClass, typeName)
           case None =>
             classSpecs.get(typeName) match {
-              case Some(spec) => spec
-              case None =>
+              // We should use that spec if it is imported in our file (which is represented
+              // by our top-level class). If `topClass` imports `classSpec`, we could try to
+              // resolve type in it
+              // TODO: if type is defined in spec, we could add a suggestion to error to add missing import
+              case Some(spec) if (topClass.imports.contains(spec)) => spec
+              case _ =>
                 throw new TypeNotFoundInHierarchyError(typeName, nowClass)
             }
         }
