@@ -10,8 +10,11 @@ import io.kaitai.struct.problems._
 /**
   * A collection of methods that resolves user types and enum types, i.e.
   * converts names into ClassSpec / EnumSpec references.
+  *
+  * This step runs for each top-level [[format.ClassSpec]].
   */
 class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean) extends PrecompileStep {
+  /** Resolves references to types and enums in `topClass` and all its nested types. */
   override def run(): Iterable[CompilationProblem] =
     topClass.mapRec(resolveUserTypes).map(problem => problem.localizedInType(topClass))
 
@@ -44,6 +47,16 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
   private def resolveUserTypeForMember(curClass: ClassSpec, attr: MemberSpec): Iterable[CompilationProblem] =
     resolveUserType(curClass, attr.dataType, attr.path)
 
+  /**
+    * Resolves any references to typee or enum in `dataType` used in `curClass` to
+    * a type definition, or returns [[TypeNotFoundErr]] or [[EnumNotFoundErr]] error.
+    *
+    * @param curClass Class that contains member
+    * @param dataType Definition of an attribute type which references to a type or enum need to be resolved
+    * @param path A path to the attribute in KSY where the error should be reported if reference is unknown
+    *
+    * @returns [[TypeNotFoundErr]] and/or [[EnumNotFoundErr]] error (several in case of `switch-on` type).
+    */
   private def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Iterable[CompilationProblem] = {
     dataType match {
       case ut: UserType =>
