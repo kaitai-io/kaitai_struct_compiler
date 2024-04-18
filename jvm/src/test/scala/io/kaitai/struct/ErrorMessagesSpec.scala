@@ -14,12 +14,12 @@ class ErrorMessagesSpec extends AnyFunSuite with SimpleMatchers {
   // version info
   KSVersion.current = Version.version
 
-  val FORMATS_ERR_DIR = "../tests/formats_err"
+  val FORMATS_ERR_DIR = new File("../tests/formats_err")
   val CHARSET_UTF8 = Charset.forName("UTF-8")
   val DEFAULT_CONFIG = CLIConfig()
 
-  def getExpected(fn: String): List[String] = {
-    val fis = new FileInputStream(fn)
+  def getExpected(f: File): List[String] = {
+    val fis = new FileInputStream(f)
     val isr = new InputStreamReader(fis, CHARSET_UTF8)
     val br = new BufferedReader(isr)
 
@@ -38,23 +38,22 @@ class ErrorMessagesSpec extends AnyFunSuite with SimpleMatchers {
   def testOne(f: File): Unit = {
     val fileName = f.getName
     val testName = fileName.stripSuffix(".ksy")
-    val fn = FORMATS_ERR_DIR + "/" + fileName
     test(testName) {
-      val expected = getExpected(fn)
-      val (_, problems) = JavaKSYParser.localFileToSpecs(fn, DEFAULT_CONFIG)
+      val expected = getExpected(f)
+      val (_, problems) = JavaKSYParser.localFileToSpecs(f.getPath(), DEFAULT_CONFIG)
       val problemsStr = problems.map(problem =>
         // replace version-dependent message with a moniker
         problem.message.replace(
           s"but you have ${KSVersion.current}",
           "but you have $KS_VERSION"
-        ).replace(FORMATS_ERR_DIR + "/", "")
+        ).replace(FORMATS_ERR_DIR.getPath() + File.separator, "")
       )
 
       problemsStr.mkString("\n") shouldEqualPlainly expected.mkString("\n")
     }
   }
 
-  new File(FORMATS_ERR_DIR).listFiles.
+  FORMATS_ERR_DIR.listFiles.
     filter((f) => f.isFile && f.getName.endsWith(".ksy")).
     sorted.foreach((f) => testOne(f))
 
