@@ -3,7 +3,7 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.{ImportList}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.format.Identifier
+import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.{JuliaCompiler}
 import io.kaitai.struct.exprlang.ConstEvaluator
 
@@ -76,19 +76,21 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def doInternalName(id: Identifier): String =
     s"this.${JuliaCompiler.publicMemberName(id)}"
 
-  override def doEnumByLabel(enumTypeAbs: List[String], label: String): String = {
-    if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))){
-      importList.add(s"import ${JuliaCompiler.type2class(enumTypeAbs.head)}Module")
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val isExternal = enumSpec.isExternal(provider.nowClass)
+    if (isExternal) {
+      importList.add(s"import ${JuliaCompiler.type2class(enumSpec.name.head)}Module")
     }
 
-    s"${JuliaCompiler.type2class(enumTypeAbs.head)}Module.${JuliaCompiler.enumToStr(enumTypeAbs, label)}"
+    s"${JuliaCompiler.type2class(enumSpec.name.head)}Module.${JuliaCompiler.enumToStr(enumSpec.name, label)}"
   }
 
-  override def doEnumById(enumTypeAbs: List[String], id: String): String = {
-    if (!JuliaCompiler.type2class(enumTypeAbs.head).equals(JuliaCompiler.type2class(provider.nowClass.name.head))){
-      importList.add(s"import ${JuliaCompiler.type2class(enumTypeAbs.head)}Module")
+  override def doEnumById(enumSpec: EnumSpec, id: String): String = {
+    val isExternal = enumSpec.isExternal(provider.nowClass)
+    if (isExternal) {
+      importList.add(s"import ${JuliaCompiler.type2class(enumSpec.name.head)}Module")
     }
-    s"KaitaiStruct.resolve_enum(${JuliaCompiler.type2class(enumTypeAbs.head)}Module.${JuliaCompiler.types2class(enumTypeAbs)}, $id)"
+    s"KaitaiStruct.resolve_enum(${JuliaCompiler.type2class(enumSpec.name.head)}Module.${JuliaCompiler.types2class(enumSpec.name)}, $id)"
   }
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =

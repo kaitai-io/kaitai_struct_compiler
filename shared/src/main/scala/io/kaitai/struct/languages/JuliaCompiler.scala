@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.JuliaTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, StringLanguageOutputWriter, Utils, ExternalType}
 
 class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -66,11 +66,11 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def externalClassDeclaration(classSpec: ClassSpec): Unit = {
+  override def externalTypeDeclaration(extType: ExternalType): Unit = {
     // val name = classSpec.name.head
     // importList.add(s"include(${'"'}../../compiled/julia/${classSpec.name.head}.jl${'"'})")
     // importList.add(s"using .${types2class(classSpec.name)}Module: ${types2class(classSpec.name)}")
-    importList.add(s"import ${type2class(classSpec.name.head)}Module: ${types2class(classSpec.name)}")
+    importList.add(s"import ${type2class(extType.name.head)}Module: ${types2class(extType.name)}")
   }
 
   override def classHeader(name: List[String]): Unit = {
