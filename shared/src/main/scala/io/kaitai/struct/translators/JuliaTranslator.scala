@@ -35,10 +35,6 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
     }
   }
 
-  /**
-    * https://docs.python.org/2.7/reference/lexical_analysis.html#string-literals
-    * https://docs.Julia.org/3.6/reference/lexical_analysis.html#string-and-bytes-literals
-    */
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",

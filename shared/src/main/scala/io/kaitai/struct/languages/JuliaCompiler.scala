@@ -42,10 +42,6 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
   }
 
-  // override def classForwardDeclaration(name: List[String]): Unit = {
-  //   abstractTypesAndEnums.puts(s"abstract type ${types2class("Abstract" :: name)} end")
-  // }
-
   override def indent: String = "    "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}Module.jl"
 
@@ -67,15 +63,10 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def externalTypeDeclaration(extType: ExternalType): Unit = {
-    // val name = classSpec.name.head
-    // importList.add(s"include(${'"'}../../compiled/julia/${classSpec.name.head}.jl${'"'})")
-    // importList.add(s"using .${types2class(classSpec.name)}Module: ${types2class(classSpec.name)}")
     importList.add(s"import ${type2class(extType.name.head)}Module: ${types2class(extType.name)}")
   }
 
   override def classHeader(name: List[String]): Unit = {
-    // val subtype = if (typeProvider.nowClass.isTopLevel) "" else s" <: ${types2class("Abstract" :: name)}"
-    // out.puts(s"mutable struct ${types2class(name)}$subtype")
     out.puts(s"mutable struct ${types2class(name)} <: KaitaiStruct.UserType")
     out.inc
     typeProvider.nowClass.meta.endian match {
@@ -184,12 +175,10 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
 
   def fromFile(name: String): Unit = {
-    // if (typeProvider.nowClass.params.isEmpty) {
     out.puts(s"function from_file(filename::String)::${type2class(name)}")
     out.inc
     out.puts(s"${type2class(name)}($kstreamName(open(filename, ${'"'}r${'"'})))")
     universalFooter
-    // }
   }
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
@@ -573,13 +562,6 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def userType2class(t: UserType): String = {
     val name = t.classSpec.get.name
-    // val firstName = name.head
-    // val prefix = if (t.isOpaque && firstName != translator.provider.nowClass.name.head) {
-    //   s"${type2class(firstName)}Module."
-    // } else {
-    //   ""
-    // }
-    // s"$prefix${types2class(name)}"
     s"${types2class(name)}"
   }
 }
@@ -645,13 +627,8 @@ object JuliaCompiler extends LanguageCompilerStatic
       case AnyType => "Any"
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
-      // case t: UserType => types2class(t.classSpec match {
-      //   case Some(cs) => if (cs.isTopLevel) cs.name else "Abstract" :: cs.name
-      //   case None => t.name
-      // })
       case _: UserType => "KaitaiStruct.UserType"
 
-      // case t: EnumType => s"Union{${types2class(t.enumSpec.get.name)},Integer}"
       case t: EnumType => s"Union{Enum,Integer}"
 
       case at: ArrayType => s"Vector{${kaitaiType2NativeType(at.elType)}}"
