@@ -75,18 +75,18 @@ class JuliaTranslator(provider: TypeProvider, importList: ImportList) extends Ba
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
     if (isExternal) {
-      importList.add(s"import ${JuliaCompiler.type2class(enumSpec.name.head)}Module")
+      importList.add(s"import ${JuliaCompiler.type2module(enumSpec.name.head)}")
     }
 
-    s"${JuliaCompiler.type2class(enumSpec.name.head)}Module.${JuliaCompiler.enumToStr(enumSpec.name, label)}"
+    s"${JuliaCompiler.type2module(enumSpec.name.head)}.${JuliaCompiler.enumToStr(enumSpec.name, label)}"
   }
 
   override def doEnumById(enumSpec: EnumSpec, id: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
     if (isExternal) {
-      importList.add(s"import ${JuliaCompiler.type2class(enumSpec.name.head)}Module")
+      importList.add(s"import ${JuliaCompiler.type2module(enumSpec.name.head)}")
     }
-    s"KaitaiStruct.resolve_enum(${JuliaCompiler.type2class(enumSpec.name.head)}Module.${JuliaCompiler.types2class(enumSpec.name)}, $id)"
+    s"KaitaiStruct.resolve_enum(${JuliaCompiler.type2module(enumSpec.name.head)}.${JuliaCompiler.types2class(enumSpec.name)}, $id)"
   }
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =

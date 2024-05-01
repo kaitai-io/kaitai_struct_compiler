@@ -43,13 +43,13 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def indent: String = "    "
-  override def outFileName(topClassName: String): String = s"${type2class(topClassName)}Module.jl"
+  override def outFileName(topClassName: String): String = s"${type2module(topClassName)}.jl"
 
   override def outImports(topClass: ClassSpec): String =
     importList.toList.mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
-    outHeader.puts(s"module ${type2class(topClassName)}Module")
+    outHeader.puts(s"module ${type2module(topClassName)}")
     outHeader.puts(s"# $headerComment")
     outHeader.puts
     importList.add("export from_file")
@@ -63,7 +63,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def externalTypeDeclaration(extType: ExternalType): Unit = {
-    importList.add(s"import ${type2class(extType.name.head)}Module: ${types2class(extType.name)}")
+    importList.add(s"import ${type2module(extType.name.head)}: ${types2class(extType.name)}")
   }
 
   override def classHeader(name: List[String]): Unit = {
@@ -599,6 +599,7 @@ object JuliaCompiler extends LanguageCompilerStatic
   }
 
   def types2class(name: List[String]): String = name.map(x => type2class(x)).mkString("_")
+  def type2module(name: String): String = s"${type2class(name)}Module"
 
   def kaitaiType2NativeType(attrType: DataType): String = {
     attrType match {
