@@ -346,7 +346,7 @@ class JuliaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
-    out.puts(s"${privateMemberName(id)} = []")
+    out.puts(s"${privateMemberName(id)} = Vector{${kaitaiType2NativeType(dataType)}}()")
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
