@@ -59,17 +59,11 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("use std::convert::{TryFrom, TryInto};")
     importList.add("use std::cell::{Ref, Cell, RefCell};")
     importList.add("use std::rc::{Rc, Weak};")
-
-    typeProvider.allClasses.foreach{
-      case (name, _) =>
-        if(name != topClassName) //TODO: do not add to imported
-          importList.add(s"use super::$name::*;")
-    }
   }
 
   override def externalTypeDeclaration(extType: ExternalType): Unit =
     importList.add(
-      s"use super::${extType.name.head}::${type2class(extType.name.head)};"
+      s"use super::${extType.name.head}::${types2class(extType.name)};"
     )
 
   override def classHeader(name: List[String]): Unit = {
