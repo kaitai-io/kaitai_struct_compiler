@@ -15,7 +15,7 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
   this(firstSpec.name.head) = firstSpec
 
   /**
-    * Calls certain function on all [[ClassSpec]] elements stored in this ClassSpecs,
+    * Calls certain function on all [[format.ClassSpec]] elements stored in this ClassSpecs,
     * and all subtypes stored in these elements, recursively.
     *
     * @param proc function to execute on every encountered type.
@@ -24,7 +24,7 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
     forEachTopLevel((_, typeSpec) => typeSpec.forEachRec(proc))
 
   /**
-    * Calls certain function on all top-level [[ClassSpec]] elements stored in this
+    * Calls certain function on all top-level [[format.ClassSpec]] elements stored in this
     * ClassSpecs.
     */
   def forEachTopLevel[R](proc: (String, ClassSpec) => Unit): Unit = {
@@ -39,7 +39,7 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
   }
 
   /**
-    * Calls certain function on all [[ClassSpec]] elements stored in this ClassSpecs,
+    * Calls certain function on all [[format.ClassSpec]] elements stored in this ClassSpecs,
     * and all subtypes stored in these elements, recursively.
     *
     * @param proc function to execute on every encountered type.
@@ -48,7 +48,7 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
     mapTopLevel((_, typeSpec) => typeSpec.mapRec(proc))
 
   /**
-    * Calls certain function on all top-level [[ClassSpec]] elements stored in this
+    * Calls certain function on all top-level [[format.ClassSpec]] elements stored in this
     * ClassSpecs.
     *
     * @param proc function to execute on every encountered type.

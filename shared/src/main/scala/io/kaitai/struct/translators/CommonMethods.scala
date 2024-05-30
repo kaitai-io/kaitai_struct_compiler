@@ -152,7 +152,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
     * of expression in certain target language.
     * @note Must be kept in sync with [[TypeDetector.detectAttributeType]]
     * @param call attribute call expression to translate
-    * @return result of translation as [[T]]
+    * @return result of translation as `T`
     */
   def translateAttribute(call: Ast.expr.Attribute): T = {
     val attr = call.attr
@@ -195,7 +195,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
     *
     * @note Must be kept in sync with [[TypeDetector.detectCallType]]
     * @param call function call expression to translate
-    * @return result of translation as [[T]]
+    * @return result of translation as `T`
     */
   def translateCall(call: Ast.expr.Call): T = {
     val func = call.func
