@@ -122,7 +122,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case Ast.expr.BoolOp(op: Ast.boolop, values: Seq[Ast.expr]) =>
         doBooleanOp(op, values)
       case Ast.expr.IfExp(condition, ifTrue, ifFalse) =>
-        doIfExp(condition, ifTrue, ifFalse)
+        doIfExp(condition, ifTrue, ifFalse, extPrec)
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
         detectType(idx) match {
           case _: IntType =>
@@ -152,7 +152,6 @@ abstract class BaseTranslator(val provider: TypeProvider)
     }
   }
 
-  def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: DataType): String = translate(value)
   def doByteSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
     CommonSizeOf.bitToByteSize(
@@ -192,8 +191,10 @@ abstract class BaseTranslator(val provider: TypeProvider)
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int) =
     genericBinOp(left, Ast.operator.Add, right, extPrec)
-  def boolToInt(value: Ast.expr): String =
-    doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0))
+  def boolToInt(value: Ast.expr): String = {
+    // TODO: fix METHOD_PRECEDENCE with proper propagation
+    doIfExp(value, Ast.expr.IntNum(1), Ast.expr.IntNum(0), METHOD_PRECEDENCE)
+  }
 
   def kaitaiStreamSize(value: Ast.expr): String = anyField(value, "size")
   def kaitaiStreamEof(value: Ast.expr): String = anyField(value, "is_eof")

@@ -37,7 +37,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Identifier.ROOT => s"${ksToNim(provider.determineType(Identifier.ROOT))}(this.${doName(s)})"
       case _ => s"this.${doName(s)}"
     }
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
+  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr, extPrec: Int): String =
     s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
