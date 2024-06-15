@@ -14,16 +14,18 @@ trait ValidateOps extends ExceptionNames {
   val typeProvider: ClassTypeProvider
 
   def attrValidate(attrId: Identifier, attr: AttrLikeSpec, valid: ValidationSpec): Unit = {
+    val attrTypeRef = attr.dataTypeComposite.asNonOwning()
+
     valid match {
       case ValidationEq(expected) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.Eq, expected, ValidationNotEqualError(attr.dataTypeComposite))
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.Eq, expected, ValidationNotEqualError(attrTypeRef))
       case ValidationMin(min) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataTypeComposite))
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attrTypeRef))
       case ValidationMax(max) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataTypeComposite))
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attrTypeRef))
       case ValidationRange(min, max) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataTypeComposite))
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataTypeComposite))
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attrTypeRef))
+        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attrTypeRef))
       case ValidationAnyOf(values) =>
         val bigOrExpr = Ast.expr.BoolOp(
           Ast.boolop.Or,
@@ -38,9 +40,9 @@ trait ValidateOps extends ExceptionNames {
 
         attrValidateExpr(
           attrId,
-          attr.dataTypeComposite,
+          attrTypeRef,
           checkExpr = bigOrExpr,
-          err = ValidationNotAnyOfError(attr.dataTypeComposite),
+          err = ValidationNotAnyOfError(attrTypeRef),
           errArgs = List(
             Ast.expr.InternalName(attrId),
             Ast.expr.InternalName(IoIdentifier),
@@ -49,19 +51,23 @@ trait ValidateOps extends ExceptionNames {
         )
       case ValidationExpr(expr) =>
         blockScopeHeader
-        typeProvider._currentIteratorType = Some(attr.dataTypeComposite)
+        typeProvider._currentIteratorType = Some(attrTypeRef)
+        // Store value of attribute in the temporary variable with a name that is
+        // used for `_` variable, because in expression we refer to current value
+        // using this variable
+        val borrowed = Ast.expr.Name(Ast.identifier(Identifier.THIS))
         handleAssignmentTempVar(
-          attr.dataTypeComposite,
-          translator.translate(Ast.expr.Name(Ast.identifier(Identifier.ITERATOR))),
+          attrTypeRef,
+          translator.translate(borrowed),
           translator.translate(Ast.expr.InternalName(attrId))
         )
         attrValidateExpr(
           attrId,
-          attr.dataTypeComposite,
+          attrTypeRef,
           expr,
-          ValidationExprError(attr.dataTypeComposite),
+          ValidationExprError(attrTypeRef),
           List(
-            Ast.expr.InternalName(attrId),
+            borrowed,
             Ast.expr.InternalName(IoIdentifier),
             Ast.expr.Str(attr.path.mkString("/", "/", ""))
           )
@@ -73,7 +79,7 @@ trait ValidateOps extends ExceptionNames {
   def attrValidateExprCompare(attrId: Identifier, attr: AttrLikeSpec, op: Ast.cmpop, expected: Ast.expr, err: KSError): Unit = {
     attrValidateExpr(
       attrId,
-      attr.dataTypeComposite,
+      attr.dataTypeComposite.asNonOwning(),
       checkExpr = Ast.expr.Compare(
         Ast.expr.InternalName(attrId),
         op,

@@ -215,7 +215,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doLocalName(Identifier.THIS_RAW)
       case _ => getRawIdExpr(id, rep)
     }
 
@@ -284,9 +284,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val tempVar = if (isRaw) {
-      translator.doLocalName(Identifier.ITERATOR2)
+      translator.doLocalName(Identifier.THIS_RAW)
     } else {
-      translator.doLocalName(Identifier.ITERATOR)
+      translator.doLocalName(Identifier.THIS)
     }
     out.puts(s"let $tempVar = $expr;")
     out.puts(s"${privateMemberName(id)}.append($tempVar);")
