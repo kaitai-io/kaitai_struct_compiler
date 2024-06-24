@@ -69,7 +69,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def externalTypeDeclaration(extType: ExternalType): Unit =
     importList.add(
-      s"use super::${extType.name.last}::${type2class(extType.name.last)};"
+      s"use super::${extType.name.head}::${type2class(extType.name.head)};"
     )
 
   override def classHeader(name: List[String]): Unit = {
