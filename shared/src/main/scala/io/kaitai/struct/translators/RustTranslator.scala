@@ -419,6 +419,18 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
     s"""format!("{}{}", ${translate(left)}, ${translate(right)})"""
 
+  override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
+    if (exprs.isEmpty) {
+      doStringLiteral("")
+    } else { // format!("{expr1}{expr2}{expr3}")
+      var s = "format!(\""
+      exprs.foreach(i => { s+= "{}" })
+      s += "\", "
+      s += exprs.map(translate).mkString(", ")
+      s += ")"
+      s
+    }
+
   override def strToInt(s: expr, base: expr): String =
     translate(base) match {
       case "10" =>
