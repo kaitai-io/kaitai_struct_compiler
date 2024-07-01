@@ -316,7 +316,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
             importList.add(importName)
             outVarCheckRes(s"kaitai.BytesToStr($bytesExpr, $decoderSrc.NewDecoder())")
           case None =>
-            throw new RuntimeException(s"encoding '$encStr' in not supported in Go")
+            throw new RuntimeException(s"encoding '${doStringLiteral(encStr)}' in not supported in Go")
         }
     }
   }

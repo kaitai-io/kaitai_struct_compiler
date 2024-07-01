@@ -81,7 +81,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig) extends Base
       case "ASCII" =>
         s"String::from_utf8_lossy($bytesExpr)"
       case _ =>
-        "panic!(\"Unimplemented encoding for bytesToStr: {}\", \"" + encoding + "\")"
+        s"panic!(\"Unimplemented encoding for bytesToStr: {}\", \"${doStringLiteral(encoding)}\")"
     }
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b, METHOD_PRECEDENCE)}.len()"
