@@ -210,7 +210,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         typeProvider.nowClass.meta.endian match {
           case Some(_: CalcEndian) =>
             out.puts(s"${privateMemberName(EndianIdentifier)} = -1")
-          case Some(InheritedEndian) =>
+          case Some(InheritedEndian) =>1
             out.puts(s"${privateMemberName(EndianIdentifier)} = " +
               s"${privateMemberName(ParentIdentifier)}." +
               s"${idToStr(EndianIdentifier)}")

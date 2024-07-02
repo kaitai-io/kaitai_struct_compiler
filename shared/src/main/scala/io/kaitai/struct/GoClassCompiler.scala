@@ -22,7 +22,7 @@ class GoClassCompiler(
     })
 
     if (config.readWrite) {
-      compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
+      compileEagerWrite(curClass.seq, curClass.instances, curClass.meta.endian)
       compileCheck(curClass.seq)
     }
 

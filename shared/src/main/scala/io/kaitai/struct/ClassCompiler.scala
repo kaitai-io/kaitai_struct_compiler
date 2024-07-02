@@ -84,7 +84,7 @@ class ClassCompiler(
     })
 
     if (config.readWrite) {
-      compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
+      compileEagerWrite(curClass.seq, curClass.instances, curClass.meta.endian)
       compileCheck(curClass.seq)
     }
 
@@ -277,11 +277,19 @@ class ClassCompiler(
     }
   }
 
-  def compileWrite(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec], endian: Option[Endianness]): Unit = {
+  def compileEagerWrite(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec], endian: Option[Endianness]): Unit = {
     endian match {
       case None | Some(_: FixedEndian) =>
         compileSeqWriteProc(seq, instances, None)
-      case Some(CalcEndian(_, _)) | Some(InheritedEndian) =>
+      case Some(ce: CalcEndian) =>
+        lang.writeHeader(None, false)
+        compileCalcEndian(ce)
+        lang.runWriteCalc()
+        lang.writeFooter()
+
+        compileSeqWriteProc(seq, instances, Some(LittleEndian))
+        compileSeqWriteProc(seq, instances, Some(BigEndian))
+      case Some(InheritedEndian) =>
         lang.writeHeader(None, false)
         lang.runWriteCalc()
         lang.writeFooter()
