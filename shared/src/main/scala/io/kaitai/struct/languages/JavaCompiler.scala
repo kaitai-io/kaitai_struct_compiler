@@ -1234,6 +1234,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesType => "byte[]"
 
       case AnyType => "Object"
+      case CalcAnyType => "Object"
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull
 

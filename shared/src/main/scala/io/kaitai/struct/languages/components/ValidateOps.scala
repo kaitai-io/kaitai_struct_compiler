@@ -45,11 +45,15 @@ trait ValidateOps extends ExceptionNames {
       case ValidationExpr(expr) =>
         blockScopeHeader
         typeProvider._currentIteratorType = Some(attr.dataTypeComposite)
+        // this assignment have no effect and will make some error in go or other language
+        // which has unused variable check
+        /*
         handleAssignmentTempVar(
           attr.dataTypeComposite,
           translator.translate(Ast.expr.Name(Ast.identifier(Identifier.ITERATOR))),
           translator.translate(Ast.expr.InternalName(attrId))
         )
+        */
         attrValidateExpr(
           attr,
           expr,
