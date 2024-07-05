@@ -731,6 +731,20 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         changedExpr = name
         tmpName = tmpVarName
       }
+      case subsacript: Ast.expr.Subscript => {
+        val nativeType = typeTransCallBack(dataType.get)
+        val transVar = allocateLocalVar()
+        val tmpVarName = localVarName(transVar)
+        out.puts(s"${tmpVarName}, ok := ${translate(subsacript)}.($nativeType)")
+        out.puts("if !ok {")
+        out.inc
+        out.puts("return nil")
+        out.dec
+        out.puts("}")
+
+        changedExpr = subsacript
+        tmpName = tmpVarName
+      }
       case _ => {}
     }
     (changedExpr, tmpName)
