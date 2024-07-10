@@ -60,6 +60,8 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     }
   }
 
+  def doRawStringLiteral(s: String): String = super.doStringLiteral(s)
+
   /**
     * Handles string literal for C++ by wrapping a C `const char*`-style string
     * into a std::string constructor. Note that normally std::string
@@ -188,7 +190,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     //s"std::to_string(${translate(i)})"
     s"${CppCompiler.kstreamName}::to_string(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
-    s"""${CppCompiler.kstreamName}::bytes_to_str($bytesExpr, "$encoding")"""
+    s"""${CppCompiler.kstreamName}::bytes_to_str($bytesExpr, ${doRawStringLiteral(encoding)})"""
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b, METHOD_PRECEDENCE)}.length()"
 
