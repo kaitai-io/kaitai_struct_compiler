@@ -162,6 +162,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
 
     val expr = translator.userType(dataType, newIO)
     handleAssignment(id, expr, rep, false)
+    translator.userTypeRead(expr)
   }
 
   def createSubstreamBuffered(id: Identifier, byteType: BytesType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {

@@ -628,9 +628,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
     val root = if (t.isOpaque) "nil" else "this._root"
     out.puts(s"${localVarName(v)} := New${GoCompiler.types2class(t.classSpec.get.name)}($io, $parent, $root)")
-    out.puts(s"err = ${localVarName(v)}.Read()")
-    outAddErrCheck()
     localVarName(v)
+  }
+
+  def userTypeRead(expr: String) = {
+    out.puts(s"err = ${expr}.Read()")
+    outAddErrCheck()
   }
 
   def outVarCheckRes(expr: String): String = {
