@@ -187,7 +187,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("42.to_s", CalcIntType, CalcStrType, ResultMap(
         CppCompiler -> "kaitai::kstream::to_string(42)",
         CSharpCompiler -> "42.ToString()",
-        GoCompiler -> "strconv.Itoa(int64(42))",
+        GoCompiler -> "strconv.FormatInt(int64(42), 10)",
         JavaCompiler -> "Long.toString(42)",
         JavaScriptCompiler -> "(42).toString()",
         LuaCompiler -> "tostring(42)",
@@ -200,7 +200,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("(a + 42).to_s", CalcIntType, CalcStrType, ResultMap(
         CppCompiler -> "kaitai::kstream::to_string(a() + 42)",
         CSharpCompiler -> "(A + 42).ToString()",
-        GoCompiler -> "strconv.Itoa(int64(this.A + 42))",
+        GoCompiler -> "strconv.FormatInt(int64(this.A + 42), 10)",
         JavaCompiler -> "Long.toString(a() + 42)",
         JavaScriptCompiler -> "(this.a + 42).toString()",
         LuaCompiler -> "tostring(self.a + 42)",
@@ -213,7 +213,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("a + 42.to_s", CalcStrType, CalcStrType, ResultMap(
         CppCompiler -> "a() + kaitai::kstream::to_string(42)",
         CSharpCompiler -> "A + 42.ToString()",
-        GoCompiler -> "this.A + strconv.Itoa(int64(42))",
+        GoCompiler -> "this.A + strconv.FormatInt(int64(42), 10)",
         JavaCompiler -> "a() + Long.toString(42)",
         JavaScriptCompiler -> "this.a + (42).toString()",
         LuaCompiler -> "self.a .. tostring(42)",
