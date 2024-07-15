@@ -293,10 +293,14 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = LuaCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = LuaCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String =
+    id match {
+      case InstanceIdentifier(name) => name
+      case _ => idToStr(id)
+    }
 
-  override def privateMemberName(id: Identifier): String =
-    s"self.${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = LuaCompiler.privateMemberName(id)
+
   override def localTemporaryName(id: Identifier): String =
     s"_t_${idToStr(id)}"
 
@@ -457,11 +461,8 @@ object LuaCompiler extends LanguageCompilerStatic
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
     }
 
-  def publicMemberName(id: Identifier): String =
-    id match {
-      case InstanceIdentifier(name) => name
-      case _ => idToStr(id)
-    }
+  def privateMemberName(id: Identifier): String =
+    s"self.${idToStr(id)}"
 
   override def kstructName: String = "KaitaiStruct"
   override def kstreamName: String = "KaitaiStream"

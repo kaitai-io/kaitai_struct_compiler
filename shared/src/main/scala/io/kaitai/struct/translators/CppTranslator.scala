@@ -140,7 +140,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   }
 
   override def doInternalName(id: Identifier): String =
-    s"${CppCompiler.publicMemberName(id)}()"
+    CppCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)

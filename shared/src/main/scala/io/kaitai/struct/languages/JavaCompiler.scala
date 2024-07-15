@@ -743,9 +743,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = JavaCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier) = JavaCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String = idToStr(id)
 
-  override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = JavaCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -801,7 +801,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
     }
 
-  def publicMemberName(id: Identifier) = idToStr(id)
+  def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
 
   def kaitaiType2JavaType(attrType: DataType, importList: ImportList): String = kaitaiType2JavaTypePrim(attrType, importList)
 

@@ -54,7 +54,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
   override def doName(s: String) =
     s
   override def doInternalName(id: Identifier): String =
-    s"self.${PythonCompiler.publicMemberName(id)}"
+    PythonCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)

@@ -555,23 +555,18 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  def idToStr(id: Identifier): String =
+  def idToStr(id: Identifier): String = CSharpCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String =
     id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
-      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+      case SpecialIdentifier(name) => s"M${Utils.upperCamelCase(name)}"
+      case NamedIdentifier(name) => Utils.upperCamelCase(name)
+      case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE.capitalize}_$idx"
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case RawIdentifier(innerId) => s"M_Raw${publicMemberName(innerId)}"
     }
 
-  override def publicMemberName(id: Identifier): String = CSharpCompiler.publicMemberName(id)
-
-  override def privateMemberName(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => s"m${Utils.lowerCamelCase(name)}"
-      case _ => s"_${idToStr(id)}"
-    }
-  }
+  override def privateMemberName(id: Identifier): String = CSharpCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -611,13 +606,19 @@ object CSharpCompiler extends LanguageCompilerStatic
     config: RuntimeConfig
   ): LanguageCompiler = new CSharpCompiler(tp, config)
 
-  def publicMemberName(id: Identifier): String =
+  def idToStr(id: Identifier): String =
     id match {
-      case SpecialIdentifier(name) => s"M${Utils.upperCamelCase(name)}"
-      case NamedIdentifier(name) => Utils.upperCamelCase(name)
-      case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE.capitalize}_$idx"
-      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
-      case RawIdentifier(innerId) => s"M_Raw${publicMemberName(innerId)}"
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+    }
+
+  def privateMemberName(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => s"m${Utils.lowerCamelCase(name)}"
+      case _ => s"_${idToStr(id)}"
     }
 
   /**

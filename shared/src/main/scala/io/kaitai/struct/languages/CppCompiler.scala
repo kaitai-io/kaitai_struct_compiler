@@ -932,9 +932,9 @@ class CppCompiler(
 
   override def idToStr(id: Identifier): String = CppCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = CppCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String = idToStr(id)
 
-  override def privateMemberName(id: Identifier): String = s"m_${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = CppCompiler.privateMemberName(id)
 
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
@@ -1039,7 +1039,7 @@ object CppCompiler extends LanguageCompilerStatic
       case IoStorageIdentifier(inner) => s"_io_${idToStr(inner)}"
     }
 
-  def publicMemberName(id: Identifier): String = idToStr(id)
+  def privateMemberName(id: Identifier): String = s"m_${idToStr(id)}"
 
   override def kstructName = "kaitai::kstruct"
   override def kstreamName = "kaitai::kstream"

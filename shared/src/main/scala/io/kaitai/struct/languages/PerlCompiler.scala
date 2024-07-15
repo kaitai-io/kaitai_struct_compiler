@@ -409,9 +409,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = PerlCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = PerlCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String = idToStr(id)
 
-  override def privateMemberName(id: Identifier): String = s"$$self->{${idToStr(id)}}"
+  override def privateMemberName(id: Identifier): String = PerlCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
@@ -438,7 +438,7 @@ object PerlCompiler extends LanguageCompilerStatic
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
     }
 
-  def publicMemberName(id: Identifier): String = idToStr(id)
+  def privateMemberName(id: Identifier): String = s"$$self->{${idToStr(id)}}"
 
   def packageName: String = "IO::KaitaiStruct"
   override def kstreamName: String = s"$packageName::Stream"

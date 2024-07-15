@@ -54,7 +54,7 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   }
 
   override def doInternalName(id: Identifier): String =
-    s"this.${JavaScriptCompiler.publicMemberName(id)}"
+    JavaScriptCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)

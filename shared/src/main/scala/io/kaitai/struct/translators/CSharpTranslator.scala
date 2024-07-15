@@ -59,7 +59,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     }
 
   override def doInternalName(id: Identifier): String =
-    s"${CSharpCompiler.publicMemberName(id)}"
+    CSharpCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
     s"${enumClass(enumSpec.name)}.${Utils.upperCamelCase(label)}"

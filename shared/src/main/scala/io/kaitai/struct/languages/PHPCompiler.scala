@@ -444,16 +444,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = PHPCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier) = PHPCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier) = idToStr(id)
 
-  override def privateMemberName(id: Identifier): String = {
-    id match {
-      case IoIdentifier => s"$$this->_io"
-      case RootIdentifier => s"$$this->_root"
-      case ParentIdentifier => s"$$this->_parent"
-      case _ => s"$$this->_m_${idToStr(id)}"
-    }
-  }
+  override def privateMemberName(id: Identifier): String = PHPCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
@@ -524,7 +517,13 @@ object PHPCompiler extends LanguageCompilerStatic
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
     }
 
-  def publicMemberName(id: Identifier) = idToStr(id)
+  def privateMemberName(id: Identifier): String =
+    id match {
+      case IoIdentifier => s"$$this->_io"
+      case RootIdentifier => s"$$this->_root"
+      case ParentIdentifier => s"$$this->_parent"
+      case _ => s"$$this->_m_${idToStr(id)}"
+    }
 
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 

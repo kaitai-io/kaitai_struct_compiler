@@ -223,12 +223,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   def trInternalName(id: Identifier): TranslatorResult =
-    id match {
-      case SpecialIdentifier(name) => trLocalName(name)
-      case NamedIdentifier(name) => trLocalName(name)
-      case InstanceIdentifier(name) => trLocalName(name)
-      case _ => ResultString(s"this.${GoCompiler.publicMemberName(id)}")
-    }
+    ResultString(GoCompiler.privateMemberName(id))
 
   def specialName(id: String): String = id match {
     case Identifier.ROOT | Identifier.PARENT | Identifier.IO =>

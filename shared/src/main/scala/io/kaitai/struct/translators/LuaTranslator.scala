@@ -80,7 +80,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doName(s: String): String =
     s
   override def doInternalName(id: Identifier): String =
-    s"self.${LuaCompiler.publicMemberName(id)}"
+    LuaCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
     s"${LuaCompiler.types2class(enumSpec.name)}.$label"

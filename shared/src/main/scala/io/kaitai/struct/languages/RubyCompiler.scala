@@ -477,9 +477,9 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = RubyCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = RubyCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier) = idToStr(id)
 
-  override def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = RubyCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -516,7 +516,7 @@ object RubyCompiler extends LanguageCompilerStatic
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
     }
 
-  def publicMemberName(id: Identifier) = idToStr(id)
+  def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"

@@ -74,7 +74,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def doInternalName(id: Identifier): String =
-    s"$$self->${PerlCompiler.publicMemberName(id)}()"
+    PerlCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
