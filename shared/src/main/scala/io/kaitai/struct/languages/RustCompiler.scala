@@ -422,8 +422,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def switchEnd(): Unit = universalFooter
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"    pub ${idToStr(attrName)}: Option<${kaitaiType2NativeType(attrType)}>,")
+  override def instanceDeclaration(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"    pub ${idToStr(instName)}: Option<${kaitaiType2NativeType(attrType)}>,")
   }
 
   override def instanceDeclHeader(className: List[String]): Unit = {
