@@ -60,9 +60,6 @@ trait CommonReads extends LanguageCompiler {
       case _ => // no seeking required for sequence attributes
     }
 
-    // Run validations (still inside "if", if applicable)
-    attrValidateAll(attr)
-
     attrParseIfFooter(attr.cond.ifExpr)
   }
 
@@ -79,6 +76,7 @@ trait CommonReads extends LanguageCompiler {
       case NoRepeat =>
     }
     attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
+    attrValidateAll(attr)
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosFooter
