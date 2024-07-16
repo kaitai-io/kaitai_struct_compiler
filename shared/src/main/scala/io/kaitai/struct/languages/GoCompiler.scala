@@ -301,7 +301,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
-    out.puts(s"for i := 1;; i++ {")
+    out.puts(s"for i := 0;; i++ {")
     out.inc
 
     val eofVar = translator.allocateLocalVar()
