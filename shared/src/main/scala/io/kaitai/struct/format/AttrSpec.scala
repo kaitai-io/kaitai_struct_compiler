@@ -83,7 +83,7 @@ case class YamlAttrArgs(
   size: Option[Ast.expr],
   sizeEos: Boolean,
   encoding: Option[String],
-  terminator: Option[Int],
+  terminator: Option[Seq[Byte]],
   include: Boolean,
   consume: Boolean,
   eosError: Boolean,
@@ -179,7 +179,7 @@ object AttrSpec {
     val sizeEos = ParseUtils.getOptValueBool(srcMap, "size-eos", path).getOrElse(false)
     val ifExpr = ParseUtils.getOptValueExpression(srcMap, "if", path)
     val encoding = ParseUtils.getOptValueStr(srcMap, "encoding", path)
-    val terminator = ParseUtils.getOptValueByte(srcMap, "terminator", path)
+    val terminator = ParseUtils.getOptValueByte(srcMap, "terminator", path).map(value => Seq(value.toByte))
     val consume = ParseUtils.getOptValueBool(srcMap, "consume", path).getOrElse(true)
     val include = ParseUtils.getOptValueBool(srcMap, "include", path).getOrElse(false)
     val eosError = ParseUtils.getOptValueBool(srcMap, "eos-error", path).getOrElse(true)

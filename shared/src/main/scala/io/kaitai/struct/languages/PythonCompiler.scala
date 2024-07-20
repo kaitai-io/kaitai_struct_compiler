@@ -357,7 +357,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.read_bytes_full()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.read_bytes_term($terminator, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
+        val term = terminator.head & 0xff
+        s"$io.read_bytes_term($term, ${bool2Py(include)}, ${bool2Py(consume)}, ${bool2Py(eosError)})"
       case BitsType1(bitEndian) =>
         s"$io.read_bits_int_${bitEndian.toSuffix}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
@@ -382,13 +383,15 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName.bytes_strip_right($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName.bytes_terminate($expr1, $term, ${bool2Py(include)})"
+      case Some(term) =>
+        val t = term.head & 0xff
+        s"$kstreamName.bytes_terminate($expr1, $t, ${bool2Py(include)})"
       case None => expr1
     }
     expr2

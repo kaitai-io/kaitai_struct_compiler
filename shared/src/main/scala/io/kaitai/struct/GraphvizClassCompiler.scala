@@ -415,8 +415,8 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       //case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         val args = ListBuffer[String]()
-        if (terminator != 0)
-          args += s"term=$terminator"
+        val termStr = terminator.map(_ & 0xff).mkString(", ")
+        args += "term=" + (if (terminator.length == 1) termStr else s"[$termStr]")
         if (include)
           args += "include"
         if (!consume)

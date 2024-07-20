@@ -163,8 +163,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     val subcon2 = blt.terminator match {
       case None => subcon
       case Some(term) =>
-        val termStr = "\\x%02X".format(term & 0xff)
-        s"NullTerminated($subcon, term=b'$termStr', include=${translator.doBoolLiteral(blt.include)})"
+        s"NullTerminated($subcon, term=${translator.doByteArrayLiteral(term)}, include=${translator.doBoolLiteral(blt.include)})"
     }
     val subcon3 = blt.padRight match {
       case None => subcon2
@@ -176,9 +175,8 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def attrBytesTerminatedType(btt: BytesTerminatedType, subcon: String): String = {
-    val termStr = "\\x%02X".format(btt.terminator & 0xff)
     s"NullTerminated($subcon, " +
-      s"term=b'$termStr', " +
+      s"term=${translator.doByteArrayLiteral(btt.terminator)}, " +
       s"include=${translator.doBoolLiteral(btt.include)}, " +
       s"consume=${translator.doBoolLiteral(btt.consume)})"
   }
