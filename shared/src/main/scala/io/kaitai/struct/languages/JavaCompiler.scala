@@ -438,8 +438,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        val term = terminator.head & 0xff
-        s"$io.readBytesTerm((byte) $term, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io.readBytesTerm((byte) $term, $include, $consume, $eosError)"
+        } else {
+          s"$io.readBytesTermMulti(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
@@ -499,8 +503,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     val expr2 = terminator match {
       case Some(term) =>
-        val t = term.head & 0xff
-        s"$kstreamName.bytesTerminate($expr1, (byte) $t, $include)"
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$kstreamName.bytesTerminate($expr1, (byte) $t, $include)"
+        } else {
+          s"$kstreamName.bytesTerminateMulti($expr1, ${translator.doByteArrayLiteral(term)}, $include)"
+        }
       case None => expr1
     }
     expr2
