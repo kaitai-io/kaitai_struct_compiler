@@ -674,8 +674,12 @@ class CppCompiler(
       case _: BytesEosType =>
         s"$io->read_bytes_full()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        val term = terminator.head & 0xff
-        s"$io->read_bytes_term($term, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io->read_bytes_term($term, $include, $consume, $eosError)"
+        } else {
+          s"$io->read_bytes_term_multi(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io->read_bits_int_${bitEndian.toSuffix}(1)"
       case BitsType(width: Int, bitEndian) =>
@@ -725,8 +729,12 @@ class CppCompiler(
     }
     val expr2 = terminator match {
       case Some(term) =>
-        val t = term.head & 0xff
-        s"$kstreamName::bytes_terminate($expr1, $t, $include)"
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$kstreamName::bytes_terminate($expr1, $t, $include)"
+        } else {
+          s"$kstreamName::bytes_terminate_multi($expr1, ${translator.doByteArrayLiteral(term)}, $include)"
+        }
       case None => expr1
     }
     expr2
