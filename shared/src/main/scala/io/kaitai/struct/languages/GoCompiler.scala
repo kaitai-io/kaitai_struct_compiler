@@ -405,8 +405,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.ReadBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        val term = terminator.head & 0xff
-        s"$io.ReadBytesTerm($term, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io.ReadBytesTerm($term, $include, $consume, $eosError)"
+        } else {
+          s"$io.ReadBytesTermMulti(${translator.resToStr(translator.doByteArrayLiteral(terminator))}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1)"
       case BitsType(width: Int, bitEndian) =>

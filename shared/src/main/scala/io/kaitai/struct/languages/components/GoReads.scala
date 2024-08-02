@@ -93,8 +93,12 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     }
     val expr2 = terminator match {
       case Some(term) =>
-        val t = term.head & 0xff
-        s"kaitai.BytesTerminate($expr1, $t, $include)"
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"kaitai.BytesTerminate($expr1, $t, $include)"
+        } else {
+          s"kaitai.BytesTerminateMulti($expr1, ${translator.resToStr(translator.doByteArrayLiteral(term))}, $include)"
+        }
       case None => expr1
     }
     expr2
