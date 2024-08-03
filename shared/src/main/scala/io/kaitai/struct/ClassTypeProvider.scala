@@ -9,6 +9,7 @@ import io.kaitai.struct.translators.TypeProvider
 
 class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends TypeProvider {
   var nowClass = topClass
+  val allClasses: ClassSpecs = classSpecs
 
   var _currentIteratorType: Option[DataType] = None
   var _currentSwitchType: Option[DataType] = None
