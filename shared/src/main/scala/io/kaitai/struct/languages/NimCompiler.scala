@@ -356,8 +356,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     val expr2 = terminator match {
       case Some(term) =>
-        val t = term.head & 0xff
-        s"$expr1.bytesTerminate($t, $include)"
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$expr1.bytesTerminate($t, $include)"
+        } else {
+          s"$expr1.bytesTerminateMulti(${translator.doByteArrayLiteral(term)}, $include)"
+        }
       case None => expr1
     }
     expr2
@@ -396,8 +400,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        val term = terminator.head & 0xff
-        s"$io.readBytesTerm($term, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io.readBytesTerm($term, $include, $consume, $eosError)"
+        } else {
+          s"$io.readBytesTermMulti(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
