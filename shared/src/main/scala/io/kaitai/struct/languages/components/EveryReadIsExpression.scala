@@ -34,7 +34,7 @@ trait EveryReadIsExpression
     val needsDebug = attrDebugNeeded(id) && rep != NoRepeat
 
     if (needsDebug)
-      attrDebugStart(id, dataType, Some(io), rep)
+      attrDebugStart(id, dataType, NoRepeat, Some(io), rep)
 
     dataType match {
       case t: UserType =>
@@ -63,7 +63,7 @@ trait EveryReadIsExpression
     }
 
     if (needsDebug)
-      attrDebugEnd(id, dataType, io, rep)
+      attrDebugEnd(id, dataType, NoRepeat, io, rep)
   }
 
   def attrBytesTypeParse(
@@ -193,9 +193,9 @@ trait EveryReadIsExpression
 
     this match {
       case thisStore: AllocateAndStoreIO =>
-        thisStore.allocateIO(rawId, rep)
+        thisStore.allocateIO(rawId, rep, io)
       case thisLocal: AllocateIOLocalVar =>
-        thisLocal.allocateIO(rawId, rep)
+        thisLocal.allocateIO(rawId, rep, io)
     }
   }
 
@@ -252,7 +252,7 @@ trait EveryReadIsExpression
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (attrDebugNeeded(instName))
-      attrDebugStart(instName, dataType, None, NoRepeat)
+      attrDebugStart(instName, dataType, NoRepeat, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }
 

@@ -211,7 +211,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(id: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val memberName = privateMemberName(id)
 
     val args = rep match {

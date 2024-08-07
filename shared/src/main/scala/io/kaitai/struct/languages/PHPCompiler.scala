@@ -236,7 +236,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(id: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val memberName = privateMemberName(id)
     val ioName = s"$$_io_${idToStr(id)}"
 
