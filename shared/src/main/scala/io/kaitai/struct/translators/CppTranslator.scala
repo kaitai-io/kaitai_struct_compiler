@@ -130,7 +130,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   }
 
   override def anyField(value: expr, attrName: String): String =
-    s"${translate(value)}->${doName(attrName)}"
+    s"${translate(value, METHOD_PRECEDENCE)}->${doName(attrName)}"
 
   override def doName(s: String) = s match {
     case Identifier.ITERATOR => "_"
@@ -165,8 +165,6 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}->at(${translate(idx)})"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"((${translate(condition)}) ? (${translate(ifTrue)}) : (${translate(ifFalse)}))"
   override def doCast(value: Ast.expr, typeName: DataType): String =
     s"static_cast<${CppCompiler.kaitaiType2NativeType(config.cppConfig, importListHdr, typeName)}>(${translate(value)})"
 

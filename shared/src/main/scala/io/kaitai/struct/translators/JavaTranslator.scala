@@ -100,8 +100,6 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}.get((int) ${translate(idx, METHOD_PRECEDENCE)})"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
   override def doCast(value: Ast.expr, typeName: DataType): String =
     s"((${JavaCompiler.kaitaiType2JavaType(typeName, importList)}) (${translate(value)}))"
 
