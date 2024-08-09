@@ -1,7 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, MetaSpec}
-import io.kaitai.struct.languages.{GoCompiler, NimCompiler, RustCompiler}
+import io.kaitai.struct.languages.{GoCompiler, NimCompiler, RustCompiler, JuliaCompiler}
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.precompile._
 import io.kaitai.struct.problems.CompilationProblem
@@ -80,6 +80,8 @@ object Main {
         new GraphvizClassCompiler(specs, spec)
       case GoCompiler =>
         new GoClassCompiler(specs, spec, config)
+      case JuliaCompiler =>
+        new JuliaClassCompiler(specs, spec, config)
       case RustCompiler =>
         new RustClassCompiler(specs, spec, config)
       case ConstructClassCompiler =>
