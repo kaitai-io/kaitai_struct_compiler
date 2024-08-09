@@ -39,7 +39,6 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     '\b' -> "\\b",
     '\u000b' -> "\\v",
     '\f' -> "\\f",
-    '\u001b' -> "\\027"
   )
 
   override def strLiteralUnicode(code: Char): String =
@@ -70,7 +69,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String =
     "{" + value.map((v) => translate(v)).mkString(", ") + "}"
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    "\"" + decEscapeByteArray(arr) + "\""
+    "\"" + Utils.hexEscapeByteArray(arr) + "\""
 
   override def doLocalName(s: String) = s match {
     case Identifier.ITERATOR => "_"
@@ -182,17 +181,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     case Ast.boolop.And => "and"
   }
   override def unaryOp(op: Ast.unaryop): String = op match {
-    case Ast.unaryop.Not => "not"
+    case Ast.unaryop.Not => "not "
     case _ => super.unaryOp(op)
   }
-
-  /**
-   * Converts byte array (Seq[Byte]) into decimal-escaped Lua-style literal
-   * characters (i.e. like \255).
-   *
-   * @param arr byte array to escape
-   * @return array contents decimal-escaped as string
-   */
-  private def decEscapeByteArray(arr: Seq[Byte]): String =
-    arr.map((x) => "\\%03d".format(x & 0xff)).mkString
 }
