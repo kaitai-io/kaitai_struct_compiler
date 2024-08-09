@@ -299,6 +299,10 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       case Ast.expr.EnumById(_, id, _) =>
         affectedVars(id)
       case Ast.expr.Attribute(value, attr) =>
+        // special names like "_sizeof", "_io", "_parent", "_root"
+        if (attr.name.startsWith("_"))
+          return affectedVars(value)
+
         val targetClass = translator.detectType(value)
         targetClass match {
           case t: UserType =>
@@ -322,12 +326,9 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         fromFunc ::: affectedVars(Ast.expr.List(args))
       case Ast.expr.Subscript(value, idx) =>
         affectedVars(value) ++ affectedVars(idx)
-      case SwitchType.ELSE_CONST =>
-        // "_" is a special const for
-        List()
       case Ast.expr.Name(id) =>
-        if (id.name.charAt(0) == '_') {
-          // other special consts like "_io", "_index", etc
+        if (id.name.startsWith("_")) {
+          // other special names like "_", "_io", "_index", etc.
           List()
         } else {
           // this must be local name, resolve it
