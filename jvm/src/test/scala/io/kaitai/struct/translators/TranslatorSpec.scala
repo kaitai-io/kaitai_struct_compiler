@@ -26,7 +26,8 @@ class TranslatorSpec extends AnyFunSpec {
       everybodyExcept("100000000000", "100000000000", ResultMap(
         CppCompiler -> "100000000000LL",
         GoCompiler -> "int64(100000000000)",
-        JavaCompiler -> "100000000000L"
+        JavaCompiler -> "100000000000L",
+        NimCompiler -> "100000000000'i64",
       ))
     }
 
@@ -38,18 +39,21 @@ class TranslatorSpec extends AnyFunSpec {
         CppCompiler -> "2147483648UL",
         GoCompiler -> "uint32(2147483648)",
         JavaCompiler -> "2147483648L",
+        NimCompiler -> "2147483648'i64",
       ))
       // 0xffff_ffff
       everybodyExcept("4294967295", "4294967295", ResultMap(
         CppCompiler -> "4294967295UL",
         GoCompiler -> "uint32(4294967295)",
         JavaCompiler -> "4294967295L",
+        NimCompiler -> "4294967295'i64",
       ))
       // 0x1_0000_0000
       everybodyExcept("4294967296", "4294967296", ResultMap(
         CppCompiler -> "4294967296LL",
         GoCompiler -> "int64(4294967296)",
         JavaCompiler -> "4294967296L",
+        NimCompiler -> "4294967296'i64",
       ))
 
       // -0x7fff_ffff
@@ -65,6 +69,7 @@ class TranslatorSpec extends AnyFunSpec {
         CppCompiler -> "-2147483649LL",
         GoCompiler -> "int64(-2147483649)",
         JavaCompiler -> "-2147483649L",
+        NimCompiler -> "-2147483649'i64",
       ))
 
       // 0x7fff_ffff_ffff_ffff
@@ -72,6 +77,7 @@ class TranslatorSpec extends AnyFunSpec {
         CppCompiler -> "9223372036854775807LL",
         GoCompiler -> "int64(9223372036854775807)",
         JavaCompiler -> "9223372036854775807L",
+        NimCompiler -> "9223372036854775807'i64",
       ))
       // 0x8000_0000_0000_0000
       everybodyExcept("9223372036854775808", "9223372036854775808", ResultMap(
@@ -79,6 +85,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "uint64(9223372036854775808)",
         JavaCompiler -> "0x8000000000000000L",
         LuaCompiler -> "0x8000000000000000",
+        NimCompiler -> "9223372036854775808'u64",
         PHPCompiler -> "-9223372036854775807 - 1",
       ))
       // 0xffff_ffff_ffff_ffff
@@ -87,6 +94,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "uint64(18446744073709551615)",
         JavaCompiler -> "0xffffffffffffffffL",
         LuaCompiler -> "0xffffffffffffffff",
+        NimCompiler -> "18446744073709551615'u64",
         PHPCompiler -> "-1",
       ))
       // -0x7fff_ffff_ffff_ffff
@@ -94,6 +102,7 @@ class TranslatorSpec extends AnyFunSpec {
         CppCompiler -> "-9223372036854775807LL",
         GoCompiler -> "int64(-9223372036854775807)",
         JavaCompiler -> "-9223372036854775807L",
+        NimCompiler -> "-9223372036854775807'i64",
       ))
       // -0x8000_0000_0000_0000
       everybodyExcept("-9223372036854775808", "-9223372036854775808", ResultMap(
@@ -101,6 +110,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "int64(-9223372036854775808)",
         JavaCompiler -> "-9223372036854775808L",
         LuaCompiler -> "-9223372036854775807 - 1",
+        NimCompiler -> "-9223372036854775808'i64",
         PHPCompiler -> "-9223372036854775807 - 1",
       ))
     }
@@ -122,6 +132,7 @@ class TranslatorSpec extends AnyFunSpec {
     everybodyExcept("3 / 2", "3 / 2", ResultMap(
       JavaScriptCompiler -> "Math.floor(3 / 2)",
       LuaCompiler -> "math.floor(3 / 2)",
+      NimCompiler -> "3 div 2",
       PerlCompiler -> "int(3 / 2)",
       PHPCompiler -> "intval(3 / 2)",
       PythonCompiler -> "3 // 2"
@@ -146,6 +157,7 @@ class TranslatorSpec extends AnyFunSpec {
     everybodyExcept("(1 + 2) / (7 * 8)", "(1 + 2) / (7 * 8)", ResultMap(
       JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
       LuaCompiler -> "math.floor((1 + 2) / (7 * 8))",
+      NimCompiler -> "(1 + 2) div (7 * 8)",
       PerlCompiler -> "int((1 + 2) / (7 * 8))",
       PHPCompiler -> "intval((1 + 2) / (7 * 8))",
       PythonCompiler -> "(1 + 2) // (7 * 8)"
@@ -154,26 +166,38 @@ class TranslatorSpec extends AnyFunSpec {
     everybodyExcept("3 - ((1 + 2) / (7 * 8) + 5)", "3 - ((1 + 2) / (7 * 8) + 5)", ResultMap(
       JavaScriptCompiler -> "3 - (Math.floor((1 + 2) / (7 * 8)) + 5)",
       LuaCompiler -> "3 - (math.floor((1 + 2) / (7 * 8)) + 5)",
+      NimCompiler -> "3 - ((1 + 2) div (7 * 8) + 5)",
       PerlCompiler -> "3 - (int((1 + 2) / (7 * 8)) + 5)",
       PHPCompiler -> "3 - (intval((1 + 2) / (7 * 8)) + 5)",
       PythonCompiler -> "3 - ((1 + 2) // (7 * 8) + 5)"
     ))
 
-    everybody("1 + 2 << 5", "1 + 2 << 5")
-    everybody("(1 + 2) << 5", "1 + 2 << 5")
-    everybody("1 + (2 << 5)", "1 + (2 << 5)")
+    everybodyExcept("1 + 2 << 5", "1 + 2 << 5", ResultMap(
+      NimCompiler -> "1 + 2 shl 5",
+    ))
+    everybodyExcept("(1 + 2) << 5", "1 + 2 << 5", ResultMap(
+      NimCompiler -> "1 + 2 shl 5",
+    ))
+    everybodyExcept("1 + (2 << 5)", "1 + (2 << 5)", ResultMap(
+      NimCompiler -> "1 + (2 shl 5)",
+    ))
 
     everybodyExcept("~777", "~777", ResultMap(
-      GoCompiler -> "^777"
+      GoCompiler -> "^777",
+      NimCompiler -> "not 777",
     ))
     everybodyExcept("~(7+3)", "~(7 + 3)", ResultMap(
-      GoCompiler -> "^(7 + 3)"
+      GoCompiler -> "^(7 + 3)",
+      NimCompiler -> "not (7 + 3)",
     ))
 
-    everybody("(0b01 & 0b11) << 1", "(1 & 3) << 1")
+    everybodyExcept("(0b01 & 0b11) << 1", "(1 & 3) << 1", ResultMap(
+      NimCompiler -> "(1 and 3) shl 1",
+    ))
 
     everybodyExcept("(0b01 & 0b10) >> 1", "(1 & 2) >> 1", ResultMap(
-      JavaScriptCompiler -> "(1 & 2) >>> 1"
+      JavaScriptCompiler -> "(1 & 2) >>> 1",
+      NimCompiler -> "(1 and 2) shr 1",
     ))
   }
 
@@ -191,10 +215,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "Long.toString(42)",
         JavaScriptCompiler -> "(42).toString()",
         LuaCompiler -> "tostring(42)",
+        NimCompiler -> "intToStr(int(42))",
         PerlCompiler -> "sprintf('%d', 42)",
         PHPCompiler -> "strval(42)",
         PythonCompiler -> "str(42)",
-        RubyCompiler -> "42.to_s"
+        RubyCompiler -> "42.to_s",
+        RustCompiler -> "42.to_string()",
       ))
 
       full("(a + 42).to_s", CalcIntType, CalcStrType, ResultMap(
@@ -204,10 +230,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "Long.toString(a() + 42)",
         JavaScriptCompiler -> "(this.a + 42).toString()",
         LuaCompiler -> "tostring(self.a + 42)",
+        NimCompiler -> "intToStr(int(this.a + 42))",
         PerlCompiler -> "sprintf('%d', $self->a() + 42)",
         PHPCompiler -> "strval($this->a() + 42)",
         PythonCompiler -> "str(self.a + 42)",
-        RubyCompiler -> "(a + 42).to_s"
+        RubyCompiler -> "(a + 42).to_s",
+        RustCompiler -> "(self.a + 42).to_string()",
       ))
 
       full("a + 42.to_s", CalcStrType, CalcStrType, ResultMap(
@@ -217,10 +245,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "a() + Long.toString(42)",
         JavaScriptCompiler -> "this.a + (42).toString()",
         LuaCompiler -> "self.a .. tostring(42)",
+        NimCompiler -> "$this.a & $intToStr(int(42))",
         PerlCompiler -> "$self->a() . sprintf('%d', 42)",
         PHPCompiler -> "$this->a() . strval(42)",
         PythonCompiler -> "self.a + str(42)",
-        RubyCompiler -> "a + 42.to_s"
+        RubyCompiler -> "a + 42.to_s",
+        RustCompiler -> "format!(\"{}{}\", self.a, 42.to_string())",
       ))
     }
   }
@@ -240,10 +270,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
       JavaScriptCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
       LuaCompiler -> "utils.box_unwrap((2 < 3) and utils.box_wrap(\"foo\") or (\"bar\"))",
+      NimCompiler -> "if 2 < 3: \"foo\" else: \"bar\"",
       PerlCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
       PHPCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
       PythonCompiler -> "(u\"foo\" if 2 < 3 else u\"bar\")",
-      RubyCompiler -> "(2 < 3 ? \"foo\" : \"bar\")"
+      RubyCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
+      RustCompiler -> "if 2 < 3 { \"foo\" } else { \"bar\" }",
     ))
   }
 
@@ -267,10 +299,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "true",
       JavaScriptCompiler -> "true",
       LuaCompiler -> "true",
+      NimCompiler -> "true",
       PerlCompiler -> "1",
       PHPCompiler -> "true",
       PythonCompiler -> "True",
-      RubyCompiler -> "true"
+      RubyCompiler -> "true",
+      RustCompiler -> "true",
     ))
 
     full("false", CalcBooleanType, CalcBooleanType, ResultMap(
@@ -280,10 +314,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "false",
       JavaScriptCompiler -> "false",
       LuaCompiler -> "false",
+      NimCompiler -> "false",
       PerlCompiler -> "0",
       PHPCompiler -> "false",
       PythonCompiler -> "False",
-      RubyCompiler -> "false"
+      RubyCompiler -> "false",
+      RustCompiler -> "false",
     ))
   }
 
@@ -300,10 +336,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "(someBool() ? 1 : 0)",
       JavaScriptCompiler -> "(this.someBool | 0)",
       LuaCompiler -> "(self.some_bool and 1 or 0)",
+      NimCompiler -> "if this.someBool: 1 else: 0",
       PerlCompiler -> "$self->some_bool()",
       PHPCompiler -> "intval($this->someBool())",
       PythonCompiler -> "int(self.some_bool)",
-      RubyCompiler -> "(some_bool ? 1 : 0)"
+      RubyCompiler -> "(some_bool ? 1 : 0)",
+      RustCompiler -> "self.some_bool as i32",
     ))
   }
 
@@ -315,10 +353,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "fooStr()",
       JavaScriptCompiler -> "this.fooStr",
       LuaCompiler -> "self.foo_str",
+      NimCompiler -> "this.fooStr",
       PerlCompiler -> "$self->foo_str()",
       PHPCompiler -> "$this->fooStr()",
       PythonCompiler -> "self.foo_str",
-      RubyCompiler -> "foo_str"
+      RubyCompiler -> "foo_str",
+      RustCompiler -> "self.foo_str",
     ))
 
     full("foo_block", userOwnedType(List("block")), userBorrowedType(List("block")), ResultMap(
@@ -328,10 +368,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "fooBlock()",
       JavaScriptCompiler -> "this.fooBlock",
       LuaCompiler -> "self.foo_block",
+      NimCompiler -> "this.fooBlock",
       PerlCompiler -> "$self->foo_block()",
       PHPCompiler -> "$this->fooBlock()",
       PythonCompiler -> "self.foo_block",
-      RubyCompiler -> "foo_block"
+      RubyCompiler -> "foo_block",
+      RustCompiler -> "self.foo_block",
     ))
 
     full("foo.bar", FooBarProvider, CalcStrType, ResultMap(
@@ -341,10 +383,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "foo().bar()",
       JavaScriptCompiler -> "this.foo.bar",
       LuaCompiler -> "self.foo.bar",
+      NimCompiler -> "this.foo.bar",
       PerlCompiler -> "$self->foo()->bar()",
       PHPCompiler -> "$this->foo()->bar()",
       PythonCompiler -> "self.foo.bar",
-      RubyCompiler -> "foo.bar"
+      RubyCompiler -> "foo.bar",
+      RustCompiler -> "self.foo.bar",
     ))
 
     full("foo.inner.baz", FooBarProvider, CalcIntType, ResultMap(
@@ -354,10 +398,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "foo().inner().baz()",
       JavaScriptCompiler -> "this.foo.inner.baz",
       LuaCompiler -> "self.foo.inner.baz",
+      NimCompiler -> "this.foo.inner.baz",
       PerlCompiler -> "$self->foo()->inner()->baz()",
       PHPCompiler -> "$this->foo()->inner()->baz()",
       PythonCompiler -> "self.foo.inner.baz",
-      RubyCompiler -> "foo.inner.baz"
+      RubyCompiler -> "foo.inner.baz",
+      RustCompiler -> "self.foo.inner.baz",
     ))
 
     full("_root.foo", userOwnedType(List("top_class", "block")), userBorrowedType(List("top_class", "block")), ResultMap(
@@ -367,10 +413,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "_root().foo()",
       JavaScriptCompiler -> "this._root.foo",
       LuaCompiler -> "self._root.foo",
+      NimCompiler -> "TopClass_Block(this.root).foo",
       PerlCompiler -> "$self->_root()->foo()",
       PHPCompiler -> "$this->_root()->foo()",
       PythonCompiler -> "self._root.foo",
-      RubyCompiler -> "_root.foo"
+      RubyCompiler -> "_root.foo",
+      RustCompiler -> "self._root.foo",
     ))
 
     full("a != 2 and a != 5", CalcIntType, CalcBooleanType, ResultMap(
@@ -380,25 +428,30 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> " ((a() != 2) && (a() != 5)) ",
       JavaScriptCompiler -> " ((this.a != 2) && (this.a != 5)) ",
       LuaCompiler -> " ((self.a ~= 2) and (self.a ~= 5)) ",
+      NimCompiler -> " ((this.a != 2) and (this.a != 5)) ",
       PerlCompiler -> " (($self->a() != 2) && ($self->a() != 5)) ",
       PHPCompiler -> " (($this->a() != 2) && ($this->a() != 5)) ",
       PythonCompiler -> " ((self.a != 2) and (self.a != 5)) ",
-      RubyCompiler -> " ((a != 2) && (a != 5)) "
+      RubyCompiler -> " ((a != 2) && (a != 5)) ",
+      RustCompiler -> " ((self.a != 2) && (self.a != 5)) ",
     ))
   }
 
   describe("arrays") {
     describe("literals") {
       full("[0, 1, 100500]", CalcIntType, ArrayTypeInStream(CalcIntType), ResultMap(
+        CppCompiler -> "",
         CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
         GoCompiler -> "[]int{0, 1, 100500}",
         JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
         JavaScriptCompiler -> "[0, 1, 100500]",
         LuaCompiler -> "{0, 1, 100500}",
+        NimCompiler -> "@[int(0), int(1), int(100500)]",
         PerlCompiler -> "[0, 1, 100500]",
         PHPCompiler -> "[0, 1, 100500]",
         PythonCompiler -> "[0, 1, 100500]",
-        RubyCompiler -> "[0, 1, 100500]"
+        RubyCompiler -> "[0, 1, 100500]",
+        RustCompiler -> "[0, 1, 100500]",
       ))
 
       full("[34, 0, 10, 64, 65, 66, 92]", CalcIntType, CalcBytesType, ResultMap(
@@ -407,11 +460,13 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "[]uint8{34, 0, 10, 64, 65, 66, 92}",
         JavaCompiler -> "new byte[] { 34, 0, 10, 64, 65, 66, 92 }",
         JavaScriptCompiler -> "[34, 0, 10, 64, 65, 66, 92]",
-        LuaCompiler -> "\"\\034\\000\\010\\064\\065\\066\\092\"",
+        LuaCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
+        NimCompiler -> "@[34'u8, 0'u8, 10'u8, 64'u8, 65'u8, 66'u8, 92'u8]",
         PerlCompiler -> "pack('C*', (34, 0, 10, 64, 65, 66, 92))",
         PHPCompiler -> "\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
         PythonCompiler -> "b\"\\x22\\x00\\x0A\\x40\\x41\\x42\\x5C\"",
-        RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')"
+        RubyCompiler -> "[34, 0, 10, 64, 65, 66, 92].pack('C*')",
+        RustCompiler -> "vec!([0x22, 0x0, 0xa, 0x40, 0x41, 0x42, 0x5c])",
       ))
 
       full("[255, 0, 255]", CalcIntType, CalcBytesType, ResultMap(
@@ -420,11 +475,13 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "[]uint8{255, 0, 255}",
         JavaCompiler -> "new byte[] { -1, 0, -1 }",
         JavaScriptCompiler -> "[255, 0, 255]",
-        LuaCompiler -> "\"\\255\\000\\255\"",
+        LuaCompiler -> "\"\\xFF\\x00\\xFF\"",
+        NimCompiler -> "@[255'u8, 0'u8, 255'u8]",
         PerlCompiler -> "pack('C*', (255, 0, 255))",
         PHPCompiler -> "\"\\xFF\\x00\\xFF\"",
         PythonCompiler -> "b\"\\xFF\\x00\\xFF\"",
-        RubyCompiler -> "[255, 0, 255].pack('C*')"
+        RubyCompiler -> "[255, 0, 255].pack('C*')",
+        RustCompiler -> "vec!([0xff, 0x0, 0xff])",
       ))
     }
 
@@ -435,11 +492,13 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "len([]uint8{0, 1, 2})",
         JavaCompiler -> "new byte[] { 0, 1, 2 }.length",
         JavaScriptCompiler -> "[0, 1, 2].length",
-        LuaCompiler -> "#\"\\000\\001\\002\"",
+        LuaCompiler -> "#\"\\x00\\x01\\x02\"",
+        NimCompiler -> "len(@[0'u8, 1'u8, 2'u8])",
         PerlCompiler -> "length(pack('C*', (0, 1, 2)))",
         PHPCompiler -> "strlen(\"\\x00\\x01\\x02\")",
         PythonCompiler -> "len(b\"\\x00\\x01\\x02\")",
-        RubyCompiler -> "[0, 1, 2].pack('C*').size"
+        RubyCompiler -> "[0, 1, 2].pack('C*').size",
+        RustCompiler -> "vec!([0x0, 0x1, 0x2]).len()",
       ))
 
       full("a[42]", ArrayTypeInStream(CalcStrType), CalcStrType, ResultMap(
@@ -449,10 +508,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "a().get((int) 42)",
         JavaScriptCompiler -> "this.a[42]",
         LuaCompiler -> "self.a[42 + 1]", // TODO: self.a[43]
+        NimCompiler -> "this.a[42]",
         PerlCompiler -> "@{$self->a()}[42]",
         PHPCompiler -> "$this->a()[42]",
         PythonCompiler -> "self.a[42]",
-        RubyCompiler -> "a[42]"
+        RubyCompiler -> "a[42]",
+        RustCompiler -> "self.a[42]",
       ))
 
       full("a[42 - 2]", ArrayTypeInStream(CalcStrType), CalcStrType, ResultMap(
@@ -462,10 +523,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "a().get((int) (42 - 2))",
         JavaScriptCompiler -> "this.a[42 - 2]",
         LuaCompiler -> "self.a[42 - 2 + 1]", // TODO: self.a[41]
+        NimCompiler -> "this.a[42 - 2]",
         PerlCompiler -> "@{$self->a()}[42 - 2]",
         PHPCompiler -> "$this->a()[42 - 2]",
         PythonCompiler -> "self.a[42 - 2]",
-        RubyCompiler -> "a[42 - 2]"
+        RubyCompiler -> "a[42 - 2]",
+        RustCompiler -> "self.a[42 - 2]",
       ))
 
       full("a.first", ArrayTypeInStream(CalcIntType), CalcIntType, ResultMap(
@@ -475,10 +538,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "a().get(0)",
         JavaScriptCompiler -> "this.a[0]",
         LuaCompiler -> "self.a[1]",
+        NimCompiler -> "this.a[0]",
         PerlCompiler -> "@{$self->a()}[0]",
         PHPCompiler -> "$this->a()[0]",
         PythonCompiler -> "self.a[0]",
-        RubyCompiler -> "a.first"
+        RubyCompiler -> "a.first",
+        RustCompiler -> "self.a.first()",
       ))
 
       full("a.last", ArrayTypeInStream(CalcIntType), CalcIntType, ResultMap(
@@ -490,10 +555,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "a().get(a().size() - 1)",
         JavaScriptCompiler -> "this.a[this.a.length - 1]",
         LuaCompiler -> "self.a[#self.a]",
+        NimCompiler -> "this.a[^1]",
         PerlCompiler -> "@{$self->a()}[-1]",
         PHPCompiler -> "$this->a()[count($this->a()) - 1]",
         PythonCompiler -> "self.a[-1]",
-        RubyCompiler -> "a.last"
+        RubyCompiler -> "a.last",
+        RustCompiler -> "self.a.last()",
       ))
 
       full("a.size", ArrayTypeInStream(CalcIntType), CalcIntType, ResultMap(
@@ -503,10 +570,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "a().size()",
         JavaScriptCompiler -> "this.a.length",
         LuaCompiler -> "#self.a",
+        NimCompiler -> "len(this.a)",
         PHPCompiler -> "count($this->a())",
         PerlCompiler -> "scalar(@{$self->a()})",
         PythonCompiler -> "len(self.a)",
-        RubyCompiler -> "a.length"
+        RubyCompiler -> "a.length",
+        RustCompiler -> "self.a.len()",
       ))
     }
   }
@@ -520,10 +589,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "\"str\"",
         JavaScriptCompiler -> "\"str\"",
         LuaCompiler -> "\"str\"",
+        NimCompiler -> "\"str\"",
         PerlCompiler -> "\"str\"",
         PHPCompiler -> "\"str\"",
         PythonCompiler -> "u\"str\"",
-        RubyCompiler -> "\"str\""
+        RubyCompiler -> "\"str\"",
+        RustCompiler -> "\"str\"",
       ))
 
       full("\"str\\nnext\"", CalcIntType, CalcStrType, ResultMap(
@@ -533,10 +604,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "\"str\\nnext\"",
         JavaScriptCompiler -> "\"str\\nnext\"",
         LuaCompiler -> "\"str\\nnext\"",
+        NimCompiler -> "\"str\\nnext\"",
         PerlCompiler -> "\"str\\nnext\"",
         PHPCompiler -> "\"str\\nnext\"",
         PythonCompiler -> "u\"str\\nnext\"",
-        RubyCompiler -> "\"str\\nnext\""
+        RubyCompiler -> "\"str\\nnext\"",
+        RustCompiler -> "\"str\\nnext\"",
       ))
 
       full("\"str\\u000anext\"", CalcIntType, CalcStrType, ResultMap(
@@ -546,23 +619,27 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "\"str\\nnext\"",
         JavaScriptCompiler -> "\"str\\nnext\"",
         LuaCompiler -> "\"str\\nnext\"",
+        NimCompiler -> "\"str\\nnext\"",
         PerlCompiler -> "\"str\\nnext\"",
         PHPCompiler -> "\"str\\nnext\"",
         PythonCompiler -> "u\"str\\nnext\"",
-        RubyCompiler -> "\"str\\nnext\""
+        RubyCompiler -> "\"str\\nnext\"",
+        RustCompiler -> "\"str\\nnext\"",
       ))
 
       full("\"str\\0next\"", CalcIntType, CalcStrType, ResultMap(
         CppCompiler -> "std::string(\"str\\000next\", 8)",
         CSharpCompiler -> "\"str\\0next\"",
-        GoCompiler -> "\"str\\000next\"",
+        GoCompiler -> "\"str\\x00next\"",
         JavaCompiler -> "\"str\\000next\"",
         JavaScriptCompiler -> "\"str\\x00next\"",
-        LuaCompiler -> "\"str\\000next\"",
-        PerlCompiler -> "\"str\\000next\"",
-        PHPCompiler -> "\"str\\000next\"",
-        PythonCompiler -> "u\"str\\000next\"",
-        RubyCompiler -> "\"str\\000next\""
+        LuaCompiler -> "\"str\\x00next\"",
+        NimCompiler -> "\"str\\x00next\"",
+        PerlCompiler -> "\"str\\x00next\"",
+        PHPCompiler -> "\"str\\x00next\"",
+        PythonCompiler -> "u\"str\\x00next\"",
+        RubyCompiler -> "\"str\\x00next\"",
+        RustCompiler -> "\"str\\u{0}next\"",
       ))
     }
 
@@ -570,9 +647,11 @@ class TranslatorSpec extends AnyFunSpec {
       everybodyExcept("\"str1\" + \"str2\"", "\"str1\" + \"str2\"", ResultMap(
         CppCompiler -> "std::string(\"str1\") + std::string(\"str2\")",
         LuaCompiler -> "\"str1\" .. \"str2\"",
+        NimCompiler -> "$\"str1\" & $\"str2\"",
         PerlCompiler -> "\"str1\" . \"str2\"",
         PHPCompiler -> "\"str1\" . \"str2\"",
-        PythonCompiler -> "u\"str1\" + u\"str2\""
+        PythonCompiler -> "u\"str1\" + u\"str2\"",
+        RustCompiler -> "format!(\"{}{}\", \"str1\", \"str2\")",
       ), CalcStrType)
 
       everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", ResultMap(
@@ -609,10 +688,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "\"str\".length()",
         JavaScriptCompiler -> "\"str\".length",
         LuaCompiler -> "string.len(\"str\")",
+        NimCompiler -> "len(\"str\")",
         PerlCompiler -> "length(\"str\")",
         PHPCompiler -> "strlen(\"str\")",
         PythonCompiler -> "len(u\"str\")",
-        RubyCompiler -> "\"str\".size"
+        RubyCompiler -> "\"str\".size",
+        RustCompiler -> "\"str\".len()",
       ))
 
       full("(foo + bar).length", CalcStrType, CalcIntType, ResultMap(
@@ -622,10 +703,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "(foo() + bar()).length()",
         JavaScriptCompiler -> "(this.foo + this.bar).length",
         LuaCompiler -> "string.len(self.foo .. self.bar)",
+        NimCompiler -> "len($this.foo & $this.bar)",
         PerlCompiler -> "length($self->foo() . $self->bar())",
         PHPCompiler -> "strlen($this->foo() . $this->bar())",
         PythonCompiler -> "len(self.foo + self.bar)",
-        RubyCompiler -> "(foo + bar).size"
+        RubyCompiler -> "(foo + bar).size",
+        RustCompiler -> "format!(\"{}{}\", self.foo, self.bar).len()",
       ))
 
       full("\"str\".reverse", CalcIntType, CalcStrType, ResultMap(
@@ -635,10 +718,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "new StringBuilder(\"str\").reverse().toString()",
         JavaScriptCompiler -> "Array.from(\"str\").reverse().join('')",
         LuaCompiler -> "string.reverse(\"str\")",
+        NimCompiler -> "reversed(\"str\")",
         PerlCompiler -> "scalar(reverse(\"str\"))",
         PHPCompiler -> "strrev(\"str\")",
         PythonCompiler -> "(u\"str\")[::-1]",
-        RubyCompiler -> "\"str\".reverse"
+        RubyCompiler -> "\"str\".reverse",
+        RustCompiler -> "\"str\".graphemes(true).rev().flat_map(|g| g.chars()).collect()",
       ))
 
       full("(foo + bar).reverse", CalcStrType, CalcStrType, ResultMap(
@@ -648,10 +733,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "new StringBuilder(foo() + bar()).reverse().toString()",
         JavaScriptCompiler -> "Array.from(this.foo + this.bar).reverse().join('')",
         LuaCompiler -> "string.reverse(self.foo .. self.bar)",
+        NimCompiler -> "reversed($this.foo & $this.bar)",
         PerlCompiler -> "scalar(reverse($self->foo() . $self->bar()))",
         PHPCompiler -> "strrev($this->foo() . $this->bar())",
         PythonCompiler -> "(self.foo + self.bar)[::-1]",
-        RubyCompiler -> "(foo + bar).reverse"
+        RubyCompiler -> "(foo + bar).reverse",
+        RustCompiler -> "format!(\"{}{}\", self.foo, self.bar).graphemes(true).rev().flat_map(|g| g.chars()).collect()",
       ))
 
       full("\"12345\".to_i", CalcIntType, CalcIntType, ResultMap(
@@ -666,10 +753,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "Long.parseLong(\"12345\", 10)",
         JavaScriptCompiler -> "Number.parseInt(\"12345\", 10)",
         LuaCompiler -> "tonumber(\"12345\")",
+        NimCompiler -> "\"12345\".parseInt(10)",
         PerlCompiler -> "\"12345\" + 0",
         PHPCompiler -> "intval(\"12345\", 10)",
         PythonCompiler -> "int(u\"12345\")",
-        RubyCompiler -> "\"12345\".to_i"
+        RubyCompiler -> "\"12345\".to_i",
+        RustCompiler -> "\"12345\".parse().unwrap()", // TODO: RustCompiler: Use ? instead of .unwrap()
       ))
 
       full("\"1234fe\".to_i(16)", CalcIntType, CalcIntType, ResultMap(
@@ -684,10 +773,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "Long.parseLong(\"1234fe\", 16)",
         JavaScriptCompiler -> "Number.parseInt(\"1234fe\", 16)",
         LuaCompiler -> "tonumber(\"1234fe\", 16)",
+        NimCompiler -> "\"1234fe\".parseInt(16)",
         PerlCompiler -> "hex(\"1234fe\")",
         PHPCompiler -> "intval(\"1234fe\", 16)",
         PythonCompiler -> "int(u\"1234fe\", 16)",
-        RubyCompiler -> "\"1234fe\".to_i(16)"
+        RubyCompiler -> "\"1234fe\".to_i(16)",
+        RustCompiler -> "FromStrRadix::from_str_radix(\"1234fe\", 16).unwrap()", // TODO: RustCompiler: Use ? instead of .unwrap()
       ))
 
       // substring() call on a single string literal
@@ -698,10 +789,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "\"foobar\".substring(2, 4)",
         JavaScriptCompiler -> "\"foobar\".substring(2, 4)",
         LuaCompiler -> "string.sub(\"foobar\", 2 + 1, 4)",
+        NimCompiler -> "\"foobar\".substr(2, 4 - 1)",
         PerlCompiler -> "substr(\"foobar\", 2, 4 - 2)",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring(\"foobar\", 2, 4)",
         PythonCompiler -> "u\"foobar\"[2:4]",
-        RubyCompiler -> "\"foobar\"[2..4 - 1]"
+        RubyCompiler -> "\"foobar\"[2..4 - 1]",
+        RustCompiler -> "\"foobar\".substring(2, 4)",
       ))
 
       // substring() call on concatenation of strings: for some languages, concatenation needs to be
@@ -713,10 +806,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "(foo() + bar()).substring(2, 4)",
         JavaScriptCompiler -> "(this.foo + this.bar).substring(2, 4)",
         LuaCompiler -> "string.sub(self.foo .. self.bar, 2 + 1, 4)",
+        NimCompiler -> "($this.foo & $this.bar).substr(2, 4 - 1)",
         PerlCompiler -> "substr($self->foo() . $self->bar(), 2, 4 - 2)",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo() . $this->bar(), 2, 4)",
         PythonCompiler -> "(self.foo + self.bar)[2:4]",
-        RubyCompiler -> "(foo + bar)[2..4 - 1]"
+        RubyCompiler -> "(foo + bar)[2..4 - 1]",
+        RustCompiler -> "format!(\"{}{}\", self.foo, self.bar).substring(2, 4)",
       ))
 
       // substring() call with non-left-associative "from" and "to": for languages where subtraction
@@ -728,10 +823,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "foo().substring(10 - 7, 10 - 3)",
         JavaScriptCompiler -> "this.foo.substring(10 - 7, 10 - 3)",
         LuaCompiler -> "string.sub(self.foo, (10 - 7) + 1, 10 - 3)", // TODO: LuaCompiler -> "string.sub(self.foo, 10 - 7 + 1, 10 - 3)",
+        NimCompiler -> "this.foo.substr(10 - 7, 10 - 3 - 1)",
         PerlCompiler -> "substr($self->foo(), 10 - 7, (10 - 3) - (10 - 7))", // TODO: PerlCompiler -> "substr($self->foo(), 10 - 7, 10 - 3 - (10 - 7))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 - 3)",
         PythonCompiler -> "self.foo[10 - 7:10 - 3]",
-        RubyCompiler -> "foo[10 - 7..(10 - 3) - 1]" // TODO: RubyCompiler -> "foo[10 - 7..10 - 3 - 1]"
+        RubyCompiler -> "foo[10 - 7..(10 - 3) - 1]", // TODO: RubyCompiler -> "foo[10 - 7..10 - 3 - 1]"
+        RustCompiler -> "self.foo.substring(10 - 7, 10 - 3)",
       ))
 
       // substring() call with "to" using `<<` which is lower precedence than `+` or `-`: if such
@@ -743,10 +840,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "foo().substring(10 - 7, 10 << 2)",
         JavaScriptCompiler -> "this.foo.substring(10 - 7, 10 << 2)",
         LuaCompiler -> "string.sub(self.foo, (10 - 7) + 1, 10 << 2)", // TODO: LuaCompiler -> "string.sub(self.foo, 10 - 7 + 1, 10 << 2)",
+        NimCompiler -> "this.foo.substr(10 - 7, 10 shl 2 - 1)",
         PerlCompiler -> "substr($self->foo(), 10 - 7, (10 << 2) - (10 - 7))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 << 2)",
         PythonCompiler -> "self.foo[10 - 7:10 << 2]",
-        RubyCompiler -> "foo[10 - 7..(10 << 2) - 1]"
+        RubyCompiler -> "foo[10 - 7..(10 << 2) - 1]",
+        RustCompiler -> "self.foo.substring(10 - 7, 10 << 2)",
       ))
 
       // substring() call with "from" using `<<` which is lower precedence than `+` or `-`: if such
@@ -758,10 +857,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "foo().substring(10 << 1, 42)",
         JavaScriptCompiler -> "this.foo.substring(10 << 1, 42)",
         LuaCompiler -> "string.sub(self.foo, (10 << 1) + 1, 42)",
+        NimCompiler -> "this.foo.substr(10 shl 1, 42 - 1)",
         PerlCompiler -> "substr($self->foo(), 10 << 1, 42 - (10 << 1))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 << 1, 42)",
         PythonCompiler -> "self.foo[10 << 1:42]",
-        RubyCompiler -> "foo[10 << 1..42 - 1]"
+        RubyCompiler -> "foo[10 << 1..42 - 1]",
+        RustCompiler -> "self.foo.substring(10 << 1, 42)",
       ))
     }
   }
@@ -775,10 +876,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "((TopClass.Block) (other())).bar()",
         JavaScriptCompiler -> "this.other.bar",
         LuaCompiler -> "self.other.bar",
+        NimCompiler -> "TopClass_Block(this.other).bar",
         PerlCompiler -> "$self->other()->bar()",
         PHPCompiler -> "$this->other()->bar()",
         PythonCompiler -> "self.other.bar",
-        RubyCompiler -> "other.bar"
+        RubyCompiler -> "other.bar",
+        RustCompiler -> "self.other.bar", // TODO: RustCompiler: check .as<> casts
       ))
 
       full("other.as<block::innerblock>.baz", FooBarProvider, CalcIntType, ResultMap(
@@ -788,10 +891,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "((TopClass.Block.Innerblock) (other())).baz()",
         JavaScriptCompiler -> "this.other.baz",
         LuaCompiler -> "self.other.baz",
+        NimCompiler -> "TopClass_Block_Innerblock(this.other).baz",
         PerlCompiler -> "$self->other()->baz()",
         PHPCompiler -> "$this->other()->baz()",
         PythonCompiler -> "self.other.baz",
-        RubyCompiler -> "other.baz"
+        RubyCompiler -> "other.baz",
+        RustCompiler -> "self.other.baz", // TODO: RustCompiler: check .as<> casts
       ))
     }
 
@@ -803,10 +908,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "((short) (1 + 2))",
         JavaScriptCompiler -> "1 + 2",
         LuaCompiler -> "1 + 2",
+        NimCompiler -> "int16(1 + 2)",
         PerlCompiler -> "1 + 2",
         PHPCompiler -> "1 + 2",
         PythonCompiler -> "1 + 2",
-        RubyCompiler -> "1 + 2"
+        RubyCompiler -> "1 + 2",
+        RustCompiler -> "1 + 2",
       ))
     }
 
@@ -818,10 +925,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "new byte[] {  }",
         JavaScriptCompiler -> "[]",
         LuaCompiler -> "\"\"",
+        NimCompiler -> "@[]",
         PerlCompiler -> "pack('C*', ())",
         PHPCompiler -> "\"\"",
         PythonCompiler -> "b\"\"",
-        RubyCompiler -> "[].pack('C*')"
+        RubyCompiler -> "[].pack('C*')",
+        RustCompiler -> "vec!([])",
       ))
 
       full("[].as<u1[]>", CalcIntType, ArrayTypeInStream(Int1Type(false)), ResultMap(
@@ -831,10 +940,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "new ArrayList<Integer>(Arrays.asList())",
         JavaScriptCompiler -> "[]",
         LuaCompiler -> "{}",
+        NimCompiler -> "@[]",
         PerlCompiler -> "[]",
         PHPCompiler -> "[]",
         PythonCompiler -> "[]",
-        RubyCompiler -> "[]"
+        RubyCompiler -> "[]",
+        RustCompiler -> "[]",
       ))
 
       full("[].as<f8[]>", CalcIntType, ArrayTypeInStream(FloatMultiType(Width8, None)), ResultMap(
@@ -844,10 +955,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "new ArrayList<Double>(Arrays.asList())",
         JavaScriptCompiler -> "[]",
         LuaCompiler -> "{}",
+        NimCompiler -> "@[]",
         PerlCompiler -> "[]",
         PHPCompiler -> "[]",
         PythonCompiler -> "[]",
-        RubyCompiler -> "[]"
+        RubyCompiler -> "[]",
+        RustCompiler -> "[]",
       ))
     }
 
@@ -860,23 +973,28 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "new byte[] { 0 + 1, 5 }",
         JavaScriptCompiler -> "new Uint8Array([0 + 1, 5])",
         LuaCompiler -> "???",
+        NimCompiler -> "@[0 + 1, 5]",
         PerlCompiler -> "pack('C*', (0 + 1, 5))",
         PHPCompiler -> "pack('C*', 0 + 1, 5)",
         PythonCompiler -> "struct.pack('2B', 0 + 1, 5)",
-        RubyCompiler -> "[0 + 1, 5].pack('C*')"
+        RubyCompiler -> "[0 + 1, 5].pack('C*')",
+        RustCompiler -> "", // TODO: RustCompiler: Fix .as<bytes> conversion
       ))
 
       // type enforcement: casting to array of integers
       full("[0, 1, 2].as<u1[]>", CalcIntType, ArrayTypeInStream(Int1Type(false)), ResultMap(
+        CppCompiler -> "",
         CSharpCompiler -> "new List<byte> { 0, 1, 2 }",
         GoCompiler -> "[]uint8{0, 1, 2}",
         JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 2))",
         JavaScriptCompiler -> "[0, 1, 2]",
         LuaCompiler -> "{0, 1, 2}",
+        NimCompiler -> "@[uint8(0), uint8(1), uint8(2)]",
         PerlCompiler -> "[0, 1, 2]",
         PHPCompiler -> "[0, 1, 2]",
         PythonCompiler -> "[0, 1, 2]",
-        RubyCompiler -> "[0, 1, 2]"
+        RubyCompiler -> "[0, 1, 2]",
+        RustCompiler -> "[0, 1, 2]",
       ))
     }
   }
@@ -928,10 +1046,12 @@ class TranslatorSpec extends AnyFunSpec {
       JavaCompiler -> "\"abc\" + Long.toString(1) + \"%def\"",
       JavaScriptCompiler -> "\"abc\" + (1).toString() + \"%def\"",
       LuaCompiler -> "\"abc\" .. tostring(1) .. \"%def\"",
+      NimCompiler -> "\"abc\" & intToStr(int(1)) & \"%def\"",
       PerlCompiler -> "\"abc\" . sprintf('%d', 1) . \"\\%def\"",
       PHPCompiler -> "\"abc\" . strval(1) . \"%def\"",
       PythonCompiler -> "u\"abc\" + str(1) + u\"%def\"",
       RubyCompiler -> "\"abc\" + 1.to_s + \"%def\"",
+      RustCompiler -> "\"abc\" + 1.to_string() + \"%def\"", // TODO: RustCompiler -> "format!(\"abc\"{}\"%def\", 1)",
     ))
   }
 
@@ -959,10 +1079,12 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> new JavaTranslator(tp, new ImportList()),
         JavaScriptCompiler -> new JavaScriptTranslator(tp, new ImportList()),
         LuaCompiler -> new LuaTranslator(tp, new ImportList()),
+        NimCompiler -> new NimTranslator(tp, new ImportList()),
         PerlCompiler -> new PerlTranslator(tp, new ImportList()),
         PHPCompiler -> new PHPTranslator(tp, RuntimeConfig()),
         PythonCompiler -> new PythonTranslator(tp, new ImportList(), RuntimeConfig()),
-        RubyCompiler -> new RubyTranslator(tp)
+        RubyCompiler -> new RubyTranslator(tp),
+        RustCompiler -> new RustTranslator(tp, new ImportList()),
       )
 
       langs.foreach { case (langObj, tr) =>

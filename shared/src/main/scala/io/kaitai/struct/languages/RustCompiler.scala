@@ -25,7 +25,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def innerEnums = false
 
-  override val translator: RustTranslator = new RustTranslator(typeProvider, config)
+  override val translator: RustTranslator = new RustTranslator(typeProvider, importList)
 
   override def universalFooter: Unit = {
     out.dec
@@ -139,9 +139,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case ParentIdentifier | RootIdentifier | IoIdentifier =>
         // just ignore it for now
       case IoIdentifier =>
-        out.puts(s"     stream: ${kaitaiType2NativeType(attrType)},")
+        out.inc
+        out.puts(s"stream: ${kaitaiType2NativeType(attrType)},")
+        out.dec
       case _ =>
-        out.puts(s"    pub ${idToStr(attrName)}: ${kaitaiType2NativeType(attrType)},")
+        out.inc
+        out.puts(s"pub ${idToStr(attrName)}: ${kaitaiType2NativeType(attrType)},")
+        out.dec
     }
   }
 
@@ -152,14 +156,12 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def universalDoc(doc: DocSpec): Unit = {
     if (doc.summary.isDefined) {
       out.puts
-      out.puts("/*")
-      doc.summary.foreach((summary) => out.putsLines(" * ", summary))
-      out.puts(" */")
+      doc.summary.foreach((summary) => out.putsLines("/// ", summary))
     }
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
-    out.puts("if ($this->_m__is_le) {")
+    out.puts("if self._is_le {")
     out.inc
     leProc()
     out.dec
@@ -426,7 +428,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchEnd(): Unit = universalFooter
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"    pub ${idToStr(attrName)}: Option<${kaitaiType2NativeType(attrType)}>,")
+    out.inc
+    out.puts(s"pub ${idToStr(attrName)}: Option<${kaitaiType2NativeType(attrType)}>,")
+    out.dec
   }
 
   override def instanceDeclHeader(className: List[String]): Unit = {
