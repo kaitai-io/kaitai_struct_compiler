@@ -133,6 +133,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
   val STYLE_EDGE_MISC = "color=\"#404040\""
   val STYLE_EDGE_POS = STYLE_EDGE_MISC
   val STYLE_EDGE_SIZE = STYLE_EDGE_MISC
+  val STYLE_EDGE_VALID = STYLE_EDGE_MISC
   val STYLE_EDGE_REPEAT = STYLE_EDGE_MISC
   val STYLE_EDGE_IF = STYLE_EDGE_MISC
   val STYLE_EDGE_VALUE = STYLE_EDGE_MISC
@@ -164,8 +165,41 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         // ignore, no links
     }
 
+    dataType match {
+      case blt: BytesLimitType if fixedBytes(blt, attr.valid).isDefined =>
+        // No additional line for `valid` because it expresses the same simple
+        // constraint as if the `contents` key were used, and therefore was
+        // already displayed in the "type" column.
+      case _ => validTableRow(dataType, attr.valid, name)
+    }
     repeatTableRow(dataType, attr.cond.repeat, name)
     ifTableRow(attr.cond.ifExpr, name)
+  }
+
+  def validTableRow(dataType: DataType, valid: Option[ValidationSpec], name: String): Unit = {
+    val portName = name + "__valid"
+    val fullPortName = s"$currentTable:$portName"
+    val text = valid match {
+      case Some(v) =>
+        v match {
+          case ValidationEq(expected) =>
+            s"must be equal to ${expression(expected, fullPortName, STYLE_EDGE_VALID)}"
+          case ValidationMin(min) =>
+            s"must be at least ${expression(min, fullPortName, STYLE_EDGE_VALID)}"
+          case ValidationMax(max) =>
+            s"must be at most ${expression(max, fullPortName, STYLE_EDGE_VALID)}"
+          case ValidationRange(min, max) =>
+            s"must be between ${expression(min, fullPortName, STYLE_EDGE_VALID)} " +
+              s"and ${expression(max, fullPortName, STYLE_EDGE_VALID)}"
+          case ValidationAnyOf(values) =>
+            s"must be any of ${values.map(expression(_, fullPortName, STYLE_EDGE_VALID)).mkString(", ")}"
+          case ValidationExpr(expr) =>
+            provider._currentIteratorType = Some(dataType)
+            s"must satisfy ${expression(expr, fullPortName, STYLE_EDGE_VALID)}"
+        }
+      case None => return
+    }
+    out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">" + text + "</TD></TR>")
   }
 
   def repeatTableRow(dataType: DataType, rep: RepeatSpec, name: String): Unit = {
@@ -465,12 +499,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
         if (!eosError)
           args += "ignore EOS"
         args.mkString(", ")
-      case blt: BytesLimitType =>
-        valid match {
-          case Some(ValidationEq(Ast.expr.List(contents))) if blt.size == Ast.expr.IntNum(contents.length) =>
-            fixedBytes(contents).getOrElse("")
-          case _ => ""
-        }
+      case blt: BytesLimitType => fixedBytes(blt, valid).getOrElse("")
       case _: BytesType => ""
       case StrFromBytesType(basedOn, encoding, _) =>
         val bytesStr = dataTypeName(basedOn, valid)
@@ -484,11 +513,16 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
     }
   }
 
-  private def fixedBytes(contents: Seq[Ast.expr]): Option[String] = {
-    Some(contents.map(_ match {
-      case Ast.expr.IntNum(byteVal) if byteVal >= 0x00 && byteVal <= 0xff => "%02X".format(byteVal)
-      case _ => return None
-    }).mkString(" "))
+  private def fixedBytes(blt: BytesLimitType, valid: Option[ValidationSpec]): Option[String] = {
+    valid match {
+      case Some(ValidationEq(Ast.expr.List(contents)))
+          if blt.size == Ast.expr.IntNum(contents.length) =>
+        Some(contents.map(_ match {
+          case Ast.expr.IntNum(byteVal) if byteVal >= 0x00 && byteVal <= 0xff => "%02X".format(byteVal)
+          case _ => return None
+        }).mkString(" "))
+      case _ => None
+    }
   }
 
   def htmlEscape(s: String): String = {
