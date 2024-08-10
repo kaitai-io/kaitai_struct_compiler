@@ -134,6 +134,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
   val STYLE_EDGE_POS = STYLE_EDGE_MISC
   val STYLE_EDGE_SIZE = STYLE_EDGE_MISC
   val STYLE_EDGE_REPEAT = STYLE_EDGE_MISC
+  val STYLE_EDGE_IF = STYLE_EDGE_MISC
   val STYLE_EDGE_VALUE = STYLE_EDGE_MISC
 
   def tableRow(curClass: List[String], pos: Option[String], attr: AttrLikeSpec, name: String): Unit = {
@@ -163,8 +164,13 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         // ignore, no links
     }
 
+    repeatTableRow(dataType, attr.cond.repeat, name)
+    ifTableRow(attr.cond.ifExpr, name)
+  }
+
+  def repeatTableRow(dataType: DataType, rep: RepeatSpec, name: String): Unit = {
     val portName = name + "__repeat"
-    attr.cond.repeat match {
+    rep match {
       case RepeatExpr(ex) =>
         out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat " +
           expression(ex, s"$currentTable:$portName", STYLE_EDGE_REPEAT) +
@@ -177,7 +183,18 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       case RepeatEos =>
         out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat to end of stream</TD></TR>")
       case NoRepeat =>
-      // no additional line
+        // no additional line
+    }
+  }
+
+  def ifTableRow(ifExpr: Option[Ast.expr], name: String): Unit = {
+    val portName = name + "__if"
+    ifExpr match {
+      case Some(e) =>
+        out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">if " +
+          expression(e, s"$currentTable:$portName", STYLE_EDGE_IF) +
+          "</TD></TR>")
+      case None => // ignore
     }
   }
 
@@ -199,7 +216,6 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
   }
 
   def compileSwitch(attrName: String, st: SwitchType): Unit = {
-
     links += ((s"$currentTable:${attrName}_type", s"${currentTable}_${attrName}_switch", STYLE_EDGE_TYPE))
     extraClusterLines.puts(s"${currentTable}_${attrName}_switch " + "[label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">")
     extraClusterLines.inc
@@ -291,7 +307,6 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       //      case expr.Dict(keys, values) =>
       case Ast.expr.Compare(left, ops, right) =>
         affectedVars(left) ++ affectedVars(right)
-      //      case expr.Call(func, args) =>
       case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) | Ast.expr.Str(_) | Ast.expr.Bool(_) =>
         List()
       case _: Ast.expr.EnumByLabel =>
