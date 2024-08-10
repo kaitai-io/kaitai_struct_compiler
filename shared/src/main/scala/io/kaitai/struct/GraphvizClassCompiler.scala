@@ -299,7 +299,27 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       case Ast.expr.EnumById(_, id, _) =>
         affectedVars(id)
       case Ast.expr.Attribute(value, attr) =>
-        // special names like "_sizeof", "_io", "_parent", "_root"
+        if (attr.name == Identifier.SIZEOF) {
+          val vars = value match {
+            case Ast.expr.Name(id) if !id.name.startsWith("_") =>
+              List(getGraphvizNode(nowClassName, nowClass, id.name) + s":${id.name}_size")
+            case Ast.expr.Attribute(valueNested, attrNested) if !attrNested.name.startsWith("_") =>
+              val targetClass = translator.detectType(valueNested)
+              targetClass match {
+                case t: UserType =>
+                  val className = t.name
+                  val classSpec = t.classSpec.get
+                  List(getGraphvizNode(className, classSpec, attrNested.name) + s":${attrNested.name}_size")
+                case _ =>
+                  affectedVars(value)
+              }
+            case _ =>
+              affectedVars(value)
+          }
+          return vars
+        }
+
+        // special names like "_io", "_parent", "_root"
         if (attr.name.startsWith("_"))
           return affectedVars(value)
 
