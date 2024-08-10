@@ -459,6 +459,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
       case EnumType(name, basedOn) =>
         s"${dataTypeName(basedOn)}→${type2display(name)}"
       case BitsType(width, bitEndian) => s"b$width${bitEndian.toSuffix}"
+      case BitsType1(bitEndian) => s"b1${bitEndian.toSuffix}→bool"
       case _ => dataType.toString
     }
   }
