@@ -147,6 +147,6 @@ object HtmlClassCompiler extends LanguageCompilerStatic {
   def kaitaiType2NativeType(attrType: DataType): String = attrType match {
     case ut: UserType =>
       "<a href=\"#" + classSpec2Anchor(ut.classSpec.get) + "\">" + type2str(ut.name.last) + "</a>"
-    case _ => GraphvizClassCompiler.dataTypeName(attrType)
+    case _ => GraphvizClassCompiler.dataTypeName(attrType, None)
   }
 }

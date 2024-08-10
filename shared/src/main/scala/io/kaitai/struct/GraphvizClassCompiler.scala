@@ -146,7 +146,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         compileSwitch(name, st)
         s"switch (${expressionType(st.on, name)})"
       case _ =>
-        dataTypeName(dataType)
+        dataTypeName(dataType, attr.valid)
     }
 
     out.puts("<TR>" +
@@ -450,11 +450,10 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
   def type2class(name: List[String]) = name.last
   def type2display(name: List[String]) = name.map(Utils.upperCamelCase).mkString("::")
 
-  def dataTypeName(dataType: DataType): String = {
+  def dataTypeName(dataType: DataType, valid: Option[ValidationSpec]): String = {
     dataType match {
       case rt: ReadableType => rt.apiCall(None) // FIXME
       case ut: UserType => type2display(ut.name)
-      //case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         val args = ListBuffer[String]()
         val termStr = terminator.map(_ & 0xff).mkString(", ")
@@ -466,17 +465,30 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
         if (!eosError)
           args += "ignore EOS"
         args.mkString(", ")
+      case blt: BytesLimitType =>
+        valid match {
+          case Some(ValidationEq(Ast.expr.List(contents))) if blt.size == Ast.expr.IntNum(contents.length) =>
+            fixedBytes(contents).getOrElse("")
+          case _ => ""
+        }
       case _: BytesType => ""
       case StrFromBytesType(basedOn, encoding, _) =>
-        val bytesStr = dataTypeName(basedOn)
+        val bytesStr = dataTypeName(basedOn, valid)
         val comma = if (bytesStr.isEmpty) "" else ", "
         s"str($bytesStr$comma$encoding)"
       case EnumType(name, basedOn) =>
-        s"${dataTypeName(basedOn)}→${type2display(name)}"
+        s"${dataTypeName(basedOn, valid)}→${type2display(name)}"
       case BitsType(width, bitEndian) => s"b$width${bitEndian.toSuffix}"
       case BitsType1(bitEndian) => s"b1${bitEndian.toSuffix}→bool"
       case _ => dataType.toString
     }
+  }
+
+  private def fixedBytes(contents: Seq[Ast.expr]): Option[String] = {
+    Some(contents.map(_ match {
+      case Ast.expr.IntNum(byteVal) if byteVal >= 0x00 && byteVal <= 0xff => "%02X".format(byteVal)
+      case _ => return None
+    }).mkString(" "))
   }
 
   def htmlEscape(s: String): String = {
