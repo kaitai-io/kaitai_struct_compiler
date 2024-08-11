@@ -8,7 +8,7 @@ import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompiler
 import io.kaitai.struct.precompile.CalculateSeqSizes
 import io.kaitai.struct.translators.RubyTranslator
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ListBuffer, LinkedHashSet}
 
 class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
   import GraphvizClassCompiler._
@@ -17,7 +17,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
 
   val provider = new ClassTypeProvider(classSpecs, topClass)
   val translator = new RubyTranslator(provider)
-  val links = ListBuffer[(String, String, String)]()
+  val links = LinkedHashSet[(String, String, String)]()
   val extraClusterLines = new StringLanguageOutputWriter(indent)
 
   def nowClass: ClassSpec = provider.nowClass
