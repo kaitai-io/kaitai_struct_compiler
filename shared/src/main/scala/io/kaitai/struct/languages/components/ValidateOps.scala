@@ -2,6 +2,7 @@ package io.kaitai.struct.languages.components
 
 import io.kaitai.struct.ClassTypeProvider
 import io.kaitai.struct.datatype._
+import io.kaitai.struct.datatype.DataType.EnumType
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.AbstractTranslator
@@ -43,6 +44,18 @@ trait ValidateOps extends ExceptionNames {
           checkExpr = bigOrExpr,
           err = ValidationNotAnyOfError(attr.dataType),
           errArgs = List(
+            itemValue,
+            Ast.expr.InternalName(IoIdentifier),
+            Ast.expr.Str(attr.path.mkString("/", "/", ""))
+          )
+        )
+      case ValidationInEnum() =>
+        attrValidateInEnum(
+          attrId,
+          attr.dataType.asInstanceOf[EnumType],
+          itemValue,
+          ValidationNotInEnumError(attr.dataType),
+          List(
             itemValue,
             Ast.expr.InternalName(IoIdentifier),
             Ast.expr.Str(attr.path.mkString("/", "/", ""))
@@ -92,6 +105,7 @@ trait ValidateOps extends ExceptionNames {
   }
 
   def attrValidateExpr(attrId: Identifier, attrType: DataType, checkExpr: Ast.expr, err: KSError, errArgs: List[Ast.expr]): Unit = {}
+  def attrValidateInEnum(attrId: Identifier, et: EnumType, valueExpr: Ast.expr, err: ValidationNotInEnumError, errArgs: List[Ast.expr]): Unit = {}
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit
   def blockScopeHeader: Unit
   def blockScopeFooter: Unit

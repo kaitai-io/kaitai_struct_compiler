@@ -531,6 +531,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.dec
     out.puts(")")
+    // Inspired by https://gist.github.com/bgadrian/cb8b9344d9c66571ef331a14eb7a2e80
+    val mapEntriesStr = enumColl.map { case (id, _) => s"$id: {}" }.mkString(", ")
+    out.puts(s"var values_$fullEnumNameStr = map[$fullEnumNameStr]struct{}{$mapEntriesStr}")
+    out.puts(s"func (v $fullEnumNameStr) isDefined() bool {")
+    out.inc
+    out.puts(s"_, ok := values_$fullEnumNameStr[v]")
+    out.puts("return ok")
+    out.dec
+    out.puts("}")
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
@@ -569,9 +578,21 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     checkExpr: Ast.expr,
     err: KSError,
     errArgs: List[Ast.expr]
-  ): Unit = {
+  ): Unit =
+    attrValidate(s"!(${translator.translate(checkExpr)})", err, errArgs)
+
+  override def attrValidateInEnum(
+    attrId: Identifier,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    errArgs: List[Ast.expr]
+  ): Unit =
+    attrValidate(s"!${translator.translate(valueExpr)}.isDefined()", err, errArgs)
+
+  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"if !(${translator.translate(checkExpr)}) {")
+    out.puts(s"if $failCondExpr {")
     out.inc
     val errInst = s"kaitai.New${err.name}($errArgsStr)"
     val noValueAndErr = translator.returnRes match {

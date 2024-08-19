@@ -193,6 +193,8 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
               s"and ${expression(max, fullPortName, STYLE_EDGE_VALID)}"
           case ValidationAnyOf(values) =>
             s"must be any of ${values.map(expression(_, fullPortName, STYLE_EDGE_VALID)).mkString(", ")}"
+          case ValidationInEnum() =>
+            "must be defined in the enum"
           case ValidationExpr(expr) =>
             provider._currentIteratorType = Some(dataType)
             s"must satisfy ${expression(expr, fullPortName, STYLE_EDGE_VALID)}"

@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, ExternalType}
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError, ValidationNotInEnumError}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -426,9 +426,25 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     checkExpr: Ast.expr,
     err: KSError,
     errArgs: List[Ast.expr]
+  ): Unit =
+    attrValidate(s"not(${translator.translate(checkExpr)})", err, errArgs)
+
+  override def attrValidateInEnum(
+    attrId: Identifier,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    errArgs: List[Ast.expr]
   ): Unit = {
+    // NOTE: this condition works for now because we haven't implemented
+    // https://github.com/kaitai-io/kaitai_struct/issues/778 for Lua yet, but
+    // it will need to be changed when we do.
+    attrValidate(s"${translator.translate(valueExpr)} == nil", err, errArgs)
+  }
+
+  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
     val errArgsCode = errArgs.map(translator.translate)
-    out.puts(s"if not(${translator.translate(checkExpr)}) then")
+    out.puts(s"if $failCondExpr then")
     out.inc
     val msg = err match {
       case _: ValidationNotEqualError => {

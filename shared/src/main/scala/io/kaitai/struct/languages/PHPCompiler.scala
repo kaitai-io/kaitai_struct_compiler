@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError, ValidationNotInEnumError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
@@ -439,6 +439,15 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       universalDoc(label.doc)
       out.puts(s"const ${value2Const(label.name)} = ${translator.doIntLiteral(id)};")
     }
+    out.puts
+    val arrayEntriesStr = enumColl.map { case (id, _) => s"$id => true" }.mkString(", ")
+    out.puts(s"private const _VALUES = [$arrayEntriesStr];")
+    out.puts
+    out.puts("public static function isDefined(int $v): bool {")
+    out.inc
+    out.puts("return isset(self::_VALUES[$v]);")
+    out.dec
+    out.puts("}")
     classFooter(name)
   }
 
@@ -500,9 +509,24 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     checkExpr: Ast.expr,
     err: KSError,
     errArgs: List[Ast.expr]
+  ): Unit =
+    attrValidate(s"!(${translator.translate(checkExpr)})", err, errArgs)
+
+  override def attrValidateInEnum(
+    attrId: Identifier,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    errArgs: List[Ast.expr]
   ): Unit = {
+    val enumSpec = et.enumSpec.get
+    val enumRef = translator.types2classAbs(enumSpec.name)
+    attrValidate(s"!$enumRef::isDefined(${translator.translate(valueExpr)})", err, errArgs)
+  }
+
+  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    out.puts(s"if ($failCondExpr) {")
     out.inc
     out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
     out.dec

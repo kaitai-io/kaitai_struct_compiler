@@ -893,6 +893,21 @@ class CppCompiler(
 
     outHdr.dec
     outHdr.puts("};")
+    if (config.cppConfig.useListInitializers) {
+      // NOTE: declaration and initialization must be separate in this case,
+      // see https://stackoverflow.com/a/12856069
+      importListHdr.addSystem("set")
+      importListHdr.addSystem("type_traits") // because of `std::underlying_type`
+      // NOTE: `std::underlying_type` is only available since C++11. At the time
+      // of writing, it's not a problem because we're relying on list
+      // initializers anyway (which is a C++11 feature), but it will become a
+      // problem when we add C++98 support here.
+      outHdr.puts(s"static const std::set<std::underlying_type<$enumClass>::type> _values_$enumClass;")
+      val enumClassAbs = types2class(curClass ++ List(enumName))
+      val valuesSetAbsRef = s"${types2class(curClass)}::_values_$enumClass"
+      val setEntriesStr = enumColl.map { case (id, _) => s"$id" }.mkString(", ")
+      outSrc.puts(s"const std::set<std::underlying_type<$enumClassAbs>::type> $valuesSetAbsRef{$setEntriesStr};")
+    }
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
@@ -1007,6 +1022,7 @@ class CppCompiler(
         case _: ValidationLessThanError => "validation_less_than_error"
         case _: ValidationGreaterThanError => "validation_greater_than_error"
         case _: ValidationNotAnyOfError => "validation_not_any_of_error"
+        case _: ValidationNotInEnumError => "validation_not_in_enum_error"
         case _: ValidationExprError => "validation_expr_error"
       }
       s"kaitai::$cppErrName<$cppType>"
@@ -1018,10 +1034,32 @@ class CppCompiler(
     checkExpr: Ast.expr,
     err: KSError,
     errArgs: List[Ast.expr]
+  ): Unit =
+    attrValidate(s"!(${translator.translate(checkExpr)})", err, errArgs)
+
+  override def attrValidateInEnum(
+    attrId: Identifier,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    errArgs: List[Ast.expr]
   ): Unit = {
+    if (!config.cppConfig.useListInitializers) {
+      throw new NotImplementedError(
+        "`valid/in-enum` is not yet implemented for C++98 (switch to C++11 or avoid this feature)"
+      )
+    }
+    val enumSpec = et.enumSpec.get
+    val inClassRef = types2class(enumSpec.name.dropRight(1))
+    val enumNameStr = type2class(enumSpec.name.last)
+    val valuesSetRef = s"$inClassRef::_values_$enumNameStr"
+    attrValidate(s"$valuesSetRef.find(${translator.translate(valueExpr)}) == $valuesSetRef.end()", err, errArgs)
+  }
+
+  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
     importListSrc.addKaitai("kaitai/exceptions.h")
-    outSrc.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    outSrc.puts(s"if ($failCondExpr) {")
     outSrc.inc
     outSrc.puts(s"throw ${ksErrorName(err)}($errArgsStr);")
     outSrc.dec
