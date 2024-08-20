@@ -1329,7 +1329,7 @@ object RustCompiler
       case t: EnumType =>
         val baseName = t.enumSpec match {
           case Some(spec) => s"${types2class(spec.name)}"
-          case None => s"${types2class(t.name)}"
+          case None => s"${types2class(t.owner :+ t.name)}"
         }
         baseName
 

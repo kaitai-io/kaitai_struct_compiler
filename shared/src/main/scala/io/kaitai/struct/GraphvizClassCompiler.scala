@@ -295,7 +295,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       case blt: BytesLimitType => expressionSize(blt.size, attrName)
       case StrFromBytesType(basedOn, _, _) => dataTypeSizeAsString(basedOn, attrName)
       case utb: UserTypeFromBytes => dataTypeSizeAsString(utb.bytes, attrName)
-      case EnumType(_, basedOn) => dataTypeSizeAsString(basedOn, attrName)
+      case EnumType(_, _, basedOn) => dataTypeSizeAsString(basedOn, attrName)
       case _ =>
         CalculateSeqSizes.dataTypeBitsSize(dataType) match {
           case FixedSized(n) =>
@@ -509,8 +509,8 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
         val bytesStr = dataTypeName(basedOn, valid)
         val comma = if (bytesStr.isEmpty) "" else ", "
         s"str($bytesStr$comma$encoding)"
-      case EnumType(name, basedOn) =>
-        s"${dataTypeName(basedOn, valid)}→${type2display(name)}"
+      case EnumType(name, owner, basedOn) =>
+        s"${dataTypeName(basedOn, valid)}→${type2display(owner :+ name)}"
       case BitsType(width, bitEndian) => s"b$width${bitEndian.toSuffix}"
       case BitsType1(bitEndian) => s"b1${bitEndian.toSuffix}→bool"
       case _ => dataType.toString
