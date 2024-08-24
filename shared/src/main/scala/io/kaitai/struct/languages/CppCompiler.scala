@@ -905,7 +905,7 @@ class CppCompiler(
       outHdr.puts(s"static const std::set<std::underlying_type<$enumClass>::type> _values_$enumClass;")
       val enumClassAbs = types2class(curClass ++ List(enumName))
       val valuesSetAbsRef = s"${types2class(curClass)}::_values_$enumClass"
-      val setEntriesStr = enumColl.map { case (id, _) => s"$id" }.mkString(", ")
+      val setEntriesStr = enumColl.map { case (id, _) => translator.doIntLiteral(id) }.mkString(", ")
       outSrc.puts(s"const std::set<std::underlying_type<$enumClassAbs>::type> $valuesSetAbsRef{$setEntriesStr};")
     }
   }

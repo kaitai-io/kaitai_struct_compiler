@@ -440,7 +440,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"const ${value2Const(label.name)} = ${translator.doIntLiteral(id)};")
     }
     out.puts
-    val arrayEntriesStr = enumColl.map { case (id, _) => s"$id => true" }.mkString(", ")
+    val arrayEntriesStr = enumColl.map { case (id, _) => s"${translator.doIntLiteral(id)} => true" }.mkString(", ")
     out.puts(s"private const _VALUES = [$arrayEntriesStr];")
     out.puts
     out.puts("public static function isDefined(int $v): bool {")
