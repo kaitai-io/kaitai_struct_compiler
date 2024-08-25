@@ -498,8 +498,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = PythonCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
     errArgs: List[Ast.expr]
@@ -507,7 +506,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attrValidate(s"not ${translator.translate(checkExpr)}", err, errArgs)
 
   override def attrValidateInEnum(
-    attrId: Identifier,
+    attr: AttrLikeSpec,
     et: EnumType,
     valueExpr: Ast.expr,
     err: ValidationNotInEnumError,

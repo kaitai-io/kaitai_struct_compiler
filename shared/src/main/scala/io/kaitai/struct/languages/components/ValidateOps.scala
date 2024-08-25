@@ -14,18 +14,18 @@ trait ValidateOps extends ExceptionNames {
   val translator: AbstractTranslator
   val typeProvider: ClassTypeProvider
 
-  def attrValidate(attrId: Identifier, attr: AttrLikeSpec, valid: ValidationSpec): Unit = {
-    val itemValue = Identifier.itemExpr(attrId, attr.cond.repeat)
+  def attrValidate(attr: AttrLikeSpec, valid: ValidationSpec): Unit = {
+    val itemValue = Identifier.itemExpr(attr.id, attr.cond.repeat)
     valid match {
       case ValidationEq(expected) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.Eq, expected, ValidationNotEqualError(attr.dataType))
+        attrValidateExprCompare(attr, Ast.cmpop.Eq, expected, ValidationNotEqualError(attr.dataType))
       case ValidationMin(min) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataType))
+        attrValidateExprCompare(attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataType))
       case ValidationMax(max) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataType))
+        attrValidateExprCompare(attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataType))
       case ValidationRange(min, max) =>
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataType))
-        attrValidateExprCompare(attrId, attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataType))
+        attrValidateExprCompare(attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataType))
+        attrValidateExprCompare(attr, Ast.cmpop.LtE, max, ValidationGreaterThanError(attr.dataType))
       case ValidationAnyOf(values) =>
         val bigOrExpr = Ast.expr.BoolOp(
           Ast.boolop.Or,
@@ -39,8 +39,7 @@ trait ValidateOps extends ExceptionNames {
         )
 
         attrValidateExpr(
-          attrId,
-          attr.dataType,
+          attr,
           checkExpr = bigOrExpr,
           err = ValidationNotAnyOfError(attr.dataType),
           errArgs = List(
@@ -51,7 +50,7 @@ trait ValidateOps extends ExceptionNames {
         )
       case ValidationInEnum() =>
         attrValidateInEnum(
-          attrId,
+          attr,
           attr.dataType.asInstanceOf[EnumType],
           itemValue,
           ValidationNotInEnumError(attr.dataType),
@@ -70,8 +69,7 @@ trait ValidateOps extends ExceptionNames {
           translator.translate(itemValue)
         )
         attrValidateExpr(
-          attrId,
-          attr.dataType,
+          attr,
           expr,
           ValidationExprError(attr.dataType),
           List(
@@ -84,11 +82,10 @@ trait ValidateOps extends ExceptionNames {
     }
   }
 
-  def attrValidateExprCompare(attrId: Identifier, attr: AttrLikeSpec, op: Ast.cmpop, expected: Ast.expr, err: KSError): Unit = {
-    val itemValue = Identifier.itemExpr(attrId, attr.cond.repeat)
+  def attrValidateExprCompare(attr: AttrLikeSpec, op: Ast.cmpop, expected: Ast.expr, err: KSError): Unit = {
+    val itemValue = Identifier.itemExpr(attr.id, attr.cond.repeat)
     attrValidateExpr(
-      attrId,
-      attr.dataType,
+      attr,
       checkExpr = Ast.expr.Compare(
         itemValue,
         op,
@@ -104,8 +101,8 @@ trait ValidateOps extends ExceptionNames {
     )
   }
 
-  def attrValidateExpr(attrId: Identifier, attrType: DataType, checkExpr: Ast.expr, err: KSError, errArgs: List[Ast.expr]): Unit = {}
-  def attrValidateInEnum(attrId: Identifier, et: EnumType, valueExpr: Ast.expr, err: ValidationNotInEnumError, errArgs: List[Ast.expr]): Unit = {}
+  def attrValidateExpr(attr: AttrLikeSpec, checkExpr: Ast.expr, err: KSError, errArgs: List[Ast.expr]): Unit = {}
+  def attrValidateInEnum(attr: AttrLikeSpec, et: EnumType, valueExpr: Ast.expr, err: ValidationNotInEnumError, errArgs: List[Ast.expr]): Unit = {}
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit
   def blockScopeHeader: Unit
   def blockScopeFooter: Unit
