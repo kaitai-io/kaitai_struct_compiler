@@ -606,7 +606,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     val errObj = s"new ${ksErrorName(err)}($errArgsStr)"
     if (attrDebugNeeded(attr.id)) {
-      val debugName = attrDebugName(attr.id, NoRepeat, true)
+      val debugName = attrDebugName(attr.id, attr.cond.repeat, true)
       out.puts(s"var _err = $errObj;")
       out.puts(s"$debugName.validationError = _err;")
       out.puts("throw _err;")
