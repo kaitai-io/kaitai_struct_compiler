@@ -900,11 +900,10 @@ class CppCompiler(
     val enumClassAbs = s"$inClassRef::$enumClass"
     val valuesSetAbsRef = s"$inClassRef::_values_$enumClass"
     ensureMode(PrivateAccess)
+    // NOTE: declaration and definition must be separate in this case,
+    // see https://stackoverflow.com/a/12856069
+    outHdr.puts(s"static const std::set<$enumClass> _values_$enumClass;")
     if (config.cppConfig.useListInitializers) {
-      // NOTE: declaration and definition must be separate in this case,
-      // see https://stackoverflow.com/a/12856069
-      outHdr.puts(s"static const std::set<$enumClass> _values_$enumClass;")
-
       outSrc.puts(s"const std::set<$enumClassAbs> $valuesSetAbsRef{")
       outSrc.inc
       enumColl.foreach { case (_, label) =>
@@ -913,7 +912,6 @@ class CppCompiler(
       outSrc.dec
       outSrc.puts("};")
     } else {
-      outHdr.puts(s"static std::set<$enumClass> _values_$enumClass;")
       outHdr.puts(s"static std::set<$enumClass> _build_values_$enumClass();")
 
       outSrc.puts(s"std::set<$enumClassAbs> $inClassRef::_build_values_$enumClass() {")
@@ -925,7 +923,7 @@ class CppCompiler(
       outSrc.puts("return _t;")
       outSrc.dec
       outSrc.puts("}")
-      outSrc.puts(s"std::set<$enumClassAbs> $valuesSetAbsRef = $inClassRef::_build_values_$enumClass();")
+      outSrc.puts(s"const std::set<$enumClassAbs> $valuesSetAbsRef = $inClassRef::_build_values_$enumClass();")
     }
     ensureMode(PublicAccess)
     outSrc.puts(s"bool $inClassRef::_is_defined_$enumClass($enumClassAbs v) {")
