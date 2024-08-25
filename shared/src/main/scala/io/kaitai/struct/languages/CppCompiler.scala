@@ -893,21 +893,46 @@ class CppCompiler(
 
     outHdr.dec
     outHdr.puts("};")
+
+    outHdr.puts(s"static bool _is_defined_$enumClass($enumClass v);")
+    importListHdr.addSystem("set")
+    val inClassRef = types2class(curClass)
+    val enumClassAbs = s"$inClassRef::$enumClass"
+    val valuesSetAbsRef = s"$inClassRef::_values_$enumClass"
+    ensureMode(PrivateAccess)
     if (config.cppConfig.useListInitializers) {
-      // NOTE: declaration and initialization must be separate in this case,
+      // NOTE: declaration and definition must be separate in this case,
       // see https://stackoverflow.com/a/12856069
-      importListHdr.addSystem("set")
-      importListHdr.addSystem("type_traits") // because of `std::underlying_type`
-      // NOTE: `std::underlying_type` is only available since C++11. At the time
-      // of writing, it's not a problem because we're relying on list
-      // initializers anyway (which is a C++11 feature), but it will become a
-      // problem when we add C++98 support here.
-      outHdr.puts(s"static const std::set<std::underlying_type<$enumClass>::type> _values_$enumClass;")
-      val enumClassAbs = types2class(curClass ++ List(enumName))
-      val valuesSetAbsRef = s"${types2class(curClass)}::_values_$enumClass"
-      val setEntriesStr = enumColl.map { case (id, _) => translator.doIntLiteral(id) }.mkString(", ")
-      outSrc.puts(s"const std::set<std::underlying_type<$enumClassAbs>::type> $valuesSetAbsRef{$setEntriesStr};")
+      outHdr.puts(s"static const std::set<$enumClass> _values_$enumClass;")
+
+      outSrc.puts(s"const std::set<$enumClassAbs> $valuesSetAbsRef{")
+      outSrc.inc
+      enumColl.foreach { case (_, label) =>
+        outSrc.puts(s"$inClassRef::${value2Const(enumName, label.name)},")
+      }
+      outSrc.dec
+      outSrc.puts("};")
+    } else {
+      outHdr.puts(s"static std::set<$enumClass> _values_$enumClass;")
+      outHdr.puts(s"static std::set<$enumClass> _build_values_$enumClass();")
+
+      outSrc.puts(s"std::set<$enumClassAbs> $inClassRef::_build_values_$enumClass() {")
+      outSrc.inc
+      outSrc.puts(s"std::set<$enumClassAbs> _t;")
+      enumColl.foreach { case (_, label) =>
+        outSrc.puts(s"_t.insert($inClassRef::${value2Const(enumName, label.name)});")
+      }
+      outSrc.puts("return _t;")
+      outSrc.dec
+      outSrc.puts("}")
+      outSrc.puts(s"std::set<$enumClassAbs> $valuesSetAbsRef = $inClassRef::_build_values_$enumClass();")
     }
+    ensureMode(PublicAccess)
+    outSrc.puts(s"bool $inClassRef::_is_defined_$enumClass($enumClassAbs v) {")
+    outSrc.inc
+    outSrc.puts(s"return $valuesSetAbsRef.find(v) != $valuesSetAbsRef.end();")
+    outSrc.dec
+    outSrc.puts("}")
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
@@ -1044,16 +1069,10 @@ class CppCompiler(
     err: ValidationNotInEnumError,
     errArgs: List[Ast.expr]
   ): Unit = {
-    if (!config.cppConfig.useListInitializers) {
-      throw new NotImplementedError(
-        "`valid/in-enum` is not yet implemented for C++98 (switch to C++11 or avoid this feature)"
-      )
-    }
     val enumSpec = et.enumSpec.get
     val inClassRef = types2class(enumSpec.name.dropRight(1))
     val enumNameStr = type2class(enumSpec.name.last)
-    val valuesSetRef = s"$inClassRef::_values_$enumNameStr"
-    attrValidate(s"$valuesSetRef.find(${translator.translate(valueExpr)}) == $valuesSetRef.end()", err, errArgs)
+    attrValidate(s"!$inClassRef::_is_defined_$enumNameStr(${translator.translate(valueExpr)})", err, errArgs)
   }
 
   private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
