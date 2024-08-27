@@ -195,18 +195,19 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     s"${translate(b, METHOD_PRECEDENCE)}.length()"
 
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container, METHOD_PRECEDENCE)}.at(${translate(idx)})"
   override def bytesFirst(b: Ast.expr): String = {
+    val bStr = translate(b, METHOD_PRECEDENCE)
     config.cppConfig.stdStringFrontBack match {
-      case true => s"${translate(b)}.front()"
-      case false => s"${translate(b)}[0]"
+      case true => s"$bStr.front()"
+      case false => s"$bStr.at(0)"
     }
   }
   override def bytesLast(b: Ast.expr): String = {
     val bStr = translate(b, METHOD_PRECEDENCE)
     config.cppConfig.stdStringFrontBack match {
       case true => s"$bStr.back()"
-      case false => s"$bStr[$bStr.length() - 1]"
+      case false => s"$bStr.at($bStr.length() - 1)"
     }
   }
   override def bytesMin(b: Ast.expr): String =
