@@ -121,7 +121,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def strReverse(s: Ast.expr): String =
     s"${translate(s, METHOD_PRECEDENCE)}.reverse"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s, METHOD_PRECEDENCE)}[${translate(from)}..${genericBinOp(to, Ast.operator.Sub, Ast.expr.IntNum(1), 0)}]"
+    s"${translate(s, METHOD_PRECEDENCE)}[${translate(from)}...${translate(to)}]"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a, METHOD_PRECEDENCE)}.first"
