@@ -701,7 +701,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr(\"foobar\", 2, 4 - 2)",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring(\"foobar\", 2, 4)",
         PythonCompiler -> "u\"foobar\"[2:4]",
-        RubyCompiler -> "\"foobar\"[2..4 - 1]"
+        RubyCompiler -> "\"foobar\"[2...4]"
       ))
 
       // substring() call on concatenation of strings: for some languages, concatenation needs to be
@@ -716,7 +716,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo() . $self->bar(), 2, 4 - 2)",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo() . $this->bar(), 2, 4)",
         PythonCompiler -> "(self.foo + self.bar)[2:4]",
-        RubyCompiler -> "(foo + bar)[2..4 - 1]"
+        RubyCompiler -> "(foo + bar)[2...4]"
       ))
 
       // substring() call with non-left-associative "from" and "to": for languages where subtraction
@@ -731,7 +731,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo(), 10 - 7, (10 - 3) - (10 - 7))", // TODO: PerlCompiler -> "substr($self->foo(), 10 - 7, 10 - 3 - (10 - 7))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 - 3)",
         PythonCompiler -> "self.foo[10 - 7:10 - 3]",
-        RubyCompiler -> "foo[10 - 7..(10 - 3) - 1]" // TODO: RubyCompiler -> "foo[10 - 7..10 - 3 - 1]"
+        RubyCompiler -> "foo[10 - 7...10 - 3]"
       ))
 
       // substring() call with "to" using `<<` which is lower precedence than `+` or `-`: if such
@@ -746,7 +746,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo(), 10 - 7, (10 << 2) - (10 - 7))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 << 2)",
         PythonCompiler -> "self.foo[10 - 7:10 << 2]",
-        RubyCompiler -> "foo[10 - 7..(10 << 2) - 1]"
+        RubyCompiler -> "foo[10 - 7...10 << 2]"
       ))
 
       // substring() call with "from" using `<<` which is lower precedence than `+` or `-`: if such
@@ -761,7 +761,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo(), 10 << 1, 42 - (10 << 1))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 << 1, 42)",
         PythonCompiler -> "self.foo[10 << 1:42]",
-        RubyCompiler -> "foo[10 << 1..42 - 1]"
+        RubyCompiler -> "foo[10 << 1...42]"
       ))
     }
   }
