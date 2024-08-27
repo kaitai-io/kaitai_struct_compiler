@@ -53,9 +53,6 @@ trait CommonReads extends LanguageCompiler {
         // Restore position, if applicable
         if (pis.pos.isDefined)
           popPos(io)
-
-        // Mark parse instance as calculated
-        instanceSetCalculated(pis.id)
       case _ => // no seeking required for sequence attributes
     }
 
