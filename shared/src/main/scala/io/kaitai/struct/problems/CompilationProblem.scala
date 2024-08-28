@@ -4,6 +4,7 @@ import io.kaitai.struct.{JSON, Jsonable, Utils, problems}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.exprlang.Expressions
 import io.kaitai.struct.format.{ClassSpec, Identifier, KSVersion}
+import fastparse.Parsed.Failure
 
 /**
   * Abstract top-level trait common to all problems which might be raised during
@@ -112,10 +113,11 @@ object KSYParseError {
       None
     }).map((x) => s", did you mean '$x'?").getOrElse("")
 
-    val expected = f.extra.trace().msg.replaceAll("\n", "\\n")
+    val found = Failure.formatTrailing(f.extra.input, f.index)
+    val expected = f.extra.trace().label.replaceAll("\n", "\\n")
 
     withText(
-      s"parsing expression '${epe.src}' failed on $pos, " +
+      s"parsing expression '${epe.src}' failed on $found at position $pos, " +
         s"expected $expected$suggestion",
       path
     )
