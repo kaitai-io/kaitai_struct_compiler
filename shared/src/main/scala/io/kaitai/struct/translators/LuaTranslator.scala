@@ -58,7 +58,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     // Lua indexes start at 1, so we need to offset them
     s"${translate(container)}[${translate(idx)} + 1]"
   }
-  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String = {
+  override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr, extPrec: Int): String = {
     importList.add("local utils = require(\"utils\")")
 
     // http://lua-users.org/wiki/TernaryOperator (section Boxing/unboxing, using functions)

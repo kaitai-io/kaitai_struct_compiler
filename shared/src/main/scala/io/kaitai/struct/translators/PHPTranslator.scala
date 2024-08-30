@@ -54,7 +54,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   }
 
   override def anyField(value: expr, attrName: String): String =
-    s"${translate(value)}->${doName(attrName)}"
+    s"${translate(value, METHOD_PRECEDENCE)}->${doName(attrName)}"
 
   override def doLocalName(s: String) = {
     s match {
@@ -80,8 +80,6 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
-  override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
 
   // Predefined methods of various types
   override def strConcat(left: expr, right: expr, extPrec: Int) =
