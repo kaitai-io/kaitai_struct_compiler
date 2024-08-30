@@ -46,5 +46,8 @@ object EncodingList {
     "windows-1258" -> Set("cp1258", "cswindows1258"),
     "IBM437" -> Set("cp437", "437", "csPC8CodePage437"),
     "IBM866" -> Set("cp866", "866", "csIBM866"),
+    "Shift_JIS" -> Set("Shift-JIS", "ShiftJIS", "S-JIS", "S_JIS", "SJIS", "PCK", "csShiftJIS"),
+    "Big5" -> Set("csBig5"),
+    "EUC-KR" -> Set("EUCKR", "EUC_KR", "csEUCKR", "korean", "iso-ir-149"),
   )
 }
