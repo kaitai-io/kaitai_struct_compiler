@@ -25,12 +25,11 @@ trait CommonReads extends LanguageCompiler {
         normalIO
     }
 
-    val needsDebug = attrDebugNeeded(id)
+    val needsArrayDebug = attrDebugNeeded(id) && attr.cond.repeat != NoRepeat
 
-    if (needsDebug) {
+    if (needsArrayDebug) {
       attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
-      if (attr.cond.repeat != NoRepeat)
-        attrDebugArrInit(id, attr.dataType)
+      attrDebugArrInit(id, attr.dataType)
     }
 
     defEndian match {
@@ -45,7 +44,7 @@ trait CommonReads extends LanguageCompiler {
         attrParse0(id, attr, io, Some(fe))
     }
 
-    if (needsDebug)
+    if (needsArrayDebug)
       attrDebugEnd(id, attr.dataType, io, NoRepeat)
 
     // More position management + set calculated flag after parsing for ParseInstanceSpecs
@@ -54,14 +53,8 @@ trait CommonReads extends LanguageCompiler {
         // Restore position, if applicable
         if (pis.pos.isDefined)
           popPos(io)
-
-        // Mark parse instance as calculated
-        instanceSetCalculated(pis.id)
       case _ => // no seeking required for sequence attributes
     }
-
-    // Run validations (still inside "if", if applicable)
-    attrValidateAll(attr)
 
     attrParseIfFooter(attr.cond.ifExpr)
   }
@@ -78,7 +71,17 @@ trait CommonReads extends LanguageCompiler {
         condRepeatUntilHeader(id, io, attr.dataType, untilExpr)
       case NoRepeat =>
     }
+
+    val needsDebug = attrDebugNeeded(id)
+    if (needsDebug)
+      attrDebugStart(id, attr.dataType, Some(io), attr.cond.repeat)
+
     attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
+
+    if (needsDebug)
+      attrDebugEnd(id, attr.dataType, io, attr.cond.repeat)
+
+    attrValidateAll(attr)
     attr.cond.repeat match {
       case RepeatEos =>
         condRepeatEosFooter
@@ -96,12 +99,20 @@ trait CommonReads extends LanguageCompiler {
   def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit = {}
   def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
 
-  def attrDebugNeeded(attrId: Identifier): Boolean = false
+  def attrDebugNeeded(attrId: Identifier): Boolean = {
+    if (!config.readStoresPos)
+      return false
+
+    attrId match {
+      case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
+      case _ => false
+    }
+  }
 
   /**
     * Runs all validation procedures requested for an attribute.
     * @param attr attribute to run validations for
     */
   def attrValidateAll(attr: AttrLikeSpec) =
-    attr.valid.foreach(valid => attrValidate(attr.id, attr, valid))
+    attr.valid.foreach(valid => attrValidate(attr, valid))
 }

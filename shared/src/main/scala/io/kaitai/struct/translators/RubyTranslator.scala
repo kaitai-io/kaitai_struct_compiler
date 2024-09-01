@@ -38,7 +38,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   }
 
   override def doInternalName(id: Identifier): String =
-    RubyCompiler.publicMemberName(id)
+    RubyCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
     RubyCompiler.enumValue(enumSpec.name.last, label)
@@ -90,7 +90,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     // We can skip "encode to UTF8" if we're 100% sure that the string we're handling is already
     // in UTF8.
-    s"""($bytesExpr).force_encoding("$encoding")""" + (if (encoding != "UTF-8") {
+    s"""($bytesExpr).force_encoding(${doStringLiteral(encoding)})""" + (if (encoding != "UTF-8") {
       ".encode('UTF-8')"
     } else {
       ""
@@ -121,7 +121,7 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def strReverse(s: Ast.expr): String =
     s"${translate(s, METHOD_PRECEDENCE)}.reverse"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
-    s"${translate(s, METHOD_PRECEDENCE)}[${translate(from)}..${genericBinOp(to, Ast.operator.Sub, Ast.expr.IntNum(1), 0)}]"
+    s"${translate(s, METHOD_PRECEDENCE)}[${translate(from)}...${translate(to)}]"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a, METHOD_PRECEDENCE)}.first"

@@ -108,16 +108,16 @@ class RustClassCompiler(
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     lang.instanceCheckCacheAndReturn(instName, dataType)
 
+    lang.instanceSetCalculated(instName)
     instSpec match {
       case vi: ValueInstanceSpec =>
         lang.attrParseIfHeader(instName, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
-      case i: ParseInstanceSpec =>
-        lang.attrParse(i, instName, None) // FIXME
+      case pi: ParseInstanceSpec =>
+        lang.attrParse(pi, instName, None) // FIXME
     }
 
-    lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
   }

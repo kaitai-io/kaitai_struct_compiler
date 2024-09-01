@@ -223,12 +223,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   def trInternalName(id: Identifier): TranslatorResult =
-    id match {
-      case SpecialIdentifier(name) => trLocalName(name)
-      case NamedIdentifier(name) => trLocalName(name)
-      case InstanceIdentifier(name) => trLocalName(name)
-      case _ => ResultString(s"this.${GoCompiler.publicMemberName(id)}")
-    }
+    ResultString(GoCompiler.privateMemberName(id))
 
   def specialName(id: String): String = id match {
     case Identifier.ROOT | Identifier.PARENT | Identifier.IO =>
@@ -290,15 +285,41 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   val IMPORT_CHARMAP = "golang.org/x/text/encoding/charmap"
 
   val ENCODINGS = Map(
-    "IBM437" -> ("charmap.CodePage437", IMPORT_CHARMAP),
-    "ISO-8859-1" -> ("charmap.ISO8859_1", IMPORT_CHARMAP),
-    "ISO-8859-2" -> ("charmap.ISO8859_2", IMPORT_CHARMAP),
-    "ISO-8859-3" -> ("charmap.ISO8859_3", IMPORT_CHARMAP),
-    "ISO-8859-4" -> ("charmap.ISO8859_4", IMPORT_CHARMAP),
-    "SJIS" -> ("japanese.ShiftJIS", "golang.org/x/text/encoding/japanese"),
-    "BIG5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese"),
+    "UTF-16BE" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
     "UTF-16LE" -> ("unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode"),
-    "UTF-16BE" -> ("unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)", "golang.org/x/text/encoding/unicode")
+    "UTF-32BE" -> ("utf32.UTF32(utf32.BigEndian, utf32.IgnoreBOM)", "golang.org/x/text/encoding/unicode/utf32"),
+    "UTF-32LE" -> ("utf32.UTF32(utf32.LittleEndian, utf32.IgnoreBOM)", "golang.org/x/text/encoding/unicode/utf32"),
+    "ISO-8859-1"  -> ("charmap.ISO8859_1", IMPORT_CHARMAP),
+    "ISO-8859-2"  -> ("charmap.ISO8859_2", IMPORT_CHARMAP),
+    "ISO-8859-3"  -> ("charmap.ISO8859_3", IMPORT_CHARMAP),
+    "ISO-8859-4"  -> ("charmap.ISO8859_4", IMPORT_CHARMAP),
+    "ISO-8859-5"  -> ("charmap.ISO8859_5", IMPORT_CHARMAP),
+    "ISO-8859-6"  -> ("charmap.ISO8859_6", IMPORT_CHARMAP),
+    "ISO-8859-7"  -> ("charmap.ISO8859_7", IMPORT_CHARMAP),
+    "ISO-8859-8"  -> ("charmap.ISO8859_8", IMPORT_CHARMAP),
+    "ISO-8859-9"  -> ("charmap.ISO8859_9", IMPORT_CHARMAP),
+    "ISO-8859-10" -> ("charmap.ISO8859_10", IMPORT_CHARMAP),
+    // The same note as in https://github.com/kaitai-io/kaitai_struct_cpp_stl_runtime/blob/07ff9cf91e8bdf3515c0efdda0a879c0021b5edb/kaitai/kaitaistream.cpp#L918-L922
+    // applies here
+    "ISO-8859-11" -> ("charmap.Windows874", IMPORT_CHARMAP),
+    "ISO-8859-13" -> ("charmap.ISO8859_13", IMPORT_CHARMAP),
+    "ISO-8859-14" -> ("charmap.ISO8859_14", IMPORT_CHARMAP),
+    "ISO-8859-15" -> ("charmap.ISO8859_15", IMPORT_CHARMAP),
+    "ISO-8859-16" -> ("charmap.ISO8859_16", IMPORT_CHARMAP),
+    "windows-1250" -> ("charmap.Windows1250", IMPORT_CHARMAP),
+    "windows-1251" -> ("charmap.Windows1251", IMPORT_CHARMAP),
+    "windows-1252" -> ("charmap.Windows1252", IMPORT_CHARMAP),
+    "windows-1253" -> ("charmap.Windows1253", IMPORT_CHARMAP),
+    "windows-1254" -> ("charmap.Windows1254", IMPORT_CHARMAP),
+    "windows-1255" -> ("charmap.Windows1255", IMPORT_CHARMAP),
+    "windows-1256" -> ("charmap.Windows1256", IMPORT_CHARMAP),
+    "windows-1257" -> ("charmap.Windows1257", IMPORT_CHARMAP),
+    "windows-1258" -> ("charmap.Windows1258", IMPORT_CHARMAP),
+    "IBM437" -> ("charmap.CodePage437", IMPORT_CHARMAP),
+    "IBM866" -> ("charmap.CodePage866", IMPORT_CHARMAP),
+    "Shift_JIS" -> ("japanese.ShiftJIS", "golang.org/x/text/encoding/japanese"),
+    "Big5" -> ("traditionalchinese.Big5", "golang.org/x/text/encoding/traditionalchinese"),
+    "EUC-KR" -> ("korean.EUCKR", "golang.org/x/text/encoding/korean"),
   )
 
   override def bytesToStr(value: Ast.expr, encoding: String): TranslatorResult =
@@ -394,7 +415,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def intToStr(value: Ast.expr): TranslatorResult = {
     importList.add("strconv")
-    ResultString(s"strconv.Itoa(int64(${translate(value)}))")
+    ResultString(s"strconv.FormatInt(int64(${translate(value)}), 10)")
   }
 
   override def floatToInt(value: Ast.expr) =

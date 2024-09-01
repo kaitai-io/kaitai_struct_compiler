@@ -59,7 +59,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     }
 
   override def doInternalName(id: Identifier): String =
-    s"${CSharpCompiler.publicMemberName(id)}"
+    CSharpCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
     s"${enumClass(enumSpec.name)}.${Utils.upperCamelCase(label)}"
@@ -103,7 +103,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def intToStr(i: expr): String =
     s"${translate(i, METHOD_PRECEDENCE)}.ToString()"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
-    s"""System.Text.Encoding.GetEncoding("$encoding").GetString($bytesExpr)"""
+    s"""System.Text.Encoding.GetEncoding(${doStringLiteral(encoding)}).GetString($bytesExpr)"""
   override def strLength(s: expr): String =
     s"${translate(s, METHOD_PRECEDENCE)}.Length"
 

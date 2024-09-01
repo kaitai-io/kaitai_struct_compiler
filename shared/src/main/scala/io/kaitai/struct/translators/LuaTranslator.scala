@@ -80,7 +80,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doName(s: String): String =
     s
   override def doInternalName(id: Identifier): String =
-    s"self.${LuaCompiler.publicMemberName(id)}"
+    LuaCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
     s"${LuaCompiler.types2class(enumSpec.name)}.$label"
@@ -108,7 +108,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     importList.add("local str_decode = require(\"string_decode\")")
 
-    s"""str_decode.decode($bytesExpr, "$encoding")"""
+    s"""str_decode.decode($bytesExpr, ${doStringLiteral(encoding)})"""
   }
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String = {
     s"string.byte(${translate(container)}, ${translate(idx)} + 1)"

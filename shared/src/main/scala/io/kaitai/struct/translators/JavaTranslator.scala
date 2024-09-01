@@ -64,7 +64,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     }
 
   override def doInternalName(id: Identifier): String =
-    s"${JavaCompiler.publicMemberName(id)}()"
+    JavaCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
     s"${enumClass(enumSpec.name)}.${Utils.upperUnderscoreCase(label)}"
@@ -132,7 +132,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
         s"StandardCharsets.${charsetConst}"
       case None =>
         importList.add("java.nio.charset.Charset")
-        s"""Charset.forName("$encoding")"""
+        s"""Charset.forName(${doStringLiteral(encoding)})"""
     }
     s"new String($bytesExpr, $charsetExpr)"
   }

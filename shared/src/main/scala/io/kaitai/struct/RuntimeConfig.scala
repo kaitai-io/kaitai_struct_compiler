@@ -8,8 +8,8 @@ package io.kaitai.struct
   * @param stdStringFrontBack If true, allow use of `front()` and `back()` methods
   *                           on `std::string`. If false, come up with simulation.
   * @param useListInitializers If true, allows use of list initializers for
-  *                            `std::vector`. Otherwise, throw a fatal unimplemented
-  *                            error.
+  *                            `std::vector` and `std::set`. Otherwise, throw a fatal
+  *                            "not implemented" error.
   * @param pointers Choose which style of pointers to use.
   */
 case class CppRuntimeConfig(

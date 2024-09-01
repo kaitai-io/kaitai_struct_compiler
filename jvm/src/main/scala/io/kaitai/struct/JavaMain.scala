@@ -210,34 +210,70 @@ object JavaMain {
     // Windows, custom install path with spaces and non-latin chars:
     // /G:/%d0%b3%d0%b4%d0%b5-%d1%82%d0%be%20%d1%82%d0%b0%d0%bc/lib/io.kaitai.kaitai-struct-compiler-0.10-SNAPSHOT.jar
 
-    val fStr = classOf[JavaMain].getProtectionDomain.getCodeSource.getLocation.getPath
-    Log.importOps.info(() => s"home path: location = $fStr")
+    try {
+      optionOrLog(
+        classOf[JavaMain].getProtectionDomain.getCodeSource,
+        "home path: unable to run getCodeSource(), got null"
+      ).flatMap(sourceCode => optionOrLog(
+        sourceCode.getLocation,
+        "home path: unable to run getLocation(), got null"
+      )).flatMap(location => optionOrLog(
+        location.getPath,
+        "home path: unable to run getPath(), got null"
+      )).flatMap(fStr => {
+        Log.importOps.info(() => s"home path: location = $fStr")
 
-    if (fStr.endsWith(".jar")) {
-      val fDec = URLDecoder.decode(fStr, "UTF-8")
-      Log.importOps.info(() => s"... URL-decoded = $fDec")
+        if (fStr.endsWith(".jar")) {
+          val fDec = URLDecoder.decode(fStr, "UTF-8")
+          Log.importOps.info(() => s"... URL-decoded = $fDec")
 
-      val homeFile = new File(fDec).getParentFile.getParentFile
-      Log.importOps.info(() => s"... home = $homeFile")
+          val homeFile = new File(fDec).getParentFile.getParentFile
+          Log.importOps.info(() => s"... home = $homeFile")
 
-      if (homeFile.exists) {
-        val homeFormat = new File(homeFile, "formats")
-        Log.importOps.info(() => s"... formats = $homeFormat")
-        if (homeFormat.exists) {
-          Some(homeFormat.toString)
+          if (homeFile.exists) {
+            val homeFormat = new File(homeFile, "formats")
+            Log.importOps.info(() => s"... formats = $homeFormat")
+            if (homeFormat.exists) {
+              Some(homeFormat.toString)
+            } else {
+              Log.importOps.info(() => "... home formats dir doesn't exist => fail")
+              None
+            }
+          } else {
+            Log.importOps.info(() => s"... home doesn't exist => no home import paths")
+            None
+          }
         } else {
-          Log.importOps.info(() => "... home formats dir doesn't exist => fail")
+          Log.importOps.info(() => s"... not a jar, we're not running a packaged app => no home")
           None
         }
-      } else {
-        Log.importOps.info(() => s"... home doesn't exist => no home import paths")
+      })
+    } catch {
+      case se: SecurityException =>
+        Log.importOps.info(() => s"home path: unable to run getProtectionDomain(), got SecurityException $se")
         None
-      }
-    } else {
-      Log.importOps.info(() => s"... not a jar, we're not running a packaged app => no home")
-      None
     }
   }
+
+  /**
+   * Helper method to wrap nullable value (coming from Java API) into Option.
+   * If it's null, we will bail out and won't process any longer due to a chain
+   * of flatMap(), but if we use this method, we'll also note in our logging which
+   * step failed, making it easier to diagnose.
+   * @param nullableValue value which is potentially null
+   * @param errMsg error message to show in case if it's null
+   * @tparam T type of potentially nullable value
+   * @return option-wrapped value
+   * @see [[scala.Option.apply()]]
+   */
+  private def optionOrLog[T](nullableValue: T, errMsg: String): Option[T] =
+    Option(nullableValue) match {
+      case None =>
+        Log.importOps.info(() => errMsg)
+        None
+      case someValue =>
+        someValue
+    }
 
   private def envPaths: List[String] =
     sys.env.get("KSPATH").toList.flatMap((x) => x.split(File.pathSeparatorChar))

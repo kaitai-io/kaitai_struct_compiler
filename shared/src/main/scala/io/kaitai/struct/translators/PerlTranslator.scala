@@ -74,7 +74,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   }
 
   override def doInternalName(id: Identifier): String =
-    s"$$self->${PerlCompiler.publicMemberName(id)}()"
+    PerlCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
@@ -142,7 +142,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     s"sprintf('%d', ${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     importList.add("Encode")
-    s"""Encode::decode("$encoding", $bytesExpr)"""
+    s"""Encode::decode(${doStringLiteral(encoding)}, $bytesExpr)"""
   }
   override def bytesLength(b: Ast.expr): String =
     strLength(b)

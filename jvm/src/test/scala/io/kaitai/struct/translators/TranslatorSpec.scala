@@ -187,7 +187,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("42.to_s", CalcIntType, CalcStrType, ResultMap(
         CppCompiler -> "kaitai::kstream::to_string(42)",
         CSharpCompiler -> "42.ToString()",
-        GoCompiler -> "strconv.Itoa(int64(42))",
+        GoCompiler -> "strconv.FormatInt(int64(42), 10)",
         JavaCompiler -> "Long.toString(42)",
         JavaScriptCompiler -> "(42).toString()",
         LuaCompiler -> "tostring(42)",
@@ -200,7 +200,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("(a + 42).to_s", CalcIntType, CalcStrType, ResultMap(
         CppCompiler -> "kaitai::kstream::to_string(a() + 42)",
         CSharpCompiler -> "(A + 42).ToString()",
-        GoCompiler -> "strconv.Itoa(int64(this.A + 42))",
+        GoCompiler -> "strconv.FormatInt(int64(this.A + 42), 10)",
         JavaCompiler -> "Long.toString(a() + 42)",
         JavaScriptCompiler -> "(this.a + 42).toString()",
         LuaCompiler -> "tostring(self.a + 42)",
@@ -213,7 +213,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("a + 42.to_s", CalcStrType, CalcStrType, ResultMap(
         CppCompiler -> "a() + kaitai::kstream::to_string(42)",
         CSharpCompiler -> "A + 42.ToString()",
-        GoCompiler -> "this.A + strconv.Itoa(int64(42))",
+        GoCompiler -> "this.A + strconv.FormatInt(int64(42), 10)",
         JavaCompiler -> "a() + Long.toString(42)",
         JavaScriptCompiler -> "this.a + (42).toString()",
         LuaCompiler -> "self.a .. tostring(42)",
@@ -701,7 +701,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr(\"foobar\", 2, 4 - 2)",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring(\"foobar\", 2, 4)",
         PythonCompiler -> "u\"foobar\"[2:4]",
-        RubyCompiler -> "\"foobar\"[2..4 - 1]"
+        RubyCompiler -> "\"foobar\"[2...4]"
       ))
 
       // substring() call on concatenation of strings: for some languages, concatenation needs to be
@@ -716,7 +716,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo() . $self->bar(), 2, 4 - 2)",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo() . $this->bar(), 2, 4)",
         PythonCompiler -> "(self.foo + self.bar)[2:4]",
-        RubyCompiler -> "(foo + bar)[2..4 - 1]"
+        RubyCompiler -> "(foo + bar)[2...4]"
       ))
 
       // substring() call with non-left-associative "from" and "to": for languages where subtraction
@@ -731,7 +731,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo(), 10 - 7, (10 - 3) - (10 - 7))", // TODO: PerlCompiler -> "substr($self->foo(), 10 - 7, 10 - 3 - (10 - 7))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 - 3)",
         PythonCompiler -> "self.foo[10 - 7:10 - 3]",
-        RubyCompiler -> "foo[10 - 7..(10 - 3) - 1]" // TODO: RubyCompiler -> "foo[10 - 7..10 - 3 - 1]"
+        RubyCompiler -> "foo[10 - 7...10 - 3]"
       ))
 
       // substring() call with "to" using `<<` which is lower precedence than `+` or `-`: if such
@@ -746,7 +746,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo(), 10 - 7, (10 << 2) - (10 - 7))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 - 7, 10 << 2)",
         PythonCompiler -> "self.foo[10 - 7:10 << 2]",
-        RubyCompiler -> "foo[10 - 7..(10 << 2) - 1]"
+        RubyCompiler -> "foo[10 - 7...10 << 2]"
       ))
 
       // substring() call with "from" using `<<` which is lower precedence than `+` or `-`: if such
@@ -761,7 +761,7 @@ class TranslatorSpec extends AnyFunSpec {
         PerlCompiler -> "substr($self->foo(), 10 << 1, 42 - (10 << 1))",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring($this->foo(), 10 << 1, 42)",
         PythonCompiler -> "self.foo[10 << 1:42]",
-        RubyCompiler -> "foo[10 << 1..42 - 1]"
+        RubyCompiler -> "foo[10 << 1...42]"
       ))
     }
   }

@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError}
+import io.kaitai.struct.datatype.{CalcEndian, DataType, FixedEndian, InheritedEndian, KSError, UndecidedEndiannessError, ValidationNotInEnumError}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{NoRepeat, RepeatEos, RepeatExpr, RepeatSpec, _}
 import io.kaitai.struct.languages.components._
@@ -341,7 +341,12 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io->readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io->readBytesTerm($terminator, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io->readBytesTerm($term, $include, $consume, $eosError)"
+        } else {
+          s"$io->readBytesTermMulti(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io->readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
@@ -366,13 +371,19 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName::bytesStripRight($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName::bytesTerminate($expr1, $term, $include)"
+      case Some(term) =>
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$kstreamName::bytesTerminate($expr1, $t, $include)"
+        } else {
+          s"$kstreamName::bytesTerminateMulti($expr1, ${translator.doByteArrayLiteral(term)}, $include)"
+        }
       case None => expr1
     }
     expr2
@@ -428,6 +439,15 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       universalDoc(label.doc)
       out.puts(s"const ${value2Const(label.name)} = ${translator.doIntLiteral(id)};")
     }
+    out.puts
+    val arrayEntriesStr = enumColl.map { case (id, _) => s"${translator.doIntLiteral(id)} => true" }.mkString(", ")
+    out.puts(s"private const _VALUES = [$arrayEntriesStr];")
+    out.puts
+    out.puts("public static function isDefined(int $v): bool {")
+    out.inc
+    out.puts("return isset(self::_VALUES[$v]);")
+    out.dec
+    out.puts("}")
     classFooter(name)
   }
 
@@ -444,16 +464,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = PHPCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier) = PHPCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier) = idToStr(id)
 
-  override def privateMemberName(id: Identifier): String = {
-    id match {
-      case IoIdentifier => s"$$this->_io"
-      case RootIdentifier => s"$$this->_root"
-      case ParentIdentifier => s"$$this->_parent"
-      case _ => s"$$this->_m_${idToStr(id)}"
-    }
-  }
+  override def privateMemberName(id: Identifier): String = PHPCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
@@ -491,14 +504,28 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = PHPCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
     errArgs: List[Ast.expr]
+  ): Unit =
+    attrValidate(s"!(${translator.translate(checkExpr)})", err, errArgs)
+
+  override def attrValidateInEnum(
+    attr: AttrLikeSpec,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    errArgs: List[Ast.expr]
   ): Unit = {
+    val enumSpec = et.enumSpec.get
+    val enumRef = translator.types2classAbs(enumSpec.name)
+    attrValidate(s"!$enumRef::isDefined(${translator.translate(valueExpr)})", err, errArgs)
+  }
+
+  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    out.puts(s"if ($failCondExpr) {")
     out.inc
     out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
     out.dec
@@ -524,7 +551,13 @@ object PHPCompiler extends LanguageCompilerStatic
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
     }
 
-  def publicMemberName(id: Identifier) = idToStr(id)
+  def privateMemberName(id: Identifier): String =
+    id match {
+      case IoIdentifier => s"$$this->_io"
+      case RootIdentifier => s"$$this->_root"
+      case ParentIdentifier => s"$$this->_parent"
+      case _ => s"$$this->_m_${idToStr(id)}"
+    }
 
   override def kstreamName: String = "\\Kaitai\\Struct\\Stream"
 

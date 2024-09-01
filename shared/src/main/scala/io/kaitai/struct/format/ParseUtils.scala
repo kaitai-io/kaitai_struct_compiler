@@ -72,6 +72,15 @@ object ParseUtils {
     }
   }
 
+  def getOptValueByte(src: Map[String, Any], field: String, path: List[String]): Option[Int] = {
+    getOptValueInt(src, field, path).map { value =>
+      if (value < 0 || value > 255) {
+        throw KSYParseError.withText(s"expected an integer from 0 to 255, got ${value}", path ++ List(field))
+      }
+      value
+    }
+  }
+
   def getValueIdentifier(src: Map[String, Any], idx: Int, entityName: String, path: List[String]): Identifier = {
     getOptValueStr(src, "id", path) match {
       case Some(idStr) =>

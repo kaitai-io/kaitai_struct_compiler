@@ -31,10 +31,6 @@ trait EveryReadIsExpression
     assignTypeOpt: Option[DataType] = None
   ): Unit = {
     val assignType = assignTypeOpt.getOrElse(dataType)
-    val needsDebug = attrDebugNeeded(id) && rep != NoRepeat
-
-    if (needsDebug)
-      attrDebugStart(id, dataType, Some(io), rep)
 
     dataType match {
       case t: UserType =>
@@ -61,9 +57,6 @@ trait EveryReadIsExpression
         val expr = parseExpr(dataType, assignType, io, defEndian)
         handleAssignment(id, expr, rep, isRaw)
     }
-
-    if (needsDebug)
-      attrDebugEnd(id, dataType, io, rep)
   }
 
   def attrBytesTypeParse(
@@ -247,22 +240,12 @@ trait EveryReadIsExpression
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
 
   def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
-  def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String
+  def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean): String
   def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = ???
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (attrDebugNeeded(instName))
       attrDebugStart(instName, dataType, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
-  }
-
-  override def attrDebugNeeded(attrId: Identifier): Boolean = {
-    if (!config.readStoresPos)
-      return false
-
-    attrId match {
-      case _: NamedIdentifier | _: NumberedIdentifier | _: InstanceIdentifier => true
-      case _ => super.attrDebugNeeded(attrId)
-    }
   }
 }

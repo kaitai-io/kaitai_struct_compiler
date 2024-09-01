@@ -70,6 +70,19 @@ object Identifier {
     }
   }
 
+  def itemExpr(id: Identifier, rep: RepeatSpec): Ast.expr = {
+    val astId = Ast.expr.InternalName(id)
+    rep match {
+      case NoRepeat =>
+        astId
+      case _ =>
+        Ast.expr.Subscript(
+          astId,
+          Ast.expr.Name(Ast.identifier(Identifier.INDEX))
+        )
+    }
+  }
+
   // Constants for special names used in expression language
   val ROOT = "_root"
   val PARENT = "_parent"

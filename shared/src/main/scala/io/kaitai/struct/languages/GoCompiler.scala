@@ -301,7 +301,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
-    out.puts(s"for i := 1;; i++ {")
+    out.puts(s"for i := 0;; i++ {")
     out.inc
 
     val eofVar = translator.allocateLocalVar()
@@ -405,7 +405,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.ReadBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io.ReadBytesTerm($term, $include, $consume, $eosError)"
+        } else {
+          s"$io.ReadBytesTermMulti(${translator.resToStr(translator.doByteArrayLiteral(terminator))}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1)"
       case BitsType(width: Int, bitEndian) =>
@@ -526,6 +531,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.dec
     out.puts(")")
+    // Inspired by https://gist.github.com/bgadrian/cb8b9344d9c66571ef331a14eb7a2e80
+    val mapEntriesStr = enumColl.map { case (id, _) => s"$id: {}" }.mkString(", ")
+    out.puts(s"var values_$fullEnumNameStr = map[$fullEnumNameStr]struct{}{$mapEntriesStr}")
+    out.puts(s"func (v $fullEnumNameStr) isDefined() bool {")
+    out.inc
+    out.puts(s"_, ok := values_$fullEnumNameStr[v]")
+    out.puts("return ok")
+    out.dec
+    out.puts("}")
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
@@ -539,9 +553,16 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = GoCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = GoCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String =
+    id match {
+      case IoIdentifier => "_IO"
+      case RootIdentifier => "_Root"
+      case ParentIdentifier => "_Parent"
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case _ => idToStr(id)
+    }
 
-  override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = GoCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -552,14 +573,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = GoCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
     errArgs: List[Ast.expr]
-  ): Unit = {
+  ): Unit =
+    attrValidate(s"!(${translator.translate(checkExpr)})", err, errArgs)
+
+  override def attrValidateInEnum(
+    attr: AttrLikeSpec,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    errArgs: List[Ast.expr]
+  ): Unit =
+    attrValidate(s"!${translator.translate(valueExpr)}.isDefined()", err, errArgs)
+
+  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"if !(${translator.translate(checkExpr)}) {")
+    out.puts(s"if $failCondExpr {")
     out.inc
     val errInst = s"kaitai.New${err.name}($errArgsStr)"
     val noValueAndErr = translator.returnRes match {
@@ -601,14 +633,7 @@ object GoCompiler extends LanguageCompilerStatic
       case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
     }
 
-  def publicMemberName(id: Identifier): String =
-    id match {
-      case IoIdentifier => "_IO"
-      case RootIdentifier => "_Root"
-      case ParentIdentifier => "_Parent"
-      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
-      case _ => idToStr(id)
-    }
+  def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
 
   /**
     * Determine Go data type corresponding to a KS data type.

@@ -95,12 +95,12 @@ class NimClassCompiler(
     compileInstanceDoc(instName, instSpec)
     lang.instanceCheckCacheAndReturn(instName, dataType)
 
+    lang.instanceSetCalculated(instName)
     instSpec match {
       case vi: ValueInstanceSpec =>
         lang.attrParseIfHeader(instName, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
-        lang.instanceSetCalculated(instName)
       case pi: ParseInstanceSpec =>
         lang.attrParse(pi, instName, endian)
     }

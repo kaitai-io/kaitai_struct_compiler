@@ -297,7 +297,12 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io->read_bytes_full()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io->read_bytes_term($terminator, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io->read_bytes_term($term, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
+        } else {
+          s"$io->read_bytes_term_multi(${translator.doByteArrayLiteral(terminator)}, ${boolLiteral(include)}, ${boolLiteral(consume)}, ${boolLiteral(eosError)})"
+        }
       case BitsType1(bitEndian) =>
         s"$io->read_bits_int_${bitEndian.toSuffix}(1)"
       case BitsType(width: Int, bitEndian) =>
@@ -320,13 +325,19 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName::bytes_strip_right($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName::bytes_terminate($expr1, $term, ${boolLiteral(include)})"
+      case Some(term) =>
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$kstreamName::bytes_terminate($expr1, $t, ${boolLiteral(include)})"
+        } else {
+          s"$kstreamName::bytes_terminate_multi($expr1, ${translator.doByteArrayLiteral(term)}, ${boolLiteral(include)})"
+        }
       case None => expr1
     }
     expr2
@@ -409,9 +420,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = PerlCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = PerlCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String = idToStr(id)
 
-  override def privateMemberName(id: Identifier): String = s"$$self->{${idToStr(id)}}"
+  override def privateMemberName(id: Identifier): String = PerlCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"$$_t_${idToStr(id)}"
 
@@ -438,7 +449,7 @@ object PerlCompiler extends LanguageCompilerStatic
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
     }
 
-  def publicMemberName(id: Identifier): String = idToStr(id)
+  def privateMemberName(id: Identifier): String = s"$$self->{${idToStr(id)}}"
 
   def packageName: String = "IO::KaitaiStruct"
   override def kstreamName: String = s"$packageName::Stream"

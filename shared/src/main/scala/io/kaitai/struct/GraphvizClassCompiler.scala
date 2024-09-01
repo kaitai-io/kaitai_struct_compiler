@@ -8,7 +8,7 @@ import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompiler
 import io.kaitai.struct.precompile.CalculateSeqSizes
 import io.kaitai.struct.translators.RubyTranslator
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ListBuffer, LinkedHashSet}
 
 class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
   import GraphvizClassCompiler._
@@ -17,7 +17,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
 
   val provider = new ClassTypeProvider(classSpecs, topClass)
   val translator = new RubyTranslator(provider)
-  val links = ListBuffer[(String, String, String)]()
+  val links = LinkedHashSet[(String, String, String)]()
   val extraClusterLines = new StringLanguageOutputWriter(indent)
 
   def nowClass: ClassSpec = provider.nowClass
@@ -133,7 +133,9 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
   val STYLE_EDGE_MISC = "color=\"#404040\""
   val STYLE_EDGE_POS = STYLE_EDGE_MISC
   val STYLE_EDGE_SIZE = STYLE_EDGE_MISC
+  val STYLE_EDGE_VALID = STYLE_EDGE_MISC
   val STYLE_EDGE_REPEAT = STYLE_EDGE_MISC
+  val STYLE_EDGE_IF = STYLE_EDGE_MISC
   val STYLE_EDGE_VALUE = STYLE_EDGE_MISC
 
   def tableRow(curClass: List[String], pos: Option[String], attr: AttrLikeSpec, name: String): Unit = {
@@ -145,7 +147,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         compileSwitch(name, st)
         s"switch (${expressionType(st.on, name)})"
       case _ =>
-        dataTypeName(dataType)
+        dataTypeName(dataType, attr.valid)
     }
 
     out.puts("<TR>" +
@@ -163,8 +165,48 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         // ignore, no links
     }
 
+    dataType match {
+      case blt: BytesLimitType if fixedBytes(blt, attr.valid).isDefined =>
+        // No additional line for `valid` because it expresses the same simple
+        // constraint as if the `contents` key were used, and therefore was
+        // already displayed in the "type" column.
+      case _ => validTableRow(dataType, attr.valid, name)
+    }
+    repeatTableRow(dataType, attr.cond.repeat, name)
+    ifTableRow(attr.cond.ifExpr, name)
+  }
+
+  def validTableRow(dataType: DataType, valid: Option[ValidationSpec], name: String): Unit = {
+    val portName = name + "__valid"
+    val fullPortName = s"$currentTable:$portName"
+    val text = valid match {
+      case Some(v) =>
+        v match {
+          case ValidationEq(expected) =>
+            s"must be equal to ${expression(expected, fullPortName, STYLE_EDGE_VALID)}"
+          case ValidationMin(min) =>
+            s"must be at least ${expression(min, fullPortName, STYLE_EDGE_VALID)}"
+          case ValidationMax(max) =>
+            s"must be at most ${expression(max, fullPortName, STYLE_EDGE_VALID)}"
+          case ValidationRange(min, max) =>
+            s"must be between ${expression(min, fullPortName, STYLE_EDGE_VALID)} " +
+              s"and ${expression(max, fullPortName, STYLE_EDGE_VALID)}"
+          case ValidationAnyOf(values) =>
+            s"must be any of ${values.map(expression(_, fullPortName, STYLE_EDGE_VALID)).mkString(", ")}"
+          case ValidationInEnum() =>
+            "must be defined in the enum"
+          case ValidationExpr(expr) =>
+            provider._currentIteratorType = Some(dataType)
+            s"must satisfy ${expression(expr, fullPortName, STYLE_EDGE_VALID)}"
+        }
+      case None => return
+    }
+    out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">" + text + "</TD></TR>")
+  }
+
+  def repeatTableRow(dataType: DataType, rep: RepeatSpec, name: String): Unit = {
     val portName = name + "__repeat"
-    attr.cond.repeat match {
+    rep match {
       case RepeatExpr(ex) =>
         out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat " +
           expression(ex, s"$currentTable:$portName", STYLE_EDGE_REPEAT) +
@@ -177,7 +219,18 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       case RepeatEos =>
         out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat to end of stream</TD></TR>")
       case NoRepeat =>
-      // no additional line
+        // no additional line
+    }
+  }
+
+  def ifTableRow(ifExpr: Option[Ast.expr], name: String): Unit = {
+    val portName = name + "__if"
+    ifExpr match {
+      case Some(e) =>
+        out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">if " +
+          expression(e, s"$currentTable:$portName", STYLE_EDGE_IF) +
+          "</TD></TR>")
+      case None => // ignore
     }
   }
 
@@ -199,7 +252,6 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
   }
 
   def compileSwitch(attrName: String, st: SwitchType): Unit = {
-
     links += ((s"$currentTable:${attrName}_type", s"${currentTable}_${attrName}_switch", STYLE_EDGE_TYPE))
     extraClusterLines.puts(s"${currentTable}_${attrName}_switch " + "[label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">")
     extraClusterLines.inc
@@ -291,7 +343,6 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       //      case expr.Dict(keys, values) =>
       case Ast.expr.Compare(left, ops, right) =>
         affectedVars(left) ++ affectedVars(right)
-      //      case expr.Call(func, args) =>
       case Ast.expr.IntNum(_) | Ast.expr.FloatNum(_) | Ast.expr.Str(_) | Ast.expr.Bool(_) =>
         List()
       case _: Ast.expr.EnumByLabel =>
@@ -299,6 +350,30 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
       case Ast.expr.EnumById(_, id, _) =>
         affectedVars(id)
       case Ast.expr.Attribute(value, attr) =>
+        if (attr.name == Identifier.SIZEOF) {
+          val vars = value match {
+            case Ast.expr.Name(id) if !id.name.startsWith("_") =>
+              List(getGraphvizNode(nowClassName, nowClass, id.name) + s":${id.name}_size")
+            case Ast.expr.Attribute(valueNested, attrNested) if !attrNested.name.startsWith("_") =>
+              val targetClass = translator.detectType(valueNested)
+              targetClass match {
+                case t: UserType =>
+                  val className = t.name
+                  val classSpec = t.classSpec.get
+                  List(getGraphvizNode(className, classSpec, attrNested.name) + s":${attrNested.name}_size")
+                case _ =>
+                  affectedVars(value)
+              }
+            case _ =>
+              affectedVars(value)
+          }
+          return vars
+        }
+
+        // special names like "_io", "_parent", "_root"
+        if (attr.name.startsWith("_"))
+          return affectedVars(value)
+
         val targetClass = translator.detectType(value)
         targetClass match {
           case t: UserType =>
@@ -322,12 +397,9 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         fromFunc ::: affectedVars(Ast.expr.List(args))
       case Ast.expr.Subscript(value, idx) =>
         affectedVars(value) ++ affectedVars(idx)
-      case SwitchType.ELSE_CONST =>
-        // "_" is a special const for
-        List()
       case Ast.expr.Name(id) =>
-        if (id.name.charAt(0) == '_') {
-          // other special consts like "_io", "_index", etc
+        if (id.name.startsWith("_")) {
+          // other special names like "_", "_io", "_index", etc.
           List()
         } else {
           // this must be local name, resolve it
@@ -335,6 +407,12 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
         }
       case Ast.expr.List(elts) =>
         elts.flatMap(affectedVars).toList
+      case Ast.expr.CastToType(expr, _) =>
+        affectedVars(expr)
+      case Ast.expr.ByteSizeOfType(_) =>
+        List()
+      case Ast.expr.BitSizeOfType(_) =>
+        List()
     }
   }
 
@@ -408,15 +486,14 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
   def type2class(name: List[String]) = name.last
   def type2display(name: List[String]) = name.map(Utils.upperCamelCase).mkString("::")
 
-  def dataTypeName(dataType: DataType): String = {
+  def dataTypeName(dataType: DataType, valid: Option[ValidationSpec]): String = {
     dataType match {
       case rt: ReadableType => rt.apiCall(None) // FIXME
       case ut: UserType => type2display(ut.name)
-      //case FixedBytesType(contents, _) => contents.map(_.formatted("%02X")).mkString(" ")
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         val args = ListBuffer[String]()
-        if (terminator != 0)
-          args += s"term=$terminator"
+        val termStr = terminator.map(_ & 0xff).mkString(", ")
+        args += "term=" + (if (terminator.length == 1) termStr else s"[$termStr]")
         if (include)
           args += "include"
         if (!consume)
@@ -424,15 +501,29 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
         if (!eosError)
           args += "ignore EOS"
         args.mkString(", ")
+      case blt: BytesLimitType => fixedBytes(blt, valid).getOrElse("")
       case _: BytesType => ""
       case StrFromBytesType(basedOn, encoding, _) =>
-        val bytesStr = dataTypeName(basedOn)
+        val bytesStr = dataTypeName(basedOn, valid)
         val comma = if (bytesStr.isEmpty) "" else ", "
         s"str($bytesStr$comma$encoding)"
       case EnumType(name, basedOn) =>
-        s"${dataTypeName(basedOn)}→${type2display(name)}"
-      case BitsType(width, bitEndian) => s"b$width"
+        s"${dataTypeName(basedOn, valid)}→${type2display(name)}"
+      case BitsType(width, bitEndian) => s"b$width${bitEndian.toSuffix}"
+      case BitsType1(bitEndian) => s"b1${bitEndian.toSuffix}→bool"
       case _ => dataType.toString
+    }
+  }
+
+  private def fixedBytes(blt: BytesLimitType, valid: Option[ValidationSpec]): Option[String] = {
+    valid match {
+      case Some(ValidationEq(Ast.expr.List(contents)))
+          if blt.size == Ast.expr.IntNum(contents.length) =>
+        Some(contents.map(_ match {
+          case Ast.expr.IntNum(byteVal) if byteVal >= 0x00 && byteVal <= 0xff => "%02X".format(byteVal)
+          case _ => return None
+        }).mkString(" "))
+      case _ => None
     }
   }
 

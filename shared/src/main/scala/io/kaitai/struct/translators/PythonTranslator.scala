@@ -54,7 +54,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
   override def doName(s: String) =
     s
   override def doInternalName(id: Identifier): String =
-    s"self.${PythonCompiler.publicMemberName(id)}"
+    PythonCompiler.privateMemberName(id)
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
@@ -99,7 +99,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
   override def intToStr(i: Ast.expr): String =
     s"str(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
-    s"""($bytesExpr).decode("$encoding")"""
+    s"""($bytesExpr).decode(${doStringLiteral(encoding)})"""
 
   override def bytesLength(value: Ast.expr): String =
     s"len(${translate(value)})"

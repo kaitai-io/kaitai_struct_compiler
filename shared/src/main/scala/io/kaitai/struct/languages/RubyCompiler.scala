@@ -365,7 +365,12 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.read_bytes_full"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.read_bytes_term($terminator, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io.read_bytes_term($term, $include, $consume, $eosError)"
+        } else {
+          s"$io.read_bytes_term_multi(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io.read_bits_int_${bitEndian.toSuffix}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
@@ -396,13 +401,19 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     ioName
   }
 
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName::bytes_strip_right($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName::bytes_terminate($expr1, $term, $include)"
+      case Some(term) =>
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$kstreamName::bytes_terminate($expr1, $t, $include)"
+        } else {
+          s"$kstreamName::bytes_terminate_multi($expr1, ${translator.doByteArrayLiteral(term)}, $include)"
+        }
       case None => expr1
     }
     expr2
@@ -477,23 +488,36 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = RubyCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = RubyCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier) = idToStr(id)
 
-  override def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = RubyCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
   override def ksErrorName(err: KSError): String = RubyCompiler.ksErrorName(err)
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
     errArgs: List[Ast.expr]
+  ): Unit =
+    attrValidate(s"not ${translator.translate(checkExpr)}", err, errArgs)
+
+  override def attrValidateInEnum(
+    attr: AttrLikeSpec,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    errArgs: List[Ast.expr]
   ): Unit = {
+    val inverseMap = translator.enumInverseMap(et)
+    attrValidate(s"not ${inverseMap}.key?(${translator.translate(valueExpr)})", err, errArgs)
+  }
+
+  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
     val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"raise ${ksErrorName(err)}.new($errArgsStr) if not ${translator.translate(checkExpr)}")
+    out.puts(s"raise ${ksErrorName(err)}.new($errArgsStr) if $failCondExpr")
   }
 
   def types2class(names: List[String]) = names.map(type2class).mkString("::")
@@ -516,7 +540,7 @@ object RubyCompiler extends LanguageCompilerStatic
       case RawIdentifier(inner) => s"_raw_${idToStr(inner)}"
     }
 
-  def publicMemberName(id: Identifier) = idToStr(id)
+  def privateMemberName(id: Identifier): String = s"@${idToStr(id)}"
 
   override def kstreamName: String = "Kaitai::Struct::Stream"
   override def kstructName: String = "Kaitai::Struct::Struct"

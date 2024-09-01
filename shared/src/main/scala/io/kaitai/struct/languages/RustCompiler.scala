@@ -776,8 +776,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             s"$io.read_${t.apiCall(defEndian)}()?.into()"
         }
       case _: BytesEosType => s"$io.read_bytes_full()?.into()"
-      case b: BytesTerminatedType =>
-          s"$io.read_bytes_term(${b.terminator}, ${b.include}, ${b.consume}, ${b.eosError})?.into()"
+      case BytesTerminatedType(terminator, include, consume, eosError, _) =>
+        val term = terminator.head & 0xff
+        s"$io.read_bytes_term($term, $include, $consume, $eosError)?.into()"
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?.into()"
       case BitsType1(bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}(1)? != 0"
       case BitsType(width: Int, bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}($width)?"
@@ -832,20 +833,19 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def bytesPadTermExpr(expr0: String,
-                                padRight: Option[Int],
-                                terminator: Option[Int],
-                                include: Boolean): String = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean): String = {
     val ioId = privateMemberName(IoIdentifier)
-    val expr = padRight match {
-      case Some(p) => s"BytesReader::bytes_strip_right(&$expr0, $p).into()"
+    val expr1 = padRight match {
+      case Some(padByte) => s"BytesReader::bytes_strip_right(&$expr0, $padByte).into()"
       case None => expr0
     }
-
-    terminator match {
-      case Some(term) => s"BytesReader::bytes_terminate(&$expr, $term, $include).into()"
-      case None => expr
+    val expr2 = terminator match {
+      case Some(term) =>
+        val t = term.head & 0xff
+        s"BytesReader::bytes_terminate(&$expr1, $t, $include).into()"
+      case None => expr1
     }
+    expr2
   }
 
   override def attrFixedContentsParse(attrName: Identifier,
@@ -1195,8 +1195,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
 
   override def attrValidateExpr(
-    attrId: Identifier,
-    attrType: DataType,
+    attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
     errArgs: List[Ast.expr]
