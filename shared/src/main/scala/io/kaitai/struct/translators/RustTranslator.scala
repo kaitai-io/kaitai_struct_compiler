@@ -452,7 +452,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     s"${remove_deref(translate(i))}.to_string()"
 
   override def bytesToStr(bytesExpr: String, encoding: String): String =
-    s"""decode_string(&$bytesExpr, &"$encoding")?"""
+    s"""bytes_to_str(&$bytesExpr, "$encoding")?"""
 
   override def bytesLength(b: Ast.expr): String =
     s"${remove_deref(translate(b))}.len()"
