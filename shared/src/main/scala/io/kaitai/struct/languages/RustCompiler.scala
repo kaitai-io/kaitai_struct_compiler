@@ -50,8 +50,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts("#![allow(non_camel_case_types)]")
     outHeader.puts("#![allow(irrefutable_let_patterns)]")
     outHeader.puts("#![allow(unused_comparisons)]")
-    outHeader.puts("#![allow(arithmetic_overflow)]")
-    outHeader.puts("#![allow(overflowing_literals)]")
     outHeader.puts
     outHeader.puts("extern crate kaitai;")
 
