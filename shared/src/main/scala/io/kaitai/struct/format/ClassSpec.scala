@@ -253,9 +253,19 @@ object ClassSpec {
   private def checkDupId(prevAttrOpt: Option[MemberSpec], id: String, nowAttr: YAMLPath): Unit = {
     prevAttrOpt match {
       case Some(prevAttr) =>
+        // Report error at position where referenced param / attribute / instance is defined.
+        // Add `id` for attributes in `seq` and `params`, do not add for instances
+        val path = nowAttr match {
+          case _: InstanceSpec => nowAttr.path
+          case _ => nowAttr.path :+ "id"
+        }
+        val prevPath = prevAttr match {
+          case _: InstanceSpec => prevAttr.path
+          case _ => prevAttr.path :+ "id"
+        }
         throw KSYParseError.withText(
-          s"duplicate attribute ID '$id', previously defined at /${prevAttr.pathStr}",
-          nowAttr.path
+          s"duplicate attribute ID '$id', previously defined at /${prevPath.mkString("/")}",
+          path
         )
       case None =>
         // no dups, ok
