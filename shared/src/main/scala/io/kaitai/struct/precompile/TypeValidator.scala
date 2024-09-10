@@ -82,7 +82,12 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
 
     val problemsDataType = validateDataType(attr.dataType, path)
 
-    List(problemsIf, problemsRepeat, problemsDataType).flatten
+    val problemsValid: Iterable[CompilationProblem] = attr.valid match {
+      case Some(valid) => validateValidClause(valid, attr.dataType, attr.path :+ "valid")
+      case None => None // all good
+    }
+
+    List(problemsIf, problemsRepeat, problemsDataType, problemsValid).flatten
   }
 
   def validateParseInstance(pis: ParseInstanceSpec): Iterable[CompilationProblem] = {
@@ -100,7 +105,12 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
       case None => None // all good
     }
 
-    List(problemsAttr, problemsIo, problemsPos).flatten
+    val problemsValid: Iterable[CompilationProblem] = pis.valid match {
+      case Some(valid) => validateValidClause(valid, pis.dataType, pis.path :+ "valid")
+      case None => None // all good
+    }
+
+    List(problemsAttr, problemsIo, problemsPos, problemsValid).flatten
   }
 
   def validateValueInstance(vis: ValueInstanceSpec): Option[CompilationProblem] = {
@@ -201,6 +211,42 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
       } else {
         None
       }
+    }
+  }
+
+  /**
+    * @param valid The `valid` clause of Kaitai Struct attribute or parse instance definition
+    * @param attrType The type of attribute, used to check compatibility of valid expressions to that type
+    * @param path Path where `valid` key is defined
+    */
+  private def validateValidClause(
+    valid: ValidationSpec,
+    attrType: DataType,
+    path: List[String]
+  ): Iterable[CompilationProblem] = {
+    // TODO: This is not user-friendly message
+    val expected = attrType.toString
+    valid match {
+      // TODO: Need to distinguish between `valid`, `valid.eq` and `contents`
+      case ValidationEq(value) =>
+        checkAssertObject(value, attrType, expected, path, "eq")
+      case ValidationMin(min) =>
+        checkAssertObject(min, attrType, expected, path, "min")
+      case ValidationMax(max) =>
+        checkAssertObject(max, attrType, expected, path, "max")
+      case ValidationRange(min, max) => {
+        checkAssertObject(min, attrType, expected, path, "min") ++
+        checkAssertObject(max, attrType, expected, path, "max")
+      }
+      case ValidationAnyOf(values) => {
+        val itemPath = path :+ "any-of"
+        values.zipWithIndex.flatMap { case (value, i) =>
+          checkAssertObject(value, attrType, expected, itemPath, i.toString)
+        }
+      }
+      case ValidationInEnum() => List()
+      case ValidationExpr(checkExpr) =>
+        checkAssert[BooleanType](checkExpr, "boolean", path, "expr")
     }
   }
 
