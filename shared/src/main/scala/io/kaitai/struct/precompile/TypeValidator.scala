@@ -83,7 +83,7 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
     val problemsDataType = validateDataType(attr.dataType, path)
 
     val problemsValid: Iterable[CompilationProblem] = attr.valid match {
-      case Some(valid) => validateValidClause(valid, attr.dataType, attr.path :+ "valid")
+      case Some(valid) => validateValidClause(valid, attr.dataType, attr.path)
       case None => None // all good
     }
 
@@ -106,7 +106,7 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
     }
 
     val problemsValid: Iterable[CompilationProblem] = pis.valid match {
-      case Some(valid) => validateValidClause(valid, pis.dataType, pis.path :+ "valid")
+      case Some(valid) => validateValidClause(valid, pis.dataType, pis.path)
       case None => None // all good
     }
 
@@ -226,27 +226,31 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
   ): Iterable[CompilationProblem] = {
     // TODO: This is not user-friendly message
     val expected = attrType.toString
+    val validPath = path :+ "valid"
     valid match {
-      // TODO: Need to distinguish between `valid`, `valid.eq` and `contents`
+      case Validation(value) =>
+        checkAssertObject(value, attrType, expected, path, "valid")
       case ValidationEq(value) =>
-        checkAssertObject(value, attrType, expected, path, "eq")
+        checkAssertObject(value, attrType, expected, validPath, "eq")
+      case ValidationContents(value) =>
+        checkAssertObject(value, attrType, expected, path, "contents")
       case ValidationMin(min) =>
-        checkAssertObject(min, attrType, expected, path, "min")
+        checkAssertObject(min, attrType, expected, validPath, "min")
       case ValidationMax(max) =>
-        checkAssertObject(max, attrType, expected, path, "max")
+        checkAssertObject(max, attrType, expected, validPath, "max")
       case ValidationRange(min, max) => {
-        checkAssertObject(min, attrType, expected, path, "min") ++
-        checkAssertObject(max, attrType, expected, path, "max")
+        checkAssertObject(min, attrType, expected, validPath, "min") ++
+        checkAssertObject(max, attrType, expected, validPath, "max")
       }
       case ValidationAnyOf(values) => {
-        val itemPath = path :+ "any-of"
+        val itemPath = validPath :+ "any-of"
         values.zipWithIndex.flatMap { case (value, i) =>
           checkAssertObject(value, attrType, expected, itemPath, i.toString)
         }
       }
       case ValidationInEnum() => List()
       case ValidationExpr(checkExpr) =>
-        checkAssert[BooleanType](checkExpr, "boolean", path, "expr")
+        checkAssert[BooleanType](checkExpr, "boolean", validPath, "expr")
     }
   }
 
