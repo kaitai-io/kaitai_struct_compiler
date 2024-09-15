@@ -272,10 +272,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
-    // this line required for handleAssignmentRepeatUntil
-    // Set the type of the `_` variable in expression
-    typeProvider._currentIteratorType = Some(dataType)
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     out.puts(s"*${RustCompiler.privateMemberName(id, writeAccess = true)} = Vec::new();")
   }
 
