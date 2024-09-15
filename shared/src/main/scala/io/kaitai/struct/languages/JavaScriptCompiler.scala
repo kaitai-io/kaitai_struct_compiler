@@ -335,7 +335,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
     out.puts("i++;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")

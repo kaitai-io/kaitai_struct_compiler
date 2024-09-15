@@ -633,7 +633,6 @@ class CppCompiler(
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
     outSrc.puts("i++;")
     outSrc.dec
     outSrc.puts(s"} while (!(${expression(untilExpr)}));")

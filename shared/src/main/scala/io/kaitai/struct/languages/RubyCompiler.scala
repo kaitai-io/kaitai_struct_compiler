@@ -336,7 +336,6 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
     out.puts("i += 1")
     out.dec
     out.puts(s"end until ${expression(untilExpr)}")

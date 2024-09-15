@@ -173,7 +173,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"if ${expression(untilExpr)}:")
     out.inc
     out.puts("break")

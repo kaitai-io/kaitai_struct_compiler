@@ -274,6 +274,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
    override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     // this line required for handleAssignmentRepeatUntil
+    // Set the type of the `_` variable in expression
     typeProvider._currentIteratorType = Some(dataType)
     out.puts(s"*${RustCompiler.privateMemberName(id, writeAccess = true)} = Vec::new();")
   }
@@ -342,8 +343,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                      io: String,
                                      dataType: DataType,
                                      repeatExpr: Ast.expr): Unit = {
-    // this line required by kaitai code
-    typeProvider._currentIteratorType = Some(dataType)
     out.puts("_i += 1;")
     out.puts(s"let x = !(${expression(repeatExpr)});")
     out.puts("x")

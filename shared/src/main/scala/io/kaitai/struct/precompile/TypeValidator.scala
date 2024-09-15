@@ -70,6 +70,7 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
       checkAssert[BooleanType](ifExpr, "boolean", path, "if")
     )
 
+    // Set the type of the `_` variable in expression
     provider._currentIteratorType = Some(attr.dataType)
     val problemsRepeat: Iterable[CompilationProblem] = attr.cond.repeat match {
       case RepeatExpr(expr) =>
