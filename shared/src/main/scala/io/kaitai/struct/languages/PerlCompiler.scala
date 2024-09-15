@@ -246,9 +246,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    val nVar = s"$$n_${idToStr(id)}"
-    out.puts(s"my $nVar = ${expression(repeatExpr)};")
-    out.puts(s"for (my $$i = 0; $$i < $nVar; $$i++) {")
+    out.puts(s"for (my $$i = 0, $$_end = ${expression(repeatExpr)}; $$i < $$_end; ++$$i) {")
     out.inc
   }
 

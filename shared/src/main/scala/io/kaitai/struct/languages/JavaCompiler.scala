@@ -581,7 +581,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
+    out.puts(s"for (int i = 0, _end = ${expression(repeatExpr)}; i < _end; ++i) {")
     out.inc
   }
 

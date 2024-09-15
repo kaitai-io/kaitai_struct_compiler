@@ -302,9 +302,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                     io: String,
                                     dataType: DataType,
                                     repeatExpr: Ast.expr): Unit = {
-    val lenVar = s"l_${idToStr(id)}"
-    out.puts(s"let $lenVar = ${expression(repeatExpr)};")
-    out.puts(s"for _i in 0..$lenVar {")
+    out.puts(s"let _end = ${expression(repeatExpr)};")
+    out.puts(s"for _i in 0.._end {")
     out.inc
   }
 

@@ -584,9 +584,7 @@ class CppCompiler(
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    val lenVar = s"l_${idToStr(id)}"
-    outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
-    outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
+    outSrc.puts(s"for (int i = 0, _end = ${expression(repeatExpr)}; i < _end; ++i) {")
     outSrc.inc
   }
 
