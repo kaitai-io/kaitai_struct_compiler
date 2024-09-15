@@ -331,7 +331,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(dataType: DataType): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts("i = 0")
     out.puts("begin")
     out.inc
