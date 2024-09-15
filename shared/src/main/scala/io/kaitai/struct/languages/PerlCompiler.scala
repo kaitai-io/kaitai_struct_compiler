@@ -379,7 +379,6 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchRequiresIfs(onType: DataType): Boolean = true
 
   override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
-    typeProvider._currentSwitchType = Some(translator.detectType(on))
     out.puts(s"my $$_on = ${expression(on)};")
   }
 
