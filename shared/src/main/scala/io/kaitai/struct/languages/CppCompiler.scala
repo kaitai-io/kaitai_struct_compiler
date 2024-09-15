@@ -598,11 +598,11 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatUntilHeader(dataType: DataType): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName(Identifier.ITERATOR)};")
+    outSrc.puts(s"${kaitaiType2NativeType(itemType.asNonOwning())} ${translator.doName(Identifier.ITERATOR)};")
     outSrc.puts("do {")
     outSrc.inc
   }

@@ -165,7 +165,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"for i in 0 ..< int(${expression(repeatExpr)}):")
     out.inc
   }
-  override def condRepeatUntilHeader(dataType: DataType): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts("block:")
     out.inc
     out.puts("var i: int")

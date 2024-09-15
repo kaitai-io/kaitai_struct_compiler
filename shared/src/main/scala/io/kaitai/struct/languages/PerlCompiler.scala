@@ -255,7 +255,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(dataType: DataType): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     blockScopeHeader
     out.puts(s"my ${translator.doName("_")};")
     out.puts("do {")

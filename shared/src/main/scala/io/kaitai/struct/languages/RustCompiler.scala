@@ -308,7 +308,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatUntilHeader(dataType: DataType): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts("{")
     out.inc
     out.puts("let mut _i = 0;")

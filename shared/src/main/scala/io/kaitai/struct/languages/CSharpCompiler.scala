@@ -303,11 +303,11 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatExprFooter: Unit = fileFooter(null)
 
-  override def condRepeatUntilHeader(dataType: DataType): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i = 0;")
-    out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName(Identifier.ITERATOR)};")
+    out.puts(s"${kaitaiType2NativeType(itemType)} ${translator.doName(Identifier.ITERATOR)};")
     out.puts("do {")
     out.inc
   }

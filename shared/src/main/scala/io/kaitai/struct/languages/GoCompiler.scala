@@ -311,7 +311,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit =
     handleAssignmentRepeatEos(id, r)
 
-  override def condRepeatUntilHeader(dataType: DataType): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts(s"for i := 1;; i++ {")
     out.inc
   }
