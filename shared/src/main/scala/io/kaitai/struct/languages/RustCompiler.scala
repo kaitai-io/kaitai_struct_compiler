@@ -329,8 +329,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                            isRaw: Boolean): Unit = {
     out.puts(s"${RustCompiler.privateMemberName(id, writeAccess = true)}.push($expr);")
     var copy_type = ""
-    // typeProvider._currentIteratorType is set in CommonReads.attrParse0
-    if (translator.is_copy_type(typeProvider._currentIteratorType.get)) {
+    // typeProvider._lastParsedType is set in CommonReads.attrParse0
+    if (translator.is_copy_type(typeProvider._lastParsedType.get)) {
       copy_type = "*"
     }
     val t = localTemporaryName(id)

@@ -74,7 +74,7 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
       case RepeatExpr(expr) =>
         checkAssert[IntType](expr, "integer", path, "repeat-expr")
       case RepeatUntil(expr) =>
-        provider._currentIteratorType = Some(attr.dataType)
+        provider._lastParsedType = Some(attr.dataType)
         checkAssert[BooleanType](expr, "boolean", path, "repeat-until")
       case RepeatEos | NoRepeat =>
         None
