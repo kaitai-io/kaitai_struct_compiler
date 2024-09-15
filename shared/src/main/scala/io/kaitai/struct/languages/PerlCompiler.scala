@@ -238,12 +238,20 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = [];")
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+    // Perl allows shadowing of variables, no need a scope to isolate them
+    out.puts("my $i = 0;")
     out.puts(s"while (!$io->is_eof()) {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
+
+  override def condRepeatEosFooter: Unit = {
+    out.puts("$i++;")
+    out.dec
+    out.puts("}")
+  }
 
   override def condRepeatExprHeader(countExpr: expr): Unit = {
     out.puts(s"for (my $$i = 0, $$_end = ${expression(countExpr)}; $$i < $$_end; ++$$i) {")
