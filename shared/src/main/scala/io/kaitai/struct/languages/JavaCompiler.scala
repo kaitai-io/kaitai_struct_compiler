@@ -355,7 +355,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}();")
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("{")
     out.inc
     out.puts("int i = 0;")

@@ -64,7 +64,7 @@ trait CommonReads extends LanguageCompiler {
       (ExtraAttrs.forAttr(attr, this) ++ List(attr)).foreach(a => condRepeatInitAttr(a.id, a.dataType))
     attr.cond.repeat match {
       case RepeatEos =>
-        condRepeatEosHeader(id, io, attr.dataType)
+        condRepeatEosHeader(io)
       case RepeatExpr(countExpr: Ast.expr) =>
         condRepeatExprHeader(countExpr)
       case RepeatUntil(_) =>
