@@ -282,7 +282,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
 
     val eofVar = translator.allocateLocalVar()
-    out.puts(s"${translator.localVarName(eofVar)}, err := this._io.EOF()")
+    out.puts(s"${translator.localVarName(eofVar)}, err := $io.EOF()")
     translator.outAddErrCheck()
     out.puts(s"if ${translator.localVarName(eofVar)} {")
     out.inc

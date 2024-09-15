@@ -282,7 +282,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("{")
     out.inc
     out.puts(s"let mut _i = 0;")
-    out.puts(s"while !_io.is_eof() {")
+    out.puts(s"while !$io.is_eof() {")
     out.inc
   }
 
