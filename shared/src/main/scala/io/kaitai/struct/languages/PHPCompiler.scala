@@ -274,7 +274,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = [];")
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("$i = 0;")
     out.puts(s"while (!$io->isEof()) {")
     out.inc

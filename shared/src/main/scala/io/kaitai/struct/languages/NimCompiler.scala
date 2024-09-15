@@ -149,7 +149,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // empty sequences (see https://narimiran.github.io/nim-basics/#_result_variable)
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("block:")
     out.inc
     out.puts("var i: int")

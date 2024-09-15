@@ -300,7 +300,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => expr
     }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i: usize = 0;")

@@ -150,7 +150,16 @@ abstract class LanguageCompiler(
 
   def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit
 
-  def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit
+  /**
+    * Generates start of loop until end-of-stream is reached.
+    *
+    * @param io rendered expression that evaluates to reference of a stream which
+    *        should be checked
+    */
+  def condRepeatEosHeader(io: String): Unit
+  /**
+    * Generates end of loop until end-of-stream is reached.
+    */
   def condRepeatEosFooter: Unit
 
   /**

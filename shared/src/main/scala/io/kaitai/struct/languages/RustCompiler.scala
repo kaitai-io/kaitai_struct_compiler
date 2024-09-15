@@ -276,11 +276,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"*${RustCompiler.privateMemberName(id, writeAccess = true)} = Vec::new();")
   }
 
-  override def condRepeatEosHeader(id: Identifier,
-                                   io: String,
-                                   dataType: DataType): Unit = {
-    out.puts("{")
-    out.inc
+  override def condRepeatEosHeader(io: String): Unit = {
+    // Rust allows shadowing of variables, no need a scope to isolate them
     out.puts(s"let mut _i = 0;")
     out.puts(s"while !$io.is_eof() {")
     out.inc
@@ -292,8 +289,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatEosFooter: Unit = {
     out.puts("_i += 1;")
-    out.dec
-    out.puts("}")
     out.dec
     out.puts("}")
   }

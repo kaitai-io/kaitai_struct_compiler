@@ -563,7 +563,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")

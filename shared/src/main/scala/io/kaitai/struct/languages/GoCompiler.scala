@@ -277,7 +277,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // function works even on `nil` slices (https://go.dev/tour/moretypes/15)
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts(s"for i := 0;; i++ {")
     out.inc
 

@@ -237,7 +237,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = [];")
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     // Perl allows shadowing of variables, no need a scope to isolate them
     out.puts("my $i = 0;")
     out.puts(s"while (!$io->is_eof()) {")

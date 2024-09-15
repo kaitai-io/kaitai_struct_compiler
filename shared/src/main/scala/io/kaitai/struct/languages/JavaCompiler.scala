@@ -560,7 +560,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = new ArrayList<${kaitaiType2JavaTypeBoxed(dataType)}>();")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("{")
     out.inc
     out.puts("int i = 0;")
