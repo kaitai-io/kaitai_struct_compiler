@@ -343,8 +343,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                      io: String,
                                      dataType: DataType,
                                      repeatExpr: Ast.expr): Unit = {
-    // this line required by kaitai code
-    typeProvider._currentIteratorType = Some(dataType)
     out.puts("_i += 1;")
     out.puts(s"let x = !(${expression(repeatExpr)});")
     out.puts("x")
