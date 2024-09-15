@@ -56,7 +56,7 @@ trait ValidateOps extends ExceptionNames {
       case ValidationExpr(expr) =>
         blockScopeHeader
         // Set the type of the `_` variable in expression
-        typeProvider._currentIteratorType = Some(attr.dataType)
+        typeProvider._typeOfUnderscore = Some(attr.dataType)
         handleAssignmentTempVar(
           attr.dataType,
           translator.translate(Ast.expr.Name(Ast.identifier(Identifier.ITERATOR))),

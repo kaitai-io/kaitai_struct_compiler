@@ -89,7 +89,7 @@ trait CommonReads extends LanguageCompiler {
         condRepeatExprFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
         // Set the type of the `_` variable in expression
-        typeProvider._currentIteratorType = Some(attr.dataType)
+        typeProvider._typeOfUnderscore = Some(attr.dataType)
         condRepeatUntilFooter(id, io, attr.dataType, untilExpr)
       case NoRepeat =>
     }

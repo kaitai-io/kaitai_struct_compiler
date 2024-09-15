@@ -197,7 +197,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
             "must be defined in the enum"
           case ValidationExpr(expr) =>
             // Set the type of the `_` variable in expression
-            provider._currentIteratorType = Some(dataType)
+            provider._typeOfUnderscore = Some(dataType)
             s"must satisfy ${expression(expr, fullPortName, STYLE_EDGE_VALID)}"
         }
       case None => return
@@ -214,7 +214,7 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
           " times</TD></TR>")
       case RepeatUntil(ex) =>
         // Set the type of the `_` variable in expression
-        provider._currentIteratorType = Some(dataType)
+        provider._typeOfUnderscore = Some(dataType)
         out.puts("<TR><TD COLSPAN=\"4\" PORT=\"" + portName + "\">repeat until " +
           expression(ex, s"$currentTable:$portName", STYLE_EDGE_REPEAT) +
           "</TD></TR>")

@@ -16,7 +16,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     * `repeat-until` and `valid: expr` contexts and refers to the attribute
     * just parsed.
     */
-  var _currentIteratorType: Option[DataType] = None
+  var _typeOfUnderscore: Option[DataType] = None
   /**
     * Type of the `_on` variable in the expression. That variable is defined in
     * `cases.<case>` contexts and refers to the value of `switch-on` expression.
@@ -42,7 +42,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       case Identifier.IO =>
         KaitaiStreamType
       case Identifier.ITERATOR =>
-        _currentIteratorType match {
+        _typeOfUnderscore match {
           case Some(value) => value
           case None => throw new ExpressionError(s"Context variable '$attrName' is available only in the 'repeat-until' and 'valid/expr' attributes")
         }

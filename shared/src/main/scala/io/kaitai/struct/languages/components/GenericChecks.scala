@@ -225,7 +225,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
   def attrValidCheck(attr: AttrLikeSpec, shouldDependOnIo: Option[Boolean]): Unit = {
     attr.valid.foreach { (valid) =>
       // Set the type of the `_` variable in expression
-      typeProvider._currentIteratorType = Some(attr.dataType)
+      typeProvider._typeOfUnderscore = Some(attr.dataType)
       if (shouldDependOnIo.map(shouldDepend => validDependsOnIo(valid) == shouldDepend).getOrElse(true)) {
         attrValidate(attr, valid, false)
       }
@@ -517,7 +517,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
 
   def attrAssertUntilCond(id: Identifier, dataType: DataType, repUntil: RepeatUntil, shouldDependOnIo: Option[Boolean]): Unit = {
     // Set the type of the `_` variable in expression
-    typeProvider._currentIteratorType = Some(dataType)
+    typeProvider._typeOfUnderscore = Some(dataType)
     if (shouldDependOnIo.map(shouldDepend => userExprDependsOnIo(repUntil.expr) != shouldDepend).getOrElse(false))
       return
     blockScopeHeader

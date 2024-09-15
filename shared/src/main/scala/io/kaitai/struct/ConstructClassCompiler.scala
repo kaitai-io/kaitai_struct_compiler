@@ -88,7 +88,7 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
       s"Array(${translator.translate(expr)}, $typeStr)"
     case RepeatUntil(expr) =>
       // Set the type of the `_` variable in expression
-      provider._currentIteratorType = Some(dataType)
+      provider._typeOfUnderscore = Some(dataType)
       s"RepeatUntil(lambda obj_, list_, this: ${translator.translate(expr)}, $typeStr)"
     case RepeatEos =>
       s"GreedyRange($typeStr)"
