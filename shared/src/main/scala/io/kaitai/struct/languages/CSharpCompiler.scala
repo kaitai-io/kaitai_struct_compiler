@@ -307,7 +307,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("{")
     out.inc
     out.puts("var i = 0;")
-    out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
+    out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName(Identifier.ITERATOR)};")
     out.puts("do {")
     out.inc
   }
