@@ -153,7 +153,16 @@ abstract class LanguageCompiler(
   def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit
   def condRepeatEosFooter: Unit
 
-  def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit
+  /**
+    * Generates start of "for 0..<count>" loop which loops specified count of times.
+    *
+    * @param countExpr expression that evaluates into number of repetitions.
+    *        That expression should be evaluated only once before loop is started
+    */
+  def condRepeatExprHeader(countExpr: Ast.expr): Unit
+  /**
+    * Generates end of "for 0..<count>" loop.
+    */
   def condRepeatExprFooter: Unit
 
   /**

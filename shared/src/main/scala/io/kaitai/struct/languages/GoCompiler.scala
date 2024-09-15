@@ -297,8 +297,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$name = append($name, $expr)")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"for i, _end := 0, int(${expression(repeatExpr)}); i < _end; i++ {")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"for i, _end := 0, int(${expression(countExpr)}); i < _end; i++ {")
     out.inc
     // FIXME: Go throws a fatal compile error when the `i` variable is not used (unused variables
     // can only use the blank identifier `_`, see https://go.dev/doc/effective_go#blank), so we have

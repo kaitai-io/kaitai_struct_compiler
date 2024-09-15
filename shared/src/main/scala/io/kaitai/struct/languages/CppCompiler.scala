@@ -583,8 +583,8 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    outSrc.puts(s"for (int i = 0, _end = ${expression(repeatExpr)}; i < _end; ++i) {")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    outSrc.puts(s"for (int i = 0, _end = ${expression(countExpr)}; i < _end; ++i) {")
     outSrc.inc
   }
 

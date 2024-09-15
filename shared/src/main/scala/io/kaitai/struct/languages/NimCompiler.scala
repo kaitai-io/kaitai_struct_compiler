@@ -161,8 +161,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.dec
   }
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"for i in 0 ..< int(${expression(repeatExpr)}):")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"for i in 0 ..< int(${expression(countExpr)}):")
     out.inc
   }
   override def condRepeatUntilHeader(itemType: DataType): Unit = {

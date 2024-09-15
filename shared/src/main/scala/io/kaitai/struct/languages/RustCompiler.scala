@@ -298,11 +298,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier,
-                                    io: String,
-                                    dataType: DataType,
-                                    repeatExpr: Ast.expr): Unit = {
-    out.puts(s"let _end = ${expression(repeatExpr)};")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"let _end = ${expression(countExpr)};")
     out.puts(s"for _i in 0.._end {")
     out.inc
   }

@@ -245,8 +245,8 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for (my $$i = 0, $$_end = ${expression(repeatExpr)}; $$i < $$_end; ++$$i) {")
+  override def condRepeatExprHeader(countExpr: expr): Unit = {
+    out.puts(s"for (my $$i = 0, $$_end = ${expression(countExpr)}; $$i < $$_end; ++$$i) {")
     out.inc
   }
 

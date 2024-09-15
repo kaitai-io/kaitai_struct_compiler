@@ -292,8 +292,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for (var i = 0, _end = ${expression(repeatExpr)}; i < _end; ++i)")
+  override def condRepeatExprHeader(countExpr: expr): Unit = {
+    out.puts(s"for (var i = 0, _end = ${expression(countExpr)}; i < _end; ++i)")
     out.puts("{")
     out.inc
   }

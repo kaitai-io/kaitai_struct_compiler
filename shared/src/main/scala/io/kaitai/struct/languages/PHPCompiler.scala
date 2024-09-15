@@ -289,8 +289,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     super.condRepeatEosFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"$$n = ${expression(repeatExpr)};")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"$$n = ${expression(countExpr)};")
     out.puts("for ($i = 0; $i < $n; $i++) {")
     out.inc
   }

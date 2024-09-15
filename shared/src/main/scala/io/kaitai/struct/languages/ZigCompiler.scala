@@ -319,8 +319,8 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for (0..${expression(repeatExpr)}) |i| {")
+  override def condRepeatExprHeader(countExpr: expr): Unit = {
+    out.puts(s"for (0..${expression(countExpr)}) |i| {")
     out.inc
     // NOTE: Zig would refuse to compile the code with an "error: unused capture" if the `i`
     // variable wasn't used in any way. In hand-written code, it's easy to deal with that by

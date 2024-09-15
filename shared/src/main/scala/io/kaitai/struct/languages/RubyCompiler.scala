@@ -311,8 +311,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     super.condRepeatEosFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"(${expression(repeatExpr)}).times { |i|")
+  override def condRepeatExprHeader(countExpr: expr): Unit = {
+    out.puts(s"(${expression(countExpr)}).times { |i|")
     out.inc
   }
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =

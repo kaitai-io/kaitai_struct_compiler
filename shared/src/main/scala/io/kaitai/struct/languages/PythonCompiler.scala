@@ -539,8 +539,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for i in range(${expression(repeatExpr)}):")
+  override def condRepeatExprHeader(countExpr: expr): Unit = {
+    out.puts(s"for i in range(${expression(countExpr)}):")
     out.inc
   }
 

@@ -177,8 +177,8 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"for i = 0, ${expression(repeatExpr)} - 1 do")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"for i = 0, ${expression(countExpr)} - 1 do")
     out.inc
   }
   override def condRepeatExprFooter: Unit = {
