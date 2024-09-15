@@ -323,8 +323,9 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilHeader(itemType: DataType): Unit = {
+    // "var" variables in any case have a scope of surrounding function, no need a scope to isolate them
     out.puts("var i = 0;")
-    out.puts("do {")
+    out.puts("while (true) {")
     out.inc
   }
 
@@ -335,9 +336,14 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilFooter(untilExpr: expr): Unit = {
-    out.puts("i++;")
+    out.puts(s"if (${expression(untilExpr)}) {")
+    out.inc
+    out.puts("break;")
     out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts("}")
+    out.puts("++i;")
+    out.dec
+    out.puts("}") // close while (true)
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {

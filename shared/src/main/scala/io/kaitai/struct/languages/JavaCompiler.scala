@@ -599,7 +599,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts(s"${kaitaiType2JavaType(itemType)} ${translator.doName(Identifier.ITERATOR)};")
     out.puts("int i = 0;")
-    out.puts("do {")
+    out.puts("while (true) {")
     out.inc
   }
 
@@ -614,11 +614,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilFooter(untilExpr: expr): Unit = {
-    out.puts("i++;")
-    out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts(s"if (${expression(untilExpr)}) {")
+    out.inc
+    out.puts("break;")
     out.dec
     out.puts("}")
+    out.puts("++i;")
+    out.dec
+    out.puts("}") // close while (true)
+    out.dec
+    out.puts("}") // close scope of i and _ variables
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =

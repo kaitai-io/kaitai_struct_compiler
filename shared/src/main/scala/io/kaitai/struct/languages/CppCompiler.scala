@@ -603,7 +603,7 @@ class CppCompiler(
     outSrc.inc
     outSrc.puts("int i = 0;")
     outSrc.puts(s"${kaitaiType2NativeType(itemType.asNonOwning())} ${translator.doName(Identifier.ITERATOR)};")
-    outSrc.puts("do {")
+    outSrc.puts("while (true) {")
     outSrc.inc
   }
 
@@ -633,11 +633,16 @@ class CppCompiler(
   }
 
   override def condRepeatUntilFooter(untilExpr: expr): Unit = {
-    outSrc.puts("i++;")
-    outSrc.dec
-    outSrc.puts(s"} while (!(${expression(untilExpr)}));")
+    outSrc.puts(s"if (${expression(untilExpr)}) {")
+    outSrc.inc
+    outSrc.puts("break;")
     outSrc.dec
     outSrc.puts("}")
+    outSrc.puts("++i;")
+    outSrc.dec
+    outSrc.puts("}") // close while (true)
+    outSrc.dec
+    outSrc.puts("}") // close scope of i and _ variables
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {

@@ -256,9 +256,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentRepeatEos(id, expr)
 
   override def condRepeatUntilHeader(itemType: DataType): Unit = {
-    blockScopeHeader
-    out.puts(s"my ${translator.doName("_")};")
-    out.puts("do {")
+    // Perl allows shadowing of variables, no need a scope to isolate them
+    out.puts("my $i = 0;")
+    out.puts("while (1) {")
     out.inc
   }
 
@@ -273,9 +273,10 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilFooter(untilExpr: expr): Unit = {
+    out.puts(s"last if (${expression(untilExpr)});")
+    out.puts("$i++;")
     out.dec
-    out.puts(s"} until (${expression(untilExpr)});")
-    blockScopeFooter
+    out.puts("}") // close while (1)
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =

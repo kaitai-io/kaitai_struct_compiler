@@ -309,10 +309,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilHeader(itemType: DataType): Unit = {
-    out.puts("{")
-    out.inc
+    // Rust allows shadowing of variables, no need a scope to isolate them
     out.puts("let mut _i = 0;")
-    out.puts("while {")
+    out.puts("loop {")
     out.inc
   }
 
@@ -335,13 +334,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilFooter(untilExpr: Ast.expr): Unit = {
-    out.puts("_i += 1;")
-    out.puts(s"let x = !(${expression(untilExpr)});")
-    out.puts("x")
-    out.dec
-    out.puts("} {}")
+    out.puts(s"if ${expression(untilExpr)} {")
+    out.inc
+    out.puts("break")
     out.dec
     out.puts("}")
+    out.puts("_i += 1;")
+    out.dec
+    out.puts("}") // close loop
   }
 
   def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {

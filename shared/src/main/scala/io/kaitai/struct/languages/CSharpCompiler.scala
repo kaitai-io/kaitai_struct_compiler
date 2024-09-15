@@ -308,7 +308,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts("var i = 0;")
     out.puts(s"${kaitaiType2NativeType(itemType)} ${translator.doName(Identifier.ITERATOR)};")
-    out.puts("do {")
+    out.puts("while (true) {")
     out.inc
   }
 
@@ -323,11 +323,16 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilFooter(untilExpr: expr): Unit = {
-    out.puts("i++;")
-    out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts(s"if (${expression(untilExpr)}) {")
+    out.inc
+    out.puts("break;")
     out.dec
     out.puts("}")
+    out.puts("++i;")
+    out.dec
+    out.puts("}") // close while (true)
+    out.dec
+    out.puts("}") // close scope of i and _ variables
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =

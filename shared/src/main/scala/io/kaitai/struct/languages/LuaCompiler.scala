@@ -187,6 +187,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatUntilHeader(itemType: DataType): Unit = {
+    // Lua allows shadowing of variables, no need a scope to isolate them
     out.puts("local i = 0")
     out.puts("while true do")
     out.inc
