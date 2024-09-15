@@ -341,7 +341,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(dataType: DataType): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i: usize = 0;")
@@ -355,7 +355,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"try ${privateMemberName(id)}.append(self._allocator(), $tmpName);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(untilExpr: expr): Unit = {
     out.puts(s"if (${expression(untilExpr)}) {")
     out.inc
     out.puts("break;")

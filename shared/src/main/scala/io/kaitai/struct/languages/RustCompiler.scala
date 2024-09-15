@@ -308,10 +308,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatUntilHeader(id: Identifier,
-                                     io: String,
-                                     dataType: DataType,
-                                     repeatExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(dataType: DataType): Unit = {
     out.puts("{")
     out.inc
     out.puts("let mut _i = 0;")
@@ -337,12 +334,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let ${translator.doLocalName(Identifier.ITERATOR)} = $copy_type$t.last().unwrap();")
   }
 
-  override def condRepeatUntilFooter(id: Identifier,
-                                     io: String,
-                                     dataType: DataType,
-                                     repeatExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(untilExpr: Ast.expr): Unit = {
     out.puts("_i += 1;")
-    out.puts(s"let x = !(${expression(repeatExpr)});")
+    out.puts(s"let x = !(${expression(untilExpr)});")
     out.puts("x")
     out.dec
     out.puts("} {}")

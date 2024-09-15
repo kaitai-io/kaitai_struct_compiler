@@ -303,7 +303,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatExprFooter: Unit = fileFooter(null)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(dataType: DataType): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i = 0;")
@@ -322,7 +322,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.Add($tempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(untilExpr: expr): Unit = {
     out.puts("i++;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")

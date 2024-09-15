@@ -311,7 +311,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit =
     handleAssignmentRepeatEos(id, r)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(dataType: DataType): Unit = {
     out.puts(s"for i := 1;; i++ {")
     out.inc
   }
@@ -323,7 +323,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = append(${privateMemberName(id)}, $tempVar)")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilFooter(untilExpr: Ast.expr): Unit = {
     out.puts(s"if ${expression(untilExpr)} {")
     out.inc
     out.puts("break")

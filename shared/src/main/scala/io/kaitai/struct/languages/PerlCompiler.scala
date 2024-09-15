@@ -255,7 +255,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(dataType: DataType): Unit = {
     blockScopeHeader
     out.puts(s"my ${translator.doName("_")};")
     out.puts("do {")
@@ -272,7 +272,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"push @{${privateMemberName(id)}}, $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(untilExpr: expr): Unit = {
     out.dec
     out.puts(s"} until (${expression(untilExpr)});")
     blockScopeFooter

@@ -322,7 +322,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(dataType: DataType): Unit = {
     out.puts("var i = 0;")
     out.puts("do {")
     out.inc
@@ -334,7 +334,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.push($tmpName);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilFooter(untilExpr: expr): Unit = {
     out.puts("i++;")
     out.dec
     out.puts(s"} while (!(${expression(untilExpr)}));")

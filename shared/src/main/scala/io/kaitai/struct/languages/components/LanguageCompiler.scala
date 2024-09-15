@@ -156,8 +156,8 @@ abstract class LanguageCompiler(
   def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit
   def condRepeatExprFooter: Unit
 
-  def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit
-  def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit
+  def condRepeatUntilHeader(dataType: DataType): Unit
+  def condRepeatUntilFooter(untilExpr: Ast.expr): Unit
 
   def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {}
   def condRepeatCommonFooter: Unit = {}
