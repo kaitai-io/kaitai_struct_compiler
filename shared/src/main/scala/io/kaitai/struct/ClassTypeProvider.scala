@@ -11,7 +11,16 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
   var nowClass = topClass
   val allClasses: ClassSpecs = classSpecs
 
+  /**
+    * Type of the `_` variable in the expression. That variable is defined in
+    * `repeat-until` and `valid: expr` contexts and refers to the attribute
+    * just parsed.
+    */
   var _currentIteratorType: Option[DataType] = None
+  /**
+    * Type of the `_on` variable in the expression. That variable is defined in
+    * `cases.<case>` contexts and refers to the value of `switch-on` expression.
+    */
   var _currentSwitchType: Option[DataType] = None
   def currentIteratorType: DataType = _currentIteratorType.get
   def currentSwitchType: DataType = _currentSwitchType.get
