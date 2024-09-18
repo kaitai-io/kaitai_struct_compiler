@@ -8,6 +8,8 @@ import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.JavaScriptCompiler
 
 class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+  override def doByteArrayLiteral(arr: Seq[Byte]): String =
+    s"new Uint8Array([${arr.map(_ & 0xff).mkString(", ")}])"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"new Uint8Array([${elts.map(translate).mkString(", ")}])"
 
