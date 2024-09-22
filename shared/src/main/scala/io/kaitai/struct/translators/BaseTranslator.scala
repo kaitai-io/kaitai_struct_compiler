@@ -175,7 +175,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
     doIntLiteral(CommonSizeOf.getByteSizeOfClassSpec(cs))
 
   def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): String = "[" + value.map((v) => translate(v)).mkString(", ") + "]"
-  def doByteArrayLiteral(arr: Seq[Byte]): String = "[" + arr.map(_ & 0xff).mkString(", ") + "]"
+  def doByteArrayLiteral(arr: Seq[Byte]): String
   def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String = ???
 
   def doLocalName(s: String): String = doName(s)

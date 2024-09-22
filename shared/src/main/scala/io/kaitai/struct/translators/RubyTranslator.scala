@@ -9,7 +9,7 @@ import io.kaitai.struct.languages.RubyCompiler
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   with ByteArraysAsTrueArrays[String] {
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"${super.doByteArrayLiteral(arr)}.pack('C*')"
+    s"[${arr.map(_ & 0xff).mkString(", ")}].pack('C*')"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"[${elts.map(translate).mkString(", ")}].pack('C*')"
 
