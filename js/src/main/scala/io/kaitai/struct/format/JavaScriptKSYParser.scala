@@ -29,12 +29,20 @@ object JavaScriptKSYParser {
 
   def yamlJavascriptToScala(src: Any): Any = {
     src match {
-      case array: js.Array[AnyRef] =>
+      case array: js.Array[_] =>
         array.toList.map(yamlJavascriptToScala)
-      case _: String | _: Int | _: Double | _: Boolean =>
+      // See <https://www.scala-js.org/api/scalajs-library/1.13.1/scala/scalajs/js/index.html>:
+      //
+      // > There are no explicit definitions for JavaScript primitive types, as
+      // > one could expect, because the corresponding Scala types stand in
+      // > their stead:
+      // > * (...)
+      // > * `Unit` is the type of the JavaScript undefined value
+      // > * `Null` is the type of the JavaScript null value
+      case _: Boolean | _: Double | _: String | _: Unit | null =>
         src
       case dict =>
-        dict.asInstanceOf[js.Dictionary[AnyRef]].toMap.view.mapValues(yamlJavascriptToScala).toMap
+        dict.asInstanceOf[js.Dictionary[_]].toMap.view.mapValues(yamlJavascriptToScala).toMap
     }
   }
 }
