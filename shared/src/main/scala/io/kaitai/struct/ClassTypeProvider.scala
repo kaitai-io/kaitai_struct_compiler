@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundError, TypeUndecidedError}
+import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundInHierarchyError, TypeNotFoundInTypeError, TypeUndecidedError}
 import io.kaitai.struct.translators.TypeProvider
 
 class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends TypeProvider {
@@ -148,12 +148,15 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       return inClass
 
     val headTypeName :: restTypesNames = path.toList
-    val nextClass = resolveTypeName(inClass, headTypeName)
-    if (restTypesNames.isEmpty) {
-      nextClass
-    } else {
-      resolveTypePath(nextClass, restTypesNames)
+    var nextClass = resolveTypeName(inClass, headTypeName)
+    for (name <- restTypesNames) {
+      nextClass = nextClass.types.get(name) match {
+        case Some(spec) => spec
+        case None =>
+          throw new TypeNotFoundInTypeError(name, nextClass)
+      }
     }
+    nextClass
   }
 
   def resolveTypeName(inClass: ClassSpec, typeName: String): ClassSpec = {
@@ -171,7 +174,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
             classSpecs.get(typeName) match {
               case Some(spec) => spec
               case None =>
-                throw new TypeNotFoundError(typeName, nowClass)
+                throw new TypeNotFoundInHierarchyError(typeName, nowClass)
             }
         }
     }

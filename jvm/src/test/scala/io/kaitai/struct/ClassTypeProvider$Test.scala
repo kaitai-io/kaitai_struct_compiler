@@ -50,14 +50,17 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(root, "one")
+        thrown.getMessage should be("unable to find type 'one', searching from 'root'")
       }
 
       it("doesn't resolve 'two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(root, "two")
+        thrown.getMessage should be("unable to find type 'two', searching from 'root'")
       }
 
       it("doesn't resolve 'unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(root, "unknown")
+        thrown.getMessage should be("unable to find type 'unknown', searching from 'root'")
       }
     }
 
@@ -79,6 +82,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(child_1, "unknown")
+        thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1'")
       }
     }
 
@@ -100,6 +104,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(child_2, "unknown")
+        thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_2'")
       }
     }
 
@@ -121,6 +126,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(child_11, "unknown")
+        thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1::one'")
       }
     }
 
@@ -142,6 +148,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(child_12, "unknown")
+        thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1::two'")
       }
     }
 
@@ -163,6 +170,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(child_21, "unknown")
+        thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_2::one'")
       }
     }
 
@@ -184,6 +192,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(child_22, "unknown")
+        thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_2::two'")
       }
     }
 
@@ -205,6 +214,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(child_121, "unknown")
+        thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1::two::one'")
       }
     }
 
@@ -226,6 +236,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypeName(child_122, "unknown")
+        thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1::two::two'")
       }
     }
   }
@@ -244,26 +255,32 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(root, Seq("one"))
+        thrown.getMessage should be("unable to find type 'one', searching from 'root'")
       }
 
       it("doesn't resolve 'one::two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(root, Seq("one", "two"))
+        thrown.getMessage should be("unable to find type 'one', searching from 'root'")
       }
 
       it("doesn't resolve 'one::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(root, Seq("one", "unknown"))
+        thrown.getMessage should be("unable to find type 'one', searching from 'root'")
       }
 
       it("doesn't resolve 'two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(root, Seq("two"))
+        thrown.getMessage should be("unable to find type 'two', searching from 'root'")
       }
 
       it("doesn't resolve 'two::one'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(root, Seq("two", "one"))
+        thrown.getMessage should be("unable to find type 'two', searching from 'root'")
       }
 
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(root, Seq("two", "unknown"))
+        thrown.getMessage should be("unable to find type 'two', searching from 'root'")
       }
     }
 
@@ -285,10 +302,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one::two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_1, Seq("one", "two"))
+        thrown.getMessage should be("unable to find type 'two' in 'root::child_1::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_1, Seq("one", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::one'")
       }
 
       it("resolves 'two'") {
@@ -301,6 +320,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_1, Seq("two", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::two'")
       }
     }
 
@@ -322,10 +342,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one::two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_2, Seq("one", "two"))
+        thrown.getMessage should be("unable to find type 'two' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_2, Seq("one", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_2::one'")
       }
 
       it("resolves 'two'") {
@@ -334,10 +356,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'two::one'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_2, Seq("two", "one"))
+        thrown.getMessage should be("unable to find type 'one' in 'root::child_2::two'")
       }
 
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_2, Seq("two", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_2::two'")
       }
     }
 
@@ -359,10 +383,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one::two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_11, Seq("one", "two"))
+        thrown.getMessage should be("unable to find type 'two' in 'root::child_1::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_11, Seq("one", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::one'")
       }
 
       it("resolves 'two'") {
@@ -375,6 +401,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_11, Seq("two", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::two'")
       }
     }
 
@@ -396,10 +423,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one::two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_12, Seq("one", "two"))
+        thrown.getMessage should be("unable to find type 'two' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_12, Seq("one", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::two::one'")
       }
 
       it("resolves 'two'") {
@@ -412,6 +441,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_12, Seq("two", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::two'")
       }
     }
 
@@ -433,10 +463,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one::two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_21, Seq("one", "two"))
+        thrown.getMessage should be("unable to find type 'two' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_21, Seq("one", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_2::one'")
       }
 
       it("resolves 'two'") {
@@ -445,10 +477,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'two::one'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_21, Seq("two", "one"))
+        thrown.getMessage should be("unable to find type 'one' in 'root::child_2::two'")
       }
 
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_21, Seq("two", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_2::two'")
       }
     }
 
@@ -470,10 +504,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one::two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_22, Seq("one", "two"))
+        thrown.getMessage should be("unable to find type 'two' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_22, Seq("one", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_2::one'")
       }
 
       it("resolves 'two'") {
@@ -482,10 +518,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'two::one'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_22, Seq("two", "one"))
+        thrown.getMessage should be("unable to find type 'one' in 'root::child_2::two'")
       }
 
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_22, Seq("two", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_2::two'")
       }
     }
 
@@ -507,10 +545,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one::two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_121, Seq("one", "two"))
+        thrown.getMessage should be("unable to find type 'two' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_121, Seq("one", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::two::one'")
       }
 
       it("resolves 'two'") {
@@ -523,6 +563,7 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_121, Seq("two", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::two'")
       }
     }
 
@@ -544,10 +585,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'one::two'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_122, Seq("one", "two"))
+        thrown.getMessage should be("unable to find type 'two' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_122, Seq("one", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::two::one'")
       }
 
       it("resolves 'two'") {
@@ -556,10 +599,12 @@ class ClassTypeProvider$Test extends AnyFunSpec {
 
       it("doesn't resolve 'two::one'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_122, Seq("two", "one"))
+        thrown.getMessage should be("unable to find type 'one' in 'root::child_1::two::two'")
       }
 
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_122, Seq("two", "unknown"))
+        thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::two::two'")
       }
     }
   }
