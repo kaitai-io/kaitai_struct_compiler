@@ -1,6 +1,7 @@
 package io.kaitai.struct
 
 import java.util.NoSuchElementException
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
 import io.kaitai.struct.formats.{JavaClassSpecs, JavaKSYParser}
 import io.kaitai.struct.precompile.{EnumNotFoundError, MarkupClassNames, TypeNotFoundError}
@@ -11,15 +12,23 @@ class ClassTypeProvider$Test extends AnyFunSpec {
   val root = ClassSpec.fromYaml(JavaKSYParser.stringToYaml("""
     meta:
       id: root
+    enums:
+      e: {} # e_root
     types:
       child_1:
         types:
-          one: {} # child_11
-          two:    # child_12
+          one: # child_11
+            enums:
+              e: {} # e_11
+          two: # child_12
+            enums:
+              e: {} # e_12
             types:
               one: {} # child_121
               two: {} # child_122
       child_2:
+        enums:
+          e: {} # e_2
         types:
           one: {} # child_21
           two: {} # child_22
@@ -605,6 +614,242 @@ class ClassTypeProvider$Test extends AnyFunSpec {
       it("doesn't resolve 'two::unknown'") {
         val thrown = the[TypeNotFoundError] thrownBy resolver.resolveTypePath(child_122, Seq("two", "unknown"))
         thrown.getMessage should be("unable to find type 'unknown' in 'root::child_1::two::two'")
+      }
+    }
+  }
+
+  describe("resolveEnum") {
+    val e_root = root.enums.get("e").getOrElse(throw new NoSuchElementException("'e_root' not found"))
+    val e_11 = child_11.enums.get("e").getOrElse(throw new NoSuchElementException("'e_11' not found"))
+    val e_12 = child_12.enums.get("e").getOrElse(throw new NoSuchElementException("'e_12' not found"))
+    val e_2 = child_2.enums.get("e").getOrElse(throw new NoSuchElementException("'e_2' not found"))
+
+    val none    = Ast.typeId(false, Seq())
+    val one     = Ast.typeId(false, Seq("one"))
+    val one_two = Ast.typeId(false, Seq("one", "two"))
+    val unknown = Ast.typeId(false, Seq("unknown"))
+
+    describe("in 'root' context") {
+      val resolver = new ClassTypeProvider(specs, root)
+
+      it("resolves 'e'") {
+        resolver.resolveEnum(none, "e") should be(e_root)
+      }
+
+      it("doesn't resolve 'one::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+      }
+
+      it("doesn't resolve 'one::two::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+      }
+
+      it("doesn't resolve 'one::unknown'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+      }
+
+      it("doesn't resolve 'unknown::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+      }
+    }
+
+    describe("in 'child_1' context") {
+      val resolver = new ClassTypeProvider(specs, root)
+      resolver.nowClass = child_1
+
+      it("resolves 'e'") {
+        resolver.resolveEnum(none, "e") should be(e_root)
+      }
+
+      it("resolves 'one::e'") {
+        resolver.resolveEnum(one, "e") should be(e_11)
+      }
+
+      it("doesn't resolve 'one::two::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+      }
+
+      it("doesn't resolve 'one::unknown'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+      }
+
+      it("doesn't resolve 'unknown::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+      }
+    }
+
+    describe("in 'child_2' context") {
+      val resolver = new ClassTypeProvider(specs, root)
+      resolver.nowClass = child_2
+
+      it("resolves 'e'") {
+        resolver.resolveEnum(none, "e") should be(e_2)
+      }
+
+      it("doesn't resolve 'one::e'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+      }
+
+      it("doesn't resolve 'one::two::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+      }
+
+      it("doesn't resolve 'one::unknown'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+      }
+
+      it("doesn't resolve 'unknown::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+      }
+    }
+
+    describe("in 'child_11' context") {
+      val resolver = new ClassTypeProvider(specs, root)
+      resolver.nowClass = child_11
+
+      it("resolves 'e'") {
+        resolver.resolveEnum(none, "e") should be(e_11)
+      }
+
+      it("resolves 'one::e'") {
+        resolver.resolveEnum(one, "e") should be(e_11)
+      }
+
+      it("doesn't resolve 'one::two::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+      }
+
+      it("doesn't resolve 'one::unknown'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+      }
+
+      it("doesn't resolve 'unknown::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+      }
+    }
+
+    describe("in 'child_12' context") {
+      val resolver = new ClassTypeProvider(specs, root)
+      resolver.nowClass = child_12
+
+      it("resolves 'e'") {
+        resolver.resolveEnum(none, "e") should be(e_12)
+      }
+
+      it("doesn't resolve 'one::e'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+      }
+
+      it("doesn't resolve 'one::two::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+      }
+
+      it("doesn't resolve 'one::unknown'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+      }
+
+      it("doesn't resolve 'unknown::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+      }
+    }
+
+    describe("in 'child_21' context") {
+      val resolver = new ClassTypeProvider(specs, root)
+      resolver.nowClass = child_21
+
+      it("resolves 'e'") {
+        resolver.resolveEnum(none, "e") should be(e_2)
+      }
+
+      it("doesn't resolve 'one::e'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+      }
+
+      it("doesn't resolve 'one::two::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+      }
+
+      it("doesn't resolve 'one::unknown'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+      }
+
+      it("doesn't resolve 'unknown::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+      }
+    }
+
+    describe("in 'child_22' context") {
+      val resolver = new ClassTypeProvider(specs, root)
+      resolver.nowClass = child_22
+
+      it("resolves 'e'") {
+        resolver.resolveEnum(none, "e") should be(e_2)
+      }
+
+      it("doesn't resolve 'one::e'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+      }
+
+      it("doesn't resolve 'one::two::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+      }
+
+      it("doesn't resolve 'one::unknown'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+      }
+
+      it("doesn't resolve 'unknown::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+      }
+    }
+
+    describe("in 'child_121' context") {
+      val resolver = new ClassTypeProvider(specs, root)
+      resolver.nowClass = child_121
+
+      it("resolves 'e'") {
+        resolver.resolveEnum(none, "e") should be(e_12)
+      }
+
+      it("doesn't resolve 'one::e'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+      }
+
+      it("doesn't resolve 'one::two::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+      }
+
+      it("doesn't resolve 'one::unknown'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+      }
+
+      it("doesn't resolve 'unknown::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+      }
+    }
+
+    describe("in 'child_122' context") {
+      val resolver = new ClassTypeProvider(specs, root)
+      resolver.nowClass = child_122
+
+      it("resolves 'e'") {
+        resolver.resolveEnum(none, "e") should be(e_12)
+      }
+
+      it("doesn't resolve 'one::e'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+      }
+
+      it("doesn't resolve 'one::two::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+      }
+
+      it("doesn't resolve 'one::unknown'") {
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+      }
+
+      it("doesn't resolve 'unknown::e'") {
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
       }
     }
   }
