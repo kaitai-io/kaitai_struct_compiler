@@ -118,16 +118,16 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
   }
 
   override def resolveEnum(inType: Ast.typeId, enumName: String): EnumSpec =
-    resolveEnum(resolveClassSpec(inType), enumName)
+    resolveEnumName(resolveClassSpec(inType), enumName)
 
-  def resolveEnum(inClass: ClassSpec, enumName: String): EnumSpec = {
+  private def resolveEnumName(inClass: ClassSpec, enumName: String): EnumSpec = {
     inClass.enums.get(enumName) match {
       case Some(spec) =>
         spec
       case None =>
         // let's try upper levels of hierarchy
         inClass.upClass match {
-          case Some(upClass) => resolveEnum(upClass, enumName)
+          case Some(upClass) => resolveEnumName(upClass, enumName)
           case None =>
             throw new EnumNotFoundError(enumName, nowClass)
         }
@@ -137,26 +137,26 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
   override def resolveType(typeName: Ast.typeId): DataType =
     resolveClassSpec(typeName).toDataType
 
-  def resolveClassSpec(typeName: Ast.typeId): ClassSpec =
-    resolveClassSpec(
+  private def resolveClassSpec(typeName: Ast.typeId): ClassSpec =
+    resolveTypePath(
       if (typeName.absolute) topClass else nowClass,
       typeName.names
     )
 
-  def resolveClassSpec(inClass: ClassSpec, typeName: Seq[String]): ClassSpec = {
-    if (typeName.isEmpty)
+  def resolveTypePath(inClass: ClassSpec, path: Seq[String]): ClassSpec = {
+    if (path.isEmpty)
       return inClass
 
-    val headTypeName :: restTypesNames = typeName.toList
-    val nextClass = resolveClassSpec(inClass, headTypeName)
+    val headTypeName :: restTypesNames = path.toList
+    val nextClass = resolveTypeName(inClass, headTypeName)
     if (restTypesNames.isEmpty) {
       nextClass
     } else {
-      resolveClassSpec(nextClass, restTypesNames)
+      resolveTypePath(nextClass, restTypesNames)
     }
   }
 
-  def resolveClassSpec(inClass: ClassSpec, typeName: String): ClassSpec = {
+  def resolveTypeName(inClass: ClassSpec, typeName: String): ClassSpec = {
     if (inClass.name.last == typeName)
       return inClass
 
@@ -166,7 +166,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       case None =>
         // let's try upper levels of hierarchy
         inClass.upClass match {
-          case Some(upClass) => resolveClassSpec(upClass, typeName)
+          case Some(upClass) => resolveTypeName(upClass, typeName)
           case None =>
             classSpecs.get(typeName) match {
               case Some(spec) => spec
