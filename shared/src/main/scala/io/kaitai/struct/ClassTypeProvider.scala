@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundInHierarchyError, TypeNotFoundInTypeError, TypeUndecidedError}
+import io.kaitai.struct.precompile.{EnumNotFoundInHierarchyError, EnumNotFoundInTypeError, FieldNotFoundError, TypeNotFoundInHierarchyError, TypeNotFoundInTypeError, TypeUndecidedError}
 import io.kaitai.struct.translators.TypeProvider
 
 class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends TypeProvider {
@@ -117,8 +117,21 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     throw new FieldNotFoundError(attrName, inClass)
   }
 
-  override def resolveEnum(inType: Ast.typeId, enumName: String): EnumSpec =
-    resolveEnumName(resolveClassSpec(inType), enumName)
+  override def resolveEnum(inType: Ast.typeId, enumName: String): EnumSpec = {
+    val inClass = if (inType.absolute) topClass else nowClass
+    // When concrete type is not defined, search enum definition in all enclosing types
+    if (inType.names.isEmpty) {
+      resolveEnumName(inClass, enumName)
+    } else {
+      val ty = resolveTypePath(inClass, inType.names)
+      ty.enums.get(enumName) match {
+        case Some(spec) =>
+          spec
+        case None =>
+          throw new EnumNotFoundInTypeError(enumName, ty)
+      }
+    }
+  }
 
   private def resolveEnumName(inClass: ClassSpec, enumName: String): EnumSpec = {
     inClass.enums.get(enumName) match {
@@ -129,7 +142,7 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
         inClass.upClass match {
           case Some(upClass) => resolveEnumName(upClass, enumName)
           case None =>
-            throw new EnumNotFoundError(enumName, nowClass)
+            throw new EnumNotFoundInHierarchyError(enumName, nowClass)
         }
     }
   }
