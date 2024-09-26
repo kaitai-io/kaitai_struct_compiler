@@ -22,8 +22,13 @@ class TypeNotFoundInTypeError(val name: String, val curClass: ClassSpec)
   extends TypeNotFoundError(s"unable to find type '$name' in '${curClass.nameAsStr}'")
 class FieldNotFoundError(val name: String, val curClass: ClassSpec)
   extends NotFoundError(s"unable to access '$name' in '${curClass.nameAsStr}' context")
-class EnumNotFoundError(val name: String, val curClass: ClassSpec)
-  extends NotFoundError(s"unable to find enum '$name', searching from '${curClass.nameAsStr}'")
+
+sealed abstract class EnumNotFoundError(msg: String) extends NotFoundError(msg)
+class EnumNotFoundInHierarchyError(val name: String, val curClass: ClassSpec)
+  extends EnumNotFoundError(s"unable to find enum '$name', searching from '${curClass.nameAsStr}'")
+class EnumNotFoundInTypeError(val name: String, val curClass: ClassSpec)
+  extends EnumNotFoundError(s"unable to find enum '$name' in '${curClass.nameAsStr}'")
+
 class EnumMemberNotFoundError(val label: String, val enumName: String, val enumDefPath: String)
   extends NotFoundError(s"unable to find enum member '$enumName::$label' (enum '$enumName' defined at /$enumDefPath)")
 
