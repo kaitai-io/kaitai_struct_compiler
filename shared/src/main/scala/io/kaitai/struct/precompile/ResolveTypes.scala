@@ -1,8 +1,9 @@
 package io.kaitai.struct.precompile
 
-import io.kaitai.struct.Log
+import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType.{ArrayType, EnumType, SwitchType, UserType}
+import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.problems._
 
@@ -50,11 +51,27 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
         ut.classSpec = resClassSpec
         problems
       case et: EnumType =>
-        et.enumSpec = resolveEnumSpec(curClass, et.name)
-        if (et.enumSpec.isEmpty) {
-          Some(EnumNotFoundErr(et.name, curClass, path ++ List("enum")))
-        } else {
-          None
+        et.name match {
+          case typePath :+ name =>
+            try {
+              val resolver = new ClassTypeProvider(specs, curClass)
+              val ty = resolver.resolveEnum(Ast.typeId(false, typePath), name)
+              Log.enumResolve.info(() => s"    => ${ty.nameAsStr}")
+              et.enumSpec = Some(ty)
+              None
+            } catch {
+              case ex: TypeNotFoundError =>
+                Log.typeResolve.info(() => s"    => ??? (while resolving enum '${et.name}'): $ex")
+                Log.enumResolve.info(() => s"    => ??? (enclosing type not found, enum '${et.name}'): $ex")
+                Some(TypeNotFoundErr(typePath, curClass, path :+ "enum"))
+              case ex: EnumNotFoundError =>
+                Log.enumResolve.info(() => s"    => ??? (enum '${et.name}'): $ex")
+                Some(EnumNotFoundErr(et.name, curClass, path :+ "enum"))
+            }
+          case _ =>
+            Log.enumResolve.info(() => s"    => ??? (enum '${et.name}' without name)")
+            // TODO: Maybe more specific error about empty name?
+            Some(EnumNotFoundErr(et.name, curClass, path :+ "enum"))
         }
       case st: SwitchType =>
         st.cases.flatMap { case (caseName, ut) =>
@@ -129,66 +146,6 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
                   resolvedTop
                 } else {
                   realResolveUserType(classSpec, restNames, path)
-                }
-              }
-            }
-        }
-    }
-  }
-
-  private def resolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
-    Log.enumResolve.info(() => s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
-
-    val res = realResolveEnumSpec(curClass, typeName)
-    res match {
-      case None => {
-        Log.enumResolve.info(() => s"    => ???")
-        res
-      }
-      case Some(x) => {
-        Log.enumResolve.info(() => s"    => ${x.nameAsStr}")
-        res
-      }
-    }
-  }
-
-  private def realResolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
-    // First, try to do it in current class
-
-    // If we're seeking composite name, we only have to resolve the very first
-    // part of it at this stage
-    val firstName :: restNames = typeName
-
-    val resolvedHere = if (restNames.isEmpty) {
-      curClass.enums.get(firstName)
-    } else {
-      curClass.types.get(firstName).flatMap((nestedClass) =>
-        resolveEnumSpec(nestedClass, restNames)
-      )
-    }
-
-    resolvedHere match {
-      case Some(_) => resolvedHere
-      case None =>
-        // No luck resolving here, let's try upper levels, if they exist
-        curClass.upClass match {
-          case Some(upClass) =>
-            resolveEnumSpec(upClass, typeName)
-          case None =>
-            // Check this class if it's top-level class
-            if (curClass.name.head == firstName) {
-              resolveEnumSpec(curClass, restNames)
-            } else {
-              // Check if top-level specs has this name
-              // If there's None => no luck at all
-              val resolvedTop = specs.get(firstName)
-              resolvedTop match {
-                case None => None
-                case Some(classSpec) => if (restNames.isEmpty) {
-                  // resolved everything, but this points to a type name, not enum name
-                  None
-                } else {
-                  resolveEnumSpec(classSpec, restNames)
                 }
               }
             }
