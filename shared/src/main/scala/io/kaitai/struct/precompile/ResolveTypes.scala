@@ -47,9 +47,26 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
   private def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Iterable[CompilationProblem] = {
     dataType match {
       case ut: UserType =>
-        val (resClassSpec, problems) = resolveUserType(curClass, ut.name, path ++ List("type"))
-        ut.classSpec = resClassSpec
-        problems
+        try {
+          val resolver = new ClassTypeProvider(specs, curClass)
+          val ty = resolver.resolveTypePath(curClass, ut.name)
+          Log.typeResolve.info(() => s"    => ${ty.nameAsStr}")
+          ut.classSpec = Some(ty)
+          None
+        } catch {
+          case _: TypeNotFoundError =>
+            // Type definition not found
+            if (opaqueTypes) {
+              // Generate special "opaque placeholder" ClassSpec
+              Log.typeResolve.info(() => "    => ??? (generating opaque type)")
+              ut.classSpec = Some(ClassSpec.opaquePlaceholder(ut.name))
+              None
+            } else {
+              // Opaque types are disabled => that is an error
+              Log.typeResolve.info(() => "    => ??? (opaque type are disabled => error)")
+              Some(TypeNotFoundErr(ut.name, curClass, path :+ "type"))
+            }
+        }
       case et: EnumType =>
         et.name match {
           case typePath :+ name =>
@@ -82,27 +99,6 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
       case _ =>
         // not a user type, nothing to resolve
         None
-    }
-  }
-
-  private def resolveUserType(curClass: ClassSpec, typeName: List[String], path: List[String]): (Option[ClassSpec], Option[CompilationProblem]) = {
-    try {
-      val resolver = new ClassTypeProvider(specs, curClass)
-      val ty = resolver.resolveTypePath(curClass, typeName)
-      Log.typeResolve.info(() => s"    => ${ty.nameAsStr}")
-      (Some(ty), None)
-    } catch {
-      case _: TypeNotFoundError =>
-        // Type definition not found
-        if (opaqueTypes) {
-          // Generate special "opaque placeholder" ClassSpec
-          Log.typeResolve.info(() => "    => ??? (generating opaque type)")
-          (Some(ClassSpec.opaquePlaceholder(typeName)), None)
-        } else {
-          // Opaque types are disabled => that is an error
-          Log.typeResolve.info(() => "    => ??? (opaque type are disabled => error)")
-          (None, Some(TypeNotFoundErr(typeName, curClass, path)))
-        }
     }
   }
 }
