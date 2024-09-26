@@ -19,7 +19,7 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
     * ClassSpec.
     * @param curClass class to start from, might be top-level class
     */
-  def resolveUserTypes(curClass: ClassSpec): Iterable[CompilationProblem] = {
+  private def resolveUserTypes(curClass: ClassSpec): Iterable[CompilationProblem] = {
     val seqProblems: Iterable[CompilationProblem] =
       curClass.seq.flatMap((attr) => resolveUserTypeForMember(curClass, attr))
 
@@ -40,10 +40,10 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
     seqProblems ++ instancesProblems ++ paramsProblems
   }
 
-  def resolveUserTypeForMember(curClass: ClassSpec, attr: MemberSpec): Iterable[CompilationProblem] =
+  private def resolveUserTypeForMember(curClass: ClassSpec, attr: MemberSpec): Iterable[CompilationProblem] =
     resolveUserType(curClass, attr.dataType, attr.path)
 
-  def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Iterable[CompilationProblem] = {
+  private def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Iterable[CompilationProblem] = {
     dataType match {
       case ut: UserType =>
         val (resClassSpec, problems) = resolveUserType(curClass, ut.name, path ++ List("type"))
@@ -68,7 +68,7 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
     }
   }
 
-  def resolveUserType(curClass: ClassSpec, typeName: List[String], path: List[String]): (Option[ClassSpec], Option[CompilationProblem]) = {
+  private def resolveUserType(curClass: ClassSpec, typeName: List[String], path: List[String]): (Option[ClassSpec], Option[CompilationProblem]) = {
     val res = realResolveUserType(curClass, typeName, path)
 
     res match {
@@ -136,7 +136,7 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
     }
   }
 
-  def resolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
+  private def resolveEnumSpec(curClass: ClassSpec, typeName: List[String]): Option[EnumSpec] = {
     Log.enumResolve.info(() => s"resolveEnumSpec: at ${curClass.name} doing ${typeName.mkString("|")}")
 
     val res = realResolveEnumSpec(curClass, typeName)
