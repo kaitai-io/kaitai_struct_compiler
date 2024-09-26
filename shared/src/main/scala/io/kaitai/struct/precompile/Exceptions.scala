@@ -16,11 +16,11 @@ class WrongMethodCall(val dataType: MethodArgType, val methodName: String, val e
 
 sealed abstract class NotFoundError(msg: String) extends ExpressionError(msg)
 class TypeNotFoundError(val name: String, val curClass: ClassSpec)
-  extends NotFoundError(s"unable to find type '$name', searching from ${curClass.nameAsStr}")
+  extends NotFoundError(s"unable to find type '$name', searching from '${curClass.nameAsStr}'")
 class FieldNotFoundError(val name: String, val curClass: ClassSpec)
-  extends NotFoundError(s"unable to access '$name' in ${curClass.nameAsStr} context")
+  extends NotFoundError(s"unable to access '$name' in '${curClass.nameAsStr}' context")
 class EnumNotFoundError(val name: String, val curClass: ClassSpec)
-  extends NotFoundError(s"unable to find enum '$name', searching from ${curClass.nameAsStr}")
+  extends NotFoundError(s"unable to find enum '$name', searching from '${curClass.nameAsStr}'")
 class EnumMemberNotFoundError(val label: String, val enumName: String, val enumDefPath: String)
   extends NotFoundError(s"unable to find enum member '$enumName::$label' (enum '$enumName' defined at /$enumDefPath)")
 
