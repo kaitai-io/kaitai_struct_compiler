@@ -86,16 +86,13 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
   }
 
   private def resolveUserType(curClass: ClassSpec, typeName: List[String], path: List[String]): (Option[ClassSpec], Option[CompilationProblem]) = {
-    val res = try {
+    try {
       val resolver = new ClassTypeProvider(specs, curClass)
-      Some(resolver.resolveTypePath(curClass, typeName))
+      val ty = resolver.resolveTypePath(curClass, typeName)
+      Log.typeResolve.info(() => s"    => ${ty.nameAsStr}")
+      (Some(ty), None)
     } catch {
       case _: TypeNotFoundError =>
-        None
-    }
-
-    res match {
-      case None =>
         // Type definition not found
         if (opaqueTypes) {
           // Generate special "opaque placeholder" ClassSpec
@@ -106,9 +103,6 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
           Log.typeResolve.info(() => "    => ??? (opaque type are disabled => error)")
           (None, Some(TypeNotFoundErr(typeName, curClass, path)))
         }
-      case Some(x) =>
-        Log.typeResolve.info(() => s"    => ${x.nameAsStr}")
-        (res, None)
     }
   }
 }
