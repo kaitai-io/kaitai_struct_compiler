@@ -148,13 +148,10 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
   }
 
   override def resolveType(typeName: Ast.typeId): DataType =
-    resolveClassSpec(typeName).toDataType
-
-  private def resolveClassSpec(typeName: Ast.typeId): ClassSpec =
     resolveTypePath(
       if (typeName.absolute) topClass else nowClass,
       typeName.names
-    )
+    ).toDataType
 
   def resolveTypePath(inClass: ClassSpec, path: Seq[String]): ClassSpec = {
     if (path.isEmpty)
