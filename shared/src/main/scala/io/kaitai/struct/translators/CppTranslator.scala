@@ -124,8 +124,9 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     if (config.cppConfig.useListInitializers) {
       "std::string({" + values.map(value => s"static_cast<char>(${translate(value)})").mkString(", ") + "})"
     } else {
-      // TODO: We need to produce an expression, but this is possible only with initializer lists
-      // or variadic templates (if use a helper function) which both available only since C++11
+      // TODO: We need to produce an expression, but this is only possible using
+      // initializer lists or variadic templates (if we use a helper function),
+      // both of which are only available since C++11
       throw new RuntimeException("non-literal byte arrays are not yet implemented for C++98 (pass `--cpp-standard 11` to target C++11)")
     }
   }
