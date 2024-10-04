@@ -484,7 +484,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
   ): LanguageCompiler = ???
 
   def type2class(name: List[String]) = name.last
-  def type2display(name: List[String]) = name.map(Utils.upperCamelCase).mkString("::")
+  def type2display(name: Seq[String]) = name.map(Utils.upperCamelCase).mkString("::")
 
   def dataTypeName(dataType: DataType, valid: Option[ValidationSpec]): String = {
     dataType match {
@@ -508,7 +508,7 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
         val comma = if (bytesStr.isEmpty) "" else ", "
         s"str($bytesStr$comma$encoding)"
       case EnumType(name, basedOn) =>
-        s"${dataTypeName(basedOn, valid)}→${type2display(name)}"
+        s"${dataTypeName(basedOn, valid)}→${type2display(name.fullName)}"
       case BitsType(width, bitEndian) => s"b$width${bitEndian.toSuffix}"
       case BitsType1(bitEndian) => s"b1${bitEndian.toSuffix}→bool"
       case _ => dataType.toString
