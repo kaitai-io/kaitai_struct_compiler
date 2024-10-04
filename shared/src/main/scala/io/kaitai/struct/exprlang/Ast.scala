@@ -76,8 +76,10 @@ object Ast {
     case class FloatNum(n: BigDecimal) extends expr
     case class Str(s: String) extends expr
     case class Bool(n: Boolean) extends expr
-    case class EnumByLabel(enumName: identifier, label: identifier, inType: typeId = EmptyTypeId) extends expr
-    case class EnumById(enumName: identifier, id: expr, inType: typeId = EmptyTypeId) extends expr
+    /** Take named enumeration constant from the specified enumeration. */
+    case class EnumByLabel(ref: EnumRef, label: identifier) extends expr
+    /** Cast specified expression to the enumerated type. Used only by value instances with `enum` key. */
+    case class EnumById(ref: EnumRef, expr: expr) extends expr
 
     case class Attribute(value: expr, attr: identifier) extends expr
     case class CastToType(value: expr, typeName: typeId) extends expr
