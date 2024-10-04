@@ -72,18 +72,18 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
         try {
           val resolver = new ClassTypeProvider(specs, topClass)
           resolver.nowClass = curClass;
-          val ty = resolver.resolveEnum(Ast.typeId(false, et.owner), et.name)
-          Log.enumResolve.info(() => s"    ${et.owner :+ et.name} => ${ty.nameAsStr}")
+          val ty = resolver.resolveEnum(Ast.typeId(et.ref.absolute, et.ref.typePath), et.ref.name)
+          Log.enumResolve.info(() => s"    ${et.ref.asStr} => ${ty.nameAsStr}")
           et.enumSpec = Some(ty)
           None
         } catch {
           case ex: TypeNotFoundError =>
-            Log.typeResolve.info(() => s"    ${et.owner} => ??? (while resolving enum '${et.name}'): $ex")
-            Log.enumResolve.info(() => s"    ${et.owner :+ et.name} => ??? (enclosing type not found): $ex")
-            Some(TypeNotFoundErr(et.owner, curClass, path :+ "enum"))
+            Log.typeResolve.info(() => s"    ${et.ref.enclosingTypeRef.nameAsStr} => ??? (while resolving enum '${et.ref.name}'): $ex")
+            Log.enumResolve.info(() => s"    ${et.ref.asStr} => ??? (enclosing type not found): $ex")
+            Some(TypeNotFoundErr(et.ref.typePath, curClass, path :+ "enum"))
           case ex: EnumNotFoundError =>
-            Log.enumResolve.info(() => s"    ${et.owner :+ et.name} => ???: $ex")
-            Some(EnumNotFoundErr(et.owner :+ et.name, curClass, path :+ "enum"))
+            Log.enumResolve.info(() => s"    ${et.ref.asStr} => ???: $ex")
+            Some(EnumNotFoundErr(et.ref, curClass, path :+ "enum"))
         }
       case st: SwitchType =>
         st.cases.flatMap { case (caseName, ut) =>
