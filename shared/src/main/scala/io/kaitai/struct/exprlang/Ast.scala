@@ -143,5 +143,18 @@ object Ast {
     case object GtE extends cmpop
   }
 
+  /**
+    * Reference to an enum in scope. Scope is defined by the `absolute` flag and
+    * a path to a type (which can be empty) in which enum is defined.
+    */
+  case class EnumRef(absolute: Boolean, typePath: Seq[String], name: String) {
+    /** @return Type path and name of enum in one list. */
+    def fullName: Seq[String] = typePath :+ name
+    /**
+      * @return Enum designation name as human-readable string, to be used in compiler
+      *         error messages.
+      */
+    def asStr: String = fullName.mkString(if (absolute) "::" else "", "::", "")
+  }
   case class TypeWithArguments(typeName: typeId, arguments: expr.List)
 }
