@@ -117,18 +117,18 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     throw new FieldNotFoundError(attrName, inClass)
   }
 
-  override def resolveEnum(inType: Ast.typeId, enumName: String): EnumSpec = {
-    val inClass = if (inType.absolute) topClass else nowClass
+  override def resolveEnum(ref: Ast.EnumRef): EnumSpec = {
+    val inClass = if (ref.absolute) topClass else nowClass
     // When concrete type is not defined, search enum definition in all enclosing types
-    if (inType.names.isEmpty) {
-      resolveEnumName(inClass, enumName)
+    if (ref.typePath.isEmpty) {
+      resolveEnumName(inClass, ref.name)
     } else {
-      val ty = resolveTypePath(inClass, inType.names)
-      ty.enums.get(enumName) match {
+      val ty = resolveTypePath(inClass, ref.typePath)
+      ty.enums.get(ref.name) match {
         case Some(spec) =>
           spec
         case None =>
-          throw new EnumNotFoundInTypeError(enumName, ty)
+          throw new EnumNotFoundInTypeError(ref.name, ty)
       }
     }
   }

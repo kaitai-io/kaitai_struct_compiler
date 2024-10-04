@@ -624,35 +624,36 @@ class ClassTypeProvider$Test extends AnyFunSpec {
     val e_12 = child_12.enums.get("e").getOrElse(throw new NoSuchElementException("'e_12' not found"))
     val e_2 = child_2.enums.get("e").getOrElse(throw new NoSuchElementException("'e_2' not found"))
 
-    val none    = Ast.typeId(false, Seq())
-    val one     = Ast.typeId(false, Seq("one"))
-    val one_two = Ast.typeId(false, Seq("one", "two"))
-    val unknown = Ast.typeId(false, Seq("unknown"))
+    val none    = Ast.EnumRef(false, Seq(), "e")
+    val one_e   = Ast.EnumRef(false, Seq("one"), "e")
+    val one_unk = Ast.EnumRef(false, Seq("one"), "unknown")
+    val one_two = Ast.EnumRef(false, Seq("one", "two"), "e")
+    val unknown = Ast.EnumRef(false, Seq("unknown"), "e")
 
     describe("in 'root' context") {
       val resolver = new ClassTypeProvider(specs, root)
 
       it("resolves 'e'") {
-        resolver.resolveEnum(none, "e") should be(e_root)
+        resolver.resolveEnum(none) should be(e_root)
       }
 
       it("doesn't resolve 'one::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_e)
         thrown.getMessage should be("unable to find type 'one', searching from 'root'")
       }
 
       it("doesn't resolve 'one::two::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two)
         thrown.getMessage should be("unable to find type 'one', searching from 'root'")
       }
 
       it("doesn't resolve 'one::unknown'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_unk)
         thrown.getMessage should be("unable to find type 'one', searching from 'root'")
       }
 
       it("doesn't resolve 'unknown::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown)
         thrown.getMessage should be("unable to find type 'unknown', searching from 'root'")
       }
     }
@@ -662,25 +663,25 @@ class ClassTypeProvider$Test extends AnyFunSpec {
       resolver.nowClass = child_1
 
       it("resolves 'e'") {
-        resolver.resolveEnum(none, "e") should be(e_root)
+        resolver.resolveEnum(none) should be(e_root)
       }
 
       it("resolves 'one::e'") {
-        resolver.resolveEnum(one, "e") should be(e_11)
+        resolver.resolveEnum(one_e) should be(e_11)
       }
 
       it("doesn't resolve 'one::two::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two)
         thrown.getMessage should be("unable to find type 'two' in 'root::child_1::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_unk)
         thrown.getMessage should be("unable to find enum 'unknown' in 'root::child_1::one'")
       }
 
       it("doesn't resolve 'unknown::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown)
         thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1'")
       }
     }
@@ -690,26 +691,26 @@ class ClassTypeProvider$Test extends AnyFunSpec {
       resolver.nowClass = child_2
 
       it("resolves 'e'") {
-        resolver.resolveEnum(none, "e") should be(e_2)
+        resolver.resolveEnum(none) should be(e_2)
       }
 
       it("doesn't resolve 'one::e'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_e)
         thrown.getMessage should be("unable to find enum 'e' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'one::two::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two)
         thrown.getMessage should be("unable to find type 'two' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_unk)
         thrown.getMessage should be("unable to find enum 'unknown' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'unknown::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown)
         thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_2'")
       }
     }
@@ -719,25 +720,25 @@ class ClassTypeProvider$Test extends AnyFunSpec {
       resolver.nowClass = child_11
 
       it("resolves 'e'") {
-        resolver.resolveEnum(none, "e") should be(e_11)
+        resolver.resolveEnum(none) should be(e_11)
       }
 
       it("resolves 'one::e'") {
-        resolver.resolveEnum(one, "e") should be(e_11)
+        resolver.resolveEnum(one_e) should be(e_11)
       }
 
       it("doesn't resolve 'one::two::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two)
         thrown.getMessage should be("unable to find type 'two' in 'root::child_1::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_unk)
         thrown.getMessage should be("unable to find enum 'unknown' in 'root::child_1::one'")
       }
 
       it("doesn't resolve 'unknown::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown)
         thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1::one'")
       }
     }
@@ -747,26 +748,26 @@ class ClassTypeProvider$Test extends AnyFunSpec {
       resolver.nowClass = child_12
 
       it("resolves 'e'") {
-        resolver.resolveEnum(none, "e") should be(e_12)
+        resolver.resolveEnum(none) should be(e_12)
       }
 
       it("doesn't resolve 'one::e'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_e)
         thrown.getMessage should be("unable to find enum 'e' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'one::two::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two)
         thrown.getMessage should be("unable to find type 'two' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_unk)
         thrown.getMessage should be("unable to find enum 'unknown' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'unknown::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown)
         thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1::two'")
       }
     }
@@ -776,26 +777,26 @@ class ClassTypeProvider$Test extends AnyFunSpec {
       resolver.nowClass = child_21
 
       it("resolves 'e'") {
-        resolver.resolveEnum(none, "e") should be(e_2)
+        resolver.resolveEnum(none) should be(e_2)
       }
 
       it("doesn't resolve 'one::e'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_e)
         thrown.getMessage should be("unable to find enum 'e' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'one::two::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two)
         thrown.getMessage should be("unable to find type 'two' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_unk)
         thrown.getMessage should be("unable to find enum 'unknown' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'unknown::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown)
         thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_2::one'")
       }
     }
@@ -805,26 +806,26 @@ class ClassTypeProvider$Test extends AnyFunSpec {
       resolver.nowClass = child_22
 
       it("resolves 'e'") {
-        resolver.resolveEnum(none, "e") should be(e_2)
+        resolver.resolveEnum(none) should be(e_2)
       }
 
       it("doesn't resolve 'one::e'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_e)
         thrown.getMessage should be("unable to find enum 'e' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'one::two::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two)
         thrown.getMessage should be("unable to find type 'two' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_unk)
         thrown.getMessage should be("unable to find enum 'unknown' in 'root::child_2::one'")
       }
 
       it("doesn't resolve 'unknown::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown)
         thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_2::two'")
       }
     }
@@ -834,26 +835,26 @@ class ClassTypeProvider$Test extends AnyFunSpec {
       resolver.nowClass = child_121
 
       it("resolves 'e'") {
-        resolver.resolveEnum(none, "e") should be(e_12)
+        resolver.resolveEnum(none) should be(e_12)
       }
 
       it("doesn't resolve 'one::e'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_e)
         thrown.getMessage should be("unable to find enum 'e' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'one::two::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two)
         thrown.getMessage should be("unable to find type 'two' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_unk)
         thrown.getMessage should be("unable to find enum 'unknown' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'unknown::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown)
         thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1::two::one'")
       }
     }
@@ -863,26 +864,26 @@ class ClassTypeProvider$Test extends AnyFunSpec {
       resolver.nowClass = child_122
 
       it("resolves 'e'") {
-        resolver.resolveEnum(none, "e") should be(e_12)
+        resolver.resolveEnum(none) should be(e_12)
       }
 
       it("doesn't resolve 'one::e'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "e")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_e)
         thrown.getMessage should be("unable to find enum 'e' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'one::two::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(one_two)
         thrown.getMessage should be("unable to find type 'two' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'one::unknown'") {
-        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one, "unknown")
+        val thrown = the[EnumNotFoundError] thrownBy resolver.resolveEnum(one_unk)
         thrown.getMessage should be("unable to find enum 'unknown' in 'root::child_1::two::one'")
       }
 
       it("doesn't resolve 'unknown::e'") {
-        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown, "e")
+        val thrown = the[TypeNotFoundError] thrownBy resolver.resolveEnum(unknown)
         thrown.getMessage should be("unable to find type 'unknown', searching from 'root::child_1::two::two'")
       }
     }

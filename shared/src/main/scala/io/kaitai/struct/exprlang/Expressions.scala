@@ -171,14 +171,11 @@ object Expressions {
     case (first, names: Seq[Ast.identifier]) =>
       val isAbsolute = first.nonEmpty
       val (enumName, enumLabel) = names.takeRight(2) match {
-        case Seq(a, b) => (a, b)
+        case Seq(a, b) => (a.name, b)
       }
-      val typePath = names.dropRight(2)
-      if (typePath.isEmpty) {
-        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.EmptyTypeId)
-      } else {
-        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.typeId(isAbsolute, typePath.map(_.name)))
-      }
+      val typePath = names.dropRight(2).map(n => n.name)
+      val ref = Ast.EnumRef(isAbsolute, typePath, enumName)
+      Ast.expr.EnumByLabel(ref, enumLabel)
   }
 
   def byteSizeOfType[$: P]: P[Ast.expr.ByteSizeOfType] =
