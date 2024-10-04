@@ -68,27 +68,20 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
             }
         }
       case et: EnumType =>
-        et.name match {
-          case typePath :+ name =>
-            try {
-              val resolver = new ClassTypeProvider(specs, curClass)
-              val ty = resolver.resolveEnum(Ast.typeId(false, typePath), name)
-              Log.enumResolve.info(() => s"    => ${ty.nameAsStr}")
-              et.enumSpec = Some(ty)
-              None
-            } catch {
-              case ex: TypeNotFoundError =>
-                Log.typeResolve.info(() => s"    => ??? (while resolving enum '${et.name}'): $ex")
-                Log.enumResolve.info(() => s"    => ??? (enclosing type not found, enum '${et.name}'): $ex")
-                Some(TypeNotFoundErr(typePath, curClass, path :+ "enum"))
-              case ex: EnumNotFoundError =>
-                Log.enumResolve.info(() => s"    => ??? (enum '${et.name}'): $ex")
-                Some(EnumNotFoundErr(et.name, curClass, path :+ "enum"))
-            }
-          case _ =>
-            Log.enumResolve.info(() => s"    => ??? (enum '${et.name}' without name)")
-            // TODO: Maybe more specific error about empty name?
-            Some(EnumNotFoundErr(et.name, curClass, path :+ "enum"))
+        try {
+          val resolver = new ClassTypeProvider(specs, curClass)
+          val ty = resolver.resolveEnum(Ast.typeId(et.ref.absolute, et.ref.typePath), et.ref.name)
+          Log.enumResolve.info(() => s"    => ${ty.nameAsStr}")
+          et.enumSpec = Some(ty)
+          None
+        } catch {
+          case ex: TypeNotFoundError =>
+            Log.typeResolve.info(() => s"    => ??? (while resolving enum '${et.ref}'): $ex")
+            Log.enumResolve.info(() => s"    => ??? (enclosing type not found, enum '${et.ref}'): $ex")
+            Some(TypeNotFoundErr(et.ref.typePath, curClass, path :+ "enum"))
+          case ex: EnumNotFoundError =>
+            Log.enumResolve.info(() => s"    => ??? (enum '${et.ref}'): $ex")
+            Some(EnumNotFoundErr(et.ref, curClass, path :+ "enum"))
         }
       case st: SwitchType =>
         st.cases.flatMap { case (caseName, ut) =>

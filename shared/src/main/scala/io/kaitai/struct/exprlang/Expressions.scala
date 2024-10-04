@@ -195,6 +195,13 @@ object Expressions {
     case (path, Some(args)) => Ast.TypeWithArguments(path, args)
   }
 
+  def enumRef[$: P]: P[Ast.EnumRef] = P(Start ~ "::".!.? ~ NAME.rep(1, "::") ~ End).map {
+    case (absolute, names) =>
+      // List have at least one element, so we always can split it into head and the last element
+      val typePath :+ enumName = names
+      Ast.EnumRef(absolute.nonEmpty, typePath.map(i => i.name), enumName.name)
+  }
+
   class ParseException(val src: String, val failure: Parsed.Failure)
     extends RuntimeException(failure.msg)
 
@@ -210,6 +217,14 @@ object Expressions {
    *         corresponding list is empty. List with path always contains at least one element
    */
   def parseTypeRef(src: String): Ast.TypeWithArguments = realParse(src, typeRef(_))
+
+  /**
+   * Parse string with reference to enumeration definition, optionally in full path format.
+   *
+   * @param src Enum reference as string, like `::path::to::enum`
+   * @return Object that represents path to enum
+   */
+  def parseEnumRef(src: String): Ast.EnumRef = realParse(src, enumRef(_))
 
   private def realParse[T](src: String, parser: P[_] => P[T]): T = {
     val r = fastparse.parse(src.trim, parser)

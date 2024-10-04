@@ -1305,7 +1305,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull(config)
 
       case t: UserType => types2class(t.name)
-      case EnumType(name, _) => types2class(name)
+      case EnumType(ref, _) => types2class(ref.fullName)
 
       case _: ArrayType => kaitaiType2JavaTypeBoxed(attrType, importList, config)
 
@@ -1349,7 +1349,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull(config)
 
       case t: UserType => types2class(t.name)
-      case EnumType(name, _) => types2class(name)
+      case EnumType(ref, _) => types2class(ref.fullName)
 
       case at: ArrayType => {
         importList.add("java.util.List")
@@ -1360,7 +1360,7 @@ object JavaCompiler extends LanguageCompilerStatic
     }
   }
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
+  def types2class(names: Seq[String]) = names.map(x => type2class(x)).mkString(".")
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"

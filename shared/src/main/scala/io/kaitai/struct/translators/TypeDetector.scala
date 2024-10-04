@@ -48,11 +48,12 @@ class TypeDetector(provider: TypeProvider) {
       case Ast.expr.InterpolatedStr(_) => CalcStrType
       case Ast.expr.Bool(_) => CalcBooleanType
       case Ast.expr.EnumByLabel(enumType, _, inType) =>
-        val t = EnumType(inType.names.toList :+ enumType.name, CalcIntType)
+        val t = EnumType(Ast.EnumRef(false, inType.names.toList, enumType.name), CalcIntType)
         t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
       case Ast.expr.EnumById(enumType, _, inType) =>
-        val t = EnumType(List(enumType.name), CalcIntType)
+        // TODO: May be create a type with a name that includes surrounding type?
+        val t = EnumType(Ast.EnumRef(false, List(), enumType.name), CalcIntType)
         t.enumSpec = Some(provider.resolveEnum(inType, enumType.name))
         t
       case Ast.expr.Name(name: Ast.identifier) => provider.determineType(name.name).asNonOwning()
@@ -419,7 +420,7 @@ object TypeDetector {
           }
         case (t1: EnumType, t2: EnumType) =>
           if (t1.enumSpec.get == t2.enumSpec.get) {
-            val t = EnumType(t1.name, CalcIntType)
+            val t = EnumType(t1.ref, CalcIntType)
             t.enumSpec = t1.enumSpec
             t
           } else {
