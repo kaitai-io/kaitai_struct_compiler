@@ -70,7 +70,7 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
       case et: EnumType =>
         try {
           val resolver = new ClassTypeProvider(specs, curClass)
-          val ty = resolver.resolveEnum(Ast.typeId(et.name.absolute, et.name.typePath), et.name.name)
+          val ty = resolver.resolveEnum(et.name)
           Log.enumResolve.info(() => s"    => ${ty.nameAsStr}")
           et.enumSpec = Some(ty)
           None
