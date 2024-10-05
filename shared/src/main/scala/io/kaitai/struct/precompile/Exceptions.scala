@@ -8,7 +8,7 @@ import io.kaitai.struct.translators.MethodArgType
  * Base class for all expression-related errors, not localized to a certain path
  * in source file.
  */
-sealed abstract class ExpressionError(msg: String) extends RuntimeException(msg)
+sealed class ExpressionError(msg: String) extends RuntimeException(msg)
 class TypeMismatchError(msg: String) extends ExpressionError(msg)
 class TypeUndecidedError(msg: String) extends ExpressionError(msg)
 class WrongMethodCall(val dataType: MethodArgType, val methodName: String, val expectedSigs: Iterable[String], val actualSig: String)
