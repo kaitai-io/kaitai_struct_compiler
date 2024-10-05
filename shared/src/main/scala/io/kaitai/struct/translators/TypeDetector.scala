@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.Identifier
-import io.kaitai.struct.precompile.{MethodNotFoundError, TypeMismatchError, TypeUndecidedError}
+import io.kaitai.struct.precompile.{MethodNotFoundError, MethodNotFoundErrorWithArg, TypeMismatchError, TypeUndecidedError}
 
 /**
   * Basic class the implements type inferring functionality for Ast.expr
@@ -172,24 +172,28 @@ class TypeDetector(provider: TypeProvider) {
         attr.name match {
           case "length" | "size" => CalcIntType
           case "first" | "last" | "min" | "max" => Int1Type(false)
-          case _ => throw new MethodNotFoundError(attr.name, valType)
+          // MethodArgType.byDataType returns Some(...) in that case
+          case _ => throw new MethodNotFoundErrorWithArg(attr.name, MethodArgType.byDataType(valType).get)
         }
       case _: StrType =>
         attr.name match {
           case "length" => CalcIntType
           case "reverse" => CalcStrType
           case "to_i" => CalcIntType
-          case _ => throw new MethodNotFoundError(attr.name, valType)
+          // MethodArgType.byDataType returns Some(...) in that case
+          case _ => throw new MethodNotFoundErrorWithArg(attr.name, MethodArgType.byDataType(valType).get)
         }
       case _: IntType =>
         attr.name match {
           case "to_s" => CalcStrType
-          case _ => throw new MethodNotFoundError(attr.name, valType)
+          // MethodArgType.byDataType returns Some(...) in that case
+          case _ => throw new MethodNotFoundErrorWithArg(attr.name, MethodArgType.byDataType(valType).get)
         }
       case _: FloatType =>
         attr.name match {
           case "to_i" => CalcIntType
-          case _ => throw new MethodNotFoundError(attr.name, valType)
+          // MethodArgType.byDataType returns Some(...) in that case
+          case _ => throw new MethodNotFoundErrorWithArg(attr.name, MethodArgType.byDataType(valType).get)
         }
       case ArrayTypeInStream(_) | CalcArrayType(_, _) =>
         val inType = valType match {
@@ -211,7 +215,8 @@ class TypeDetector(provider: TypeProvider) {
         attr.name match {
           case "first" | "last" | "min" | "max" => inType
           case "size" => CalcIntType
-          case _ => throw new MethodNotFoundError(attr.name, valType)
+          // MethodArgType.byDataType returns Some(...) in that case
+          case _ => throw new MethodNotFoundErrorWithArg(attr.name, MethodArgType.byDataType(valType).get)
         }
       case KaitaiStreamType | OwnedKaitaiStreamType =>
         attr.name match {
@@ -228,7 +233,8 @@ class TypeDetector(provider: TypeProvider) {
       case _: BooleanType =>
         attr.name match {
           case "to_i" => CalcIntType
-          case _ => throw new MethodNotFoundError(attr.name, valType)
+          // MethodArgType.byDataType returns Some(...) in that case
+          case _ => throw new MethodNotFoundErrorWithArg(attr.name, MethodArgType.byDataType(valType).get)
         }
       case _ =>
         throw new MethodNotFoundError(attr.name, valType)
@@ -253,7 +259,10 @@ class TypeDetector(provider: TypeProvider) {
           case (_: StrType, "to_i") => CalcIntType
           case (_: BytesType, "to_s") => CalcStrType
           case _ =>
-            throw new MethodNotFoundError(methodName.name, objType)
+            MethodArgType.byDataType(objType) match {
+              case Some(argType) => throw new MethodNotFoundErrorWithArg(methodName.name, argType)
+              case None => throw new MethodNotFoundError(methodName.name, objType)
+            }
         }
     }
   }
