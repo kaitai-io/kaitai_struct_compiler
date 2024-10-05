@@ -6,6 +6,12 @@ import scala.collection.immutable.SortedMap
 import scala.collection.mutable
 
 case class EnumSpec(path: List[String], map: SortedMap[Long, EnumValueSpec]) extends YAMLPath {
+  /**
+    * Absolute name of the enum (includes the names of all classes inside which
+    * it is defined). Derived either from keys in `enums`.
+    *
+    * This name is calculated by the `CalculateFullNamesAndSetSurroundingType` pass.
+    */
   var name = List[String]()
 
   /**
