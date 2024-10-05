@@ -15,7 +15,6 @@ class ValueTypesDeriver(specs: ClassSpecs, topClass: ClassSpec) {
   def deriveValueType(curClass: ClassSpec): Boolean = {
     Log.typeProcValue.info(() => s"deriveValueType(${curClass.nameAsStr})")
     var hasChanged = false
-    var hasUndecided = false
 
     provider.nowClass = curClass
     curClass.instances.foreach {
@@ -32,7 +31,6 @@ class ValueTypesDeriver(specs: ClassSpecs, topClass: ClassSpec) {
                 } catch {
                   case tue: TypeUndecidedError =>
                     Log.typeProcValue.info(() => s"${instName.name} type undecided: ${tue.getMessage}")
-                    hasUndecided = true
                     // just ignore, we're not there yet, probably we'll get it on next iteration
                   case err: ExpressionError =>
                     throw ErrorInInput(err, vi.path ++ List("value")).toException
