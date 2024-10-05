@@ -2,7 +2,7 @@ package io.kaitai.struct.precompile
 
 import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs, ValueInstanceSpec}
-import io.kaitai.struct.problems.ErrorInInput
+import io.kaitai.struct.problems.{CompilationProblem, ErrorInInput}
 import io.kaitai.struct.translators.TypeDetector
 
 /**
@@ -11,8 +11,8 @@ import io.kaitai.struct.translators.TypeDetector
   * Calculates value of the [[ValueInstanceSpec.dataTypeOpt]] field, which is
   * a type of value instance.
   */
-class DeriveValueInstanceTypes(specs: ClassSpecs) {
-  def run(): Unit = {
+class DeriveValueInstanceTypes(specs: ClassSpecs) extends PrecompileStep {
+  override def run(): Iterable[CompilationProblem] = {
     var iterNum = 1
     var hasChanged = false
     do {
@@ -31,6 +31,7 @@ class DeriveValueInstanceTypes(specs: ClassSpecs) {
       iterNum += 1
     } while (hasChanged)
     Log.typeProcValue.info(() => s"## value type deriving finished in ${iterNum - 1} iteration(s)")
+    None
   }
 
   private def deriveValueType(

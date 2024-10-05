@@ -51,16 +51,17 @@ object Main {
       return resolveTypeProblems
     }
 
-    new ParentTypes(specs).run()
-    new DeriveValueInstanceTypes(specs).run()
-    new CalculateSeqSizes(specs).run()
-    val typeValidatorProblems = new TypeValidator(specs).run()
+    var passes = Seq(
+      new ParentTypes(specs),
+      new DeriveValueInstanceTypes(specs),
+      new CalculateSeqSizes(specs),
+      new TypeValidator(specs),
+      // Warnings
+      new StyleCheckIds(specs),
+      new CanonicalizeEncodingNames(specs),
+    )
 
-    // Warnings
-    val styleWarnings = new StyleCheckIds(specs).run()
-    val encodingProblems = new CanonicalizeEncodingNames(specs).run()
-
-    resolveTypeProblems ++ typeValidatorProblems ++ styleWarnings ++ encodingProblems
+    resolveTypeProblems ++ passes.flatMap(_.run())
   }
 
   /**
