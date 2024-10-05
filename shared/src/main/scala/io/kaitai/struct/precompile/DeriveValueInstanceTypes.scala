@@ -59,7 +59,7 @@ class DeriveValueInstanceTypes(specs: ClassSpecs) extends PrecompileStep {
                     Log.typeProcValue.info(() => s"${instName.name} type undecided: ${tue.getMessage}")
                     // just ignore, we're not there yet, probably we'll get it on next iteration
                   case err: ExpressionError =>
-                    throw ErrorInInput(err, vi.path ++ List("value")).toException
+                    // Ignore all errors, the validation will be performed in TypeValidator pass later
                 }
               case Some(_) =>
                 // already derived, do nothing
