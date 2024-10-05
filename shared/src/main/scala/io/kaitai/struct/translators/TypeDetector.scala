@@ -220,7 +220,8 @@ class TypeDetector(provider: TypeProvider) {
           case "size" => CalcIntType
           case "pos" => CalcIntType
           case "eof" => CalcBooleanType
-          case _ => throw new MethodNotFoundError(attr.name, valType)
+          // MethodArgType.byDataType returns Some(...) in that case
+          case _ => throw new MethodNotFoundErrorWithArg(attr.name, MethodArgType.byDataType(valType).get)
         }
       case et: EnumType =>
         attr.name match {
