@@ -2,6 +2,7 @@ package io.kaitai.struct.format
 
 import io.kaitai.struct.Utils
 import io.kaitai.struct.exprlang.{Ast, Expressions}
+import io.kaitai.struct.precompile.InvalidIdentifier
 import io.kaitai.struct.problems.KSYParseError
 
 object ParseUtils {
