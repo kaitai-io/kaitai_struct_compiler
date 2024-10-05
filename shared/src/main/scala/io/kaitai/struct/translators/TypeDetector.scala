@@ -215,7 +215,7 @@ class TypeDetector(provider: TypeProvider) {
           // MethodArgType.byDataType returns Some(...) in that case
           case _ => throw new MethodNotFoundErrorWithArg(attr.name, MethodArgType.byDataType(valType).get)
         }
-      case KaitaiStreamType | OwnedKaitaiStreamType =>
+      case _: StreamType =>
         attr.name match {
           case "size" => CalcIntType
           case "pos" => CalcIntType

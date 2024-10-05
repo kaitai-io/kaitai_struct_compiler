@@ -1301,7 +1301,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case _: BytesType => "byte[]"
 
       case AnyType => "Object"
-      case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
+      case _: StreamType => kstreamName
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull(config)
 
       case t: UserType => types2class(t.name)
@@ -1345,7 +1345,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case _: BytesType => "byte[]"
 
       case AnyType => "Object"
-      case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
+      case _: StreamType => kstreamName
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull(config)
 
       case t: UserType => types2class(t.name)

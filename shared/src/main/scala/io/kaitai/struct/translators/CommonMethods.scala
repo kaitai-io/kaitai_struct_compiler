@@ -172,7 +172,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
         }
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
-      case KaitaiStreamType | OwnedKaitaiStreamType =>
+      case _: StreamType =>
         attr.name match {
           case "size" => kaitaiStreamSize(value)
           case "eof" => kaitaiStreamEof(value)
