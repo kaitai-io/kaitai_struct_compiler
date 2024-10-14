@@ -198,7 +198,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
       case _ =>
         if (provider.isLazy(s)) {
-          outVarCheckRes(s"this.${doName(s)}()")
+          if (s == "fetchInstances") {
+            outVarCheckRes(s"this.${doName(s)}()")
+          } else {
+            outVarCheckRes(s"this.Get${doName(s)}()")
+          }
+
         } else {
           s"this.${doName(s)}"
         }
@@ -528,7 +533,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
 
     if (twoOuts) {
-      val name = outVarCheckRes(s"$valueStr.$call()")
+      val name = outVarCheckRes(s"$valueStr.Get$call()")
       out.puts(s"$name = $name")
       name
     } else {
@@ -542,7 +547,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
            }
          }
       })
-      s"$valueStr.$call${suffix}"
+      s"$valueStr.$call$suffix"
     }
   }
 
@@ -619,14 +624,18 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
               "this"
             }
           }
-          case MultiParentClassSpec => "this"
+          case MultiParentClassSpec => "nil"
           case _ => "&this.Stream"
         }
         content
       }
     }
 
-    val root = if (t.isOpaque) "nil" else "this._root"
+    var root = if (t.isOpaque) "nil" else "this._root"
+    root = t.classSpec.get.parentClass match {
+      case MultiParentClassSpec => "nil"
+      case _ => root
+    }
     out.puts(s"${localVarName(v)} := New${GoCompiler.types2class(t.classSpec.get.name)}($io, $parent, $root)")
     localVarName(v)
   }

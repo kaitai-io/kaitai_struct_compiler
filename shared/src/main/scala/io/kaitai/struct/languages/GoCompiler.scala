@@ -785,7 +785,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"func (this *${types2class(className)}) ${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
+    out.puts(s"func (this *${types2class(className)}) Get${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
     out.inc
     translator.returnRes = Some(dataType match {
       case _: NumericType => "0"
@@ -957,7 +957,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def paramName(id: Identifier): String = Utils.lowerCamelCase(id.humanReadable)
 
-  def calculatedFlagForName(id: Identifier) = s"_f_${idToStr(id)}"
+  def calculatedFlagForName(id: Identifier) = s"F${idToStr(id)}"
 
   override def ksErrorName(err: KSError): String = GoCompiler.ksErrorName(err)
 
@@ -1064,6 +1064,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.WriteBytes($exprProcessed)"
     }
     out.puts(s"err = $stmt")
+    translator.outAddErrCheck()
   }
 
   override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit = {
@@ -1351,7 +1352,7 @@ object GoCompiler extends LanguageCompilerStatic
       case SpecialIdentifier(name) => name
       case NamedIdentifier(name) => Utils.upperCamelCase(name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
       case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
       case OuterSizeIdentifier(innerId) => s"${idToStr(innerId)}_OuterSize"
