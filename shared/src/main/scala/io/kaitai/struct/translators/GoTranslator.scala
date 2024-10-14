@@ -631,11 +631,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       }
     }
 
-    var root = if (t.isOpaque) "nil" else "this._root"
-    root = t.classSpec.get.parentClass match {
-      case MultiParentClassSpec => "nil"
-      case _ => root
-    }
+    var root = "this._root"
     out.puts(s"${localVarName(v)} := New${GoCompiler.types2class(t.classSpec.get.name)}($io, $parent, $root)")
     localVarName(v)
   }
