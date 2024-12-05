@@ -103,11 +103,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"_io = ${if (kaitaiType2NativeType(parentType) == "*kaitai.Stream") "_parent" else if (parentType == AnyType) "_parent.Get_io()" else "_parent._io"} ")
     out.dec
     out.puts("}")
-    out.puts(s"return &${types2class(name)}{")
+    out.puts(s"s := &${types2class(name)}{")
     out.inc
     out.puts("_io: _io, _parent: _parent, _root: _root,")
     out.dec
     out.puts("}")
+    out.puts("if _root == nil {")
+    out.inc
+    if (type2class(rootClassName(0)) == types2class(name)) {
+      out.puts("s._root = s")
+    } else {
+      out.puts(s"s._root = New${type2class(rootClassName(0))}(_io, _io, nil)")
+    }
+    universalFooter
+    out.puts("return s")
     universalFooter
     instanceSizeOf(types2class(name))
   }
