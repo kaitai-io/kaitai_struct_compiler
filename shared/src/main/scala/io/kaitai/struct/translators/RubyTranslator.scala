@@ -8,6 +8,28 @@ import io.kaitai.struct.languages.RubyCompiler
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   with ByteArraysAsTrueArrays[String] {
+  /**
+  * @see https://ruby-doc.org/core-2.6.2/doc/syntax/precedence_rdoc.html
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 90,
+    Ast.operator.BitOr -> 90,
+    Ast.cmpop.Lt -> 70,
+    Ast.cmpop.LtE -> 70,
+    Ast.cmpop.Gt -> 70,
+    Ast.cmpop.GtE -> 70,
+    Ast.cmpop.Eq -> 60,
+    Ast.cmpop.NotEq -> 60
+  )
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"[${arr.map(_ & 0xff).mkString(", ")}].pack('C*')"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =

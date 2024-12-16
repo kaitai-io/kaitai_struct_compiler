@@ -7,6 +7,28 @@ import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.{PythonCompiler, RubyCompiler}
 
 class PythonTranslator(provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
+  /**
+  * @see https://docs.python.org/3/reference/expressions.html#operator-precedence
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 90,
+    Ast.operator.BitOr -> 80,
+    Ast.cmpop.Lt -> 70,
+    Ast.cmpop.LtE -> 70,
+    Ast.cmpop.Gt -> 70,
+    Ast.cmpop.GtE -> 70,
+    Ast.cmpop.Eq -> 70,
+    Ast.cmpop.NotEq -> 70
+  )
+
   override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>

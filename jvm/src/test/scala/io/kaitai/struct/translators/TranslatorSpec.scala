@@ -159,9 +159,17 @@ class TranslatorSpec extends AnyFunSpec {
       PythonCompiler -> "3 - ((1 + 2) // (7 * 8) + 5)"
     ))
 
-    everybody("1 + 2 << 5", "1 + 2 << 5")
-    everybody("(1 + 2) << 5", "1 + 2 << 5")
-    everybody("1 + (2 << 5)", "1 + (2 << 5)")
+    everybodyExcept("1 + 2 << 5", "1 + 2 << 5", ResultMap(
+      GoCompiler -> "(1 + 2) << 5"
+    ))
+
+    everybodyExcept("(1 + 2) << 5", "1 + 2 << 5", ResultMap(
+      GoCompiler -> "(1 + 2) << 5"
+    ))
+
+    everybodyExcept("1 + (2 << 5)", "1 + (2 << 5)", ResultMap(
+      GoCompiler -> "1 + 2 << 5"
+    ))
 
     everybodyExcept("~777", "~777", ResultMap(
       GoCompiler -> "^777"
@@ -175,11 +183,26 @@ class TranslatorSpec extends AnyFunSpec {
     everybodyExcept("(0b01 & 0b10) >> 1", "(1 & 2) >> 1", ResultMap(
       JavaScriptCompiler -> "(1 & 2) >>> 1"
     ))
+
+    everybodyExcept("3 | 1 ^ 2", "3 | 1 ^ 2", ResultMap(
+      GoCompiler -> "3 | (1 ^ 2)",
+      LuaCompiler -> "3 | 1 ~ 2",
+      PerlCompiler -> "3 | (1 ^ 2)",
+      RubyCompiler -> "3 | (1 ^ 2)"
+    ))
   }
 
   describe("integer comparisons") {
     everybody("1 < 2", "1 < 2", CalcBooleanType)
     everybody("1 == 2", "1 == 2", CalcBooleanType)
+
+    everybodyExcept("100 & 1 == 0", "(100 & 1) == 0", ResultMap(
+      GoCompiler -> "100 & 1 == 0",
+      LuaCompiler -> "100 & 1 == 0",
+      PythonCompiler -> "100 & 1 == 0",
+      RubyCompiler -> "100 & 1 == 0",
+      RustCompiler -> "100 & 1 == 0",
+    ), CalcBooleanType)
   }
 
   describe("integer method calls") {

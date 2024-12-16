@@ -10,6 +10,28 @@ import io.kaitai.struct.Utils
 
 class LuaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider)
     with MinSignedIntegers {
+  /**
+  * @see https://www.lua.org/manual/5.4/manual.html#3.4.8
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 90,
+    Ast.operator.BitOr -> 80,
+    Ast.cmpop.Lt -> 70,
+    Ast.cmpop.LtE -> 70,
+    Ast.cmpop.Gt -> 70,
+    Ast.cmpop.GtE -> 70,
+    Ast.cmpop.Eq -> 70,
+    Ast.cmpop.NotEq -> 70
+  )
+
   override def doIntLiteral(n: BigInt): String = {
     if (n > Long.MaxValue && n <= Utils.MAX_UINT64) {
       // See <https://www.lua.org/manual/5.4/manual.html#3.1>:
