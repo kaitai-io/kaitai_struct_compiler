@@ -793,6 +793,16 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
   }
 
+  override def instanceSetter(className: List[String], instName: InstanceIdentifier, dataType: DataType): Unit = {
+    out.puts
+    out.puts(s"func (this *${types2class(className)}) Set${publicMemberName(instName)}(v ${kaitaiType2NativeType(dataType)}) {")
+    out.inc
+    out.puts(s"this.${calculatedFlagForName(instName)} = true")
+    out.puts(s"this.${publicMemberName(instName)} = v")
+    out.dec
+    out.puts("}")
+  }
+
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"func (this *${types2class(className)}) Get${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
     out.inc
@@ -966,7 +976,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def paramName(id: Identifier): String = Utils.lowerCamelCase(id.humanReadable)
 
-  def calculatedFlagForName(id: Identifier) = s"F${idToStr(id)}"
+  def calculatedFlagForName(id: Identifier) = s"_f_${idToStr(id)}"
 
   override def ksErrorName(err: KSError): String = GoCompiler.ksErrorName(err)
 
@@ -1361,7 +1371,7 @@ object GoCompiler extends LanguageCompilerStatic
       case SpecialIdentifier(name) => name
       case NamedIdentifier(name) => Utils.upperCamelCase(name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
       case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
       case OuterSizeIdentifier(innerId) => s"${idToStr(innerId)}_OuterSize"
@@ -1373,7 +1383,7 @@ object GoCompiler extends LanguageCompilerStatic
       case IoIdentifier => "_IO"
       case RootIdentifier => "_Root"
       case ParentIdentifier => "_Parent"
-      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
       case _ => idToStr(id)
     }
 

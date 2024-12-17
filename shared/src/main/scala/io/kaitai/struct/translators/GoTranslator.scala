@@ -201,7 +201,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           if (s == "fetchInstances") {
             outVarCheckRes(s"this.${doName(s)}()")
           } else {
-            outVarCheckRes(s"this.Get${doName(s)}()")
+            outVarCheckRes(s"this.Get${Utils.lowerCamelCase(s)}()")
           }
 
         } else {

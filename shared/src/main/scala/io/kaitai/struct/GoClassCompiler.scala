@@ -82,6 +82,7 @@ class GoClassCompiler(
 
     if (!instSpec.doc.isEmpty)
       lang.attributeDoc(instName, instSpec.doc)
+    lang.instanceSetter(className, instName, dataType)
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     if (config.readWrite)
       instSpec match {
