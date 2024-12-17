@@ -526,14 +526,14 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
            Identifier.IO =>
         (specialName(name), false)
       case _ =>
-        (Utils.upperCamelCase(name), provider.isLazy(ut.classSpec.get, name))
+        (Utils.lowerCamelCase(name), provider.isLazy(ut.classSpec.get, name))
     }
     if (value.isInstanceOf[Ast.expr.CastToType]) {
       valueStr = s"$valueStr.(${compiler.kaitaiType2NativeType(ut)})"
     }
 
     if (twoOuts) {
-      val name = outVarCheckRes(s"$valueStr.Get$call()")
+      val name = outVarCheckRes(s"$valueStr.Get${Utils.lowerCamelCase(call)}()")
       out.puts(s"$name = $name")
       name
     } else {
