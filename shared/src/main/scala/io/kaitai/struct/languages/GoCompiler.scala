@@ -1076,7 +1076,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: ReadableType =>
         s"$io.Write${Utils.capitalize(t.apiCall(defEndian))}(${if (exprProcessed.contains("(") && exprProcessed.contains(")")) exprProcessed else s"${kaitaiType2NativeType(dt)}($exprProcessed)"})"
       case BitsType1(bitEndian) =>
-        s"$io.WriteBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1, ${translator.boolToInt(expr)})"
+        s"$io.WriteBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(8, ${translator.boolToInt(expr)})"
       case BitsType(width: Int, bitEndian) =>
         s"$io.WriteBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width, $exprProcessed)"
       case _: BytesType =>
