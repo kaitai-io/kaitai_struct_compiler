@@ -288,6 +288,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
     out.puts(s"${privateMemberName(id)} = $expr;")
 
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"my $id = $expr;")
+
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
@@ -342,6 +345,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     expr2
   }
+
+  override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
+    out.puts(s"$id->_read();")
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
   override def switchCaseStart(condition: Ast.expr): Unit = {}
