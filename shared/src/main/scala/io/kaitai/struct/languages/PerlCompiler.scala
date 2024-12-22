@@ -265,6 +265,8 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentRepeatEos(id, expr)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+    blockScopeHeader
+    out.puts(s"my ${translator.doName("_")};")
     out.puts("do {")
     out.inc
   }
@@ -283,6 +285,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     typeProvider._currentIteratorType = Some(dataType)
     out.dec
     out.puts(s"} until (${expression(untilExpr)});")
+    blockScopeFooter
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
@@ -290,6 +293,12 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"my $id = $expr;")
+
+  override def blockScopeHeader: Unit = {
+    out.puts("{")
+    out.inc
+  }
+  override def blockScopeFooter: Unit = universalFooter
 
   override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
