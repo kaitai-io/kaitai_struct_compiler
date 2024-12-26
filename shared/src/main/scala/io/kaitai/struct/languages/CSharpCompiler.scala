@@ -420,6 +420,21 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$expr._read();")
   }
 
+  override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    out.puts("try")
+    out.puts("{")
+    out.inc
+    tryBlock()
+    out.dec
+    out.puts("}")
+    out.puts("finally")
+    out.puts("{")
+    out.inc
+    finallyBlock()
+    out.dec
+    out.puts("}")
+  }
+
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
     case _: IntType | _: EnumType | _: StrType => false
     case _ => true

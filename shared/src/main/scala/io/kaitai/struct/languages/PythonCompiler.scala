@@ -408,6 +408,17 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id._read()")
 
+  override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    out.puts("try:")
+    out.inc
+    tryBlock()
+    out.dec
+    out.puts("finally:")
+    out.inc
+    finallyBlock()
+    out.dec
+  }
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
   override def switchCaseStart(condition: Ast.expr): Unit = {}
   override def switchCaseEnd(): Unit = {}

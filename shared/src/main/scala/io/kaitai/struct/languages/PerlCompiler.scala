@@ -358,6 +358,26 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id->_read();")
 
+  override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    out.puts("eval {")
+    out.inc
+    tryBlock()
+    out.puts("1;")
+    out.dec
+    out.puts("} or do {")
+    out.inc
+    out.puts("$failed = 1;")
+    out.puts("$err = $@;")
+    out.dec
+    out.puts("};")
+    finallyBlock()
+    out.puts("if ($failed) {")
+    out.inc
+    out.puts("die $err;")
+    out.dec
+    out.puts("}")
+  }
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
   override def switchCaseStart(condition: Ast.expr): Unit = {}
   override def switchCaseEnd(): Unit = {}

@@ -422,6 +422,18 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id._read")
 
+  override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    out.puts("begin")
+    out.inc
+    tryBlock()
+    out.dec
+    out.puts("ensure")
+    out.inc
+    finallyBlock()
+    out.dec
+    out.puts("end")
+  }
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit =
     out.puts(s"case ${expression(on)}")
 

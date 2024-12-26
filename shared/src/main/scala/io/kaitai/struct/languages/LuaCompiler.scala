@@ -376,6 +376,20 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id:_read()")
 
+  override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    out.puts("local success, err = pcall(function()")
+    out.inc
+    tryBlock()
+    out.dec
+    out.puts("end)")
+    finallyBlock()
+    out.puts("if not success then")
+    out.inc
+    out.puts("error(err)")
+    out.dec
+    out.puts("end")
+  }
+
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
   override def switchCaseStart(condition: Ast.expr): Unit = {}
   override def switchCaseEnd(): Unit = {}

@@ -106,19 +106,55 @@ trait EveryReadIsExpression
     if (config.autoRead) {
       handleAssignment(id, expr, rep, false)
     } else {
-      // Disabled autoRead requires one to actually call `_read` method on constructed
-      // user type, and this must be done as a separate statement - or else exception
-      // handler would blast the whole structure, not only this element. This, in turn,
-      // makes us assign constructed element to a temporary variable in case of arrays.
+      // Disabled autoRead forces us to call the `_read` method on constructed user type explicitly.
+      // This must be done as a separate statement, otherwise if `_read` fails, only the error would
+      // be propagated, preventing the object with partial data from being exposed to the outside
+      // world (which is very useful to have for debugging, see
+      // https://github.com/kaitai-io/kaitai_struct_webide/pull/170 for illustration, which largely
+      // relies on this).
       rep match {
         case NoRepeat =>
           handleAssignmentSimple(id, expr)
           userTypeDebugRead(privateMemberName(id), dataType, assignType)
         case _ =>
+          // Repetitions of user types are tricky because we want both of these almost contradictory
+          // properties to hold:
+          //
+          // 1) As explained above, we want partially parsed objects to be accessible from the
+          //    outside, which means that each object must be (eventually) pushed to the output
+          //    array regardless of whether the call to its `_read` succeeds or not. A simple way to
+          //    ensure this property is to push the object to the array first and only then call
+          //    `_read` - if `_read` fails, we don't have to do anything special because the object
+          //    is already stored in the array and thus accessible, so we can just let the error
+          //    from `_read` propagate.
+          //
+          //    See the DebugArrayUserEofException test added in
+          //    https://github.com/kaitai-io/kaitai_struct_tests/commit/09382c28a3f3505b744cc7270acedb312f65c04a
+          //
+          // 2) However, as pointed out in https://github.com/kaitai-io/kaitai_struct/issues/1180
+          //    and discussed in https://github.com/kaitai-io/kaitai_struct/issues/1105, the "push
+          //    first, then `_read`" order of operations suggested in 1) creates an inconsistency
+          //    with the behavior of `autoRead = true` (non-debug) mode. In `autoRead = true` mode,
+          //    the object would never "see" itself already in the output array when its `_read`
+          //    method is executing, because `_read` is called already from the constructor, so at
+          //    that point the object is still being constructed, and therefore there is no external
+          //    reference to it. For consistency, the `autoRead = false` (debug) mode must honor
+          //    this, so `_read` must be called before pushing the object to the array.
+          //
+          //    See the DebugArrayUserCurrentExcluded test added in
+          //    https://github.com/kaitai-io/kaitai_struct_tests/commit/7eefdcdfb0e1ba86bccac345d6c2d8b253bb8248
+          //
+          // To satisfy both of the above properties, we need an implementation of `try-finally` in
+          // each target language. We don't care about *catching* the exception from `_read` (on the
+          // contrary, we would like the error to propagate as is, preferably including the original
+          // stack trace), we just need to ensure that the object is appended to the array despite
+          // the exception.
           val tempVarName = localTemporaryName(id)
           handleAssignmentTempVar(dataType, tempVarName, expr)
-          handleAssignment(id, tempVarName, rep, false)
-          userTypeDebugRead(tempVarName, dataType, assignType)
+          tryFinally(
+            () => userTypeDebugRead(tempVarName, dataType, assignType),
+            () => handleAssignment(id, tempVarName, rep, false)
+          )
       }
     }
   }
@@ -242,6 +278,7 @@ trait EveryReadIsExpression
   def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
   def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean): String
   def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = ???
+  def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = ???
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (attrDebugNeeded(instName))

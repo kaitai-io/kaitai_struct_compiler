@@ -749,6 +749,20 @@ class CppCompiler(
     outSrc.puts(s"$expr->_read();")
   }
 
+  override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    outSrc.puts("try {")
+    outSrc.inc
+    tryBlock()
+    outSrc.dec
+    outSrc.puts("} catch(...) {")
+    outSrc.inc
+    finallyBlock()
+    outSrc.puts("throw;")
+    outSrc.dec
+    outSrc.puts("}")
+    finallyBlock()
+  }
+
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
     case _: IntType | _: EnumType => false
     case _ => true
