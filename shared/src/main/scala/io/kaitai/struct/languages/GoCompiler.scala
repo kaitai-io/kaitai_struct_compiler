@@ -416,17 +416,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
-          ""
-        } else {
-          val parent = t.forcedParent match {
-            case Some(USER_TYPE_NO_PARENT) => "null"
-            case Some(fp) => translator.translate(fp)
-            case None => "this"
-          }
-          s", $parent, _root"
-        }
-        s"${types2class(t.name)}($io$addArgs)"
+        val addParams = t.args.map((a) => expression(a)).mkString(", ")
+        s"New${GoCompiler.types2class(t.classSpec.get.name)}($addParams)"
     }
   }
 
@@ -441,6 +432,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 //    }
 //    expr2
 //  }
+
+  override def userTypeDebugRead(id: String, t: UserType, io: String): Unit = {
+    val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
+      ("nil", "nil")
+    } else {
+      val parent = t.forcedParent match {
+        case Some(USER_TYPE_NO_PARENT) => "nil"
+        case Some(fp) => expression(fp)
+        case None => "this"
+      }
+      (parent, "this._root")
+    }
+    out.puts(s"err = $id.Read($io, $parent, $root)")
+  }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"switch (${expression(on)}) {")

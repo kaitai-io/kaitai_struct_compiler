@@ -476,25 +476,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultLocalVar(v)
   }
 
-  def userType(t: UserType, io: String) = {
-    val v = allocateLocalVar()
-    val (parent, root) = if (t.isExternal(provider.nowClass)) {
-      ("nil", "nil")
-    } else {
-      val parent = t.forcedParent match {
-        case Some(USER_TYPE_NO_PARENT) => "nil"
-        case Some(fp) => translate(fp)
-        case None => "this"
-      }
-      (parent, "this._root")
-    }
-    val addParams = t.args.map((a) => translate(a)).mkString(", ")
-    out.puts(s"${localVarName(v)} := New${GoCompiler.types2class(t.classSpec.get.name)}($addParams)")
-    out.puts(s"err = ${localVarName(v)}.Read($io, $parent, $root)")
-    outAddErrCheck()
-    ResultLocalVar(v)
-  }
-
   def trInterpolatedStringLiteral(exprs: Seq[Ast.expr]): TranslatorResult = {
     exprs match {
       case Seq(Ast.expr.Str(s)) =>
