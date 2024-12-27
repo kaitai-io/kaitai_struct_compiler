@@ -359,6 +359,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$id->_read();")
 
   override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    out.puts("my ($failed, $err);")
     out.puts("eval {")
     out.inc
     tryBlock()
