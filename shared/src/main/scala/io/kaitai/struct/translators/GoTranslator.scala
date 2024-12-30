@@ -28,6 +28,28 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   var returnRes: Option[String] = None
 
+  /**
+  * @see https://go.dev/ref/spec#Operator_precedence
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.LShift -> 130,
+    Ast.operator.RShift -> 130,
+    Ast.operator.BitAnd -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.BitXor -> 120,
+    Ast.operator.BitOr -> 120,
+    Ast.cmpop.Lt -> 110,
+    Ast.cmpop.LtE -> 110,
+    Ast.cmpop.Gt -> 110,
+    Ast.cmpop.GtE -> 110,
+    Ast.cmpop.Eq -> 110,
+    Ast.cmpop.NotEq -> 110
+  )
+
   override def translate(v: Ast.expr, extPrec: Int): String = resToStr(translateExpr(v, extPrec))
 
   def resToStr(r: TranslatorResult): String = r match {

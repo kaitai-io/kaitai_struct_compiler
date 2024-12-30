@@ -8,6 +8,27 @@ import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.PerlCompiler
 
 class PerlTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+  /**
+  * @see https://perldoc.perl.org/perlop#Operator-Precedence-and-Associativity
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.cmpop.Lt -> 100,
+    Ast.cmpop.LtE -> 100,
+    Ast.cmpop.Gt -> 100,
+    Ast.cmpop.GtE -> 100,
+    Ast.cmpop.Eq -> 90,
+    Ast.cmpop.NotEq -> 90,
+    Ast.operator.BitAnd -> 80,
+    Ast.operator.BitXor -> 70,
+    Ast.operator.BitOr -> 70
+  )
   // http://perldoc.perl.org/perlrebackslash.html#Character-Escapes
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
