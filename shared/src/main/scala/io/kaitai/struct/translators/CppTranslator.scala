@@ -131,7 +131,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     }
   }
 
-  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${CppCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
@@ -164,11 +164,9 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"static_cast<${CppCompiler.types2class(enumSpec.name)}>($id)"
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    if (op == Ast.cmpop.Eq) {
-      s"${translate(left)} == (${translate(right)})"
-    } else if (op == Ast.cmpop.NotEq) {
-      s"${translate(left)} != ${translate(right)}"
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int) = {
+    if (op == Ast.cmpop.Eq || op == Ast.cmpop.NotEq) {
+      super.doStrCompareOp(left, op, right, extPrec)
     } else {
       s"(${translate(left)}.compare(${translate(right)}) ${cmpOp(op)} 0)"
     }

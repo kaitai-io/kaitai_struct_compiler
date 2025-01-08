@@ -38,7 +38,7 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def strLiteralGenericCC(code: Char): String = strLiteralUnicode(code)
 
-  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${CSharpCompiler.kstreamName}.Mod(${translate(left)}, ${translate(right)})"
@@ -71,17 +71,15 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     CSharpCompiler.types2class(enumTypeRel)
   }
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
-    if (op == Ast.cmpop.Eq) {
-      s"${translate(left)} == ${translate(right)}"
-    } else if (op == Ast.cmpop.NotEq) {
-      s"${translate(left)} != ${translate(right)}"
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int) = {
+    if (op == Ast.cmpop.Eq || op == Ast.cmpop.NotEq) {
+      super.doStrCompareOp(left, op, right, extPrec)
     } else {
       s"(${translate(left)}.CompareTo(${translate(right)}) ${cmpOp(op)} 0)"
     }
   }
 
-  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
     s"(${CSharpCompiler.kstreamName}.ByteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
 
   override def arraySubscript(container: expr, idx: expr): String =

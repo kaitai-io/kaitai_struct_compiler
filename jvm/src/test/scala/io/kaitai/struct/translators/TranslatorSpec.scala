@@ -599,7 +599,7 @@ class TranslatorSpec extends AnyFunSpec {
       ), CalcStrType)
 
       everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", ResultMap(
-        CppCompiler -> "std::string(\"str1\") == (std::string(\"str2\"))",
+        CppCompiler -> "std::string(\"str1\") == std::string(\"str2\")",
         JavaCompiler -> "\"str1\".equals(\"str2\")",
         LuaCompiler -> "\"str1\" == \"str2\"",
         PerlCompiler -> "\"str1\" eq \"str2\"",

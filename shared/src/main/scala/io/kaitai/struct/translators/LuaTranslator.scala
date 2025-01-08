@@ -67,7 +67,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def strLiteralUnicode(code: Char): String =
     "\\u{%04x}".format(code.toInt)
 
-  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"math.floor(${super.genericBinOp(left, op, right, 0)})"

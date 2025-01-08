@@ -45,7 +45,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
-  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${JavaCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
@@ -76,7 +76,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
   }
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = op match {
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = op match {
     case Ast.cmpop.Eq =>
       s"${translate(left)}.equals(${translate(right)})"
     case Ast.cmpop.NotEq =>
@@ -85,7 +85,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
       s"(${translate(left)}.compareTo(${translate(right)}) ${cmpOp(op)} 0)"
   }
 
-  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = {
     op match {
       case Ast.cmpop.Eq =>
         importList.add("java.util.Arrays")

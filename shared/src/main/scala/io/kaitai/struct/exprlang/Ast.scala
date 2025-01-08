@@ -106,7 +106,7 @@ object Ast {
     case object Or extends boolop
   }
 
-  trait binaryop
+  sealed trait binaryop
 
   sealed trait operator extends binaryop
   case object operator {

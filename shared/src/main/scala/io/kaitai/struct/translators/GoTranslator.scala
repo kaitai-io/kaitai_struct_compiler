@@ -98,15 +98,15 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case Ast.expr.Compare(left, op, right) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
-            trNumericCompareOp(left, op, right)
+            trNumericCompareOp(left, op, right, extPrec)
           case (_: StrType, _: StrType) =>
-            trStrCompareOp(left, op, right)
+            trStrCompareOp(left, op, right, extPrec)
           case (_: BytesType, _: BytesType) =>
             trBytesCompareOp(left, op, right)
           case (_: BooleanType, _: BooleanType) =>
-            trNumericCompareOp(left, op, right)
+            trNumericCompareOp(left, op, right, extPrec)
           case (_: EnumType, _: EnumType) =>
-            trNumericCompareOp(left, op, right)
+            trNumericCompareOp(left, op, right, extPrec)
           case (ltype, rtype) =>
             throw new TypeMismatchError(s"can't do $ltype $op $rtype")
         }
@@ -182,11 +182,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trStrConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): TranslatorResult =
     ResultString(genericBinOp(left, Ast.operator.Add, right, extPrec))
 
-  def trNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
-    ResultString(doNumericCompareOp(left, op, right))
+  def trNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): TranslatorResult =
+    ResultString(doNumericCompareOp(left, op, right, extPrec))
 
-  def trStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult =
-    ResultString(doStrCompareOp(left, op, right))
+  def trStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): TranslatorResult =
+    ResultString(doStrCompareOp(left, op, right, extPrec))
 
   def trBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): TranslatorResult = {
     importList.add("bytes")
@@ -280,7 +280,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trEnumById(enumTypeAbs: List[String], id: String) =
     ResultString(s"${types2class(enumTypeAbs)}($id)")
 
-  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = {
     op match {
       case Ast.cmpop.Eq =>
         s"Arrays.equals(${translate(left)}, ${translate(right)})"

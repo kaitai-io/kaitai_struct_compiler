@@ -29,7 +29,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     Ast.cmpop.NotEq -> 70
   )
 
-  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         genericBinOpStr(left, op, "//", right, extPrec)

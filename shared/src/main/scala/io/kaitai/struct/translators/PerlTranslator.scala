@@ -55,7 +55,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def strLiteralUnicode(code: Char): String =
     "\\N{U+%04x}".format(code.toInt)
 
-  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"int(${super.genericBinOp(left, op, right, 0)})"
@@ -116,7 +116,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
   }
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) = {
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int) = {
     val opStr = op match {
       case Ast.cmpop.Eq => "eq"
       case Ast.cmpop.NotEq => "ne"
@@ -125,11 +125,11 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
       case Ast.cmpop.Gt => "gt"
       case Ast.cmpop.GtE => "ge"
     }
-    s"${translate(left)} $opStr ${translate(right)}"
+    super.genericBinOpStr(left, op, opStr, right, extPrec)
   }
 
-  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    doStrCompareOp(left, op, right)
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    doStrCompareOp(left, op, right, extPrec)
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"@{${translate(container)}}[${translate(idx)}]"

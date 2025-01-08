@@ -7,7 +7,7 @@ trait CommonOps extends AbstractTranslator {
    * Provides operator precedence table, used for deciding whether
    * parenthesis guarding expression are necessary or not.
    *
-   * This is the default table, based on c++ operator precedence model.
+   * This is the default table, based on C++ operator precedence model.
    * This is good enough for most C-like languages. Individual languages'
    * translators can override it if and when necessary to alter behavior.
    *
@@ -37,10 +37,15 @@ trait CommonOps extends AbstractTranslator {
     Ast.operator.BitOr -> 60
   )
 
-  def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): String =
-    genericBinOpStr(left, op, binOp(op), right, extPrec)
+  def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int): String = {
+    val opStr = op match {
+      case op: Ast.operator => binOp(op)
+      case op: Ast.cmpop => cmpOp(op)
+    }
+    genericBinOpStr(left, op, opStr, right, extPrec)
+  }
 
-  def genericBinOpStr(left: Ast.expr, op: Ast.operator, opStr: String, right: Ast.expr, extPrec: Int): String = {
+  def genericBinOpStr(left: Ast.expr, op: Ast.binaryop, opStr: String, right: Ast.expr, extPrec: Int): String = {
     val thisPrec = OPERATOR_PRECEDENCE(op)
     val leftStr = translate(left, thisPrec)
     val rightStr = translate(right, thisPrec)
@@ -66,22 +71,17 @@ trait CommonOps extends AbstractTranslator {
     }
   }
 
-  def doCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
-    val thisPrec = OPERATOR_PRECEDENCE(op)
-    s"${translate(left, thisPrec)} ${cmpOp(op)} ${translate(right, thisPrec)}"
-  }
+  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    genericBinOp(left, op, right, extPrec)
 
-  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    doCompareOp(left, op, right)
+  def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    genericBinOp(left, op, right, extPrec)
 
-  def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    doCompareOp(left, op, right)
+  def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    genericBinOp(left, op, right, extPrec)
 
-  def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    doCompareOp(left, op, right)
-
-  def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    doCompareOp(left, op, right)
+  def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    genericBinOp(left, op, right, extPrec)
 
   def cmpOp(op: Ast.cmpop): String = {
     op match {
