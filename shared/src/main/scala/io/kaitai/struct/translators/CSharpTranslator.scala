@@ -97,7 +97,16 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     s"Convert.ToInt64(${translate(s)}, ${translate(base)})"
   }
   override def enumToInt(v: expr, et: EnumType): String =
-    translate(v)
+    // Always casting to `int` works fine at the time of writing this, because the
+    // enums we generate for C# are `int`-based (we generate `public enum $enumClass
+    // { ... }`, see `CSharpCompiler.enumDeclaration`, and according to
+    // <https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/enum>:
+    // "By default, the associated constant values of enum members are of type
+    // `int`").
+    //
+    // However, once we start generating enums with underlying types other than
+    // `int`, we will have to change this.
+    s"((int) ${translate(v, METHOD_PRECEDENCE)})"
   override def floatToInt(v: expr): String =
     s"(long) (${translate(v)})"
   override def intToStr(i: expr): String =
