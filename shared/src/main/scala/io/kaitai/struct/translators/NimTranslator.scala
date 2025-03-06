@@ -10,6 +10,29 @@ import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.NimCompiler.{ksToNim, namespaced, camelCase}
 
 class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+  /**
+  * @see https://nim-lang.org/docs/manual.html#syntax-precedence
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.LShift -> 120,
+    Ast.operator.RShift -> 120,
+    Ast.operator.Add -> 110,
+    Ast.operator.Sub -> 110,
+    Ast.cmpop.Lt -> 100,
+    Ast.cmpop.LtE -> 100,
+    Ast.cmpop.Gt -> 100,
+    Ast.cmpop.GtE -> 100,
+    Ast.cmpop.Eq -> 100,
+    Ast.cmpop.NotEq -> 100,
+    Ast.operator.BitAnd -> 90,
+    Ast.operator.BitXor -> 80,
+    Ast.operator.BitOr -> 80
+
+  )
+
   // Members declared in io.kaitai.struct.translators.BaseTranslator
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     s"""encode($bytesExpr, ${doStringLiteral(encoding)})"""

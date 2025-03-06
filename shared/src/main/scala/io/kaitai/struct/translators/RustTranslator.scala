@@ -16,6 +16,28 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   var lastFoundMemberClass: ClassSpec = provider.nowClass
 
+  /**
+  * @see https://doc.rust-lang.org/reference/expressions.html
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 90,
+    Ast.operator.BitOr -> 80,
+    Ast.cmpop.Lt -> 70,
+    Ast.cmpop.LtE -> 70,
+    Ast.cmpop.Gt -> 70,
+    Ast.cmpop.GtE -> 70,
+    Ast.cmpop.Eq -> 70,
+    Ast.cmpop.NotEq -> 70
+  )
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "vec![" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
