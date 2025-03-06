@@ -5,7 +5,14 @@ import io.kaitai.struct.problems.KSYParseError
 
 sealed trait ValidationSpec
 
-case class ValidationEq(value: Ast.expr) extends ValidationSpec
+sealed abstract class ValidationEquals(val value: Ast.expr) extends ValidationSpec
+/** `valid: <...>` key */
+case class Validation(_value: Ast.expr) extends ValidationEquals(_value)
+/** `valid: eq: <...>` key */
+case class ValidationEq(_value: Ast.expr) extends ValidationEquals(_value)
+/** `contents: <...>` key */
+case class ValidationContents(_value: Ast.expr) extends ValidationEquals(_value)
+
 case class ValidationMin(min: Ast.expr) extends ValidationSpec
 case class ValidationMax(max: Ast.expr) extends ValidationSpec
 case class ValidationRange(min: Ast.expr, max: Ast.expr) extends ValidationSpec
@@ -13,10 +20,10 @@ case class ValidationAnyOf(values: List[Ast.expr]) extends ValidationSpec
 case class ValidationInEnum() extends ValidationSpec
 case class ValidationExpr(checkExpr: Ast.expr) extends ValidationSpec
 
-object ValidationEq {
+object ValidationEquals {
   val LEGAL_KEYS = Set("eq")
 
-  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationEq] =
+  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationEquals] =
     ParseUtils.getOptValueExpression(src, "eq", path).map { case eqExpr =>
       ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
       ValidationEq(eqExpr)
@@ -89,7 +96,7 @@ object ValidationExpr {
 
 object ValidationSpec {
   val LEGAL_KEYS =
-    ValidationEq.LEGAL_KEYS ++
+    ValidationEquals.LEGAL_KEYS ++
     ValidationRange.LEGAL_KEYS ++
     ValidationAnyOf.LEGAL_KEYS ++
     ValidationInEnum.LEGAL_KEYS ++
@@ -113,10 +120,10 @@ object ValidationSpec {
   }
 
   def fromString(value: String, path: List[String]): ValidationSpec =
-    ValidationEq(Expressions.parse(value))
+    Validation(Expressions.parse(value))
 
   def fromMap(src: Map[String, Any], path: List[String]): ValidationSpec = {
-    val opt1 = ValidationEq.fromMap(src, path)
+    val opt1 = ValidationEquals.fromMap(src, path)
     if (opt1.nonEmpty)
       return opt1.get
     val opt2 = ValidationRange.fromMap(src, path)
