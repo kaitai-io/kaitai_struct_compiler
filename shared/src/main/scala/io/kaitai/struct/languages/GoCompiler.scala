@@ -524,6 +524,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
     val fullEnumName: List[String] = curClass ++ List(enumName)
     val fullEnumNameStr = types2class(fullEnumName)
+    importList.add("fmt")
 
     out.puts
     out.puts(s"type $fullEnumNameStr int")
@@ -536,13 +537,49 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.dec
     out.puts(")")
+
     // Inspired by https://gist.github.com/bgadrian/cb8b9344d9c66571ef331a14eb7a2e80
-    val mapEntriesStr = enumColl.map { case (id, _) => s"$id: {}" }.mkString(", ")
-    out.puts(s"var values_$fullEnumNameStr = map[$fullEnumNameStr]struct{}{$mapEntriesStr}")
+    val mapEntriesStr = enumColl.map { case (id, label) => s"$id: \"${type2class(label.name)}\"" }.mkString(", ")
+    val valuesArrayStr = enumColl.map { case (id, label) => s"$id" }.mkString(", ")
+    val namesArrayStr = enumColl.map { case (id, label) => s"\"${type2class(label.name)}\"" }.mkString(", ")
+    out.puts(s"var values_$fullEnumNameStr = map[$fullEnumNameStr]string{$mapEntriesStr}")
+    out.puts(s"var valueValues_$fullEnumNameStr = []$fullEnumNameStr{$valuesArrayStr}")
+    out.puts(s"var valueNames_$fullEnumNameStr = []string{$namesArrayStr}")
+
     out.puts(s"func (v $fullEnumNameStr) isDefined() bool {")
     out.inc
     out.puts(s"_, ok := values_$fullEnumNameStr[v]")
     out.puts("return ok")
+    out.dec
+    out.puts("}")
+
+    out.puts(s"func (v $fullEnumNameStr) IsA$fullEnumNameStr() bool {")
+    out.inc
+    out.puts(s"return v.isDefined()")
+    out.dec
+    out.puts("}")
+
+    out.puts(s"func (v $fullEnumNameStr) String() string {")
+    out.inc
+    out.puts(s"name, ok := values_$fullEnumNameStr[v]")
+    out.puts("if ok {")
+    out.inc
+    out.puts("return name")
+    out.dec
+    out.puts("}")
+    out.puts(s"return fmt.Sprintf(\"${fullEnumNameStr}(%d)\", v)")
+    out.dec
+    out.puts("}")
+
+    out.puts(s"func ${fullEnumNameStr}Strings() []string {")
+    out.inc
+    out.puts(s"return valueNames_$fullEnumNameStr")
+    out.dec
+    out.puts("}")
+
+    out.puts(s"func ${fullEnumNameStr}Values() []${fullEnumNameStr} {")
+    out.inc
+    out.puts(s"return valueValues_$fullEnumNameStr")
     out.dec
     out.puts("}")
   }
