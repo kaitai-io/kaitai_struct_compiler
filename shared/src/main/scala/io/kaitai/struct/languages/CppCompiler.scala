@@ -593,8 +593,10 @@ class CppCompiler(
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
     val lenVar = s"l_${idToStr(id)}"
-    outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
-    outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
+    val cppElType = kaitaiType2NativeType(dataType)
+    val sizeType = s"std::vector<$cppElType>::size_type"
+    outSrc.puts(s"const $sizeType $lenVar = ${expression(repeatExpr)};")
+    outSrc.puts(s"for ($sizeType i = 0; i < $lenVar; i++) {")
     outSrc.inc
   }
 
