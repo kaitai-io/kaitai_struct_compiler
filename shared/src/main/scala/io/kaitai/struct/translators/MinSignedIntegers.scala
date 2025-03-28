@@ -26,7 +26,13 @@ trait MinSignedIntegers
           Ast.expr.IntNum(n + 1),
           Ast.operator.Sub,
           Ast.expr.IntNum(1)
-        )
+        ),
+        // We have no information about which expression operators might be around. To be on the
+        // safe side, we assume that the operator outside has the highest possible precedence
+        // `METHOD_PRECEDENCE`, which will cause this expression to be wrapped in parentheses. This
+        // avoids bugs like this:
+        // https://github.com/kaitai-io/kaitai_struct_compiler/pull/277#discussion_r1526970949
+        CommonMethods.METHOD_PRECEDENCE
       )
     } else {
       super.doIntLiteral(n)

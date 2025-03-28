@@ -145,7 +145,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
     *  - if `obj` is complex (like an expression `a + b`), then this will ensure framing as
     *    `(a + b).method(args)`.
     */
-  val METHOD_PRECEDENCE = 999
+  final val METHOD_PRECEDENCE = CommonMethods.METHOD_PRECEDENCE
 
   /**
     * Translates a certain attribute call (as in `foo.bar`) into a rendition
@@ -278,4 +278,8 @@ abstract trait CommonMethods[T] extends TypeDetector {
   def boolToInt(value: Ast.expr): T
 
   def byteSizeOfValue(attrName: String, valType: DataType): T
+}
+
+object CommonMethods {
+  final val METHOD_PRECEDENCE = 999
 }

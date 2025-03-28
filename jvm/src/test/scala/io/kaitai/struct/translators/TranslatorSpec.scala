@@ -56,9 +56,9 @@ class TranslatorSpec extends AnyFunSpec {
       everybody("-2147483647", "-2147483647")
       // -0x8000_0000
       everybodyExcept("-2147483648", "-2147483648", ResultMap(
-        CppCompiler -> "-2147483647 - 1",
-        LuaCompiler -> "-2147483647 - 1",
-        PHPCompiler -> "-2147483647 - 1",
+        CppCompiler -> "(-2147483647 - 1)",
+        LuaCompiler -> "(-2147483647 - 1)",
+        PHPCompiler -> "(-2147483647 - 1)",
       ))
       // -0x8000_0001
       everybodyExcept("-2147483649", "-2147483649", ResultMap(
@@ -79,7 +79,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "uint64(9223372036854775808)",
         JavaCompiler -> "0x8000000000000000L",
         LuaCompiler -> "0x8000000000000000",
-        PHPCompiler -> "-9223372036854775807 - 1",
+        PHPCompiler -> "(-9223372036854775807 - 1)",
       ))
       // 0xffff_ffff_ffff_ffff
       everybodyExcept("18446744073709551615", "18446744073709551615", ResultMap(
@@ -97,11 +97,11 @@ class TranslatorSpec extends AnyFunSpec {
       ))
       // -0x8000_0000_0000_0000
       everybodyExcept("-9223372036854775808", "-9223372036854775808", ResultMap(
-        CppCompiler -> "-9223372036854775807LL - 1",
+        CppCompiler -> "(-9223372036854775807LL - 1)",
         GoCompiler -> "int64(-9223372036854775808)",
         JavaCompiler -> "-9223372036854775808L",
-        LuaCompiler -> "-9223372036854775807 - 1",
-        PHPCompiler -> "-9223372036854775807 - 1",
+        LuaCompiler -> "(-9223372036854775807 - 1)",
+        PHPCompiler -> "(-9223372036854775807 - 1)",
       ))
     }
   }
