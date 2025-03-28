@@ -168,7 +168,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
     if (op == Ast.cmpop.Eq || op == Ast.cmpop.NotEq) {
       super.doStrCompareOp(left, op, right, extPrec)
     } else {
-      s"(${translate(left)}.compare(${translate(right)}) ${cmpOp(op)} 0)"
+      s"(${translate(left, METHOD_PRECEDENCE)}.compare(${translate(right)}) ${cmpOp(op)} 0)"
     }
   }
 

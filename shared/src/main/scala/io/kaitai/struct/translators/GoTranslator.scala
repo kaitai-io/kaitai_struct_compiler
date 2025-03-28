@@ -167,7 +167,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     (detectType(left), detectType(right), op) match {
       case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
         val v1 = allocateLocalVar()
-        out.puts(s"${localVarName(v1)} := ${translate(left)} % ${translate(right)}")
+        out.puts(s"${localVarName(v1)} := ${genericBinOp(left, Ast.operator.Mod, right, 0)}")
         out.puts(s"if ${localVarName(v1)} < 0 {")
         out.inc
         out.puts(s"${localVarName(v1)} += ${translate(right)}")

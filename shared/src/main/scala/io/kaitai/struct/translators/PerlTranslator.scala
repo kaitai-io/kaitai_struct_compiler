@@ -147,7 +147,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
       case "8" =>
         s"oct(${translate(s)})"
       case "10" =>
-        s"${translate(s)} + 0"
+        s"(${translate(s)} + 0)"
       case "16" =>
         s"hex(${translate(s)})"
       case _ => throw new UnsupportedOperationException(baseStr)

@@ -78,11 +78,11 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList) extends Bas
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = op match {
     case Ast.cmpop.Eq =>
-      s"${translate(left)}.equals(${translate(right)})"
+      s"${translate(left, METHOD_PRECEDENCE)}.equals(${translate(right)})"
     case Ast.cmpop.NotEq =>
-      s"!(${translate(left)}).equals(${translate(right)})"
+      s"!${translate(left, METHOD_PRECEDENCE)}.equals(${translate(right)})"
     case _ =>
-      s"(${translate(left)}.compareTo(${translate(right)}) ${cmpOp(op)} 0)"
+      s"(${translate(left, METHOD_PRECEDENCE)}.compareTo(${translate(right)}) ${cmpOp(op)} 0)"
   }
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = {

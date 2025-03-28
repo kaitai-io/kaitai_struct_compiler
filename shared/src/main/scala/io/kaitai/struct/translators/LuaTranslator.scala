@@ -78,7 +78,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String = {
     // Lua indexes start at 1, so we need to offset them
-    s"${translate(container)}[${translate(idx)} + 1]"
+    s"${translate(container)}[${translate(Ast.expr.BinOp(idx, Ast.operator.Add, Ast.expr.IntNum(1)))}]"
   }
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String = {
     importList.add("local utils = require(\"utils\")")
@@ -128,7 +128,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def boolToInt(v: Ast.expr): String =
     s"(${translate(v)} and 1 or 0)"
   override def floatToInt(v: Ast.expr): String =
-    s"(${translate(v)} > 0) and math.floor(${translate(v)}) or math.ceil(${translate(v)})"
+    s"((${translate(v)} > 0) and math.floor(${translate(v)}) or math.ceil(${translate(v)}))"
   override def intToStr(i: Ast.expr): String =
     s"tostring(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
@@ -137,7 +137,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"""str_decode.decode($bytesExpr, ${doStringLiteral(encoding)})"""
   }
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String = {
-    s"string.byte(${translate(container)}, ${translate(idx)} + 1)"
+    s"string.byte(${translate(container)}, ${translate(Ast.expr.BinOp(idx, Ast.operator.Add, Ast.expr.IntNum(1)))})"
   }
   override def bytesFirst(a: Ast.expr): String =
     s"string.byte(${translate(a)}, 1)"

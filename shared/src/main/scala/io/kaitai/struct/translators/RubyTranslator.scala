@@ -30,6 +30,26 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
     Ast.cmpop.NotEq -> 60
   )
 
+  override def translate(v: Ast.expr, extPrec: Int): String = {
+    val expr = super.translate(v, extPrec)
+    v match {
+      case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
+        // This is needed so that `(~12).to_s` is not incorrectly translated as `~12.to_s`
+        // in the generated Ruby code, which would cause the following error:
+        //
+        // ```
+        // undefined method '~' for an instance of String (NoMethodError)
+        // ```
+        if (extPrec == METHOD_PRECEDENCE) {
+          s"($expr)"
+        } else {
+          expr
+        }
+      case _ =>
+        expr
+    }
+  }
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"[${arr.map(_ & 0xff).mkString(", ")}].pack('C*')"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =

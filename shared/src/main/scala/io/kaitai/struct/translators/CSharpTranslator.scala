@@ -9,6 +9,22 @@ import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.CSharpCompiler
 
 class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+  override def translate(v: Ast.expr, extPrec: Int): String = {
+    val expr = super.translate(v, extPrec)
+    v match {
+      case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
+        if (extPrec == METHOD_PRECEDENCE) {
+          // This is needed so that `(-2).to_s` and `(~12).to_s` are not incorrectly
+          // translated as `-2.ToString()` and `~12.ToString()`.
+          s"($expr)"
+        } else {
+          expr
+        }
+      case _ =>
+        expr
+    }
+  }
+
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val nativeType = CSharpCompiler.kaitaiType2NativeType(importList, t)
     val commaStr = value.map((v) => translate(v)).mkString(", ")

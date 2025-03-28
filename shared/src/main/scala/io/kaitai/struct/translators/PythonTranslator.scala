@@ -29,6 +29,32 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     Ast.cmpop.NotEq -> 70
   )
 
+  override def translate(v: Ast.expr, extPrec: Int): String = {
+    val expr = super.translate(v, extPrec)
+    v match {
+      case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
+        // This is necessary so that `true == (not false)` is not incorrectly translated
+        // as `True == not False`, which does not work in Python:
+        //
+        // ```
+        //     True == not False
+        //             ^^^
+        // SyntaxError: invalid syntax
+        // ```
+        //
+        // To make this work, we need to wrap `not False` here in parentheses as
+        // `True == (not False)`. For now, the easiest way to do this is to just wrap all
+        // `not` operations in parentheses (although in most cases this is unnecessary).
+        if (op == Ast.unaryop.Not) {
+          s"($expr)"
+        } else {
+          expr
+        }
+      case _ =>
+        expr
+    }
+  }
+
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
