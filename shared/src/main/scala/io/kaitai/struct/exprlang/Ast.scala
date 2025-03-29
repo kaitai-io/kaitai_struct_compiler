@@ -106,7 +106,9 @@ object Ast {
     case object Or extends boolop
   }
 
-  sealed trait operator
+  sealed trait binaryop
+
+  sealed trait operator extends binaryop
   case object operator {
     case object Add extends operator
     case object Sub  extends operator
@@ -131,7 +133,7 @@ object Ast {
     case object Minus extends unaryop
   }
 
-  sealed trait cmpop
+  sealed trait cmpop extends binaryop
   object cmpop {
     case object Eq extends cmpop
     case object NotEq extends cmpop

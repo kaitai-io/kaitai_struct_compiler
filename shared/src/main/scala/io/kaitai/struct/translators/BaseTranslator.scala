@@ -86,26 +86,26 @@ abstract class BaseTranslator(val provider: TypeProvider)
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
           case (_: NumericType, _: NumericType) =>
-            doNumericCompareOp(left, op, right)
+            doNumericCompareOp(left, op, right, extPrec)
           case (_: BooleanType, _: BooleanType) =>
             op match {
               case Ast.cmpop.Eq | Ast.cmpop.NotEq =>
                 // FIXME: probably for some languages we'll need non-numeric comparison
-                doNumericCompareOp(left, op, right)
+                doNumericCompareOp(left, op, right, extPrec)
               case _ =>
                 throw new TypeMismatchError(s"can't compare booleans using $op operator")
             }
           case (_: StrType, _: StrType) =>
-            doStrCompareOp(left, op, right)
+            doStrCompareOp(left, op, right, extPrec)
           case (_: BytesType, _: BytesType) =>
-            doBytesCompareOp(left, op, right)
+            doBytesCompareOp(left, op, right, extPrec)
           case (et1: EnumType, et2: EnumType) =>
             val et1Spec = et1.enumSpec.get
             val et2Spec = et2.enumSpec.get
             if (et1Spec != et2Spec) {
               throw new TypeMismatchError(s"can't compare enums type ${et1Spec.nameAsStr} and ${et2Spec.nameAsStr}")
             } else {
-              doEnumCompareOp(left, op, right)
+              doEnumCompareOp(left, op, right, extPrec)
             }
           case (ltype, rtype) =>
             throw new TypeMismatchError(s"can't compare $ltype and $rtype")

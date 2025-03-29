@@ -26,7 +26,7 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def strLiteralGenericCC(code: Char): String =
     "\\x%02x".format(code.toInt)
 
-  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"Math.floor(${super.genericBinOp(left, op, right, 0)})"
@@ -70,7 +70,7 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
 
-  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
     s"(${JavaScriptCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
 
   override def arraySubscript(container: expr, idx: expr): String =

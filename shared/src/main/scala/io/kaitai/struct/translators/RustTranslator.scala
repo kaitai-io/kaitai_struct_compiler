@@ -16,6 +16,28 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   var lastFoundMemberClass: ClassSpec = provider.nowClass
 
+  /**
+  * @see https://doc.rust-lang.org/reference/expressions.html
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 90,
+    Ast.operator.BitOr -> 80,
+    Ast.cmpop.Lt -> 70,
+    Ast.cmpop.LtE -> 70,
+    Ast.cmpop.Gt -> 70,
+    Ast.cmpop.GtE -> 70,
+    Ast.cmpop.Eq -> 70,
+    Ast.cmpop.NotEq -> 70
+  )
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     "vec![" + arr.map(x => "%0#2xu8".format(x & 0xff)).mkString(", ") + "]"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
@@ -51,7 +73,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   def isAllDigits(x: String) = x forall Character.isDigit
 
   override def genericBinOp(left: Ast.expr,
-                            op: Ast.operator,
+                            op: Ast.binaryop,
                             right: Ast.expr,
                             extPrec: Int): String = {
     val lt = detectType(left)
@@ -66,12 +88,16 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
         val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
         s"((($tl as u64) >> $tr) as $ct)"
     } else {
+      val opStr = op match {
+        case op: Ast.operator => binOp(op)
+        case op: Ast.cmpop => cmpOp(op)
+      }
       if (lt == rt && isAllDigits(tl) && isAllDigits(tr)) {
         // let rust decide final type
-        s"($tl ${binOp(op)} $tr)"
+        s"($tl $opStr $tr)"
       } else {
         val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
-        s"(($tl as $ct) ${binOp(op)} ($tr as $ct))"
+        s"(($tl as $ct) $opStr ($tr as $ct))"
       }
     }
   }
@@ -329,8 +355,6 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
         s"${self_name()}.$n"
       }
   }
-  override def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
 
   override def doInternalName(id: Identifier): String =
     s"${doLocalName(idToStr(id))}"
@@ -338,18 +362,18 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
     s"${RustCompiler.types2class(enumSpec.name)}::${Utils.upperCamelCase(label)}"
 
-  override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String = {
+  override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = {
     val lt = detectType(left)
     val rt = detectType(right)
     if (lt != rt) {
       val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
       s"((${translate(left)} as $ct) ${cmpOp(op)} (${translate(right)} as $ct))"
     } else {
-      s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+      super.doNumericCompareOp(left, op, right, extPrec)
     }
   }
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
     s"${ensure_deref(translate(left))} ${cmpOp(op)} ${remove_deref(translate(right))}.to_string()"
 
   override def doEnumById(enumSpec: EnumSpec, id: String): String =

@@ -56,9 +56,9 @@ class TranslatorSpec extends AnyFunSpec {
       everybody("-2147483647", "-2147483647")
       // -0x8000_0000
       everybodyExcept("-2147483648", "-2147483648", ResultMap(
-        CppCompiler -> "-2147483647 - 1",
-        LuaCompiler -> "-2147483647 - 1",
-        PHPCompiler -> "-2147483647 - 1",
+        CppCompiler -> "(-2147483647 - 1)",
+        LuaCompiler -> "(-2147483647 - 1)",
+        PHPCompiler -> "(-2147483647 - 1)",
       ))
       // -0x8000_0001
       everybodyExcept("-2147483649", "-2147483649", ResultMap(
@@ -79,7 +79,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "uint64(9223372036854775808)",
         JavaCompiler -> "0x8000000000000000L",
         LuaCompiler -> "0x8000000000000000",
-        PHPCompiler -> "-9223372036854775807 - 1",
+        PHPCompiler -> "(-9223372036854775807 - 1)",
       ))
       // 0xffff_ffff_ffff_ffff
       everybodyExcept("18446744073709551615", "18446744073709551615", ResultMap(
@@ -97,11 +97,11 @@ class TranslatorSpec extends AnyFunSpec {
       ))
       // -0x8000_0000_0000_0000
       everybodyExcept("-9223372036854775808", "-9223372036854775808", ResultMap(
-        CppCompiler -> "-9223372036854775807LL - 1",
+        CppCompiler -> "(-9223372036854775807LL - 1)",
         GoCompiler -> "int64(-9223372036854775808)",
         JavaCompiler -> "-9223372036854775808L",
-        LuaCompiler -> "-9223372036854775807 - 1",
-        PHPCompiler -> "-9223372036854775807 - 1",
+        LuaCompiler -> "(-9223372036854775807 - 1)",
+        PHPCompiler -> "(-9223372036854775807 - 1)",
       ))
     }
   }
@@ -159,9 +159,17 @@ class TranslatorSpec extends AnyFunSpec {
       PythonCompiler -> "3 - ((1 + 2) // (7 * 8) + 5)"
     ))
 
-    everybody("1 + 2 << 5", "1 + 2 << 5")
-    everybody("(1 + 2) << 5", "1 + 2 << 5")
-    everybody("1 + (2 << 5)", "1 + (2 << 5)")
+    everybodyExcept("1 + 2 << 5", "1 + 2 << 5", ResultMap(
+      GoCompiler -> "(1 + 2) << 5"
+    ))
+
+    everybodyExcept("(1 + 2) << 5", "1 + 2 << 5", ResultMap(
+      GoCompiler -> "(1 + 2) << 5"
+    ))
+
+    everybodyExcept("1 + (2 << 5)", "1 + (2 << 5)", ResultMap(
+      GoCompiler -> "1 + 2 << 5"
+    ))
 
     everybodyExcept("~777", "~777", ResultMap(
       GoCompiler -> "^777"
@@ -175,11 +183,26 @@ class TranslatorSpec extends AnyFunSpec {
     everybodyExcept("(0b01 & 0b10) >> 1", "(1 & 2) >> 1", ResultMap(
       JavaScriptCompiler -> "(1 & 2) >>> 1"
     ))
+
+    everybodyExcept("3 | 1 ^ 2", "3 | 1 ^ 2", ResultMap(
+      GoCompiler -> "3 | (1 ^ 2)",
+      LuaCompiler -> "3 | 1 ~ 2",
+      PerlCompiler -> "3 | (1 ^ 2)",
+      RubyCompiler -> "3 | (1 ^ 2)"
+    ))
   }
 
   describe("integer comparisons") {
     everybody("1 < 2", "1 < 2", CalcBooleanType)
     everybody("1 == 2", "1 == 2", CalcBooleanType)
+
+    everybodyExcept("100 & 1 == 0", "(100 & 1) == 0", ResultMap(
+      GoCompiler -> "100 & 1 == 0",
+      LuaCompiler -> "100 & 1 == 0",
+      PythonCompiler -> "100 & 1 == 0",
+      RubyCompiler -> "100 & 1 == 0",
+      RustCompiler -> "100 & 1 == 0",
+    ), CalcBooleanType)
   }
 
   describe("integer method calls") {
@@ -461,7 +484,7 @@ class TranslatorSpec extends AnyFunSpec {
         GoCompiler -> "this.A[42 - 2]",
         JavaCompiler -> "a().get((int) (42 - 2))",
         JavaScriptCompiler -> "this.a[42 - 2]",
-        LuaCompiler -> "self.a[42 - 2 + 1]", // TODO: self.a[41]
+        LuaCompiler -> "self.a[(42 - 2) + 1]", // TODO: self.a[41]
         PerlCompiler -> "@{$self->a()}[42 - 2]",
         PHPCompiler -> "$this->a()[42 - 2]",
         PythonCompiler -> "self.a[42 - 2]",
@@ -576,7 +599,7 @@ class TranslatorSpec extends AnyFunSpec {
       ), CalcStrType)
 
       everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", ResultMap(
-        CppCompiler -> "std::string(\"str1\") == (std::string(\"str2\"))",
+        CppCompiler -> "std::string(\"str1\") == std::string(\"str2\")",
         JavaCompiler -> "\"str1\".equals(\"str2\")",
         LuaCompiler -> "\"str1\" == \"str2\"",
         PerlCompiler -> "\"str1\" eq \"str2\"",
@@ -585,7 +608,7 @@ class TranslatorSpec extends AnyFunSpec {
 
       everybodyExcept("\"str1\" != \"str2\"", "\"str1\" != \"str2\"", ResultMap(
         CppCompiler -> "std::string(\"str1\") != std::string(\"str2\")",
-        JavaCompiler -> "!(\"str1\").equals(\"str2\")",
+        JavaCompiler -> "!\"str1\".equals(\"str2\")",
         LuaCompiler -> "\"str1\" ~= \"str2\"",
         PerlCompiler -> "\"str1\" ne \"str2\"",
         PythonCompiler -> "u\"str1\" != u\"str2\""

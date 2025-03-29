@@ -8,6 +8,48 @@ import io.kaitai.struct.languages.RubyCompiler
 
 class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   with ByteArraysAsTrueArrays[String] {
+  /**
+  * @see https://ruby-doc.org/core-2.6.2/doc/syntax/precedence_rdoc.html
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 90,
+    Ast.operator.BitOr -> 90,
+    Ast.cmpop.Lt -> 70,
+    Ast.cmpop.LtE -> 70,
+    Ast.cmpop.Gt -> 70,
+    Ast.cmpop.GtE -> 70,
+    Ast.cmpop.Eq -> 60,
+    Ast.cmpop.NotEq -> 60
+  )
+
+  override def translate(v: Ast.expr, extPrec: Int): String = {
+    val expr = super.translate(v, extPrec)
+    v match {
+      case Ast.expr.UnaryOp(op: Ast.unaryop, inner: Ast.expr) =>
+        // This is needed so that `(~12).to_s` is not incorrectly translated as `~12.to_s`
+        // in the generated Ruby code, which would cause the following error:
+        //
+        // ```
+        // undefined method '~' for an instance of String (NoMethodError)
+        // ```
+        if (extPrec == METHOD_PRECEDENCE) {
+          s"($expr)"
+        } else {
+          expr
+        }
+      case _ =>
+        expr
+    }
+  }
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"[${arr.map(_ & 0xff).mkString(", ")}].pack('C*')"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =

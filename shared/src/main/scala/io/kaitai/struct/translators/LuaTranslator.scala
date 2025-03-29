@@ -10,6 +10,28 @@ import io.kaitai.struct.Utils
 
 class LuaTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider)
     with MinSignedIntegers {
+  /**
+  * @see https://www.lua.org/manual/5.4/manual.html#3.4.8
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 90,
+    Ast.operator.BitOr -> 80,
+    Ast.cmpop.Lt -> 70,
+    Ast.cmpop.LtE -> 70,
+    Ast.cmpop.Gt -> 70,
+    Ast.cmpop.GtE -> 70,
+    Ast.cmpop.Eq -> 70,
+    Ast.cmpop.NotEq -> 70
+  )
+
   override def doIntLiteral(n: BigInt): String = {
     if (n > Long.MaxValue && n <= Utils.MAX_UINT64) {
       // See <https://www.lua.org/manual/5.4/manual.html#3.1>:
@@ -45,7 +67,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def strLiteralUnicode(code: Char): String =
     "\\u{%04x}".format(code.toInt)
 
-  override def genericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int) = {
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"math.floor(${super.genericBinOp(left, op, right, 0)})"
@@ -56,7 +78,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String = {
     // Lua indexes start at 1, so we need to offset them
-    s"${translate(container)}[${translate(idx)} + 1]"
+    s"${translate(container)}[${translate(Ast.expr.BinOp(idx, Ast.operator.Add, Ast.expr.IntNum(1)))}]"
   }
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String = {
     importList.add("local utils = require(\"utils\")")
@@ -106,7 +128,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def boolToInt(v: Ast.expr): String =
     s"(${translate(v)} and 1 or 0)"
   override def floatToInt(v: Ast.expr): String =
-    s"(${translate(v)} > 0) and math.floor(${translate(v)}) or math.ceil(${translate(v)})"
+    s"((${translate(v)} > 0) and math.floor(${translate(v)}) or math.ceil(${translate(v)}))"
   override def intToStr(i: Ast.expr): String =
     s"tostring(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
@@ -115,7 +137,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"""str_decode.decode($bytesExpr, ${doStringLiteral(encoding)})"""
   }
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String = {
-    s"string.byte(${translate(container)}, ${translate(idx)} + 1)"
+    s"string.byte(${translate(container)}, ${translate(Ast.expr.BinOp(idx, Ast.operator.Add, Ast.expr.IntNum(1)))})"
   }
   override def bytesFirst(a: Ast.expr): String =
     s"string.byte(${translate(a)}, 1)"
