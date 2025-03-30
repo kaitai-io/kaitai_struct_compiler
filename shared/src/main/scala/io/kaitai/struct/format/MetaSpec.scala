@@ -86,10 +86,19 @@ object MetaSpec {
     "application"
   )
 
+  private final val ReKsVersion = """(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?""".r
+
   def fromYaml(src: Any, path: List[String]): MetaSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
 
     ParseUtils.getOptValueStr(srcMap, "ks-version", path).foreach { (verStr) =>
+      if (!ReKsVersion.matches(verStr)) {
+        throw KSYParseError.withText(
+          s"invalid compiler version '$verStr', expected 'X.Y' or 'X.Y.Z', " +
+            "where X, Y, Z are non-negative integers without leading zeros",
+          path ++ List("ks-version")
+        )
+      }
       val ver = KSVersion.fromStr(verStr)
       if (ver > KSVersion.current)
         throw KSYParseError.incompatibleVersion(ver, KSVersion.current, path ++ List("ks-version"))
