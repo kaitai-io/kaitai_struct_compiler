@@ -92,7 +92,7 @@ object MetaSpec {
     ParseUtils.getOptValueStr(srcMap, "ks-version", path).foreach { (verStr) =>
       val ver = KSVersion.fromStr(verStr)
       if (ver > KSVersion.current)
-        throw KSYParseError.incompatibleVersion(ver, KSVersion.current, path)
+        throw KSYParseError.incompatibleVersion(ver, KSVersion.current, path ++ List("ks-version"))
     }
 
     val endian: Option[Endianness] = Endianness.fromYaml(srcMap.get("endian"), path)
