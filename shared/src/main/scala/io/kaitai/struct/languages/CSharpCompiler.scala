@@ -220,7 +220,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val privateVarName = privateMemberName(varName)
 
     val ioName = s"io_$privateVarName"
