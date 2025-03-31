@@ -359,8 +359,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doInternalName(id: Identifier): String =
     s"${doLocalName(idToStr(id))}"
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    s"${RustCompiler.types2class(enumSpec.name)}::${Utils.upperCamelCase(label)}"
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String =
+    s"${RustCompiler.types2class(enumSpec.name)}::${Utils.upperCamelCase(variant)}"
 
   override def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = {
     val lt = detectType(left)
@@ -376,8 +376,8 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
     s"${ensure_deref(translate(left))} ${cmpOp(op)} ${remove_deref(translate(right))}.to_string()"
 
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    s"($id as i64).try_into()?"
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
+    s"($value as i64).try_into()?"
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${remove_deref(translate(container))}[${translate(idx)} as usize]"
@@ -420,7 +420,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def translate(v: Ast.expr): String = {
     v match {
-      case Ast.expr.EnumById(enumType, id, inType) =>
+      case Ast.expr.EnumCast(enumType, id, inType) =>
         id match {
           case ifExp: Ast.expr.IfExp =>
             val enumSpec = provider.resolveEnum(inType, enumType.name)
