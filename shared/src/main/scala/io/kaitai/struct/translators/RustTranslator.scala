@@ -369,12 +369,30 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
       s"((${translate(left)} as $ct) ${cmpOp(op)} (${translate(right)} as $ct))"
     } else {
-      super.doNumericCompareOp(left, op, right, extPrec)
+      // The keyword `super` is crucial here - we don't want to call the
+      // overridden version of `genericBinOp` because it doesn't work.
+      //
+      // FIXME: figure out a better solution
+      super.genericBinOp(left, op, right, extPrec)
     }
   }
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
     s"${ensure_deref(translate(left))} ${cmpOp(op)} ${remove_deref(translate(right))}.to_string()"
+
+  override def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    // The keyword `super` is crucial here - we don't want to call the
+    // overridden version of `genericBinOp` because it doesn't work.
+    //
+    // FIXME: figure out a better solution
+    super.genericBinOp(left, op, right, extPrec)
+
+  override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    // The keyword `super` is crucial here - we don't want to call the
+    // overridden version of `genericBinOp` because it doesn't work.
+    //
+    // FIXME: figure out a better solution
+    super.genericBinOp(left, op, right, extPrec)
 
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"($id as i64).try_into()?"
