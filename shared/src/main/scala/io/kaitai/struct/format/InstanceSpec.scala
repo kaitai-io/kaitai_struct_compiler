@@ -61,7 +61,7 @@ object InstanceSpec {
           case None =>
             value
           case Some(enumName) =>
-            Ast.expr.EnumById(Ast.identifier(enumName), value)
+            Ast.expr.EnumById(Expressions.parseEnumRef(enumName), value)
         }
 
         val ifExpr = ParseUtils.getOptValueExpression(srcMap, "if", path)
