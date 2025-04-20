@@ -117,8 +117,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(
       s"public function __construct($paramsArg" +
       s"$tIo $pIo, " +
-      s"$tParent $pParent = null, " +
-      s"$tRoot $pRoot = null" + endianAdd + ") {"
+      s"?$tParent $pParent = null, " +
+      s"?$tRoot $pRoot = null" + endianAdd + ") {"
     )
     out.inc
     out.puts(s"parent::__construct($pIo, $pParent, $pRootValue);")
