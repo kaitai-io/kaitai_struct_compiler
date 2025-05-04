@@ -141,13 +141,20 @@ object Expressions {
   def list_contents[$: P] = P( test.rep(1, ",") ~ ",".? )
   def list[$: P] = P( list_contents ).map(Ast.expr.List(_))
 
-  def call[$: P] = P("(" ~ arglist ~ ")").map { case (args) => (lhs: Ast.expr) => Ast.expr.Call(lhs, args)}
+  def call[$: P] = P("(" ~ arglist ~ ")")
   def slice[$: P] = P("[" ~ test ~ "]").map { case (args) => (lhs: Ast.expr) => Ast.expr.Subscript(lhs, args)}
   def cast[$: P] = P( "." ~ "as" ~ "<" ~ TYPE_NAME ~ ">" ).map(
     typeName => (lhs: Ast.expr) => Ast.expr.CastToType(lhs, typeName)
   )
-  def attr[$: P] = P("." ~ NAME).map(id => (lhs: Ast.expr) => Ast.expr.Attribute(lhs, id))
-  def trailer[$: P]: P[Ast.expr => Ast.expr] = P( call | slice | cast | attr )
+  // Returns function that accept lsh expression and returns Attribute or Call
+  // node depending on existence of parameters
+  def attr[$: P] = P("." ~ NAME ~ call.?).map {
+    case (id, args) => (lhs: Ast.expr) => args match {
+      case Some(args) => Ast.expr.Call(lhs, id, args)
+      case None => Ast.expr.Attribute(lhs, id)
+    }
+  }
+  def trailer[$: P]: P[Ast.expr => Ast.expr] = P( slice | cast | attr )
 
   def exprlist[$: P]: P[Seq[Ast.expr]] = P( expr.rep(1, sep = ",") ~ ",".? )
   def testlist[$: P]: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") ~ ",".? )
