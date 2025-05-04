@@ -123,9 +123,6 @@ abstract class LanguageCompiler(
   def attrInit(attr: AttrLikeSpec): Unit = {}
   def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {}
 
-  // TODO: delete
-  def attrFixedContentsParse(attrName: Identifier, contents: Array[Byte]): Unit
-
   def condIfSetNull(instName: Identifier): Unit = {}
   def condIfSetNonNull(instName: Identifier): Unit = {}
   def condIfHeader(expr: Ast.expr): Unit
