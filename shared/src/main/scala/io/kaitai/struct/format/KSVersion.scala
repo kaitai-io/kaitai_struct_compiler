@@ -1,16 +1,32 @@
 package io.kaitai.struct.format
 
-case class KSVersion(nums: List[Int]) extends Ordered[KSVersion] {
+// This used to be a `case class`, but we reverted to a normal `class` because
+// we want to override equality, which is not recommended for a case class.
+// See links below for more details:
+//
+// - https://deepsource.com/directory/scala/issues/SC-W1074
+// - https://users.scala-lang.org/t/overriding-methods-in-case-class/7753/3
+// - https://stackoverflow.com/a/11402564/12940655
+class KSVersion(val nums: List[Int]) extends Ordered[KSVersion] {
   override def compare(that: KSVersion): Int = {
-    nums.zip(that.nums).foreach { case (thisNum, otherNum) =>
+    nums.zipAll(that.nums, 0, 0).foreach { case (thisNum, otherNum) =>
       if (thisNum < otherNum) {
         return -1
       } else if (thisNum > otherNum) {
         return 1
       }
     }
+    0
+  }
 
-    nums.size.compareTo(that.nums.size)
+  override def equals(that: Any): Boolean = that match {
+    case otherVer: KSVersion => compare(otherVer) == 0
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val lastNonZeroNum = nums.lastIndexWhere(_ != 0)
+    nums.take(lastNonZeroNum + 1).hashCode()
   }
 
   override def toString: String = nums.mkString(".")
@@ -23,9 +39,9 @@ case class KSVersion(nums: List[Int]) extends Ordered[KSVersion] {
     * @return version as an integer, allowing easy numeric comparison
     */
   def toInt: Int = {
-    if (nums.size > 3)
+    if (nums.length > 3)
       throw new RuntimeException(s"C-style version int can have max 3 components, but $this is given")
-    val nums2 = nums ++ List.fill(3 - nums.size)(0)
+    val nums2 = nums ++ List.fill(3 - nums.length)(0)
     nums2.foldLeft(0) { (sum, comp) =>
       if (comp < 0 || comp > 999) {
         throw new RuntimeException(s"C-style version int only allows components [0..999], but $comp was used")
@@ -42,7 +58,7 @@ case class KSVersion(nums: List[Int]) extends Ordered[KSVersion] {
     * @return version as a Perl-style string
     */
   def toPerlVersion: String = {
-    if (nums.size > 3)
+    if (nums.length > 3)
       throw new RuntimeException(s"C-style version int can have max 3 components, but $this is given")
     nums.foreach((comp) =>
       if (comp < 0 || comp > 999) {
@@ -50,7 +66,7 @@ case class KSVersion(nums: List[Int]) extends Ordered[KSVersion] {
       }
     )
 
-    val v1 :: v2 :: v3 :: _ = nums ++ List.fill(3 - nums.size)(0)
+    val v1 :: v2 :: v3 :: _ = nums ++ List.fill(3 - nums.length)(0)
     "%d.%03d_%03d".format(v1, v2, v3)
   }
 
@@ -82,7 +98,7 @@ object KSVersion {
   def current: KSVersion = _current.get
 
   def fromStr(str: String): KSVersion =
-    KSVersion(str.replaceAll("-SNAPSHOT.*$", "").split('.').map(_.toInt).toList)
+    new KSVersion(str.replaceAll("-SNAPSHOT.*$", "").split('.').map(_.toInt).toList)
 
   /**
     * Hardcoded minimal version of runtime API that this particular

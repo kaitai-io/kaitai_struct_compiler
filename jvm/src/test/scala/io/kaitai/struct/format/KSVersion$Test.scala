@@ -29,6 +29,18 @@ class KSVersion$Test extends AnyFunSpec {
       (v1 < v2) should be(true)
       (v2 > v1) should be(true)
     }
+
+    it("properly compares 0.1 and 0.1.0") {
+      val v1 = KSVersion.fromStr("0.1")
+      val v2 = KSVersion.fromStr("0.1.0")
+      v1.compareTo(v2) should be(0)
+      v2.compareTo(v1) should be(0)
+
+      (v1 == v2) should be(true)
+      (v2 == v1) should be(true)
+
+      (v1.hashCode()) should be(v2.hashCode())
+    }
   }
 
   describe("KSVersion.toInt") {
