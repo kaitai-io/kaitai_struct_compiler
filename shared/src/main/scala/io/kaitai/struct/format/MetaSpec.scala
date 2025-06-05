@@ -87,6 +87,7 @@ object MetaSpec {
   )
 
   private final val ReKsVersion = """(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?""".r
+  private final val MIN_ALLOWED_KS_VERSION_0_6 = KSVersion.fromStr("0.6")
 
   def fromYaml(src: Any, path: List[String]): MetaSpec = {
     val srcMap = ParseUtils.asMapStr(src, path)
@@ -96,10 +97,22 @@ object MetaSpec {
         throw KSYParseError.withText(
           s"invalid compiler version '$verStr', expected 'X.Y' or 'X.Y.Z', " +
             "where X, Y, Z are non-negative integers without leading zeros",
-          path ++ List("ks-version")
+          path :+ "ks-version"
         )
       }
       val ver = KSVersion.fromStr(verStr)
+      if (ver < MIN_ALLOWED_KS_VERSION_0_6) {
+        val extraHelp =
+          if (ver.nums == List(0, 1)) {
+            " (if you meant 0.10, use ks-version: '0.10' to prevent YAML from interpreting it as a float)"
+          } else {
+            ""
+          }
+        throw KSYParseError.withText(
+          s"minimum allowed version is 0.6, but got $verStr$extraHelp",
+          path :+ "ks-version"
+        )
+      }
       if (ver > KSVersion.current)
         throw KSYParseError.incompatibleVersion(ver, KSVersion.current, path ++ List("ks-version"))
     }
