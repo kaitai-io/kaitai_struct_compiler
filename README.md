@@ -7,7 +7,7 @@
 [![npm@next](https://img.shields.io/npm/v/kaitai-struct-compiler/next)](https://www.npmjs.com/package/kaitai-struct-compiler/v/next)
 [![npm downloads](https://img.shields.io/npm/dm/kaitai-struct-compiler?label=npm%20downloads)](https://www.npmtrends.com/kaitai-struct-compiler)
 
-This project is an official reference compiler for [Kaitai Struct](http://kaitai.io) project.
+This project is an official reference compiler for [Kaitai Struct](https://kaitai.io/) project.
 
 Kaitai Struct is a declarative language used to describe various
 binary data structures, laid out in files or in memory: i.e. binary
@@ -25,11 +25,11 @@ access to it in a nice, easy-to-comprehend API.
 If you're looking for information on:
 
 * Kaitai Struct language itself (`.ksy` files, general usage patterns)
-  — refer to the [user guide](http://doc.kaitai.io/user_guide.html).
+  — refer to the [user guide](https://doc.kaitai.io/user_guide.html).
 * How to download and install Kaitai Struct — see the
-  [downloads](http://kaitai.io/#download).
+  [downloads](https://kaitai.io/#download).
 * How to build the compiler, run the test suite, and join the
-  development — see the [developer memo](http://doc.kaitai.io/developers.html).
+  development — see the [developer memo](https://doc.kaitai.io/developers.html).
 
 ## Licensing
 

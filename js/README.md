@@ -14,7 +14,7 @@ modules will include a generated code for a parser that can read
 described data structure from a file / stream and give access to it in
 a nice, easy-to-comprehend API.
 
-For more info on Kaitai Struct, please refer to http://kaitai.io/
+For more info on Kaitai Struct, please refer to https://kaitai.io/
 
 Note that reference Kaitai Struct compiler is written in Scala, and thus
 can be compiled for a variety of platforms, such as JVM, JavaScript

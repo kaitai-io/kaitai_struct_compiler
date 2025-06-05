@@ -51,7 +51,7 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
         Some("releases"  at nexus + "service/local/staging/deploy/maven2")
     }.value,
     pomExtra :=
-      <url>http://kaitai.io</url>
+      <url>https://kaitai.io/</url>
       <scm>
         <connection>scm:git:git://github.com/kaitai-io/kaitai_struct_compiler.git</connection>
         <developerConnection>scm:git:ssh://github.com:kaitai-io/kaitai_struct_compiler.git</developerConnection>
@@ -62,7 +62,7 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
           <name>Mikhail Yakshin</name>
           <email>greycat.na.kor@gmail.com</email>
           <organization>Kaitai Project</organization>
-          <organizationUrl>http://kaitai.io</organizationUrl>
+          <organizationUrl>https://kaitai.io/</organizationUrl>
         </developer>
       </developers>
     ,

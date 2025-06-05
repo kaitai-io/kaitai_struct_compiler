@@ -29,7 +29,7 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     Ast.operator.BitXor -> 70,
     Ast.operator.BitOr -> 70
   )
-  // http://perldoc.perl.org/perlrebackslash.html#Character-Escapes
+  // https://perldoc.perl.org/perlrebackslash#Character-Escapes
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",

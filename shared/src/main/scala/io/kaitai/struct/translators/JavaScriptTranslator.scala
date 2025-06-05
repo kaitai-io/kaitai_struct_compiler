@@ -91,7 +91,7 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
     * accepted as one of the fastest (other top methods are +-0.3%), and it's
     * pretty concise and readable.
     *
-    * @see http://stackoverflow.com/questions/7820683/convert-boolean-result-into-number-integer
+    * @see https://stackoverflow.com/questions/7820683/convert-boolean-result-into-number-integer
     * @param v boolean expression to convert
     * @return string rendition of conversion
     */
@@ -104,7 +104,7 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
     * relatively easy to add compatibility polyfill for non-supporting environments
     * (see MDN page).
     *
-    * @see http://stackoverflow.com/a/596503/487064
+    * @see https://stackoverflow.com/a/596503/487064
     * @see https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Math/trunc
     * @param v float expression to convert
     * @return string rendition of conversion
@@ -121,7 +121,7 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def strLength(s: expr): String =
     s"${translate(s, METHOD_PRECEDENCE)}.length"
 
-  // http://stackoverflow.com/a/36525647/2055163
+  // https://stackoverflow.com/a/36525647/2055163
   override def strReverse(s: expr): String =
     s"Array.from(${translate(s)}).reverse().join('')"
 

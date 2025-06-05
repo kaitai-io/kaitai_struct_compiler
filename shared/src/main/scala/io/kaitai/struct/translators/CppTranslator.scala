@@ -85,7 +85,7 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   }
 
   /**
-    * http://en.cppreference.com/w/cpp/language/escape
+    * https://en.cppreference.com/w/cpp/language/escape
     */
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",

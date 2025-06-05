@@ -62,7 +62,7 @@ object XMLUtils {
     */
   final def escape(text: String, s: StringBuilder): StringBuilder = {
     // Implemented per XML spec:
-    // http://www.w3.org/International/questions/qa-controls
+    // https://www.w3.org/International/questions/qa-controls
     // imperative code 3x-4x faster than current implementation
     // dpp (David Pollak) 2010/02/03
     val len = text.length

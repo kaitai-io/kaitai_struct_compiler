@@ -210,7 +210,7 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
     * finding the expression in source .ksy.
     *
     * Note: `T: Manifest` is required due to JVM type erasure. See
-    * http://stackoverflow.com/a/42533114 for more info.
+    * https://stackoverflow.com/a/42533114 for more info.
     *
     * @param expr expression to check
     * @param expectStr string to include

@@ -23,7 +23,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"pack('C*', ${elts.map(translate).mkString(", ")})"
 
-  // http://php.net/manual/en/language.types.string.php#language.types.string.syntax.double
+  // https://www.php.net/manual/en/language.types.string.php#language.types.string.syntax.double
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",
@@ -129,7 +129,7 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
     s"${translate(a)}[0]"
   override def arrayLast(a: expr): String = {
     // For huge debate on efficiency of PHP last element of array methods, see:
-    // http://stackoverflow.com/a/41795859/487064
+    // https://stackoverflow.com/a/41795859/487064
     val v = translate(a)
     s"$v[count($v) - 1]"
   }
