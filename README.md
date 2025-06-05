@@ -31,6 +31,12 @@ If you're looking for information on:
 * How to build the compiler, run the test suite, and join the
   development — see the [developer memo](https://doc.kaitai.io/developers.html).
 
+## Issues
+
+Compiler issues are tracked in the
+[kaitai-io/kaitai_struct](https://github.com/kaitai-io/kaitai_struct/issues)
+repository.
+
 ## Licensing
 
 ### Main code
