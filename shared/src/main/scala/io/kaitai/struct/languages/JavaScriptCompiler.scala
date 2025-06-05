@@ -160,13 +160,13 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
   override def universalDoc(doc: DocSpec): Unit = {
-    // JSDoc docstring style: http://usejsdoc.org/about-getting-started.html
+    // JSDoc docstring style: https://jsdoc.app/about-getting-started
     out.puts
     out.puts( "/**")
 
     doc.summary.foreach(summary => out.putsLines(" * ", summary))
 
-    // http://usejsdoc.org/tags-see.html
+    // https://jsdoc.app/tags-see
     doc.ref.foreach {
       case TextRef(text) =>
         out.putsLines(" * ", s"@see $text")
