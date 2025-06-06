@@ -50,9 +50,9 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
         ut.classSpec = resClassSpec
         problems
       case et: EnumType =>
-        et.enumSpec = resolveEnumSpec(curClass, et.name)
+        et.enumSpec = resolveEnumSpec(curClass, et.owner :+ et.name)
         if (et.enumSpec.isEmpty) {
-          Some(EnumNotFoundErr(et.name, curClass, path ++ List("enum")))
+          Some(EnumNotFoundErr(et.owner :+ et.name, curClass, path ++ List("enum")))
         } else {
           None
         }
