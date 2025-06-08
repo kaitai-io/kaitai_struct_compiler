@@ -31,7 +31,7 @@ object JavaScriptKSYParser {
     src match {
       case array: js.Array[_] =>
         array.toList.map(yamlJavascriptToScala)
-      // See <https://www.scala-js.org/api/scalajs-library/1.13.1/scala/scalajs/js/index.html>:
+      // See <https://javadoc.io/doc/org.scala-js/scalajs-library_2.12/1.13.1/scala/scalajs/js/index.html>:
       //
       // > There are no explicit definitions for JavaScript primitive types, as
       // > one could expect, because the corresponding Scala types stand in

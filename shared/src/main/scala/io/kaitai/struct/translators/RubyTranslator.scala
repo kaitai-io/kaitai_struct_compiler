@@ -55,8 +55,8 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"[${elts.map(translate).mkString(", ")}].pack('C*')"
 
-  // https://github.com/ruby/ruby/blob/trunk/doc/syntax/literals.rdoc#strings
-  // https://github.com/ruby/ruby/blob/trunk/string.c - see "rb_str_inspect"
+  // https://docs.ruby-lang.org/en/3.4/syntax/literals_rdoc.html#label-Strings
+  // https://github.com/ruby/ruby/blob/a38531fd3f617bf734ef7d6c595325f69985ea1d/string.c#L7201
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
     '\n' -> "\\n",

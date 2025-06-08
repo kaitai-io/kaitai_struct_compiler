@@ -31,7 +31,7 @@ package io.kaitai.struct
   * THE POSSIBILITY OF SUCH DAMAGE.
   */
 object XMLUtils {
-  // https://github.com/scala/scala-xml/blob/master/shared/src/main/scala/scala/xml/Utility.scala#L86-L144
+  // https://github.com/scala/scala-xml/blob/d26ff2826df4ed616b2bf30eae4dd02e964323fd/shared/src/main/scala/scala/xml/Utility.scala#L86-L144
 
   /**
     * Escapes the characters &lt; &gt; &amp; and &quot; from string.
