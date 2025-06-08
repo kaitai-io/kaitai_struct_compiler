@@ -34,7 +34,7 @@ trait CommonLiterals {
   /**
     * Handle ASCII character conversion for inlining into string literals.
     * Default implementation consults [[asciiCharQuoteMap]] first, then
-    * just dumps it as is if it's a printable ASCII charcter, or calls
+    * just dumps it as is if it's a printable ASCII character, or calls
     * [[strLiteralGenericCC]] if it's a control character.
     * @param code character code to convert into string for inclusion in
     *             a string literal

@@ -628,7 +628,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // overload `Enum.IsDefined<TEnum>(TEnum)` instead, claiming that it fixes
     // the performance issues. But it's only available since .NET 5, so we would
     // need a command-line switch to allow the user to choose whether they need
-    // compabitility with older versions or not.
+    // compatibility with older versions or not.
     importList.add("System")
     attrValidate(s"!Enum.IsDefined(typeof(${kaitaiType2NativeType(et)}), ${translator.translate(valueExpr)})", err, errArgs)
   }
