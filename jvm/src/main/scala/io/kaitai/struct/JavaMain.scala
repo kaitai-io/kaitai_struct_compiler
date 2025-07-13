@@ -117,6 +117,14 @@ object JavaMain {
         c.copy(runtime = c.runtime.copy(pythonPackage = x))
       } text("Python package (Python only, default: root package)")
 
+      opt[Unit]("python-type-annotations") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(pythonTypeAnnotations = true))
+      } text("generate Python type annotations (Python only, default: true)")
+
+      opt[Unit]("no-python-type-annotations") action { (x, c) =>
+        c.copy(runtime = c.runtime.copy(pythonTypeAnnotations = false))
+      } text("disable Python type annotations (Python only)")
+
       opt[String]("nim-module") valueName("<module>") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(nimModule = x))
       } text("Path of Nim runtime module (Nim only, default: kaitai_struct_nim_runtime)")
