@@ -94,7 +94,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("self._io = _io")
     out.puts("self._parent = _parent")
     if (name == rootClassName) {
-      out.puts("self._root = _root if _root else self")
+      out.puts("self._root = _root or self")
     } else {
       out.puts("self._root = _root")
     }
