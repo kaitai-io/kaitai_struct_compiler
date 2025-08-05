@@ -33,10 +33,48 @@ case object GenericStructClassSpec extends ClassSpecLike {
   override def toDataType: DataType = CalcKaitaiStructType()
 }
 
-sealed trait Sized
+/**
+  * Type that represent result of the `_sizeof` special property and `sizeof<>`
+  * meta-function.
+  */
+sealed trait Sized {
+  /**
+    * Combines two sizes into one object which covers both size requirements
+    *
+    * @param other Size to combine with
+    */
+  final def or(other: Sized): Sized = {
+    (this, other) match {
+      case (FixedSized(l), FixedSized(r)) if l == r => FixedSized(l)
+      case (FixedSized(_), FixedSized(_)) => DynamicSized
+
+      case (FixedSized(_), DynamicSized) => DynamicSized
+      case (DynamicSized, FixedSized(_)) => DynamicSized
+
+      case (DynamicSized, DynamicSized) => DynamicSized
+
+      // other combinations should produce an error
+    }
+  }
+}
+/**
+  * The size of type have no constant value. The examples is built-in unsized
+  * types: `str`, `strz`, and `bytes`. Those types has no natural size in contrary
+  * to the sized types, such as `u1` or `f4be`.
+  */
 case object DynamicSized extends Sized
+/**
+  * A marker object that indicates that size of the type has not been yet calculated
+  * and calculation should be performed when size will be requested.
+  */
 case object NotCalculatedSized extends Sized
+/**
+  * A marker object that indicates that calculation of the size of the type in the
+  * progress. If that object will be seen during calculation process it is mean that
+  * type is defined recursively.
+  */
 case object StartedCalculationSized extends Sized
+/** The size of type is `n` bits. */
 case class FixedSized(n: Int) extends Sized
 
 case class ClassSpec(
