@@ -239,8 +239,6 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
       detector.validate(expr)
       None
     } catch {
-      case err: InvalidIdentifier =>
-        Some(ErrorInInput(err, path ++ List(pathKey)))
       case err: ExpressionError =>
         Some(ErrorInInput(err, path ++ List(pathKey)))
     }
@@ -285,8 +283,6 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
       detector.validate(expr)
       None
     } catch {
-      case err: InvalidIdentifier =>
-        Some(ErrorInInput(err, path ++ List(pathKey)))
       case err: ExpressionError =>
         Some(ErrorInInput(err, path ++ List(pathKey)))
     }
