@@ -46,7 +46,7 @@ object CanonicalizeEncodingNames {
 
   def canonicalizeName(original: String): (String, Option[CompilationProblem with PathLocalizable]) = {
     // Try exact match with canonical list
-    if (EncodingList.canonicalToAlias.contains(original)) {
+    if (EncodingList.canonicalSet.contains(original)) {
       (original, None)
     } else {
       // See if any aliases match
@@ -66,8 +66,12 @@ object CanonicalizeEncodingNames {
   }
 
   private val aliasToCanonical: Map[String, String] =
-    EncodingList.canonicalToAlias.flatMap { case (canonical, aliases) =>
-      aliases.map(alias => (Platform.toUpperLocaleInsensitive(alias), canonical))
-    } ++
-      EncodingList.canonicalToAlias.keys.map(x => Platform.toUpperLocaleInsensitive(x) -> x)
+    (
+      EncodingList.canonicalToAliasEntries.flatMap { case (canonical, aliases) =>
+        aliases.map(alias => (Platform.toUpperLocaleInsensitive(alias), canonical))
+      } ++
+        EncodingList.canonicalToAliasEntries.map { case (canonical, _) =>
+          Platform.toUpperLocaleInsensitive(canonical) -> canonical
+        }
+    ).toMap
 }
