@@ -5,10 +5,12 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
+import io.kaitai.struct.problems.CompilationProblem
 
-class CalculateSeqSizes(specs: ClassSpecs) {
-  def run(): Unit = {
+class CalculateSeqSizes(specs: ClassSpecs) extends PrecompileStep {
+  override def run(): Iterable[CompilationProblem] = {
     specs.forEachRec(CalculateSeqSizes.getSeqSize)
+    None
   }
 }
 
