@@ -5,9 +5,15 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+
+permissions: {}
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
     defaults:
       run:
         working-directory: compiler
@@ -15,10 +21,12 @@ jobs:
       - name: Checkout compiler
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           path: compiler
       - name: Checkout tests
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           repository: kaitai-io/kaitai_struct_tests
           path: tests
       - name: Set up JDK 21
