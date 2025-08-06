@@ -1,19 +1,19 @@
 package io.kaitai.struct
 
 /**
-  * Contains list of encodings supported by Kaitai Struct.
-  */
+ * Contains list of encodings supported by Kaitai Struct.
+ */
 object EncodingList {
   /**
-    * List of encodings supported by Kaitai Struct. The first element in the tuple is the
-    * canonical name of the encoding, the second element is a list of all possible aliases
-    * of such encoding. The canonical name itself doesn't need to appear in the list of
-    * aliases, so if there's only one popular spelling of a specific encoding, the list can
-    * be empty.
-    *
-    * Canonical names are case-sensitive. Aliases are matched case insensitively and
-    * generate a KSC warning no matter which form was used.
-    */
+   * List of encodings supported by Kaitai Struct. The first element in the tuple is the
+   * canonical name of the encoding, the second element is a list of all possible aliases
+   * of such encoding. The canonical name itself doesn't need to appear in the list of
+   * aliases, so if there's only one popular spelling of a specific encoding, the list can
+   * be empty.
+   *
+   * Canonical names are case-sensitive. Aliases are matched case insensitively and
+   * generate a KSC warning no matter which form was used.
+   */
   val canonicalToAliasEntries = List(
     "ASCII" -> List("US-ASCII", "US_ASCII", "IBM367", "cp367", "csASCII", "iso-ir-6"),
     "UTF-8" -> List("UTF8", "UTF_8", "ISO-10646/UTF-8", "ISO-10646/UTF8", "cp65001", "csUTF8", "unicode-1-1-utf-8", "unicode-2-0-utf-8"),
