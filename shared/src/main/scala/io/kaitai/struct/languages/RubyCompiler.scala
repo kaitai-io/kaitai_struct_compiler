@@ -491,7 +491,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
     out.puts
-    out.puts("def inspect")
+    out.puts("def to_s")
     out.inc
     out.puts(translator.translate(toStringExpr))
     out.dec
