@@ -486,7 +486,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
     out.puts
-    out.puts("def __repr__(self):")
+    out.puts("def __str__(self):")
     out.inc
     out.puts(s"return ${translator.translate(toStringExpr)}")
     out.dec
