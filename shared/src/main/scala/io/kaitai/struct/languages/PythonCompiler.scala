@@ -546,12 +546,30 @@ object PythonCompiler extends LanguageCompilerStatic
     config: RuntimeConfig
   ): LanguageCompiler = new PythonCompiler(tp, config)
 
+  // Python reserved keywords that need to be escaped
+  // https://docs.python.org/3/reference/lexical_analysis.html#keywords
+  val PYTHON_RESERVED_WORDS: Set[String] = Set(
+    "False", "None", "True", "and", "as", "assert", "async", "await",
+    "break", "class", "continue", "def", "del", "elif", "else", "except",
+    "finally", "for", "from", "global", "if", "import", "in", "is",
+    "lambda", "nonlocal", "not", "or", "pass", "raise", "return",
+    "try", "while", "with", "yield"
+  )
+
+  def escapePythonKeyword(name: String): String = {
+    if (PYTHON_RESERVED_WORDS.contains(name)) {
+      name + "_"
+    } else {
+      name
+    }
+  }
+
   def idToStr(id: Identifier): String =
     id match {
       case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => name
+      case NamedIdentifier(name) => escapePythonKeyword(name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => s"_m_$name"
+      case InstanceIdentifier(name) => s"_m_${escapePythonKeyword(name)}"
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
     }
 
