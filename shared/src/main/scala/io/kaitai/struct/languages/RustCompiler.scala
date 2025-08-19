@@ -239,7 +239,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       fn = s"${fn}_enum"
     }
     {
-      out.puts(s"pub fn $fn(&self) -> Ref<$typeName> {")
+      out.puts(s"pub fn $fn(&self) -> Ref<'_, $typeName> {")
       out.inc
       out.puts(s"self.${idToStr(attrName)}.borrow()")
     }
@@ -521,7 +521,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       typeProvider.nowClass,
       dataType
     )
-    out.puts(s") -> KResult<Ref<$typeName>> {")
+    out.puts(s") -> KResult<Ref<'_, $typeName>> {")
     out.inc
     out.puts(s"let _io = self._io.borrow();")
     out.puts(s"let _rrc = self._root.get_value().borrow().upgrade();")
@@ -1120,7 +1120,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                       nativeType = s"$nativeTypeEx"
                       clone = ".clone()"
                     } else
-                      nativeType = s"Ref<$nativeType>"
+                      nativeType = s"Ref<'_, $nativeType>"
                     out.puts(s"pub fn $fn(&self) -> $nativeType {")
                     out.inc
                     out.puts("match self {")
