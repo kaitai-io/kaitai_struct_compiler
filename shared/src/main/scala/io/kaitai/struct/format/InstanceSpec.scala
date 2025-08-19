@@ -84,9 +84,8 @@ object InstanceSpec {
 
         val fakeAttrMap = srcMap.view.filterKeys((key) => key != "pos" && key != "io").toMap
         val a = AttrSpec.fromYaml(fakeAttrMap, path, metaDef, id)
-        val valid = srcMap.get("valid").map(ValidationSpec.fromYaml(_, path ++ List("valid")))
 
-        ParseInstanceSpec(id, path, a.dataType, a.cond, pos, io, valid, a.doc)
+        ParseInstanceSpec(id, path, a.dataType, a.cond, pos, io, a.valid, a.doc)
     }
   }
 }
