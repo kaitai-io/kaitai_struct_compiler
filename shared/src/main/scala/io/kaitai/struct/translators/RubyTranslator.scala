@@ -122,8 +122,10 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
       case _ => s"($baseStr)"
     })
   }
-  override def enumToInt(v: Ast.expr, et: EnumType): String =
-    s"${enumInverseMap(et)}[${translate(v)}]"
+  override def enumToInt(v: Ast.expr, et: EnumType): String = {
+    val value = translate(v)
+    s"(${enumInverseMap(et)}[$value] || $value)"
+  }
   override def floatToInt(v: Ast.expr): String =
     s"${translate(v, METHOD_PRECEDENCE)}.to_i"
   override def intToStr(i: Ast.expr): String =
