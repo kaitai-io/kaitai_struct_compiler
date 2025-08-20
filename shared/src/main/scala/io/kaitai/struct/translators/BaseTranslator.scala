@@ -153,7 +153,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
   }
 
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
-  def doCast(value: Ast.expr, typeName: DataType): String = translate(value)
+  def doCast(value: Ast.expr, typeName: DataType): String = translate(value, METHOD_PRECEDENCE)
   def doByteSizeOfType(typeName: Ast.typeId): String = doIntLiteral(
     CommonSizeOf.bitToByteSize(
       CommonSizeOf.getBitsSizeOfType(
