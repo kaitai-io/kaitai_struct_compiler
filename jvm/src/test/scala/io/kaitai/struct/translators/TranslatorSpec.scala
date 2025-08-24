@@ -794,7 +794,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("other.as<block>.bar", FooBarProvider, CalcStrType, ResultMap(
         CppCompiler -> "static_cast<top_class_t::block_t*>(other())->bar()",
         CSharpCompiler -> "((TopClass.Block) (Other)).Bar",
-        GoCompiler -> "this.Other.(TopClass.Block).Bar",
+        GoCompiler -> "this.Other.(*TopClass_Block).Bar",
         JavaCompiler -> "((TopClass.Block) (other())).bar()",
         JavaScriptCompiler -> "this.other.bar",
         LuaCompiler -> "self.other.bar",
@@ -807,7 +807,7 @@ class TranslatorSpec extends AnyFunSpec {
       full("other.as<block::innerblock>.baz", FooBarProvider, CalcIntType, ResultMap(
         CppCompiler -> "static_cast<top_class_t::block_t::innerblock_t*>(other())->baz()",
         CSharpCompiler -> "((TopClass.Block.Innerblock) (Other)).Baz",
-        GoCompiler -> "this.Other.(TopClass.Block.Innerblock).Baz",
+        GoCompiler -> "this.Other.(*TopClass_Block_Innerblock).Baz",
         JavaCompiler -> "((TopClass.Block.Innerblock) (other())).baz()",
         JavaScriptCompiler -> "this.other.baz",
         LuaCompiler -> "self.other.baz",

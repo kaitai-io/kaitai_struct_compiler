@@ -1,7 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType.{CalcIntType, CalcStrType, CalcUserType, UserTypeInstream}
+import io.kaitai.struct.datatype.DataType.{CalcIntType, CalcStrType, CalcUserType, KaitaiStructType, UserTypeInstream}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{ClassSpec, FixedSized, Identifier}
 
@@ -74,6 +74,7 @@ object TestTypeProviders {
     override def determineType(name: String): DataType = {
       name match {
         case "foo" => userOwnedType(List("top_class", "block"))
+        case "other" => KaitaiStructType
       }
     }
 
