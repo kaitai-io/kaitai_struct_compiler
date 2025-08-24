@@ -13,19 +13,6 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
     s"new Uint8Array([${elts.map(translate).mkString(", ")}])"
 
-  /**
-    * JavaScript rendition of common control character that would use hex form,
-    * not octal. "Octal" control character string literals might be accepted
-    * in non-strict JS mode, but in strict mode only hex or unicode are ok.
-    * Here we'll use hex, as they are shorter.
-    *
-    * @see https://github.com/kaitai-io/kaitai_struct/issues/279
-    * @param code character code to represent
-    * @return string literal representation of given code
-    */
-  override def strLiteralGenericCC(code: Char): String =
-    "\\x%02x".format(code.toInt)
-
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
