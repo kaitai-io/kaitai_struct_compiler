@@ -280,7 +280,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = new ${kaitaiType2NativeType(ArrayTypeInStream(dataType))}();")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i = 0;")
@@ -300,8 +300,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for (var i = 0; i < ${expression(repeatExpr)}; i++)")
+  override def condRepeatExprHeader(countExpr: expr): Unit = {
+    out.puts(s"for (var i = 0, _end = ${expression(countExpr)}; i < _end; ++i)")
     out.puts("{")
     out.inc
   }
@@ -311,12 +311,12 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatExprFooter: Unit = fileFooter(null)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i = 0;")
-    out.puts(s"${kaitaiType2NativeType(dataType)} ${translator.doName("_")};")
-    out.puts("do {")
+    out.puts(s"${kaitaiType2NativeType(itemType)} ${translator.doName(Identifier.ITERATOR)};")
+    out.puts("while (true) {")
     out.inc
   }
 
@@ -330,13 +330,17 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.Add($tempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
-    out.puts("i++;")
-    out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+  override def condRepeatUntilFooter(untilExpr: expr): Unit = {
+    out.puts(s"if (${expression(untilExpr)}) {")
+    out.inc
+    out.puts("break;")
     out.dec
     out.puts("}")
+    out.puts("++i;")
+    out.dec
+    out.puts("}") // close while (true)
+    out.dec
+    out.puts("}") // close scope of i and _ variables
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
