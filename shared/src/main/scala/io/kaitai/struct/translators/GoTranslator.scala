@@ -291,7 +291,22 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     }
   }
 
-  override def doCast(value: Ast.expr, typeName: DataType): TranslatorResult = ???
+  override def doCast(value: Ast.expr, typeName: DataType): TranslatorResult = {
+    val valueType = detectType(value)
+    valueType match {
+      case KaitaiStructType | CalcKaitaiStructType(_) | AnyType =>
+        // Type assertion - only works on interfaces, otherwise a syntax error would occur
+        ResultString(s"${translate(value, METHOD_PRECEDENCE)}.(${GoCompiler.kaitaiType2NativeType(typeName)})")
+      // These data types are represented as pointer types (`*T`) in the generated Go
+      // code, so they have to be wrapped into parentheses, otherwise Go will attempt to
+      // apply `*` to the result of `T(...)` instead of the desired `(*T)(...)`.
+      case KaitaiStreamType | OwnedKaitaiStreamType | _: UserType =>
+        ResultString(s"(${GoCompiler.kaitaiType2NativeType(typeName)})(${translate(value)})")
+      case _ =>
+        // Type conversion - for everything else that is not an interface
+        ResultString(s"${GoCompiler.kaitaiType2NativeType(typeName)}(${translate(value)})")
+    }
+  }
 
   override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]) =
     ResultString(s"[]${GoCompiler.kaitaiType2NativeType(t)}{${value.map(translate).mkString(", ")}}")
