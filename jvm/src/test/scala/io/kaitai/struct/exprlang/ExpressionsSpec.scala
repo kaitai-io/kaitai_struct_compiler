@@ -86,12 +86,17 @@ class ExpressionsSpec extends AnyFunSpec {
       )
     }
 
+    it("parses group") {
+      Expressions.parse("(123)") should be (Group(IntNum(123)))
+      Expressions.parse("(foo)") should be (Group(Name(identifier("foo"))))
+    }
+
     it("parses (1 + 2) / (7 * 8)") {
       Expressions.parse("(1 + 2) / (7 * 8)") should be (
         BinOp(
-          BinOp(IntNum(1), Add, IntNum(2)),
+          Group(BinOp(IntNum(1), Add, IntNum(2))),
           Div,
-          BinOp(IntNum(7), Mult, IntNum(8))
+          Group(BinOp(IntNum(7), Mult, IntNum(8)))
         )
       )
     }
@@ -128,7 +133,7 @@ class ExpressionsSpec extends AnyFunSpec {
     }
 
     it("parses ~(7+3)") {
-      Expressions.parse("~(7+3)") should be (UnaryOp(Invert, BinOp(IntNum(7), Add, IntNum(3))))
+      Expressions.parse("~(7+3)") should be (UnaryOp(Invert, Group(BinOp(IntNum(7), Add, IntNum(3)))))
     }
 
     // Enums
@@ -285,7 +290,7 @@ class ExpressionsSpec extends AnyFunSpec {
 
     it("parses (123).as<u4>") {
       Expressions.parse("(123).as<u4>") should be (
-        CastToType(IntNum(123), typeId(false, Seq("u4")))
+        CastToType(Group(IntNum(123)), typeId(false, Seq("u4")))
       )
     }
 
