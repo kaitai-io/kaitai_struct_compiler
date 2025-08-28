@@ -100,7 +100,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     }
   }
   override def doName(s: String) =
-    s
+    PythonCompiler.escapePythonKeyword(s)
   override def doInternalName(id: Identifier): String =
     PythonCompiler.privateMemberName(id)
 
@@ -109,7 +109,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     if (isExternal) {
       PythonCompiler.externalTypeDeclaration(ExternalEnum(enumSpec), importList, config)
     }
-    s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.$label"
+    s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.${doName(label)}"
   }
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumSpec.name, enumSpec.isExternal(provider.nowClass))}, $id)"
