@@ -148,6 +148,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     s"str(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""($bytesExpr).decode(${doStringLiteral(encoding)})"""
+  override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String =
+    s"${PythonCompiler.kstreamName}.byte_array_index_of(${translate(b)}, ${translate(byte)})"
 
   override def bytesLength(value: Ast.expr): String =
     s"len(${translate(value)})"
@@ -169,6 +171,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     s"(${translate(value)})[::-1]"
   override def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): String =
     s"${translate(s, METHOD_PRECEDENCE)}[${translate(from)}:${translate(to)}]"
+  override def strToBytes(s: Ast.expr, encoding: Ast.expr): String =
+    s"(${translate(s)}).encode(${translate(encoding)})"
 
   override def arrayFirst(a: Ast.expr): String =
     s"${translate(a)}[0]"

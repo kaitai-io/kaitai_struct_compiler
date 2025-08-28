@@ -58,6 +58,33 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       case NamedIdentifier(name) => return determineType(inClass, name)
       case InstanceIdentifier(name) => return determineType(inClass, name)
       case SpecialIdentifier(name) => return determineType(inClass, name)
+      case RawIdentifier(innerId) => {
+        val innerType = determineType(innerId)
+        val (isArray, itemType: DataType) = innerType match {
+          case at: ArrayType => (true, at.elType)
+          case t => (false, t)
+        }
+        val singleType: DataType = itemType match {
+          case st: SwitchType => st.cases.collectFirst {
+            case (_, caseType)
+              if caseType.isInstanceOf[BytesType]
+              || caseType.isInstanceOf[UserTypeFromBytes] => caseType
+          }.get
+          case t => t
+        }
+        /** see [[languages.components.ExtraAttrs$]] for possible types */
+        val bytesType = singleType match {
+          case bt: BytesType => bt
+          case utb: UserTypeFromBytes => utb.bytes
+        }
+        return if (isArray) ArrayTypeInStream(bytesType) else bytesType
+      }
+      case OuterSizeIdentifier(innerId) =>
+        val singleType = CalcIntType
+        return if (determineType(innerId).isInstanceOf[ArrayType]) ArrayTypeInStream(singleType) else singleType
+      case InnerSizeIdentifier(innerId) =>
+        val singleType = CalcIntType
+        return if (determineType(innerId).isInstanceOf[ArrayType]) ArrayTypeInStream(singleType) else singleType
       case _ => // do nothing
     }
     throw new FieldNotFoundError(attrId.humanReadable, inClass)

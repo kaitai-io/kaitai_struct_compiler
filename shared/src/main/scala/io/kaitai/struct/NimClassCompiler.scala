@@ -50,17 +50,17 @@ class NimClassCompiler(
   override def compileEagerRead(seq: List[AttrSpec], endian: Option[Endianness]): Unit = {
     endian match {
       case None | Some(_: FixedEndian) =>
-        compileSeqProc(seq, None)
+        compileSeqReadProc(seq, None)
       case Some(ce: CalcEndian) =>
-        compileSeqProc(seq, Some(LittleEndian))
-        compileSeqProc(seq, Some(BigEndian))
+        compileSeqReadProc(seq, Some(LittleEndian))
+        compileSeqReadProc(seq, Some(BigEndian))
         lang.readHeader(None, false)
         compileCalcEndian(ce)
         lang.runReadCalc()
         lang.readFooter()
       case Some(InheritedEndian) =>
-        compileSeqProc(seq, Some(LittleEndian))
-        compileSeqProc(seq, Some(BigEndian))
+        compileSeqReadProc(seq, Some(LittleEndian))
+        compileSeqReadProc(seq, Some(BigEndian))
         lang.readHeader(None, false)
         lang.runReadCalc()
         lang.readFooter()
@@ -68,7 +68,7 @@ class NimClassCompiler(
   }
 
   // Must override just to add attribute docstrings
-  override def compileSeq(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
+  override def compileSeqRead(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
     var wasUnaligned = false
     seq.foreach { (attr) =>
       val nowUnaligned = isUnalignedBits(attr.dataType)

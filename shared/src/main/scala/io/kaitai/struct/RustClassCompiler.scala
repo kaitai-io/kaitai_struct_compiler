@@ -73,7 +73,7 @@ class RustClassCompiler(
       case None => // Same here
     }
 
-    compileSeq(curClass.seq, defEndian)
+    compileSeqRead(curClass.seq, defEndian)
     lang.classConstructorFooter
   }
 

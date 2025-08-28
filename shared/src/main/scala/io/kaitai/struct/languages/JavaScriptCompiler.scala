@@ -17,8 +17,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalDoc
     with AllocateIOLocalVar
     with EveryReadIsExpression
-    with SwitchIfOps
-    with FixedContentsUsingArrayByteLiteral {
+    with SwitchIfOps {
   import JavaScriptCompiler._
 
   override val translator = new JavaScriptTranslator(typeProvider, importList)
@@ -189,11 +188,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit = {
-    out.puts(s"${privateMemberName(attrName)} = " +
-      s"$normalIO.ensureFixedContents($contents);")
-  }
-
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
@@ -295,7 +289,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   // TODO: replace this with UniversalFooter
-  override def condIfFooter(expr: expr): Unit = {
+  override def condIfFooter: Unit = {
     out.dec
     out.puts("}")
   }
@@ -596,27 +590,40 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr] = None
   ): Unit =
-    attrValidate(s"!(${translator.translate(checkExpr)})", attr, err, errArgs)
+    attrValidate(attr, s"!(${translator.translate(checkExpr)})", err, useIo, actual, expected)
 
   override def attrValidateInEnum(
     attr: AttrLikeSpec,
     et: EnumType,
     valueExpr: Ast.expr,
     err: ValidationNotInEnumError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean
   ): Unit = {
     val enumSpec = et.enumSpec.get
     val enumRef = types2class(enumSpec.name, enumSpec.isExternal(typeProvider.nowClass))
-    attrValidate(s"!Object.prototype.hasOwnProperty.call($enumRef, ${translator.translate(valueExpr)})", attr, err, errArgs)
+    attrValidate(attr, s"!Object.prototype.hasOwnProperty.call($enumRef, ${translator.translate(valueExpr)})", err, useIo, valueExpr, None)
   }
 
-  private def attrValidate(failCondExpr: String, attr: AttrLikeSpec, err: KSError, errArgs: List[Ast.expr]): Unit = {
-    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+  private def attrValidate(
+    attr: AttrLikeSpec,
+    failCondExpr: String,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr]
+  ): Unit = {
+    val errArgsStr = expected.map(expression) ++ List(
+      expression(actual),
+      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "null",
+      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
+    )
     out.puts(s"if ($failCondExpr) {")
     out.inc
-    val errObj = s"new ${ksErrorName(err)}($errArgsStr)"
+    val errObj = s"new ${ksErrorName(err)}(${errArgsStr.mkString(", ")})"
     if (attrDebugNeeded(attr.id)) {
       val debugName = attrDebugName(attr.id, attr.cond.repeat, true)
       out.puts(s"var _err = $errObj;")

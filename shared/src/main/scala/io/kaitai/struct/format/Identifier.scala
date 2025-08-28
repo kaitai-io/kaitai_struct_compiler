@@ -20,7 +20,7 @@ abstract class Identifier {
   */
 case class NumberedIdentifier(idx: Int) extends Identifier {
   import NumberedIdentifier._
-  override def humanReadable: String = s"${TEMPLATE}_$idx"
+  override def humanReadable: String = s"_${TEMPLATE}$idx"
 }
 
 object NumberedIdentifier {
@@ -107,6 +107,14 @@ case class RawIdentifier(innerId: Identifier) extends Identifier {
 
 case class IoStorageIdentifier(innerId: Identifier) extends Identifier {
   override def humanReadable: String = s"io(${innerId.humanReadable})"
+}
+
+case class OuterSizeIdentifier(innerId: Identifier) extends Identifier {
+  override def humanReadable: String = s"outerSize(${innerId.humanReadable})"
+}
+
+case class InnerSizeIdentifier(innerId: Identifier) extends Identifier {
+  override def humanReadable: String = s"innerSize(${innerId.humanReadable})"
 }
 
 case class InstanceIdentifier(name: String) extends Identifier {

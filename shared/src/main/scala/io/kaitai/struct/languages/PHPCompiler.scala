@@ -16,7 +16,6 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with AllocateIOLocalVar
     with UniversalFooter
     with UniversalDoc
-    with FixedContentsUsingArrayByteLiteral
     with EveryReadIsExpression {
 
   import PHPCompiler._
@@ -202,9 +201,6 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
   }
-
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = $normalIO->ensureFixedContents($contents);")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
@@ -519,27 +515,40 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr] = None
   ): Unit =
-    attrValidate(s"!(${translator.translate(checkExpr)})", err, errArgs)
+    attrValidate(attr, s"!(${translator.translate(checkExpr)})", err, useIo, actual, expected)
 
   override def attrValidateInEnum(
     attr: AttrLikeSpec,
     et: EnumType,
     valueExpr: Ast.expr,
     err: ValidationNotInEnumError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean
   ): Unit = {
     val enumSpec = et.enumSpec.get
     val enumRef = translator.types2classAbs(enumSpec.name)
-    attrValidate(s"!$enumRef::isDefined(${translator.translate(valueExpr)})", err, errArgs)
+    attrValidate(attr, s"!$enumRef::isDefined(${translator.translate(valueExpr)})", err, useIo, valueExpr, None)
   }
 
-  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
-    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+  private def attrValidate(
+    attr: AttrLikeSpec,
+    failCondExpr: String,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr]
+  ): Unit = {
+    val errArgsStr = expected.map(expression) ++ List(
+      expression(actual),
+      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "null",
+      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
+    )
     out.puts(s"if ($failCondExpr) {")
     out.inc
-    out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
+    out.puts(s"throw new ${ksErrorName(err)}(${errArgsStr.mkString(", ")});")
     out.dec
     out.puts("}")
   }
