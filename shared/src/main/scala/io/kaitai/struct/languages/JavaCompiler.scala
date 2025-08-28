@@ -83,12 +83,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (config.readStoresPos) {
       out.puts("public Map<String, Integer> _attrStart = new HashMap<String, Integer>();")
       out.puts("public Map<String, Integer> _attrEnd = new HashMap<String, Integer>();")
-      out.puts("public Map<String, ArrayList<Integer>> _arrStart = new HashMap<String, ArrayList<Integer>>();")
-      out.puts("public Map<String, ArrayList<Integer>> _arrEnd = new HashMap<String, ArrayList<Integer>>();")
+      out.puts("public Map<String, List<Integer>> _arrStart = new HashMap<String, List<Integer>>();")
+      out.puts("public Map<String, List<Integer>> _arrEnd = new HashMap<String, List<Integer>>();")
       out.puts
 
-      importList.add("java.util.ArrayList")
       importList.add("java.util.HashMap")
+      importList.add("java.util.List")
       importList.add("java.util.Map")
     }
 
@@ -522,9 +522,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   def getOrCreatePosList(listName: String, varName: String, io: String): Unit = {
+    importList.add("java.util.List")
+    importList.add("java.util.ArrayList")
     out.puts("{")
     out.inc
-    out.puts("ArrayList<Integer> _posList = " + listName + ".get(\"" + varName + "\");")
+    out.puts("List<Integer> _posList = " + listName + ".get(\"" + varName + "\");")
     out.puts("if (_posList == null) {")
     out.inc
     out.puts("_posList = new ArrayList<Integer>();")
@@ -541,8 +543,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
-    out.puts(s"${privateMemberName(id)} = new ${kaitaiType2JavaType(ArrayTypeInStream(dataType))}();")
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
+    importList.add("java.util.ArrayList")
+    out.puts(s"${privateMemberName(id)} = new ArrayList<${kaitaiType2JavaTypeBoxed(dataType)}>();")
+  }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("{")
@@ -550,8 +554,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("int i = 0;")
     out.puts(s"while (!$io.isEof()) {")
     out.inc
-
-    importList.add("java.util.ArrayList")
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
@@ -569,8 +571,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
     out.inc
-
-    importList.add("java.util.ArrayList")
   }
 
   // used for all repetitions in _check()
@@ -589,8 +589,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("int i = 0;")
     out.puts("do {")
     out.inc
-
-    importList.add("java.util.ArrayList")
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
@@ -1316,8 +1314,8 @@ object JavaCompiler extends LanguageCompilerStatic
       case EnumType(name, _) => types2class(name)
 
       case at: ArrayType => {
-        importList.add("java.util.ArrayList")
-        s"ArrayList<${kaitaiType2JavaTypeBoxed(at.elType, importList, config)}>"
+        importList.add("java.util.List")
+        s"List<${kaitaiType2JavaTypeBoxed(at.elType, importList, config)}>"
       }
 
       case st: SwitchType => kaitaiType2JavaTypeBoxed(st.combinedType, importList, config)
