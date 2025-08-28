@@ -23,27 +23,31 @@ object Lexical {
   import fastparse._
   import fastparse.NoWhitespace._
 
-  def kw[_: P](s: String) = P( s ~ !namePart )
+  def kw[$: P](s: String) = P( s ~ !namePart )
 
-  def wscomment[_: P]: P[Unit] = P( (CharsWhile(" \n".toSet, 1) | "\\\n").rep )
+  def wscomment[$: P]: P[Unit] = P( (CharsWhile(" \n".toSet, 1) | "\\\n").rep )
 
-  def nameStart[_: P] = P( letter | "_" )
-  def namePart[_: P]  = P( letter | digit | "_" )
-  def identifier[_: P]: P[Ast.identifier] =
+  def nameStart[$: P] = P( letter | "_" )
+  def namePart[$: P]  = P( letter | digit | "_" )
+  def identifier[$: P]: P[Ast.identifier] =
     P( nameStart ~ namePart.rep ).!.map(Ast.identifier)
-  def letter[_: P]     = P( lowercase | uppercase )
-  def lowercase[_: P]  = P( CharIn("a-z") )
-  def uppercase[_: P]  = P( CharIn("A-Z") )
-  def digit[_: P]      = P( CharIn("0-9") )
+  def letter[$: P]     = P( lowercase | uppercase )
+  def lowercase[$: P]  = P( CharIn("a-z") )
+  def uppercase[$: P]  = P( CharIn("A-Z") )
+  def digit[$: P]      = P( CharIn("0-9") )
 
-  def stringliteral[_: P]: P[String] = P( singlestring | doublestring )
-  def singlestring[_: P] = P("'" ~/ singlestringchar.rep.! ~ "'")
-  def singlestringchar[_: P] = P( CharsWhile(!"'".contains(_)) )
+  def stringliteral[$: P]: P[String] = P( singlestring | doublestring )
+  def singlestring[$: P] = P("'" ~/ singlestringchar.rep.! ~ "'")
+  def singlestringchar[$: P] = P( CharsWhile(!"'".contains(_)) )
 
-  def doublestring[_: P]: P[String] = P("\"" ~/ doublestringitem.rep ~ "\"").map(_.mkString)
-  def doublestringitem[_: P] = P( doublestringchar.! | escapeseq )
-  def doublestringchar[_: P] = P( CharsWhile(!"\\\"".contains(_)) )
-  def escapeseq[_: P] = P( "\\" ~/ (quotedchar | quotedoctal | quotedhex) )
+  def doublestring[$: P]: P[String] = P("\"" ~/ doublestringitem.rep ~ "\"").map(_.mkString)
+  def doublestringitem[$: P] = P( doublestringchar.! | escapeseq )
+  def doublestringchar[$: P] = P( CharsWhile(!"\\\"".contains(_)) )
+
+  def fstringItem[$: P] = P(fstringChar.! | Lexical.escapeseq)
+  def fstringChar[$: P] = P(CharsWhile(!"{\\\"".contains(_)))
+
+  def escapeseq[$: P] = P( "\\" ~/ (quotedchar | quotedoctal | quotedhex) )
 
   val QUOTED_CC = Map(
     "a" -> "\u0007", // bell, ASCII code 7
@@ -64,13 +68,13 @@ object Lexical {
   // `[...]` (and as in regexes, ranges like `a-z` are also supported, etc.).
   // Therefore, to match either `+` or `-` literally, you would need
   // `CharIn("+\\-")`; consequently, a literal backslash is `CharIn("\\\\")`.
-  def quotedchar[_: P] = P( CharIn("\"'\\\\abefnrtv").! ).map(QUOTED_CC)
+  def quotedchar[$: P] = P( CharIn("\"'\\\\abefnrtv").! ).map(QUOTED_CC)
 
-  def quotedoctal[_: P]: P[String] = P( octdigit.rep(1).! ).map { (digits) =>
+  def quotedoctal[$: P]: P[String] = P( octdigit.rep(1).! ).map { (digits) =>
     val code = Integer.parseInt(digits, 8).toChar
     Character.toString(code)
   }
-  def quotedhex[_: P]: P[String] = P( "u" ~/ hexdigit.rep(exactly = 4).! ).map { (digits) =>
+  def quotedhex[$: P]: P[String] = P( "u" ~/ hexdigit.rep(exactly = 4).! ).map { (digits) =>
     val code = Integer.parseInt(digits, 16).toChar
     Character.toString(code)
   }
@@ -78,25 +82,25 @@ object Lexical {
   // probably underscore shouldn't be inside them, but somehow added separately
   // plus there's a problem with "0x_" and "0o_" being legal now
 
-  def integer[_: P]: P[BigInt] = P( octinteger | hexinteger | bininteger | decimalinteger)
-  def decimalinteger[_: P]: P[BigInt] = P( nonzerodigit ~ (digit | "_").rep | "0" ).!.map(parseNum(_, 10))
-  def octinteger[_: P]: P[BigInt] = P( "0" ~ ("o" | "O") ~ octdigit.rep(1).! ).map(parseNum(_, 8))
-  def hexinteger[_: P]: P[BigInt] = P( "0" ~ ("x" | "X") ~ hexdigit.rep(1).! ).map(parseNum(_, 16))
-  def bininteger[_: P]: P[BigInt] = P( "0" ~ ("b" | "B") ~ bindigit.rep(1).! ).map(parseNum(_, 2))
-  def nonzerodigit[_: P]: P0 = P( CharIn("1-9") )
-  def octdigit[_: P]: P0 = P( CharIn("0-7") | "_" )
-  def bindigit[_: P]: P0 = P( "0" | "1" | "_" )
-  def hexdigit[_: P]: P0 = P( digit | CharIn("a-fA-F") | "_" )
+  def integer[$: P]: P[BigInt] = P( octinteger | hexinteger | bininteger | decimalinteger)
+  def decimalinteger[$: P]: P[BigInt] = P( nonzerodigit ~ (digit | "_").rep | "0" ).!.map(parseNum(_, 10))
+  def octinteger[$: P]: P[BigInt] = P( "0" ~ ("o" | "O") ~ octdigit.rep(1).! ).map(parseNum(_, 8))
+  def hexinteger[$: P]: P[BigInt] = P( "0" ~ ("x" | "X") ~ hexdigit.rep(1).! ).map(parseNum(_, 16))
+  def bininteger[$: P]: P[BigInt] = P( "0" ~ ("b" | "B") ~ bindigit.rep(1).! ).map(parseNum(_, 2))
+  def nonzerodigit[$: P]: P0 = P( CharIn("1-9") )
+  def octdigit[$: P]: P0 = P( CharIn("0-7") | "_" )
+  def bindigit[$: P]: P0 = P( "0" | "1" | "_" )
+  def hexdigit[$: P]: P0 = P( digit | CharIn("a-fA-F") | "_" )
 
-  def floatnumber[_: P]: P[BigDecimal] = P(
+  def floatnumber[$: P]: P[BigDecimal] = P(
       digit.rep(1) ~ exponent // Ex.: 4E2, 4E+2, 4e-2
     | fixed ~ exponent.?      // Ex.: 4.E2, .4e+2, 4.2e-0
   ).!.map(BigDecimal(_))
-  def fixed[_: P] = P(
+  def fixed[$: P] = P(
       digit.rep ~ "." ~ digit.rep(1)                // Ex.: 4.2, .42
     | digit.rep(1) ~ "." ~ !(wscomment ~ nameStart) // Ex.: 42., but not '42.abc' or '42.  def'
   )
-  def exponent[_: P]: P0 = P( ("e" | "E") ~ ("+" | "-").? ~ digit.rep(1) )
+  def exponent[$: P]: P0 = P( ("e" | "E") ~ ("+" | "-").? ~ digit.rep(1) )
 
   /**
     * Converts number literal from string form into BigInt, ignoring underscores that might be

@@ -1,15 +1,14 @@
 import java.io.File
 import java.nio.charset.Charset
-import java.nio.file.Files
-
+import java.nio.file.{Files, StandardCopyOption}
 import com.typesafe.sbt.packager.linux.{LinuxPackageMapping, LinuxSymlink}
-import sbt.Keys._
+import sbt.Keys.*
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 
 val NAME = "kaitai-struct-compiler"
 val VERSION = "0.11-SNAPSHOT"
-val TARGET_LANGS = "C++/STL, C#, Go, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby"
+val TARGET_LANGS = "C++/STL, C#, Go, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby, Rust"
 val UTF8 = Charset.forName("UTF-8")
 
 lazy val root = project.in(file(".")).
@@ -40,7 +39,8 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
       }
     },
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.12.18",
+    scalaVersion := "2.13.13",
+    scalacOptions := Seq("-unchecked", "-deprecation"),
 
     // Repo publish options
     publishTo := version { (v: String) =>
@@ -51,7 +51,7 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
         Some("releases"  at nexus + "service/local/staging/deploy/maven2")
     }.value,
     pomExtra :=
-      <url>http://kaitai.io</url>
+      <url>https://kaitai.io/</url>
       <scm>
         <connection>scm:git:git://github.com/kaitai-io/kaitai_struct_compiler.git</connection>
         <developerConnection>scm:git:ssh://github.com:kaitai-io/kaitai_struct_compiler.git</developerConnection>
@@ -62,7 +62,7 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
           <name>Mikhail Yakshin</name>
           <email>greycat.na.kor@gmail.com</email>
           <organization>Kaitai Project</organization>
-          <organizationUrl>http://kaitai.io</organizationUrl>
+          <organizationUrl>https://kaitai.io/</organizationUrl>
         </developer>
       </developers>
     ,
@@ -216,7 +216,7 @@ lazy val generateVersionTask = Def.task {
   */
 lazy val buildNpmJsFile = taskKey[Seq[File]]("buildNpmJsFile")
 lazy val buildNpmJsFileTask = Def.task {
-  val compiledFile = target.value / "scala-2.12" / s"${name.value}-fastopt.js"
+  val compiledFile = target.value / "scala-2.13" / s"${name.value}-fastopt.js"
   println(s"buildNpmJsFile: reading $compiledFile")
   val compiledFileContents = IO.read(compiledFile, UTF8)
 
@@ -248,8 +248,8 @@ lazy val buildNpmPackageTask = Def.task {
   val readMeFile = new File("js/npm/README.md")
   val packageJsonFile = new File("js/npm/package.json")
 
-  Files.copy(new File("LICENSE").toPath, licenseFile.toPath)
-  Files.copy(new File("js/README.md").toPath, readMeFile.toPath)
+  Files.copy(new File("LICENSE").toPath, licenseFile.toPath, StandardCopyOption.REPLACE_EXISTING)
+  Files.copy(new File("js/README.md").toPath, readMeFile.toPath, StandardCopyOption.REPLACE_EXISTING)
 
   val packageJsonTmpl = IO.read(new File("js/package.json"), UTF8)
   val packageJsonContents = packageJsonTmpl.replaceFirst(

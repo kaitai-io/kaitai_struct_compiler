@@ -8,6 +8,9 @@ import java.io.{File, FileNotFoundException}
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.collection.concurrent
+import java.util.concurrent.ConcurrentHashMap
+import scala.jdk.CollectionConverters._
 
 /**
   * Java implementation of ClassSpec container, doing imports from local files.
@@ -15,8 +18,14 @@ import scala.concurrent.Future
 class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpec)
   extends ClassSpecs(firstSpec) {
 
-  private val relFiles = mutable.Map[String, ClassSpec]()
-  private val absFiles = mutable.Map[String, ClassSpec]()
+  // We're using thread-safe `ConcurrentHashMap` for `relFiles` and `absFiles`,
+  // because these hash maps may be mutated concurrently by multiple threads in
+  // `JavaClassSpecs.cached()`. Using a non-thread-safe hash map here could
+  // occasionally cause `cacheMap.get(name)` in `JavaClassSpecs.cached()` to
+  // fail internally and throw an `ArrayIndexOutOfBoundsException`, see
+  // https://github.com/kaitai-io/kaitai_struct/issues/951
+  private val relFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
+  private val absFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
 
   override def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] = Future {
     Log.importOps.info(() => s".. importing relative $name")
@@ -46,7 +55,7 @@ class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpe
         }
       }
     }
-    throw new FileNotFoundException(s"Unable to find '$name' in import search paths, using: $absPaths")
+    throw new FileNotFoundException(s"unable to find '$name.ksy' in import search paths, using: $absPaths")
   }
 }
 

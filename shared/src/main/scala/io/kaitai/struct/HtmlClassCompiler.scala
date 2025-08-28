@@ -112,7 +112,7 @@ class HtmlClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends Doc
     out.puts("<th>ID</th><th>Name</th><th>Note</th>")
     out.puts("</tr>")
 
-    enumColl.sortedSeq.foreach { case (id, value) =>
+    enumColl.map.foreach { case (id, value) =>
       out.puts("<tr>")
       out.puts(s"<td>$id</td><td>${value.name}</td><td>${value.doc.summary.getOrElse("")}</td></tr>")
       out.puts("</tr>")
@@ -147,6 +147,6 @@ object HtmlClassCompiler extends LanguageCompilerStatic {
   def kaitaiType2NativeType(attrType: DataType): String = attrType match {
     case ut: UserType =>
       "<a href=\"#" + classSpec2Anchor(ut.classSpec.get) + "\">" + type2str(ut.name.last) + "</a>"
-    case _ => GraphvizClassCompiler.dataTypeName(attrType)
+    case _ => GraphvizClassCompiler.dataTypeName(attrType, None)
   }
 }

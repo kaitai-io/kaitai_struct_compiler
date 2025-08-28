@@ -17,8 +17,8 @@ import scala.reflect.ClassTag
   * @param specs bundle of class specifications (used only to find external references)
   * @param topClass class to start check with
   */
-class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileStep {
-  val provider = new ClassTypeProvider(specs, topClass)
+class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
+  val provider = new ClassTypeProvider(specs, specs.firstSpec)
   val detector = new ExpressionValidator(provider)
 
   /**
@@ -168,7 +168,11 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileSt
       } else {
         None
       }
-      val problems2 = validateDataType(caseType, casePath)
+      // All properties of types is declared on the common level for all variants so
+      // we don't use `casePath` here
+      // FIXME: We need to filter repeated errors here, because some errors influences
+      // many cases
+      val problems2 = validateDataType(caseType, path)
       problems1 ++ problems2
     }
   }
@@ -206,7 +210,7 @@ class TypeValidator(specs: ClassSpecs, topClass: ClassSpec) extends PrecompileSt
     * finding the expression in source .ksy.
     *
     * Note: `T: Manifest` is required due to JVM type erasure. See
-    * http://stackoverflow.com/a/42533114 for more info.
+    * https://stackoverflow.com/a/42533114 for more info.
     *
     * @param expr expression to check
     * @param expectStr string to include

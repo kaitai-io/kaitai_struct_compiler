@@ -22,6 +22,7 @@ object KSError {
         case "ValidationLessThanError" => ValidationLessThanError
         case "ValidationGreaterThanError" => ValidationGreaterThanError
         case "ValidationNotAnyOfError" => ValidationNotAnyOfError
+        case "ValidationNotInEnumError" => ValidationNotInEnumError
         case "ValidationExprError" => ValidationExprError
       }
       excClass(dataType)
@@ -64,6 +65,14 @@ case class ValidationGreaterThanError(_dt: DataType) extends ValidationError(_dt
   */
 case class ValidationNotAnyOfError(_dt: DataType) extends ValidationError(_dt) {
   def name = "ValidationNotAnyOfError"
+}
+
+/**
+  * Error to be thrown when validation fails with actual not being in the enum.
+  * @param _dt data type used in validation process
+  */
+case class ValidationNotInEnumError(_dt: DataType) extends ValidationError(_dt) {
+  def name = "ValidationNotInEnumError"
 }
 
 /**

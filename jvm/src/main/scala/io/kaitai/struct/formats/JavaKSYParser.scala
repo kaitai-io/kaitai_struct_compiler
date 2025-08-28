@@ -10,9 +10,9 @@ import io.kaitai.struct.{Log, Main}
 import org.yaml.snakeyaml.error.MarkedYAMLException
 import org.yaml.snakeyaml.{LoaderOptions, Yaml}
 
-import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.jdk.CollectionConverters._
 
 object JavaKSYParser {
   def localFileToSpecs(yamlFilename: String, config: CLIConfig): (Option[ClassSpecs], Iterable[CompilationProblem]) = {
@@ -85,7 +85,7 @@ object JavaKSYParser {
       case jlist: JList[AnyRef] =>
         jlist.asScala.toList.map(yamlJavaToScala)
       case jmap: JMap[String, AnyRef] =>
-        jmap.asScala.toMap.mapValues(yamlJavaToScala)
+        jmap.asScala.toMap.view.mapValues(yamlJavaToScala).toMap
       case _: String =>
         src
       case _: Double =>

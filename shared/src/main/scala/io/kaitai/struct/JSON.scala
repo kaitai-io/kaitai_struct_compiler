@@ -1,6 +1,7 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.translators.CommonLiterals
+import scala.collection
 
 /** Common trait for all objects that can be serialized as JSON. */
 trait Jsonable {
@@ -22,7 +23,7 @@ object JSON extends CommonLiterals {
       case v: Jsonable => v.toJson
       case v: Int => v.toString
       case v: String => stringToJson(v)
-      case v: Seq[_] => seqToJson(v)
+      case v: collection.Seq[_] => seqToJson(v)
       case v: Map[String, _] => mapToJson(v)
     }
   }
@@ -33,10 +34,10 @@ object JSON extends CommonLiterals {
   def stringToJson(str: String): String =
     doStringLiteral(str)
 
-  def seqToJson(obj: Seq[_]): String =
+  def seqToJson(obj: collection.Seq[_]): String =
     "[" + obj.map((x) => stringify(x)).mkString(",") + "]"
 
-  def mapToJson(obj: Map[String, _]): String = {
+  def mapToJson(obj: Map[String, Any]): String = {
     val kvs = obj.map { case (k, v) =>
       stringToJson(k) + ": " + stringify(v)
     }

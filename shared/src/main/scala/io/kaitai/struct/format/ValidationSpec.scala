@@ -10,6 +10,7 @@ case class ValidationMin(min: Ast.expr) extends ValidationSpec
 case class ValidationMax(max: Ast.expr) extends ValidationSpec
 case class ValidationRange(min: Ast.expr, max: Ast.expr) extends ValidationSpec
 case class ValidationAnyOf(values: List[Ast.expr]) extends ValidationSpec
+case class ValidationInEnum() extends ValidationSpec
 case class ValidationExpr(checkExpr: Ast.expr) extends ValidationSpec
 
 object ValidationEq {
@@ -59,13 +60,30 @@ object ValidationAnyOf {
   }
 }
 
+object ValidationInEnum {
+  val LEGAL_KEYS = Set("in-enum")
+
+  def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationInEnum] =
+    ParseUtils.getOptValueBool(src, "in-enum", path).map { case boolVal =>
+      ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
+      if (!boolVal) {
+        throw KSYParseError.withText(
+          "only `true` is supported as value, got `false`" +
+          " (if you don't want any validation, omit the `valid` key)",
+          path ++ List("in-enum")
+        )
+      }
+      ValidationInEnum()
+    }
+}
+
 object ValidationExpr {
   val LEGAL_KEYS = Set("expr")
 
   def fromMap(src: Map[String, Any], path: List[String]): Option[ValidationExpr] =
-    ParseUtils.getOptValueExpression(src, "expr", path).map { case eqExpr =>
+    ParseUtils.getOptValueExpression(src, "expr", path).map { case expr =>
       ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
-      ValidationExpr(eqExpr)
+      ValidationExpr(expr)
     }
 }
 
@@ -74,6 +92,7 @@ object ValidationSpec {
     ValidationEq.LEGAL_KEYS ++
     ValidationRange.LEGAL_KEYS ++
     ValidationAnyOf.LEGAL_KEYS ++
+    ValidationInEnum.LEGAL_KEYS ++
     ValidationExpr.LEGAL_KEYS
 
   def fromYaml(src: Any, path: List[String]): ValidationSpec = {
@@ -106,10 +125,12 @@ object ValidationSpec {
     val opt3 = ValidationAnyOf.fromMap(src, path)
     if (opt3.nonEmpty)
       return opt3.get
-    val opt4 = ValidationExpr.fromMap(src, path)
+    val opt4 = ValidationInEnum.fromMap(src, path)
     if (opt4.nonEmpty)
       return opt4.get
-
+    val opt5 = ValidationExpr.fromMap(src, path)
+    if (opt5.nonEmpty)
+      return opt5.get
     // No validation templates matched, check for any bogus keys
     ParseUtils.ensureLegalKeys(src, LEGAL_KEYS, path)
 

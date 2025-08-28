@@ -1,0 +1,26 @@
+name: EncodingList updated
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'shared/src/main/scala/io/kaitai/struct/EncodingList.scala'
+
+permissions: {}
+
+jobs:
+  trigger-ksy_schema-ci-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the CI workflow in ksy_schema
+        env:
+          KSY_SCHEMA_GITHUB_TOKEN: ${{ secrets.KSY_SCHEMA_GITHUB_TOKEN }}
+        # See https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#create-a-repository-dispatch-event
+        run: |
+          set -u
+          curl --fail-with-body -sSL \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer $KSY_SCHEMA_GITHUB_TOKEN" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            -d '{"event_type":"EncodingList-updated"}' \
+            'https://api.github.com/repos/kaitai-io/ksy_schema/dispatches'

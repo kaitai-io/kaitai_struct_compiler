@@ -1,7 +1,7 @@
 package io.kaitai.struct.languages
 
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
-import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, ExternalType}
+import io.kaitai.struct.datatype.{DataType, FixedEndian, InheritedEndian, KSError, ValidationNotEqualError, ValidationNotInEnumError}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
@@ -31,8 +31,8 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outImports(topClass: ClassSpec) =
     importList.toList.mkString("", "\n", "\n")
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
-    out.puts("require(\"" + classSpec.name.head + "\")")
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    importList.add("require(\"" + extType.name.head + "\")")
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"-- $headerComment")
@@ -86,7 +86,11 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts(s"$kstructName._init(self, io)")
     out.puts("self._parent = parent")
-    out.puts("self._root = root or self")
+    if (name == rootClassName) {
+      out.puts("self._root = root or self")
+    } else {
+      out.puts("self._root = root")
+    }
     if (isHybrid)
       out.puts("self._is_le = is_le")
 
@@ -285,10 +289,14 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = LuaCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = LuaCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String =
+    id match {
+      case InstanceIdentifier(name) => name
+      case _ => idToStr(id)
+    }
 
-  override def privateMemberName(id: Identifier): String =
-    s"self.${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = LuaCompiler.privateMemberName(id)
+
   override def localTemporaryName(id: Identifier): String =
     s"_t_${idToStr(id)}"
 
@@ -315,14 +323,19 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     case _: BytesEosType =>
       s"$io:read_bytes_full()"
     case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-      s"$io:read_bytes_term($terminator, $include, $consume, $eosError)"
+      if (terminator.length == 1) {
+        val term = terminator.head & 0xff
+        s"$io:read_bytes_term($term, $include, $consume, $eosError)"
+      } else {
+        s"$io:read_bytes_term_multi(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+      }
     case BitsType1(bitEndian) =>
       s"$io:read_bits_int_${bitEndian.toSuffix}(1) ~= 0"
     case BitsType(width: Int, bitEndian) =>
       s"$io:read_bits_int_${bitEndian.toSuffix}($width)"
     case t: UserType =>
       val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
-      val addArgs = if (t.isOpaque) {
+      val addArgs = if (t.isExternal(typeProvider.nowClass)) {
         ""
       } else {
         val parent = t.forcedParent match {
@@ -338,13 +351,19 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       }
       s"${types2class(t.classSpec.get.name)}($addParams$io$addArgs)"
   }
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean): String = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName.bytes_strip_right($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName.bytes_terminate($expr1, $term, $include)"
+      case Some(term) =>
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$kstreamName.bytes_terminate($expr1, $t, $include)"
+        } else {
+          s"$kstreamName.bytes_terminate_multi($expr1, ${translator.doByteArrayLiteral(term)}, $include)"
+        }
       case None => expr1
     }
     expr2
@@ -352,6 +371,20 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit =
     out.puts(s"$id:_read()")
+
+  override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    out.puts("local success, err = pcall(function()")
+    out.inc
+    tryBlock()
+    out.dec
+    out.puts("end)")
+    finallyBlock()
+    out.puts("if not success then")
+    out.inc
+    out.puts("error(err)")
+    out.dec
+    out.puts("end")
+  }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {}
   override def switchCaseStart(condition: Ast.expr): Unit = {}
@@ -402,10 +435,34 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     checkExpr: Ast.expr,
     err: KSError,
     useIo: Boolean,
+    actual: Ast.expr,
     expected: Option[Ast.expr] = None
+  ): Unit =
+    attrValidate(attr, s"not(${translator.translate(checkExpr)})", err, useIo, actual, expected)
+
+  override def attrValidateInEnum(
+    attr: AttrLikeSpec,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    useIo: Boolean
   ): Unit = {
-    val actualStr = expression(Ast.expr.InternalName(attr.id))
-    out.puts(s"if not(${translator.translate(checkExpr)}) then")
+    // NOTE: this condition works for now because we haven't implemented
+    // https://github.com/kaitai-io/kaitai_struct/issues/778 for Lua yet, but
+    // it will need to be changed when we do.
+    attrValidate(attr, s"${translator.translate(valueExpr)} == nil", err, useIo, valueExpr, None)
+  }
+
+  private def attrValidate(
+    attr: AttrLikeSpec,
+    failCondExpr: String,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr]
+  ): Unit = {
+    val actualStr = expression(actual)
+    out.puts(s"if $failCondExpr then")
     out.inc
     val msg = err match {
       case _: ValidationNotEqualError => {
@@ -446,11 +503,8 @@ object LuaCompiler extends LanguageCompilerStatic
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
     }
 
-  def publicMemberName(id: Identifier): String =
-    id match {
-      case InstanceIdentifier(name) => name
-      case _ => idToStr(id)
-    }
+  def privateMemberName(id: Identifier): String =
+    s"self.${idToStr(id)}"
 
   override def kstructName: String = "KaitaiStruct"
   override def kstreamName: String = "KaitaiStream"

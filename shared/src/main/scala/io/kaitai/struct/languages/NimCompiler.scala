@@ -6,7 +6,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.NimTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, ExternalType}
 
 class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -53,8 +53,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit =
-    out.puts("import \"" + classSpec.name.head + "\"")
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    importList.add(extType.name.head)
   override def innerEnums = false
   override val translator: NimTranslator = new NimTranslator(typeProvider, importList)
   override def universalFooter: Unit = {
@@ -81,9 +81,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = "KaitaiError" // TODO: maybe add more debugging info
 
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
-  override def importFile(file: String): Unit = {
-    importList.add(file)
-  }
   override def alignToByte(io: String): Unit = out.puts(s"alignToByte($io)")
   // def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
@@ -348,13 +345,19 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def publicMemberName(id: Identifier): String = idToStr(id)
 
   // Members declared in io.kaitai.struct.languages.components.EveryReadIsExpression
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean): String = {
     val expr1 = padRight match {
       case Some(padByte) => s"$expr0.bytesStripRight($padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$expr1.bytesTerminate($term, $include)"
+      case Some(term) =>
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$expr1.bytesTerminate($t, $include)"
+        } else {
+          s"$expr1.bytesTerminateMulti(${translator.doByteArrayLiteral(term)}, $include)"
+        }
       case None => expr1
     }
     expr2
@@ -393,26 +396,35 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io.readBytesTerm($term, $include, $consume, $eosError)"
+        } else {
+          s"$io.readBytesTermMulti(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
         s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}($width)"
       case t: UserType =>
-        val addArgs = {
+        val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
+          ("nil", "nil")
+        } else {
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "nil"
             case Some(fp) => translator.translate(fp)
             case None => "this"
           }
-          s", this.root, $parent"
+          (parent, "this.root")
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         val concreteName = namespaced(t.classSpec match {
           case Some(cs) => cs.name
           case None => t.name
         })
-        s"${concreteName}.read($io$addArgs$addParams)"
+        // FIXME: apparently, the Nim compiler uses a different order of
+        // `$parent` and `$root` than literally every other language
+        s"${concreteName}.read($io, $root, $parent$addParams)"
     }
 
     if (assignType != dataType) {

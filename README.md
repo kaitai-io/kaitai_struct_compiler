@@ -1,13 +1,13 @@
 # Kaitai Struct: compiler
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/kaitai-io/kaitai_struct_compiler/test.yml?branch=master)](https://github.com/kaitai-io/kaitai_struct_compiler/actions/workflows/test.yml?query=branch%3Amaster)
-[![Maven Central](https://img.shields.io/maven-central/v/io.kaitai/kaitai-struct-compiler_2.12)](https://search.maven.org/artifact/io.kaitai/kaitai-struct-compiler_2.12)
+[![Maven Central](https://img.shields.io/maven-central/v/io.kaitai/kaitai-struct-compiler_2.12)](https://central.sonatype.com/artifact/io.kaitai/kaitai-struct-compiler_2.12)
 
 [![npm@latest](https://img.shields.io/npm/v/kaitai-struct-compiler/latest)](https://www.npmjs.com/package/kaitai-struct-compiler/v/latest)
 [![npm@next](https://img.shields.io/npm/v/kaitai-struct-compiler/next)](https://www.npmjs.com/package/kaitai-struct-compiler/v/next)
 [![npm downloads](https://img.shields.io/npm/dm/kaitai-struct-compiler?label=npm%20downloads)](https://www.npmtrends.com/kaitai-struct-compiler)
 
-This project is an official reference compiler for [Kaitai Struct](http://kaitai.io) project.
+This project is an official reference compiler for [Kaitai Struct](https://kaitai.io/) project.
 
 Kaitai Struct is a declarative language used to describe various
 binary data structures, laid out in files or in memory: i.e. binary
@@ -25,17 +25,23 @@ access to it in a nice, easy-to-comprehend API.
 If you're looking for information on:
 
 * Kaitai Struct language itself (`.ksy` files, general usage patterns)
-  — refer to the [user guide](http://doc.kaitai.io/user_guide.html).
+  — refer to the [user guide](https://doc.kaitai.io/user_guide.html).
 * How to download and install Kaitai Struct — see the
-  [downloads](http://kaitai.io/#download).
+  [downloads](https://kaitai.io/#download).
 * How to build the compiler, run the test suite, and join the
-  development — see the [developer memo](http://doc.kaitai.io/developers.html).
+  development — see the [developer memo](https://doc.kaitai.io/developers.html).
+
+## Issues
+
+Compiler issues are tracked in the
+[kaitai-io/kaitai_struct](https://github.com/kaitai-io/kaitai_struct/issues)
+repository.
 
 ## Licensing
 
 ### Main code
 
-Kaitai Struct compiler itself is copyright (C) 2015-2022 Kaitai
+Kaitai Struct compiler itself is copyright (C) 2015-2025 Kaitai
 Project.
 
 This program is free software: you can redistribute it and/or modify

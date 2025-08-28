@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.{DataType, Endianness, FixedEndian, InheritedEn
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.AbstractTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, ExternalType}
 
 import scala.collection.mutable.ListBuffer
 
@@ -73,15 +73,15 @@ abstract class LanguageCompiler(
     * @param topClassName top-level name type in KS notation (lower underscore)
     */
   def fileFooter(topClassName: String): Unit = {}
-  def importFile(file: String): Unit = {}
 
   /**
-    * Outputs declaration of "opaque class", i.e. class that will be referred to in this file, but
-    * not declared here. Some languages require either a "forward declaration" in this case, or a
-    * statement to import that class, or something similar. Called once per each opaque class.
-    * @param classSpec
+    * Outputs declaration of "external type", i.e. class or enum that will be referred to in this
+    * file, but not declared here. Some languages require either a "forward declaration" in this
+    * case, or a statement to import that class, or something similar. Called once per each external
+    * type.
+    * @param name absolute path to the type in KS notation (lower underscore)
     */
-  def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {}
+  def externalTypeDeclaration(extType: ExternalType): Unit = {}
 
   def classDoc(name: List[String], doc: DocSpec): Unit = {}
   def classHeader(name: List[String]): Unit
@@ -193,7 +193,7 @@ abstract class LanguageCompiler(
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit
   def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit
-  def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr)
+  def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit
   def instanceInvalidate(instName: InstanceIdentifier): Unit = ???
   def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = ???
 

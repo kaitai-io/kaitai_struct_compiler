@@ -31,7 +31,7 @@ package io.kaitai.struct
   * THE POSSIBILITY OF SUCH DAMAGE.
   */
 object XMLUtils {
-  // https://github.com/scala/scala-xml/blob/master/shared/src/main/scala/scala/xml/Utility.scala#L86-L144
+  // https://github.com/scala/scala-xml/blob/d26ff2826df4ed616b2bf30eae4dd02e964323fd/shared/src/main/scala/scala/xml/Utility.scala#L86-L144
 
   /**
     * Escapes the characters &lt; &gt; &amp; and &quot; from string.
@@ -62,7 +62,7 @@ object XMLUtils {
     */
   final def escape(text: String, s: StringBuilder): StringBuilder = {
     // Implemented per XML spec:
-    // http://www.w3.org/International/questions/qa-controls
+    // https://www.w3.org/International/questions/qa-controls
     // imperative code 3x-4x faster than current implementation
     // dpp (David Pollak) 2010/02/03
     val len = text.length

@@ -3,8 +3,57 @@ package io.kaitai.struct.translators
 import io.kaitai.struct.exprlang.Ast
 
 trait CommonOps extends AbstractTranslator {
-  def numericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) = {
-    s"(${translate(left)} ${binOp(op)} ${translate(right)})"
+  /**
+   * Provides operator precedence table, used for deciding whether
+   * parenthesis guarding expression are necessary or not.
+   *
+   * This is the default table, based on C++ operator precedence model.
+   * This is good enough for most C-like languages. Individual languages'
+   * translators can override it if and when necessary to alter behavior.
+   *
+   * @see https://en.cppreference.com/w/cpp/language/operator_precedence
+   * @see https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_precedence
+   * @see https://docs.oracle.com/javase/tutorial/java/nutsandbolts/operators.html
+   * @see https://www.php.net/manual/en/language.operators.precedence.php
+   */
+
+  val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.cmpop.Lt -> 100,
+    Ast.cmpop.LtE -> 100,
+    Ast.cmpop.Gt -> 100,
+    Ast.cmpop.GtE -> 100,
+    Ast.cmpop.Eq -> 90,
+    Ast.cmpop.NotEq -> 90,
+    Ast.operator.BitAnd -> 80,
+    Ast.operator.BitXor -> 70,
+    Ast.operator.BitOr -> 60
+  )
+
+  def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int): String = {
+    val opStr = op match {
+      case op: Ast.operator => binOp(op)
+      case op: Ast.cmpop => cmpOp(op)
+    }
+    genericBinOpStr(left, op, opStr, right, extPrec)
+  }
+
+  def genericBinOpStr(left: Ast.expr, op: Ast.binaryop, opStr: String, right: Ast.expr, extPrec: Int): String = {
+    val thisPrec = OPERATOR_PRECEDENCE(op)
+    val leftStr = translate(left, thisPrec)
+    val rightStr = translate(right, thisPrec)
+    if (thisPrec <= extPrec) {
+      s"($leftStr $opStr $rightStr)"
+    } else {
+      s"$leftStr $opStr $rightStr"
+    }
   }
 
   def binOp(op: Ast.operator): String = {
@@ -22,17 +71,17 @@ trait CommonOps extends AbstractTranslator {
     }
   }
 
-  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+  def doNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    genericBinOp(left, op, right, extPrec)
 
-  def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+  def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    genericBinOp(left, op, right, extPrec)
 
-  def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+  def doEnumCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    genericBinOp(left, op, right, extPrec)
 
-  def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr): String =
-    s"${translate(left)} ${cmpOp(op)} ${translate(right)}"
+  def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    genericBinOp(left, op, right, extPrec)
 
   def cmpOp(op: Ast.cmpop): String = {
     op match {

@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
 import io.kaitai.struct.translators.JavaScriptTranslator
-import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils, ExternalType}
 
 class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -20,7 +20,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with SwitchIfOps {
   import JavaScriptCompiler._
 
-  override val translator = new JavaScriptTranslator(typeProvider)
+  override val translator = new JavaScriptTranslator(typeProvider, importList)
 
   override def indent: String = "  "
   override def outFileName(topClassName: String): String = s"${type2class(topClassName)}.js"
@@ -28,20 +28,21 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outImports(topClass: ClassSpec) = {
     val impList = importList.toList
     val quotedImpList = impList.map((x) => s"'$x'")
-    val defineArgs = quotedImpList.mkString(", ")
-    val moduleArgs = quotedImpList.map((x) => s"require($x)").mkString(", ")
-    val argClasses = impList.map((x) => x.split('/').last)
-    val rootArgs = argClasses.map((x) => s"root.$x").mkString(", ")
+    val defineArgs = ("'exports'" +: quotedImpList).mkString(", ")
+    val exportsArgs = ("exports" +: quotedImpList.map((x) => s"require($x)")).mkString(", ")
+    val argClasses = types2class(topClass.name, false) +: impList.map((x) => x.split('/').last)
+    val rootArgs = argClasses.map((x) => if (x == "KaitaiStream") s"root.$x" else s"root.$x || (root.$x = {})").mkString(", ")
+    val factoryParams = argClasses.map((x) => if (x == "KaitaiStream") x else s"${x}_").mkString(", ")
 
     "(function (root, factory) {\n" +
       indent + "if (typeof define === 'function' && define.amd) {\n" +
       indent * 2 + s"define([$defineArgs], factory);\n" +
-      indent + "} else if (typeof module === 'object' && module.exports) {\n" +
-      indent * 2 + s"module.exports = factory($moduleArgs);\n" +
+      indent + "} else if (typeof exports === 'object' && exports !== null && typeof exports.nodeType !== 'number') {\n" +
+      indent * 2 + s"factory($exportsArgs);\n" +
       indent + "} else {\n" +
-      indent * 2 + s"root.${types2class(topClass.name)} = factory($rootArgs);\n" +
+      indent * 2 + s"factory($rootArgs);\n" +
       indent + "}\n" +
-      s"}(typeof self !== 'undefined' ? self : this, function (${argClasses.mkString(", ")}) {"
+      s"})(typeof self !== 'undefined' ? self : this, function ($factoryParams) {"
   }
 
   override def fileHeader(topClassName: String): Unit = {
@@ -52,12 +53,12 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def fileFooter(name: String): Unit = {
-    out.puts(s"return ${type2class(name)};")
-    out.puts("}));")
+    out.puts(s"${type2class(name)}_.${type2class(name)} = ${type2class(name)};")
+    out.puts("});")
   }
 
-  override def opaqueClassDeclaration(classSpec: ClassSpec): Unit = {
-    val className = type2class(classSpec.name.head)
+  override def externalTypeDeclaration(extType: ExternalType): Unit = {
+    val className = type2class(extType.name.head)
     importList.add(s"./$className")
   }
 
@@ -65,7 +66,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val shortClassName = type2class(name.last)
 
     val addNameExpr = if (name.size > 1) {
-      s" = ${types2class(name.takeRight(2))}"
+      s" = ${types2class(name.takeRight(2), false)}"
     } else {
       ""
     }
@@ -95,7 +96,11 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     out.puts("this._io = _io;")
     out.puts("this._parent = _parent;")
-    out.puts("this._root = _root || this;")
+    if (name == rootClassName) {
+      out.puts("this._root = _root || this;")
+    } else {
+      out.puts("this._root = _root;")
+    }
 
     if (isHybrid)
       out.puts("this._is_le = _is_le;")
@@ -154,13 +159,13 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
   override def universalDoc(doc: DocSpec): Unit = {
-    // JSDoc docstring style: http://usejsdoc.org/about-getting-started.html
+    // JSDoc docstring style: https://jsdoc.app/about-getting-started
     out.puts
     out.puts( "/**")
 
     doc.summary.foreach(summary => out.putsLines(" * ", summary))
 
-    // http://usejsdoc.org/tags-see.html
+    // https://jsdoc.app/tags-see
     doc.ref.foreach {
       case TextRef(text) =>
         out.putsLines(" * ", s"@see $text")
@@ -209,7 +214,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
         importList.add(s"$pkgName$procClass")
 
-        out.puts(s"var _process = new $procClass(${args.map(expression).mkString(", ")});")
+        out.puts(s"var _process = new ${procClass}_.${procClass}(${args.map(expression).mkString(", ")});")
         s"_process.decode($srcExpr)"
     }
     handleAssignment(varDest, expr, rep, false)
@@ -262,7 +267,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     val enumNameProps = attrType match {
-      case t: EnumType => s"""enumName: \"${types2class(t.enumSpec.get.name)}\""""
+      case t: EnumType => s"""enumName: \"${types2class(t.enumSpec.get.name, false)}\""""
       case _ => ""
     }
 
@@ -356,34 +361,49 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.readBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.readBytesTerm($terminator, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io.readBytesTerm($term, $include, $consume, $eosError)"
+        } else {
+          s"$io.readBytesTermMulti(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val parent = t.forcedParent match {
-          case Some(USER_TYPE_NO_PARENT) => "null"
-          case Some(fp) => translator.translate(fp)
-          case None => "this"
+        val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
+          ("null", "null")
+        } else {
+          val parent = t.forcedParent match {
+            case Some(USER_TYPE_NO_PARENT) => "null"
+            case Some(fp) => translator.translate(fp)
+            case None => "this"
+          }
+          (parent, "this._root")
         }
-        val root = if (t.isOpaque) "null" else "this._root"
         val addEndian = t.classSpec.get.meta.endian match {
           case Some(InheritedEndian) => ", this._is_le"
           case _ => ""
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-        s"new ${types2class(t.name)}($io, $parent, $root$addEndian$addParams)"
+        s"new ${types2class(t.name, t.isExternal(typeProvider.nowClass))}($io, $parent, $root$addEndian$addParams)"
     }
   }
 
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName.bytesStripRight($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName.bytesTerminate($expr1, $term, $include)"
+      case Some(term) =>
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$kstreamName.bytesTerminate($expr1, $t, $include)"
+        } else {
+          s"$kstreamName.bytesTerminateMulti($expr1, ${translator.doByteArrayLiteral(term)}, $include)"
+        }
       case None => expr1
     }
     expr2
@@ -391,6 +411,18 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
     out.puts(s"$id._read();")
+  }
+
+  override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    out.puts("try {")
+    out.inc
+    tryBlock()
+    out.dec
+    out.puts("} finally {")
+    out.inc
+    finallyBlock()
+    out.dec
+    out.puts("}")
   }
 
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
@@ -530,7 +562,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
-    val className = type2class(translator.provider.nowClass.name.last)
+    val className = type2class(typeProvider.nowClass.name.last)
 
     out.puts
     out.puts(s"${className}.prototype.toString = function() {")
@@ -542,9 +574,13 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def idToStr(id: Identifier): String = JavaScriptCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier) = JavaCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String =
+    id match {
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case _ => idToStr(id)
+    }
 
-  override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = JavaScriptCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -555,16 +591,47 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     checkExpr: Ast.expr,
     err: KSError,
     useIo: Boolean,
+    actual: Ast.expr,
     expected: Option[Ast.expr] = None
+  ): Unit =
+    attrValidate(attr, s"!(${translator.translate(checkExpr)})", err, useIo, actual, expected)
+
+  override def attrValidateInEnum(
+    attr: AttrLikeSpec,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    useIo: Boolean
+  ): Unit = {
+    val enumSpec = et.enumSpec.get
+    val enumRef = types2class(enumSpec.name, enumSpec.isExternal(typeProvider.nowClass))
+    attrValidate(attr, s"!Object.prototype.hasOwnProperty.call($enumRef, ${translator.translate(valueExpr)})", err, useIo, valueExpr, None)
+  }
+
+  private def attrValidate(
+    attr: AttrLikeSpec,
+    failCondExpr: String,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr]
   ): Unit = {
     val errArgsStr = expected.map(expression) ++ List(
-      expression(Ast.expr.InternalName(attr.id)),
+      expression(actual),
       if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "null",
       expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
     )
-    out.puts(s"if (!(${translator.translate(checkExpr)})) {")
+    out.puts(s"if ($failCondExpr) {")
     out.inc
-    out.puts(s"throw new ${ksErrorName(err)}(${errArgsStr.mkString(", ")});")
+    val errObj = s"new ${ksErrorName(err)}(${errArgsStr.mkString(", ")})"
+    if (attrDebugNeeded(attr.id)) {
+      val debugName = attrDebugName(attr.id, attr.cond.repeat, true)
+      out.puts(s"var _err = $errObj;")
+      out.puts(s"$debugName.validationError = _err;")
+      out.puts("throw _err;")
+    } else {
+      out.puts(s"throw $errObj;")
+    }
     out.dec
     out.puts("}")
   }
@@ -598,11 +665,7 @@ object JavaScriptCompiler extends LanguageCompilerStatic
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
     }
 
-  def publicMemberName(id: Identifier): String =
-    id match {
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
-      case _ => idToStr(id)
-    }
+  def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
 
   override def kstreamName: String = "KaitaiStream"
 
@@ -614,5 +677,17 @@ object JavaScriptCompiler extends LanguageCompilerStatic
     case _ => s"KaitaiStream.${err.name}"
   }
 
-  def types2class(types: List[String]): String = types.map(type2class).mkString(".")
+  def types2class(types: List[String], isExternal: Boolean): String = {
+    // If the first segment of the name path refers to an external format module
+    // (which is the only way how external types can be referenced), we must
+    // prepend the name of top-level module (which ends with an underscore `_`
+    // according to our own convention for clarity) before the path because of
+    // https://github.com/kaitai-io/kaitai_struct/issues/1074
+    val prefix = if (isExternal) {
+      s"${type2class(types.head)}_."
+    } else {
+      ""
+    }
+    prefix + types.map(type2class).mkString(".")
+  }
 }

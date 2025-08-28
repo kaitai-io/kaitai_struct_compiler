@@ -86,6 +86,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}")
     universalFooter
+
+    ioAccessor()
   }
 
   override def classConstructorFooter: Unit = {}
@@ -280,7 +282,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
-    out.puts(s"for i := 1;; i++ {")
+    out.puts(s"for i := 0;; i++ {")
     out.inc
 
     val eofVar = translator.allocateLocalVar()
@@ -384,23 +386,19 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.ReadBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io.ReadBytesTerm($term, $include, $consume, $eosError)"
+        } else {
+          s"$io.ReadBytesTermMulti(${translator.resToStr(translator.doByteArrayLiteral(terminator))}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1)"
       case BitsType(width: Int, bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val addArgs = if (t.isOpaque) {
-          ""
-        } else {
-          val parent = t.forcedParent match {
-            case Some(USER_TYPE_NO_PARENT) => "null"
-            case Some(fp) => translator.translate(fp)
-            case None => "this"
-          }
-          s", $parent, _root"
-        }
-        s"${types2class(t.name)}($io$addArgs)"
+        val addParams = t.args.map((a) => expression(a)).mkString(", ")
+        s"New${GoCompiler.types2class(t.classSpec.get.name)}($addParams)"
     }
   }
 
@@ -415,6 +413,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 //    }
 //    expr2
 //  }
+
+  override def userTypeDebugRead(id: String, t: UserType, io: String): Unit = {
+    val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
+      ("nil", "nil")
+    } else {
+      val parent = t.forcedParent match {
+        case Some(USER_TYPE_NO_PARENT) => "nil"
+        case Some(fp) => expression(fp)
+        case None => "this"
+      }
+      (parent, "this._root")
+    }
+    out.puts(s"err = $id.Read($io, $parent, $root)")
+  }
 
   override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"switch (${expression(on)}) {")
@@ -505,6 +517,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.dec
     out.puts(")")
+    // Inspired by https://gist.github.com/bgadrian/cb8b9344d9c66571ef331a14eb7a2e80
+    val mapEntriesStr = enumColl.map { case (id, _) => s"$id: {}" }.mkString(", ")
+    out.puts(s"var values_$fullEnumNameStr = map[$fullEnumNameStr]struct{}{$mapEntriesStr}")
+    out.puts(s"func (v $fullEnumNameStr) isDefined() bool {")
+    out.inc
+    out.puts(s"_, ok := values_$fullEnumNameStr[v]")
+    out.puts("return ok")
+    out.dec
+    out.puts("}")
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
@@ -518,9 +539,16 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def idToStr(id: Identifier): String = GoCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = GoCompiler.publicMemberName(id)
+  override def publicMemberName(id: Identifier): String =
+    id match {
+      case IoIdentifier => "_IO"
+      case RootIdentifier => "_Root"
+      case ParentIdentifier => "_Parent"
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case _ => idToStr(id)
+    }
 
-  override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
+  override def privateMemberName(id: Identifier): String = GoCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
@@ -535,14 +563,34 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     checkExpr: Ast.expr,
     err: KSError,
     useIo: Boolean,
+    actual: Ast.expr,
     expected: Option[Ast.expr] = None
+  ): Unit =
+    attrValidate(attr, s"!(${translator.translate(checkExpr)})", err, useIo, actual, expected)
+
+  override def attrValidateInEnum(
+    attr: AttrLikeSpec,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    useIo: Boolean
+  ): Unit =
+    attrValidate(attr, s"!${translator.translate(valueExpr)}.isDefined()", err, useIo, valueExpr, None)
+
+  private def attrValidate(
+    attr: AttrLikeSpec,
+    failCondExpr: String,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr]
   ): Unit = {
     val errArgsStr = expected.map(expression) ++ List(
-      expression(Ast.expr.InternalName(attr.id)),
+      expression(actual),
       if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "nil",
       expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
     )
-    out.puts(s"if !(${translator.translate(checkExpr)}) {")
+    out.puts(s"if $failCondExpr {")
     out.inc
     val errInst = s"kaitai.New${err.name}(${errArgsStr.mkString(", ")})"
     val noValueAndErr = translator.returnRes match {
@@ -550,6 +598,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case Some(r) => s"$r, $errInst"
     }
     out.puts(s"return $noValueAndErr")
+    out.dec
+    out.puts("}")
+  }
+
+  def ioAccessor(): Unit = {
+    out.puts
+    out.puts(s"func (this ${types2class(typeProvider.nowClass.name)}) IO_() *$kstreamName {")
+    out.inc
+    out.puts(s"return this._io")
     out.dec
     out.puts("}")
   }
@@ -575,14 +632,7 @@ object GoCompiler extends LanguageCompilerStatic
       case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
     }
 
-  def publicMemberName(id: Identifier): String =
-    id match {
-      case IoIdentifier => "_IO"
-      case RootIdentifier => "_Root"
-      case ParentIdentifier => "_Parent"
-      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
-      case _ => idToStr(id)
-    }
+  def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
 
   /**
     * Determine Go data type corresponding to a KS data type.
@@ -616,7 +666,7 @@ object GoCompiler extends LanguageCompilerStatic
 
       case AnyType => "interface{}"
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
-      case KaitaiStreamType | OwnedKaitaiStreamType => "*" + kstreamName
+      case KaitaiStreamType | OwnedKaitaiStreamType => s"*$kstreamName"
 
       case t: UserType => "*" + types2class(t.classSpec match {
         case Some(cs) => cs.name
@@ -642,7 +692,7 @@ object GoCompiler extends LanguageCompilerStatic
     types2class(typeName) + "__" + type2class(enumName)
 
   override def kstreamName: String = "kaitai.Stream"
-  override def kstructName: String = "interface{}"
+  override def kstructName: String = "kaitai.Struct"
   override def ksErrorName(err: KSError): String = err match {
     case ConversionError => "strconv.NumError"
     case _ => s"kaitai.${err.name}"

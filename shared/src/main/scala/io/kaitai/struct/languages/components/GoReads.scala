@@ -85,14 +85,20 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     }
   }
 
-  def bytesPadTermExpr(id: ResultLocalVar, padRight: Option[Int], terminator: Option[Int], include: Boolean): String = {
+  def bytesPadTermExpr(id: ResultLocalVar, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean): String = {
     val expr0 = translator.resToStr(id)
     val expr1 = padRight match {
       case Some(padByte) => s"kaitai.BytesStripRight($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"kaitai.BytesTerminate($expr1, $term, $include)"
+      case Some(term) =>
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"kaitai.BytesTerminate($expr1, $t, $include)"
+        } else {
+          s"kaitai.BytesTerminateMulti($expr1, ${translator.resToStr(translator.doByteArrayLiteral(term))}, $include)"
+        }
       case None => expr1
     }
     expr2
@@ -134,8 +140,31 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
         io
     }
 
-    val expr = translator.userType(dataType, newIO)
-    handleAssignment(id, expr, rep, false)
+    val expr = parseExpr(dataType, newIO, defEndian)
+    val v = ResultLocalVar(translator.allocateLocalVar())
+    val tempVarName = translator.resToStr(v)
+    // At the time of writing, our generated Go code doesn't have a clear `autoRead`/non-`autoRead`
+    // separation. `Read` has been always called separately, which would suggest disabled
+    // `autoRead`, but before 0.11, the object was always created and stored in a temporary variable
+    // first and then its `Read` was called, followed by an `if err != nil { return err }` block. So
+    // the object was assigned to an exported struct field only if `Read` succeeded, which matches
+    // the behavior of enabled `autoRead`.
+    //
+    // Since 0.11, we try to match the behavior of other target languages for consistency. If
+    // `autoRead` is enabled (default), we export the object only after the `Read`'s `err` check
+    // passed. Only if `autoRead` is disabled, we export the object unconditionally, but after
+    // calling `Read` (like other target languages).
+    if (config.autoRead) {
+      handleAssignmentTempVar(dataType, tempVarName, expr)
+      userTypeDebugRead(tempVarName, dataType, newIO)
+      translator.outAddErrCheck()
+      handleAssignment(id, v, rep, false)
+    } else {
+      handleAssignmentTempVar(dataType, tempVarName, expr)
+      userTypeDebugRead(tempVarName, dataType, newIO)
+      handleAssignment(id, v, rep, false)
+      translator.outAddErrCheck()
+    }
   }
 
   def handleAssignment(id: Identifier, expr: TranslatorResult, rep: RepeatSpec, isRaw: Boolean): Unit = {
@@ -153,4 +182,5 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
   def handleAssignmentSimple(id: Identifier, expr: TranslatorResult): Unit
 
   def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String
+  def userTypeDebugRead(id: String, t: UserType, io: String): Unit
 }

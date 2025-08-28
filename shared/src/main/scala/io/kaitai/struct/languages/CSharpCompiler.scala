@@ -359,14 +359,19 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.ReadBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        s"$io.ReadBytesTerm($terminator, $include, $consume, $eosError)"
+        if (terminator.length == 1) {
+          val term = terminator.head & 0xff
+          s"$io.ReadBytesTerm($term, $include, $consume, $eosError)"
+        } else {
+          s"$io.ReadBytesTermMulti(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+        }
       case BitsType1(bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
-        val addArgs = if (t.isOpaque) {
+        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
         } else {
           val parent = t.forcedParent match {
@@ -384,13 +389,19 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Int], include: Boolean) = {
+  override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) => s"$kstreamName.BytesStripRight($expr0, $padByte)"
       case None => expr0
     }
     val expr2 = terminator match {
-      case Some(term) => s"$kstreamName.BytesTerminate($expr1, $term, $include)"
+      case Some(term) =>
+        if (term.length == 1) {
+          val t = term.head & 0xff
+          s"$kstreamName.BytesTerminate($expr1, $t, $include)"
+        } else {
+          s"$kstreamName.BytesTerminateMulti($expr1, ${translator.doByteArrayLiteral(term)}, $include)"
+        }
       case None => expr1
     }
     expr2
@@ -403,6 +414,21 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       id
     }
     out.puts(s"$expr._read();")
+  }
+
+  override def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = {
+    out.puts("try")
+    out.puts("{")
+    out.inc
+    tryBlock()
+    out.dec
+    out.puts("}")
+    out.puts("finally")
+    out.puts("{")
+    out.inc
+    finallyBlock()
+    out.dec
+    out.puts("}")
   }
 
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
@@ -551,27 +577,28 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  def idToStr(id: Identifier): String =
+  def idToStr(id: Identifier): String = CSharpCompiler.idToStr(id)
+
+  override def publicMemberName(id: Identifier): String =
     id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
-      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+      case SpecialIdentifier(name) => s"M${Utils.upperCamelCase(name)}"
+      case NamedIdentifier(name) => Utils.upperCamelCase(name)
+      case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE.capitalize}_$idx"
+      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
+      case RawIdentifier(innerId) => s"M_Raw${publicMemberName(innerId)}"
     }
 
-  override def publicMemberName(id: Identifier): String = CSharpCompiler.publicMemberName(id)
-
-  override def privateMemberName(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => s"m${Utils.lowerCamelCase(name)}"
-      case _ => s"_${idToStr(id)}"
-    }
-  }
+  override def privateMemberName(id: Identifier): String = CSharpCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
   override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
+
+  def kaitaiType2NativeType(attrType: DataType): String =
+    CSharpCompiler.kaitaiType2NativeType(importList, attrType)
+
+  def kaitaiType2NativeTypeNullable(t: DataType, isNullable: Boolean): String =
+    CSharpCompiler.kaitaiType2NativeTypeNullable(importList, t, isNullable)
 
   override def ksErrorName(err: KSError): String = CSharpCompiler.ksErrorName(err)
 
@@ -580,14 +607,44 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     checkExpr: Ast.expr,
     err: KSError,
     useIo: Boolean,
+    actual: Ast.expr,
     expected: Option[Ast.expr] = None
+  ): Unit =
+    attrValidate(attr, s"!(${translator.translate(checkExpr)})", err, useIo, actual, expected)
+
+  override def attrValidateInEnum(
+    attr: AttrLikeSpec,
+    et: EnumType,
+    valueExpr: Ast.expr,
+    err: ValidationNotInEnumError,
+    useIo: Boolean
+  ): Unit = {
+    // TODO: the non-generic overload `Enum.IsDefined(Type, object)` used here
+    // is supposedly slow because it uses reflection (see
+    // https://stackoverflow.com/q/13615#comment48178324_4807469). [This SO
+    // answer](https://stackoverflow.com/a/55028274) suggests to use the generic
+    // overload `Enum.IsDefined<TEnum>(TEnum)` instead, claiming that it fixes
+    // the performance issues. But it's only available since .NET 5, so we would
+    // need a command-line switch to allow the user to choose whether they need
+    // compatibility with older versions or not.
+    importList.add("System")
+    attrValidate(attr, s"!Enum.IsDefined(typeof(${kaitaiType2NativeType(et)}), ${translator.translate(valueExpr)})", err, useIo, valueExpr, None)
+  }
+
+  private def attrValidate(
+    attr: AttrLikeSpec,
+    failCondExpr: String,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr]
   ): Unit = {
     val errArgsStr = expected.map(expression) ++ List(
-      expression(Ast.expr.InternalName(attr.id)),
+      expression(actual),
       if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "null",
       expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
     )
-    out.puts(s"if (!(${translator.translate(checkExpr)}))")
+    out.puts(s"if ($failCondExpr)")
     out.puts("{")
     out.inc
     out.puts(s"throw new ${ksErrorName(err)}(${errArgsStr.mkString(", ")});")
@@ -605,13 +662,19 @@ object CSharpCompiler extends LanguageCompilerStatic
     config: RuntimeConfig
   ): LanguageCompiler = new CSharpCompiler(tp, config)
 
-  def publicMemberName(id: Identifier): String =
+  def idToStr(id: Identifier): String =
     id match {
-      case SpecialIdentifier(name) => s"M${Utils.upperCamelCase(name)}"
-      case NamedIdentifier(name) => Utils.upperCamelCase(name)
-      case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE.capitalize}_$idx"
-      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
-      case RawIdentifier(innerId) => s"M_Raw${publicMemberName(innerId)}"
+      case SpecialIdentifier(name) => name
+      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
+    }
+
+  def privateMemberName(id: Identifier): String =
+    id match {
+      case SpecialIdentifier(name) => s"m${Utils.lowerCamelCase(name)}"
+      case _ => s"_${idToStr(id)}"
     }
 
   /**
@@ -620,7 +683,7 @@ object CSharpCompiler extends LanguageCompilerStatic
     * @param attrType KS data type
     * @return .NET data type
     */
-  def kaitaiType2NativeType(attrType: DataType): String = {
+  def kaitaiType2NativeType(importList: ImportList, attrType: DataType): String = {
     attrType match {
       case Int1Type(false) => "byte"
       case IntMultiType(false, Width2, _) => "ushort"
@@ -651,14 +714,17 @@ object CSharpCompiler extends LanguageCompilerStatic
       case t: UserType => types2class(t.name)
       case EnumType(name, _) => types2class(name)
 
-      case at: ArrayType => s"List<${kaitaiType2NativeType(at.elType)}>"
+      case at: ArrayType => {
+        importList.add("System.Collections.Generic")
+        s"List<${kaitaiType2NativeType(importList, at.elType)}>"
+      }
 
-      case st: SwitchType => kaitaiType2NativeType(st.combinedType)
+      case st: SwitchType => kaitaiType2NativeType(importList, st.combinedType)
     }
   }
 
-  def kaitaiType2NativeTypeNullable(t: DataType, isNullable: Boolean): String = {
-    val r = kaitaiType2NativeType(t)
+  def kaitaiType2NativeTypeNullable(importList: ImportList, t: DataType, isNullable: Boolean): String = {
+    val r = kaitaiType2NativeType(importList, t)
     if (isNullable) {
       t match {
         case _: NumericType | _: BooleanType => s"$r?"

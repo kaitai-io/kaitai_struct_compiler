@@ -21,29 +21,24 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       case RepeatEos =>
         condRepeatCommonHeader(id, io, attr.dataType)
         attrCheck2(id, attr.dataType, attr.cond.repeat, bodyShouldDependOnIo)
+        attrValidCheck(attr, bodyShouldDependOnIo)
         condRepeatCommonFooter
       case RepeatExpr(repeatExpr: Ast.expr) =>
         attrRepeatExprCheck(id, repeatExpr, bodyShouldDependOnIo)
         condRepeatCommonHeader(id, io, attr.dataType)
         attrCheck2(id, attr.dataType, attr.cond.repeat, bodyShouldDependOnIo)
+        attrValidCheck(attr, bodyShouldDependOnIo)
         condRepeatCommonFooter
       case repUntil: RepeatUntil =>
         attrAssertUntilNotEmpty(id)
         condRepeatCommonHeader(id, io, attr.dataType)
         attrCheck2(id, attr.dataType, attr.cond.repeat, bodyShouldDependOnIo)
+        attrValidCheck(attr, bodyShouldDependOnIo)
         attrAssertUntilCond(id, attr.dataType, repUntil, bodyShouldDependOnIo)
         condRepeatCommonFooter
       case NoRepeat =>
         attrCheck2(id, attr.dataType, attr.cond.repeat, bodyShouldDependOnIo)
-    }
-    // TODO: move to attrCheck2 when we change the `valid` semantics to apply to each item
-    // in repeated fields, not the entire array (see
-    // https://github.com/kaitai-io/kaitai_struct_formats/issues/347)
-    attr.valid.foreach { (valid) =>
-      typeProvider._currentIteratorType = Some(attr.dataTypeComposite)
-      if (bodyShouldDependOnIo.map(shouldDepend => validDependsOnIo(valid) == shouldDepend).getOrElse(true)) {
-        attrValidate(id, attr, valid, false)
-      }
+        attrValidCheck(attr, bodyShouldDependOnIo)
     }
 
     attrParseIfFooter(attr.cond.ifExpr)
@@ -68,8 +63,10 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       case _: Ast.expr.IntNum => false
       case _: Ast.expr.FloatNum => false
       case _: Ast.expr.Str => false
+      case Ast.expr.InterpolatedStr(values: Seq[Ast.expr]) =>
+        values.exists(v => userExprDependsOnIo(v))
       case _: Ast.expr.Bool => false
-      case _: Ast.expr.EnumById => false
+      case _: Ast.expr.EnumById => false // FIXME: actually incorrect, since `EnumById` contains an `Ast.expr`
       case _: Ast.expr.EnumByLabel => false
       case n: Ast.expr.Name =>
         val t = getArrayItemType(translator.detectType(n))
@@ -188,12 +185,13 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       case ValidationMax(max) => userExprDependsOnIo(max)
       case ValidationRange(min, max) => userExprDependsOnIo(min) || userExprDependsOnIo(max)
       case ValidationAnyOf(values) => values.exists(v => userExprDependsOnIo(v))
+      case ValidationInEnum() => false
       case ValidationExpr(expr) => userExprDependsOnIo(expr)
     }
   }
 
   def attrCheck2(id: Identifier, dataType: DataType, repeat: RepeatSpec, shouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType] = None) = {
-    val item = itemExpr(id, repeat)
+    val item = Identifier.itemExpr(id, repeat)
     dataType match {
       case ut: UserType =>
         val itemUserType =
@@ -220,6 +218,15 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       case st: SwitchType =>
         attrSwitchCheck(id, st.on, st.cases, repeat, shouldDependOnIo, st.combinedType)
       case _ => // no checks
+    }
+  }
+
+  def attrValidCheck(attr: AttrLikeSpec, shouldDependOnIo: Option[Boolean]): Unit = {
+    attr.valid.foreach { (valid) =>
+      typeProvider._currentIteratorType = Some(attr.dataType)
+      if (shouldDependOnIo.map(shouldDepend => validDependsOnIo(valid) == shouldDepend).getOrElse(true)) {
+        attrValidate(attr, valid, false)
+      }
     }
   }
 
@@ -266,7 +273,13 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
           }
         }
         blt.terminator match {
-          case Some(term) => {
+          case Some(terminator) => {
+            val term =
+              if (terminator.length == 1) {
+                terminator.head & 0xff
+              } else {
+                throw new NotImplementedError("multibyte terminators cannot be serialized yet")
+              }
             val actualIndexOfTerm = exprByteArrayIndexOf(bytes, term)
             val isPadRightActive = blt.padRight.map(padByte => padByte != term).getOrElse(false)
             if (!blt.include) {
@@ -313,7 +326,13 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       }
       case btt: BytesTerminatedType => {
         if (canUseNonIoDependent) {
-          val actualIndexOfTerm = exprByteArrayIndexOf(bytes, btt.terminator)
+          val term =
+            if (btt.terminator.length == 1) {
+              btt.terminator.head & 0xff
+            } else {
+              throw new NotImplementedError("multibyte terminators cannot be serialized yet")
+            }
+          val actualIndexOfTerm = exprByteArrayIndexOf(bytes, term)
           val lastByteIndex: Ast.expr = Ast.expr.BinOp(actualSize, Ast.operator.Sub, Ast.expr.IntNum(1))
           val expectedIndexOfTerm = if (btt.include) {
             if (btt.eosError) {
@@ -497,7 +516,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     handleAssignmentTempVar(
       dataType,
       translator.doName(Identifier.ITERATOR),
-      translator.translate(itemExpr(id, repUntil))
+      translator.translate(Identifier.itemExpr(id, repUntil))
     )
     attrAssertEqual(
       repUntil.expr,
