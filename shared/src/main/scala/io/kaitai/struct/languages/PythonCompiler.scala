@@ -804,8 +804,6 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrParentParamCheck(actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean], msg: String): Unit = {
-    if (ut.isOpaque)
-      return
     /** @note Must be kept in sync with [[PythonCompiler.parseExpr]] */
     val (expectedParent, dependsOnIo) = ut.forcedParent match {
       case Some(USER_TYPE_NO_PARENT) => ("None", false)
