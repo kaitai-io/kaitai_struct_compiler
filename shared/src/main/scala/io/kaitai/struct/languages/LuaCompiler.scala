@@ -461,13 +461,12 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     actual: Ast.expr,
     expected: Option[Ast.expr]
   ): Unit = {
-    val actualStr = expression(actual)
     out.puts(s"if $failCondExpr then")
     out.inc
     val msg = err match {
       case _: ValidationNotEqualError => {
-        val expectedStr = expected.get
-        s""""not equal, expected " .. $expectedStr .. ", but got " .. $actualStr"""
+        val opAddPrec = translator.OPERATOR_PRECEDENCE(Ast.operator.Add)
+        s""""not equal, expected " .. ${translator.translate(expected.get, opAddPrec)} .. ", but got " .. ${translator.translate(actual, opAddPrec)}"""
       }
       case _ => expression(Ast.expr.Str(ksErrorName(err)))
     }
