@@ -371,7 +371,7 @@ trait EveryWriteIsExpression
             }
 
             {
-              val parentIO = subIOWriteBackHeader(ioFixed, byteType.process)
+              val parentIO = subIOWriteBackHeader(ioFixed, rep, byteType.process)
               handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, true)
               attrBytesTypeWrite(rawId, byteType, parentIO, rep, isRaw, None, exprTypeOpt)
               subIOWriteBackFooter(ioFixed)

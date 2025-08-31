@@ -175,7 +175,7 @@ abstract class LanguageCompiler(
 
   def exprIORemainingSize(io: String): String = ???
 
-  def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = ???
+  def subIOWriteBackHeader(subIO: String, rep: RepeatSpec, process: Option[ProcessExpr]): String = ???
   def subIOWriteBackFooter(subIO: String): Unit = ???
 
   def addChildIO(io: String, childIO: String): Unit = ???

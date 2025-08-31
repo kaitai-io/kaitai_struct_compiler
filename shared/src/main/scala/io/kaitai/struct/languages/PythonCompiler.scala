@@ -408,11 +408,16 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def exprIORemainingSize(io: String): String =
     s"$io.size() - $io.pos()"
 
-  override def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = {
+  override def subIOWriteBackHeader(subIO: String, rep: RepeatSpec, process: Option[ProcessExpr]): String = {
     val parentIoName = "parent"
-    // NOTE: local variables "$subIO" and "_process_val" are captured here as default values of
+    // NOTE: local variables "$subIO", "i" and "_process_val" are captured here as default values of
     // "handler" parameters, see
     // https://docs.python.org/3/faq/programming.html#why-do-lambdas-defined-in-a-loop-with-different-values-all-return-the-same-result
+    val indexArg =
+      rep match {
+        case NoRepeat => ""
+        case _ => ", i=i"
+      }
     val processValArg =
       process.map(proc => proc match {
         case _: ProcessXor | _: ProcessRotate | _: ProcessCustom =>
@@ -420,7 +425,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         case _ =>
           ""
       }).getOrElse("")
-    out.puts(s"def handler(parent, $subIO=$subIO$processValArg):")
+    out.puts(s"def handler(parent, $subIO=$subIO$indexArg$processValArg):")
     out.inc
 
     translator.inSubIOWriteBackHandler = true

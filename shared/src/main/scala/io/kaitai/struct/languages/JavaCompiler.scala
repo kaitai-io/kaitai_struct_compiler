@@ -431,9 +431,15 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def allocateIOGrowing(varName: Identifier): String =
     allocateIOFixed(varName, "100000") // FIXME to use real growing buffer
 
-  override def subIOWriteBackHeader(subIO: String, process: Option[ProcessExpr]): String = {
+  override def subIOWriteBackHeader(subIO: String, rep: RepeatSpec, process: Option[ProcessExpr]): String = {
     val parentIoName = "parent"
     out.puts(s"final ${type2class(typeProvider.nowClass.name.last)} _this = this;")
+    rep match {
+      case NoRepeat =>
+        // do nothing
+      case _ =>
+        out.puts("final int _i = i;")
+    }
     out.puts(s"$subIO.setWriteBackHandler(new $kstreamName.WriteBackHandler(_pos2) {")
     out.inc
     out.puts("@Override")

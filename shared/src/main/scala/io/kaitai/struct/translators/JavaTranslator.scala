@@ -59,7 +59,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
       case Identifier.ITERATOR => "_it"
       case Identifier.ITERATOR2 => "_buf"
       case Identifier.SWITCH_ON => "on"
-      case Identifier.INDEX => "i"
+      case Identifier.INDEX => if (inSubIOWriteBackHandler) "_i" else "i"
       case _ => s"${Utils.lowerCamelCase(s)}()"
     }
 
