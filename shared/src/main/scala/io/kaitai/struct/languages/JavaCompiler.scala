@@ -351,12 +351,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit = {
     val exprType = exprTypeOpt.getOrElse(dataType)
-    val srcExprRaw = varSrc match {
-      // use `_raw_items[_raw_items.size - 1]`
-      case _: RawIdentifier => getRawIdExpr(varSrc, rep)
-      // but `items[_index]`
-      case _ => expression(Identifier.itemExpr(varSrc, rep))
-    }
+    val srcExprRaw = expression(Identifier.itemExpr(varSrc, rep))
     val srcExpr = castIfNeeded(srcExprRaw, exprType, dataType)
 
     val expr = proc match {
@@ -466,6 +461,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(varName)
     rep match {
       case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName.get(i)"
       case _ => s"$memberName.get($memberName.size() - 1)"
     }
   }

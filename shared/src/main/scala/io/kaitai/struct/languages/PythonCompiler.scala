@@ -312,12 +312,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dt: BytesType, exprTypeOpt: Option[DataType]): Unit = {
-    val srcExpr = varSrc match {
-      // use `_raw_items[_raw_items.size - 1]`
-      case _: RawIdentifier => getRawIdExpr(varSrc, rep)
-      // but `items[_index]`
-      case _ => expression(Identifier.itemExpr(varSrc, rep))
-    }
+    val srcExpr = expression(Identifier.itemExpr(varSrc, rep))
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
@@ -447,6 +442,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(varName)
     rep match {
       case NoRepeat => memberName
+      case RepeatExpr(_) => s"$memberName[i]"
       case _ => s"$memberName[-1]"
     }
   }

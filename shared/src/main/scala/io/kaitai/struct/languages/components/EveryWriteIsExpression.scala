@@ -161,36 +161,7 @@ trait EveryWriteIsExpression
       case None =>
         id
     }
-    val item = if (idToWrite.isInstanceOf[RawIdentifier] && rep != NoRepeat) {
-      // NOTE: This special handling isn't normally needed and one can just use
-      // `Identifier.itemExpr(idToWrite, rep)` as usual. The `itemExpr` method assumes that the
-      // expression it's supposed to generate will be used in a loop where the iteration
-      // variable `Identifier.INDEX` is available (usually called just `i`) and uses it. This
-      // is a good default, but it doesn't work if the expression is used between
-      // `subIOWriteBackHeader` and `subIOWriteBackFooter` (see `attrUserTypeWrite` below),
-      // because in Java the loop control variable `i` is not "final" or "effectively final".
-      //
-      // The workaround is to change the expression so that it doesn't depend on the `i`
-      // variable. We can do that here, because the `RawIdentifier(...)` array starts empty
-      // before the loop and each element is added by `attrUnprocess` in each loop iteration -
-      // so the current item is just the last entry in the `RawIdentifier(...)` array.
-      //
-      // See test ProcessRepeatUsertype that requires this.
-      val astId = Ast.expr.InternalName(idToWrite)
-      Ast.expr.Subscript(
-        astId,
-        Ast.expr.BinOp(
-          Ast.expr.Attribute(
-            astId,
-            Ast.identifier("size")
-          ),
-          Ast.operator.Sub,
-          Ast.expr.IntNum(1)
-        )
-      )
-    } else {
-      Identifier.itemExpr(idToWrite, rep)
-    }
+    val item = Identifier.itemExpr(idToWrite, rep)
     val itemBytes =
       if (exprTypeOpt.map(exprType => !exprType.isInstanceOf[BytesType]).getOrElse(false))
         Ast.expr.CastToType(item, Ast.typeId(false, Seq("bytes")))
