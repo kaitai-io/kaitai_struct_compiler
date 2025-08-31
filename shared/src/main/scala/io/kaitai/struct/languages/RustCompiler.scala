@@ -16,7 +16,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with AllocateIOLocalVar
     with EveryReadIsExpression
-    with FixedContentsUsingArrayByteLiteral
     with ObjectOrientedLanguage
     with SingleOutputFile
     with UpperCamelCaseClasses
@@ -846,10 +845,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     expr2
   }
 
-  override def attrFixedContentsParse(attrName: Identifier,
-                                      contents: String): Unit =
-    out.puts(s"// attrFixedContentsParse($attrName, $contents)")
-
   override def publicMemberName(id: Identifier): String =
     s"// publicMemberName($id)"
 
@@ -1190,7 +1185,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr] = None
   ): Unit = {
     val srcPathStr = translator.translate(Ast.expr.Str(attr.path.mkString("/", "/", "")))
     val validationKind = RustCompiler.validationErrorKind(err.asInstanceOf[ValidationError])

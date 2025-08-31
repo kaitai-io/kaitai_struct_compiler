@@ -106,7 +106,8 @@ abstract trait CommonMethods[T] extends TypeDetector {
           case x =>
             throw new TypeMismatchError(s"to_s: argument #0: expected string literal, got $x")
         }
-      })
+      }),
+      MethodSig1("index_of", CalcIntType, IntArg, bytesIndexOf)
     ),
     IntArg -> List(
       MethodSig0("to_s", CalcStrType, intToStr),
@@ -119,6 +120,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
       MethodSig0("reverse", CalcStrType, strReverse),
       MethodSig0("to_i", CalcIntType, { strToInt(_, Ast.expr.IntNum(10)) }),
       MethodSig1("to_i", CalcIntType, IntArg, strToInt),
+      MethodSig1("to_b", CalcBytesType, StrArg, strToBytes),
       MethodSig2("substring", CalcStrType, (IntArg, IntArg), strSubstring)
     ),
     BooleanArg -> List(
@@ -255,8 +257,10 @@ abstract trait CommonMethods[T] extends TypeDetector {
   def strReverse(s: Ast.expr): T
   def strToInt(s: Ast.expr, base: Ast.expr): T
   def strSubstring(s: Ast.expr, from: Ast.expr, to: Ast.expr): T
+  def strToBytes(s: Ast.expr, encoding: Ast.expr): T = ???
 
   def bytesToStr(value: Ast.expr, encoding: String): T
+  def bytesIndexOf(value: Ast.expr, expr: Ast.expr): T = ???
 
   def intToStr(value: Ast.expr): T
 

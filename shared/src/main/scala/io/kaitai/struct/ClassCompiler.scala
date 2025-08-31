@@ -63,6 +63,15 @@ class ClassCompiler(
     // Read method(s)
     compileEagerRead(curClass.seq, curClass.meta.endian)
 
+    compileFetchInstancesProc(curClass.seq ++ curClass.instances.values.collect {
+      case inst: AttrLikeSpec => inst
+    })
+
+    if (config.readWrite) {
+      compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
+      compileCheck(curClass.seq)
+    }
+
     // Destructor
     compileDestructor(curClass)
 
@@ -117,6 +126,15 @@ class ClassCompiler(
     )
     compileInit(curClass)
     curClass.instances.foreach { case (instName, _) => lang.instanceClear(instName) }
+    if (config.readWrite) {
+      curClass.instances.foreach { case (instName, instSpec) =>
+        instSpec match {
+          case _: ParseInstanceSpec =>
+            lang.instanceWriteFlagInit(instName)
+          case _: ValueInstanceSpec => // do nothing
+        }
+      }
+    }
     if (lang.config.autoRead)
       lang.runRead(curClass.name)
     lang.classConstructorFooter
@@ -202,6 +220,9 @@ class ClassCompiler(
         attr.isNullable
       }
       lang.attributeReader(attr.id, attr.dataTypeComposite, isNullable)
+      if (config.readWrite) {
+        lang.attributeSetter(attr.id, attr.dataTypeComposite, isNullable)
+      }
     }
   }
 
@@ -221,23 +242,43 @@ class ClassCompiler(
   def compileEagerRead(seq: List[AttrSpec], endian: Option[Endianness]): Unit = {
     endian match {
       case None | Some(_: FixedEndian) =>
-        compileSeqProc(seq, None)
+        compileSeqReadProc(seq, None)
       case Some(ce: CalcEndian) =>
         lang.readHeader(None, false)
         compileCalcEndian(ce)
         lang.runReadCalc()
         lang.readFooter()
 
-        compileSeqProc(seq, Some(LittleEndian))
-        compileSeqProc(seq, Some(BigEndian))
+        compileSeqReadProc(seq, Some(LittleEndian))
+        compileSeqReadProc(seq, Some(BigEndian))
       case Some(InheritedEndian) =>
         lang.readHeader(None, false)
         lang.runReadCalc()
         lang.readFooter()
 
-        compileSeqProc(seq, Some(LittleEndian))
-        compileSeqProc(seq, Some(BigEndian))
+        compileSeqReadProc(seq, Some(LittleEndian))
+        compileSeqReadProc(seq, Some(BigEndian))
     }
+  }
+
+  def compileWrite(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec], endian: Option[Endianness]): Unit = {
+    endian match {
+      case None | Some(_: FixedEndian) =>
+        compileSeqWriteProc(seq, instances, None)
+      case Some(CalcEndian(_, _)) | Some(InheritedEndian) =>
+        lang.writeHeader(None, false)
+        lang.runWriteCalc()
+        lang.writeFooter()
+
+        compileSeqWriteProc(seq, instances, Some(LittleEndian))
+        compileSeqWriteProc(seq, instances, Some(BigEndian))
+    }
+  }
+
+  def compileCheck(seq: List[AttrSpec]): Unit = {
+    lang.checkHeader()
+    compileSeqCheck(seq)
+    lang.checkFooter()
   }
 
   val IS_LE_ID = SpecialIdentifier("_is_le")
@@ -261,10 +302,23 @@ class ClassCompiler(
     * @param seq sequence of attributes
     * @param defEndian default endianness
     */
-  def compileSeqProc(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
+  def compileSeqReadProc(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
     lang.readHeader(defEndian, seq.isEmpty)
-    compileSeq(seq, defEndian)
+    compileSeqRead(seq, defEndian)
     lang.readFooter()
+  }
+
+  def compileFetchInstancesProc(attrs: List[AttrLikeSpec]) = {
+    lang.fetchInstancesHeader()
+    compileFetchInstances(attrs)
+    lang.fetchInstancesFooter()
+  }
+
+  def compileSeqWriteProc(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec], defEndian: Option[FixedEndian]) = {
+    lang.writeHeader(defEndian, !instances.values.exists(i => i.isInstanceOf[ParseInstanceSpec]) && seq.isEmpty)
+    compileSetInstanceWriteFlags(instances)
+    compileSeqWrite(seq, defEndian)
+    lang.writeFooter()
   }
 
   /**
@@ -272,7 +326,7 @@ class ClassCompiler(
     * @param seq sequence of attributes
     * @param defEndian default endianness
     */
-  def compileSeq(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
+  def compileSeqRead(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
     var wasUnaligned = false
     seq.foreach { (attr) =>
       val nowUnaligned = isUnalignedBits(attr.dataType)
@@ -280,6 +334,34 @@ class ClassCompiler(
         lang.alignToByte(lang.normalIO)
       lang.attrParse(attr, attr.id, defEndian)
       wasUnaligned = nowUnaligned
+    }
+  }
+
+  def compileFetchInstances(attrs: List[AttrLikeSpec]): Unit = {
+    attrs.foreach { (attr) =>
+      lang.attrFetchInstances(attr, attr.id)
+    }
+  }
+
+  def compileSetInstanceWriteFlags(instances: Map[InstanceIdentifier, InstanceSpec]) = {
+    instances.foreach { case (instName, instSpec) =>
+      instSpec match {
+        case _: ParseInstanceSpec =>
+          lang.instanceSetWriteFlag(instName)
+        case _: ValueInstanceSpec => // do nothing
+      }
+    }
+  }
+
+  def compileSeqWrite(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
+    seq.foreach { (attr) =>
+      lang.attrWrite(attr, attr.id, defEndian)
+    }
+  }
+
+  def compileSeqCheck(seq: List[AttrSpec]) = {
+    seq.foreach { (attr) =>
+      lang.attrCheck(attr, attr.id)
     }
   }
 
@@ -314,6 +396,12 @@ class ClassCompiler(
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     if (lang.innerDocstrings)
       compileInstanceDoc(instName, instSpec)
+    if (config.readWrite)
+      instSpec match {
+        case _: ParseInstanceSpec =>
+          lang.instanceCheckWriteFlagAndWrite(instName)
+        case _: ValueInstanceSpec => // do nothing
+      }
     lang.instanceCheckCacheAndReturn(instName, dataType)
 
     lang.instanceSetCalculated(instName)
@@ -328,6 +416,22 @@ class ClassCompiler(
 
     lang.instanceReturn(instName, dataType)
     lang.instanceFooter
+
+    if (config.readWrite)
+      instSpec match {
+        case pi: ParseInstanceSpec =>
+          lang.attributeSetter(instName, dataType, instSpec.isNullable)
+          lang.instanceToWriteSetter(instName)
+          lang.writeInstanceHeader(instName)
+          lang.attrWrite(pi, instName, endian)
+          lang.writeInstanceFooter
+
+          lang.checkInstanceHeader(instName)
+          lang.attrCheck(pi, instName)
+          lang.checkInstanceFooter
+        case _: ValueInstanceSpec =>
+          lang.instanceInvalidate(instName)
+      }
   }
 
   def compileInstanceDeclaration(instName: InstanceIdentifier, instSpec: InstanceSpec): Unit = {
@@ -340,6 +444,12 @@ class ClassCompiler(
       instSpec.isNullable
     }
     lang.instanceDeclaration(instName, instSpec.dataTypeComposite, isNullable)
+    if (config.readWrite)
+      instSpec match {
+        case _: ParseInstanceSpec =>
+          lang.instanceWriteFlagDeclaration(instName)
+        case _: ValueInstanceSpec => // do nothing
+      }
   }
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =

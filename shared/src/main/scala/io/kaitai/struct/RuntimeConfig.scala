@@ -98,6 +98,7 @@ case class RuntimeConfig(
   readStoresPos: Boolean = false,
   opaqueTypes: Boolean = false,
   zeroCopySubstream: Boolean = true,
+  readWrite: Boolean = false,
   cppConfig: CppRuntimeConfig = CppRuntimeConfig(),
   goPackage: String = "",
   java: JavaRuntimeConfig = JavaRuntimeConfig(),

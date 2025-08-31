@@ -18,7 +18,6 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UpperCamelCaseClasses
     with AllocateIOLocalVar
     with EveryReadIsExpression
-    with FixedContentsUsingArrayByteLiteral
     with NoNeedForFullClassPath {
 
   import RubyCompiler._
@@ -201,9 +200,6 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("end")
   }
-
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.ensure_fixed_contents($contents)")
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
@@ -512,24 +508,37 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr] = None
   ): Unit =
-    attrValidate(s"not ${translator.translate(checkExpr)}", err, errArgs)
+    attrValidate(attr, s"not ${translator.translate(checkExpr)}", err, useIo, actual, expected)
 
   override def attrValidateInEnum(
     attr: AttrLikeSpec,
     et: EnumType,
     valueExpr: Ast.expr,
     err: ValidationNotInEnumError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean
   ): Unit = {
     val inverseMap = translator.enumInverseMap(et)
-    attrValidate(s"not ${inverseMap}.key?(${translator.translate(valueExpr)})", err, errArgs)
+    attrValidate(attr, s"not ${inverseMap}.key?(${translator.translate(valueExpr)})", err, useIo, valueExpr, None)
   }
 
-  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
-    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
-    out.puts(s"raise ${ksErrorName(err)}.new($errArgsStr) if $failCondExpr")
+  private def attrValidate(
+    attr: AttrLikeSpec,
+    failCondExpr: String,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr]
+  ): Unit = {
+    val errArgsStr = expected.map(expression) ++ List(
+      expression(actual),
+      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "nil",
+      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
+    )
+    out.puts(s"raise ${ksErrorName(err)}.new(${errArgsStr.mkString(", ")}) if $failCondExpr")
   }
 
   def types2class(names: List[String]) = names.map(type2class).mkString("::")

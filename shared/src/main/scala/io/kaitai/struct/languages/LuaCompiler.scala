@@ -12,7 +12,6 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
     with AllocateIOLocalVar
     with EveryReadIsExpression
-    with FixedContentsUsingArrayByteLiteral
     with ObjectOrientedLanguage
     with SingleOutputFile
     with UniversalDoc
@@ -154,14 +153,11 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = self._io:ensure_fixed_contents($contents)")
-
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if ${expression(expr)} then")
     out.inc
   }
-  override def condIfFooter(expr: Ast.expr): Unit = {
+  override def condIfFooter: Unit = {
     out.dec
     out.puts("end")
   }
@@ -438,36 +434,41 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr] = None
   ): Unit =
-    attrValidate(s"not(${translator.translate(checkExpr)})", err, errArgs)
+    attrValidate(attr, s"not(${translator.translate(checkExpr)})", err, useIo, actual, expected)
 
   override def attrValidateInEnum(
     attr: AttrLikeSpec,
     et: EnumType,
     valueExpr: Ast.expr,
     err: ValidationNotInEnumError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean
   ): Unit = {
     // NOTE: this condition works for now because we haven't implemented
     // https://github.com/kaitai-io/kaitai_struct/issues/778 for Lua yet, but
     // it will need to be changed when we do.
-    attrValidate(s"${translator.translate(valueExpr)} == nil", err, errArgs)
+    attrValidate(attr, s"${translator.translate(valueExpr)} == nil", err, useIo, valueExpr, None)
   }
 
-  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
-    val errArgsCode = errArgs.map(translator.translate)
+  private def attrValidate(
+    attr: AttrLikeSpec,
+    failCondExpr: String,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr]
+  ): Unit = {
     out.puts(s"if $failCondExpr then")
     out.inc
     val msg = err match {
       case _: ValidationNotEqualError => {
-        val (expected, actual) = (
-          errArgsCode.lift(0).getOrElse("[expected]"),
-          errArgsCode.lift(1).getOrElse("[actual]")
-        )
-        s""""not equal, expected " ..  $expected .. ", but got " .. $actual"""
+        val opAddPrec = translator.OPERATOR_PRECEDENCE(Ast.operator.Add)
+        s""""not equal, expected " .. ${translator.translate(expected.get, opAddPrec)} .. ", but got " .. ${translator.translate(actual, opAddPrec)}"""
       }
-      case _ => "\"" + ksErrorName(err) + "\""
+      case _ => expression(Ast.expr.Str(ksErrorName(err)))
     }
     out.puts(s"error($msg)")
     out.dec

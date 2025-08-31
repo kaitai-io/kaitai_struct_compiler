@@ -34,6 +34,10 @@ abstract class BaseTranslator(val provider: TypeProvider)
   with CommonMethods[String]
   with ByteArraysAsTrueArrays[String] {
 
+  /** See [[languages.components.LanguageCompiler.subIOWriteBackHeader]] => the code generated when
+    * `true` will be inside the definition of the `WriteBackHandler` callback function. */
+  var inSubIOWriteBackHandler = false
+
   /**
     * Translates KS expression into an expression in some target language.
     * Note that this implementation may throw errors subclassed off the

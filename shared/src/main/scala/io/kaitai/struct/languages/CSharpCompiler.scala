@@ -17,7 +17,6 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with AllocateIOLocalVar
     with EveryReadIsExpression
     with UniversalDoc
-    with FixedContentsUsingArrayByteLiteral
     with SwitchIfOps
     with NoNeedForFullClassPath {
   import CSharpCompiler._
@@ -193,9 +192,6 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrFixedContentsParse(attrName: Identifier, contents: String): Unit =
-    out.puts(s"${privateMemberName(attrName)} = $normalIO.EnsureFixedContents($contents);")
-
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
@@ -272,7 +268,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def condIfFooter(expr: expr): Unit = fileFooter(null)
+  override def condIfFooter: Unit = fileFooter(null)
 
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     importList.add("System.Collections.Generic")
@@ -610,16 +606,18 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     attr: AttrLikeSpec,
     checkExpr: Ast.expr,
     err: KSError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr] = None
   ): Unit =
-    attrValidate(s"!(${translator.translate(checkExpr)})", err, errArgs)
+    attrValidate(attr, s"!(${translator.translate(checkExpr)})", err, useIo, actual, expected)
 
   override def attrValidateInEnum(
     attr: AttrLikeSpec,
     et: EnumType,
     valueExpr: Ast.expr,
     err: ValidationNotInEnumError,
-    errArgs: List[Ast.expr]
+    useIo: Boolean
   ): Unit = {
     // TODO: the non-generic overload `Enum.IsDefined(Type, object)` used here
     // is supposedly slow because it uses reflection (see
@@ -630,15 +628,26 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // need a command-line switch to allow the user to choose whether they need
     // compatibility with older versions or not.
     importList.add("System")
-    attrValidate(s"!Enum.IsDefined(typeof(${kaitaiType2NativeType(et)}), ${translator.translate(valueExpr)})", err, errArgs)
+    attrValidate(attr, s"!Enum.IsDefined(typeof(${kaitaiType2NativeType(et)}), ${translator.translate(valueExpr)})", err, useIo, valueExpr, None)
   }
 
-  private def attrValidate(failCondExpr: String, err: KSError, errArgs: List[Ast.expr]): Unit = {
-    val errArgsStr = errArgs.map(translator.translate).mkString(", ")
+  private def attrValidate(
+    attr: AttrLikeSpec,
+    failCondExpr: String,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr]
+  ): Unit = {
+    val errArgsStr = expected.map(expression) ++ List(
+      expression(actual),
+      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "null",
+      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
+    )
     out.puts(s"if ($failCondExpr)")
     out.puts("{")
     out.inc
-    out.puts(s"throw new ${ksErrorName(err)}($errArgsStr);")
+    out.puts(s"throw new ${ksErrorName(err)}(${errArgsStr.mkString(", ")});")
     out.dec
     out.puts("}")
   }
