@@ -257,7 +257,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def writeInstanceHeader(instName: InstanceIdentifier): Unit = {
     out.puts
-    out.puts(s"public void _write${idToSetterStr(instName)}() {")
+    out.puts(s"private void _write${idToSetterStr(instName)}() {")
     out.inc
     instanceClearWriteFlag(instName)
   }
