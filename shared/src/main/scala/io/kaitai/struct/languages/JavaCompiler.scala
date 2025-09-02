@@ -263,8 +263,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
-    out.puts
-    out.puts(s"public void _check${idToSetterStr(instName)}() {")
+    out.puts(s"if (_toWrite${idToSetterStr(instName)}) {")
     out.inc
   }
 

@@ -69,7 +69,7 @@ class ClassCompiler(
 
     if (config.readWrite) {
       compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
-      compileCheck(curClass.seq)
+      compileCheck(curClass.seq, curClass.instances)
     }
 
     // Destructor
@@ -275,9 +275,10 @@ class ClassCompiler(
     }
   }
 
-  def compileCheck(seq: List[AttrSpec]): Unit = {
+  def compileCheck(seq: List[AttrSpec], instances: Map[InstanceIdentifier, InstanceSpec]): Unit = {
     lang.checkHeader()
     compileSeqCheck(seq)
+    compileInstCheck(instances)
     lang.checkFooter()
   }
 
@@ -365,6 +366,18 @@ class ClassCompiler(
     }
   }
 
+  def compileInstCheck(instances: Map[InstanceIdentifier, InstanceSpec]) = {
+    instances.foreach { case (instName, instSpec) =>
+      instSpec match {
+        case pi: ParseInstanceSpec =>
+          lang.checkInstanceHeader(instName)
+          lang.attrCheck(pi, instName)
+          lang.checkInstanceFooter
+        case _: ValueInstanceSpec => // do nothing
+      }
+    }
+  }
+
   /**
     * Compiles all enums specifications for a given type.
     * @param curClass current type to generate code for
@@ -425,10 +438,6 @@ class ClassCompiler(
           lang.writeInstanceHeader(instName)
           lang.attrWrite(pi, instName, endian)
           lang.writeInstanceFooter
-
-          lang.checkInstanceHeader(instName)
-          lang.attrCheck(pi, instName)
-          lang.checkInstanceFooter
         case _: ValueInstanceSpec =>
           lang.instanceInvalidate(instName)
       }

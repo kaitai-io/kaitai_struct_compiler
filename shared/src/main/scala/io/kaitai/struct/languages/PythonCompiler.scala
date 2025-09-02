@@ -209,8 +209,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
-    out.puts
-    out.puts(s"def _check_${publicMemberName(instName)}(self):")
+    out.puts(s"if self.${publicMemberName(instName)}__to_write:")
     out.inc
     out.puts("pass")
   }
