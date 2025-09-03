@@ -209,7 +209,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if self.${publicMemberName(instName)}__to_write:")
+    out.puts(s"if self.${publicMemberName(instName)}__enabled:")
     out.inc
     out.puts("pass")
   }
@@ -680,11 +680,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceWriteFlagInit(attrName: InstanceIdentifier): Unit = {
     instanceClearWriteFlag(attrName)
-    out.puts(s"self.${publicMemberName(attrName)}__to_write = True")
+    out.puts(s"self.${publicMemberName(attrName)}__enabled = True")
   }
 
   override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = {
-    out.puts(s"self._should_write_${publicMemberName(instName)} = self.${publicMemberName(instName)}__to_write")
+    out.puts(s"self._should_write_${publicMemberName(instName)} = self.${publicMemberName(instName)}__enabled")
   }
 
   override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = {
