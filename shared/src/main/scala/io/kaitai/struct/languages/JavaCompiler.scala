@@ -864,16 +864,16 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = {
-    out.puts(s"private boolean _write${idToSetterStr(attrName)} = false;")
+    out.puts(s"private boolean _shouldWrite${idToSetterStr(attrName)} = false;")
     out.puts(s"private boolean _enabled${idToSetterStr(attrName)} = true;")
   }
 
   override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = {
-    out.puts(s"_write${idToSetterStr(instName)} = _enabled${idToSetterStr(instName)};")
+    out.puts(s"_shouldWrite${idToSetterStr(instName)} = _enabled${idToSetterStr(instName)};")
   }
 
   override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = {
-    out.puts(s"_write${idToSetterStr(instName)} = false;")
+    out.puts(s"_shouldWrite${idToSetterStr(instName)} = false;")
   }
 
   override def instanceToWriteSetter(instName: InstanceIdentifier): Unit = {
@@ -893,7 +893,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if (_write${idToSetterStr(instName)})")
+    out.puts(s"if (_shouldWrite${idToSetterStr(instName)})")
     out.inc
     out.puts(s"_write${idToSetterStr(instName)}();")
     out.dec
