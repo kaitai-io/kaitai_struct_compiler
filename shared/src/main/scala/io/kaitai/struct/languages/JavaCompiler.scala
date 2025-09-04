@@ -899,6 +899,21 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
+  override def instanceReturnNullIfDisabled(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if (!_enabled${idToSetterStr(instName)})")
+    out.inc
+    out.puts("return null;")
+    out.dec
+  }
+
+  override def instanceHasValueIfHeader(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if (${privateMemberName(instName)} != null) {")
+    out.inc
+  }
+
+  override def instanceHasValueIfFooter(): Unit =
+    condIfFooter
+
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }

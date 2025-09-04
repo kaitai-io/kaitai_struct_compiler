@@ -196,6 +196,9 @@ abstract class LanguageCompiler(
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit
   def instanceInvalidate(instName: InstanceIdentifier): Unit = ???
   def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = ???
+  def instanceReturnNullIfDisabled(instName: InstanceIdentifier): Unit = {}
+  def instanceHasValueIfHeader(instName: InstanceIdentifier): Unit = {}
+  def instanceHasValueIfFooter(): Unit = {}
 
   def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit
 

@@ -409,13 +409,19 @@ class ClassCompiler(
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     if (lang.innerDocstrings)
       compileInstanceDoc(instName, instSpec)
-    if (config.readWrite)
-      instSpec match {
-        case _: ParseInstanceSpec =>
-          lang.instanceCheckWriteFlagAndWrite(instName)
-        case _: ValueInstanceSpec => // do nothing
-      }
+    val writingParseInst = config.readWrite && (instSpec match {
+      case _: ParseInstanceSpec =>
+        true
+      case _: ValueInstanceSpec =>
+        false
+    })
+    if (writingParseInst) {
+      lang.instanceCheckWriteFlagAndWrite(instName)
+    }
     lang.instanceCheckCacheAndReturn(instName, dataType)
+    if (writingParseInst) {
+      lang.instanceReturnNullIfDisabled(instName)
+    }
 
     lang.instanceSetCalculated(instName)
     instSpec match {

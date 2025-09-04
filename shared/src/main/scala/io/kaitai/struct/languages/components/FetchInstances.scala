@@ -7,15 +7,20 @@ import io.kaitai.struct.datatype.DataType._
 
 trait FetchInstances extends LanguageCompiler with ObjectOrientedLanguage with EveryReadIsExpression {
   override def attrFetchInstances(attr: AttrLikeSpec, id: Identifier): Unit = {
-    attrParseIfHeader(id, attr.cond.ifExpr)
+    val isInstance =
+      id match {
+        case instName: InstanceIdentifier =>
+          attrInvokeInstance(instName)
+          instanceHasValueIfHeader(instName)
+          true
+        case _ =>
+          false
+      }
+
+    if (!isInstance)
+      attrParseIfHeader(id, attr.cond.ifExpr)
 
     val io = normalIO
-
-    id match {
-      case instName: InstanceIdentifier =>
-        attrInvokeInstance(instName)
-      case _ =>
-    }
 
     if (attr.cond.repeat != NoRepeat)
       condRepeatCommonHeader(id, io, attr.dataType)
@@ -25,7 +30,10 @@ trait FetchInstances extends LanguageCompiler with ObjectOrientedLanguage with E
     if (attr.cond.repeat != NoRepeat)
       condRepeatCommonFooter
 
-    attrParseIfFooter(attr.cond.ifExpr)
+    if (!isInstance)
+      attrParseIfFooter(attr.cond.ifExpr)
+    else
+      instanceHasValueIfFooter()
   }
 
   def attrFetchInstances2(id: Identifier, dataType: DataType, rep: RepeatSpec, exprTypeOpt: Option[DataType] = None): Unit = {

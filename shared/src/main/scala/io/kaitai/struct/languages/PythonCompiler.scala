@@ -714,6 +714,23 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
+  override def instanceReturnNullIfDisabled(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if not self.${publicMemberName(instName)}__enabled:")
+    out.inc
+    out.puts("return None")
+    out.dec
+    out.puts
+  }
+
+  override def instanceHasValueIfHeader(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if hasattr(self, '${idToStr(instName)}'):")
+    out.inc
+    out.puts("pass")
+  }
+
+  override def instanceHasValueIfFooter(): Unit =
+    condIfFooter
+
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     // workaround to avoid Python raising an "AttributeError: instance has no attribute"
     out.puts(s"return getattr(self, '${idToStr(instName)}', None)")
