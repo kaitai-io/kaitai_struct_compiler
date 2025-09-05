@@ -188,7 +188,7 @@ abstract class LanguageCompiler(
   def instanceWriteFlagInit(attrName: InstanceIdentifier): Unit = {}
   def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = ???
   def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = ???
-  def instanceToWriteSetter(instName: InstanceIdentifier): Unit = ???
+  def instanceEnabledSetter(instName: InstanceIdentifier): Unit = ???
   def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit
   def instanceFooter: Unit
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit

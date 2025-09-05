@@ -691,7 +691,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"self._should_write_${publicMemberName(instName)} = False")
   }
 
-  override def instanceToWriteSetter(instName: InstanceIdentifier): Unit = {}
+  override def instanceEnabledSetter(instName: InstanceIdentifier): Unit = {}
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts("@property")

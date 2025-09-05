@@ -440,7 +440,7 @@ class ClassCompiler(
       instSpec match {
         case pi: ParseInstanceSpec =>
           lang.attributeSetter(instName, dataType, instSpec.isNullable)
-          lang.instanceToWriteSetter(instName)
+          lang.instanceEnabledSetter(instName)
           lang.writeInstanceHeader(instName)
           lang.attrWrite(pi, instName, endian)
           lang.writeInstanceFooter

@@ -876,7 +876,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"_shouldWrite${idToSetterStr(instName)} = false;")
   }
 
-  override def instanceToWriteSetter(instName: InstanceIdentifier): Unit = {
+  override def instanceEnabledSetter(instName: InstanceIdentifier): Unit = {
     out.puts(s"public void set${idToSetterStr(instName)}_Enabled(boolean _v) { _enabled${idToSetterStr(instName)} = _v; }")
   }
 
