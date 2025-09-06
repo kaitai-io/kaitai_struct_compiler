@@ -221,6 +221,13 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
+  override def readFooter(): Unit = {
+    if (config.readWrite) {
+      out.puts("_dirty = false;")
+    }
+    universalFooter
+  }
+
   override def fetchInstancesHeader(): Unit = {
     out.puts
     out.puts("public void _fetchInstances() {")
@@ -243,16 +250,23 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     endian match {
       case Some(e) =>
         out.puts(s"private void _write_Seq${Utils.upperUnderscoreCase(e.toSuffix)}() {")
+        out.inc
       case None =>
         out.puts("public void _write_Seq() {")
+        out.inc
+        out.puts("_assertNotDirty();")
     }
-    out.inc
   }
 
   override def checkHeader(): Unit = {
     out.puts
     out.puts("public void _check() {")
     out.inc
+  }
+
+  override def checkFooter(): Unit = {
+    out.puts("_dirty = false;")
+    universalFooter
   }
 
   override def writeInstanceHeader(instName: InstanceIdentifier): Unit = {
@@ -281,8 +295,11 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     val javaType = kaitaiType2JavaType(attrType, isNullable)
     val name = idToStr(attrName)
+    val itemType = getArrayItemType(attrType)
+    val typeBasedOnIo = itemType == KaitaiStreamType || itemType == OwnedKaitaiStreamType
+    val setDirtyBit = if (typeBasedOnIo) "" else "_dirty = true; "
 
-    out.puts(s"public void set${idToSetterStr(attrName)}($javaType _v) { $name = _v; }")
+    out.puts(s"public void set${idToSetterStr(attrName)}($javaType _v) { $setDirtyBit$name = _v; }")
   }
 
   override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit = {
@@ -877,7 +894,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceEnabledSetter(instName: InstanceIdentifier): Unit = {
-    out.puts(s"public void set${idToSetterStr(instName)}_Enabled(boolean _v) { _enabled${idToSetterStr(instName)} = _v; }")
+    out.puts(s"public void set${idToSetterStr(instName)}_Enabled(boolean _v) { _dirty = true; _enabled${idToSetterStr(instName)} = _v; }")
   }
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {

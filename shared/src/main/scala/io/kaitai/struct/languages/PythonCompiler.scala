@@ -94,7 +94,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioDefaultVal = if (config.readWrite) "=None" else ""
     out.puts(s"def __init__(self$paramsList, _io$ioDefaultVal, _parent=None, _root=None$endianAdd):")
     out.inc
-    out.puts("self._io = _io")
+    // FIXME: remove super() args when dropping support for Python 2 (see
+    // https://pylint.readthedocs.io/en/v2.16.2/user_guide/messages/refactor/super-with-arguments.html)
+    out.puts(s"super(${types2class(typeProvider.nowClass.name, false)}, self).__init__(_io)")
     out.puts("self._parent = _parent")
     if (name == rootClassName) {
       out.puts("self._root = _root or self")
@@ -159,6 +161,13 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("pass")
   }
 
+  override def readFooter(): Unit = {
+    if (config.readWrite) {
+      out.puts("self._dirty = False")
+    }
+    universalFooter
+  }
+
   override def fetchInstancesHeader(): Unit = {
     out.puts
     out.puts("def _fetch_instances(self):")
@@ -198,7 +207,11 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts("def _check(self):")
     out.inc
-    out.puts("pass")
+  }
+
+  override def checkFooter(): Unit = {
+    out.puts("self._dirty = False")
+    universalFooter
   }
 
   override def writeInstanceHeader(instName: InstanceIdentifier): Unit = {
@@ -225,13 +238,20 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"@$name.setter")
       out.puts(s"def $name(self, v):")
       out.inc
+      out.puts("self._dirty = True")
       handleAssignmentSimple(attrName, "v")
       out.dec
     }
   }
 
   override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit = {
-    out.puts(s"${expression(base)}.${publicMemberName(propName)} = $value")
+    // This is necessary to prevent the
+    // [`ReadWriteKaitaiStruct.__setattr__()`](https://github.com/kaitai-io/kaitai_struct_python_runtime/blob/fa6fbd55d80576d7bdbd57df6af9ff55797ec306/kaitaistruct.py#L79)
+    // hook in the runtime library from being triggered, which would set the `_dirty` flag to
+    // `True`. Since this `attrSetProperty` method is used to set stream parameters during the
+    // `_write` process, allowing `_dirty` to be set to `True` would result in a
+    // `ConsistencyNotCheckedError` being thrown.
+    out.puts(s"object.__setattr__(${expression(base)}, '${publicMemberName(propName)}', $value)")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
