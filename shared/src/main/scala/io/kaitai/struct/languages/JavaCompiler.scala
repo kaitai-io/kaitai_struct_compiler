@@ -1056,7 +1056,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"if (${expression(checkExpr)})")
     out.inc
-    out.puts(s"throw new ConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)});")
+    out.puts(s"throw new ConsistencyError($msgStr, ${expression(expected)}, ${expression(actual)});")
     out.dec
 
     importList.add("io.kaitai.struct.ConsistencyError")
@@ -1067,7 +1067,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"if (!Objects.equals(${expression(actual)}, ${expression(expected)}))")
     out.inc
-    out.puts(s"throw new ConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)});")
+    out.puts(s"throw new ConsistencyError($msgStr, ${expression(expected)}, ${expression(actual)});")
     out.dec
 
     importList.add("java.util.Objects")
@@ -1089,7 +1089,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"if (!Objects.equals(${expression(actualParentExpr)}, $expectedParent))")
     out.inc
-    out.puts(s"throw new ConsistencyError($msgStr, ${expression(actualParentExpr)}, $expectedParent);")
+    out.puts(s"throw new ConsistencyError($msgStr, $expectedParent, ${expression(actualParentExpr)});")
     out.dec
 
     importList.add("java.util.Objects")
@@ -1107,7 +1107,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     out.puts(s"if ($ifExpr)")
     out.inc
-    out.puts(s"throw new ConsistencyError($msgStr, ${exprIORemainingSize(io)}, 0);")
+    out.puts(s"throw new ConsistencyError($msgStr, 0, ${exprIORemainingSize(io)});")
     out.dec
 
     importList.add("io.kaitai.struct.ConsistencyError")
