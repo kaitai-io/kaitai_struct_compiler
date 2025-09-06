@@ -827,7 +827,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"if ${expression(checkExpr)}:")
     out.inc
-    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
+    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${expression(expected)}, ${expression(actual)})")
     out.dec
   }
 
@@ -836,7 +836,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"if ${expression(actual)} != ${expression(expected)}:")
     out.inc
-    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${expression(actual)}, ${expression(expected)})")
+    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${expression(expected)}, ${expression(actual)})")
     out.dec
   }
 
@@ -855,7 +855,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"if ${expression(actualParentExpr)} != $expectedParent:")
     out.inc
-    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${expression(actualParentExpr)}, $expectedParent)")
+    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, $expectedParent, ${expression(actualParentExpr)})")
     out.dec
   }
 
@@ -870,7 +870,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     out.puts(s"if $ifExpr:")
     out.inc
-    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, ${exprIORemainingSize(io)}, 0)")
+    out.puts(s"raise kaitaistruct.ConsistencyError($msgStr, 0, ${exprIORemainingSize(io)})")
     out.dec
   }
 
