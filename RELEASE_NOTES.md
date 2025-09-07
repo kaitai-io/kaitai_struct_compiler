@@ -35,7 +35,7 @@ This is the last version of Kaitai Struct to support Python 2.7 and Ruby 1.9.3 -
   * Fix missing compile-time checks of top-level parameters ([#1086](https://github.com/kaitai-io/kaitai_struct/issues/1086))
   * Fix sporadic import failures caused by race conditions in the compiler, which typically manifested as `error: unable to find type ...` for one of the imported types ([#951](https://github.com/kaitai-io/kaitai_struct/issues/951))
   * Fix `meta/ks-opaque-types: true` when using imports ([#295](https://github.com/kaitai-io/kaitai_struct/issues/295))
-  * Fix duplicate warnings when using imports ([#267](https://github.com/kaitai-io/kaitai_struct_compiler/pull/267))
+  * Fix duplicate warnings when using imports ([compiler#267](https://github.com/kaitai-io/kaitai_struct_compiler/pull/267))
   * `--ksc-json-output`: preserve input .ksy paths in output JSON keys exactly without slash normalization ([#507](https://github.com/kaitai-io/kaitai_struct/issues/507))
 * Runtime API changes:
   * Add `ValidationNotInEnumError` exception, which is thrown if the `valid/in-enum: true` validation fails
@@ -80,7 +80,7 @@ This is the last version of Kaitai Struct to support Python 2.7 and Ruby 1.9.3 -
   * Fix accessibility issues ([webide#184](https://github.com/kaitai-io/kaitai_struct_webide/pull/184))
   * Show `_unnamed*` fields created by omitting `id` in `seq` fields ([#1064](https://github.com/kaitai-io/kaitai_struct/issues/1064))
 * Packaging / infrastructure improvements:
-  * Update compiler dependencies ([#230](https://github.com/kaitai-io/kaitai_struct_compiler/pull/230))
+  * Update compiler dependencies ([compiler#230](https://github.com/kaitai-io/kaitai_struct_compiler/pull/230))
   * [npm package `kaitai-struct-compiler`](https://www.npmjs.com/package/kaitai-struct-compiler) now returns the compiler object itself instead of a constructor function (called `KaitaiStructCompiler`). This is a **breaking change**, so make sure to adapt your code: replace `(new KaitaiStructCompiler()).compile(...)` with `KaitaiStructCompiler.compile(...)` ([compiler#222](https://github.com/kaitai-io/kaitai_struct_compiler/pull/222))
   * [ksy_schema](https://github.com/kaitai-io/ksy_schema) (official JSON Schema for .ksy files): add all missing keys, allow only canonical encoding names in the `encoding` key
   * Console [visualizer](https://github.com/kaitai-io/kaitai_struct_visualizer) - commands `ksv`, `ksdump`
