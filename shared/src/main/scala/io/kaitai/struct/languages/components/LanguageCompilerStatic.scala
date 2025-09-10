@@ -23,6 +23,7 @@ object LanguageCompilerStatic {
     "php" -> PHPCompiler,
     "python" -> PythonCompiler,
     "ruby" -> RubyCompiler,
+    "julia" -> JuliaCompiler,
     "rust" -> RustCompiler
   )
 
