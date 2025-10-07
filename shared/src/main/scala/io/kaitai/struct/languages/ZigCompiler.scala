@@ -24,19 +24,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   val translator = new JavaTranslator(typeProvider, importList, config)
 
-  // Preprocess fromFileClass and make import
-  val fromFileClass = {
-    val pos = config.java.fromFileClass.lastIndexOf('.')
-    if (pos < 0) {
-      // If relative "fromFileClass", then just use it as is
-      config.java.fromFileClass
-    } else {
-      // If absolute "fromFileClass", add relevant import + use relative
-      importList.add(config.java.fromFileClass)
-      config.java.fromFileClass.substring(pos + 1)
-    }
-  }
-
   override def universalFooter: Unit = {
     out.dec
     out.puts("}")
@@ -80,16 +67,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val isInheritedEndian = typeProvider.nowClass.meta.endian match {
       case Some(InheritedEndian) => true
       case _ => false
-    }
-
-    // fromFile helper makes no sense for inherited endianness structures:
-    // they require endianness to be parsed anyway
-    if (!isInheritedEndian && !config.java.fromFileClass.isEmpty && typeProvider.nowClass.params.isEmpty) {
-      out.puts(s"public static ${type2class(name)} fromFile(String fileName) throws IOException {")
-      out.inc
-      out.puts(s"return new ${type2class(name)}(new $fromFileClass(fileName));")
-      out.dec
-      out.puts("}")
     }
   }
 
