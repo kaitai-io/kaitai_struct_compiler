@@ -77,18 +77,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
     out.inc
 
-    if (config.readStoresPos) {
-      out.puts("public Map<String, Integer> _attrStart = new HashMap<String, Integer>();")
-      out.puts("public Map<String, Integer> _attrEnd = new HashMap<String, Integer>();")
-      out.puts("public Map<String, List<Integer>> _arrStart = new HashMap<String, List<Integer>>();")
-      out.puts("public Map<String, List<Integer>> _arrEnd = new HashMap<String, List<Integer>>();")
-      out.puts
-
-      importList.add("java.util.HashMap")
-      importList.add("java.util.List")
-      importList.add("java.util.Map")
-    }
-
     val isInheritedEndian = typeProvider.nowClass.meta.endian match {
       case Some(InheritedEndian) => true
       case _ => false
@@ -302,49 +290,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   // since the byte alignment is handled by the runtime library since commit
   // https://github.com/kaitai-io/kaitai_struct_java_runtime/commit/1bc75aa91199588a1cb12a5a1c672b80b66619ac
   override def alignToByte(io: String): Unit = {}
-
-  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
-    ios.foreach { (io) =>
-      val name = idToStr(attrId)
-      rep match {
-        case NoRepeat =>
-          out.puts("_attrStart.put(\"" + name + "\", " + io + ".pos());")
-        case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-          getOrCreatePosList("_arrStart", name, io)
-      }
-    }
-  }
-
-  override def attrDebugArrInit(attrName: Identifier, attrType: DataType): Unit = {
-    // no _debug[$name]['arr'] initialization needed in Java
-  }
-
-  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
-    val name = idToStr(attrId)
-    rep match {
-      case NoRepeat =>
-        out.puts("_attrEnd.put(\"" + name + "\", " + io + ".pos());")
-      case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-        getOrCreatePosList("_arrEnd", name, io)
-    }
-  }
-
-  def getOrCreatePosList(listName: String, varName: String, io: String): Unit = {
-    importList.add("java.util.List")
-    importList.add("java.util.ArrayList")
-    out.puts("{")
-    out.inc
-    out.puts("List<Integer> _posList = " + listName + ".get(\"" + varName + "\");")
-    out.puts("if (_posList == null) {")
-    out.inc
-    out.puts("_posList = new ArrayList<Integer>();")
-    out.puts(listName + ".put(\"" + varName + "\", _posList);")
-    out.dec
-    out.puts("}")
-    out.puts(s"_posList.add($io.pos());")
-    out.dec
-    out.puts("}")
-  }
 
   override def condIfHeader(expr: expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
@@ -732,11 +677,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     importList.add("java.util.Map")
     importList.add("java.util.HashMap")
-  }
-
-  override def debugClassSequence(seq: List[AttrSpec]) = {
-    val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
-    out.puts(s"public static String[] _seqFields = new String[] { $seqStr };")
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
