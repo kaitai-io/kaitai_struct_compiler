@@ -15,9 +15,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UpperCamelCaseClasses
     with ObjectOrientedLanguage
     with EveryReadIsExpression
-    with FetchInstances
-    with EveryWriteIsExpression
-    with GenericChecks
     with UniversalFooter
     with UniversalDoc
     with AllocateIOLocalVar
@@ -136,14 +133,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
       val paramsRelay = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
 
-      if (config.readWrite) {
-        out.puts(s"public ${type2class(name)}(${paramsArg.stripPrefix(", ")}) {")
-        out.inc
-        out.puts(s"this(null, null, null$paramsRelay);")
-        out.dec
-        out.puts("}")
-      }
-
       out.puts
       out.puts(s"public ${type2class(name)}($kstreamName _io$paramsArg) {")
       out.inc
@@ -194,23 +183,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def runWriteCalc(): Unit = {
-    out.puts
-    out.puts("if (_is_le == null) {")
-    out.inc
-    out.puts(s"throw new $kstreamName.UndecidedEndiannessError();")
-    out.dec
-    out.puts("} else if (_is_le) {")
-    out.inc
-    out.puts("_write_SeqLE();")
-    out.dec
-    out.puts("} else {")
-    out.inc
-    out.puts("_write_SeqBE();")
-    out.dec
-    out.puts("}")
-  }
-
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
     endian match {
       case Some(e) =>
@@ -218,66 +190,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case None =>
         out.puts(s"${if (!config.autoRead) "public" else "private"} void _read() {")
     }
-    out.inc
-  }
-
-  override def readFooter(): Unit = {
-    if (config.readWrite) {
-      out.puts("_dirty = false;")
-    }
-    universalFooter
-  }
-
-  override def fetchInstancesHeader(): Unit = {
-    out.puts
-    out.puts("public void _fetchInstances() {")
-    out.inc
-  }
-
-  override def fetchInstancesFooter: Unit = universalFooter
-
-  override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
-    val expr = castIfNeeded(expression(baseExpr), exprType, dataType)
-    out.puts(s"$expr._fetchInstances();")
-  }
-
-  override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {
-    out.puts(s"${publicMemberName(instName)}();")
-  }
-
-  override def writeHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
-    out.puts
-    endian match {
-      case Some(e) =>
-        out.puts(s"private void _write_Seq${Utils.upperUnderscoreCase(e.toSuffix)}() {")
-        out.inc
-      case None =>
-        out.puts("public void _write_Seq() {")
-        out.inc
-        out.puts("_assertNotDirty();")
-    }
-  }
-
-  override def checkHeader(): Unit = {
-    out.puts
-    out.puts("public void _check() {")
-    out.inc
-  }
-
-  override def checkFooter(): Unit = {
-    out.puts("_dirty = false;")
-    universalFooter
-  }
-
-  override def writeInstanceHeader(instName: InstanceIdentifier): Unit = {
-    out.puts
-    out.puts(s"private void _write${idToSetterStr(instName)}() {")
-    out.inc
-    instanceClearWriteFlag(instName)
-  }
-
-  override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if (_enabled${idToSetterStr(instName)}) {")
     out.inc
   }
 
@@ -290,20 +202,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val name = idToStr(attrName)
 
     out.puts(s"public $javaType $name() { return $name; }")
-  }
-
-  override def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    val javaType = kaitaiType2JavaType(attrType, isNullable)
-    val name = idToStr(attrName)
-    val itemType = getArrayItemType(attrType)
-    val typeBasedOnIo = itemType == KaitaiStreamType || itemType == OwnedKaitaiStreamType
-    val setDirtyBit = if (typeBasedOnIo) "" else "_dirty = true; "
-
-    out.puts(s"public void set${idToSetterStr(attrName)}($javaType _v) { $setDirtyBit$name = _v; }")
-  }
-
-  override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit = {
-    out.puts(s"${expression(base)}.set${idToSetterStr(propName)}($value);")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -365,62 +263,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignment(varDest, expr, rep, false)
   }
 
-  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit = {
-    val exprType = exprTypeOpt.getOrElse(dataType)
-    val srcExprRaw = expression(Identifier.itemExpr(varSrc, rep))
-    val srcExpr = castIfNeeded(srcExprRaw, exprType, dataType)
-
-    val expr = proc match {
-      case ProcessXor(xorValue) =>
-        val argStr = if (translator.inSubIOWriteBackHandler) "_processXorArg" else expression(xorValue)
-        val xorValueStr = translator.detectType(xorValue) match {
-          case _: IntType => castIfNeeded(argStr, AnyType, Int1Type(true))
-          case _ => argStr
-        }
-        s"$kstreamName.processXor($srcExpr, $xorValueStr)"
-      case ProcessZlib =>
-        s"$kstreamName.unprocessZlib($srcExpr)"
-      case ProcessRotate(isLeft, rotValue) =>
-        val argStr = if (translator.inSubIOWriteBackHandler) "_processRotateArg" else expression(rotValue)
-        val expr = if (!isLeft) {
-          argStr
-        } else {
-          s"8 - ($argStr)"
-        }
-        s"$kstreamName.processRotateLeft($srcExpr, $expr, 1)"
-      case ProcessCustom(name, args) =>
-        val namespace = name.init.mkString(".")
-        val procClass = namespace +
-          (if (namespace.nonEmpty) "." else "") +
-          type2class(name.last)
-        val procName = s"_process_${idToStr(varSrc)}"
-        if (!translator.inSubIOWriteBackHandler) {
-          out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
-        }
-        s"$procName.encode($srcExpr)"
-    }
-    handleAssignment(varDest, expr, rep, false)
-  }
-
-  override def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit = {
-    proc match {
-      case ProcessXor(xorValue) =>
-        val dataType = translator.detectType(xorValue)
-        out.puts(s"final ${kaitaiType2JavaType(dataType)} _processXorArg = ${expression(xorValue)};")
-      case ProcessRotate(_, rotValue) =>
-        val dataType = translator.detectType(rotValue)
-        out.puts(s"final ${kaitaiType2JavaType(dataType)} _processRotateArg = ${expression(rotValue)};")
-      case ProcessZlib => // no process arguments
-      case ProcessCustom(name, args) =>
-        val namespace = name.init.mkString(".")
-        val procClass = namespace +
-          (if (namespace.nonEmpty) "." else "") +
-          type2class(name.last)
-        val procName = s"_process_${idToStr(varSrc)}"
-        out.puts(s"final $procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
-    }
-  }
-
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val ioName = idToStr(IoStorageIdentifier(varName))
 
@@ -433,51 +275,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args);")
     ioName
   }
-
-  override def allocateIOFixed(varName: Identifier, size: String): String = {
-    val ioName = idToStr(IoStorageIdentifier(varName))
-
-    out.puts(s"final $kstreamName $ioName = new ByteBufferKaitaiStream($size);")
-    ioName
-  }
-
-  override def exprIORemainingSize(io: String): String =
-    s"$io.size() - $io.pos()"
-
-  override def allocateIOGrowing(varName: Identifier): String =
-    allocateIOFixed(varName, "100000") // FIXME to use real growing buffer
-
-  override def subIOWriteBackHeader(subIO: String, rep: RepeatSpec, process: Option[ProcessExpr]): String = {
-    val parentIoName = "parent"
-    out.puts(s"final ${type2class(typeProvider.nowClass.name.last)} _this = this;")
-    rep match {
-      case NoRepeat =>
-        // do nothing
-      case _ =>
-        out.puts("final int _i = i;")
-    }
-    out.puts(s"$subIO.setWriteBackHandler(new $kstreamName.WriteBackHandler(_pos2) {")
-    out.inc
-    out.puts("@Override")
-    out.puts(s"protected void write($kstreamName $parentIoName) {")
-    out.inc
-
-    translator.inSubIOWriteBackHandler = true
-
-    parentIoName
-  }
-
-  override def subIOWriteBackFooter(subIO: String): Unit = {
-    translator.inSubIOWriteBackHandler = false
-
-    out.dec
-    out.puts("}")
-    out.dec
-    out.puts("});")
-  }
-
-  override def addChildIO(io: String, childIO: String): Unit =
-    out.puts(s"$io.addChildStream($childIO);")
 
   def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
     val memberName = privateMemberName(varName)
@@ -495,15 +292,8 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def pushPos(io: String): Unit =
     out.puts(s"long _pos = $io.pos();")
-
-  override def pushPosForSubIOWriteBackHandler(io: String): Unit =
-    out.puts(s"long _pos2 = $io.pos();")
-
   override def seek(io: String, pos: Ast.expr): Unit =
     out.puts(s"$io.seek(${expression(pos)});")
-
-  override def seekRelative(io: String, relPos: String): Unit =
-    out.puts(s"$io.seek($io.pos() + ($relPos));")
 
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
@@ -588,12 +378,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
     out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
-    out.inc
-  }
-
-  // used for all repetitions in _check()
-  override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {
-    out.puts(s"for (int i = 0; i < ${privateMemberName(id)}.size(); i++) {")
     out.inc
   }
 
@@ -880,23 +664,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
   }
 
-  override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = {
-    out.puts(s"private boolean _shouldWrite${idToSetterStr(attrName)} = false;")
-    out.puts(s"private boolean _enabled${idToSetterStr(attrName)} = true;")
-  }
-
-  override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = {
-    out.puts(s"_shouldWrite${idToSetterStr(instName)} = _enabled${idToSetterStr(instName)};")
-  }
-
-  override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit = {
-    out.puts(s"_shouldWrite${idToSetterStr(instName)} = false;")
-  }
-
-  override def instanceEnabledSetter(instName: InstanceIdentifier): Unit = {
-    out.puts(s"public void set${idToSetterStr(instName)}_Enabled(boolean _v) { _dirty = true; _enabled${idToSetterStr(instName)} = _v; }")
-  }
-
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${idToStr(instName)}() {")
     out.inc
@@ -908,28 +675,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     instanceReturn(instName, dataType)
     out.dec
   }
-
-  override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if (_shouldWrite${idToSetterStr(instName)})")
-    out.inc
-    out.puts(s"_write${idToSetterStr(instName)}();")
-    out.dec
-  }
-
-  override def instanceReturnNullIfDisabled(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if (!_enabled${idToSetterStr(instName)})")
-    out.inc
-    out.puts("return null;")
-    out.dec
-  }
-
-  override def instanceHasValueIfHeader(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if (${privateMemberName(instName)} != null) {")
-    out.inc
-  }
-
-  override def instanceHasValueIfFooter(): Unit =
-    condIfFooter
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
@@ -949,10 +694,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     } else {
       out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
     }
-  }
-
-  override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
-    out.puts(s"public void _invalidate${idToSetterStr(instName)}() { ${privateMemberName(instName)} = null; }")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
@@ -993,13 +734,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("java.util.HashMap")
   }
 
-  override def internalEnumIntType(basedOn: IntType): DataType = {
-    basedOn match {
-      case IntMultiType(signed, _, endian) => IntMultiType(signed, Width8, endian)
-      case _ => IntMultiType(true, Width8, None)
-    }
-  }
-
   override def debugClassSequence(seq: List[AttrSpec]) = {
     val seqStr = seq.map((attr) => "\"" + idToStr(attr.id) + "\"").mkString(", ")
     out.puts(s"public static String[] _seqFields = new String[] { $seqStr };")
@@ -1015,135 +749,11 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrPrimitiveWrite(
-    io: String,
-    valueExpr: Ast.expr,
-    dataType: DataType,
-    defEndian: Option[FixedEndian],
-    exprTypeOpt: Option[DataType]
-  ): Unit = {
-    val exprType = exprTypeOpt.getOrElse(dataType)
-    val exprRaw = expression(valueExpr)
-    val expr = castIfNeeded(exprRaw, exprType, dataType)
-
-    val stmt = dataType match {
-      case t: ReadableType =>
-        s"$io.write${Utils.capitalize(t.apiCall(defEndian))}($expr)"
-      case BitsType1(bitEndian) =>
-        s"$io.writeBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1, ${translator.boolToInt(valueExpr)})"
-      case BitsType(width: Int, bitEndian) =>
-        s"$io.writeBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width, $expr)"
-      case _: BytesType =>
-        s"$io.writeBytes($expr)"
-    }
-    out.puts(stmt + ";")
-  }
-
-  override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit =
-    out.puts(s"$io.writeBytesLimit(${expression(expr)}, $size, (byte) $term, (byte) $padRight);")
-
-  override def attrUserTypeInstreamWrite(io: String, valueExpr: Ast.expr, dataType: DataType, exprType: DataType) = {
-    val exprRaw = expression(valueExpr)
-    val expr = castIfNeeded(exprRaw, exprType, dataType)
-    out.puts(s"$expr._write_Seq($io);")
-  }
-
-  override def exprStreamToByteArray(io: String): String =
-    s"$io.toByteArray()"
-
-  override def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
-    val msgStr = expression(Ast.expr.Str(msg))
-
-    out.puts(s"if (${expression(checkExpr)})")
-    out.inc
-    out.puts(s"throw new ConsistencyError($msgStr, ${expression(expected)}, ${expression(actual)});")
-    out.dec
-
-    importList.add("io.kaitai.struct.ConsistencyError")
-  }
-
-  override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
-    val msgStr = expression(Ast.expr.Str(msg))
-
-    out.puts(s"if (!Objects.equals(${expression(actual)}, ${expression(expected)}))")
-    out.inc
-    out.puts(s"throw new ConsistencyError($msgStr, ${expression(expected)}, ${expression(actual)});")
-    out.dec
-
-    importList.add("java.util.Objects")
-    importList.add("io.kaitai.struct.ConsistencyError")
-  }
-
-  override def attrParentParamCheck(actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean], msg: String): Unit = {
-    /** @note Must be kept in sync with [[ZigCompiler.parseExpr]] */
-    val (expectedParent, dependsOnIo) = ut.forcedParent match {
-      case Some(USER_TYPE_NO_PARENT) => ("null", false)
-      case Some(fp) =>
-        (expression(fp), userExprDependsOnIo(fp))
-      case None => ("this", false)
-    }
-    if (shouldDependOnIo.map(shouldDepend => dependsOnIo != shouldDepend).getOrElse(false))
-      return
-
-    val msgStr = expression(Ast.expr.Str(msg))
-
-    out.puts(s"if (!Objects.equals(${expression(actualParentExpr)}, $expectedParent))")
-    out.inc
-    out.puts(s"throw new ConsistencyError($msgStr, $expectedParent, ${expression(actualParentExpr)});")
-    out.dec
-
-    importList.add("java.util.Objects")
-    importList.add("io.kaitai.struct.ConsistencyError")
-  }
-
-  override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit = {
-    val msgStr = expression(Ast.expr.Str(msg))
-
-    val eofExpr = s"$io.isEof()"
-    val ifExpr = if (expectedIsEof) {
-      s"!($eofExpr)"
-    } else {
-      eofExpr
-    }
-    out.puts(s"if ($ifExpr)")
-    out.inc
-    out.puts(s"throw new ConsistencyError($msgStr, 0, ${exprIORemainingSize(io)});")
-    out.dec
-
-    importList.add("io.kaitai.struct.ConsistencyError")
-  }
-
-  override def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit = {
-    val eofExpr = s"$io.isEof()"
-    val ifExpr = if (!wantedIsEof) {
-      s"!($eofExpr)"
-    } else {
-      eofExpr
-    }
-
-    out.puts(s"if ($ifExpr) {")
-    out.inc
-  }
-
-  override def condIfIsEofFooter: Unit = universalFooter
-
   def value2Const(s: String) = Utils.upperUnderscoreCase(s)
 
   override def idToStr(id: Identifier): String = ZigCompiler.idToStr(id)
 
   override def publicMemberName(id: Identifier): String = idToStr(id)
-
-  def idToSetterStr(id: Identifier): String = {
-    id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.upperCamelCase(name)
-      case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.upperCamelCase(name)
-      case RawIdentifier(innerId) => "_raw_" + idToSetterStr(innerId)
-      case OuterSizeIdentifier(innerId) => s"${idToSetterStr(innerId)}_OuterSize"
-      case InnerSizeIdentifier(innerId) => s"${idToSetterStr(innerId)}_InnerSize"
-    }
-  }
 
   override def privateMemberName(id: Identifier): String =
     ZigCompiler.privateMemberName(id, translator.inSubIOWriteBackHandler)
