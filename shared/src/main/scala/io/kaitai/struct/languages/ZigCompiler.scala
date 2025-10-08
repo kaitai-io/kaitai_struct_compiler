@@ -7,7 +7,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.JavaTranslator
+import io.kaitai.struct.translators.ZigTranslator
 
 class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -22,7 +22,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with NoNeedForFullClassPath {
   import ZigCompiler._
 
-  val translator = new JavaTranslator(typeProvider, importList, config)
+  val translator = new ZigTranslator(typeProvider, importList, config)
 
   override def universalFooter: Unit = {
     out.dec
