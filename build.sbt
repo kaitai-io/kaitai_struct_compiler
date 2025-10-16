@@ -4,8 +4,6 @@ import java.nio.file.{Files, StandardCopyOption}
 import com.typesafe.sbt.packager.linux.{LinuxPackageMapping, LinuxSymlink}
 import sbt.Keys.*
 
-resolvers ++= Resolver.sonatypeOssRepos("public")
-
 val NAME = "kaitai-struct-compiler"
 val VERSION = "0.11"
 val TARGET_LANGS = "C++/STL, C#, Go, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby, Rust"
@@ -42,14 +40,15 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
     scalaVersion := "2.13.13",
     scalacOptions := Seq("-unchecked", "-deprecation"),
 
-    // Repo publish options
-    publishTo := version { (v: String) =>
-      val nexus = "https://oss.sonatype.org/"
-      if (v.trim.endsWith("SNAPSHOT"))
-        Some("snapshots" at nexus + "content/repositories/snapshots")
-      else
-        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
-    }.value,
+    // new setting for the Central Portal (see https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html#step+4%3A+Configure+build.sbt)
+    publishTo := {
+      val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+      if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+      else localStaging.value
+    },
+    // Remove all additional repository other than Maven Central from POM
+    pomIncludeRepository := { _ => false },
+    publishMavenStyle := true,
     pomExtra :=
       <url>https://kaitai.io/</url>
       <scm>
