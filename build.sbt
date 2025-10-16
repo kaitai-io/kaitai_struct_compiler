@@ -5,7 +5,7 @@ import com.typesafe.sbt.packager.linux.{LinuxPackageMapping, LinuxSymlink}
 import sbt.Keys.*
 
 val NAME = "kaitai-struct-compiler"
-val VERSION = "0.11"
+val VERSION = "0.12-SNAPSHOT"
 val TARGET_LANGS = "C++/STL, C#, Go, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby, Rust"
 val UTF8 = Charset.forName("UTF-8")
 
