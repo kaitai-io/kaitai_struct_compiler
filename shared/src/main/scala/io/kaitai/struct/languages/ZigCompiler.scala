@@ -347,8 +347,13 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
-    out.puts(s"${privateMemberName(id)} = $expr;")
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
+    val lhs = id match {
+      case _: InstanceIdentifier => "_v"
+      case _ => privateMemberName(id)
+    }
+    out.puts(s"$lhs = $expr;")
+  }
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"const $id = $expr;")
@@ -567,14 +572,25 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"if (${privateMemberName(instName)} != null)")
+    out.puts(s"if (${privateMemberName(instName)}) |_v|")
     out.inc
-    instanceReturn(instName, dataType)
+    out.puts("return _v;")
     out.dec
   }
 
+  override def instanceTempVarDeclaration(dataType: DataType, isNullable: Boolean): Unit = {
+    val defaultValue =
+      if (isNullable) {
+        " = null"
+      } else {
+        " = undefined"
+      }
+    out.puts(s"var _v: ${kaitaiType2NativeType(dataType, isNullable)}$defaultValue;")
+  }
+
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    out.puts(s"return ${privateMemberName(instName)};")
+    out.puts(s"${privateMemberName(instName)} = _v;")
+    out.puts(s"return _v;")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {

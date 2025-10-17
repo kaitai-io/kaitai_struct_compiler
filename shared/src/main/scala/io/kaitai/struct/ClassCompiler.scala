@@ -432,6 +432,7 @@ class ClassCompiler(
     }
 
     lang.instanceSetCalculated(instName)
+    lang.instanceTempVarDeclaration(dataType, instSpec.isNullable)
     instSpec match {
       case vi: ValueInstanceSpec =>
         lang.attrParseIfHeader(instName, vi.ifExpr)
