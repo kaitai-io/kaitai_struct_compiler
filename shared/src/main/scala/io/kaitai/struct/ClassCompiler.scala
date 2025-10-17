@@ -93,8 +93,12 @@ class ClassCompiler(
         AttrSpec(List(), ParentIdentifier, curClass.parentType)
       ) ++
       ExtraAttrs.forClassSpec(curClass, lang)
-    compileAttrDeclarations(allAttrs)
     compileAttrReaders(allAttrs)
+
+    // NOTE: most target languages don't care, but Zig requires all fields to be
+    // declared together, see https://github.com/ziglang/zig/issues/5077
+    compileInstanceDeclarations(curClass)
+    compileAttrDeclarations(allAttrs)
 
     curClass.toStringExpr.foreach(expr => lang.classToString(expr))
 
@@ -392,7 +396,13 @@ class ClassCompiler(
   def compileSubclasses(curClass: ClassSpec): Unit =
     curClass.types.foreach { case (_, intClass) => compileClass(intClass) }
 
-  def compileInstances(curClass: ClassSpec) = {
+  def compileInstanceDeclarations(curClass: ClassSpec): Unit = {
+    curClass.instances.foreach { case (instName, instSpec) =>
+      compileInstanceDeclaration(instName, instSpec)
+    }
+  }
+
+  def compileInstances(curClass: ClassSpec): Unit = {
     curClass.instances.foreach { case (instName, instSpec) =>
       compileInstance(curClass.name, instName, instSpec, curClass.meta.endian)
     }
@@ -401,8 +411,6 @@ class ClassCompiler(
   def compileInstance(className: List[String], instName: InstanceIdentifier, instSpec: InstanceSpec, endian: Option[Endianness]): Unit = {
     // Determine datatype
     val dataType = instSpec.dataTypeComposite
-
-    compileInstanceDeclaration(instName, instSpec)
 
     if (!lang.innerDocstrings)
       compileInstanceDoc(instName, instSpec)
