@@ -1,6 +1,6 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{ClassTypeProvider, ImportList, RuntimeConfig, Utils}
+import io.kaitai.struct.{ClassTypeProvider, ExternalEnum, ImportList, RuntimeConfig, Utils}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
@@ -9,41 +9,60 @@ import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.ZigCompiler
 
 class ZigTranslator(provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
-  override def doIntLiteral(n: BigInt): String = {
-    // Java's integer parsing behaves differently depending on whether you use decimal or hex syntax.
-    // With decimal syntax, the parser/compiler rejects any number that cannot be stored in a long
-    // (signed 64-bit integer) without overflow. With hexadecimal syntax, it allows anything that
-    // would fit in an unsigned 64-bit integer. Java's `long` is always signed, so if you use this
-    // trick to enter a number that is too large for a signed 64-bit integer, it will overflow into
-    // negative. But this can still be useful if you don't perform any arithmetic that cares about
-    // the sign (e. g. you pass the value unmodified to something else, or you use only bit operations
-    // or Long's "unsigned" methods).
-    //
-    // Of course, if `n > Utils.MAX_UINT64` we'll still get out of range error
-    // TODO: Convert real big numbers to BigInteger
-    val literal = if (n > Long.MaxValue && n <= Utils.MAX_UINT64) {
-      "0x" + n.toString(16)
-    } else {
-      n.toString
-    }
-    val suffix = if (n < Int.MinValue || n > Int.MaxValue) "L" else ""
-
-    s"$literal$suffix"
-  }
+  /**
+  * @see https://ziglang.org/documentation/0.15.2/#Precedence
+  */
+  override val OPERATOR_PRECEDENCE = Map[Ast.binaryop, Int](
+    Ast.operator.Mult -> 130,
+    Ast.operator.Div -> 130,
+    Ast.operator.Mod -> 130,
+    Ast.operator.Add -> 120,
+    Ast.operator.Sub -> 120,
+    Ast.operator.LShift -> 110,
+    Ast.operator.RShift -> 110,
+    Ast.operator.BitAnd -> 100,
+    Ast.operator.BitXor -> 100,
+    Ast.operator.BitOr -> 100,
+    Ast.cmpop.Lt -> 90,
+    Ast.cmpop.LtE -> 90,
+    Ast.cmpop.Gt -> 90,
+    Ast.cmpop.GtE -> 90,
+    Ast.cmpop.Eq -> 90,
+    Ast.cmpop.NotEq -> 90
+  )
 
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
-    val javaType = ZigCompiler.kaitaiType2JavaTypeBoxed(t, importList, config)
+    val nativeType = ZigCompiler.kaitaiType2NativeType(t, importList, provider.nowClass)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
 
-    importList.add("java.util.ArrayList")
-    importList.add("java.util.Arrays")
-    s"new ArrayList<$javaType>(Arrays.asList($commaStr))"
+    s"std.ArrayList($nativeType){ .items = @constCast(@as([]const $nativeType, &.{ $commaStr })), .capacity = ${value.length} }"
   }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
-    s"new byte[] { ${arr.mkString(", ")} }"
+    s"&[_]u8{ ${arr.map(_ & 0xff).mkString(", ")} }"
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
-    s"new byte[] { ${elts.map(translate).mkString(", ")} }"
+    s"&[_]u8{ ${elts.map(translate).mkString(", ")} }"
+
+  // https://ziglang.org/documentation/0.15.2/#Escape-Sequences
+  override val asciiCharQuoteMap: Map[Char,String] = Map(
+    '\n' -> "\\n",
+    '\r' -> "\\r",
+    '\t' -> "\\t",
+    '\\' -> "\\\\",
+    '"' -> "\\\"",
+  )
+
+  override def doStringLiteralBody(s: String): String =
+    s.codePointStepper.iterator.map { code =>
+      if (code <= 0xff) {
+        strLiteralAsciiChar(code.toChar)
+      } else {
+        "\\u{%04x}".format(code)
+      }
+    }.mkString
+
+  override def strLiteralGenericCC(code: Char): String =
+    "\\u{%04x}".format(code.toInt)
 
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
@@ -54,101 +73,111 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
     }
   }
 
-  override def doName(s: String) =
+  override def doLocalName(s: String) =
     s match {
       case Identifier.ITERATOR => "_it"
       case Identifier.ITERATOR2 => "_buf"
-      case Identifier.SWITCH_ON => "on"
-      case Identifier.INDEX => if (inSubIOWriteBackHandler) "_i" else "i"
-      case _ => s"${Utils.lowerCamelCase(s)}()"
+      case Identifier.SWITCH_ON => "_on"
+      case Identifier.INDEX => "i"
+      case Identifier.ROOT | Identifier.PARENT =>
+        s"self.$s.?"
+      case Identifier.IO =>
+        s"self.$s"
+      case _ =>
+        if (provider.isLazy(s)) {
+          s"(try self.${Utils.lowerCamelCase(s)}())"
+        } else {
+          s"self.$s"
+        }
     }
 
+  override def doName(s: String) =
+    s
+
   override def doInternalName(id: Identifier): String =
-    ZigCompiler.privateMemberName(id, inSubIOWriteBackHandler)
+    ZigCompiler.privateMemberName(id)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    s"${enumClass(enumSpec.name)}.${Utils.upperUnderscoreCase(label)}"
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    s"${enumClass(enumSpec.name)}.byId($id)"
+  override def userTypeField(ut: UserType, value: Ast.expr, name: String): String = {
+    val valueStr = translate(value)
 
-  def enumClass(enumTypeAbs: List[String]): String = {
-    val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
-    enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
+    name match {
+      case Identifier.ROOT | Identifier.PARENT =>
+        s"$valueStr.$name.?"
+      case Identifier.IO =>
+        s"$valueStr.$name"
+      case _ =>
+        val isLazy = provider.isLazy(ut.classSpec.get, name)
+        if (isLazy) {
+          s"(try $valueStr.${Utils.lowerCamelCase(name)}())"
+        } else {
+          s"$valueStr.$name"
+        }
+    }
   }
 
-  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = op match {
-    case Ast.cmpop.Eq =>
-      s"${translate(left, METHOD_PRECEDENCE)}.equals(${translate(right)})"
-    case Ast.cmpop.NotEq =>
-      s"!${translate(left, METHOD_PRECEDENCE)}.equals(${translate(right)})"
-    case _ =>
-      s"(${translate(left, METHOD_PRECEDENCE)}.compareTo(${translate(right)}) ${cmpOp(op)} 0)"
+  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+    val et = EnumType(enumSpec.name, CalcIntType)
+    et.enumSpec = Some(enumSpec)
+    s"${ZigCompiler.kaitaiType2NativeType(et, importList, provider.nowClass)}.$label"
   }
+  override def doEnumById(enumSpec: EnumSpec, id: String): String = {
+    val et = EnumType(enumSpec.name, CalcIntType)
+    et.enumSpec = Some(enumSpec)
+    s"@as(${ZigCompiler.kaitaiType2NativeType(et, importList, provider.nowClass)}, @enumFromInt($id))"
+  }
+
+  override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
+    doBytesCompareOp(left, op, right, extPrec)
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = {
     op match {
       case Ast.cmpop.Eq =>
-        importList.add("java.util.Arrays")
-        s"Arrays.equals(${translate(left)}, ${translate(right)})"
+        s"std.mem.eql(u8, ${translate(left)}, ${translate(right)})"
       case Ast.cmpop.NotEq =>
-        importList.add("java.util.Arrays")
-        s"!Arrays.equals(${translate(left)}, ${translate(right)})"
-      case _ =>
-        s"(${ZigCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
+        s"!std.mem.eql(u8, ${translate(left)}, ${translate(right)})"
+      case Ast.cmpop.Lt =>
+        s"(std.mem.order(u8, ${translate(left)}, ${translate(right)}) == .lt)"
+      case Ast.cmpop.Gt =>
+        s"(std.mem.order(u8, ${translate(left)}, ${translate(right)}) == .gt)"
+      case Ast.cmpop.LtE =>
+        s"std.mem.order(u8, ${translate(left)}, ${translate(right)}).compare(.lte)"
+      case Ast.cmpop.GtE =>
+        s"std.mem.order(u8, ${translate(left)}, ${translate(right)}).compare(.gte)"
     }
+  }
+
+  override def booleanOp(op: Ast.boolop) = op match {
+    case Ast.boolop.Or => "or"
+    case Ast.boolop.And => "and"
   }
 
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}.get(${doCast(idx, CalcIntType)})"
+    s"${translate(container)}.items[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: DataType): String = {
-    if (value.isInstanceOf[Ast.expr.IntNum] || value.isInstanceOf[Ast.expr.FloatNum])
-      // this branch is not really needed, but makes the code a bit cleaner -
-      // we can simplify casting to just this for numeric constants
-      s"((${ZigCompiler.kaitaiType2JavaType(typeName, importList, config)}) ${translate(value)})"
-    else
-      ZigCompiler.castIfNeeded(translate(value), AnyType, typeName, importList, config)
-  }
+    s"(if (${translate(condition)}) ${translate(ifTrue)} else ${translate(ifFalse)})"
+  override def doCast(value: Ast.expr, typeName: DataType): String =
+    s"@as(${ZigCompiler.kaitaiType2NativeType(typeName, importList, provider.nowClass)}, ${translate(value)})"
 
   // Predefined methods of various types
+  override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
+    s"(try std.mem.concat(self._allocator(), u8, &[_][]const u8{ ${translate(left)}, ${translate(right)} }))"
   override def strToInt(s: expr, base: expr): String =
-    s"Long.parseLong(${translate(s)}, ${translate(base)})"
+    s"(try std.fmt.parseInt(i32, ${translate(s)}, ${translate(base)}))"
   override def enumToInt(v: expr, et: EnumType): String =
-    s"${translate(v)}.id()"
+    s"@intFromEnum(${translate(v)})"
   override def floatToInt(v: expr): String =
-    doCast(v, CalcIntType)
+    s"@intFromFloat(${translate(v)})"
+  override def boolToInt(value: Ast.expr): String =
+    s"@intFromBool(${translate(value)})"
+
   override def intToStr(i: expr): String =
-    s"Long.toString(${translate(i)})"
-  override def bytesToStr(bytesExpr: String, encoding: String): String = {
-    // Java has a small number of standard charsets preloaded. Accessing them as constants is more
-    // efficient than looking them up by string in a map, so we utilize this when as possible.
-    // See https://docs.oracle.com/javase/7/docs/api/java/nio/charset/StandardCharsets.html
-    val standardCharsetsMap = Map(
-      "ISO-8859-1" -> "ISO_8859_1",
-      "ASCII" -> "US_ASCII",
-      "UTF-16BE" -> "UTF_16BE",
-      "UTF-16LE" -> "UTF_16LE",
-      "UTF-8" -> "UTF_8",
-    )
-
-    val charsetExpr = standardCharsetsMap.get(encoding) match {
-      case Some(charsetConst) =>
-        importList.add("java.nio.charset.StandardCharsets")
-        s"StandardCharsets.${charsetConst}"
-      case None =>
-        importList.add("java.nio.charset.Charset")
-        s"""Charset.forName(${doStringLiteral(encoding)})"""
-    }
-    s"new String($bytesExpr, $charsetExpr)"
-  }
-  override def bytesIndexOf(b: expr, byte: expr): String =
-    s"${ZigCompiler.kstreamName}.byteArrayIndexOf(${translate(b)}, ${doCast(byte, Int1Type(true))})"
-
+    s"""(try std.fmt.allocPrint(self._allocator(), "{d}", .{ ${translate(i)} }))"""
+  override def bytesToStr(bytesExpr: String, encoding: String): String =
+    s"${ZigCompiler.kstreamName}.bytesToStr($bytesExpr, ${doStringLiteral(encoding)})"
   override def bytesLength(b: Ast.expr): String =
-    s"${translate(b, METHOD_PRECEDENCE)}.length"
+    s"${translate(b, METHOD_PRECEDENCE)}.len"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"(${translate(container, METHOD_PRECEDENCE)}[${doCast(idx, CalcIntType)}] & 0xff)"
+    s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
   override def bytesFirst(b: Ast.expr): String =
     bytesSubscript(b, Ast.expr.IntNum(0))
   override def bytesLast(b: Ast.expr): String =
@@ -161,35 +190,40 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
       Ast.expr.IntNum(1)
     ))
   override def bytesMin(b: Ast.expr): String =
-    s"${ZigCompiler.kstreamName}.byteArrayMin(${translate(b)})"
+    s"std.mem.min(u8, ${translate(b)})"
   override def bytesMax(b: Ast.expr): String =
-    s"${ZigCompiler.kstreamName}.byteArrayMax(${translate(b)})"
+    s"std.mem.max(u8, ${translate(b)})"
 
   override def strLength(s: expr): String =
-    s"${translate(s, METHOD_PRECEDENCE)}.length()"
+    bytesLength(s)
   override def strReverse(s: expr): String =
     s"new StringBuilder(${translate(s)}).reverse().toString()"
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s, METHOD_PRECEDENCE)}.substring(${translate(from)}, ${translate(to)})"
-  override def strToBytes(s: expr, encoding: expr): String = {
-    importList.add("java.nio.charset.Charset")
-    s"(${translate(s)}).getBytes(Charset.forName(${translate(encoding)}))"
-  }
+    s"${translate(s, METHOD_PRECEDENCE)}[${translate(from)}..${translate(to)}]"
 
   override def arrayFirst(a: expr): String =
-    s"${translate(a, METHOD_PRECEDENCE)}.get(0)"
+    s"${translate(a, METHOD_PRECEDENCE)}.items[0]"
   override def arrayLast(a: expr): String = {
     val v = translate(a, METHOD_PRECEDENCE)
-    s"$v.get($v.size() - 1)"
+    s"$v.items[$v.items.len - 1]"
   }
   override def arraySize(a: expr): String =
-    s"${translate(a, METHOD_PRECEDENCE)}.size()"
+    s"${translate(a, METHOD_PRECEDENCE)}.items.len"
   override def arrayMin(a: Ast.expr): String = {
-    importList.add("java.util.Collections")
-    s"Collections.min(${translate(a)})"
+    val t = detectType(a)
+    val elType = t.asInstanceOf[ArrayType].elType
+    s"std.mem.min(${ZigCompiler.kaitaiType2NativeType(elType, importList, provider.nowClass)}, ${translate(a, METHOD_PRECEDENCE)}.items)"
   }
   override def arrayMax(a: Ast.expr): String = {
-    importList.add("java.util.Collections")
-    s"Collections.max(${translate(a)})"
+    val t = detectType(a)
+    val elType = t.asInstanceOf[ArrayType].elType
+    s"std.mem.max(${ZigCompiler.kaitaiType2NativeType(elType, importList, provider.nowClass)}, ${translate(a, METHOD_PRECEDENCE)}.items)"
   }
+
+  override def kaitaiStreamSize(value: Ast.expr): String =
+    s"(try ${translate(value, METHOD_PRECEDENCE)}.size())"
+  override def kaitaiStreamEof(value: Ast.expr): String =
+    s"(try ${translate(value, METHOD_PRECEDENCE)}.isEof())"
+  override def kaitaiStreamPos(value: Ast.expr): String =
+    s"${translate(value, METHOD_PRECEDENCE)}.pos()"
 }

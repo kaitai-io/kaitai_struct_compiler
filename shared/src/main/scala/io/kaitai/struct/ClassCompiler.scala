@@ -89,7 +89,7 @@ class ClassCompiler(
       curClass.seq ++
       curClass.params ++
       List(
-        AttrSpec(List(), RootIdentifier, CalcUserType(topClassName, None)),
+        AttrSpec(List(), RootIdentifier, topClass.toDataType),
         AttrSpec(List(), ParentIdentifier, curClass.parentType)
       ) ++
       ExtraAttrs.forClassSpec(curClass, lang)

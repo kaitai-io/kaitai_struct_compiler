@@ -111,8 +111,10 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     }
     s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.$label"
   }
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumSpec.name, enumSpec.isExternal(provider.nowClass))}, $id)"
+  override def doEnumById(enumSpec: EnumSpec, id: String): String = {
+    val isExternal = enumSpec.isExternal(provider.nowClass)
+    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumSpec.name, isExternal)}, $id)"
+  }
 
   override def booleanOp(op: Ast.boolop) = op match {
     case Ast.boolop.Or => "or"

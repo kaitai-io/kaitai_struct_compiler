@@ -33,34 +33,23 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String = s"$topClassName.zig"
 
   override def outImports(topClass: ClassSpec) =
-    "\n" + importList.toList.map((x) => s"import $x;").mkString("\n") + "\n"
+    importList.toList.mkString("", "\n", "\n")
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"// $headerComment")
-    if (!config.java.javaPackage.isEmpty) {
-      outHeader.puts
-      outHeader.puts(s"package ${config.java.javaPackage};")
-    }
+    outHeader.puts
 
     // Used in every class
-    importList.add(s"io.kaitai.struct.$kstructName")
-    importList.add(s"io.kaitai.struct.$kstreamName")
-    importList.add("java.io.IOException")
-
+    importList.add("""const std = @import("std");""")
+    importList.add("""const kaitai_struct = @import("kaitai_struct");""")
     out.puts
   }
 
-  override def classHeader(name: String): Unit = {
-    val staticStr = if (out.indentLevel > 0) {
-      "static "
-    } else {
-      ""
-    }
+  override def externalTypeDeclaration(extType: ExternalType): Unit =
+    ZigCompiler.externalTypeDeclaration(extType, importList)
 
-    out.puts(
-      s"public ${staticStr}class ${type2class(name)} " +
-      s"extends ${ZigCompiler.kstructNameFull(config)} {"
-    )
+  override def classHeader(name: String): Unit = {
+    out.puts(s"pub const ${type2class(name)} = struct {")
     out.inc
 
     val isInheritedEndian = typeProvider.nowClass.meta.endian match {
@@ -69,123 +58,137 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
+  override def classFooter(name: List[String]): Unit = {
+    // FIXME: declaring these fields here is ugly, but doing anything better wouldn't be easy with
+    // the current architecture
+    out.puts("_arena: *std.heap.ArenaAllocator,")
+    out.puts(s"_io: *$kstreamName,")
     typeProvider.nowClass.meta.endian match {
-      case Some(_: CalcEndian) | Some(InheritedEndian) =>
-        out.puts("private Boolean _is_le;")
+      case Some(InheritedEndian) =>
+        out.puts("_is_le: ?bool,")
+      case Some(_: CalcEndian) =>
+        out.puts("_is_le: ?bool = null,")
       case _ =>
         // no _is_le variable
     }
+    out.dec
+    out.puts("};")
+  }
 
+  override def classConstructorHeader(name: String, parentType: DataType, rootClassName: String, isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {
     val paramsArg = Utils.join(params.map((p) =>
-      s"${kaitaiType2JavaType(p.dataType)} ${paramName(p.id)}"
+      s"${paramName(p.id)}: ${kaitaiType2NativeType(p.dataType)}"
     ), ", ", ", ", "")
 
-    if (isHybrid) {
-      // Inherited endian classes can be only internal, so they have mandatory 4th argument
-      // and 1..3-argument constructors don't make sense
+    val endianSuffix = if (isHybrid) ", _is_le: ?bool" else ""
 
-      out.puts
-      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root, boolean _is_le$paramsArg) {")
-      out.inc
-      out.puts("super(_io);")
-      out.puts("this._parent = _parent;")
-      out.puts("this._root = _root;")
-      out.puts("this._is_le = _is_le;")
+    out.puts(s"pub fn create(_arena: *std.heap.ArenaAllocator, _io: *$kstreamName, _parent: ?${kaitaiType2NativeType(parentType)}, _root: ?*${type2class(rootClassName)}$endianSuffix$paramsArg) !*${type2class(name)} {")
+    out.inc
+    out.puts(s"const self = try _arena.allocator().create(${type2class(name)});")
+    out.puts("self.* = .{")
+    out.inc
+    out.puts("._arena = _arena,")
+    out.puts("._io = _io,")
+    out.puts("._parent = _parent,")
+    if (name == rootClassName) {
+      out.puts("._root = _root orelse self,")
     } else {
-      // Normal 3 constructors, chained into the last
-
-      val paramsRelay = Utils.join(params.map((p) => paramName(p.id)), ", ", ", ", "")
-
-      out.puts
-      out.puts(s"public ${type2class(name)}($kstreamName _io$paramsArg) {")
-      out.inc
-      out.puts(s"this(_io, null, null$paramsRelay);")
-      out.dec
-      out.puts("}")
-
-      out.puts
-      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent$paramsArg) {")
-      out.inc
-      out.puts(s"this(_io, _parent, null$paramsRelay);")
-      out.dec
-      out.puts("}")
-
-      out.puts
-      out.puts(s"public ${type2class(name)}($kstreamName _io, ${kaitaiType2JavaType(parentType)} _parent, ${type2class(rootClassName)} _root$paramsArg) {")
-      out.inc
-      out.puts("super(_io);")
-      out.puts("this._parent = _parent;")
-      if (name == rootClassName) {
-        out.puts("this._root = _root == null ? this : _root;")
-      } else {
-        out.puts("this._root = _root;")
-      }
+      out.puts("._root = _root,")
     }
+    if (isHybrid) {
+      out.puts("._is_le = _is_le,")
+    }
+    out.dec
+    out.puts("};")
 
     // Store parameters passed to us
     params.foreach((p) => handleAssignmentSimple(p.id, paramName(p.id)))
   }
 
+  override def classConstructorFooter: Unit = {
+    out.puts("return self;")
+    universalFooter
+    out.puts(s"fn _allocator(self: *const ${type2class(typeProvider.nowClass.name.last)}) std.mem.Allocator {")
+    out.inc
+    out.puts("return self._arena.allocator();")
+    universalFooter
+  }
+
   override def runRead(name: List[String]): Unit =
-    out.puts("_read();")
+    out.puts("try self._read();")
 
   override def runReadCalc(): Unit = {
-    out.puts
-    out.puts("if (_is_le == null) {")
+    out.puts("if (self._is_le == true) {")
     out.inc
-    out.puts(s"throw new $kstreamName.UndecidedEndiannessError();")
+    out.puts("try self._readLE();")
     out.dec
-    out.puts("} else if (_is_le) {")
+    out.puts("} else if (self._is_le == false) {")
     out.inc
-    out.puts("_readLE();")
+    out.puts("try self._readBE();")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts("_readBE();")
+    out.puts(s"return ${ksErrorName(UndecidedEndiannessError)};")
     out.dec
     out.puts("}")
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean) = {
+    val className = type2class(typeProvider.nowClass.name.last)
     endian match {
       case Some(e) =>
-        out.puts(s"private void _read${Utils.upperUnderscoreCase(e.toSuffix)}() {")
+        out.puts(s"fn _read${Utils.upperUnderscoreCase(e.toSuffix)}(self: *$className) !void {")
       case None =>
-        out.puts(s"${if (!config.autoRead) "public" else "private"} void _read() {")
+        out.puts(s"${if (!config.autoRead) "pub " else ""}fn _read(self: *$className) !void {")
     }
     out.inc
+    if (isEmpty)
+      out.puts("_ = self;")
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"private ${kaitaiType2JavaType(attrType, isNullable)} ${idToStr(attrName)};")
+    // At the time of writing, `_root` and `_parent` are considered non-nullable, but in reality
+    // they can always be `null`.
+    val isNullableCorrected =
+      if (attrName == RootIdentifier || attrName == ParentIdentifier) {
+        true
+      } else {
+        isNullable
+      }
+    val defaultValue =
+      if (attrName == RootIdentifier || attrName == ParentIdentifier) {
+        ""
+      } else if (isNullable) {
+        " = null"
+      } else {
+        " = undefined"
+      }
+    out.puts(s"${idToStr(attrName)}: ${kaitaiType2NativeType(attrType, isNullableCorrected)}$defaultValue,")
   }
 
-  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
-    val javaType = kaitaiType2JavaType(attrType, isNullable)
-    val name = idToStr(attrName)
-
-    out.puts(s"public $javaType $name() { return $name; }")
-  }
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
 
   override def universalDoc(doc: DocSpec): Unit = {
     out.puts
-    out.puts( "/**")
 
-    doc.summary.foreach(summary => out.putsLines(" * ", summary))
-
+    doc.summary.foreach(summary => out.putsLines("/// ", summary))
+    if (doc.ref.nonEmpty) {
+      if (doc.summary.isDefined) {
+        out.puts("///")
+      }
+      out.puts("/// See also:")
+      out.puts("///")
+    }
     doc.ref.foreach {
       case TextRef(text) =>
-        out.putsLines(" * ", "@see \"" + text + "\"")
-      case ref: UrlRef =>
-        out.putsLines(" * ", s"@see ${ref.toAhref}")
+        out.putsLines("/// ", s"* $text", "  ")
+      case UrlRef(url, text) =>
+        out.putsLines("/// ", s"* [$text]($url)", "  ")
     }
-
-    out.puts( " */")
   }
 
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
-    out.puts("if (_is_le) {")
+    out.puts("if (self._is_le.?) {")
     out.inc
     leProc()
     out.dec
@@ -231,12 +234,12 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
       case _ => getRawIdExpr(varName, rep)
     }
 
-    importList.add("io.kaitai.struct.ByteBufferKaitaiStream")
-    out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args);")
+    out.puts(s"const $ioName = try self._allocator().create($kstreamName);")
+    out.puts(s"$ioName.* = $kstreamName.fromBytes($args);")
     ioName
   }
 
@@ -244,27 +247,26 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(varName)
     rep match {
       case NoRepeat => memberName
-      case RepeatExpr(_) => s"$memberName.get(i)"
-      case _ => s"$memberName.get($memberName.size() - 1)"
+      case _ => s"$memberName.items[i]"
     }
   }
 
   override def useIO(ioEx: expr): String = {
-    out.puts(s"$kstreamName io = ${expression(ioEx)};")
+    out.puts(s"const io = ${expression(ioEx)};")
     "io"
   }
 
   override def pushPos(io: String): Unit =
-    out.puts(s"long _pos = $io.pos();")
+    out.puts(s"const _pos = $io.pos();")
   override def seek(io: String, pos: Ast.expr): Unit =
-    out.puts(s"$io.seek(${expression(pos)});")
+    out.puts(s"try $io.seek(${expression(pos)});")
 
   override def popPos(io: String): Unit =
-    out.puts(s"$io.seek(_pos);")
+    out.puts(s"try $io.seek(_pos);")
 
-  // NOTE: the compiler does not need to output alignToByte() calls for Java anymore,
+  // NOTE: the compiler does not need to output alignToByte() calls for Zig,
   // since the byte alignment is handled by the runtime library since commit
-  // https://github.com/kaitai-io/kaitai_struct_java_runtime/commit/1bc75aa91199588a1cb12a5a1c672b80b66619ac
+  // https://github.com/kaitai-io/kaitai_struct_zig_runtime/commit/2b924d15347b5b60b8dd133314746ed823b9c048
   override def alignToByte(io: String): Unit = {}
 
   override def condIfHeader(expr: expr): Unit = {
@@ -273,24 +275,23 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
-    importList.add("java.util.ArrayList")
-    out.puts(s"${privateMemberName(id)} = new ArrayList<${kaitaiType2JavaTypeBoxed(dataType)}>();")
+    out.puts(s"${privateMemberName(id)} = try self._allocator().create(std.ArrayList(${kaitaiType2NativeType(dataType)}));")
+    out.puts(s"${privateMemberName(id)}.* = .empty;")
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("{")
     out.inc
-    out.puts("int i = 0;")
-    out.puts(s"while (!$io.isEof()) {")
+    out.puts("var i: usize = 0;")
+    out.puts(s"while (!try $io.isEof()) : (i += 1) {")
     out.inc
   }
 
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit = {
-    out.puts(s"${privateMemberName(id)}.add($expr);")
+    out.puts(s"try ${privateMemberName(id)}.append(self._allocator(), $expr);")
   }
 
   override def condRepeatEosFooter: Unit = {
-    out.puts("i++;")
     out.dec
     out.puts("}")
     out.dec
@@ -298,8 +299,22 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for (int i = 0; i < ${expression(repeatExpr)}; i++) {")
+    out.puts(s"for (0..${expression(repeatExpr)}) |i| {")
     out.inc
+    // NOTE: Zig would refuse to compile the code with an "error: unused capture" if the `i`
+    // variable wasn't used in any way. In hand-written code, it's easy to deal with that by
+    // inserting `_ = i;` when you know that you currently don't use `i`. The problem is that we
+    // don't know whether it will be used by any expression in the loop body or not, and if you try
+    // to use the `i` variable after it has been discarded as `_ = i;`, you get
+    // "error: pointless discard of capture". So we use an intermediate constant just to use the `i`
+    // variable somehow, which we *can* discard, because we won't be using it.
+    //
+    // Note that Go also doesn't allow unused variables, but the `i` variable is still accessible
+    // even after `_ = i` (see GoCompiler.condRepeatExprHeader).
+    blockScopeHeader
+    out.puts("const _maybe_unused = i;")
+    out.puts("_ = _maybe_unused;")
+    blockScopeFooter
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
@@ -308,27 +323,26 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     out.puts("{")
     out.inc
-    out.puts(s"${kaitaiType2JavaType(dataType)} ${translator.doName(Identifier.ITERATOR)};")
-    out.puts("int i = 0;")
-    out.puts("do {")
+    out.puts("var i: usize = 0;")
+    out.puts("while (true) : (i += 1) {")
     out.inc
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val (typeDecl, tempVar) = if (isRaw) {
-      ("byte[] ", translator.doName(Identifier.ITERATOR2))
-    } else {
-      ("", translator.doName(Identifier.ITERATOR))
-    }
-    out.puts(s"$typeDecl$tempVar = $expr;")
-    out.puts(s"${privateMemberName(id)}.add($tempVar);")
+    val tmpName = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    out.puts(s"const $tmpName = $expr;")
+    out.puts(s"try ${privateMemberName(id)}.append(self._allocator(), $tmpName);")
   }
 
   override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
     typeProvider._currentIteratorType = Some(dataType)
-    out.puts("i++;")
+    out.puts(s"if (${expression(untilExpr)}) {")
+    out.inc
+    out.puts("break;")
     out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts("}")
+    out.dec
+    out.puts("}")
     out.dec
     out.puts("}")
   }
@@ -337,7 +351,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = $expr;")
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
-    out.puts(s"${kaitaiType2JavaType(dataType)} $id = $expr;")
+    out.puts(s"const $id = $expr;")
 
   override def blockScopeHeader: Unit = {
     out.puts("{")
@@ -350,75 +364,52 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
       case blt: BytesLimitType =>
-        s"$io.readBytes(${expression(blt.size)})"
+        s"$io.readBytes(self._allocator(), ${expression(blt.size)})"
       case _: BytesEosType =>
-        s"$io.readBytesFull()"
+        s"$io.readBytesFull(self._allocator())"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
         if (terminator.length == 1) {
           val term = terminator.head & 0xff
-          s"$io.readBytesTerm((byte) $term, $include, $consume, $eosError)"
+          s"$io.readBytesTerm(self._allocator(), $term, $include, $consume, $eosError)"
         } else {
-          s"$io.readBytesTermMulti(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
+          s"$io.readBytesTermMulti(self._allocator(), ${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
         }
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val addArgs = if (t.isExternal(typeProvider.nowClass)) {
-          ""
+        val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
+          ("null", "null")
         } else {
           val parent = t.forcedParent match {
             case Some(USER_TYPE_NO_PARENT) => "null"
             case Some(fp) => translator.translate(fp)
-            case None => "this"
+            case None => "self"
           }
-          val addEndian = t.classSpec.get.meta.endian match {
-            case Some(InheritedEndian) => ", _is_le"
-            case _ => ""
-          }
-          s", $parent, _root$addEndian"
+          (parent, "self._root")
+        }
+        val addEndian = t.classSpec.get.meta.endian match {
+          case Some(InheritedEndian) => ", self._is_le"
+          case _ => ""
         }
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
-        s"new ${types2class(t.name)}($io$addArgs$addParams)"
+        s"${types2class(t.name, t.isExternal(typeProvider.nowClass))}.create(self._arena, $io, $parent, $root$addEndian$addParams)"
     }
-
-    castIfNeeded(expr, dataType, assignType)
-  }
-
-  override def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
-    val ioName = idToStr(IoStorageIdentifier(id))
-    handleAssignmentTempVar(KaitaiStreamType, ioName, s"$io.substream(${translator.translate(blt.size)})")
-    ioName
-  }
-
-  override def extraRawAttrForUserTypeFromBytes(id: Identifier, ut: UserTypeFromBytes, condSpec: ConditionalSpec): List[AttrSpec] = {
-    if (config.zeroCopySubstream) {
-      ut.bytes match {
-        case BytesLimitType(sizeExpr, None, _, None, None) =>
-          // substream will be used, no need for store raws
-          List()
-        case _ =>
-          // buffered implementation will be used, fall back to raw storage
-          super.extraRawAttrForUserTypeFromBytes(id, ut, condSpec)
-      }
-    } else {
-      // zero-copy streams disabled, fall back to raw storage
-      super.extraRawAttrForUserTypeFromBytes(id, ut, condSpec)
-    }
+    s"try $expr"
   }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) if terminator.map(term => padByte != (term.last & 0xff)).getOrElse(true) =>
-        s"$kstreamName.bytesStripRight($expr0, (byte) $padByte)"
+        s"$kstreamName.bytesStripRight($expr0, $padByte)"
       case _ => expr0
     }
     val expr2 = terminator match {
       case Some(term) =>
         if (term.length == 1) {
           val t = term.head & 0xff
-          s"$kstreamName.bytesTerminate($expr1, (byte) $t, $include)"
+          s"$kstreamName.bytesTerminate($expr1, $t, $include)"
         } else {
           s"$kstreamName.bytesTerminateMulti($expr1, ${translator.doByteArrayLiteral(term)}, $include)"
         }
@@ -428,7 +419,11 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
-    val expr = castIfNeeded(id, assignType, dataType)
+    val expr = if (assignType != dataType) {
+      s"@as(${kaitaiType2NativeType(dataType)}, $id)"
+    } else {
+      id
+    }
     out.puts(s"$expr._read();")
   }
 
@@ -451,47 +446,40 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     normalCaseProc: T => Unit,
     elseCaseProc: T => Unit
   ): Unit = {
-    // Java has a stupid limitation of being unable to match nulls in switch.
-    // If our type is nullable, we'll do an extra check. For now, we're only
-    // doing this workaround for enums.
+    switchStart(id, on)
 
-    val onType = typeProvider._currentSwitchType.get
-    val isNullable = onType match {
-      case _: EnumType => true
-      case _ => false
-    }
+    // Pass 1: only normal case clauses
+    var first = true
 
-    if (isNullable) {
-      val nameSwitchStr = expression(NAME_SWITCH_ON)
-      out.puts("{")
-      out.inc
-      out.puts(s"${kaitaiType2JavaType(onType)} $nameSwitchStr = ${expression(on)};")
-      out.puts(s"if ($nameSwitchStr != null) {")
-      out.inc
-
-      super.switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
-
-      out.dec
-      cases.get(SwitchType.ELSE_CONST) match {
-        case Some(result) =>
-          out.puts("} else {")
-          out.inc
-          elseCaseProc(result)
-          out.dec
-          out.puts("}")
-        case None =>
-          out.puts("}")
+    cases.foreach { case (condition, result) =>
+      condition match {
+        case SwitchType.ELSE_CONST =>
+          // skip for now
+        case _ =>
+          if (first) {
+            switchCaseFirstStart(condition)
+            first = false
+          } else {
+            switchCaseStart(condition)
+          }
+          normalCaseProc(result)
+          switchCaseEnd()
       }
-
-      out.dec
-      out.puts("}")
-    } else {
-      super.switchCasesRender(id, on, cases, normalCaseProc, elseCaseProc)
     }
+
+    // Pass 2: always (!) produce an `else` clause, otherwise we would get
+    // "error: switch must handle all possibilities" from the Zig compiler
+    switchElseStart()
+    cases.get(SwitchType.ELSE_CONST).foreach { (result) =>
+      elseCaseProc(result)
+    }
+    switchElseEnd()
+
+    switchEnd()
   }
 
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
-    case _: IntType | _: EnumType | _: StrType => false
+    case _: IntType | _: EnumType => false
     case _ => true
   }
 
@@ -499,41 +487,29 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   val NAME_SWITCH_ON = Ast.expr.Name(Ast.identifier(Identifier.SWITCH_ON))
 
-  override def switchStart(id: Identifier, on: Ast.expr): Unit =
+  override def switchStart(id: Identifier, on: Ast.expr): Unit = {
     out.puts(s"switch (${expression(on)}) {")
+    out.inc
+  }
 
   override def switchCaseFirstStart(condition: Ast.expr): Unit = switchCaseStart(condition)
 
   override def switchCaseStart(condition: Ast.expr): Unit = {
-    // Java is very specific about what can be used as "condition" in "case
-    // condition:".
-    val condStr = condition match {
-      case enumByLabel: Ast.expr.EnumByLabel =>
-        // If switch is over a enum, only literal enum values are supported,
-        // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
-        value2Const(enumByLabel.label.name)
-      case _ =>
-        expression(condition)
-    }
-
-    out.puts(s"case $condStr: {")
+    out.puts(s"${expression(condition)} => {")
     out.inc
   }
 
   override def switchCaseEnd(): Unit = {
-    out.puts("break;")
     out.dec
-    out.puts("}")
+    out.puts("},")
   }
 
   override def switchElseStart(): Unit = {
-    out.puts("default: {")
+    out.puts("else => {")
     out.inc
   }
 
-  override def switchEnd(): Unit = {
-    out.puts("}")
-  }
+  override def switchEnd(): Unit = universalFooter
 
   //</editor-fold>
 
@@ -542,7 +518,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchIfStart(id: Identifier, on: expr, onType: DataType): Unit = {
     out.puts("{")
     out.inc
-    out.puts(s"${kaitaiType2JavaType(onType)} ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
+    out.puts(s"const ${expression(NAME_SWITCH_ON)} = ${expression(on)};")
   }
 
   def switchCmpExpr(condition: Ast.expr): String =
@@ -582,11 +558,11 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   //</editor-fold>
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
+    out.puts(s"${idToStr(attrName)}: ?${kaitaiType2NativeType(attrType, isNullable)} = null,")
   }
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"public ${kaitaiType2JavaTypeBoxed(dataType)} ${idToStr(instName)}() {")
+    out.puts(s"pub fn ${publicMemberName(instName)}(self: *${type2class(className)}) !${kaitaiType2NativeType(dataType, isNullable)} {")
     out.inc
   }
 
@@ -601,58 +577,19 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def instanceCalculate(instName: Identifier, dataType: DataType, value: expr): Unit = {
-    val primType = kaitaiType2JavaTypePrim(dataType)
-    val boxedType = kaitaiType2JavaTypeBoxed(dataType)
-
-    if (dataType.isInstanceOf[NumericType]) {
-      // Special trick to achieve both type conversion + boxing.
-      // Unfortunately, Java can't do both by itself, i.e. this would fail:
-      //
-      // Double c = 1.0f + 1;
-
-      out.puts(s"${privateMemberName(instName)} = ${translator.doCast(value, dataType)};")
-    } else {
-      out.puts(s"${privateMemberName(instName)} = ${expression(value)};")
-    }
-  }
-
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
     val enumClass = type2class(enumName)
 
-    out.puts
-    out.puts(s"public enum $enumClass {")
+    out.puts(s"pub const $enumClass = enum(i32) {")
     out.inc
 
-    if (enumColl.size > 1) {
-      enumColl.dropRight(1).foreach { case (id, label) =>
-        out.puts(s"${value2Const(label)}(${translator.doIntLiteral(id)}),")
-      }
+    enumColl.foreach { case (id, label) =>
+      out.puts(s"$label = ${translator.doIntLiteral(id)},")
     }
-    enumColl.last match {
-      case (id, label) =>
-        out.puts(s"${value2Const(label)}(${translator.doIntLiteral(id)});")
-    }
+    out.puts("_,")
 
-    out.puts
-    out.puts("private final long id;")
-    out.puts(s"$enumClass(long id) { this.id = id; }")
-    out.puts("public long id() { return id; }")
-    out.puts(s"private static final Map<Long, $enumClass> byId = new HashMap<Long, $enumClass>(${enumColl.size});")
-    out.puts("static {")
-    out.inc
-    out.puts(s"for ($enumClass e : $enumClass.values())")
-    out.inc
-    out.puts(s"byId.put(e.id(), e);")
     out.dec
-    out.dec
-    out.puts("}")
-    out.puts(s"public static $enumClass byId(long id) { return byId.get(id); }")
-    out.dec
-    out.puts("}")
-
-    importList.add("java.util.Map")
-    importList.add("java.util.HashMap")
+    out.puts("};")
   }
 
   override def classToString(toStringExpr: Ast.expr): Unit = {
@@ -665,36 +602,28 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  def value2Const(s: String) = Utils.upperUnderscoreCase(s)
-
   override def idToStr(id: Identifier): String = ZigCompiler.idToStr(id)
 
-  override def publicMemberName(id: Identifier): String = idToStr(id)
+  override def publicMemberName(id: Identifier): String =
+    id match {
+      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case _ => idToStr(id)
+    }
 
-  override def privateMemberName(id: Identifier): String =
-    ZigCompiler.privateMemberName(id, translator.inSubIOWriteBackHandler)
+  override def privateMemberName(id: Identifier): String = ZigCompiler.privateMemberName(id)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
-  def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType): String =
-    ZigCompiler.castIfNeeded(exprRaw, exprType, targetType, importList, config)
+  def kaitaiType2NativeType(attrType: DataType): String =
+    ZigCompiler.kaitaiType2NativeType(attrType, importList, typeProvider.nowClass)
 
-  def kaitaiType2JavaType(attrType: DataType): String =
-    ZigCompiler.kaitaiType2JavaType(attrType, importList, config)
-
-  def kaitaiType2JavaType(attrType: DataType, isNullable: Boolean): String =
-    ZigCompiler.kaitaiType2JavaType(attrType, isNullable, importList, config)
-
-  def kaitaiType2JavaTypePrim(attrType: DataType): String =
-    ZigCompiler.kaitaiType2JavaTypePrim(attrType, importList, config)
-
-  def kaitaiType2JavaTypeBoxed(attrType: DataType): String =
-    ZigCompiler.kaitaiType2JavaTypeBoxed(attrType, importList, config)
+  def kaitaiType2NativeType(attrType: DataType, isNullable: Boolean): String =
+    ZigCompiler.kaitaiType2NativeType(attrType, importList, typeProvider.nowClass, isNullable)
 
   override def ksErrorName(err: KSError): String = err match {
-    case EndOfStreamError => config.java.endOfStreamErrorClass
+    case EndOfStreamError => "error.EndOfStream"
     case ConversionError => "NumberFormatException"
-    case _ => s"KaitaiStream.${err.name}"
+    case _ => s"error.${err.name}"
   }
 
   override def attrValidateExpr(
@@ -728,14 +657,9 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     actual: Ast.expr,
     expected: Option[Ast.expr]
   ): Unit = {
-    val errArgsStr = expected.map(expression) ++ List(
-      expression(actual),
-      if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "null",
-      expression(Ast.expr.Str(attr.path.mkString("/", "/", "")))
-    )
     out.puts(s"if ($failCondExpr) {")
     out.inc
-    out.puts(s"throw new ${ksErrorName(err)}(${errArgsStr.mkString(", ")});")
+    out.puts(s"return ${ksErrorName(err)};")
     out.dec
     out.puts("}")
   }
@@ -752,143 +676,88 @@ object ZigCompiler extends LanguageCompilerStatic
   def idToStr(id: Identifier): String =
     id match {
       case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => Utils.lowerCamelCase(name)
+      case NamedIdentifier(name) => name
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
-      case InstanceIdentifier(name) => Utils.lowerCamelCase(name)
+      case InstanceIdentifier(name) => s"_m_$name"
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
       case IoStorageIdentifier(innerId) => s"_io_${idToStr(innerId)}"
-      case OuterSizeIdentifier(innerId) => s"${idToStr(innerId)}_OuterSize"
-      case InnerSizeIdentifier(innerId) => s"${idToStr(innerId)}_InnerSize"
     }
 
-  def privateMemberName(id: Identifier, inSubIOWriteBackHandler: Boolean): String =
-    s"${if (inSubIOWriteBackHandler) "_" else ""}this.${idToStr(id)}"
+  def privateMemberName(id: Identifier): String =
+    s"self.${idToStr(id)}"
 
-  def kaitaiType2JavaType(attrType: DataType, importList: ImportList, config: RuntimeConfig): String = kaitaiType2JavaTypePrim(attrType, importList, config)
+  def kaitaiType2NativeType(attrType: DataType, importList: ImportList, curClass: ClassSpec): String = {
+    attrType match {
+      case Int1Type(false) => "u8"
+      case IntMultiType(false, Width2, _) => "u16"
+      case IntMultiType(false, Width4, _) => "u32"
+      case IntMultiType(false, Width8, _) => "u64"
 
-  def kaitaiType2JavaType(attrType: DataType, isNullable: Boolean, importList: ImportList, config: RuntimeConfig): String =
+      case Int1Type(true) => "i8"
+      case IntMultiType(true, Width2, _) => "i16"
+      case IntMultiType(true, Width4, _) => "i32"
+      case IntMultiType(true, Width8, _) => "i64"
+
+      case FloatMultiType(Width4, _) => "f32"
+      case FloatMultiType(Width8, _) => "f64"
+
+      case BitsType(_, _) => "u64"
+
+      case _: BooleanType => "bool"
+      case CalcIntType => "i32"
+      case CalcFloatType => "f64"
+
+      case _: StrType => "[]u8"
+      case _: BytesType => "[]u8"
+
+      case KaitaiStreamType | OwnedKaitaiStreamType => s"*$kstreamName"
+      case AnyType | KaitaiStructType | CalcKaitaiStructType(_) => "*anyopaque"
+
+      case ut: UserType => {
+        val isExternal = ut.isExternal(curClass)
+        if (isExternal) {
+          externalTypeDeclaration(ExternalUserType(ut.classSpec.get), importList)
+        }
+        s"*${types2class(ut.name, isExternal)}"
+      }
+      case et: EnumType => {
+        val isExternal = et.isExternal(curClass)
+        if (isExternal) {
+          externalTypeDeclaration(ExternalEnum(et.enumSpec.get), importList)
+        }
+        types2class(et.name, isExternal)
+      }
+
+      case at: ArrayType => s"*std.ArrayList(${kaitaiType2NativeType(at.elType, importList, curClass)})"
+
+      case st: SwitchType => kaitaiType2NativeType(st.combinedType, importList, curClass)
+    }
+  }
+
+  def kaitaiType2NativeType(attrType: DataType, importList: ImportList, curClass: ClassSpec, isNullable: Boolean): String = {
+    var nonNullable = kaitaiType2NativeType(attrType, importList, curClass)
     if (isNullable) {
-      kaitaiType2JavaTypeBoxed(attrType, importList, config)
+      s"?$nonNullable"
     } else {
-      kaitaiType2JavaTypePrim(attrType, importList, config)
+      nonNullable
     }
+  }
 
-  def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType, importList: ImportList, config: RuntimeConfig): String =
-    if (exprType != targetType) {
-      val castTypeId = kaitaiType2JavaTypePrim(targetType, importList, config)
-      targetType match {
-        // Handles both unboxing + downcasting at the same time if needed
-        // (solution from https://github.com/kaitai-io/kaitai_struct_compiler/pull/149)
-        //
-        // See also https://github.com/kaitai-io/kaitai_struct_compiler/pull/212#issuecomment-731149487
-        case _: NumericType => s"((Number) ($exprRaw)).${castTypeId}Value()"
-        case _ => s"(($castTypeId) ($exprRaw))"
-      }
+  /** @note Same as [[PythonCompiler.types2class]] */
+  def types2class(name: List[String], isExternal: Boolean): String = {
+    val prefix = if (isExternal) {
+      s"${name.head}."
     } else {
-      exprRaw
+      ""
     }
-
-  /**
-    * Determine Java data type corresponding to a KS data type. A "primitive" type (i.e. "int", "long", etc) will
-    * be returned if possible.
-    *
-    * @param attrType KS data type
-    * @return Java data type
-    */
-  def kaitaiType2JavaTypePrim(attrType: DataType, importList: ImportList, config: RuntimeConfig): String = {
-    attrType match {
-      case Int1Type(false) => "int"
-      case IntMultiType(false, Width2, _) => "int"
-      case IntMultiType(false, Width4, _) => "long"
-      case IntMultiType(false, Width8, _) => "long"
-
-      case Int1Type(true) => "byte"
-      case IntMultiType(true, Width2, _) => "short"
-      case IntMultiType(true, Width4, _) => "int"
-      case IntMultiType(true, Width8, _) => "long"
-
-      case FloatMultiType(Width4, _) => "float"
-      case FloatMultiType(Width8, _) => "double"
-
-      case BitsType(_, _) => "long"
-
-      case _: BooleanType => "boolean"
-      case CalcIntType => "int"
-      case CalcFloatType => "double"
-
-      case _: StrType => "String"
-      case _: BytesType => "byte[]"
-
-      case AnyType => "Object"
-      case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
-      case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull(config)
-
-      case t: UserType => types2class(t.name)
-      case EnumType(name, _) => types2class(name)
-
-      case _: ArrayType => kaitaiType2JavaTypeBoxed(attrType, importList, config)
-
-      case st: SwitchType => kaitaiType2JavaTypePrim(st.combinedType, importList, config)
-    }
+    prefix + name.map(x => type2class(x)).mkString(".")
   }
 
-  /**
-    * Determine Java data type corresponding to a KS data type. A non-primitive type (i.e. "Integer", "Long", etc) will
-    * be returned, to be used when proper objects should be used.
-    *
-    * @param attrType KS data type
-    * @return Java data type
-    */
-  def kaitaiType2JavaTypeBoxed(attrType: DataType, importList: ImportList, config: RuntimeConfig): String = {
-    attrType match {
-      case Int1Type(false) => "Integer"
-      case IntMultiType(false, Width2, _) => "Integer"
-      case IntMultiType(false, Width4, _) => "Long"
-      case IntMultiType(false, Width8, _) => "Long"
-
-      case Int1Type(true) => "Byte"
-      case IntMultiType(true, Width2, _) => "Short"
-      case IntMultiType(true, Width4, _) => "Integer"
-      case IntMultiType(true, Width8, _) => "Long"
-
-      case FloatMultiType(Width4, _) => "Float"
-      case FloatMultiType(Width8, _) => "Double"
-
-      case BitsType(_, _) => "Long"
-
-      case _: BooleanType => "Boolean"
-      case CalcIntType => "Integer"
-      case CalcFloatType => "Double"
-
-      case _: StrType => "String"
-      case _: BytesType => "byte[]"
-
-      case AnyType => "Object"
-      case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
-      case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull(config)
-
-      case t: UserType => types2class(t.name)
-      case EnumType(name, _) => types2class(name)
-
-      case at: ArrayType => {
-        importList.add("java.util.List")
-        s"List<${kaitaiType2JavaTypeBoxed(at.elType, importList, config)}>"
-      }
-
-      case st: SwitchType => kaitaiType2JavaTypeBoxed(st.combinedType, importList, config)
-    }
+  def externalTypeDeclaration(extType: ExternalType, importList: ImportList): Unit = {
+    val moduleName = extType.name.head
+    importList.add(s"""const $moduleName = @import("$moduleName.zig");""")
   }
 
-  def types2class(names: List[String]) = names.map(x => type2class(x)).mkString(".")
-
-  override def kstreamName: String = "KaitaiStream"
-  override def kstructName: String = "KaitaiStruct"
-
-  def kstructNameFull(config: RuntimeConfig): String = {
-    kstructName + ((config.autoRead, config.readWrite) match {
-      case (_, true) => ".ReadWrite"
-      case (false, false) => ".ReadOnly"
-      case (true, false) => ""
-    })
-  }
+  override def kstreamName: String = "kaitai_struct.KaitaiStream"
+  override def kstructName: String = ???
 }

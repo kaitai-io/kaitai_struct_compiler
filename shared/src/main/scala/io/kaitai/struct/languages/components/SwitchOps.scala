@@ -57,9 +57,9 @@ trait SwitchOps {
     normalCaseProc: (T) => Unit,
     elseCaseProc: (T) => Unit
   ): Unit = {
-    val someNormalCases = cases.filter { case (caseExpr, _) =>
+    val someNormalCases = cases.exists { case (caseExpr, _) =>
       caseExpr != SwitchType.ELSE_CONST
-    }.size > 0
+    }
 
     if (someNormalCases) {
       switchStart(id, on)
@@ -70,7 +70,7 @@ trait SwitchOps {
       cases.foreach { case (condition, result) =>
         condition match {
           case SwitchType.ELSE_CONST =>
-          // skip for now
+            // skip for now
           case _ =>
             if (first) {
               switchCaseFirstStart(condition)
