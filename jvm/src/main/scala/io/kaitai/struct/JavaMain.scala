@@ -10,6 +10,7 @@ import io.kaitai.struct.formats.JavaKSYParser
 import io.kaitai.struct.languages.CppCompiler
 import io.kaitai.struct.languages.components.LanguageCompilerStatic
 import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException, ErrorInInput}
+import org.rogach.scallop._
 
 object JavaMain {
   KSVersion.current = Version.version
@@ -29,159 +30,294 @@ object JavaMain {
   val VALID_LANGS = LanguageCompilerStatic.NAME_TO_CLASS.keySet + "all"
   val CPP_STANDARDS = Set("98", "11")
 
+  class KSCConf(args: Seq[String]) extends ScallopConf(args) {
+    version(s"${Version.name} ${Version.version}")
+    banner(s"""${Version.name} ${Version.version}
+              |
+              |Usage: kaitai-struct-compiler [options] <file>...
+              |
+              |Options:
+              |""".stripMargin)
+    footer("\nFor more information, see https://kaitai.io/")
+
+    val srcFiles = trailArg[List[String]](
+      name = "file",
+      descr = "source files (.ksy)",
+      required = false,
+      default = Some(List())
+    )
+
+    val target = opt[List[String]](
+      short = 't',
+      name = "target",
+      descr = s"target languages (${VALID_LANGS.mkString(", ")})",
+      required = true,
+      validate = targets => {
+        targets.forall(t => VALID_LANGS.contains(t))
+      }
+    )
+
+    val outdir = opt[File](
+      short = 'd',
+      name = "outdir",
+      descr = "output directory (filenames will be auto-generated); on Unix-like shells, the short form `-d` requires arguments to be preceded by `--`",
+      default = Some(new File("."))
+    )
+
+    val importPath = opt[List[String]](
+      short = 'I',
+      name = "import-path",
+      descr = ".ksy library search path(s) for imports (see also KSPATH env variable)",
+      default = Some(List())
+    )
+
+    val readWrite = opt[Boolean](
+      short = 'w',
+      name = "read-write",
+      descr = "generate read-write support in classes (implies `--no-auto-read --zero-copy-substream false`, Java and Python only, default: read-only)",
+      default = Some(false),
+      noshort = true
+    )
+
+    val cppNamespace = opt[String](
+      name = "cpp-namespace",
+      descr = "C++ namespace (C++ only, default: none)",
+      default = None
+    )
+
+    val cppStandard = opt[String](
+      name = "cpp-standard",
+      descr = "C++ standard to target (C++ only, supported: 98, 11, default: 98)",
+      default = None,
+      validate = std => std.isEmpty || CPP_STANDARDS.contains(std)
+    )
+
+    val goPackage = opt[String](
+      name = "go-package",
+      descr = "Go package (Go only, default: none)",
+      default = None
+    )
+
+    val javaPackage = opt[String](
+      name = "java-package",
+      descr = "Java package (Java only, default: root package)",
+      default = None
+    )
+
+    val javaFromFileClass = opt[String](
+      name = "java-from-file-class",
+      descr = s"Java class to be invoked in fromFile() helper (default: ${RuntimeConfig().java.fromFileClass})",
+      default = None
+    )
+
+    val dotnetNamespace = opt[String](
+      name = "dotnet-namespace",
+      descr = ".NET Namespace (.NET only, default: Kaitai)",
+      default = None
+    )
+
+    val phpNamespace = opt[String](
+      name = "php-namespace",
+      descr = "PHP Namespace (PHP only, default: root package)",
+      default = None
+    )
+
+    val pythonPackage = opt[String](
+      name = "python-package",
+      descr = "Python package (Python only, default: root package)",
+      default = None
+    )
+
+    val nimModule = opt[String](
+      name = "nim-module",
+      descr = "Path of Nim runtime module (Nim only, default: kaitai_struct_nim_runtime)",
+      default = None
+    )
+
+    val nimOpaque = opt[String](
+      name = "nim-opaque",
+      descr = "Directory of opaque Nim modules (Nim only, default: directory of generated module)",
+      default = None
+    )
+
+    val opaqueTypes = opt[Boolean](
+      name = "opaque-types",
+      descr = "opaque types allowed, default: false",
+      default = Some(false)
+    )
+
+    val zeroCopySubstream = opt[Boolean](
+      name = "zero-copy-substream",
+      descr = "zero-copy substreams allowed, default: true",
+      default = Some(true)
+    )
+
+    val kscExceptions = opt[Boolean](
+      name = "ksc-exceptions",
+      descr = "ksc throws exceptions instead of human-readable error messages",
+      default = Some(false),
+      noshort = true
+    )
+
+    val kscJsonOutput = opt[Boolean](
+      name = "ksc-json-output",
+      descr = "output compilation results as JSON to stdout",
+      default = Some(false),
+      noshort = true
+    )
+
+    val verbose = opt[List[String]](
+      name = "verbose",
+      descr = "verbose output",
+      default = Some(List()),
+      validate = verboses => {
+        verboses.forall(v => v == "all" || Log.VALID_SUBSYS.contains(v))
+      }
+    )
+
+    val noAutoRead = opt[Boolean](
+      name = "no-auto-read",
+      descr = "disable auto-running `_read` in constructor",
+      default = Some(false),
+      noshort = true
+    )
+
+    val readPos = opt[Boolean](
+      name = "read-pos",
+      descr = "`_read` remembers attribute positions in stream",
+      default = Some(false),
+      noshort = true
+    )
+
+    val debug = opt[Boolean](
+      name = "debug",
+      descr = "same as --no-auto-read --read-pos (useful for visualization tools)",
+      default = Some(false),
+      noshort = true
+    )
+
+    verify()
+  }
+
   def parseCommandLine(args: Array[String]): Option[CLIConfig] = {
-    val parser = new scopt.OptionParser[CLIConfig](Version.name) {
-      override def showUsageOnError = Some(true)
+    try {
+      val conf = new KSCConf(args)
 
-      head(Version.name, Version.version)
-
-      arg[String]("<file>...").unbounded().action { (x, c) =>
-        c.copy(srcFiles = c.srcFiles :+ x) } text("source files (.ksy)")
-
-      //      opt[File]('o', "outfile") valueName("<file>") action { (x, c) =>
-      //        c.copy(outDir = x)
-      //      } text("output filename (only if processing 1 file)")
-
-      opt[String]('t', "target").required().unbounded().valueName("<language>").action { (x, c) =>
-        // TODO: make support for something like "-t java,python"
-        if (x == "all") {
-          c.copy(targets = ALL_LANGS.toSeq)
+      // Expand targets
+      val expandedTargets = conf.target().flatMap { t =>
+        if (t == "all") {
+          ALL_LANGS.toSeq
         } else {
-          c.copy(targets = c.targets :+ x)
-        }
-      } text(s"target languages (${VALID_LANGS.mkString(", ")})") validate { x =>
-        if (VALID_LANGS.contains(x)) {
-          success
-        } else {
-          failure(s"'$x' is not a valid target language; valid ones are: ${VALID_LANGS.mkString(", ")}")
+          Seq(t)
         }
       }
 
-      opt[Unit]('w', "read-write") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(readWrite = true, autoRead = false))
-      } text("generate read-write support in classes (implies `--no-auto-read --zero-copy-substream false`, Java and Python only, default: read-only)")
+      // Expand verbose flags
+      val expandedVerbose = conf.verbose().flatMap { v =>
+        if (v == "all") {
+          Log.VALID_SUBSYS
+        } else {
+          Seq(v)
+        }
+      }
 
-      opt[File]('d', "outdir") valueName("<directory>") action { (x, c) =>
-        c.copy(outDir = x)
-      } text("output directory (filenames will be auto-generated); on Unix-like shells, the short form `-d` requires arguments to be preceded by `--`")
+      // Split import paths by path separator
+      val expandedImportPaths = conf.importPath().flatMap(_.split(File.pathSeparatorChar))
 
-      val importPathExample = List("<directory>", "<directory>", "...").mkString(File.pathSeparator)
-      opt[String]('I', "import-path").optional().unbounded().valueName(importPathExample).action { (x, c) =>
-        c.copy(importPaths = c.importPaths ++ x.split(File.pathSeparatorChar))
-      } text(".ksy library search path(s) for imports (see also KSPATH env variable)")
+      // Build runtime config
+      var runtime = RuntimeConfig()
 
-      opt[String]("cpp-namespace") valueName("<namespace>") action { (x, c) =>
-        c.copy(
-          runtime = c.runtime.copy(
-            cppConfig = c.runtime.cppConfig.copy(
-              namespace = x.split("::").toList
-            )
-          )
+      // Apply read-write flag
+      if (conf.readWrite()) {
+        runtime = runtime.copy(readWrite = true, autoRead = false)
+      }
+
+      // Apply C++ options
+      conf.cppNamespace.toOption.foreach { ns =>
+        runtime = runtime.copy(
+          cppConfig = runtime.cppConfig.copy(namespace = ns.split("::").toList)
         )
-      } text("C++ namespace (C++ only, default: none)")
-
-      opt[String]("cpp-standard").valueName("<standard>").action { (x, c) =>
-        c.copy(
-          runtime = c.runtime.copy(
-            cppConfig = x match {
-              case "98" => c.runtime.cppConfig.copyAsCpp98()
-              case "11" => c.runtime.cppConfig.copyAsCpp11()
-            }
-          )
-        )
-      } text("C++ standard to target (C++ only, supported: 98, 11, default: 98)") validate { x =>
-        if (CPP_STANDARDS.contains(x)) {
-          success
-        } else {
-          failure(s"'$x' is not a valid C++ standard to target; valid ones are: ${CPP_STANDARDS.mkString(", ")}")
-        }
       }
 
-      opt[String]("go-package") valueName("<package>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(goPackage = x))
-      } text("Go package (Go only, default: none)")
-
-      opt[String]("java-package") valueName("<package>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(java = c.runtime.java.copy(javaPackage = x)))
-      } text("Java package (Java only, default: root package)")
-
-      opt[String]("java-from-file-class") valueName("<class>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(java = c.runtime.java.copy(fromFileClass = x)))
-      } text(s"Java class to be invoked in fromFile() helper (default: ${RuntimeConfig().java.fromFileClass})")
-
-      opt[String]("dotnet-namespace") valueName("<namespace>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(dotNetNamespace = x))
-      } text(".NET Namespace (.NET only, default: Kaitai)")
-
-      opt[String]("php-namespace") valueName("<namespace>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(phpNamespace = x))
-      } text("PHP Namespace (PHP only, default: root package)")
-
-      opt[String]("python-package") valueName("<package>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(pythonPackage = x))
-      } text("Python package (Python only, default: root package)")
-
-      opt[String]("nim-module") valueName("<module>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(nimModule = x))
-      } text("Path of Nim runtime module (Nim only, default: kaitai_struct_nim_runtime)")
-
-      opt[String]("nim-opaque") valueName("<module>") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(nimOpaque = x))
-      } text("Directory of opaque Nim modules (Nim only, default: directory of generated module)")
-
-      opt[Boolean]("opaque-types") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(opaqueTypes = x))
-      } text("opaque types allowed, default: false")
-
-      opt[Boolean]("zero-copy-substream") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(zeroCopySubstream = x))
-      } text("zero-copy substreams allowed, default: true")
-
-      opt[Unit]("ksc-exceptions") action { (x, c) =>
-        c.copy(throwExceptions = true)
-      } text("ksc throws exceptions instead of human-readable error messages")
-
-      opt[Unit]("ksc-json-output") action { (x, c) =>
-        c.copy(jsonOutput = true)
-      } text("output compilation results as JSON to stdout")
-
-      opt[String]("verbose") action { (x, c) =>
-        // TODO: make support for something like "--verbose file,parent"
-        if (x == "all") {
-          c.copy(verbose = Log.VALID_SUBSYS)
-        } else {
-          c.copy(verbose = c.verbose :+ x)
-        }
-      } text("verbose output") validate { x =>
-        if (x == "all" || Log.VALID_SUBSYS.contains(x)) {
-          success
-        } else {
-          failure(s"'$x' is not a valid verbosity flag; valid ones are: ${Log.VALID_SUBSYS.mkString(", ")}")
-        }
+      conf.cppStandard.toOption.foreach {
+        case "98" =>
+          runtime = runtime.copy(cppConfig = runtime.cppConfig.copyAsCpp98())
+        case "11" =>
+          runtime = runtime.copy(cppConfig = runtime.cppConfig.copyAsCpp11())
+        case _ => // Should not happen due to validation
       }
 
-      opt[Unit]("no-auto-read") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(autoRead = false))
-      } text("disable auto-running `_read` in constructor")
-
-      opt[Unit]("read-pos") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(readStoresPos = true))
-      } text("`_read` remembers attribute positions in stream")
-
-      opt[Unit]("debug") action { (x, c) =>
-        c.copy(runtime = c.runtime.copy(autoRead = false, readStoresPos = true))
-      } text("same as --no-auto-read --read-pos (useful for visualization tools)")
-
-      help("help") text("display this help and exit")
-      version("version") text("output version information and exit")
-    }
-
-    parser.parse(args, CLIConfig()).map { c =>
-      if (c.runtime.readWrite) {
-        c.copy(runtime = c.runtime.copy(zeroCopySubstream = false))
-      } else {
-        c
+      // Apply language-specific package options
+      conf.goPackage.toOption.foreach { pkg =>
+        runtime = runtime.copy(goPackage = pkg)
       }
+
+      conf.javaPackage.toOption.foreach { pkg =>
+        runtime = runtime.copy(java = runtime.java.copy(javaPackage = pkg))
+      }
+
+      conf.javaFromFileClass.toOption.foreach { cls =>
+        runtime = runtime.copy(java = runtime.java.copy(fromFileClass = cls))
+      }
+
+      conf.dotnetNamespace.toOption.foreach { ns =>
+        runtime = runtime.copy(dotNetNamespace = ns)
+      }
+
+      conf.phpNamespace.toOption.foreach { ns =>
+        runtime = runtime.copy(phpNamespace = ns)
+      }
+
+      conf.pythonPackage.toOption.foreach { pkg =>
+        runtime = runtime.copy(pythonPackage = pkg)
+      }
+
+      conf.nimModule.toOption.foreach { mod =>
+        runtime = runtime.copy(nimModule = mod)
+      }
+
+      conf.nimOpaque.toOption.foreach { opq =>
+        runtime = runtime.copy(nimOpaque = opq)
+      }
+
+      // Apply boolean options
+      runtime = runtime.copy(opaqueTypes = conf.opaqueTypes())
+      runtime = runtime.copy(zeroCopySubstream = conf.zeroCopySubstream())
+
+      // Apply auto-read and read-pos options
+      if (conf.noAutoRead() || conf.debug()) {
+        runtime = runtime.copy(autoRead = false)
+      }
+
+      if (conf.readPos() || conf.debug()) {
+        runtime = runtime.copy(readStoresPos = true)
+      }
+
+      // Build final config
+      var config = CLIConfig(
+        verbose = expandedVerbose,
+        srcFiles = conf.srcFiles(),
+        outDir = conf.outdir(),
+        targets = expandedTargets,
+        throwExceptions = conf.kscExceptions(),
+        jsonOutput = conf.kscJsonOutput(),
+        importPaths = expandedImportPaths,
+        runtime = runtime
+      )
+
+      // Apply read-write zero-copy-substream override
+      if (config.runtime.readWrite) {
+        config = config.copy(runtime = config.runtime.copy(zeroCopySubstream = false))
+      }
+
+      Some(config)
+    } catch {
+      case e: exceptions.ScallopException =>
+        Console.err.println(e.getMessage)
+        None
+      case e: Throwable =>
+        Console.err.println(s"Error parsing command line: ${e.getMessage}")
+        None
     }
   }
 
