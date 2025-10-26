@@ -39,3 +39,4 @@ jobs:
         run: sbt test
       - name: Run CLI invocation tests
         run: tests-cli/run-tests
+        if: always()
