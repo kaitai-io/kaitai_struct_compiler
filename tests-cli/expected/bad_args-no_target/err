@@ -1,0 +1,39 @@
+Error: Missing option --target
+kaitai-struct-compiler 0.12-SNAPSHOT
+Usage: kaitai-struct-compiler [options] <file>...
+
+  <file>...                source files (.ksy)
+  -t, --target <language>  target languages (graphviz, perl, java, go, cpp_stl, php, lua, html, ruby, construct, javascript, csharp, rust, zig, all, python, nim)
+  -w, --read-write         generate read-write support in classes (implies `--no-auto-read --zero-copy-substream false`, Java and Python only, default: read-only)
+  -d, --outdir <directory>
+                           output directory (filenames will be auto-generated); on Unix-like shells, the short form `-d` requires arguments to be preceded by `--`
+  -I, --import-path <directory>:<directory>:...
+                           .ksy library search path(s) for imports (see also KSPATH env variable)
+  --cpp-namespace <namespace>
+                           C++ namespace (C++ only, default: none)
+  --cpp-standard <standard>
+                           C++ standard to target (C++ only, supported: 98, 11, default: 98)
+  --go-package <package>   Go package (Go only, default: none)
+  --java-package <package>
+                           Java package (Java only, default: root package)
+  --java-from-file-class <class>
+                           Java class to be invoked in fromFile() helper (default: io.kaitai.struct.ByteBufferKaitaiStream)
+  --dotnet-namespace <namespace>
+                           .NET Namespace (.NET only, default: Kaitai)
+  --php-namespace <namespace>
+                           PHP Namespace (PHP only, default: root package)
+  --python-package <package>
+                           Python package (Python only, default: root package)
+  --nim-module <module>    Path of Nim runtime module (Nim only, default: kaitai_struct_nim_runtime)
+  --nim-opaque <module>    Directory of opaque Nim modules (Nim only, default: directory of generated module)
+  --opaque-types <value>   opaque types allowed, default: false
+  --zero-copy-substream <value>
+                           zero-copy substreams allowed, default: true
+  --ksc-exceptions         ksc throws exceptions instead of human-readable error messages
+  --ksc-json-output        output compilation results as JSON to stdout
+  --verbose <value>        verbose output
+  --no-auto-read           disable auto-running `_read` in constructor
+  --read-pos               `_read` remembers attribute positions in stream
+  --debug                  same as --no-auto-read --read-pos (useful for visualization tools)
+  --help                   display this help and exit
+  --version                output version information and exit

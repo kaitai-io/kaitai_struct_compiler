@@ -35,5 +35,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: sbt/setup-sbt@v1
-      - name: Run tests
+      - name: Run Scala tests
         run: sbt test
+      - name: Run CLI invocation tests
+        run: tests-cli/run-tests
