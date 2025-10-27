@@ -173,7 +173,7 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
   override def intToStr(i: expr): String =
     s"""(try std.fmt.allocPrint(self._allocator(), "{d}", .{ ${translate(i)} }))"""
   override def bytesToStr(bytesExpr: String, encoding: String): String =
-    s"${ZigCompiler.kstreamName}.bytesToStr($bytesExpr, ${doStringLiteral(encoding)})"
+    s"(try ${ZigCompiler.kstreamName}.bytesToStr(self._allocator(), $bytesExpr, ${doStringLiteral(encoding)}))"
   override def bytesLength(b: Ast.expr): String =
     s"${translate(b, METHOD_PRECEDENCE)}.len"
   override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
