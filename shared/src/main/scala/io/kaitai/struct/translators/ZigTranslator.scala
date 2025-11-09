@@ -226,4 +226,22 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
     s"(try ${translate(value, METHOD_PRECEDENCE)}.isEof())"
   override def kaitaiStreamPos(value: Ast.expr): String =
     s"${translate(value, METHOD_PRECEDENCE)}.pos()"
+
+  override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
+    if (exprs.isEmpty) {
+      doStringLiteral("")
+    } else {
+      val fmtString =
+        exprs.map { expr =>
+          detectType(expr) match {
+            case _: IntType =>
+              "{d}"
+            case _: StrType =>
+              "{s}"
+            case otherType =>
+              throw new UnsupportedOperationException(s"unable to convert $otherType to string in format string (only integers and strings are supported)")
+          }
+        }.mkString
+      s"(try std.fmt.allocPrint(self._allocator(), \"$fmtString\", .{ ${exprs.map(translate).mkString(", ")} }))"
+    }
 }
