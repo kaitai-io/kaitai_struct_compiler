@@ -35,7 +35,7 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
     val nativeType = ZigCompiler.kaitaiType2NativeType(t, importList, provider.nowClass)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
 
-    s"std.ArrayList($nativeType){ .items = @constCast(@as([]const $nativeType, &.{ $commaStr })), .capacity = ${value.length} }"
+    s"_imp_std.ArrayList($nativeType){ .items = @constCast(@as([]const $nativeType, &.{ $commaStr })), .capacity = ${value.length} }"
   }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
@@ -132,17 +132,17 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = {
     op match {
       case Ast.cmpop.Eq =>
-        s"std.mem.eql(u8, ${translate(left)}, ${translate(right)})"
+        s"_imp_std.mem.eql(u8, ${translate(left)}, ${translate(right)})"
       case Ast.cmpop.NotEq =>
-        s"!std.mem.eql(u8, ${translate(left)}, ${translate(right)})"
+        s"!_imp_std.mem.eql(u8, ${translate(left)}, ${translate(right)})"
       case Ast.cmpop.Lt =>
-        s"(std.mem.order(u8, ${translate(left)}, ${translate(right)}) == .lt)"
+        s"(_imp_std.mem.order(u8, ${translate(left)}, ${translate(right)}) == .lt)"
       case Ast.cmpop.Gt =>
-        s"(std.mem.order(u8, ${translate(left)}, ${translate(right)}) == .gt)"
+        s"(_imp_std.mem.order(u8, ${translate(left)}, ${translate(right)}) == .gt)"
       case Ast.cmpop.LtE =>
-        s"std.mem.order(u8, ${translate(left)}, ${translate(right)}).compare(.lte)"
+        s"_imp_std.mem.order(u8, ${translate(left)}, ${translate(right)}).compare(.lte)"
       case Ast.cmpop.GtE =>
-        s"std.mem.order(u8, ${translate(left)}, ${translate(right)}).compare(.gte)"
+        s"_imp_std.mem.order(u8, ${translate(left)}, ${translate(right)}).compare(.gte)"
     }
   }
 
@@ -160,9 +160,9 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
-    s"(try std.mem.concat(self._allocator(), u8, &[_][]const u8{ ${translate(left)}, ${translate(right)} }))"
+    s"(try _imp_std.mem.concat(self._allocator(), u8, &[_][]const u8{ ${translate(left)}, ${translate(right)} }))"
   override def strToInt(s: expr, base: expr): String =
-    s"(try std.fmt.parseInt(i32, ${translate(s)}, ${translate(base)}))"
+    s"(try _imp_std.fmt.parseInt(i32, ${translate(s)}, ${translate(base)}))"
   override def enumToInt(v: expr, et: EnumType): String =
     s"@intFromEnum(${translate(v)})"
   override def floatToInt(v: expr): String =
@@ -171,7 +171,7 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
     s"@intFromBool(${translate(value)})"
 
   override def intToStr(i: expr): String =
-    s"""(try std.fmt.allocPrint(self._allocator(), "{d}", .{ ${translate(i)} }))"""
+    s"""(try _imp_std.fmt.allocPrint(self._allocator(), "{d}", .{ ${translate(i)} }))"""
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"(try ${ZigCompiler.kstreamName}.bytesToStr(self._allocator(), $bytesExpr, ${doStringLiteral(encoding)}))"
   override def bytesLength(b: Ast.expr): String =
@@ -190,9 +190,9 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
       Ast.expr.IntNum(1)
     ))
   override def bytesMin(b: Ast.expr): String =
-    s"std.mem.min(u8, ${translate(b)})"
+    s"_imp_std.mem.min(u8, ${translate(b)})"
   override def bytesMax(b: Ast.expr): String =
-    s"std.mem.max(u8, ${translate(b)})"
+    s"_imp_std.mem.max(u8, ${translate(b)})"
 
   override def strLength(s: expr): String =
     bytesLength(s)
@@ -212,12 +212,12 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
   override def arrayMin(a: Ast.expr): String = {
     val t = detectType(a)
     val elType = t.asInstanceOf[ArrayType].elType
-    s"std.mem.min(${ZigCompiler.kaitaiType2NativeType(elType, importList, provider.nowClass)}, ${translate(a, METHOD_PRECEDENCE)}.items)"
+    s"_imp_std.mem.min(${ZigCompiler.kaitaiType2NativeType(elType, importList, provider.nowClass)}, ${translate(a, METHOD_PRECEDENCE)}.items)"
   }
   override def arrayMax(a: Ast.expr): String = {
     val t = detectType(a)
     val elType = t.asInstanceOf[ArrayType].elType
-    s"std.mem.max(${ZigCompiler.kaitaiType2NativeType(elType, importList, provider.nowClass)}, ${translate(a, METHOD_PRECEDENCE)}.items)"
+    s"_imp_std.mem.max(${ZigCompiler.kaitaiType2NativeType(elType, importList, provider.nowClass)}, ${translate(a, METHOD_PRECEDENCE)}.items)"
   }
 
   override def kaitaiStreamSize(value: Ast.expr): String =
@@ -242,6 +242,6 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
               throw new UnsupportedOperationException(s"unable to convert $otherType to string in format string (only integers and strings are supported)")
           }
         }.mkString
-      s"(try std.fmt.allocPrint(self._allocator(), \"$fmtString\", .{ ${exprs.map(translate).mkString(", ")} }))"
+      s"(try _imp_std.fmt.allocPrint(self._allocator(), \"$fmtString\", .{ ${exprs.map(translate).mkString(", ")} }))"
     }
 }

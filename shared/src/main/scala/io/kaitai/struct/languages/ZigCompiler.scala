@@ -40,8 +40,8 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
 
     // Used in every class
-    importList.add("""const std = @import("std");""")
-    importList.add("""const kaitai_struct = @import("kaitai_struct");""")
+    importList.add("""const _imp_std = @import("std");""")
+    importList.add("""const _imp_kaitai_struct = @import("kaitai_struct");""")
     out.puts
   }
 
@@ -61,7 +61,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classFooter(name: List[String]): Unit = {
     // FIXME: declaring these fields here is ugly, but doing anything better wouldn't be easy with
     // the current architecture
-    out.puts("_arena: *std.heap.ArenaAllocator,")
+    out.puts("_arena: *_imp_std.heap.ArenaAllocator,")
     out.puts(s"_io: *$kstreamName,")
     typeProvider.nowClass.meta.endian match {
       case Some(InheritedEndian) =>
@@ -82,7 +82,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val endianSuffix = if (isHybrid) ", _is_le: ?bool" else ""
 
-    out.puts(s"pub fn create(_arena: *std.heap.ArenaAllocator, _io: *$kstreamName, _parent: ?${kaitaiType2NativeType(parentType)}, _root: ?*${type2class(rootClassName)}$endianSuffix$paramsArg) !*${type2class(name)} {")
+    out.puts(s"pub fn create(_arena: *_imp_std.heap.ArenaAllocator, _io: *$kstreamName, _parent: ?${kaitaiType2NativeType(parentType)}, _root: ?*${type2class(rootClassName)}$endianSuffix$paramsArg) !*${type2class(name)} {")
     out.inc
     out.puts(s"const self = try _arena.allocator().create(${type2class(name)});")
     out.puts("self.* = .{")
@@ -108,7 +108,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def classConstructorFooter: Unit = {
     out.puts("return self;")
     universalFooter
-    out.puts(s"fn _allocator(self: *const ${type2class(typeProvider.nowClass.name.last)}) std.mem.Allocator {")
+    out.puts(s"fn _allocator(self: *const ${type2class(typeProvider.nowClass.name.last)}) _imp_std.mem.Allocator {")
     out.inc
     out.puts("return self._arena.allocator();")
     universalFooter
@@ -280,7 +280,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
-    out.puts(s"${privateMemberName(id)} = try self._allocator().create(std.ArrayList(${kaitaiType2NativeType(dataType)}));")
+    out.puts(s"${privateMemberName(id)} = try self._allocator().create(_imp_std.ArrayList(${kaitaiType2NativeType(dataType)}));")
     out.puts(s"${privateMemberName(id)}.* = .empty;")
   }
 
@@ -749,7 +749,7 @@ object ZigCompiler extends LanguageCompilerStatic
         types2class(et.name, isExternal)
       }
 
-      case at: ArrayType => s"*std.ArrayList(${kaitaiType2NativeType(at.elType, importList, curClass)})"
+      case at: ArrayType => s"*_imp_std.ArrayList(${kaitaiType2NativeType(at.elType, importList, curClass)})"
 
       case st: SwitchType => kaitaiType2NativeType(st.combinedType, importList, curClass)
     }
@@ -779,6 +779,6 @@ object ZigCompiler extends LanguageCompilerStatic
     importList.add(s"""const $moduleName = @import("$moduleName.zig");""")
   }
 
-  override def kstreamName: String = "kaitai_struct.KaitaiStream"
+  override def kstreamName: String = "_imp_kaitai_struct.KaitaiStream"
   override def kstructName: String = ???
 }
