@@ -728,8 +728,8 @@ object ZigCompiler extends LanguageCompilerStatic
       case CalcIntType => "i32"
       case CalcFloatType => "f64"
 
-      case _: StrType => "[]u8"
-      case _: BytesType => "[]u8"
+      case _: StrType => "[]const u8"
+      case _: BytesType => "[]const u8"
 
       case KaitaiStreamType | OwnedKaitaiStreamType => s"*$kstreamName"
       case AnyType | KaitaiStructType | CalcKaitaiStructType(_) => "*anyopaque"
