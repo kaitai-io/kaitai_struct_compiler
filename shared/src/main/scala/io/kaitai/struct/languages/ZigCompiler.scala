@@ -767,7 +767,7 @@ object ZigCompiler extends LanguageCompilerStatic
   /** @note Same as [[PythonCompiler.types2class]] */
   def types2class(name: List[String], isExternal: Boolean): String = {
     val prefix = if (isExternal) {
-      s"${name.head}."
+      s"_imp_${name.head}."
     } else {
       ""
     }
@@ -776,7 +776,7 @@ object ZigCompiler extends LanguageCompilerStatic
 
   def externalTypeDeclaration(extType: ExternalType, importList: ImportList): Unit = {
     val moduleName = extType.name.head
-    importList.add(s"""const $moduleName = @import("$moduleName.zig");""")
+    importList.add(s"""const _imp_$moduleName = @import("$moduleName.zig");""")
   }
 
   override def kstreamName: String = "_imp_kaitai_struct.KaitaiStream"
