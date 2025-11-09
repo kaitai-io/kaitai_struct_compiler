@@ -66,8 +66,8 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
 
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
-      case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${ZigCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
+      case (_: NumericType, _: NumericType, Ast.operator.Mod) =>
+        s"@mod(${translate(left)}, ${translate(right)})"
       case _ =>
         super.genericBinOp(left, op, right, extPrec)
     }
