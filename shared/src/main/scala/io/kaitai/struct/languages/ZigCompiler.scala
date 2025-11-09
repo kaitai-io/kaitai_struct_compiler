@@ -201,23 +201,28 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
     val srcExpr = getRawIdExpr(varSrc, rep)
+    val minArgs = s"self._allocator(), $srcExpr"
 
     val expr = proc match {
       case ProcessXor(xorValue) =>
+        val procName = translator.detectType(xorValue) match {
+          case _: IntType => "processXorOne"
+          case _: BytesType => "processXorMany"
+        }
         val xorValueStr = translator.detectType(xorValue) match {
-          case _: IntType => translator.doCast(xorValue, Int1Type(true))
+          case _: IntType => translator.doCast(xorValue, Int1Type(false))
           case _ => expression(xorValue)
         }
-        s"$kstreamName.processXor($srcExpr, $xorValueStr)"
+        s"try $kstreamName.$procName($minArgs, $xorValueStr)"
       case ProcessZlib =>
-        s"$kstreamName.processZlib($srcExpr)"
+        s"try $kstreamName.processZlib($minArgs)"
       case ProcessRotate(isLeft, rotValue) =>
         val expr = if (isLeft) {
           expression(rotValue)
         } else {
           s"8 - (${expression(rotValue)})"
         }
-        s"$kstreamName.processRotateLeft($srcExpr, $expr, 1)"
+        s"try $kstreamName.processRotateLeft($minArgs, $expr)"
       case ProcessCustom(name, args) =>
         val namespace = name.init.mkString(".")
         val procClass = namespace +
@@ -225,7 +230,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           type2class(name.last)
         val procName = s"_process_${idToStr(varSrc)}"
         out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
-        s"$procName.decode($srcExpr)"
+        s"$procName.decode($minArgs)"
     }
     handleAssignment(varDest, expr, rep, false)
   }
