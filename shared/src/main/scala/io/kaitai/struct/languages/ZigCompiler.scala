@@ -147,6 +147,10 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
+    // NOTE: in Zig, we won't declare the `_raw_*` fields and use local variables instead
+    if (attrName.isInstanceOf[RawIdentifier])
+      return
+
     // At the time of writing, `_root` and `_parent` are considered non-nullable, but in reality
     // they can always be `null`.
     val isNullableCorrected =
@@ -238,23 +242,15 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
     val ioName = idToStr(IoStorageIdentifier(varName))
 
-    val args = rep match {
-      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
-      case _ => getRawIdExpr(varName, rep)
-    }
+    val args = getRawIdExpr(varName, rep)
 
     out.puts(s"const $ioName = try self._allocator().create($kstreamName);")
     out.puts(s"$ioName.* = $kstreamName.fromBytes($args);")
     ioName
   }
 
-  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
-    val memberName = privateMemberName(varName)
-    rep match {
-      case NoRepeat => memberName
-      case _ => s"$memberName.items[i]"
-    }
-  }
+  def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String =
+    idToStr(varName)
 
   override def useIO(ioEx: expr): String = {
     out.puts(s"const io = ${expression(ioEx)};")
@@ -280,8 +276,24 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
+    // NOTE: in Zig, `_raw_*` attributes don't exist as public class members and
+    // are replaced by local temporary variables. In a field with repetition,
+    // this local variable will be declared inside the loop and will represent
+    // one item at a time, so there is no array that needs to be initialized.
+    if (id.isInstanceOf[RawIdentifier])
+      return
     out.puts(s"${privateMemberName(id)} = try self._allocator().create(_imp_std.ArrayList(${kaitaiType2NativeType(dataType)}));")
     out.puts(s"${privateMemberName(id)}.* = .empty;")
+  }
+
+  override def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
+    if (id.isInstanceOf[RawIdentifier]) {
+      // Instead of assigning the expression to the `_raw_*` public field, we'll
+      // use a local variable in Zig
+      out.puts(s"const ${idToStr(id)} = $expr;")
+    } else {
+      super.handleAssignment(id, expr, rep, isRaw)
+    }
   }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
