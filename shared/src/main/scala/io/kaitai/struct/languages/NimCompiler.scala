@@ -245,7 +245,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
     out.puts
   }
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"this.${instanceFlagIdentifier(instName)} = true")
     out.puts(s"return ${privateMemberName(instName)}")
   }

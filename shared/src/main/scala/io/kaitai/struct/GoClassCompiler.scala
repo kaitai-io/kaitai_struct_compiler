@@ -80,7 +80,7 @@ class GoClassCompiler(
         lang.attrParse(pi, instName, endian)
     }
 
-    lang.instanceReturn(instName, dataType)
+    lang.instanceReturn(instName, dataType, instSpec.isNullable)
     lang.instanceFooter
   }
 

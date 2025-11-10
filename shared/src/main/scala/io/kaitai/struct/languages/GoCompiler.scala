@@ -491,11 +491,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if (this.${calculatedFlagForName(instName)}) {")
     out.inc
-    instanceReturn(instName, dataType)
+    instanceReturn(instName, dataType, false)
     universalFooter
   }
 
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"return ${privateMemberName(instName)}, nil")
   }
 

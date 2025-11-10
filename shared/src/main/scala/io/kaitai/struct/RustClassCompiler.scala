@@ -118,7 +118,7 @@ class RustClassCompiler(
         lang.attrParse(pi, instName, None) // FIXME
     }
 
-    lang.instanceReturn(instName, dataType)
+    lang.instanceReturn(instName, dataType, instSpec.isNullable)
     lang.instanceFooter
   }
 }

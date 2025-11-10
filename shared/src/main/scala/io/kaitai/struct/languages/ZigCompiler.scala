@@ -600,7 +600,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"var _v: ${kaitaiType2NativeType(dataType, isNullable)}$defaultValue;")
   }
 
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"self.${idToStr(instName)} = _v;")
     out.puts(s"return _v;")
   }

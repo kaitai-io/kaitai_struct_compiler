@@ -458,7 +458,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)} unless ${privateMemberName(instName)}.nil?")
   }
 
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(privateMemberName(instName))
   }
 

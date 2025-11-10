@@ -268,12 +268,12 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if self.${idToStr(instName)} ~= nil then")
     out.inc
-    instanceReturn(instName, dataType)
+    instanceReturn(instName, dataType, false)
     out.dec
     out.puts("end")
     out.puts
   }
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit =
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit =
     out.puts(s"return ${privateMemberName(instName)}")
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(Long, EnumValueSpec)]): Unit = {

@@ -751,7 +751,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceHasValueIfFooter(): Unit =
     condIfFooter
 
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     // workaround to avoid Python raising an "AttributeError: instance has no attribute"
     out.puts(s"return getattr(self, '${idToStr(instName)}', None)")
   }

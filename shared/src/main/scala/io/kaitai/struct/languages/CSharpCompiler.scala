@@ -537,11 +537,11 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     out.puts(s"if (${flagForInstName(instName)})")
     out.inc
-    instanceReturn(instName, dataType)
+    instanceReturn(instName, dataType, false)
     out.dec
   }
 
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 

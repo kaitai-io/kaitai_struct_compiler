@@ -425,7 +425,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)} if (${privateMemberName(instName)});")
   }
 
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"return ${privateMemberName(instName)};")
   }
 

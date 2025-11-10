@@ -856,11 +856,11 @@ class CppCompiler(
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
     outSrc.puts(s"if (${calculatedFlagForName(instName)})")
     outSrc.inc
-    instanceReturn(instName, dataType)
+    instanceReturn(instName, dataType, false)
     outSrc.dec
   }
 
-  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit =
+  override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit =
     outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {

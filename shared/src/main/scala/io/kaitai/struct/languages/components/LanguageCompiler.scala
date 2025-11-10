@@ -194,7 +194,7 @@ abstract class LanguageCompiler(
   def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit
   /** Zig-specific at the time of introduction */
   def instanceTempVarDeclaration(dataType: DataType, isNullable: Boolean): Unit = {}
-  def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit
+  def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit
   def instanceInvalidate(instName: InstanceIdentifier): Unit = ???
   def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = ???
