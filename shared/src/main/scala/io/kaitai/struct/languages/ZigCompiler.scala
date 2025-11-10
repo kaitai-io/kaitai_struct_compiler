@@ -352,13 +352,8 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
-    val lhs = id match {
-      case _: InstanceIdentifier => "_v"
-      case _ => privateMemberName(id)
-    }
-    out.puts(s"$lhs = $expr;")
-  }
+  override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
+    out.puts(s"${privateMemberName(id)} = $expr;")
 
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"const $id = $expr;")
@@ -577,7 +572,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"if (${privateMemberName(instName)}) |_v|")
+    out.puts(s"if (self.${idToStr(instName)}) |_v|")
     out.inc
     out.puts("return _v;")
     out.dec
@@ -594,7 +589,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType): Unit = {
-    out.puts(s"${privateMemberName(instName)} = _v;")
+    out.puts(s"self.${idToStr(instName)} = _v;")
     out.puts(s"return _v;")
   }
 
@@ -705,7 +700,10 @@ object ZigCompiler extends LanguageCompilerStatic
     }
 
   def privateMemberName(id: Identifier): String =
-    s"self.${idToStr(id)}"
+    id match {
+      case _: InstanceIdentifier => "_v"
+      case _ => s"self.${idToStr(id)}"
+    }
 
   def kaitaiType2NativeType(attrType: DataType, importList: ImportList, curClass: ClassSpec): String = {
     attrType match {
