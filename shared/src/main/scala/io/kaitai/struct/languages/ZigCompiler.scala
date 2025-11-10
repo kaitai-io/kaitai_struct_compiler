@@ -590,19 +590,36 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
-  override def instanceTempVarDeclaration(dataType: DataType, isNullable: Boolean): Unit = {
-    val defaultValue =
-      if (isNullable) {
-        " = null"
-      } else {
-        " = undefined"
-      }
-    out.puts(s"var _v: ${kaitaiType2NativeType(dataType, isNullable)}$defaultValue;")
-  }
+  override def instanceTempVarDeclaration(dataType: DataType, isNullable: Boolean): Unit =
+    out.puts(s"var _v: ${kaitaiType2NativeType(dataType)} = undefined;")
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    if (isNullable) {
+      out.puts("if (_n) {")
+      out.inc
+      out.puts(s"self.${idToStr(instName)} = @as(${kaitaiType2NativeType(attrType, isNullable)}, null);")
+      out.puts("return null;")
+      out.dec
+      out.puts("} else {")
+      out.inc
+    }
     out.puts(s"self.${idToStr(instName)} = _v;")
     out.puts(s"return _v;")
+    if (isNullable) {
+      universalFooter
+    }
+  }
+
+  override def condIfSetNull(instName: Identifier): Unit = {
+    if (!instName.isInstanceOf[InstanceIdentifier])
+      return
+    out.puts("var _n = true;")
+  }
+
+  override def condIfSetNonNull(instName: Identifier): Unit = {
+    if (!instName.isInstanceOf[InstanceIdentifier])
+      return
+    out.puts("_n = false;")
   }
 
   override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(Long, String)]): Unit = {
