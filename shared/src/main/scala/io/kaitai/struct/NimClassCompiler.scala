@@ -69,15 +69,10 @@ class NimClassCompiler(
 
   // Must override just to add attribute docstrings
   override def compileSeqRead(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
-    var wasUnaligned = false
     seq.foreach { (attr) =>
-      val nowUnaligned = isUnalignedBits(attr.dataType)
-      if (wasUnaligned && !nowUnaligned)
-        lang.alignToByte(lang.normalIO)
       if (!attr.doc.isEmpty)
         lang.attributeDoc(attr.id, attr.doc)
       lang.attrParse(attr, attr.id, defEndian)
-      wasUnaligned = nowUnaligned
     }
   }
 

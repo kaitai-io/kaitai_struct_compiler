@@ -268,9 +268,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     translator.outAddErrCheck()
   }
 
-  override def alignToByte(io: String): Unit =
-    out.puts(s"$io.AlignToByte()")
-
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
     out.inc

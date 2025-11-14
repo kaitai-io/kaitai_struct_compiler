@@ -265,11 +265,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"try $io.seek(_pos);")
 
-  // NOTE: the compiler does not need to output alignToByte() calls for Zig,
-  // since the byte alignment is handled by the runtime library since commit
-  // https://github.com/kaitai-io/kaitai_struct_zig_runtime/commit/2b924d15347b5b60b8dd133314746ed823b9c048
-  override def alignToByte(io: String): Unit = {}
-
   override def condIfHeader(expr: expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
     out.inc

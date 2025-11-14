@@ -410,9 +410,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)?;")
 
-  override def alignToByte(io: String): Unit =
-    out.puts(s"${privateMemberName(IoIdentifier)}.align_to_byte()?;")
-
   override def privateMemberName(id: Identifier): String =
     RustCompiler.privateMemberName(id)
 

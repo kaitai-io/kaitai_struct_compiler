@@ -255,9 +255,6 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
-  override def alignToByte(io: String): Unit =
-    out.puts(s"$io.alignToByte();")
-
   override def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], rep: RepeatSpec): Unit = {
     val debugName = attrDebugName(attrId, rep, false)
 

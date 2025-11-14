@@ -332,13 +332,8 @@ class ClassCompiler(
     * @param defEndian default endianness
     */
   def compileSeqRead(seq: List[AttrSpec], defEndian: Option[FixedEndian]) = {
-    var wasUnaligned = false
     seq.foreach { (attr) =>
-      val nowUnaligned = isUnalignedBits(attr.dataType)
-      if (wasUnaligned && !nowUnaligned)
-        lang.alignToByte(lang.normalIO)
       lang.attrParse(attr, attr.id, defEndian)
-      wasUnaligned = nowUnaligned
     }
   }
 
@@ -478,13 +473,6 @@ class ClassCompiler(
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =
     lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.map.toSeq)
-
-  def isUnalignedBits(dt: DataType): Boolean =
-    dt match {
-      case _: BitsType | _: BitsType1 => true
-      case et: EnumType => isUnalignedBits(et.basedOn)
-      case _ => false
-    }
 
   def compileClassDoc(curClass: ClassSpec): Unit = {
     if (!curClass.doc.isEmpty)

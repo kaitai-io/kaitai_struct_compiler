@@ -171,7 +171,6 @@ abstract class LanguageCompiler(
   def seek(io: String, pos: Ast.expr): Unit
   def seekRelative(io: String, relPos: String): Unit = ???
   def popPos(io: String): Unit
-  def alignToByte(io: String): Unit
 
   def exprIORemainingSize(io: String): String = ???
 

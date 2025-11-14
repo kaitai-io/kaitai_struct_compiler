@@ -508,11 +508,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
-  // NOTE: the compiler does not need to output alignToByte() calls for Java anymore,
-  // since the byte alignment is handled by the runtime library since commit
-  // https://github.com/kaitai-io/kaitai_struct_java_runtime/commit/1bc75aa91199588a1cb12a5a1c672b80b66619ac
-  override def alignToByte(io: String): Unit = {}
-
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
       val name = idToStr(attrId)

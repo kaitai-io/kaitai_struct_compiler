@@ -267,9 +267,6 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"$io->seek($$_pos);")
 
-  override def alignToByte(io: String): Unit =
-    out.puts(s"$io->alignToByte();")
-
   override def condIfHeader(expr: Ast.expr): Unit = {
     out.puts(s"if (${expression(expr)}) {")
     out.inc

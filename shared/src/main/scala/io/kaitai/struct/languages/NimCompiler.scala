@@ -81,7 +81,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def ksErrorName(err: KSError): String = "KaitaiError" // TODO: maybe add more debugging info
 
   // Members declared in io.kaitai.struct.languages.components.LanguageCompiler
-  override def alignToByte(io: String): Unit = out.puts(s"alignToByte($io)")
   // def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = ???
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
     out.puts("if this.isLe:")

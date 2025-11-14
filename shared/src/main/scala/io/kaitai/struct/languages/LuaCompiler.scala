@@ -252,8 +252,6 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$io:seek(${expression(pos)})")
   override def popPos(io: String): Unit =
     out.puts(s"$io:seek(_pos)")
-  override def alignToByte(io: String): Unit =
-    out.puts(s"$io:align_to_byte()")
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${types2class(className)}.property.${publicMemberName(instName)} = {}")

@@ -262,9 +262,6 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)")
 
-  override def alignToByte(io: String): Unit =
-    out.puts(s"$io.align_to_byte")
-
   override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
       val name = idToStr(attrId)
