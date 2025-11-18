@@ -19,12 +19,12 @@ jobs:
         working-directory: compiler
     steps:
       - name: Checkout compiler
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
           path: compiler
       - name: Checkout tests
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
           repository: kaitai-io/kaitai_struct_tests
