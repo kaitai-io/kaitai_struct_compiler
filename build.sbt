@@ -37,7 +37,7 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
       }
     },
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.13.13",
+    scalaVersion := "2.13.15",
     scalacOptions := Seq("-unchecked", "-deprecation"),
 
     // new setting for the Central Portal (see https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html#step+4%3A+Configure+build.sbt)
@@ -70,7 +70,7 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
     Compile / sourceGenerators += generateVersionTask.taskValue, // update automatically on every rebuild
 
     libraryDependencies ++= Seq(
-      "com.github.scopt" %%% "scopt" % "4.1.0",
+      "org.rogach" %%% "scallop" % "5.2.0",
       "com.lihaoyi" %%% "fastparse" % "2.3.3",
       "org.yaml" % "snakeyaml" % "2.0"
     )
