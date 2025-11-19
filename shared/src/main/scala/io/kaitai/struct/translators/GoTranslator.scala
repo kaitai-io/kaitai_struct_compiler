@@ -69,11 +69,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         trInterpolatedStringLiteral(s)
       case Ast.expr.Bool(n) =>
         trBoolLiteral(n)
-      case Ast.expr.EnumById(enumType, id, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
-        trEnumById(enumSpec.name, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
+      case Ast.expr.EnumById(ref, expr) =>
+        val enumSpec = provider.resolveEnum(ref)
+        trEnumById(enumSpec.name, translate(expr))
+      case Ast.expr.EnumByLabel(ref, label) =>
+        val enumSpec = provider.resolveEnum(ref)
         trEnumByLabel(enumSpec.name, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
