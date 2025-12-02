@@ -333,44 +333,6 @@ object DataType {
       ParseUtils.ensureLegalKeys(switchSpec, LEGAL_KEYS_SWITCH, path)
       (_on, _cases)
     }
-
-    def fromYaml(
-      switchSpec: Map[String, Any],
-      path: List[String],
-      metaDef: MetaSpec,
-      arg: YamlAttrArgs
-    ): SwitchType = {
-      val (_on, _cases) = fromYaml1(switchSpec, path)
-
-      val on = Expressions.parse(_on)
-      val cases: Map[Ast.expr, DataType] = SortedMap.from(
-        _cases.map { case (condition, typeName) =>
-          Expressions.parse(condition) -> DataType.fromYaml(
-            Some(typeName), path ++ List("cases"), metaDef,
-            arg
-          )
-        })
-
-      // If we have size defined, and we don't have any "else" case already, add
-      // an implicit "else" case that will at least catch everything else as
-      // "untyped" byte array of given size
-      val addCases: Map[Ast.expr, DataType] = if (cases.contains(ELSE_CONST)) {
-        Map()
-      } else {
-        (arg.size, arg.sizeEos) match {
-          case (Some(sizeValue), false) =>
-            Map(SwitchType.ELSE_CONST -> BytesLimitType(sizeValue, None, false, None, arg.process))
-          case (None, true) =>
-            Map(SwitchType.ELSE_CONST -> BytesEosType(None, false, None, arg.process))
-          case (None, false) =>
-            Map()
-          case (Some(_), true) =>
-            throw KSYParseError("can't have both `size` and `size-eos` defined", path).toException
-        }
-      }
-
-      SwitchType(on, SortedMap.from(cases ++ addCases))
-    }
   }
 
   private val ReIntType = """([us])(2|4|8)(le|be)?""".r
