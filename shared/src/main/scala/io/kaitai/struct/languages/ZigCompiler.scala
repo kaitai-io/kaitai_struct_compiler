@@ -7,7 +7,9 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.ZigTranslator
+import io.kaitai.struct.translators.{ZigTranslator, TypeDetector}
+
+import scala.collection.mutable
 
 class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   extends LanguageCompiler(typeProvider, config)
@@ -632,6 +634,36 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("};")
   }
 
+  override def switchTaggedUnionDeclaration(attrName: Identifier, cases: Map[Ast.expr, DataType]): Unit = {
+    out.puts(s"pub const ${switchTaggedUnionName(attrName)} = union(enum) {")
+    out.inc
+
+    val fieldName2TypeMap = mutable.LinkedHashMap[String, DataType]()
+    cases.foreach { case (_, caseType) =>
+      val unionFieldName = dataTypeToUnionFieldName(caseType)
+      fieldName2TypeMap.get(unionFieldName) match {
+        case Some(existingType) =>
+          if (!TypeDetector.canAssign(caseType, existingType)) {
+            throw new NotImplementedError(
+              s"type switching in attribute ${attrName} requires avoiding " +
+                "union field name collisions in Zig, which is not yet implemented"
+            )
+          }
+        case None =>
+          fieldName2TypeMap.put(unionFieldName, caseType)
+      }
+    }
+
+    fieldName2TypeMap.foreach { case (fieldName, dataType) =>
+      out.puts(s"$fieldName: ${kaitaiType2NativeType(dataType)},")
+    }
+
+    out.dec
+    out.puts("};")
+  }
+
+  override def switchUsesTaggedUnion(st: SwitchType): Boolean = ZigCompiler.switchUsesTaggedUnion(st)
+
   override def classToString(toStringExpr: Ast.expr): Unit = {
     out.puts
     out.puts("@Override")
@@ -729,8 +761,8 @@ object ZigCompiler extends LanguageCompilerStatic
       case _ => s"self.${idToStr(id)}"
     }
 
-  def kaitaiType2NativeType(attrType: DataType, importList: ImportList, curClass: ClassSpec): String = {
-    attrType match {
+  private def numericType2NativeType(nt: NumericType): String =
+    nt match {
       case Int1Type(false) => "u8"
       case IntMultiType(false, Width2, _) => "u16"
       case IntMultiType(false, Width4, _) => "u32"
@@ -746,9 +778,14 @@ object ZigCompiler extends LanguageCompilerStatic
 
       case BitsType(_, _) => "u64"
 
-      case _: BooleanType => "bool"
       case CalcIntType => "i32"
       case CalcFloatType => "f64"
+    }
+
+  def kaitaiType2NativeType(attrType: DataType, importList: ImportList, curClass: ClassSpec): String = {
+    attrType match {
+      case nt: NumericType => numericType2NativeType(nt)
+      case _: BooleanType => "bool"
 
       case _: StrType => "[]const u8"
       case _: BytesType => "[]const u8"
@@ -784,6 +821,35 @@ object ZigCompiler extends LanguageCompilerStatic
     } else {
       nonNullable
     }
+  }
+
+  def switchUsesTaggedUnion(st: SwitchType): Boolean = {
+    st.combinedType match {
+      case KaitaiStructType | CalcKaitaiStructType(_) | AnyType =>
+        true
+      case _ =>
+        false
+    }
+  }
+
+  def dataTypeToUnionFieldName(dataType: DataType): String =
+    dataType match {
+      case nt: NumericType => numericType2NativeType(nt)
+      case _: BooleanType => "bool"
+      case _: StrType => "str"
+      case _: BytesType => "bytes"
+      case ut: UserType => ut.name.last
+      // NOTE: at the time of writing, this is unreachable because the `enum` key is not compatible
+      // with type switching
+      case et: EnumType => et.name.last
+    }
+
+  def switchTaggedUnionName(id: Identifier): String = {
+    val baseName = id match {
+      case InstanceIdentifier(name) => name
+      case _ => idToStr(id)
+    }
+    s"${type2class(baseName)}_switch"
   }
 
   /** @note Same as [[PythonCompiler.types2class]] */

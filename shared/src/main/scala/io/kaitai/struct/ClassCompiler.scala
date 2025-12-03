@@ -54,6 +54,12 @@ class ClassCompiler(
     if (lang.innerEnums)
       compileEnums(curClass)
 
+    val parsedAttrs = curClass.seq ++ curClass.instances.values.collect {
+      case inst: AttrLikeSpec => inst
+    }
+
+    compileSwitchTaggedUnions(parsedAttrs)
+
     if (lang.config.readStoresPos)
       lang.debugClassSequence(curClass.seq)
 
@@ -63,9 +69,7 @@ class ClassCompiler(
     // Read method(s)
     compileEagerRead(curClass.seq, curClass.meta.endian)
 
-    compileFetchInstancesProc(curClass.seq ++ curClass.instances.values.collect {
-      case inst: AttrLikeSpec => inst
-    })
+    compileFetchInstancesProc(parsedAttrs)
 
     if (config.readWrite) {
       compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
@@ -383,6 +387,17 @@ class ClassCompiler(
     */
   def compileEnums(curClass: ClassSpec): Unit =
     curClass.enums.foreach { case(_, enumColl) => compileEnum(curClass, enumColl) }
+
+  def compileSwitchTaggedUnions(attrs: List[AttrLikeSpec]): Unit = {
+    attrs.foreach { (attr) =>
+      attr.dataType match {
+        case st: SwitchType =>
+          if (lang.switchUsesTaggedUnion(st))
+            lang.switchTaggedUnionDeclaration(attr.id, st.cases)
+        case _ => // do nothing
+      }
+    }
+  }
 
   /**
     * Compile subclasses for a given class.
