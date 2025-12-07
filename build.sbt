@@ -37,7 +37,7 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
       }
     },
     licenses := Seq(("GPL-3.0", url("https://opensource.org/licenses/GPL-3.0"))),
-    scalaVersion := "2.13.13",
+    scalaVersion := "2.13.18",
     scalacOptions := Seq("-unchecked", "-deprecation"),
 
     // new setting for the Central Portal (see https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html#step+4%3A+Configure+build.sbt)
