@@ -6,7 +6,7 @@ import sbt.Keys.*
 
 val NAME = "kaitai-struct-compiler"
 val VERSION = "0.12-SNAPSHOT"
-val TARGET_LANGS = "C++/STL, C#, Go, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby, Rust"
+val TARGET_LANGS = "C++/STL, C#, Go, Java, JavaScript, Lua, Nim, Perl, PHP, Python, Ruby, Rust, Zig"
 val UTF8 = Charset.forName("UTF-8")
 
 lazy val root = project.in(file(".")).
