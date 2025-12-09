@@ -126,6 +126,15 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
     val value = translate(v)
     s"(${enumInverseMap(et)}[$value] || $value)"
   }
+  override def enumToStr(v: Ast.expr, et: EnumType): String = {
+    // Ruby enums are implemented as symbols which have bare enum name + `_` + label.
+    // Here we just need the label part, so we'll strip the enum name prefix.
+
+    val enumPrefixLength = et.name.last.length + 1 // +1 for the underscore
+
+    s"${translate(v, METHOD_PRECEDENCE)}.to_s[$enumPrefixLength..-1]"
+  }
+
   override def floatToInt(v: Ast.expr): String =
     s"${translate(v, METHOD_PRECEDENCE)}.to_i"
   override def intToStr(i: Ast.expr): String =
