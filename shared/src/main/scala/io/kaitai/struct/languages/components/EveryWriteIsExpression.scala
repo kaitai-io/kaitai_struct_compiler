@@ -406,8 +406,8 @@ trait EveryWriteIsExpression
       },
       (dataType) => if (switchBytesOnlyAsRaw) {
         dataType match {
-          case t: BytesType =>
-            attrWrite2(RawIdentifier(id), dataType, io, rep, false, defEndian, checksShouldDependOnIo, Some(assignType))
+          case _: BytesType =>
+            attrWrite2(RawIdentifier(id), dataType, io, rep, false, defEndian, checksShouldDependOnIo)
           case _ =>
             attrWrite2(id, dataType, io, rep, false, defEndian, checksShouldDependOnIo, Some(assignType))
         }

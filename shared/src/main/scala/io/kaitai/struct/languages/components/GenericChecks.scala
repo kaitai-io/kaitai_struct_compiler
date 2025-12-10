@@ -456,8 +456,8 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       },
       (dataType) => if (switchBytesOnlyAsRaw) {
         dataType match {
-          case t: BytesType =>
-            attrCheck2(RawIdentifier(id), dataType, rep, shouldDependOnIo, Some(assignType))
+          case _: BytesType =>
+            attrCheck2(RawIdentifier(id), dataType, rep, shouldDependOnIo)
           case _ =>
             attrCheck2(id, dataType, rep, shouldDependOnIo, Some(assignType))
         }

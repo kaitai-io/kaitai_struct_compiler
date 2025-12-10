@@ -279,8 +279,8 @@ trait EveryReadIsExpression
       },
       (dataType) => if (switchBytesOnlyAsRaw) {
         dataType match {
-          case t: BytesType =>
-            attrParse2(RawIdentifier(id), dataType, io, rep, false, defEndian, Some(assignType))
+          case _: BytesType =>
+            attrParse2(RawIdentifier(id), dataType, io, rep, false, defEndian)
           case _ =>
             attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
         }
