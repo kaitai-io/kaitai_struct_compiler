@@ -344,17 +344,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  private def combinedType(dataType: DataType) = {
-    dataType match {
-      case st: SwitchType => st.combinedType
-      case _ => dataType
-    }
-  }
-
   private def handleCompositeTypeCast(id: Identifier, r: TranslatorResult): TranslatorResult = {
     id match {
       case NamedIdentifier(name) =>
-        castToType(r, combinedType(typeProvider.determineType(name)))
+        castToType(r, typeProvider.determineType(name).asCombined)
       case _ =>
         r
     }

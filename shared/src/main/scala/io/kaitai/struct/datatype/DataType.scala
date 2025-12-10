@@ -14,6 +14,13 @@ sealed trait DataType {
     *         always returns itself, complex types
     */
   def asNonOwning(isOwningInExpr: Boolean = false): DataType = this
+
+  /**
+    * @return The resulting combined data type. By default, it returns the
+    *         type itself, except for `SwitchType`, for which it returns its
+    *         `combinedType`.
+    */
+  def asCombined: DataType = this
 }
 
 /**
@@ -273,6 +280,8 @@ object DataType {
     override val isOwningInExpr: Boolean = false
   ) extends ComplexDataType {
     def combinedType: DataType = TypeDetector.combineTypes(cases.values)
+
+    override def asCombined: DataType = combinedType
 
     /**
       * @return True if this switch type includes an "else" case

@@ -22,10 +22,7 @@ class TypeDetector(provider: TypeProvider) {
     * @return data type
     */
   def detectType(v: Ast.expr): DataType = {
-    detectTypeRaw(v) match {
-      case st: SwitchType => st.combinedType
-      case other => other
-    }
+    detectTypeRaw(v).asCombined
   }
 
   /**
