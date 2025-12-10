@@ -227,12 +227,6 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
     try {
       detector.detectType(expr) match {
         case _: T => // good
-        case st: SwitchType =>
-          st.combinedType match {
-            case _: T => // good
-            case actual =>
-              return Some(ExpressionTypeError(expectStr, actual, path ++ List(pathKey)))
-          }
         case actual =>
           return Some(ExpressionTypeError(expectStr, actual, path ++ List(pathKey)))
       }
@@ -270,17 +264,7 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
       if (detected == expected) {
         // good
       } else {
-        detected match {
-          case st: SwitchType =>
-            val combinedType = st.combinedType
-            if (combinedType == expected) {
-              // good
-            } else {
-              return Some(ExpressionTypeError(expectStr, combinedType, path ++ List(pathKey)))
-            }
-          case actual =>
-            return Some(ExpressionTypeError(expectStr, actual, path ++ List(pathKey)))
-        }
+        return Some(ExpressionTypeError(expectStr, detected, path ++ List(pathKey)))
       }
       detector.validate(expr)
       None
