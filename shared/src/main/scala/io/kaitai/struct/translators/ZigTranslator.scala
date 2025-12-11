@@ -155,8 +155,16 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
     s"${translate(container)}.items[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(if (${translate(condition)}) ${translate(ifTrue)} else ${translate(ifFalse)})"
-  override def doCast(value: Ast.expr, typeName: DataType): String =
-    s"@as(${ZigCompiler.kaitaiType2NativeType(typeName, importList, provider.nowClass)}, ${translate(value)})"
+  override def doCast(value: Ast.expr, typeName: DataType): String = {
+    val valueType = detectTypeRaw(value)
+    valueType match {
+      case st: SwitchType if (ZigCompiler.switchUsesTaggedUnion(st)) =>
+        val unionFieldName = ZigCompiler.dataTypeToUnionFieldName(typeName)
+        s"${translate(value, METHOD_PRECEDENCE)}.$unionFieldName"
+      case _ =>
+        s"@as(${ZigCompiler.kaitaiType2NativeType(typeName, importList, provider.nowClass)}, ${translate(value)})"
+    }
+  }
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =

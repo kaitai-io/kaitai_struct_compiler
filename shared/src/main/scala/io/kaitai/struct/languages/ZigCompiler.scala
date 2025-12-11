@@ -410,7 +410,13 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         s"${types2class(t.name, t.isExternal(typeProvider.nowClass))}.create(self._arena, $io, $parent, $root$addEndian$addParams)"
     }
-    s"try $expr"
+    val tryExpr = s"try $expr"
+    assignType match {
+      case st: SwitchType if switchUsesTaggedUnion(st) =>
+        val unionFieldName = dataTypeToUnionFieldName(dataType)
+        s".{ .$unionFieldName = $tryExpr }"
+      case _ => tryExpr
+    }
   }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {
@@ -433,8 +439,9 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
-    val expr = if (assignType.asCombined != dataType) {
-      s"@as(${kaitaiType2NativeType(dataType)}, $id)"
+    val expr = if (assignType != dataType && switchUsesTaggedUnion(assignType.asInstanceOf[SwitchType])) {
+      val unionFieldName = dataTypeToUnionFieldName(dataType)
+      s"$id.$unionFieldName"
     } else {
       id
     }
@@ -810,7 +817,12 @@ object ZigCompiler extends LanguageCompilerStatic
 
       case at: ArrayType => s"*_imp_std.ArrayList(${kaitaiType2NativeType(at.elType, importList, curClass)})"
 
-      case st: SwitchType => kaitaiType2NativeType(st.combinedType, importList, curClass)
+      case st: SwitchType =>
+        if (switchUsesTaggedUnion(st)) {
+          switchTaggedUnionName(st.attrId)
+        } else {
+          kaitaiType2NativeType(st.combinedType, importList, curClass)
+        }
     }
   }
 

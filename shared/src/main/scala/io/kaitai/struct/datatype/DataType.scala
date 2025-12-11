@@ -274,6 +274,7 @@ object DataType {
   }
 
   case class SwitchType(
+    attrId: Identifier,
     on: Ast.expr,
     cases: SortedMap[Ast.expr, DataType],
     isOwning: Boolean = true,
@@ -318,7 +319,7 @@ object DataType {
         t.isInstanceOf[UserTypeFromBytes] || t.isInstanceOf[BytesType]
       )
 
-    override def asNonOwning(isOwningInExpr: Boolean = false): DataType = SwitchType(on, cases, false, isOwningInExpr)
+    override def asNonOwning(isOwningInExpr: Boolean = false): DataType = SwitchType(attrId, on, cases, false, isOwningInExpr)
   }
 
   object SwitchType {
