@@ -428,6 +428,16 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val assignType = assignTypeRaw.asCombined
     if (assignType != dataType) {
+      // Copied from JavaCompiler.castIfNeeded()
+      val isUpcast =
+        (dataType, assignType) match {
+          case (_, AnyType) => true
+          case (_: UserType, KaitaiStructType | CalcKaitaiStructType(_)) => true
+          case _ => false
+        }
+      if (isUpcast) {
+        return expr
+      }
       s"${ksToNim(assignType)}($expr)"
     } else {
       expr

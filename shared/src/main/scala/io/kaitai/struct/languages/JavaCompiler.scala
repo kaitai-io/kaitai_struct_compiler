@@ -1242,8 +1242,21 @@ object JavaCompiler extends LanguageCompilerStatic
       kaitaiType2JavaTypePrim(attrType, importList, config)
     }
 
-  def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType, importList: ImportList, config: RuntimeConfig): String =
+  def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType, importList: ImportList, config: RuntimeConfig): String = {
     if (exprType != targetType) {
+      // In Java, upcasting can be performed implicitly, without the need for explicit conversion.
+      //
+      // It's not that important whether we detect *all* upcasting scenarios here. If we do not
+      // detect one, it only means that an unnecessary (but harmless) type cast will be generated.
+      val isUpcast =
+        (exprType, targetType) match {
+          case (_, AnyType) => true
+          case (_: UserType, KaitaiStructType | CalcKaitaiStructType(_)) => true
+          case _ => false
+        }
+      if (isUpcast) {
+        return exprRaw
+      }
       val castTypeId = kaitaiType2JavaTypePrim(targetType, importList, config)
       targetType match {
         // Handles both unboxing + downcasting at the same time if needed
@@ -1256,6 +1269,7 @@ object JavaCompiler extends LanguageCompilerStatic
     } else {
       exprRaw
     }
+  }
 
   /**
     * Determine Java data type corresponding to a KS data type. A "primitive" type (i.e. "int", "long", etc) will
