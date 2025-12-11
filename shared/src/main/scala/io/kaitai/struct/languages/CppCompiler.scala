@@ -734,7 +734,7 @@ class CppCompiler(
   }
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
-    val expr = if (assignType != dataType) {
+    val expr = if (assignType.asCombined != dataType) {
       s"static_cast<${kaitaiType2NativeType(dataType)}>($id)"
     } else {
       id

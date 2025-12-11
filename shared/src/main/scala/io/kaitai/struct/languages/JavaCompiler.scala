@@ -673,7 +673,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"new ${types2class(t.name)}($io$addArgs$addParams)"
     }
 
-    castIfNeeded(expr, dataType, assignType)
+    castIfNeeded(expr, dataType, assignType.asCombined)
   }
 
   override def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
@@ -718,7 +718,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
-    val expr = castIfNeeded(id, assignType, dataType)
+    val expr = castIfNeeded(id, assignType.asCombined, dataType)
     out.puts(s"$expr._read();")
   }
 

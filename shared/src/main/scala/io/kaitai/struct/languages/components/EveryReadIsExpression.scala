@@ -46,7 +46,7 @@ trait EveryReadIsExpression
           st.isNullable
         })
 
-        attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, isNullable, st.combinedType)
+        attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, isNullable, st)
       case t: StrFromBytesType =>
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), t.encoding)
         handleAssignment(id, expr, rep, isRaw)
@@ -266,7 +266,7 @@ trait EveryReadIsExpression
     rep: RepeatSpec,
     defEndian: Option[FixedEndian],
     isNullable: Boolean,
-    assignType: DataType
+    assignType: SwitchType
   ): Unit = {
     if (isNullable)
       condIfSetNull(id)

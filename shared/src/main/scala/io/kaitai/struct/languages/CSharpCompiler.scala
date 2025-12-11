@@ -405,7 +405,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
-    val expr = if (assignType != dataType) {
+    val expr = if (assignType.asCombined != dataType) {
       s"((${kaitaiType2NativeType(dataType)}) ($id))"
     } else {
       id

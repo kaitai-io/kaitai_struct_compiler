@@ -386,7 +386,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = $exprName")
   }
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = {}
-  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
+  override def parseExpr(dataType: DataType, assignTypeRaw: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     val expr = dataType match {
       case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
@@ -426,6 +426,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"${concreteName}.read($io, $root, $parent$addParams)"
     }
 
+    val assignType = assignTypeRaw.asCombined
     if (assignType != dataType) {
       s"${ksToNim(assignType)}($expr)"
     } else {

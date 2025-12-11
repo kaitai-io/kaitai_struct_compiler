@@ -33,7 +33,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     rep: RepeatSpec,
     defEndian: Option[FixedEndian],
     isNullable: Boolean,
-    assignType: DataType
+    assignType: SwitchType
   ): Unit = {
     switchCases[DataType](id, on, cases,
       (dataType) => {
@@ -63,7 +63,7 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
       case t: BytesType =>
         attrBytesTypeParse(id, t, io, rep, isRaw)
       case st: SwitchType =>
-        attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, st.isNullableSwitchRaw, st.combinedType)
+        attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, st.isNullableSwitchRaw, st)
       case t: StrFromBytesType =>
         val r1 = parseExprBytes(translator.outVarCheckRes(parseExpr(t.bytes, io, defEndian)), t.bytes)
         val expr = translator.bytesToStr(translator.resToStr(r1), t.encoding)
