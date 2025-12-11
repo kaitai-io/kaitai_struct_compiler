@@ -102,7 +102,7 @@ trait EveryReadIsExpression
         // no fixed buffer, just use regular IO
         io
     }
-    val expr = parseExpr(dataType, dataType, newIO, defEndian)
+    val expr = parseExpr(dataType, assignType, newIO, defEndian)
     if (config.autoRead) {
       handleAssignment(id, expr, rep, false)
     } else {
