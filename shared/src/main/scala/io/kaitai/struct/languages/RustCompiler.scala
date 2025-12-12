@@ -752,10 +752,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }, "", ", ", "")
   }
 
-  override def parseExpr(dataType: DataType,
-                         assignType: DataType,
-                         io: String,
-                         defEndian: Option[FixedEndian]): String = {
+  override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     var addParams = ""
     dataType match {
       case t: ReadableType =>
@@ -821,7 +818,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           out.puts(s"let t = Self::read_into_with_init::<$streamType, $userType>($io2$addArgs, &f)?.into();")
         }
         return s"t"
-      case _ => s"// parseExpr($dataType, $assignType, $io, $defEndian)"
+      case _ => s"// parseExpr($dataType, $io, $defEndian)"
     }
   }
 
@@ -1202,6 +1199,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                            defEndian: Option[FixedEndian],
                            assignTypeOpt: Option[DataType] = None
                          ): Unit = {
+    val assignType = assignTypeOpt.getOrElse(dataType)
     dataType match {
       case t: EnumType =>
         val expr =
@@ -1211,7 +1209,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case BitsType(width: Int, bitEndian) =>
               s"($io.read_bits_int_${bitEndian.toSuffix}($width)? as i64).try_into()?"
           }
-        handleAssignment(id, expr, rep, isRaw)
+        handleAssignment(id, expr, rep, isRaw, dataType, assignType)
       case _ =>
         super.attrParse2(id, dataType, io, rep, isRaw, defEndian, assignTypeOpt)
     }

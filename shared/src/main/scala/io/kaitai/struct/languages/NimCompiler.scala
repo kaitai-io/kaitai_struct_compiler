@@ -385,8 +385,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = $exprName")
   }
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = {}
-  override def parseExpr(dataType: DataType, assignTypeRaw: DataType, io: String, defEndian: Option[FixedEndian]): String = {
-    val expr = dataType match {
+  override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
+    dataType match {
       case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
       case blt: BytesLimitType =>
@@ -424,12 +424,14 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // `$parent` and `$root` than literally every other language
         s"${concreteName}.read($io, $root, $parent$addParams)"
     }
+  }
 
-    val assignType = assignTypeRaw.asCombined
-    if (assignType != dataType) {
+  override def castIfNeeded(expr: String, exprType: DataType, targetType: DataType): String = {
+    val targetTypeComb = targetType.asCombined
+    if (targetTypeComb != exprType) {
       // Copied from JavaCompiler.castIfNeeded()
       val isUpcast =
-        (dataType, assignType) match {
+        (exprType, targetTypeComb) match {
           case (_, AnyType) => true
           case (_: UserType, KaitaiStructType | CalcKaitaiStructType(_)) => true
           case _ => false
@@ -437,11 +439,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       if (isUpcast) {
         return expr
       }
-      s"${ksToNim(assignType)}($expr)"
+      s"${ksToNim(targetTypeComb)}($expr)"
     } else {
       expr
     }
   }
+
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {} // TODO
 
   // Members declared in io.kaitai.struct.languages.components.SwitchOps

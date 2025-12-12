@@ -329,7 +329,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dt: BytesType, exprTypeOpt: Option[DataType]): Unit = {
+  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit = {
     val srcExpr = expression(Identifier.itemExpr(varSrc, rep))
 
     val expr = proc match {
@@ -372,7 +372,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$procName.encode($srcExpr)"
     }
-    handleAssignment(varDest, expr, rep, false)
+    handleAssignment(varDest, expr, rep, false, dataType, dataType)
   }
 
   override def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit = {
@@ -584,7 +584,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"$id = $expr")
 
-  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
+  override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
         s"$io.read_${t.apiCall(defEndian)}()"

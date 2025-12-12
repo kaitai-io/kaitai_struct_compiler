@@ -372,7 +372,7 @@ trait EveryWriteIsExpression
 
             {
               val parentIO = subIOWriteBackHeader(ioFixed, rep, byteType.process)
-              handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, true)
+              handleAssignment(rawId, exprStreamToByteArray(ioFixed), rep, true, byteType, byteType)
               attrBytesTypeWrite(rawId, byteType, parentIO, rep, isRaw, None, exprTypeOpt)
               subIOWriteBackFooter(ioFixed)
             }
@@ -424,7 +424,7 @@ trait EveryWriteIsExpression
   def attrUserTypeInstreamWrite(io: String, expr: Ast.expr, t: DataType, exprType: DataType): Unit
   def exprStreamToByteArray(ioFixed: String): String
 
-  def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dt: BytesType, exprTypeOpt: Option[DataType]): Unit
+  def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit
   def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit
 
   def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit

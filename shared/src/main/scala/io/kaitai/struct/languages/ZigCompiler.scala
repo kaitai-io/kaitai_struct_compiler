@@ -282,15 +282,23 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.* = .empty;")
   }
 
-  override def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
+  override def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean, exprType: DataType, assignType: DataType): Unit = {
     if (id.isInstanceOf[RawIdentifier]) {
       // Instead of assigning the expression to the `_raw_*` public field, we'll
       // use a local variable in Zig
       out.puts(s"const ${idToStr(id)} = $expr;")
     } else {
-      super.handleAssignment(id, expr, rep, isRaw)
+      super.handleAssignment(id, expr, rep, isRaw, exprType, assignType)
     }
   }
+
+  override def castIfNeeded(expr: String, exprType: DataType, targetType: DataType): String =
+    targetType match {
+      case st: SwitchType if switchUsesTaggedUnion(st) =>
+        val unionFieldName = dataTypeToUnionFieldName(exprType)
+        s".{ .$unionFieldName = $expr }"
+      case _ => expr
+    }
 
   override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     out.puts("{")
@@ -372,7 +380,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def blockScopeFooter: Unit = universalFooter
 
-  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
+  override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     val expr = dataType match {
       case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
@@ -409,13 +417,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         s"${types2class(t.name, t.isExternal(typeProvider.nowClass))}.create(self._arena, $io, $parent, $root$addEndian$addParams)"
     }
-    val tryExpr = s"try $expr"
-    assignType match {
-      case st: SwitchType if switchUsesTaggedUnion(st) =>
-        val unionFieldName = dataTypeToUnionFieldName(dataType)
-        s".{ .$unionFieldName = $tryExpr }"
-      case _ => tryExpr
-    }
+    s"try $expr"
   }
 
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {

@@ -36,7 +36,7 @@ trait EveryReadIsExpression
       case t: UserType =>
         attrUserTypeParse(id, t, io, rep, defEndian, assignType)
       case t: BytesType =>
-        attrBytesTypeParse(id, t, io, rep, isRaw)
+        attrBytesTypeParse(id, t, io, rep, isRaw, assignType)
       case st: SwitchType =>
         // nullability of a single switch-type element doesn't affect the nullability of the whole array,
         // see https://github.com/kaitai-io/kaitai_struct/issues/494
@@ -49,13 +49,13 @@ trait EveryReadIsExpression
         attrSwitchTypeParse(id, st.on, st.cases, io, rep, defEndian, isNullable, st)
       case t: StrFromBytesType =>
         val expr = translator.bytesToStr(parseExprBytes(t.bytes, io), t.encoding)
-        handleAssignment(id, expr, rep, isRaw)
+        handleAssignment(id, expr, rep, isRaw, dataType, assignType)
       case t: EnumType =>
-        val expr = translator.doEnumById(t.enumSpec.get, parseExpr(t.basedOn, t.basedOn, io, defEndian))
-        handleAssignment(id, expr, rep, isRaw)
+        val expr = translator.doEnumById(t.enumSpec.get, parseExpr(t.basedOn, io, defEndian))
+        handleAssignment(id, expr, rep, isRaw, dataType, assignType)
       case _ =>
-        val expr = parseExpr(dataType, assignType, io, defEndian)
-        handleAssignment(id, expr, rep, isRaw)
+        val expr = parseExpr(dataType, io, defEndian)
+        handleAssignment(id, expr, rep, isRaw, dataType, assignType)
     }
   }
 
@@ -64,26 +64,27 @@ trait EveryReadIsExpression
     dataType: BytesType,
     io: String,
     rep: RepeatSpec,
-    isRaw: Boolean
+    isRaw: Boolean,
+    assignType: DataType
   ): Unit = {
-    // use intermediate variable name, if we'll be doing post-processing
-    val rawId = dataType.process match {
-      case None => id
-      case Some(_) => RawIdentifier(id)
-    }
-
     val expr = parseExprBytes(dataType, io)
-    handleAssignment(rawId, expr, rep, isRaw)
 
-    // apply post-processing
-    dataType.process.foreach { (proc) =>
-      val expr = attrProcess(proc, rawId, rep)
-      handleAssignment(id, expr, rep, false)
+    dataType.process match {
+      case None =>
+        handleAssignment(id, expr, rep, isRaw, dataType, assignType)
+      case Some(proc) =>
+        // use intermediate variable name if we're doing post-processing
+        val rawId = RawIdentifier(id)
+        handleAssignment(rawId, expr, rep, isRaw, dataType, dataType)
+
+        // apply post-processing
+        val procExpr = attrProcess(proc, rawId, rep)
+        handleAssignment(id, procExpr, rep, false, dataType, assignType)
     }
   }
 
   def parseExprBytes(dataType: BytesType, io: String): String = {
-    val expr = parseExpr(dataType, dataType, io, None)
+    val expr = parseExpr(dataType, io, None)
 
     // apply pad stripping and termination
     dataType match {
@@ -105,9 +106,9 @@ trait EveryReadIsExpression
         // no fixed buffer, just use regular IO
         io
     }
-    val expr = parseExpr(dataType, assignType, newIO, defEndian)
+    val expr = parseExpr(dataType, newIO, defEndian)
     if (config.autoRead) {
-      handleAssignment(id, expr, rep, false)
+      handleAssignment(id, expr, rep, false, dataType, assignType)
     } else {
       // Disabled autoRead forces us to call the `_read` method on constructed user type explicitly.
       // This must be done as a separate statement, otherwise if `_read` fails, only the error would
@@ -117,7 +118,7 @@ trait EveryReadIsExpression
       // relies on this).
       rep match {
         case NoRepeat =>
-          handleAssignmentSimple(id, expr)
+          handleAssignment(id, expr, rep, false, dataType, assignType)
           userTypeDebugRead(privateMemberName(id), dataType, assignType)
         case _ =>
           // Repetitions of user types are tricky because we want both of these almost contradictory
@@ -156,7 +157,7 @@ trait EveryReadIsExpression
           handleAssignmentTempVar(dataType, tempVarName, expr)
           tryFinally(
             () => userTypeDebugRead(tempVarName, dataType, assignType),
-            () => handleAssignment(id, tempVarName, rep, false)
+            () => handleAssignment(id, tempVarName, rep, false, dataType, assignType)
           )
       }
     }
@@ -293,14 +294,18 @@ trait EveryReadIsExpression
     )
   }
 
-  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean): Unit = {
+  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean, exprType: DataType, assignType: DataType): Unit = {
+    val castedExpr = castIfNeeded(expr, exprType, assignType)
     rep match {
-      case RepeatEos => handleAssignmentRepeatEos(id, expr)
-      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, expr)
-      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, expr, isRaw)
-      case NoRepeat => handleAssignmentSimple(id, expr)
+      case RepeatEos => handleAssignmentRepeatEos(id, castedExpr)
+      case RepeatExpr(_) => handleAssignmentRepeatExpr(id, castedExpr)
+      case RepeatUntil(_) => handleAssignmentRepeatUntil(id, castedExpr, isRaw)
+      case NoRepeat => handleAssignmentSimple(id, castedExpr)
     }
   }
+
+  def castIfNeeded(expr: String, exprType: DataType, targetType: DataType): String =
+    expr
 
   def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit
   def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit
@@ -308,7 +313,7 @@ trait EveryReadIsExpression
   def handleAssignmentSimple(id: Identifier, expr: String): Unit
   def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = ???
 
-  def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String
+  def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String
   def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean): String
   def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = ???
   def tryFinally(tryBlock: () => Unit, finallyBlock: () => Unit): Unit = ???

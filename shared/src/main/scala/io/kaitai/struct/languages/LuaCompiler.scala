@@ -312,7 +312,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
     out.puts(s"local $id = $expr")
 
-  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = dataType match {
+  override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = dataType match {
     case t: ReadableType =>
       s"$io:read_${t.apiCall(defEndian)}()"
     case blt: BytesLimitType =>

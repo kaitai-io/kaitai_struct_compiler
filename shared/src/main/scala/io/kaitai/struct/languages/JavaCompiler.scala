@@ -398,7 +398,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"$procName.encode($srcExpr)"
     }
-    handleAssignment(varDest, expr, rep, false)
+    handleAssignment(varDest, expr, rep, false, dataType, dataType)
   }
 
   override def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit = {
@@ -634,8 +634,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
   override def blockScopeFooter: Unit = universalFooter
 
-  override def parseExpr(dataType: DataType, assignType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
-    val expr = dataType match {
+  override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
+    dataType match {
       case t: ReadableType =>
         s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
       case blt: BytesLimitType =>
@@ -671,8 +671,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
         s"new ${types2class(t.name)}($io$addArgs$addParams)"
     }
-
-    castIfNeeded(expr, dataType, assignType.asCombined)
   }
 
   override def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
@@ -1144,8 +1142,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
-  def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType): String =
-    JavaCompiler.castIfNeeded(exprRaw, exprType, targetType, importList, config)
+  override def castIfNeeded(expr: String, exprType: DataType, targetType: DataType): String =
+    JavaCompiler.castIfNeeded(expr, exprType, targetType, importList, config)
 
   def kaitaiType2JavaType(attrType: DataType): String =
     JavaCompiler.kaitaiType2JavaType(attrType, importList, config)
@@ -1241,7 +1239,8 @@ object JavaCompiler extends LanguageCompilerStatic
       kaitaiType2JavaTypePrim(attrType, importList, config)
     }
 
-  def castIfNeeded(exprRaw: String, exprType: DataType, targetType: DataType, importList: ImportList, config: RuntimeConfig): String = {
+  def castIfNeeded(expr: String, exprType: DataType, targetTypeRaw: DataType, importList: ImportList, config: RuntimeConfig): String = {
+    val targetType = targetTypeRaw.asCombined
     if (exprType != targetType) {
       // In Java, upcasting can be performed implicitly, without the need for explicit conversion.
       //
@@ -1254,7 +1253,7 @@ object JavaCompiler extends LanguageCompilerStatic
           case _ => false
         }
       if (isUpcast) {
-        return exprRaw
+        return expr
       }
       val castTypeId = kaitaiType2JavaTypePrim(targetType, importList, config)
       targetType match {
@@ -1262,11 +1261,11 @@ object JavaCompiler extends LanguageCompilerStatic
         // (solution from https://github.com/kaitai-io/kaitai_struct_compiler/pull/149)
         //
         // See also https://github.com/kaitai-io/kaitai_struct_compiler/pull/212#issuecomment-731149487
-        case _: NumericType => s"((Number) ($exprRaw)).${castTypeId}Value()"
-        case _ => s"(($castTypeId) ($exprRaw))"
+        case _: NumericType => s"((Number) ($expr)).${castTypeId}Value()"
+        case _ => s"(($castTypeId) ($expr))"
       }
     } else {
-      exprRaw
+      expr
     }
   }
 
