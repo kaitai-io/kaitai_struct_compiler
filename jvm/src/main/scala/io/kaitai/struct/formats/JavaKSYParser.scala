@@ -4,12 +4,14 @@ import java.io._
 import java.nio.charset.StandardCharsets
 import java.util.{List => JList, Map => JMap}
 import io.kaitai.struct.JavaMain.CLIConfig
+import io.kaitai.struct.exprlang.Structs
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
 import io.kaitai.struct.problems.{CompilationProblem, CompilationProblemException, ProblemCoords, ProblemSeverity, YAMLParserError}
-import io.kaitai.struct.{Log, Main}
+import io.kaitai.struct.{InputLoader, Log, Main}
 import org.yaml.snakeyaml.error.MarkedYAMLException
 import org.yaml.snakeyaml.{LoaderOptions, Yaml}
 
+import java.nio.file.{Files, Path}
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters._
@@ -39,30 +41,39 @@ object JavaKSYParser {
   def fileNameToSpec(yamlFilename: String): ClassSpec = {
     Log.fileOps.info(() => s"reading $yamlFilename...")
 
-    // This complex string of classes is due to the fact that Java's
-    // default "FileReader" implementation always uses system locale,
-    // which screws up encoding on some systems and screws up reading
-    // UTF-8 files with BOM
-    val fis = new FileInputStream(yamlFilename)
-    val isr = new InputStreamReader(fis, StandardCharsets.UTF_8)
-    val br = new BufferedReader(isr)
-    try {
-      val scalaSrc = readerToYaml(br)
-      ClassSpec.fromYaml(scalaSrc, Some(yamlFilename))
-    } catch {
-      case marked: MarkedYAMLException =>
-        val mark = marked.getProblemMark
-        throw CompilationProblemException(
-          YAMLParserError(
-            marked.getProblem,
-            ProblemCoords(
-              Some(yamlFilename),
-              None,
-              Some(mark.getLine + 1),
-              Some(mark.getColumn + 1)
+    val inputFormat = InputLoader.detectFormat(yamlFilename)
+
+    inputFormat match {
+      case InputLoader.KSY =>
+        // This complex string of classes is due to the fact that Java's
+        // default "FileReader" implementation always uses system locale,
+        // which screws up encoding on some systems and screws up reading
+        // UTF-8 files with BOM
+        val fis = new FileInputStream(yamlFilename)
+        val isr = new InputStreamReader(fis, StandardCharsets.UTF_8)
+        val br = new BufferedReader(isr)
+
+        try {
+          val scalaSrc = readerToYaml(br)
+          ClassSpec.fromYaml(scalaSrc, Some(yamlFilename))
+        } catch {
+          case marked: MarkedYAMLException =>
+            val mark = marked.getProblemMark
+            throw CompilationProblemException(
+              YAMLParserError(
+                marked.getProblem,
+                ProblemCoords(
+                  Some(yamlFilename),
+                  None,
+                  Some(mark.getLine + 1),
+                  Some(mark.getColumn + 1)
+                )
+              )
             )
-          )
-        )
+        }
+      case InputLoader.KSC =>
+        val fileAsStr = Files.readString(Path.of(yamlFilename), StandardCharsets.UTF_8)
+        Structs.parse(fileAsStr)
     }
   }
 
