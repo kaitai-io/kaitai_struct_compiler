@@ -205,11 +205,11 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, rep: RepeatSpec): String = {
     val srcExpr = getRawIdExpr(varSrc, rep)
     val minArgs = s"self._allocator(), $srcExpr"
 
-    val expr = proc match {
+    proc match {
       case ProcessXor(xorValue) =>
         val procName = translator.detectType(xorValue) match {
           case _: IntType => "processXorOne"
@@ -238,7 +238,6 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
         s"$procName.decode($minArgs)"
     }
-    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {

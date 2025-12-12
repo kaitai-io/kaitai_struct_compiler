@@ -192,10 +192,10 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, rep: RepeatSpec): String = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
-    val expr = proc match {
+    proc match {
       case ProcessXor(xorValue) =>
         s"$normalIO.ProcessXor($srcExpr, ${expression(xorValue)})"
       case ProcessZlib =>
@@ -213,7 +213,6 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
         s"$procName.Decode($srcExpr)"
     }
-    handleAssignment(varDest, expr, rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {

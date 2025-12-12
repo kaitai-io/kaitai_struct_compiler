@@ -20,9 +20,15 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
       case None => id
       case Some(_) => RawIdentifier(id)
     }
+
     val expr = parseExprBytes(translator.outVarCheckRes(parseExpr(dataType, io, None)), dataType)
     handleAssignment(rawId, expr, rep, isRaw)
-    dataType.process.foreach((proc) => attrProcess(proc, rawId, id, rep))
+
+    // apply post-processing
+    dataType.process.foreach { (proc) =>
+      val expr = attrProcess(proc, rawId, rep)
+      handleAssignment(id, ResultString(expr), rep, false)
+    }
   }
 
   def attrSwitchTypeParse(

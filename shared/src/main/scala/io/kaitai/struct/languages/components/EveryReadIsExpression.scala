@@ -76,7 +76,10 @@ trait EveryReadIsExpression
     handleAssignment(rawId, expr, rep, isRaw)
 
     // apply post-processing
-    dataType.process.foreach((proc) => attrProcess(proc, rawId, id, rep))
+    dataType.process.foreach { (proc) =>
+      val expr = attrProcess(proc, rawId, rep)
+      handleAssignment(id, expr, rep, false)
+    }
   }
 
   def parseExprBytes(dataType: BytesType, io: String): String = {

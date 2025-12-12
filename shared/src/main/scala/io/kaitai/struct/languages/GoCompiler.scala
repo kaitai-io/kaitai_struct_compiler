@@ -192,10 +192,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, rep: RepeatSpec): String = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
-    val expr = proc match {
+    proc match {
       case ProcessXor(xorValue) =>
         translator.detectType(xorValue) match {
           case _: IntType =>
@@ -216,7 +216,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // TODO(jchw): This hack is necessary because Go tests fail catastrophically otherwise...
         s"$srcExpr"
     }
-    handleAssignment(varDest, ResultString(expr), rep, false)
   }
 
   override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {

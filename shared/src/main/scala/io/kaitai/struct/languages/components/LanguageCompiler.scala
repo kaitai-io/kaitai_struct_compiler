@@ -162,7 +162,7 @@ abstract class LanguageCompiler(
   def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {}
   def condRepeatCommonFooter: Unit = {}
 
-  def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit
+  def attrProcess(proc: ProcessExpr, varSrc: Identifier, rep: RepeatSpec): String
 
   def normalIO: String
   def useIO(ioEx: Ast.expr): String

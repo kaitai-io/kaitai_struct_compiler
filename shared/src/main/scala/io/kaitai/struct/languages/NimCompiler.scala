@@ -94,12 +94,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   // Works but is crappily written; I want to rewrite this later XXX
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, rep: RepeatSpec): String = {
     val srcExpr = rep match {
       case RepeatEos | RepeatExpr(_) | RepeatUntil(_) => privateMemberName(varSrc) + "[i]"
       case NoRepeat => privateMemberName(varSrc)
     }
-    val expr = proc match {
+    proc match {
       case ProcessXor(xorValue) =>
         s"$srcExpr.processXor(${expression(xorValue)})"
       case ProcessZlib =>
@@ -117,7 +117,6 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         importList.add(namespace)
         s"$procPath($srcExpr, ${args.map(expression).mkString(", ")})"
     }
-    handleAssignment(varDest, expr, rep, false)
   }
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"`${idToStr(attrName)}`*: ${ksToNim(attrType)}")

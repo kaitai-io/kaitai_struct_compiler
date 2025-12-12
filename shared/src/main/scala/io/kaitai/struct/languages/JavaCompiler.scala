@@ -334,10 +334,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, rep: RepeatSpec): String = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
-    val expr = proc match {
+    proc match {
       case ProcessXor(xorValue) =>
         val xorValueStr = translator.detectType(xorValue) match {
           case _: IntType => translator.doCast(xorValue, Int1Type(true))
@@ -362,7 +362,6 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"$procClass $procName = new $procClass(${args.map(expression).mkString(", ")});")
         s"$procName.decode($srcExpr)"
     }
-    handleAssignment(varDest, expr, rep, false)
   }
 
   override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit = {

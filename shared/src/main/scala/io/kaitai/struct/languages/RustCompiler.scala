@@ -361,10 +361,10 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec): Unit = {
+  override def attrProcess(proc: ProcessExpr, varSrc: Identifier, rep: RepeatSpec): String = {
     val srcExpr = getRawIdExpr(varSrc, rep)
 
-    val expr = proc match {
+    proc match {
       case ProcessXor(xorValue) =>
         translator.detectType(xorValue) match {
           case _: IntType =>
@@ -393,7 +393,6 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts(s"let $procName = $procClass::new$argListInParens;")
         s"$procName.decode(&$srcExpr).map_err(|msg| KError::BytesDecodingError { msg })?"
     }
-    handleAssignment(varDest, expr, rep, isRaw = false)
   }
 
   override def useIO(ioEx: Ast.expr): String = {
