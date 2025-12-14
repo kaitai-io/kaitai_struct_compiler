@@ -53,11 +53,9 @@ case class MetaSpec(
 }
 
 object MetaSpec {
-  def emptyWithPath(path: List[String]) = OPAQUE.copy(isOpaque = false, path = path)
-
-  val OPAQUE = MetaSpec(
+  val EMPTY = MetaSpec(
     path = List(),
-    isOpaque = true,
+    isOpaque = false,
     id = None,
     endian = None,
     bitEndian = None,
@@ -67,6 +65,10 @@ object MetaSpec {
     zeroCopySubstream = None,
     imports = List()
   )
+
+  def emptyWithPath(path: List[String]) = EMPTY.copy(path = path)
+
+  val OPAQUE = EMPTY.copy(isOpaque = true)
 
   val LEGAL_KEYS = Set(
     "id",
