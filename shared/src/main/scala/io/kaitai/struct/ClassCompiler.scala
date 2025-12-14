@@ -375,7 +375,7 @@ class ClassCompiler(
         case pi: ParseInstanceSpec =>
           lang.checkInstanceHeader(instName)
           lang.attrCheck(pi, instName)
-          lang.checkInstanceFooter
+          lang.checkInstanceFooter()
         case _: ValueInstanceSpec => // do nothing
       }
     }
@@ -462,7 +462,7 @@ class ClassCompiler(
           lang.instanceEnabledSetter(instName)
           lang.writeInstanceHeader(instName)
           lang.attrWrite(pi, instName, endian)
-          lang.writeInstanceFooter
+          lang.writeInstanceFooter()
         case _: ValueInstanceSpec =>
           lang.instanceInvalidate(instName)
       }
