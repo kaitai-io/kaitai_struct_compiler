@@ -777,10 +777,39 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  // Java switch statements can accept byte, short, char, int, enums and Strings.
   override def switchRequiresIfs(onType: DataType): Boolean = onType match {
-    case _: IntType | _: EnumType | _: StrType => false
-    case _ => true
-  }
+      case Int1Type(false) => false
+      case IntMultiType(false, Width2, _) => false
+
+      case Int1Type(true) => false  // byte
+      case IntMultiType(true, Width2, _) => false  // short
+      case IntMultiType(true, Width4, _) => false  // int
+      case IntMultiType(true, Width8, _) => true   // long
+
+      case FloatMultiType(Width4, _) => true
+      case FloatMultiType(Width8, _) => true
+
+      case BitsType(_, _) => true
+
+      case _: BooleanType => true
+      case CalcIntType => false
+      case CalcFloatType => true
+
+      case _: StrType => false
+      case _: BytesType => true
+
+      case AnyType => true
+      case KaitaiStreamType | OwnedKaitaiStreamType => true
+      case KaitaiStructType | CalcKaitaiStructType => true
+
+      case t: UserType => true
+      case EnumType(name, _) => false
+
+      case ArrayTypeInStream(_) | CalcArrayType(_) => true
+
+      case _ => true
+    }
 
   //<editor-fold desc="switching: true version">
 
@@ -799,8 +828,9 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         // If switch is over a enum, only literal enum values are supported,
         // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
         value2Const(enumByLabel.label.name)
-      case _ =>
+      case _ => {
         expression(condition)
+      }
     }
 
     out.puts(s"case $condStr: {")
