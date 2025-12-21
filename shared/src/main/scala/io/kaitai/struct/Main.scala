@@ -60,7 +60,9 @@ object Main {
     val styleWarnings = new StyleCheckIds(specs).run()
     val encodingProblems = new CanonicalizeEncodingNames(specs).run()
 
-    resolveTypeProblems ++ typeValidatorProblems ++ styleWarnings ++ encodingProblems
+    val metaResolveProblems = new ResolveMeta(specs).run()
+
+    resolveTypeProblems ++ typeValidatorProblems ++ styleWarnings ++ encodingProblems ++ metaResolveProblems
   }
 
   /**

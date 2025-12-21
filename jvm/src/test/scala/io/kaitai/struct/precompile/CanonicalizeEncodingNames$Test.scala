@@ -53,7 +53,7 @@ class CanonicalizeEncodingNames$Test extends AnyFunSpec {
         val problems = CanonicalizeEncodingNames.canonicalizeMember(ParamDefSpec(
           path = List("param"),
           id = NumberedIdentifier(1),
-          dataType = StrFromBytesType(CalcBytesType, "utf-8", false),
+          dataType = StrFromBytesType(CalcBytesType, "utf-8"),
         )).toList
         problems should be(List(EncodingNameWarning(
           "UTF-8", "utf-8",
@@ -63,7 +63,7 @@ class CanonicalizeEncodingNames$Test extends AnyFunSpec {
         val noProblems = CanonicalizeEncodingNames.canonicalizeMember(ParamDefSpec(
           path = List("param"),
           id = NumberedIdentifier(1),
-          dataType = StrFromBytesType(CalcBytesType, "utf-8", true),
+          dataType = StrFromBytesType(CalcBytesType, "utf-8"),
         )).toList
         noProblems should be(List())
       }
@@ -72,7 +72,7 @@ class CanonicalizeEncodingNames$Test extends AnyFunSpec {
         val problems = CanonicalizeEncodingNames.canonicalizeMember(ParseInstanceSpec(
           id = InstanceIdentifier("parse_instance"),
           path = List("parse", "instance"),
-          dataType = StrFromBytesType(CalcBytesType, "utf-8", false),
+          dataType = StrFromBytesType(CalcBytesType, "utf-8"),
         )).toList
         problems should be(List(EncodingNameWarning(
           "UTF-8", "utf-8",
@@ -82,7 +82,7 @@ class CanonicalizeEncodingNames$Test extends AnyFunSpec {
         val noProblems = CanonicalizeEncodingNames.canonicalizeMember(ParseInstanceSpec(
           id = InstanceIdentifier("parse_instance"),
           path = List("parse", "instance"),
-          dataType = StrFromBytesType(CalcBytesType, "utf-8", true),
+          dataType = StrFromBytesType(CalcBytesType, "utf-8"),
         )).toList
         noProblems should be(List())
       }
@@ -92,7 +92,7 @@ class CanonicalizeEncodingNames$Test extends AnyFunSpec {
           id = InstanceIdentifier("value_instance"),
           path = List("value", "instance"),
           value = Ast.expr.Str("value"),
-          dataTypeOpt = Some(StrFromBytesType(CalcBytesType, "utf-8", false)),
+          dataTypeOpt = Some(StrFromBytesType(CalcBytesType, "utf-8")),
         )).toList
         problems should be(List(EncodingNameWarning(
           "UTF-8", "utf-8",
@@ -103,7 +103,7 @@ class CanonicalizeEncodingNames$Test extends AnyFunSpec {
           id = InstanceIdentifier("value_instance"),
           path = List("value", "instance"),
           value = Ast.expr.Str("value"),
-          dataTypeOpt = Some(StrFromBytesType(CalcBytesType, "utf-8", true)),
+          dataTypeOpt = Some(StrFromBytesType(CalcBytesType, "utf-8")),
         )).toList
         noProblems should be(List())
       }
