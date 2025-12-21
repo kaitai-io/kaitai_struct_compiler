@@ -15,6 +15,20 @@ case class MetaSpec(
   zeroCopySubstream: Option[Boolean],
   imports: List[String]
 ) extends YAMLPath {
+  def ++(other: MetaSpec): MetaSpec =
+    MetaSpec(
+      path,
+      isOpaque || other.isOpaque,
+      other.id.orElse(id),
+      other.endian.orElse(endian),
+      other.bitEndian.orElse(bitEndian),
+      other.encoding.orElse(encoding),
+      forceDebug || other.forceDebug,
+      other.opaqueTypes.orElse(opaqueTypes),
+      other.zeroCopySubstream.orElse(zeroCopySubstream),
+      imports ++ other.imports
+    )
+
   def fillInDefaults(defSpec: MetaSpec): MetaSpec = {
     fillInEncoding(defSpec.encoding)
       .fillInEndian(defSpec.endian)

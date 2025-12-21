@@ -1,7 +1,7 @@
 package io.kaitai.struct.precompile
 
 import io.kaitai.struct.EncodingList
-import io.kaitai.struct.datatype.DataType.StrFromBytesType
+import io.kaitai.struct.datatype.DataType.{StrFromBytesType, StrzType}
 import io.kaitai.struct.format._
 import io.kaitai.struct.precompile.CanonicalizeEncodingNames._
 import io.kaitai.struct.problems._
@@ -35,11 +35,20 @@ object CanonicalizeEncodingNames {
     (member.dataType match {
       case strType: StrFromBytesType =>
         val (newEncoding, problem1) = canonicalizeName(strType.encoding)
-        strType.encoding = newEncoding
-        // Do not report problem if encoding was derived from `meta/encoding` key
-        if (strType.isEncodingDerived) None else problem1
+        if (newEncoding != strType.encoding) {
+          member.updateDataType(strType.copy(encoding = newEncoding))
+        }
+        problem1
+      case strzType: StrzType =>
+        strzType.encoding.flatMap { encoding =>
+          val (newEncoding, problem1) = canonicalizeName(encoding)
+          if (newEncoding != encoding) {
+            member.updateDataType(strzType.copy(encoding = Some(newEncoding)))
+          }
+          problem1
+        }
       case _ =>
-        // not a string type = no problem
+        // not a string type or StrFromBytesTypeUnknownEncoding = no problem
         None
     }).map(problem => problem.localizedInPath(member.path ++ List("encoding")))
   }
