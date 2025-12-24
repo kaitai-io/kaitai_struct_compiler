@@ -33,6 +33,15 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
   )
 
+  override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Div) =>
+        genericBinOpStr(left, op, "div", right, extPrec)
+      case _ =>
+        super.genericBinOp(left, op, right, extPrec)
+    }
+  }
+
   // Members declared in io.kaitai.struct.translators.BaseTranslator
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     s"""encode($bytesExpr, ${doStringLiteral(encoding)})"""
@@ -61,18 +70,28 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case _ => s"this.${doName(s)}"
     }
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
+    s"if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)}"
   override def arraySubscript(container: expr, idx: expr): String =
-    s"${translate(container)}[${translate(idx)}]"
+    s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
 
-  override def strConcat(left: expr, right: expr, extPrec: Int) = "($" + s"${translate(left)} & " + "$" + s"${translate(right)})"
+  override def strConcat(left: expr, right: expr, extPrec: Int): String = {
+    val thisPrec = OPERATOR_PRECEDENCE(Ast.operator.Add)
+    // $ is a special method which converts everything to a string, so use METHOD_PRECEDENCE
+    val leftStr = "$" + translate(left, METHOD_PRECEDENCE)
+    val rightStr = "$" + translate(right, METHOD_PRECEDENCE)
+    if (thisPrec <= extPrec) {
+      s"($leftStr & $rightStr)"
+    } else {
+      s"$leftStr & $rightStr"
+    }
+  }
 
   // Members declared in io.kaitai.struct.translators.CommonMethods
 
   override def unaryOp(op: Ast.unaryop): String = op match {
-    case Ast.unaryop.Invert => "not"
+    case Ast.unaryop.Invert => "not "
     case Ast.unaryop.Minus => "-"
-    case Ast.unaryop.Not => "not"
+    case Ast.unaryop.Not => "not "
   }
 
   override def booleanOp(op: Ast.boolop): String = op match {
@@ -85,7 +104,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Ast.operator.Add => "+"
       case Ast.operator.Sub => "-"
       case Ast.operator.Mult => "*"
-      case Ast.operator.Div => "div"
+      case Ast.operator.Div => "/"
       case Ast.operator.Mod => "%%%"
       case Ast.operator.BitAnd => "and"
       case Ast.operator.BitOr => "or"
@@ -98,9 +117,9 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     typeName match {
       case at: ArrayType => {
         importList.add("sequtils")
-        s"${translate(value)}.mapIt(it.${ksToNim(at.elType)})"
+        s"${translate(value, METHOD_PRECEDENCE)}.mapIt(it.${ksToNim(at.elType)})"
       }
-      case _ => s"(${ksToNim(typeName)}(${translate(value)}))"
+      case _ => s"${ksToNim(typeName)}(${translate(value)})"
     }
   override def doIntLiteral(n: BigInt): String = {
     if (n <= -2147483649L) { // -9223372036854775808..-2147483649
@@ -130,8 +149,8 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   }
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"@[${elts.map(translate).mkString(", ")}]"
-  override def arrayFirst(a: expr): String = s"${translate(a)}[0]"
-  override def arrayLast(a: expr): String = s"${translate(a)}[^1]"
+  override def arrayFirst(a: expr): String = s"${translate(a, METHOD_PRECEDENCE)}[0]"
+  override def arrayLast(a: expr): String = s"${translate(a, METHOD_PRECEDENCE)}[^1]"
   override def arrayMax(a: expr): String = s"max(${translate(a)})"
   override def arrayMin(a: expr): String = s"min(${translate(a)})"
   override def arraySize(a: expr): String = s"len(${translate(a)})"
@@ -147,9 +166,9 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     s"reversed(${translate(s)})"
   }
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s)}.substr(${translate(from)}, ${translate(to)} - 1)"
+    s"${translate(s, METHOD_PRECEDENCE)}.substr(${translate(from)}, ${translate(to)} - 1)"
   override def strToInt(s: expr, base: expr): String =
-    s"${translate(s)}.parseInt(${translate(base)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.parseInt(${translate(base)})"
 
   override def doInterpolatedStringLiteral(exprs: Seq[Ast.expr]): String =
     if (exprs.isEmpty) {
