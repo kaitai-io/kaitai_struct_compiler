@@ -149,7 +149,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // empty sequences (see https://narimiran.github.io/nim-basics/#_result_variable)
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("block:")
     out.inc
     out.puts("var i: int")
@@ -161,19 +161,18 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.dec
   }
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"for i in 0 ..< int(${expression(repeatExpr)}):")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"for i in 0 ..< int(${expression(countExpr)}):")
     out.inc
   }
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts("block:")
     out.inc
     out.puts("var i: int")
     out.puts("while true:")
     out.inc
   }
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
+  override def condRepeatUntilFooter(untilExpr: Ast.expr): Unit = {
     out.puts(s"if ${expression(untilExpr)}:")
     out.inc
     out.puts("break")
