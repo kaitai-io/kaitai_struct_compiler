@@ -233,7 +233,7 @@ object AttrSpec {
       case _: BytesType => LEGAL_KEYS_BYTES
       case _: StrFromBytesType => LEGAL_KEYS_STR
       case _: UserType => LEGAL_KEYS_BYTES
-      case EnumType(_, _) => LEGAL_KEYS_ENUM
+      case EnumType(_, _, _) => LEGAL_KEYS_ENUM
       case _: SwitchType => LEGAL_KEYS_BYTES
       case _ => Set()
     })

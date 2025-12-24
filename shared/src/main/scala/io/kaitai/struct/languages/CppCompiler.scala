@@ -1168,7 +1168,7 @@ object CppCompiler extends LanguageCompilerStatic
         types2class(if (absolute) {
           t.enumSpec.get.name
         } else {
-          t.name
+          t.owner :+ t.name
         })
 
       case at: ArrayType => {
