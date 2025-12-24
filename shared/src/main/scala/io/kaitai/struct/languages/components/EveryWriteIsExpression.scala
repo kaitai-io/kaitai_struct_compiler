@@ -308,7 +308,7 @@ trait EveryWriteIsExpression
       // check non-`io` params
       attrUserTypeCheck(id, itemUserType, t, checksShouldDependOnIo)
       // set `io` params
-      (t.classSpec.get.params, t.args).zipped.foreach { (paramDef, argExpr) =>
+      t.classSpec.get.params.lazyZip(t.args).foreach { (paramDef, argExpr) =>
         val paramItemType = getArrayItemType(paramDef.dataType)
         val paramBasedOnIo = (paramItemType == KaitaiStreamType || paramItemType == OwnedKaitaiStreamType)
         if (paramBasedOnIo)
