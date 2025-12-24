@@ -175,7 +175,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("pass")
   }
 
-  override def fetchInstancesFooter: Unit = universalFooter
+  override def fetchInstancesFooter(): Unit = universalFooter
 
   override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
     val expr = expression(baseExpr)
