@@ -196,7 +196,7 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val memberName = privateMemberName(id)
 
     val args = rep match {
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doName(Identifier.THIS_RAW)
       case _ => getRawIdExpr(id, rep)
     }
 
@@ -264,9 +264,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val (decl, tmpName) = if (isRaw) {
-      ("my ", translator.doName(Identifier.ITERATOR2))
+      ("my ", translator.doName(Identifier.THIS_RAW))
     } else {
-      ("", translator.doName(Identifier.ITERATOR))
+      ("", translator.doName(Identifier.THIS))
     }
     out.puts(s"$decl$tmpName = $expr;")
     out.puts(s"push @{${privateMemberName(id)}}, $tmpName;")
