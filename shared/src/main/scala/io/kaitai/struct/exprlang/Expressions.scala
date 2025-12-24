@@ -125,7 +125,7 @@ object Expressions {
     "(" ~ test ~ ")" |
     "[" ~ list ~ "]" |
     // "{" ~ dictorsetmaker ~ "}" |
-    enumByName |
+    enumVariant |
     byteSizeOfType |
     bitSizeOfType |
     fstring |
@@ -167,17 +167,18 @@ object Expressions {
 
   def testlist1[$: P]: P[Seq[Ast.expr]] = P( test.rep(1, sep = ",") )
 
-  def enumByName[$: P]: P[Ast.expr.EnumByLabel] = P("::".!.? ~ NAME.rep(2, "::")).map {
+  /** Parses reference to an enumeration variant. */
+  def enumVariant[$: P]: P[Ast.expr.EnumVariant] = P("::".!.? ~ NAME.rep(2, "::")).map {
     case (first, names: Seq[Ast.identifier]) =>
       val isAbsolute = first.nonEmpty
-      val (enumName, enumLabel) = names.takeRight(2) match {
+      val (enumName, variant) = names.takeRight(2) match {
         case Seq(a, b) => (a, b)
       }
       val typePath = names.dropRight(2)
       if (typePath.isEmpty) {
-        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.EmptyTypeId)
+        Ast.expr.EnumVariant(enumName, variant, Ast.EmptyTypeId)
       } else {
-        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.typeId(isAbsolute, typePath.map(_.name)))
+        Ast.expr.EnumVariant(enumName, variant, Ast.typeId(isAbsolute, typePath.map(_.name)))
       }
   }
 
