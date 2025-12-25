@@ -4,7 +4,7 @@ import io.kaitai.struct.{ExternalEnum, ImportList, RuntimeConfig, Utils}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{EnumSpec, Identifier}
-import io.kaitai.struct.languages.{PythonCompiler, RubyCompiler}
+import io.kaitai.struct.languages.PythonCompiler
 
 class PythonTranslator(provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   /**
