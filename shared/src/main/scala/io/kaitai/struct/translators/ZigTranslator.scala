@@ -116,12 +116,12 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
   }
 
   override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
-    val et = EnumType(enumSpec.name, CalcIntType)
+    val et = EnumType(Ast.EnumRef(true, enumSpec.name.dropRight(1), enumSpec.name.last), CalcIntType)
     et.enumSpec = Some(enumSpec)
     s"${ZigCompiler.kaitaiType2NativeType(et, importList, provider.nowClass)}.$label"
   }
   override def doEnumById(enumSpec: EnumSpec, id: String): String = {
-    val et = EnumType(enumSpec.name, CalcIntType)
+    val et = EnumType(Ast.EnumRef(true, enumSpec.name.dropRight(1), enumSpec.name.last), CalcIntType)
     et.enumSpec = Some(enumSpec)
     s"@as(${ZigCompiler.kaitaiType2NativeType(et, importList, provider.nowClass)}, @enumFromInt($id))"
   }
