@@ -259,7 +259,7 @@ object DataType {
     def isOwning = false
   }
 
-  case class EnumType(name: List[String], basedOn: IntType) extends DataType {
+  case class EnumType(ref: Ast.EnumRef, basedOn: IntType) extends DataType {
     var enumSpec: Option[EnumSpec] = None
 
     /**
@@ -459,7 +459,7 @@ object DataType {
     enumRef match {
       case Some(enumName) =>
         r match {
-          case numType: IntType => EnumType(classNameToList(enumName), numType)
+          case numType: IntType => EnumType(Expressions.parseEnumRef(enumName), numType)
           case _ =>
             throw KSYParseError(s"tried to resolve non-integer $r to enum", path).toException
         }
