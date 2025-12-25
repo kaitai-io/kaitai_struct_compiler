@@ -473,7 +473,7 @@ class CppCompiler(
     }
   }
 
-  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(id: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val memberName = privateMemberName(id)
     val ioId = IoStorageIdentifier(id)
 
@@ -861,7 +861,7 @@ class CppCompiler(
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (attrDebugNeeded(instName))
-      attrDebugStart(instName, dataType, None, NoRepeat)
+      attrDebugStart(instName, dataType, NoRepeat, None, NoRepeat)
     val valExpr = expression(value)
     val isOwningInExpr = dataType match {
       case ct: ComplexDataType => ct.isOwningInExpr

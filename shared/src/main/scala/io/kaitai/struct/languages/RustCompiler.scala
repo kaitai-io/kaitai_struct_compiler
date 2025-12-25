@@ -915,7 +915,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {//= privateMemberName(IoIdentifier)
+  override def allocateIO(id: Identifier, rep: RepeatSpec, currentIo: String): String = {//= privateMemberName(IoIdentifier)
     val memberName = privateMemberName(id)
     val ioId = IoStorageIdentifier(id)
 
