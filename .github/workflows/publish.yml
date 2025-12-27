@@ -1,0 +1,63 @@
+name: Publish as @next to npm
+
+on:
+  push:
+    branches: [master]
+
+# Cancel in-progress runs of the same workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: sbt/setup-sbt@v1
+      - name: Prepare source files into the npm package directory
+        run: |
+          . ./setup_env.sh
+          cat /dev/null | sbt \
+            fastOptJS \
+            buildNpmJsFile \
+            buildNpmPackage
+      - name: Store the npm package directory
+        uses: actions/upload-artifact@v6
+        with:
+          name: npm-package-dir
+          path: js/npm/
+
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    permissions:
+      id-token: write  # Required for OIDC (see https://docs.npmjs.com/trusted-publishers)
+    steps:
+      - name: Download the npm package directory
+        uses: actions/download-artifact@v7
+        with:
+          name: npm-package-dir
+          path: js/npm/
+      - uses: actions/setup-node@v6
+        with:
+          package-manager-cache: false  # IMPORTANT: prevents potential [cache poisoning](https://docs.zizmor.sh/audits/#cache-poisoning) attacks
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - run: |
+          cd js/npm/
+          npm publish --tag next
