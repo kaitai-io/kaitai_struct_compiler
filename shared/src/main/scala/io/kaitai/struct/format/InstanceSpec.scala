@@ -25,15 +25,11 @@ case class ValueInstanceSpec(
   override def dataTypeComposite = dataType
   override def isNullable: Boolean = ifExpr.isDefined
   override def isNullableSwitchRaw: Boolean = isNullable
-
-  override def updateDataType(newDataType: DataType): Unit = {
-    dataTypeOpt = Some(newDataType)
-  }
 }
 case class ParseInstanceSpec(
   id: InstanceIdentifier,
   path: List[String],
-  var dataType: DataType,
+  dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
   pos: Option[Ast.expr] = None,
   io: Option[Ast.expr] = None,
@@ -41,10 +37,6 @@ case class ParseInstanceSpec(
   val _doc: DocSpec = DocSpec.EMPTY,
 ) extends InstanceSpec(_doc) with AttrLikeSpec {
   override def isLazy = true
-
-  override def updateDataType(newDataType: DataType): Unit = {
-    dataType = newDataType
-  }
 }
 
 object InstanceSpec {

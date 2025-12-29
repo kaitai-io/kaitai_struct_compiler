@@ -113,9 +113,7 @@ object CalculateSeqSizes {
         case None => DynamicSized
       }
       case _: BytesTerminatedType => DynamicSized
-      case StrzType(bytes, _) => dataTypeByteSize(bytes)
-      case StrFromBytesType(basedOn, _) => dataTypeByteSize(basedOn)
-      case StrFromBytesTypeUnknownEncoding(basedOn) => dataTypeByteSize(basedOn)
+      case StrFromBytesType(basedOn, _, _) => dataTypeByteSize(basedOn)
       case utb: UserTypeFromBytes => dataTypeByteSize(utb.bytes)
       case cutb: CalcUserTypeFromBytes => dataTypeByteSize(cutb.bytes)
       case st: SwitchType => DynamicSized // FIXME: it's really possible get size if st.hasSize

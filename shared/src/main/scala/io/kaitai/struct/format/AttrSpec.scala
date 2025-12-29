@@ -71,16 +71,12 @@ trait AttrLikeSpec extends MemberSpec {
 case class AttrSpec(
   path: List[String],
   id: Identifier,
-  var dataType: DataType,
+  dataType: DataType,
   cond: ConditionalSpec = ConditionalSpec(None, NoRepeat),
   valid: Option[ValidationSpec] = None,
   doc: DocSpec = DocSpec.EMPTY
 ) extends AttrLikeSpec with MemberSpec {
   override def isLazy = false
-
-  override def updateDataType(newDataType: DataType): Unit = {
-    dataType = newDataType
-  }
 }
 
 case class YamlAttrArgs(
@@ -235,7 +231,7 @@ object AttrSpec {
 
     val legalKeys = LEGAL_KEYS ++ legalRepeatKeys ++ (dataType match {
       case _: BytesType => LEGAL_KEYS_BYTES
-      case _: StrFromBytesType | _: StrzType | _: StrFromBytesTypeUnknownEncoding => LEGAL_KEYS_STR
+      case _: StrFromBytesType => LEGAL_KEYS_STR
       case _: UserType => LEGAL_KEYS_BYTES
       case EnumType(_, _) => LEGAL_KEYS_ENUM
       case _: SwitchType => LEGAL_KEYS_BYTES

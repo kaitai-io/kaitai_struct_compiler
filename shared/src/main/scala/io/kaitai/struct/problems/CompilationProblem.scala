@@ -244,16 +244,3 @@ case class UnrecognizedEncodingError(
   override def localizedInPath(path: List[String]): CompilationProblem with PathLocalizable =
     copy(coords = coords.copy(path = Some(path)))
 }
-
-case class NoEncodingError(
-  override val coords: ProblemCoords = ProblemCoords()
-) extends CompilationProblem with PathLocalizable {
-  override def severity: ProblemSeverity = ProblemSeverity.Error
-  override def text = "string type, but no encoding found"
-
-  override def localizedInFile(fileName: String): CompilationProblem =
-    copy(coords = coords.copy(file = Some(fileName)))
-
-  override def localizedInPath(path: List[String]): CompilationProblem with PathLocalizable =
-    copy(coords = coords.copy(path = Some(path)))
-}
