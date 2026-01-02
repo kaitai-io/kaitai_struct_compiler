@@ -64,7 +64,6 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     }
   }
 
-  override def doStringLiteral(s: String): String = "u" + super.doStringLiteral(s)
   override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
 
   /**
