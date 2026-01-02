@@ -94,9 +94,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioDefaultVal = if (config.readWrite) "=None" else ""
     out.puts(s"def __init__(self$paramsList, _io$ioDefaultVal, _parent=None, _root=None$endianAdd):")
     out.inc
-    // FIXME: remove super() args when dropping support for Python 2 (see
-    // https://pylint.readthedocs.io/en/v2.16.2/user_guide/messages/refactor/super-with-arguments.html)
-    out.puts(s"super(${types2class(typeProvider.nowClass.name, false)}, self).__init__(_io)")
+    out.puts(s"super().__init__(_io)")
     out.puts("self._parent = _parent")
     if (name == rootClassName) {
       out.puts("self._root = _root or self")
@@ -197,9 +195,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case None =>
         out.puts("def _write__seq(self, io=None):")
         out.inc
-        // FIXME: remove super() args when dropping support for Python 2 (see
-        // https://pylint.readthedocs.io/en/v2.16.2/user_guide/messages/refactor/super-with-arguments.html)
-        out.puts(s"super(${types2class(typeProvider.nowClass.name, false)}, self)._write__seq(io)")
+        out.puts(s"super()._write__seq(io)")
     }
   }
 
