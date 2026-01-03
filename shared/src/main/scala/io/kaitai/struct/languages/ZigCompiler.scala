@@ -813,7 +813,7 @@ object ZigCompiler extends LanguageCompilerStatic
         if (isExternal) {
           externalTypeDeclaration(ExternalEnum(et.enumSpec.get), importList)
         }
-        types2class(et.name, isExternal)
+        types2class(et.owner :+ et.name, isExternal)
       }
 
       case at: ArrayType => s"*_imp_std.ArrayList(${kaitaiType2NativeType(at.elType, importList, curClass)})"
@@ -854,7 +854,7 @@ object ZigCompiler extends LanguageCompilerStatic
       case ut: UserType => ut.name.last
       // NOTE: at the time of writing, this is unreachable because the `enum` key is not compatible
       // with type switching
-      case et: EnumType => et.name.last
+      case et: EnumType => et.name
     }
 
   def switchTaggedUnionName(id: Identifier): String = {
