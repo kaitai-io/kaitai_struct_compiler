@@ -71,9 +71,9 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
     out.inc
     out.puts(
-      "raise Exception(\"Incompatible Kaitai Struct Python API: " +
+      "raise Exception(f\"Incompatible Kaitai Struct Python API: " +
         KSVersion.minimalRuntime +
-        " or later is required, but you have %s\" % (kaitaistruct.__version__))"
+        " or later is required, but you have {kaitaistruct.__version__}\")"
     )
     out.dec
     out.puts
