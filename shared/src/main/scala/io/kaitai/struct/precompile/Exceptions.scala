@@ -1,7 +1,7 @@
 package io.kaitai.struct.precompile
 
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.format.ClassSpec
+import io.kaitai.struct.format.{ClassSpec, Identifier}
 import io.kaitai.struct.translators.MethodArgType
 
 /**
@@ -9,6 +9,10 @@ import io.kaitai.struct.translators.MethodArgType
  * in source file.
  */
 sealed abstract class ExpressionError(msg: String) extends RuntimeException(msg)
+
+class InvalidIdentifier(id: String)
+  extends ExpressionError(s"invalid ID: '$id', expected /${Identifier.ReIdentifier.toString}/")
+
 class TypeMismatchError(msg: String) extends ExpressionError(msg)
 class TypeUndecidedError(msg: String) extends ExpressionError(msg)
 class WrongMethodCall(val dataType: MethodArgType, val methodName: String, val expectedSigs: Iterable[String], val actualSig: String)
