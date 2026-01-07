@@ -152,20 +152,6 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
   override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String =
     s"${PythonCompiler.kstreamName}.byte_array_index_of(${translate(b)}, ${translate(byte)})"
 
-  override def bytesLength(value: Ast.expr): String =
-    s"len(${translate(value)})"
-  override def bytesSubscript(container: Ast.expr, idx: Ast.expr): String =
-    s"${PythonCompiler.kstreamName}.byte_array_index(${translate(container)}, ${translate(idx)})"
-  override def bytesFirst(a: Ast.expr): String =
-    bytesSubscript(a, Ast.expr.IntNum(0))
-  override def bytesLast(a: Ast.expr): String =
-    bytesSubscript(a, Ast.expr.IntNum(-1))
-  override def bytesMin(b: Ast.expr): String =
-    s"${PythonCompiler.kstreamName}.byte_array_min(${translate(b)})"
-  override def bytesMax(b: Ast.expr): String =
-    s"${PythonCompiler.kstreamName}.byte_array_max(${translate(b)})"
-
-
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
   override def strReverse(value: Ast.expr): String =
