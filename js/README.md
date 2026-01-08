@@ -153,7 +153,7 @@ You can compile `.ksy` source files in debug mode by setting the `debugMode` par
 
 ### Main code
 
-Kaitai Struct compiler itself is copyright (C) 2015-2025 Kaitai
+Kaitai Struct compiler itself is copyright (C) 2015-2026 Kaitai
 Project.
 
 This program is free software: you can redistribute it and/or modify
