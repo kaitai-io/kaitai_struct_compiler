@@ -6,8 +6,7 @@ import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.RubyCompiler
 
-class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider)
-  with ByteArraysAsTrueArrays[String] {
+class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
   /**
   * @see https://ruby-doc.org/core-2.6.2/doc/syntax/precedence_rdoc.html
   */
