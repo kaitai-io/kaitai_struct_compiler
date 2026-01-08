@@ -150,14 +150,47 @@ abstract class LanguageCompiler(
 
   def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit
 
-  def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit
+  /**
+    * Generates start of loop until end-of-stream is reached.
+    *
+    * @param io rendered expression that evaluates to reference of a stream which
+    *        should be checked
+    */
+  def condRepeatEosHeader(io: String): Unit
+  /**
+    * Generates end of loop until end-of-stream is reached.
+    */
   def condRepeatEosFooter: Unit
 
-  def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit
+  /**
+    * Generates start of "for 0..<count>" loop which loops specified count of times.
+    *
+    * @param countExpr expression that evaluates into number of repetitions.
+    *        That expression should be evaluated only once before loop is started
+    */
+  def condRepeatExprHeader(countExpr: Ast.expr): Unit
+  /**
+    * Generates end of "for 0..<count>" loop.
+    */
   def condRepeatExprFooter: Unit
 
-  def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit
-  def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit
+  /**
+    * Generates start of "repeat ... until" loop which parses element of type `itemType`
+    * on each iteration.
+    *
+    * @param itemType Type of the element that can be used to declare variable for
+    *        holding that element so it will accessible in the condition in the footer.
+    *        In most languages condition in special "repeat ... until" loop cannot
+    *        access variables, defined in body of loop
+    */
+  def condRepeatUntilHeader(itemType: DataType): Unit
+  /**
+    * Generates end of "repeat ... until" loop which checks the specified condition.
+    *
+    * @param untilExpr condition that evaluates to boolean value where `true` means
+    *        that loop will be finished
+    */
+  def condRepeatUntilFooter(untilExpr: Ast.expr): Unit
 
   def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {}
   def condRepeatCommonFooter: Unit = {}
