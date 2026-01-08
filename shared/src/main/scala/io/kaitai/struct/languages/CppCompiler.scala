@@ -828,11 +828,11 @@ class CppCompiler(
 
   override def switchBytesOnlyAsRaw = true
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+  override def instanceDeclaration(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PrivateAccess)
-    outHdr.puts(s"bool ${calculatedFlagForName(attrName)};")
-    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
-    declareNullFlag(attrName, isNullable)
+    outHdr.puts(s"bool ${calculatedFlagForName(instName)};")
+    outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(instName)};")
+    declareNullFlag(instName, isNullable)
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
