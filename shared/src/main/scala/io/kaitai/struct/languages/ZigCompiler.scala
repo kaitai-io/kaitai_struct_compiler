@@ -240,7 +240,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = getRawIdExpr(varName, rep)
