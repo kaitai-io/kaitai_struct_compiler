@@ -563,7 +563,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val tmpName = translator.doName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    val tmpName = translator.doName(if (isRaw) Identifier.THIS_RAW else Identifier.THIS)
     out.puts(s"$tmpName = $expr")
     out.puts(s"${privateMemberName(id)}.append($tmpName)")
   }
