@@ -17,8 +17,8 @@ trait ValidateOps extends ExceptionNames {
   def attrValidate(attr: AttrLikeSpec, valid: ValidationSpec, useIo: Boolean): Unit = {
     val itemValue = Identifier.itemExpr(attr.id, attr.cond.repeat)
     valid match {
-      case ValidationEq(expected) =>
-        attrValidateExprCompare(attr, Ast.cmpop.Eq, expected, ValidationNotEqualError(attr.dataType), useIo)
+      case expected: ValidationEquals =>
+        attrValidateExprCompare(attr, Ast.cmpop.Eq, expected.value, ValidationNotEqualError(attr.dataType), useIo)
       case ValidationMin(min) =>
         attrValidateExprCompare(attr, Ast.cmpop.GtE, min, ValidationLessThanError(attr.dataType), useIo)
       case ValidationMax(max) =>
