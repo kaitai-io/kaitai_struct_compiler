@@ -386,8 +386,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val addParams = t.args.map((a) => expression(a)).mkString(", ")
-        s"New${GoCompiler.types2class(t.classSpec.get.name)}($addParams)"
+        val className = GoCompiler.types2class(t.classSpec.get.name)
+        // In Go, numeric types are not implicitly convertible (e.g. `int` -> `uint8`), so we
+        // must cast constructor arguments to the parameter types declared by the target class.
+        // Otherwise generated code won't compile for common patterns like `type: foo(bar)` where
+        // `bar` is `int` but `foo` expects `u1`.
+        val castedArgs = t.classSpec.get.params.zipAll(t.args, null, null).collect {
+          case (p: ParamDefSpec, a: Ast.expr) =>
+            val argExpr = expression(a)
+            p.dataType match {
+              // Pointer / interface-y parameters: avoid forcing casts (can be invalid or redundant).
+              case _: UserType | KaitaiStreamType | OwnedKaitaiStreamType | AnyType =>
+                argExpr
+              case dt =>
+                val nt = kaitaiType2NativeType(dt)
+                // Pointer types require parentheses in conversions: (*T)(expr)
+                if (nt.startsWith("*")) s"($nt)($argExpr)" else s"$nt($argExpr)"
+            }
+        }.mkString(", ")
+        s"New$className($castedArgs)"
     }
   }
 
