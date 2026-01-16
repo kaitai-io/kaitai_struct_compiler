@@ -58,6 +58,5 @@ jobs:
           package-manager-cache: false  # IMPORTANT: prevents potential [cache poisoning](https://docs.zizmor.sh/audits/#cache-poisoning) attacks
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-      - run: |
-          cd js/npm/
-          npm publish --tag next
+      - run: npm publish --tag next
+        working-directory: js/npm/
