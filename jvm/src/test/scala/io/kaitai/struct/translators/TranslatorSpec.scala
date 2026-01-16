@@ -265,7 +265,7 @@ class TranslatorSpec extends AnyFunSpec {
       LuaCompiler -> "utils.box_unwrap((2 < 3) and utils.box_wrap(\"foo\") or (\"bar\"))",
       PerlCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
       PHPCompiler -> "(2 < 3 ? \"foo\" : \"bar\")",
-      PythonCompiler -> "(u\"foo\" if 2 < 3 else u\"bar\")",
+      PythonCompiler -> "(\"foo\" if 2 < 3 else \"bar\")",
       RubyCompiler -> "(2 < 3 ? \"foo\" : \"bar\")"
     ))
   }
@@ -545,7 +545,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "\"str\"",
         PerlCompiler -> "\"str\"",
         PHPCompiler -> "\"str\"",
-        PythonCompiler -> "u\"str\"",
+        PythonCompiler -> "\"str\"",
         RubyCompiler -> "\"str\""
       ))
 
@@ -558,7 +558,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "\"str\\nnext\"",
         PerlCompiler -> "\"str\\nnext\"",
         PHPCompiler -> "\"str\\nnext\"",
-        PythonCompiler -> "u\"str\\nnext\"",
+        PythonCompiler -> "\"str\\nnext\"",
         RubyCompiler -> "\"str\\nnext\""
       ))
 
@@ -571,7 +571,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "\"str\\nnext\"",
         PerlCompiler -> "\"str\\nnext\"",
         PHPCompiler -> "\"str\\nnext\"",
-        PythonCompiler -> "u\"str\\nnext\"",
+        PythonCompiler -> "\"str\\nnext\"",
         RubyCompiler -> "\"str\\nnext\""
       ))
 
@@ -584,7 +584,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "\"str\\000next\"",
         PerlCompiler -> "\"str\\000next\"",
         PHPCompiler -> "\"str\\000next\"",
-        PythonCompiler -> "u\"str\\000next\"",
+        PythonCompiler -> "\"str\\000next\"",
         RubyCompiler -> "\"str\\000next\""
       ))
     }
@@ -595,7 +595,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "\"str1\" .. \"str2\"",
         PerlCompiler -> "\"str1\" . \"str2\"",
         PHPCompiler -> "\"str1\" . \"str2\"",
-        PythonCompiler -> "u\"str1\" + u\"str2\""
+        PythonCompiler -> "\"str1\" + \"str2\""
       ), CalcStrType)
 
       everybodyExcept("\"str1\" == \"str2\"", "\"str1\" == \"str2\"", ResultMap(
@@ -603,7 +603,7 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "\"str1\".equals(\"str2\")",
         LuaCompiler -> "\"str1\" == \"str2\"",
         PerlCompiler -> "\"str1\" eq \"str2\"",
-        PythonCompiler -> "u\"str1\" == u\"str2\""
+        PythonCompiler -> "\"str1\" == \"str2\""
       ), CalcBooleanType)
 
       everybodyExcept("\"str1\" != \"str2\"", "\"str1\" != \"str2\"", ResultMap(
@@ -611,7 +611,7 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "!\"str1\".equals(\"str2\")",
         LuaCompiler -> "\"str1\" ~= \"str2\"",
         PerlCompiler -> "\"str1\" ne \"str2\"",
-        PythonCompiler -> "u\"str1\" != u\"str2\""
+        PythonCompiler -> "\"str1\" != \"str2\""
       ), CalcBooleanType)
 
       everybodyExcept("\"str1\" < \"str2\"", "\"str1\" < \"str2\"", ResultMap(
@@ -620,7 +620,7 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "(\"str1\".compareTo(\"str2\") < 0)",
         LuaCompiler -> "\"str1\" < \"str2\"",
         PerlCompiler -> "\"str1\" lt \"str2\"",
-        PythonCompiler -> "u\"str1\" < u\"str2\""
+        PythonCompiler -> "\"str1\" < \"str2\""
       ), CalcBooleanType)
     }
 
@@ -634,7 +634,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "string.len(\"str\")",
         PerlCompiler -> "length(\"str\")",
         PHPCompiler -> "strlen(\"str\")",
-        PythonCompiler -> "len(u\"str\")",
+        PythonCompiler -> "len(\"str\")",
         RubyCompiler -> "\"str\".size"
       ))
 
@@ -660,7 +660,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "string.reverse(\"str\")",
         PerlCompiler -> "scalar(reverse(\"str\"))",
         PHPCompiler -> "strrev(\"str\")",
-        PythonCompiler -> "(u\"str\")[::-1]",
+        PythonCompiler -> "(\"str\")[::-1]",
         RubyCompiler -> "\"str\".reverse"
       ))
 
@@ -691,7 +691,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "tonumber(\"12345\")",
         PerlCompiler -> "\"12345\" + 0",
         PHPCompiler -> "intval(\"12345\", 10)",
-        PythonCompiler -> "int(u\"12345\")",
+        PythonCompiler -> "int(\"12345\")",
         RubyCompiler -> "\"12345\".to_i"
       ))
 
@@ -709,7 +709,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "tonumber(\"1234fe\", 16)",
         PerlCompiler -> "hex(\"1234fe\")",
         PHPCompiler -> "intval(\"1234fe\", 16)",
-        PythonCompiler -> "int(u\"1234fe\", 16)",
+        PythonCompiler -> "int(\"1234fe\", 16)",
         RubyCompiler -> "\"1234fe\".to_i(16)"
       ))
 
@@ -723,7 +723,7 @@ class TranslatorSpec extends AnyFunSpec {
         LuaCompiler -> "string.sub(\"foobar\", 2 + 1, 4)",
         PerlCompiler -> "substr(\"foobar\", 2, 4 - 2)",
         PHPCompiler -> "\\Kaitai\\Struct\\Stream::substring(\"foobar\", 2, 4)",
-        PythonCompiler -> "u\"foobar\"[2:4]",
+        PythonCompiler -> "\"foobar\"[2:4]",
         RubyCompiler -> "\"foobar\"[2...4]"
       ))
 
@@ -941,7 +941,7 @@ class TranslatorSpec extends AnyFunSpec {
   describe("f-strings") {
     everybodyExcept("f\"abc\"", "\"abc\"", ResultMap(
       CppCompiler -> "std::string(\"abc\")",
-      PythonCompiler -> "u\"abc\""
+      PythonCompiler -> "\"abc\""
     ), CalcStrType)
 
     full("f\"abc{1}%def\"", CalcIntType, CalcStrType, ResultMap(
@@ -953,7 +953,7 @@ class TranslatorSpec extends AnyFunSpec {
       LuaCompiler -> "\"abc\" .. tostring(1) .. \"%def\"",
       PerlCompiler -> "\"abc\" . sprintf('%d', 1) . \"\\%def\"",
       PHPCompiler -> "\"abc\" . strval(1) . \"%def\"",
-      PythonCompiler -> "u\"abc\" + str(1) + u\"%def\"",
+      PythonCompiler -> "\"abc\" + str(1) + \"%def\"",
       RubyCompiler -> "\"abc\" + 1.to_s + \"%def\"",
     ))
   }
