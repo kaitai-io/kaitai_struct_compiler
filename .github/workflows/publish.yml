@@ -1,4 +1,4 @@
-name: Publish as @next to npm
+name: Publish to npm as @next
 
 on:
   push:
