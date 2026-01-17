@@ -80,8 +80,14 @@ object Ast {
     case class EnumById(enumName: identifier, id: expr, inType: typeId = EmptyTypeId) extends expr
 
     case class Attribute(value: expr, attr: identifier) extends expr
+    /** Represents `.as<typeName>` expression. */
     case class CastToType(value: expr, typeName: typeId) extends expr
+    /**
+      * Calculates number of bytes occupied by the type `typeName` in the input stream.
+      * For bit-sized types returns minimal number of bytes that is enough to hold that type.
+      */
     case class ByteSizeOfType(typeName: typeId) extends expr
+    /** Calculates number of bits occupied by the type `typeName` in the input stream. */
     case class BitSizeOfType(typeName: typeId) extends expr
     /** Represents `X[Y]`. */
     case class Subscript(value: expr, idx: expr) extends expr
