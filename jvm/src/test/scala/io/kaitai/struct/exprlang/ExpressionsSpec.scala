@@ -391,7 +391,7 @@ class ExpressionsSpec extends AnyFunSpec {
       )
     }
 
-    // Attribute / method call
+    // Attributes
     it("parses 123.to_s") {
       Expressions.parse("123.to_s") should be (Attribute(IntNum(123),identifier("to_s")))
     }
@@ -402,6 +402,63 @@ class ExpressionsSpec extends AnyFunSpec {
 
     it("parses foo.bar") {
       Expressions.parse("foo.bar") should be (Attribute(Name(identifier("foo")),identifier("bar")))
+    }
+
+    // Method calls
+    describe("parses method") {
+      it("without parameters") {
+        Expressions.parse("foo.bar()") should be (Call(Name(identifier("foo")),identifier("bar"), Seq()))
+      }
+
+      it("with parameters") {
+        Expressions.parse("foo.bar(42)") should be (Call(Name(identifier("foo")),identifier("bar"), Seq(IntNum(42))))
+      }
+
+      it("on strings") {
+        Expressions.parse("\"foo\".bar(42)") should be (Call(Str("foo"),identifier("bar"), Seq(IntNum(42))))
+        Expressions.parse("'foo'.bar(42)")   should be (Call(Str("foo"),identifier("bar"), Seq(IntNum(42))))
+      }
+
+      it("on booleans") {
+        Expressions.parse("true.bar(42)")  should be (Call(Bool(true), identifier("bar"), Seq(IntNum(42))))
+        Expressions.parse("false.bar(42)") should be (Call(Bool(false),identifier("bar"), Seq(IntNum(42))))
+      }
+
+      it("on integer") {
+        Expressions.parse("42.bar(42)") should be (Call(IntNum(42), identifier("bar"), Seq(IntNum(42))))
+      }
+
+      it("on float") {
+        Expressions.parse("42.0.bar(42)") should be (Call(FloatNum(42.0), identifier("bar"), Seq(IntNum(42))))
+      }
+
+      it("on array") {
+        Expressions.parse("[].bar(42)") should be (Call(List(Nil), identifier("bar"), Seq(IntNum(42))))
+      }
+
+      it("on slice") {
+        Expressions.parse("foo[1].bar(42)") should be (
+          Call(
+            Subscript(Name(identifier("foo")), IntNum(1)),
+            identifier("bar"),
+            Seq(IntNum(42))
+          )
+        )
+      }
+
+      it("on group") {
+        Expressions.parse("(42).bar(42)") should be (Call(IntNum(42), identifier("bar"), Seq(IntNum(42))))
+      }
+
+      it("on expression") {
+        Expressions.parse("(1+2).bar(42)") should be (
+          Call(
+            BinOp(IntNum(1), Add, IntNum(2)),
+            identifier("bar"),
+            Seq(IntNum(42))
+          )
+        )
+      }
     }
 
     describe("strings") {

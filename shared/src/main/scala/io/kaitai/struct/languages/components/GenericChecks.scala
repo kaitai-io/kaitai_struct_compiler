@@ -165,11 +165,8 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
         } else {
           userExprDependsOnIo(a.value)
         }
-      case Ast.expr.Call(func, args) =>
-        (func match {
-          case Ast.expr.Attribute(value, methodName) =>
-            userExprDependsOnIo(value)
-        }) || args.exists(v => userExprDependsOnIo(v))
+      case Ast.expr.Call(value, _, args) =>
+        userExprDependsOnIo(value) || args.exists(v => userExprDependsOnIo(v))
       case Ast.expr.List(values: Seq[Ast.expr]) =>
         values.exists(v => userExprDependsOnIo(v))
       case Ast.expr.CastToType(value, typeName) =>
@@ -489,19 +486,15 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
 
   def exprByteArrayIndexOf(name: Ast.expr, term: Int) =
     Ast.expr.Call(
-      Ast.expr.Attribute(
-        name,
-        Ast.identifier("index_of")
-      ),
+      name,
+      Ast.identifier("index_of"),
       Seq(Ast.expr.IntNum(term))
     )
 
   def exprStrToBytes(name: Ast.expr, encoding: String) =
     Ast.expr.Call(
-      Ast.expr.Attribute(
-        name,
-        Ast.identifier("to_b")
-      ),
+      name,
+      Ast.identifier("to_b"),
       Seq(Ast.expr.Str(encoding))
     )
 
