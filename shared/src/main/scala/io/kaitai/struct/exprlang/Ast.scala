@@ -76,8 +76,21 @@ object Ast {
     case class FloatNum(n: BigDecimal) extends expr
     case class Str(s: String) extends expr
     case class Bool(n: Boolean) extends expr
-    case class EnumByLabel(enumName: identifier, label: identifier, inType: typeId = EmptyTypeId) extends expr
-    case class EnumById(enumName: identifier, id: expr, inType: typeId = EmptyTypeId) extends expr
+    /**
+      * Reference to the enum variant `variant` in the enumeration `enumName`,
+      * defined in the type `inType`. In expression language represented as
+      * `enumName::variant` or `<type-path>::enumName::variant` where `<type-path>`
+      * can be an absolute or a relative path to the type, defined in the current
+      * KSY file.
+      */
+    case class EnumVariant(enumName: identifier, variant: identifier, inType: typeId = EmptyTypeId) extends expr
+    /**
+      * Transformation of the `value` expression into the `enumName` type,
+      * defined in the type `inType`. Unlike other nodes this node never
+      * parsed from the expression language, because at parse time any
+      * identifier can represent an enum and actual resolution performed later
+      */
+    case class EnumCast(enumName: identifier, value: expr, inType: typeId = EmptyTypeId) extends expr
 
     case class Attribute(value: expr, attr: identifier) extends expr
     case class CastToType(value: expr, typeName: typeId) extends expr

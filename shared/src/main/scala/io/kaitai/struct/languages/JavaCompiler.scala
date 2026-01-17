@@ -795,10 +795,10 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Java is very specific about what can be used as "condition" in "case
     // condition:".
     val condStr = condition match {
-      case enumByLabel: Ast.expr.EnumByLabel =>
+      case variant: Ast.expr.EnumVariant =>
         // If switch is over a enum, only literal enum values are supported,
         // and they must be written as "MEMBER", not "SomeEnum.MEMBER".
-        value2Const(enumByLabel.label.name)
+        value2Const(variant.variant.name)
       case _ =>
         expression(condition)
     }

@@ -103,16 +103,16 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
   override def doInternalName(id: Identifier): String =
     PythonCompiler.privateMemberName(id)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
     if (isExternal) {
       PythonCompiler.externalTypeDeclaration(ExternalEnum(enumSpec), importList, config)
     }
-    s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.$label"
+    s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.$variant"
   }
-  override def doEnumById(enumSpec: EnumSpec, id: String): String = {
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
-    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumSpec.name, isExternal)}, $id)"
+    s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumSpec.name, isExternal)}, $value)"
   }
 
   override def booleanOp(op: Ast.boolop) = op match {
