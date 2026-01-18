@@ -181,6 +181,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
       case et: EnumType =>
         attr.name match {
           case "to_i" => enumToInt(value, et)
+          case "to_s" => enumToStr(value, et)
           case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
         }
       case _ =>
@@ -278,6 +279,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
   def arrayMax(a: Ast.expr): T
 
   def enumToInt(value: Ast.expr, et: EnumType): T
+  def enumToStr(value: Ast.expr, et: EnumType): T = ???
 
   def boolToInt(value: Ast.expr): T
 

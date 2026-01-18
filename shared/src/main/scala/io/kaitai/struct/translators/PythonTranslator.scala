@@ -139,8 +139,12 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     }
     s"int(${translate(s)}$add)"
   }
+
   override def enumToInt(v: Ast.expr, et: EnumType): String =
     s"int(${translate(v)})"
+  override def enumToStr(v: Ast.expr, et: EnumType): String =
+    s"${translate(v)}.name"
+
   override def boolToInt(v: Ast.expr): String =
     s"int(${translate(v)})"
   override def floatToInt(v: Ast.expr): String =

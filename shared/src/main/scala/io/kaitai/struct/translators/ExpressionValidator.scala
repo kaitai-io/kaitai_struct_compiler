@@ -136,6 +136,7 @@ class ExpressionValidator(val provider: TypeProvider)
   override def arrayMax(a: Ast.expr): Unit = validate(a)
 
   override def enumToInt(value: Ast.expr, et: DataType.EnumType): Unit = validate(value)
+  override def enumToStr(value: Ast.expr, et: DataType.EnumType): Unit = validate(value)
 
   override def boolToInt(value: Ast.expr): Unit = validate(value)
 
