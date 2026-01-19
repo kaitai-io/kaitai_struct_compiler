@@ -398,7 +398,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
       attrParentParamCheck(id, Ast.expr.Attribute(utExpr, Ast.identifier(Identifier.PARENT)), ut, shouldDependOnIo)
     }
     if (!ut.isOpaque) {
-      (ut.classSpec.get.params, ut.args).zipped.foreach { (paramDef, argExpr) =>
+      ut.classSpec.get.params.lazyZip(ut.args).foreach { (paramDef, argExpr) =>
         attrUserTypeParamCheck(id, ut, utExpr, paramDef.id, paramDef.dataType, argExpr, shouldDependOnIo)
       }
     }
