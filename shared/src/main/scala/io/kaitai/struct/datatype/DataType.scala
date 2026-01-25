@@ -251,11 +251,14 @@ object DataType {
   case class CalcKaitaiStructType(override val isOwningInExpr: Boolean = false) extends StructType {
     def isOwning = false
   }
-  case object OwnedKaitaiStreamType extends ComplexDataType {
+
+  /** Base class for streams from which types can be read or written. */
+  abstract sealed class StreamType extends ComplexDataType
+  case object OwnedKaitaiStreamType extends StreamType {
     def isOwning = true
     override def asNonOwning(isOwningInExpr: Boolean = false): DataType = KaitaiStreamType
   }
-  case object KaitaiStreamType extends ComplexDataType {
+  case object KaitaiStreamType extends StreamType {
     def isOwning = false
   }
 
