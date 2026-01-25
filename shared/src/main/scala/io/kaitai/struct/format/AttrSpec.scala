@@ -6,6 +6,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast.expr
 import io.kaitai.struct.exprlang.{Ast, Expressions}
+import io.kaitai.struct.precompile.InvalidIdentifier
 import io.kaitai.struct.problems.KSYParseError
 
 import scala.collection.immutable.SortedMap
