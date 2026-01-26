@@ -563,7 +563,7 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)} = ${newVector(dataType)};")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
@@ -583,10 +583,8 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    val lenVar = s"l_${idToStr(id)}"
-    outSrc.puts(s"const int $lenVar = ${expression(repeatExpr)};")
-    outSrc.puts(s"for (int i = 0; i < $lenVar; i++) {")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    outSrc.puts(s"for (int i = 0, _end = ${expression(countExpr)}; i < _end; ++i) {")
     outSrc.inc
   }
 
@@ -598,12 +596,12 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     outSrc.puts("{")
     outSrc.inc
     outSrc.puts("int i = 0;")
-    outSrc.puts(s"${kaitaiType2NativeType(dataType.asNonOwning())} ${translator.doName("_")};")
-    outSrc.puts("do {")
+    outSrc.puts(s"${kaitaiType2NativeType(itemType.asNonOwning())} ${translator.doName(Identifier.ITERATOR)};")
+    outSrc.puts("while (true) {")
     outSrc.inc
   }
 
@@ -632,13 +630,17 @@ class CppCompiler(
     outSrc.puts(s"${privateMemberName(id)}->push_back($wrappedTempVar);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
-    outSrc.puts("i++;")
-    outSrc.dec
-    outSrc.puts(s"} while (!(${expression(untilExpr)}));")
+  override def condRepeatUntilFooter(untilExpr: expr): Unit = {
+    outSrc.puts(s"if (${expression(untilExpr)}) {")
+    outSrc.inc
+    outSrc.puts("break;")
     outSrc.dec
     outSrc.puts("}")
+    outSrc.puts("++i;")
+    outSrc.dec
+    outSrc.puts("}") // close while (true)
+    outSrc.dec
+    outSrc.puts("}") // close scope of i and _ variables
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {

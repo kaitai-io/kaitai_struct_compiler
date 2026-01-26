@@ -64,11 +64,11 @@ trait CommonReads extends LanguageCompiler {
       (ExtraAttrs.forAttr(attr, this) ++ List(attr)).foreach(a => condRepeatInitAttr(a.id, a.dataType))
     attr.cond.repeat match {
       case RepeatEos =>
-        condRepeatEosHeader(id, io, attr.dataType)
-      case RepeatExpr(repeatExpr: Ast.expr) =>
-        condRepeatExprHeader(id, io, attr.dataType, repeatExpr)
-      case RepeatUntil(untilExpr: Ast.expr) =>
-        condRepeatUntilHeader(id, io, attr.dataType, untilExpr)
+        condRepeatEosHeader(io)
+      case RepeatExpr(countExpr: Ast.expr) =>
+        condRepeatExprHeader(countExpr)
+      case RepeatUntil(_) =>
+        condRepeatUntilHeader(attr.dataType)
       case NoRepeat =>
     }
 
@@ -88,7 +88,9 @@ trait CommonReads extends LanguageCompiler {
       case _: RepeatExpr =>
         condRepeatExprFooter
       case RepeatUntil(untilExpr: Ast.expr) =>
-        condRepeatUntilFooter(id, io, attr.dataType, untilExpr)
+        // Set the type of the `_` variable in expression
+        typeProvider._typeOfUnderscore = Some(attr.dataType)
+        condRepeatUntilFooter(untilExpr)
       case NoRepeat =>
     }
   }
