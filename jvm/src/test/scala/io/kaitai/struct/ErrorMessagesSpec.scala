@@ -14,7 +14,7 @@ class ErrorMessagesSpec extends AnyFunSuite with SimpleMatchers {
   // version info
   KSVersion.current = Version.version
 
-  val FORMATS_ERR_DIR = "../tests/formats_err"
+  val FORMATS_ERR_DIR = "tests/formats_err"
   val CHARSET_UTF8 = Charset.forName("UTF-8")
   val DEFAULT_CONFIG = CLIConfig()
 
