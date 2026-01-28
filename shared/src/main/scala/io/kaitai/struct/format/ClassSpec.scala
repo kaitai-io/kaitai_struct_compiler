@@ -81,6 +81,16 @@ case class ClassSpec(
 
   var seqSize: Sized = NotCalculatedSized
 
+  /**
+    * The list of top-level type specifications which is imported to the file,
+    * which top-level type is represented by this class.
+    *
+    * This collection filled only for top-level classes (for which [[upClass]] is `None`).
+    *
+    * This collection is filled by the [[io.kaitai.struct.precompile.LoadImports]] pass.
+    */
+  var imports = mutable.ListBuffer[ClassSpec]()
+
   def toDataType: DataType = {
     val cut = CalcUserType(name, None)
     cut.classSpec = Some(this)

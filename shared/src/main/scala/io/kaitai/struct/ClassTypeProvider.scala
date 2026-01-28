@@ -4,7 +4,7 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
-import io.kaitai.struct.precompile.{EnumNotFoundError, FieldNotFoundError, TypeNotFoundError, TypeUndecidedError}
+import io.kaitai.struct.precompile.{EnumNotFoundInHierarchyError, EnumNotFoundInTypeError, FieldNotFoundError, TypeNotFoundInHierarchyError, TypeNotFoundInTypeError, TypeUndecidedError}
 import io.kaitai.struct.translators.TypeProvider
 
 class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends TypeProvider {
@@ -117,46 +117,59 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
     throw new FieldNotFoundError(attrName, inClass)
   }
 
-  override def resolveEnum(inType: Ast.typeId, enumName: String): EnumSpec =
-    resolveEnum(resolveClassSpec(inType), enumName)
+  override def resolveEnum(ref: Ast.EnumRef): EnumSpec = {
+    val inClass = if (ref.absolute) topClass else nowClass
+    // When concrete type is not defined, search enum definition in all enclosing types
+    if (ref.typePath.isEmpty) {
+      resolveEnumName(inClass, ref.name)
+    } else {
+      val ty = resolveTypePath(inClass, ref.typePath)
+      ty.enums.get(ref.name) match {
+        case Some(spec) =>
+          spec
+        case None =>
+          throw new EnumNotFoundInTypeError(ref.name, ty)
+      }
+    }
+  }
 
-  def resolveEnum(inClass: ClassSpec, enumName: String): EnumSpec = {
+  private def resolveEnumName(inClass: ClassSpec, enumName: String): EnumSpec = {
     inClass.enums.get(enumName) match {
       case Some(spec) =>
         spec
       case None =>
         // let's try upper levels of hierarchy
         inClass.upClass match {
-          case Some(upClass) => resolveEnum(upClass, enumName)
+          case Some(upClass) => resolveEnumName(upClass, enumName)
           case None =>
-            throw new EnumNotFoundError(enumName, nowClass)
+            throw new EnumNotFoundInHierarchyError(enumName, nowClass)
         }
     }
   }
 
   override def resolveType(typeName: Ast.typeId): DataType =
-    resolveClassSpec(typeName).toDataType
-
-  def resolveClassSpec(typeName: Ast.typeId): ClassSpec =
-    resolveClassSpec(
+    resolveTypePath(
       if (typeName.absolute) topClass else nowClass,
       typeName.names
-    )
+    ).toDataType
 
-  def resolveClassSpec(inClass: ClassSpec, typeName: Seq[String]): ClassSpec = {
-    if (typeName.isEmpty)
+  def resolveTypePath(inClass: ClassSpec, path: Seq[String]): ClassSpec = {
+    if (path.isEmpty)
       return inClass
 
-    val headTypeName :: restTypesNames = typeName.toList
-    val nextClass = resolveClassSpec(inClass, headTypeName)
-    if (restTypesNames.isEmpty) {
-      nextClass
-    } else {
-      resolveClassSpec(nextClass, restTypesNames)
+    val headTypeName :: restTypesNames = path.toList
+    var nextClass = resolveTypeName(inClass, headTypeName)
+    for (name <- restTypesNames) {
+      nextClass = nextClass.types.get(name) match {
+        case Some(spec) => spec
+        case None =>
+          throw new TypeNotFoundInTypeError(name, nextClass)
+      }
     }
+    nextClass
   }
 
-  def resolveClassSpec(inClass: ClassSpec, typeName: String): ClassSpec = {
+  def resolveTypeName(inClass: ClassSpec, typeName: String): ClassSpec = {
     if (inClass.name.last == typeName)
       return inClass
 
@@ -166,12 +179,16 @@ class ClassTypeProvider(classSpecs: ClassSpecs, var topClass: ClassSpec) extends
       case None =>
         // let's try upper levels of hierarchy
         inClass.upClass match {
-          case Some(upClass) => resolveClassSpec(upClass, typeName)
+          case Some(upClass) => resolveTypeName(upClass, typeName)
           case None =>
             classSpecs.get(typeName) match {
-              case Some(spec) => spec
-              case None =>
-                throw new TypeNotFoundError(typeName, nowClass)
+              // We should use that spec if it is imported in our file (which is represented
+              // by our top-level class). If `topClass` imports `classSpec`, we could try to
+              // resolve type in it
+              // TODO: if type is defined in spec, we could add a suggestion to error to add missing import
+              case Some(spec) if (topClass.imports.contains(spec)) => spec
+              case _ =>
+                throw new TypeNotFoundInHierarchyError(typeName, nowClass)
             }
         }
     }

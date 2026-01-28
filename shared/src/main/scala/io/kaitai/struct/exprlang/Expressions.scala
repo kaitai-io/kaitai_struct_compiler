@@ -171,14 +171,11 @@ object Expressions {
     case (first, names: Seq[Ast.identifier]) =>
       val isAbsolute = first.nonEmpty
       val (enumName, enumLabel) = names.takeRight(2) match {
-        case Seq(a, b) => (a, b)
+        case Seq(a, b) => (a.name, b)
       }
-      val typePath = names.dropRight(2)
-      if (typePath.isEmpty) {
-        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.EmptyTypeId)
-      } else {
-        Ast.expr.EnumByLabel(enumName, enumLabel, Ast.typeId(isAbsolute, typePath.map(_.name)))
-      }
+      val typePath = names.dropRight(2).map(n => n.name)
+      val ref = Ast.EnumRef(isAbsolute, typePath, enumName)
+      Ast.expr.EnumByLabel(ref, enumLabel)
   }
 
   def byteSizeOfType[$: P]: P[Ast.expr.ByteSizeOfType] =
@@ -193,6 +190,13 @@ object Expressions {
   def typeRef[$: P]: P[Ast.TypeWithArguments] = P(Start ~ TYPE_NAME ~ ("(" ~ list ~ ")").? ~ End).map {
     case (path, None)       => Ast.TypeWithArguments(path, Ast.expr.List(Seq()))
     case (path, Some(args)) => Ast.TypeWithArguments(path, args)
+  }
+
+  def enumRef[$: P]: P[Ast.EnumRef] = P(Start ~ "::".!.? ~ NAME.rep(1, "::") ~ End).map {
+    case (absolute, names) =>
+      // List have at least one element, so we always can split it into head and the last element
+      val typePath :+ enumName = names
+      Ast.EnumRef(absolute.nonEmpty, typePath.map(i => i.name), enumName.name)
   }
 
   class ParseException(val src: String, val failure: Parsed.Failure)
@@ -210,6 +214,14 @@ object Expressions {
    *         corresponding list is empty. List with path always contains at least one element
    */
   def parseTypeRef(src: String): Ast.TypeWithArguments = realParse(src, typeRef(_))
+
+  /**
+   * Parse string with reference to enumeration definition, optionally in full path format.
+   *
+   * @param src Enum reference as string, like `::path::to::enum`
+   * @return Object that represents path to enum
+   */
+  def parseEnumRef(src: String): Ast.EnumRef = realParse(src, enumRef(_))
 
   private def realParse[T](src: String, parser: P[_] => P[T]): T = {
     val r = fastparse.parse(src.trim, parser)

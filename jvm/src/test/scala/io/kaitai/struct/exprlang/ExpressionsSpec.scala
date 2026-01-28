@@ -133,15 +133,14 @@ class ExpressionsSpec extends AnyFunSpec {
 
     // Enums
     it("parses port::http") {
-      Expressions.parse("port::http") should be (EnumByLabel(identifier("port"), identifier("http")))
+      Expressions.parse("port::http") should be (EnumByLabel(EnumRef(false, Seq(), "port"), identifier("http")))
     }
 
     it("parses some_type::port::http") {
       Expressions.parse("some_type::port::http") should be (
         EnumByLabel(
-          identifier("port"),
+          EnumRef(false, Seq("some_type"), "port"),
           identifier("http"),
-          typeId(absolute = false, Seq("some_type"))
         )
       )
     }
@@ -149,9 +148,8 @@ class ExpressionsSpec extends AnyFunSpec {
     it("parses parent_type::child_type::port::http") {
       Expressions.parse("parent_type::child_type::port::http") should be (
         EnumByLabel(
-          identifier("port"),
+          EnumRef(false, Seq("parent_type", "child_type"), "port"),
           identifier("http"),
-          typeId(absolute = false, Seq("parent_type", "child_type"))
         )
       )
     }
@@ -159,9 +157,8 @@ class ExpressionsSpec extends AnyFunSpec {
     it("parses ::parent_type::child_type::port::http") {
       Expressions.parse("::parent_type::child_type::port::http") should be (
         EnumByLabel(
-          identifier("port"),
+          EnumRef(true, Seq("parent_type", "child_type"), "port"),
           identifier("http"),
-          typeId(absolute = true, Seq("parent_type", "child_type"))
         )
       )
     }
@@ -171,7 +168,7 @@ class ExpressionsSpec extends AnyFunSpec {
         Compare(
           BinOp(
             Attribute(
-              EnumByLabel(identifier("port"),identifier("http")),
+              EnumByLabel(EnumRef(false, Seq(), "port"), identifier("http")),
               identifier("to_i")
             ),
             Add,

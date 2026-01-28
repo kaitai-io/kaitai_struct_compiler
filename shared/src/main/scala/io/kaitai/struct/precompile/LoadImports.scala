@@ -32,7 +32,7 @@ class LoadImports(specs: ClassSpecs) {
         loadImport(
           name,
           curClass.meta.path ++ List("imports", idx.toString),
-          Some(curClass.fileNameAsStr),
+          curClass,
           workDir
         )
       }).map((x) => x.flatten)
@@ -44,9 +44,10 @@ class LoadImports(specs: ClassSpecs) {
     Future.sequence(List(thisMetaFuture, nestedFuture)).map((x) => x.flatten)
   }
 
-  private def loadImport(name: String, path: List[String], inFile: Option[String], workDir: ImportPath): Future[List[ClassSpec]] = {
+  private def loadImport(name: String, path: List[String], curClass: ClassSpec, workDir: ImportPath): Future[List[ClassSpec]] = {
     Log.importOps.info(() => s".. LoadImports: loadImport($name, workDir = $workDir)")
 
+    val inFile = curClass.fileNameAsStr
     val impPath = ImportPath.fromString(name)
     val fullPath = ImportPath.add(workDir, impPath)
 
@@ -63,8 +64,9 @@ class LoadImports(specs: ClassSpecs) {
         s".. LoadImports: loadImport($name, workDir = $workDir), got spec=$specNameAsStr"
       })
       optSpec match {
-        case Some(spec) =>
-          val specName = spec.name.head
+        case Some(importedSpec) =>
+          curClass.imports += importedSpec
+          val specName = importedSpec.name.head
           // Check if spec name does not match file name. If it doesn't match,
           // it is probably already a serious error.
           if (name != specName)
@@ -88,12 +90,12 @@ class LoadImports(specs: ClassSpecs) {
           val isNewSpec = specs.synchronized {
             val isNew = !specs.contains(specName)
             if (isNew) {
-              specs(specName) = spec
+              specs(specName) = importedSpec
             }
             isNew
           }
           if (isNewSpec) {
-            processClass(spec, ImportPath.updateWorkDir(workDir, impPath))
+            processClass(importedSpec, ImportPath.updateWorkDir(workDir, impPath))
           } else {
             Log.importOps.warn(() => s"... we have that already, ignoring")
             Future { List() }

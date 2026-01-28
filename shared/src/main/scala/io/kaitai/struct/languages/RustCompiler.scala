@@ -1302,7 +1302,7 @@ object RustCompiler
   def classTypeName(c: ClassSpec): String =
     s"${types2class(c.name)}"
 
-  def types2class(names: List[String]): String =
+  def types2class(names: Seq[String]): String =
   // TODO: Use `mod` to scope types instead of weird names
     names.map(x => type2class(x)).mkString("_")
 
@@ -1329,7 +1329,7 @@ object RustCompiler
       case t: EnumType =>
         val baseName = t.enumSpec match {
           case Some(spec) => s"${types2class(spec.name)}"
-          case None => s"${types2class(t.name)}"
+          case None => s"${types2class(t.ref.fullName)}"
         }
         baseName
 
