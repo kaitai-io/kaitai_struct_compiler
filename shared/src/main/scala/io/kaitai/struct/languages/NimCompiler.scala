@@ -121,9 +121,9 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"`${idToStr(attrName)}`*: ${ksToNim(attrType)}")
   }
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"`${idToStr(attrName)}`: ${ksToNim(attrType)}")
-    out.puts(s"`${instanceFlagIdentifier(attrName)}`: bool")
+  override def instanceDeclaration(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"`${idToStr(instName)}`: ${ksToNim(attrType)}")
+    out.puts(s"`${instanceFlagIdentifier(instName)}`: bool")
   }
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
   override def classConstructorHeader(name: List[String], parentType: DataType, rootClassName: List[String], isHybrid: Boolean, params: List[ParamDefSpec]): Unit = {}

@@ -67,6 +67,21 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
   }
 
+  override def classAnnotation(spec: ClassSpec): Unit = {
+    if (!spec.isTopLevel) return;
+
+    importList.add("io.kaitai.struct.annotations.Generated")
+
+    out.puts("@Generated(")
+    out.inc
+    out.puts(s"""id = "${spec.name.last}",""")
+    out.puts(s"""version = "${KSVersion.current}",""")
+    out.puts(s"""posInfo = ${config.readStoresPos},""")
+    out.puts(s"""autoRead = ${config.autoRead}""")
+    out.dec
+    out.puts(")")
+  }
+
   override def classHeader(name: String): Unit = {
     val staticStr = if (out.indentLevel > 0) {
       "static "
@@ -279,6 +294,32 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
     out.puts(s"if (_enabled${idToSetterStr(instName)}) {")
     out.inc
+  }
+
+  override def attributeAnnotation(index: Int, attr: MemberSpec): Unit = {
+    attr match {
+      case param: ParamDefSpec => {
+        importList.add("io.kaitai.struct.annotations.Parameter")
+
+        out.puts(s"""@Parameter(index = ${index}, id = "${param.id.humanReadable}")""")
+      }
+      case field: AttrSpec => {
+        field.id match {
+          case NamedIdentifier(name) => {
+            importList.add("io.kaitai.struct.annotations.SeqItem")
+
+            out.puts(s"""@SeqItem(index = ${index}, id = "${name}")""")
+          }
+          case NumberedIdentifier(_) => {
+            importList.add("io.kaitai.struct.annotations.SeqItem")
+
+            out.puts(s"""@SeqItem(index = ${index})""")
+          }
+          case _ =>
+        }
+      }
+      case _ =>
+    }
   }
 
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
@@ -868,8 +909,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   //</editor-fold>
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(attrName)};")
+  override def instanceAnnotation(instName: InstanceIdentifier, spec: InstanceSpec, getter: Boolean): Unit = {
+    importList.add("io.kaitai.struct.annotations.Instance")
+
+    out.puts(s"""@Instance(id = "${instName.name}")""")
+  }
+
+  override def instanceDeclaration(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"private ${kaitaiType2JavaTypeBoxed(attrType)} ${idToStr(instName)};")
   }
 
   override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = {
