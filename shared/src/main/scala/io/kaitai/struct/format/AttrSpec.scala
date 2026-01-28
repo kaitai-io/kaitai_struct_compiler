@@ -219,7 +219,7 @@ object AttrSpec {
             DataType.fromYaml(
               Some(simpleType), path, metaDef, yamlAttrArgs
             )
-          case switchMap: Map[Any, Any] =>
+          case switchMap: Map[_, _] =>
             val switchMapStr = ParseUtils.anyMapToStrMap(switchMap, path)
             parseSwitch(switchMapStr, path ++ List("type"), metaDef, yamlAttrArgs, id)
           case unknown =>
