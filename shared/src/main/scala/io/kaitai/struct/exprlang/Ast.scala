@@ -63,7 +63,7 @@ object Ast {
     }
   }
 
-  object expr{
+  object expr {
     case class BoolOp(op: boolop, values: Seq[expr]) extends expr
     case class BinOp(left: expr, op: operator, right: expr) extends expr
     case class UnaryOp(op: unaryop, operand: expr) extends expr
@@ -90,6 +90,9 @@ object Ast {
     case class InternalName(id: Identifier) extends expr
     case class List(elts: Seq[expr]) extends expr
     case class InterpolatedStr(elts: Seq[expr]) extends expr
+
+    /** Wraps `expr` into parentheses. Multiple nested groups merge into the one group */
+    case class Group(expr: expr) extends expr
 
     /**
      * Implicit declaration of ordering, so expressions can be used for ordering operations, e.g.
