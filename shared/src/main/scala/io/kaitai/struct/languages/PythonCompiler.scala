@@ -399,7 +399,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def normalIO: String = "self._io"
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val varStr = privateMemberName(varName)
     val ioName = s"_io_${idToStr(varName)}"
 
@@ -484,7 +484,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)")
 
-  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
       val name = idToStr(attrId)
       rep match {
@@ -499,7 +499,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit =
     out.puts(s"self._debug['${idToStr(attrId)}']['arr'] = []")
 
-  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, io: String, rep: RepeatSpec): Unit = {
     val name = idToStr(attrId)
     rep match {
       case NoRepeat =>

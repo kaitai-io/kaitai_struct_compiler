@@ -218,7 +218,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val javaName = privateMemberName(varName)
 
     val ioName = idToStr(IoStorageIdentifier(varName))
