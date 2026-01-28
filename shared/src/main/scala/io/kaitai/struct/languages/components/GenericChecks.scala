@@ -79,7 +79,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
             case Identifier.ROOT
               | Identifier.PARENT
               | Identifier.IO
-              | Identifier.ITERATOR
+              | Identifier.THIS
               | Identifier.SWITCH_ON
               | Identifier.INDEX
               | Identifier.SIZEOF
@@ -521,7 +521,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     blockScopeHeader
     handleAssignmentTempVar(
       dataType,
-      translator.doName(Identifier.ITERATOR),
+      translator.doName(Identifier.THIS),
       translator.translate(Identifier.itemExpr(id, repUntil))
     )
     attrAssertEqual(

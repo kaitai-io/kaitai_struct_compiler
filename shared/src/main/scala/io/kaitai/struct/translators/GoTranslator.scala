@@ -230,8 +230,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         ResultString(s"this.${specialName(s)}")
 
       // These can be local only
-      case Identifier.ITERATOR |
-           Identifier.ITERATOR2 =>
+      case Identifier.THIS |
+           Identifier.THIS_RAW =>
         ResultString(specialName(s))
       case Identifier.INDEX => ResultString("i")
 
@@ -250,9 +250,9 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def specialName(id: String): String = id match {
     case Identifier.ROOT | Identifier.PARENT | Identifier.IO =>
       id
-    case Identifier.ITERATOR =>
+    case Identifier.THIS =>
       "_it"
-    case Identifier.ITERATOR2 =>
+    case Identifier.THIS_RAW =>
       "_buf"
   }
 
