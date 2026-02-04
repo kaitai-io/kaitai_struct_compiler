@@ -1,0 +1,120 @@
+#!/bin/sh -e
+
+REPO_ROOT=$(dirname $(dirname $(realpath "$0")))
+
+TEST_IN="$REPO_ROOT/tests-cli"
+TEST_OUT="$REPO_ROOT/target/tests-cli"
+
+NUM_TOTAL=0
+NUM_FAILED=0
+
+setup_test_dir()
+{
+	local testname="$1"
+	local testdir="$2"
+
+	mkdir -p "$testdir"
+	cd "$testdir"
+
+	# Copy test input files if they exist
+	if [ -r "$TEST_IN/init/$testname" ]; then
+		cp -a "$TEST_IN/init/$testname"/* .
+	fi
+}
+
+run_compiler()
+{
+	local executable="$1"
+	local args="$2"
+
+	set +e
+	"$executable" $args >out 2>err
+	echo "$?" >exitstatus
+	set -e
+}
+
+assert_results()
+{
+	local actual_dir="$1"
+	local expected_dir="$2"
+
+	NUM_TOTAL=$(($NUM_TOTAL + 1))
+
+	if diff -ur "$expected_dir" "$actual_dir" >/dev/null; then
+		echo PASS
+	else
+		echo FAIL
+		NUM_FAILED=$(($NUM_FAILED + 1))
+	fi
+}
+
+test_clis()
+{
+	local testname="$1"
+	local args="$2"
+
+	echo "## $testname"
+
+	# JVM CLI
+	setup_test_dir "$testname" "$TEST_OUT/$testname/jvm"
+	run_compiler "$REPO_ROOT/jvm/target/universal/stage/bin/kaitai-struct-compiler" "$args"
+	assert_results "$TEST_OUT/$testname/jvm" "$TEST_IN/expected/$testname"
+
+	# JS CLI
+#	setup_test_dir "$testname" "$TEST_OUT/$testname/js"
+#	run_compiler "$REPO_ROOT/js/npm/cli.js" "$args"
+#	assert_results "$TEST_OUT/$testname/js" "$TEST_IN/expected/$testname"
+}
+
+# Prepare environment
+rm -rf "$TEST_OUT"
+mkdir -p "$TEST_IN" "$TEST_OUT"
+
+# Run tests
+test_clis "help" \
+	"--help"
+test_clis "version" \
+	"--version"
+test_clis "bad_args-no_target" \
+	"some.ksy"
+test_clis "bad_args-garbage_arg" \
+	"--garbage --target=ruby some.ksy"
+test_clis "input-not_found" \
+	"--target=ruby nonexistent.ksy"
+test_clis "input-found-not_found" \
+	"--target=ruby simple.ksy nonexistent.ksy"
+test_clis "input-not_found-found" \
+	"--target=ruby nonexistent.ksy simple.ksy"
+
+test_clis "compile-simple" \
+	"--target=ruby simple.ksy"
+test_clis "compile-simple2" \
+	"--target ruby simple.ksy"
+test_clis "compile-short" \
+	"-t ruby simple.ksy"
+test_clis "compile-outdir" \
+	"--target=ruby --outdir=foo simple.ksy"
+test_clis "compile-outdir2" \
+	"--target=ruby --outdir=foo/bar simple.ksy"
+test_clis "compile-json-output" \
+	"--target=ruby --ksc-json-output simple.ksy"
+
+test_clis "compile-all" \
+	"--target=all --outdir=foo simple.ksy"
+test_clis "compile-all-namespaced" \
+	"--target=all --outdir=foo \
+	--java-package=foo.bar \
+	--php-namespace='Foo\Bar' \
+	--python-package=foo_bar \
+	--go-package=foo_bar \
+	simple.ksy"
+
+test_clis "unwriteable_outdir" \
+	"--target=ruby --outdir=foo simple.ksy"
+
+echo "Tests ran total: $NUM_TOTAL"
+echo "Tests failed: $NUM_FAILED"
+
+if [ "$NUM_FAILED" -gt 0 ]; then
+	exit 1
+fi

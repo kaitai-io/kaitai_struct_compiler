@@ -1,0 +1,3 @@
+simple: /:
+	error: foo/simple.rb (Not a directory)
+
