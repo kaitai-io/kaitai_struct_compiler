@@ -757,7 +757,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts(s"class ${type2class(enumName)}(IntEnum):")
     out.inc
-    enumColl.foreach { case (id: Long, label: String) => out.puts(s"$label = ${translator.doIntLiteral(id)}") }
+    enumColl.foreach { case (id: Long, label: String) => out.puts(s"${escapePythonKeyword(label)} = ${translator.doIntLiteral(id)}") }
     out.dec
   }
 
@@ -882,7 +882,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def publicMemberName(id: Identifier): String =
     id match {
-      case InstanceIdentifier(name) => name
+      case InstanceIdentifier(name) => escapePythonKeyword(name)
       case _ => idToStr(id)
     }
 
@@ -950,10 +950,12 @@ object PythonCompiler extends LanguageCompilerStatic
     config: RuntimeConfig
   ): LanguageCompiler = new PythonCompiler(tp, config)
 
+  override def type2class(name: String): String = escapePythonKeyword(super.type2class(name))
+
   def idToStr(id: Identifier): String =
     id match {
-      case SpecialIdentifier(name) => name
-      case NamedIdentifier(name) => name
+      case SpecialIdentifier(name) => escapePythonKeyword(name)
+      case NamedIdentifier(name) => escapePythonKeyword(name)
       case NumberedIdentifier(idx) => s"_${NumberedIdentifier.TEMPLATE}$idx"
       case InstanceIdentifier(name) => s"_m_$name"
       case RawIdentifier(innerId) => s"_raw_${idToStr(innerId)}"
@@ -990,4 +992,51 @@ object PythonCompiler extends LanguageCompilerStatic
       }
     )
   }
+
+  // Python reserved keywords that need to be escaped
+  // https://docs.python.org/3/reference/lexical_analysis.html#keywords
+  private val KEYWORDS = Set(
+    "and",
+    "as",
+    "assert",
+    "async",
+    "await",
+    "break",
+    "class",
+    "continue",
+    "def",
+    "del",
+    "elif",
+    "else",
+    "except",
+    "False",
+    "finally",
+    "for",
+    "from",
+    "global",
+    "if",
+    "import",
+    "in",
+    "is",
+    "lambda",
+    "None",
+    "nonlocal",
+    "not",
+    "or",
+    "pass",
+    "raise",
+    "return",
+    "True",
+    "try",
+    "while",
+    "with",
+    "yield",
+  )
+
+  def escapePythonKeyword(name: String): String =
+    if (KEYWORDS.contains(name)) {
+      s"${name}_"
+    } else {
+      name
+    }
 }
