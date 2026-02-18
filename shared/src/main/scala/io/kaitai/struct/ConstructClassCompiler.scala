@@ -7,10 +7,15 @@ import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components.{LanguageCompiler, LanguageCompilerStatic}
 import io.kaitai.struct.translators.ConstructTranslator
 
-class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends AbstractCompiler {
+import scala.collection.mutable
+
+class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec, config: RuntimeConfig)
+  extends AbstractCompiler {
+
   import ConstructClassCompiler._
   val out = new StringLanguageOutputWriter(indent)
   val importList = new ImportList
+  val imported = mutable.Set.empty[ClassSpec]
 
   val provider = new ClassTypeProvider(classSpecs, topClass)
   val translator = new ConstructTranslator(provider, importList)
@@ -33,6 +38,8 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
   }
 
   def compileClass(cs: ClassSpec): Unit = {
+    compileImports(cs)
+
     cs.enums.foreach { case (_, enumSpec) => compileEnum(enumSpec) }
 
     cs.types.foreach { case (_, typeSpec) => compileClass(typeSpec) }
@@ -55,6 +62,16 @@ class ConstructClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extend
     out.dec
     out.puts(")")
     out.puts
+  }
+
+  def compileImports(cs: ClassSpec): Unit = {
+    TypeProcessor.getOpaqueClasses(cs).foreach(import_cs => {
+      var importName = import_cs.name.head
+      if (config.pythonPackage.nonEmpty) {
+        importName = s"${config.pythonPackage}.$importName"
+      }
+      importList.add(s"from $importName import *")
+    })
   }
 
   def compileAttr(attr: AttrLikeSpec): Unit = {
