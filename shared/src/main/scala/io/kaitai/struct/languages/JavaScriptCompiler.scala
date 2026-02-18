@@ -110,6 +110,18 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     if (config.readStoresPos) {
       out.puts("this._debug = {};")
+      params.foreach { p =>
+        // Add debug information for enum type parameters
+        p.dataType match {
+          case t: EnumType =>
+            out.puts(s"this._debug['${idToStr(p.id)}'] = {")
+            out.inc
+            out.puts(s"enumName: \"${types2class(t.enumSpec.get.name, false)}\"")
+            out.dec
+            out.puts("};")
+          case _ => // Do nothing for non-enum types
+        }
+      }
     }
     out.puts
   }
