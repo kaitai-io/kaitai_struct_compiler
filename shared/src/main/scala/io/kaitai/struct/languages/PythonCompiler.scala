@@ -617,6 +617,12 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def createSubstreamFixedSize(id: Identifier, blt: BytesLimitType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): String = {
+    val ioName = s"_io_${idToStr(id)}"
+    out.puts(s"$ioName = $io.substream(${translator.translate(blt.size)})")
+    ioName
+  }
+
   override def bytesPadTermExpr(expr0: String, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean) = {
     val expr1 = padRight match {
       case Some(padByte) if terminator.map(term => padByte != (term.last & 0xff)).getOrElse(true) =>

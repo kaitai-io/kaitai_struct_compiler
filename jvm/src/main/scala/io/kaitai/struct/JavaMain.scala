@@ -135,7 +135,7 @@ object JavaMain {
 
       opt[Boolean]("zero-copy-substream") action { (x, c) =>
         c.copy(runtime = c.runtime.copy(zeroCopySubstream = x))
-      } text("zero-copy substreams allowed, default: true")
+      } text("zero-copy substreams allowed (Java, Python and Ruby only, default: true)")
 
       opt[Unit]("ksc-exceptions") action { (x, c) =>
         c.copy(throwExceptions = true)
