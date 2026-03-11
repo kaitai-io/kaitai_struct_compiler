@@ -347,13 +347,11 @@ class CppCompiler(
   }
 
   override def attrInit(attr: AttrLikeSpec): Unit = {
-    attr.dataTypeComposite match {
-      case _: UserType | _: ArrayTypeInStream | OwnedKaitaiStreamType =>
-        // data type will be pointer to user type, std::vector or stream, so we need to init it
-        outSrc.puts(s"${privateMemberName(attr.id)} = $nullPtr;")
-      case _ =>
-        // no init required for value types
-    }
+    // If the data type needs destruction, it means that it's a pointer type and
+    // we want to zero-initialize all pointers - see
+    // https://github.com/kaitai-io/kaitai_struct/issues/244
+    if (needsDestruction(attr.dataTypeComposite))
+      outSrc.puts(s"${privateMemberName(attr.id)} = $nullPtr;")
   }
 
   override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
@@ -377,11 +375,7 @@ class CppCompiler(
     }
 
     (ExtraAttrs.forAttr(attr, this) ++ List(attr)).foreach { (attr) =>
-      val innerType = attr.dataType match {
-        case st: SwitchType => combineSwitchType(st)
-        case t => t
-      }
-      destructMember(attr.id, innerType, attr.isArray)
+      destructMember(attr.id, attr.dataType, attr.isArray)
     }
 
     if (checks.nonEmpty) {
@@ -411,9 +405,15 @@ class CppCompiler(
     outSrc.puts("}")
   }
 
-  def needsDestruction(t: DataType): Boolean = t match {
-    case _: UserType | _: ArrayTypeInStream | KaitaiStructType | AnyType | OwnedKaitaiStreamType => true
-    case _ => false
+  def needsDestruction(t: DataType): Boolean = {
+    val combinedType = t match {
+      case st: SwitchType => combineSwitchType(st)
+      case other => other
+    }
+    combinedType match {
+      case _: UserType | _: ArrayTypeInStream | KaitaiStructType | AnyType | OwnedKaitaiStreamType => true
+      case _ => false
+    }
   }
 
   /**
