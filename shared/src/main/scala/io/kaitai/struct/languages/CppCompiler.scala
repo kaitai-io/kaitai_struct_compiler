@@ -358,6 +358,12 @@ class CppCompiler(
   }
 
   override def attrInit(attr: AttrLikeSpec): Unit = {
+    // Only owning raw pointers (used in C++98) must be zero-initialized. Fields
+    // of type `std::unique_ptr` (used for all pointers in C++11) don't need to
+    // be initialized to `nullptr`, as this is the default behavior.
+    if (config.cppConfig.pointers != CppRuntimeConfig.RawPointers)
+      return
+
     // If the data type needs destruction, it means that it's a pointer type and
     // we want to zero-initialize all pointers - see
     // https://github.com/kaitai-io/kaitai_struct/issues/244
