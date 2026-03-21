@@ -143,8 +143,8 @@ abstract class LanguageCompiler(
   def checkInstanceFooter(): Unit = ???
   def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = ???
 
-  def condIfSetNull(instName: Identifier): Unit = {}
-  def condIfSetNonNull(instName: Identifier): Unit = {}
+  def condIfSetNull(id: Identifier): Unit = {}
+  def condIfSetNonNull(id: Identifier): Unit = {}
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter: Unit
 
