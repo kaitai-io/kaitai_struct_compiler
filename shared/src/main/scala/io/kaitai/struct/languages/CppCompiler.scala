@@ -228,26 +228,37 @@ class CppCompiler(
   }
 
   override def classDestructorHeader(name: List[String], parentType: DataType, topClassName: List[String]): Unit = {
-    ensureMode(PrivateAccess)
-    outHdr.puts("void _clean_up();")
+    if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
+      ensureMode(PrivateAccess)
+      outHdr.puts("void _clean_up();")
+    }
     ensureMode(PublicAccess)
     outHdr.puts(s"~${types2class(List(name.last))}();")
 
     outSrc.puts
-    outSrc.puts(s"${types2class(name)}::~${types2class(List(name.last))}() {")
-    outSrc.inc
-    outSrc.puts("_clean_up();")
-    outSrc.dec
-    outSrc.puts("}")
-    outSrc.puts
-    outSrc.puts(s"void ${types2class(name)}::_clean_up() {")
-    outSrc.inc
+    if (config.cppConfig.pointers == CppRuntimeConfig.RawPointers) {
+      outSrc.puts(s"${types2class(name)}::~${types2class(List(name.last))}() {")
+      outSrc.inc
+      outSrc.puts("_clean_up();")
+      outSrc.dec
+      outSrc.puts("}")
+      outSrc.puts
+      outSrc.puts(s"void ${types2class(name)}::_clean_up() {")
+      outSrc.inc
+    } else {
+      outSrc.puts(s"${types2class(name)}::~${types2class(List(name.last))}() {}")
+    }
   }
 
-  override def classDestructorFooter = classConstructorFooter
+  override def classDestructorFooter: Unit = {
+    if (config.cppConfig.pointers != CppRuntimeConfig.RawPointers)
+      return
+
+    classConstructorFooter
+  }
 
   override def runRead(name: List[String]): Unit = {
-    val wrapToTryCatch = (config.cppConfig.pointers == CppRuntimeConfig.RawPointers);
+    val wrapToTryCatch = (config.cppConfig.pointers == CppRuntimeConfig.RawPointers)
     if (wrapToTryCatch) {
       outSrc.puts
       outSrc.puts("try {")
@@ -355,6 +366,9 @@ class CppCompiler(
   }
 
   override def attrDestructor(attr: AttrLikeSpec, id: Identifier): Unit = {
+    if (config.cppConfig.pointers != CppRuntimeConfig.RawPointers)
+      return
+
     val checkLazy = if (attr.isLazy) {
       Some(calculatedFlagForName(id))
     } else {
@@ -385,9 +399,6 @@ class CppCompiler(
   }
 
   def destructMember(id: Identifier, innerType: DataType, isArray: Boolean): Unit = {
-    if (config.cppConfig.pointers != CppRuntimeConfig.RawPointers)
-      return
-
     val ptr = privateMemberName(id)
     val innerNeedsDestruct = needsDestruction(innerType)
 
