@@ -375,28 +375,8 @@ class CppCompiler(
     if (config.cppConfig.pointers != CppRuntimeConfig.RawPointers)
       return
 
-    val checkLazy = if (attr.isLazy) {
-      Some(calculatedFlagForName(id))
-    } else {
-      None
-    }
-
-    val checkNull = None
-
-    val checks: List[String] = List(checkLazy, checkNull).flatten
-
-    if (checks.nonEmpty) {
-      outSrc.puts(s"if (${checks.mkString(" && ")}) {")
-      outSrc.inc
-    }
-
     (ExtraAttrs.forAttr(attr, this) ++ List(attr)).foreach { (attr) =>
       destructMember(attr.id, attr.dataType, attr.isArray)
-    }
-
-    if (checks.nonEmpty) {
-      outSrc.dec
-      outSrc.puts("}")
     }
   }
 
@@ -407,15 +387,16 @@ class CppCompiler(
     if (!isArray && !innerNeedsDestruct)
       return
 
-    outSrc.puts(s"if ($ptr) {")
-    outSrc.inc
-
-    if (isArray && innerNeedsDestruct)
+    if (isArray && innerNeedsDestruct) {
+      outSrc.puts(s"if ($ptr) {")
+      outSrc.inc
       destructVector(kaitaiType2NativeType(innerType), ptr)
-
-    outSrc.puts(s"delete $ptr; $ptr = $nullPtr;")
-    outSrc.dec
-    outSrc.puts("}")
+      outSrc.puts(s"delete $ptr;")
+      outSrc.dec
+      outSrc.puts("}")
+    } else {
+      outSrc.puts(s"delete $ptr;")
+    }
   }
 
   def needsDestruction(t: DataType): Boolean = {
