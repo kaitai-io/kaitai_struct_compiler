@@ -317,7 +317,7 @@ class CppCompiler(
   override def attributeDeclaration(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PrivateAccess)
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
-    declareNullFlag(attrName, isNullable)
+    declareNullFlag(attrName, attrType, isNullable)
   }
 
   def ensureMode(newMode: AccessMode): Unit = {
@@ -381,11 +381,7 @@ class CppCompiler(
       None
     }
 
-    val checkNull = if (attr.isNullableSwitchRaw) {
-      Some(s"!${nullFlagForName(id)}")
-    } else {
-      None
-    }
+    val checkNull = None
 
     val checks: List[String] = List(checkLazy, checkNull).flatten
 
@@ -558,11 +554,21 @@ class CppCompiler(
   override def instanceSetCalculated(instName: InstanceIdentifier): Unit =
     outSrc.puts(s"${calculatedFlagForName(instName)} = true;")
 
-  override def condIfSetNull(id: Identifier, dataType: DataType): Unit =
+  override def condIfSetNull(id: Identifier, dataType: DataType): Unit = {
+    // We'll use null flags only for primitive types, not pointers. Pointers in
+    // C++ can already represent the "null" state on their own, so null flags
+    // are redundant and only complicate things, see
+    // https://github.com/kaitai-io/kaitai_struct/issues/1223#issuecomment-2727742506
+    if (needsDestruction(dataType))
+      return
     outSrc.puts(s"${nullFlagForName(id)} = true;")
+  }
 
-  override def condIfSetNonNull(id: Identifier, dataType: DataType): Unit =
+  override def condIfSetNonNull(id: Identifier, dataType: DataType): Unit = {
+    if (needsDestruction(dataType))
+      return
     outSrc.puts(s"${nullFlagForName(id)} = false;")
+  }
 
   override def condIfHeader(expr: Ast.expr): Unit = {
     outSrc.puts(s"if (${expression(expr)}) {")
@@ -849,7 +855,7 @@ class CppCompiler(
     ensureMode(PrivateAccess)
     outHdr.puts(s"bool ${calculatedFlagForName(attrName)};")
     outHdr.puts(s"${kaitaiType2NativeType(attrType)} ${privateMemberName(attrName)};")
-    declareNullFlag(attrName, isNullable)
+    declareNullFlag(attrName, attrType, isNullable)
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
@@ -1013,12 +1019,21 @@ class CppCompiler(
 
   override def paramName(id: Identifier): String = s"p_${idToStr(id)}"
 
-  def declareNullFlag(attrName: Identifier, isNullable: Boolean) = {
+  def declareNullFlag(attrName: Identifier, attrType: DataType, isNullable: Boolean) = {
     if (isNullable) {
-      outHdr.puts(s"bool ${nullFlagForName(attrName)};")
-      ensureMode(PublicAccess)
-      outHdr.puts(s"bool _is_null_${idToStr(attrName)}() { ${publicMemberName(attrName)}(); return ${nullFlagForName(attrName)}; };")
-      ensureMode(PrivateAccess)
+      // See the comment in condIfSetNull() - we use null flags only for
+      // primitive types. For pointers, we simply check whether it's a null
+      // pointer.
+      if (!needsDestruction(attrType)) {
+        outHdr.puts(s"bool ${nullFlagForName(attrName)};")
+        ensureMode(PublicAccess)
+        outHdr.puts(s"bool _is_null_${idToStr(attrName)}() { ${publicMemberName(attrName)}(); return ${nullFlagForName(attrName)}; };")
+        ensureMode(PrivateAccess)
+      } else {
+        ensureMode(PublicAccess)
+        outHdr.puts(s"bool _is_null_${idToStr(attrName)}() { return !${publicMemberName(attrName)}(); };")
+        ensureMode(PrivateAccess)
+      }
     }
   }
 
