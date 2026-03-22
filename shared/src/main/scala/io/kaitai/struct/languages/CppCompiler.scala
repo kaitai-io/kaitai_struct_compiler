@@ -558,10 +558,10 @@ class CppCompiler(
   override def instanceSetCalculated(instName: InstanceIdentifier): Unit =
     outSrc.puts(s"${calculatedFlagForName(instName)} = true;")
 
-  override def condIfSetNull(id: Identifier): Unit =
+  override def condIfSetNull(id: Identifier, dataType: DataType): Unit =
     outSrc.puts(s"${nullFlagForName(id)} = true;")
 
-  override def condIfSetNonNull(id: Identifier): Unit =
+  override def condIfSetNonNull(id: Identifier, dataType: DataType): Unit =
     outSrc.puts(s"${nullFlagForName(id)} = false;")
 
   override def condIfHeader(expr: Ast.expr): Unit = {

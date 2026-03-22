@@ -18,7 +18,7 @@ trait FetchInstances extends LanguageCompiler with ObjectOrientedLanguage with E
       }
 
     if (!isInstance)
-      attrParseIfHeader(id, attr.cond.ifExpr)
+      attrParseIfHeader(id, attr.dataTypeComposite, attr.cond.ifExpr)
 
     val io = normalIO
 

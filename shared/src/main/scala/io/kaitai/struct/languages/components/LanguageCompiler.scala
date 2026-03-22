@@ -143,8 +143,8 @@ abstract class LanguageCompiler(
   def checkInstanceFooter(): Unit = ???
   def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = ???
 
-  def condIfSetNull(id: Identifier): Unit = {}
-  def condIfSetNonNull(id: Identifier): Unit = {}
+  def condIfSetNull(id: Identifier, dataType: DataType): Unit = {}
+  def condIfSetNonNull(id: Identifier, dataType: DataType): Unit = {}
   def condIfHeader(expr: Ast.expr): Unit
   def condIfFooter: Unit
 
@@ -220,12 +220,12 @@ abstract class LanguageCompiler(
     */
   def classToString(toStringExpr: Ast.expr): Unit = {}
 
-  def attrParseIfHeader(id: Identifier, ifExpr: Option[Ast.expr]): Unit = {
+  def attrParseIfHeader(id: Identifier, attrType: DataType, ifExpr: Option[Ast.expr]): Unit = {
     ifExpr match {
       case Some(e) =>
-        condIfSetNull(id)
+        condIfSetNull(id, attrType)
         condIfHeader(e)
-        condIfSetNonNull(id)
+        condIfSetNonNull(id, attrType)
       case None => // ignore
     }
   }

@@ -6,7 +6,7 @@ import io.kaitai.struct.format._
 
 trait CommonReads extends LanguageCompiler {
   override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
-    attrParseIfHeader(id, attr.cond.ifExpr)
+    attrParseIfHeader(id, attr.dataTypeComposite, attr.cond.ifExpr)
 
     // Manage IO & seeking for ParseInstances
     val io = attr match {

@@ -22,7 +22,7 @@ trait EveryWriteIsExpression
         Some(true)
       }
 
-    attrParseIfHeader(id, attr.cond.ifExpr)
+    attrParseIfHeader(id, attr.dataTypeComposite, attr.cond.ifExpr)
 
     // Manage IO & seeking for ParseInstances
     val io = attr match {

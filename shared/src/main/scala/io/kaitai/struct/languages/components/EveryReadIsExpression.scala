@@ -273,12 +273,12 @@ trait EveryReadIsExpression
     assignType: SwitchType
   ): Unit = {
     if (isNullable)
-      condIfSetNull(id)
+      condIfSetNull(id, assignType)
 
     switchCases[DataType](id, on, cases,
       (dataType) => {
         if (isNullable)
-          condIfSetNonNull(id)
+          condIfSetNonNull(id, assignType)
         attrParse2(id, dataType, io, rep, false, defEndian, Some(assignType))
       },
       (dataType) => if (switchBytesOnlyAsRaw) {

@@ -111,7 +111,7 @@ class RustClassCompiler(
     lang.instanceSetCalculated(instName)
     instSpec match {
       case vi: ValueInstanceSpec =>
-        lang.attrParseIfHeader(instName, vi.ifExpr)
+        lang.attrParseIfHeader(instName, vi.dataTypeComposite, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
       case pi: ParseInstanceSpec =>

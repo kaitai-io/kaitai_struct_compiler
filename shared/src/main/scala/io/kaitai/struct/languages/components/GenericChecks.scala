@@ -13,7 +13,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
         Some(false)
       }
 
-    attrParseIfHeader(id, attr.cond.ifExpr)
+    attrParseIfHeader(id, attr.dataTypeComposite, attr.cond.ifExpr)
 
     val io = normalIO
 

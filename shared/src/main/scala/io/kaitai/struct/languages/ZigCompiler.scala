@@ -615,13 +615,13 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def condIfSetNull(id: Identifier): Unit = {
+  override def condIfSetNull(id: Identifier, dataType: DataType): Unit = {
     if (!id.isInstanceOf[InstanceIdentifier])
       return
     out.puts("var _n = true;")
   }
 
-  override def condIfSetNonNull(id: Identifier): Unit = {
+  override def condIfSetNonNull(id: Identifier, dataType: DataType): Unit = {
     if (!id.isInstanceOf[InstanceIdentifier])
       return
     out.puts("_n = false;")

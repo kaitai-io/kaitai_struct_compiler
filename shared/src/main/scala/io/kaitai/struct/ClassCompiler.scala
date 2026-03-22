@@ -445,7 +445,7 @@ class ClassCompiler(
     lang.instanceTempVarDeclaration(dataType, instSpec.isNullable)
     instSpec match {
       case vi: ValueInstanceSpec =>
-        lang.attrParseIfHeader(instName, vi.ifExpr)
+        lang.attrParseIfHeader(instName, vi.dataTypeComposite, vi.ifExpr)
         lang.instanceCalculate(instName, dataType, vi.value)
         lang.attrParseIfFooter(vi.ifExpr)
       case pi: ParseInstanceSpec =>
