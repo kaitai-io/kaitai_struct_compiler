@@ -335,7 +335,8 @@ class CppCompiler(
 
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     ensureMode(PublicAccess)
-    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning())} ${publicMemberName(attrName)}() const { return ${nonOwningPointer(attrName, attrType)}; }")
+    val ret = nonOwningPointer(privateMemberName(attrName), attrType)
+    outHdr.puts(s"${kaitaiType2NativeType(attrType.asNonOwning())} ${publicMemberName(attrName)}() const { return $ret; }")
   }
 
   override def universalDoc(doc: DocSpec): Unit = {
@@ -738,7 +739,7 @@ class CppCompiler(
 
   override def userTypeDebugRead(id: String, dataType: DataType, assignType: DataType): Unit = {
     val expr = if (assignType.asCombined != dataType) {
-      s"static_cast<${kaitaiType2NativeType(dataType)}>($id)"
+      s"static_cast<${kaitaiType2NativeType(dataType.asNonOwning())}>(${nonOwningPointer(id, assignType)})"
     } else {
       id
     }
@@ -861,7 +862,7 @@ class CppCompiler(
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit =
-    outSrc.puts(s"return ${nonOwningPointer(instName, attrType)};")
+    outSrc.puts(s"return ${nonOwningPointer(privateMemberName(instName), attrType)};")
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (attrDebugNeeded(instName))
@@ -1028,22 +1029,22 @@ class CppCompiler(
     case UniqueAndRawPointers => "nullptr"
   }
 
-  def nonOwningPointer(attrName: Identifier, attrType: DataType): String = {
+  def nonOwningPointer(id: String, attrType: DataType): String = {
     config.cppConfig.pointers match {
       case RawPointers =>
-        privateMemberName(attrName)
+        id
       case UniqueAndRawPointers =>
         attrType match {
           case st: SwitchType =>
-            nonOwningPointer(attrName, combineSwitchType(st))
+            nonOwningPointer(id, combineSwitchType(st))
           case t: ComplexDataType =>
             if (t.isOwning) {
-              s"${privateMemberName(attrName)}.get()"
+              s"$id.get()"
             } else {
-              privateMemberName(attrName)
+              id
             }
           case _ =>
-            privateMemberName(attrName)
+            id
         }
     }
   }
