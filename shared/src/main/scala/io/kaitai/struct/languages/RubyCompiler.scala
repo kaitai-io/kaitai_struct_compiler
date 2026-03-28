@@ -364,7 +364,9 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           s"$io.read_bytes_term_multi(${translator.doByteArrayLiteral(terminator)}, $include, $consume, $eosError)"
         }
       case BitsType1(bitEndian) =>
-        s"$io.read_bits_int_${bitEndian.toSuffix}(1) != 0"
+        // NB: must be parenthesized to work in repeated fields, see
+        // https://github.com/kaitai-io/kaitai_struct/issues/1229
+        s"($io.read_bits_int_${bitEndian.toSuffix}(1) != 0)"
       case BitsType(width: Int, bitEndian) =>
         s"$io.read_bits_int_${bitEndian.toSuffix}($width)"
       case t: UserType =>
