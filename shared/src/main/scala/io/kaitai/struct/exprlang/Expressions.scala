@@ -24,7 +24,12 @@ import Lexical.kw
   */
 object Expressions {
   // Implicit rule which consume input in `~` and `.rep` operators
-  implicit val whitespace: P[_] => P[Unit] = { implicit ctx: ParsingRun[_] => Lexical.wscomment }
+  implicit object whitespace extends fastparse.Whitespace {
+    def apply(ctx: ParsingRun[_]): P[Unit] = {
+      implicit val ctx0: ParsingRun[_] = ctx
+      Lexical.wscomment
+    }
+  }
 
   def NAME[$: P]: P[Ast.identifier] = Lexical.identifier
   def TYPE_NAME[$: P]: P[Ast.typeId] = P("::".!.? ~ NAME.rep(1, "::") ~ ("[" ~ "]").!.?).map {
