@@ -153,6 +153,12 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doByteSizeOfType(typeName)
       case Ast.expr.BitSizeOfType(typeName) =>
         doBitSizeOfType(typeName)
+      case Ast.expr.Group(nested) =>
+        nested match {
+          // Unpack nested groups
+          case Ast.expr.Group(e) => translate(e)
+          case e => s"(${translate(e)})"
+        }
     }
   }
 
