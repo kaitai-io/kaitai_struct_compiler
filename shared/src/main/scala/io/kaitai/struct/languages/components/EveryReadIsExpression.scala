@@ -256,9 +256,9 @@ trait EveryReadIsExpression
 
     this match {
       case thisStore: AllocateAndStoreIO =>
-        thisStore.allocateIO(rawId, rep)
+        thisStore.allocateIO(rawId, rep, io)
       case thisLocal: AllocateIOLocalVar =>
-        thisLocal.allocateIO(rawId, rep)
+        thisLocal.allocateIO(rawId, rep, io)
     }
   }
 
@@ -320,7 +320,7 @@ trait EveryReadIsExpression
 
   def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
     if (attrDebugNeeded(instName))
-      attrDebugStart(instName, dataType, None, NoRepeat)
+      attrDebugStart(instName, dataType, NoRepeat, None, NoRepeat)
     handleAssignmentSimple(instName, expression(value))
   }
 }
