@@ -1182,7 +1182,7 @@ object CppCompiler extends LanguageCompilerStatic
         types2class(if (absolute) {
           t.enumSpec.get.name
         } else {
-          t.name
+          t.ref.fullName
         })
 
       case at: ArrayType => {
@@ -1243,7 +1243,7 @@ object CppCompiler extends LanguageCompilerStatic
     )
   }
 
-  def types2class(components: List[String]) =
+  def types2class(components: Seq[String]) =
     components.map(type2class).mkString("::")
 
   def type2class(name: String) = Utils.lowerUnderscoreCase(name) + "_t"
