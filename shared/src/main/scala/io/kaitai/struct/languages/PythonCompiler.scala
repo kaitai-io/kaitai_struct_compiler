@@ -541,7 +541,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   // used for all repetitions in _check()
   override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {
     // TODO: replace range(len()) with enumerate() (see
-    // https://pylint.readthedocs.io/en/v2.16.2/user_guide/messages/convention/consider-using-enumerate.html)
+    // https://pylint.readthedocs.io/en/v4.0.5/user_guide/messages/convention/consider-using-enumerate.html)
     out.puts(s"for i in range(len(${privateMemberName(id)})):")
     out.inc
     out.puts("pass")

@@ -67,8 +67,7 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
   override def doBoolLiteral(n: Boolean): String = if (n) "True" else "False"
 
   /**
-    * https://docs.python.org/2.7/reference/lexical_analysis.html#string-literals
-    * https://docs.python.org/3.6/reference/lexical_analysis.html#string-and-bytes-literals
+    * https://docs.python.org/3.14/reference/lexical_analysis.html#escape-sequences
     */
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",

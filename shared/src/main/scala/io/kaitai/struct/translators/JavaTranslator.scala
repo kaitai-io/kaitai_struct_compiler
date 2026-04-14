@@ -123,7 +123,7 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     // Java has a small number of standard charsets preloaded. Accessing them as constants is more
     // efficient than looking them up by string in a map, so we utilize this when as possible.
-    // See https://docs.oracle.com/javase/7/docs/api/java/nio/charset/StandardCharsets.html
+    // See https://docs.oracle.com/javase/8/docs/api/java/nio/charset/StandardCharsets.html
     val standardCharsetsMap = Map(
       "ISO-8859-1" -> "ISO_8859_1",
       "ASCII" -> "US_ASCII",
