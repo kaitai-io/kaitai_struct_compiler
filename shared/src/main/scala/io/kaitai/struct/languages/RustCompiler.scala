@@ -554,9 +554,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"Ok(${privateMemberName(instName)})")
   }
 
-  override def enumDeclaration(curClass: List[String],
-                               enumName: String,
-                               enumColl: Seq[(Long, EnumValueSpec)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
 
     val enumClass = types2class(curClass ::: List(enumName))
 

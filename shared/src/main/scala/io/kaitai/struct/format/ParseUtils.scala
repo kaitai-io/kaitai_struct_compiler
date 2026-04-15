@@ -177,19 +177,35 @@ object ParseUtils {
     }
   }
 
-  def asLong(src: Any, path: List[String]): Long = {
+  def asBigInt(src: Any, path: List[String]): BigInt = {
     src match {
+      case n: Int =>
+        n
       case n: Long =>
         n
-      case n: Int =>
+      // NB: at the time of writing, JavaKSYParser.yamlJavaToScala() only
+      // converts Java types to Scala types in mapping values, not mapping keys.
+      // Since this method is called on the keys of enum entries, we might get
+      // `java.math.BigInteger` (not `BigInt`) if the YAML tree comes from
+      // SnakeYAML.
+      case n: java.math.BigInteger =>
+        n
+      // At the time of writing, we can actually never get `BigInt` here - it's
+      // only included for potential "forward compatibility" in case we tweak
+      // our YAML parsing.
+      case n: BigInt =>
         n
       case str: String =>
         // Generally should not happen, but when the data comes from JavaScript,
-        // all object keys are forced to be strings.
+        // all object keys are forced to be strings. Nevertheless, since the
+        // YAML parser parses the integer value first, we can only expect
+        // strings returned by the `Number.prototype.toString()` method, which
+        // formats numbers into canonical decimal format for all practically
+        // large values.
         try {
-          Utils.strToLong(str)
+          BigInt(str)
         } catch {
-          case ex: MatchError =>
+          case _: NumberFormatException =>
             throw KSYParseError.withText(s"unable to parse `$str` as int", path)
         }
       case unknown =>
