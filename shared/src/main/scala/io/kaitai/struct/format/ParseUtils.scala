@@ -39,6 +39,15 @@ object ParseUtils {
     }
   }
 
+  def getValueMap(src: Map[String, Any], field: String, path: List[String]): Map[Any, Any] = {
+    src.get(field) match {
+      case Some(value) =>
+        asMap(value, path ++ List(field))
+      case None =>
+        throw KSYParseError.noKey(field, path)
+    }
+  }
+
   def getOptValueStr(src: Map[String, Any], field: String, path: List[String]): Option[String] = {
     src.get(field) match {
       case None =>
