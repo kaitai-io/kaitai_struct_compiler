@@ -89,6 +89,8 @@ object EnumSpec {
           path :+ "type"
         )
     }
+    val intTypeMin = intType.min
+    val intTypeMax = intType.max
 
     val doc = DocSpec.fromYaml(srcMapStr, path)
 
@@ -98,6 +100,12 @@ object EnumSpec {
     EnumSpec(path, doc, intType, SortedMap.from(
       valuesMap.map { case (id, desc) =>
         val idBigInt = ParseUtils.asBigInt(id, valuesPath)
+        if (idBigInt < intTypeMin || idBigInt > intTypeMax) {
+          throw KSYParseError.withText(
+            s"integer constant ${idBigInt} is out of range ${intTypeMin}..${intTypeMax} of the enum's underlying type `${typeStr}`",
+            valuesPath :+ idBigInt.toString
+          )
+        }
         val value = EnumValueSpec.fromYaml(desc, valuesPath :+ idBigInt.toString)
         memberNameMap.get(value.name).foreach { (prevIdBigInt) =>
           throw KSYParseError.withText(

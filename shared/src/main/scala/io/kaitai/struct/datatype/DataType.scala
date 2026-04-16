@@ -45,12 +45,56 @@ object DataType {
   abstract sealed class NumericType extends DataType
   abstract sealed class BooleanType extends DataType
 
-  abstract sealed class IntType extends NumericType
-  case object CalcIntType extends IntType
+  abstract sealed class IntType extends NumericType {
+    /**
+      * The smallest value of the given integer type
+      */
+    def min: BigInt
+    /**
+      * The largest value of the given integer type
+      */
+    def max: BigInt
+  }
+  /**
+    * In statically typed languages, [[CalcIntType]] is often a signed 32-bit
+    * integer, but from the compiler's perspective, it represents an unspecified
+    * integer type. Therefore, we deliberately don't implement the [[min]] and
+    * [[max]] methods.
+    */
+  case object CalcIntType extends IntType {
+    override final def min: BigInt = ???
+    override final def max: BigInt = ???
+  }
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
+    override final def min: BigInt =
+      if (signed) {
+        Byte.MinValue
+      } else {
+        0
+      }
+    override final def max: BigInt =
+      if (signed) {
+        Byte.MaxValue
+      } else {
+        0xff
+      }
     override def apiCall(defEndian: Option[FixedEndian]): String = if (signed) "s1" else "u1"
   }
   case class IntMultiType(signed: Boolean, width: IntWidth, endian: Option[FixedEndian]) extends IntType with ReadableType {
+    private final def bitWidth: Int = {
+      val NUM_BITS_IN_BYTE = 8
+      NUM_BITS_IN_BYTE * width.width
+    }
+
+    override final def min: BigInt =
+      if (signed) {
+        -(BigInt(1) << (bitWidth - 1))
+      } else {
+        0
+      }
+    override final def max: BigInt =
+      (BigInt(1) << (bitWidth - (if (signed) 1 else 0))) - 1
+
     override def apiCall(defEndian: Option[FixedEndian]): String = {
       val ch1 = if (signed) 's' else 'u'
       val finalEnd = endian.orElse(defEndian)
@@ -58,7 +102,11 @@ object DataType {
     }
   }
   case class BitsType1(bitEndian: BitEndianness) extends BooleanType
-  case class BitsType(width: Int, bitEndian: BitEndianness) extends IntType
+  case class BitsType(width: Int, bitEndian: BitEndianness) extends IntType {
+    override final def min: BigInt = 0
+    override final def max: BigInt =
+      (BigInt(1) << width) - 1
+  }
 
   abstract class FloatType extends NumericType
   case object CalcFloatType extends FloatType
