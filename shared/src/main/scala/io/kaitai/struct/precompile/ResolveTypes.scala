@@ -2,7 +2,7 @@ package io.kaitai.struct.precompile
 
 import io.kaitai.struct.Log
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.datatype.DataType.{ArrayType, EnumType, SwitchType, UserType}
+import io.kaitai.struct.datatype.DataType.{ArrayType, BitsType, CalcIntType, EnumType, Int1Type, IntMultiType, IntType, SwitchType, UserType}
 import io.kaitai.struct.format._
 import io.kaitai.struct.problems._
 
@@ -51,10 +51,11 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
         problems
       case et: EnumType =>
         et.enumSpec = resolveEnumSpec(curClass, et.name)
-        if (et.enumSpec.isEmpty) {
-          Some(EnumNotFoundErr(et.name, curClass, path ++ List("enum")))
-        } else {
-          None
+        et.enumSpec match {
+          case None =>
+            Some(EnumNotFoundErr(et.name, curClass, path ++ List("enum")))
+          case Some(enumSpec) =>
+            checkEnumUnderlyingType(et.basedOn, enumSpec, et.name, path)
         }
       case st: SwitchType =>
         st.cases.flatMap { case (caseName, ut) =>
@@ -133,6 +134,25 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
               }
             }
         }
+    }
+  }
+
+  /**
+    * Checks whether the attribute's integer type (the `basedOn` of an
+    * [[EnumType]]) matches the underlying integer type declared by the enum
+    * itself. Endianness is deliberately not compared: the enum declaration
+    * does not carry endianness, so only signedness and width are relevant.
+    */
+  private def checkEnumUnderlyingType(
+    attrType: IntType,
+    enumSpec: EnumSpec,
+    enumName: List[String],
+    path: List[String]
+  ): Option[CompilationProblem] = {
+    if (IntType.areEquivalent(attrType, enumSpec.intType)) {
+      None
+    } else {
+      Some(EnumUnderlyingTypeMismatchError(enumName, attrType, enumSpec.intType, path :+ "enum"))
     }
   }
 

@@ -54,6 +54,53 @@ object DataType {
       * The largest value of the given integer type
       */
     def max: BigInt
+    /**
+      * Render the integer type as a KSY-style "pure" type string (e.g. `u4`,
+      * `s1`, `b3`) without any serialization details, such as endianness.
+      * Intended for use in error messages.
+      */
+    def toPureTypeString: String
+  }
+  object IntType {
+    final val NUM_BITS_IN_BYTE = 8
+
+    /**
+      * Determine whether the two given integer types are equivalent, i.e.
+      * whether they have exactly the same range and can therefore represent the
+      * same set of integer values. Endianness is intentionally not compared,
+      * since it doesn't affect the set of representable values.
+      *
+      * [[CalcIntType]] represents an unspecified integer type, so we cannot
+      * assume that it's equivalent to anything, not even itself.
+      *
+      * This method is used to check whether an integer attribute can be
+      * converted to an enum type with a specific underlying type.
+      * https://github.com/kaitai-io/kaitai_struct/issues/1288 explains why only
+      * integer types equivalent to the underlying type are convertible to the
+      * enum type.
+      *
+      * @param a one integer type
+      * @param b other integer type
+      * @return `true` if the types are equivalent, `false` otherwise
+      */
+    def areEquivalent(a: IntType, b: IntType): Boolean =
+      (a, b) match {
+        case (Int1Type(sa), Int1Type(sb)) =>
+          sa == sb
+        case (IntMultiType(sa, wa, _), IntMultiType(sb, wb, _)) =>
+          sa == sb && wa == wb
+        case (BitsType(wa, _), BitsType(wb, _)) =>
+          wa == wb
+        // `u1` is equivalent to `b8`
+        case (Int1Type(false), BitsType(8, _)) => true
+        case (BitsType(8, _), Int1Type(false)) => true
+        // more generally, `u{N}` is equivalent to `b{8 * N}`
+        case (IntMultiType(false, byteWidth, _), BitsType(bitWidth, _)) =>
+          bitWidth == NUM_BITS_IN_BYTE * byteWidth.width
+        case (BitsType(bitWidth, _), IntMultiType(false, byteWidth, _)) =>
+          bitWidth == NUM_BITS_IN_BYTE * byteWidth.width
+        case _ => false
+      }
   }
   /**
     * In statically typed languages, [[CalcIntType]] is often a signed 32-bit
@@ -64,6 +111,7 @@ object DataType {
   case object CalcIntType extends IntType {
     override final def min: BigInt = ???
     override final def max: BigInt = ???
+    override def toPureTypeString: String = "<calc>"
   }
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
     override final def min: BigInt =
@@ -78,13 +126,12 @@ object DataType {
       } else {
         0xff
       }
+    override def toPureTypeString: String = if (signed) "s1" else "u1"
     override def apiCall(defEndian: Option[FixedEndian]): String = if (signed) "s1" else "u1"
   }
   case class IntMultiType(signed: Boolean, width: IntWidth, endian: Option[FixedEndian]) extends IntType with ReadableType {
-    private final def bitWidth: Int = {
-      val NUM_BITS_IN_BYTE = 8
-      NUM_BITS_IN_BYTE * width.width
-    }
+    private final def bitWidth: Int =
+      IntType.NUM_BITS_IN_BYTE * width.width
 
     override final def min: BigInt =
       if (signed) {
@@ -94,6 +141,8 @@ object DataType {
       }
     override final def max: BigInt =
       (BigInt(1) << (bitWidth - (if (signed) 1 else 0))) - 1
+    override def toPureTypeString: String =
+      s"${if (signed) 's' else 'u'}${width.width}"
 
     override def apiCall(defEndian: Option[FixedEndian]): String = {
       val ch1 = if (signed) 's' else 'u'
@@ -106,6 +155,8 @@ object DataType {
     override final def min: BigInt = 0
     override final def max: BigInt =
       (BigInt(1) << width) - 1
+    override def toPureTypeString: String =
+      s"b$width"
   }
 
   abstract class FloatType extends NumericType
