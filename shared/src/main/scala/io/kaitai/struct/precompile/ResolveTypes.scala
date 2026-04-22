@@ -139,9 +139,8 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
 
   /**
     * Checks whether the attribute's integer type (the `basedOn` of an
-    * [[EnumType]]) matches the underlying integer type declared by the enum
-    * itself. Endianness is deliberately not compared: the enum declaration
-    * does not carry endianness, so only signedness and width are relevant.
+    * [[EnumType]]) fits into (i.e. is a subset of) the underlying integer type
+    * declared by the enum itself.
     */
   private def checkEnumUnderlyingType(
     attrType: IntType,
@@ -149,7 +148,7 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
     enumName: List[String],
     path: List[String]
   ): Option[CompilationProblem] = {
-    if (IntType.areEquivalent(attrType, enumSpec.intType)) {
+    if (attrType.subsetOf(enumSpec.intType)) {
       None
     } else {
       Some(EnumUnderlyingTypeMismatchError(enumName, attrType, enumSpec.intType, path :+ "enum"))

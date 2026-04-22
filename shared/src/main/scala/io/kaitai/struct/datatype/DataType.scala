@@ -60,47 +60,18 @@ object DataType {
       * Intended for use in error messages.
       */
     def toPureTypeString: String
+
+    final def subsetOf(other: IntType): Boolean = {
+      // This implementation might be slightly inefficient (compared to pattern
+      // matching with a few simple comparisons) because it involves calculating
+      // large `BigInt` values, but it's guaranteed to give the correct result.
+      // That's because it directly tests the "subset of" relationship by
+      // comparing the `min` and `max` bounds.
+      min >= other.min && max <= other.max
+    }
   }
   object IntType {
     final val NUM_BITS_IN_BYTE = 8
-
-    /**
-      * Determine whether the two given integer types are equivalent, i.e.
-      * whether they have exactly the same range and can therefore represent the
-      * same set of integer values. Endianness is intentionally not compared,
-      * since it doesn't affect the set of representable values.
-      *
-      * [[CalcIntType]] represents an unspecified integer type, so we cannot
-      * assume that it's equivalent to anything, not even itself.
-      *
-      * This method is used to check whether an integer attribute can be
-      * converted to an enum type with a specific underlying type.
-      * https://github.com/kaitai-io/kaitai_struct/issues/1288 explains why only
-      * integer types equivalent to the underlying type are convertible to the
-      * enum type.
-      *
-      * @param a one integer type
-      * @param b other integer type
-      * @return `true` if the types are equivalent, `false` otherwise
-      */
-    def areEquivalent(a: IntType, b: IntType): Boolean =
-      (a, b) match {
-        case (Int1Type(sa), Int1Type(sb)) =>
-          sa == sb
-        case (IntMultiType(sa, wa, _), IntMultiType(sb, wb, _)) =>
-          sa == sb && wa == wb
-        case (BitsType(wa, _), BitsType(wb, _)) =>
-          wa == wb
-        // `u1` is equivalent to `b8`
-        case (Int1Type(false), BitsType(8, _)) => true
-        case (BitsType(8, _), Int1Type(false)) => true
-        // more generally, `u{N}` is equivalent to `b{8 * N}`
-        case (IntMultiType(false, byteWidth, _), BitsType(bitWidth, _)) =>
-          bitWidth == NUM_BITS_IN_BYTE * byteWidth.width
-        case (BitsType(bitWidth, _), IntMultiType(false, byteWidth, _)) =>
-          bitWidth == NUM_BITS_IN_BYTE * byteWidth.width
-        case _ => false
-      }
   }
   /**
     * In statically typed languages, [[CalcIntType]] is often a signed 32-bit
