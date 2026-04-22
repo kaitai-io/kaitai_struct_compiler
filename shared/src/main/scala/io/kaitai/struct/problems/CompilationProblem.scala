@@ -197,10 +197,15 @@ case class EnumUnderlyingTypeMismatchError(
   path: List[String],
   fileName: Option[String] = None
 ) extends CompilationProblem {
-  override def text =
-    s"unable to convert type `${attrType.toPureTypeString}` " +
+  override def text = {
+    val attrTypeStr = attrType.toPureTypeString
+    val enumTypeStr = enumType.toPureTypeString
+    s"unable to convert type `${attrTypeStr}` " +
       s"to enum `${enumName.mkString("::")}` " +
-      s"with underlying type `${enumType.toPureTypeString}`"
+      s"with underlying type `${enumTypeStr}` " +
+      s"(range ${attrType.min}..${attrType.max} of `${attrTypeStr}` is not fully contained in " +
+      s"range ${enumType.min}..${enumType.max} of `${enumTypeStr}`)"
+  }
   override val coords: ProblemCoords = ProblemCoords(fileName, Some(path))
   override def localizedInFile(fileName: String): CompilationProblem =
     copy(fileName = Some(fileName))
