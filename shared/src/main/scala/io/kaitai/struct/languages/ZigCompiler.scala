@@ -350,7 +350,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val tmpName = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    val tmpName = translator.doLocalName(if (isRaw) Identifier.THIS_RAW else Identifier.THIS)
     out.puts(s"const $tmpName = $expr;")
     out.puts(s"try ${privateMemberName(id)}.append(self._allocator(), $tmpName);")
   }

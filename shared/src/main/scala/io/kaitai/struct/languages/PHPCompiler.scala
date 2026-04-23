@@ -236,7 +236,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = s"$$_io_${idToStr(id)}"
 
     val args = rep match {
-      case RepeatUntil(_) => translator.doLocalName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doLocalName(Identifier.THIS_RAW)
       case _ => getRawIdExpr(id, rep)
     }
 
@@ -305,7 +305,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
-    val tmpName = translator.doLocalName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    val tmpName = translator.doLocalName(if (isRaw) Identifier.THIS_RAW else Identifier.THIS)
     out.puts(s"$tmpName = $expr;")
     out.puts(s"${privateMemberName(id)}[] = $tmpName;")
   }
