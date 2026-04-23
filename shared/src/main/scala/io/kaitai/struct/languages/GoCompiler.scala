@@ -655,7 +655,7 @@ object GoCompiler extends LanguageCompilerStatic
 
       case AnyType => "interface{}"
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructName
-      case KaitaiStreamType | OwnedKaitaiStreamType => s"*$kstreamName"
+      case _: StreamType => s"*$kstreamName"
 
       case t: UserType => "*" + types2class(t.classSpec match {
         case Some(cs) => cs.name
