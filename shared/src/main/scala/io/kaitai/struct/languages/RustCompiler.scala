@@ -559,6 +559,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = types2class(curClass ::: List(enumName))
 
     // Set up the actual enum definition
+    if (!doc.isEmpty)
+      universalDoc(doc)
     out.puts(s"#[derive(Debug, PartialEq, Clone)]")
     out.puts(s"pub enum $enumClass {")
     out.inc

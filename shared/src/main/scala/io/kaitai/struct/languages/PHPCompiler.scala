@@ -438,6 +438,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def enumDeclaration(curClass: List[String], enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
     val name = curClass ::: List(enumName)
+    if (!doc.isEmpty)
+      universalDoc(doc)
     classHeader(name, None)
     enumColl.foreach { case (id, label) =>
       universalDoc(label.doc)

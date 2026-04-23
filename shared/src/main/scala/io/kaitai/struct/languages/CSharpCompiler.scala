@@ -551,6 +551,8 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = type2class(enumName)
 
     out.puts
+    if (!doc.isEmpty)
+      universalDoc(doc)
     out.puts(s"public enum $enumClass")
     out.puts(s"{")
     out.inc

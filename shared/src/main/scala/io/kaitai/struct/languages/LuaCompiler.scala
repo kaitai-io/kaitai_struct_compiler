@@ -276,6 +276,8 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def enumDeclaration(curClass: List[String], enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
     importList.add("local enum = require(\"enum\")")
 
+    if (!doc.isEmpty)
+      universalDoc(doc)
     out.puts(s"${types2class(curClass)}.${type2class(enumName)} = enum.Enum {")
     out.inc
     enumColl.foreach { case (id, label) =>

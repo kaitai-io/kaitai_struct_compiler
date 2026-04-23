@@ -763,6 +763,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     out.puts(s"class ${type2class(enumName)}(IntEnum):")
     out.inc
+    if (!doc.isEmpty)
+      universalDoc(doc)
     enumColl.foreach { case (id, label) =>
       out.puts(s"$label = ${translator.doIntLiteral(id)}")
     }

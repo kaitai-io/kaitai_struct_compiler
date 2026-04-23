@@ -1004,6 +1004,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}") // close interface
 
+    if (!doc.isEmpty)
+      universalDoc(doc)
     // public enum <enum> implements I<enum> { ... }
     out.puts(s"public enum $enumClass implements $enumIface {")
     out.inc

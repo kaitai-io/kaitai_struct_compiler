@@ -464,6 +464,8 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumConst = value2Const(enumName)
 
     out.puts
+    if (!doc.isEmpty)
+      universalDoc(doc)
     out.puts(s"$enumConst = {")
     out.inc
     enumColl.foreach { case (id, label) =>

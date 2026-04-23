@@ -187,6 +187,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val enumClass = namespaced(curClass)
     out.puts(s"${enumClass}_${camelCase(enumName, true)}* = enum")
     out.inc
+    if (!doc.isEmpty)
+      universalDoc(doc)
     enumColl.foreach { case (id, label) =>
       val order = if (s"$id" == "-9223372036854775808") "low(int64)" else s"$id"
       out.puts(s"${label.name} = $order")
