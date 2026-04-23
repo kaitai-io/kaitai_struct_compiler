@@ -885,7 +885,7 @@ class CppCompiler(
     handleAssignmentSimple(instName, valExprConverted)
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
     val enumClass = types2class(List(enumName))
 
     outHdr.puts

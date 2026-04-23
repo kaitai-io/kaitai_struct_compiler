@@ -525,7 +525,7 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
     out.puts(s"${type2class(curClass.last)}.${type2class(enumName)} = Object.freeze({")
     out.inc
 

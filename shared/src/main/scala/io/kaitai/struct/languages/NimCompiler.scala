@@ -183,7 +183,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
   // For this to work, we need a {.lenientCase.} pragma which disables nim's exhaustive case coverage check
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
     val enumClass = namespaced(curClass)
     out.puts(s"${enumClass}_${camelCase(enumName, true)}* = enum")
     out.inc

@@ -491,7 +491,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceSetCalculated(instName: InstanceIdentifier): Unit =
     out.puts(s"this.${calculatedFlagForName(instName)} = true")
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
     val fullEnumName: List[String] = curClass ++ List(enumName)
     val fullEnumNameStr = types2class(fullEnumName)
 
