@@ -458,16 +458,16 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def instanceDeclaration(attrName: InstanceIdentifier,
+  override def instanceDeclaration(instName: InstanceIdentifier,
                                    attrType: DataType,
                                    isNullable: Boolean): Unit = {
     val typeName = kaitaiTypeToNativeType(
-      Some(attrName),
+      Some(instName),
       typeProvider.nowClass,
       attrType
     )
-    out.puts(s"${calculatedFlagForName(attrName)}: Cell<bool>,")
-    out.puts(s"${idToStr(attrName)}: RefCell<$typeName>,")
+    out.puts(s"${calculatedFlagForName(instName)}: Cell<bool>,")
+    out.puts(s"${idToStr(instName)}: RefCell<$typeName>,")
   }
 
   def calculatedFlagForName(ksName: Identifier) =
