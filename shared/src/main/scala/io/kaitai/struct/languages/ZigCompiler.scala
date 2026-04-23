@@ -630,6 +630,8 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def enumDeclaration(curClass: String, enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, String)]): Unit = {
     val enumClass = type2class(enumName)
 
+    if (!doc.isEmpty)
+      universalDoc(doc)
     out.puts(s"pub const $enumClass = enum(i32) {")
     out.inc
 

@@ -496,6 +496,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val fullEnumNameStr = types2class(fullEnumName)
 
     out.puts
+    if (!doc.isEmpty)
+      universalDoc(doc)
     out.puts(s"type $fullEnumNameStr int")
     out.puts("const (")
     out.inc

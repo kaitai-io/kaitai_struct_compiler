@@ -889,6 +889,8 @@ class CppCompiler(
     val enumClass = types2class(List(enumName))
 
     outHdr.puts
+    if (!doc.isEmpty)
+      universalDoc(doc)
     outHdr.puts(s"enum $enumClass {")
     outHdr.inc
 
