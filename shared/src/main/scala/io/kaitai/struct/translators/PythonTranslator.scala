@@ -4,7 +4,7 @@ import io.kaitai.struct.{ExternalEnum, ImportList, RuntimeConfig, Utils}
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{EnumSpec, Identifier}
-import io.kaitai.struct.languages.{PythonCompiler, RubyCompiler}
+import io.kaitai.struct.languages.PythonCompiler
 
 class PythonTranslator(provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   /**
@@ -110,6 +110,8 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     s"${PythonCompiler.types2class(enumSpec.name, isExternal)}.$label"
   }
   override def doEnumById(enumSpec: EnumSpec, id: String): String = {
+    importList.add(s"from kaitaistruct import ${PythonCompiler.kstreamName}")
+
     val isExternal = enumSpec.isExternal(provider.nowClass)
     s"${PythonCompiler.kstreamName}.resolve_enum(${PythonCompiler.types2class(enumSpec.name, isExternal)}, $id)"
   }
@@ -148,8 +150,11 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     s"str(${translate(i)})"
   override def bytesToStr(bytesExpr: String, encoding: String): String =
     s"""($bytesExpr).decode(${doStringLiteral(encoding)})"""
-  override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String =
+  override def bytesIndexOf(b: Ast.expr, byte: Ast.expr): String = {
+    importList.add(s"from kaitaistruct import ${PythonCompiler.kstreamName}")
+
     s"${PythonCompiler.kstreamName}.byte_array_index_of(${translate(b)}, ${translate(byte)})"
+  }
 
   override def strLength(value: Ast.expr): String =
     s"len(${translate(value)})"
