@@ -57,6 +57,8 @@ object Endianness {
   def fromString(s: Option[String], defaultEndian: Option[Endianness], dt: String, path: List[String]): Option[FixedEndian] = s match {
     case Some("le") => Some(LittleEndian)
     case Some("be") => Some(BigEndian)
+    case Some(other) =>
+      throw KSYParseError.badDictValue(Set("le", "be"), other, path :+ "endian")
     case None =>
       defaultEndian match {
         case Some(e: FixedEndian) => Some(e)
