@@ -277,12 +277,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // function works even on `nil` slices (https://go.dev/tour/moretypes/15)
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts(s"for i := 0;; i++ {")
     out.inc
 
     val eofVar = translator.allocateLocalVar()
-    out.puts(s"${translator.localVarName(eofVar)}, err := this._io.EOF()")
+    out.puts(s"${translator.localVarName(eofVar)}, err := $io.EOF()")
     translator.outAddErrCheck()
     out.puts(s"if ${translator.localVarName(eofVar)} {")
     out.inc
@@ -297,8 +297,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"$name = append($name, $expr)")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"for i := 0; i < int(${expression(repeatExpr)}); i++ {")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"for i, _end := 0, int(${expression(countExpr)}); i < _end; i++ {")
     out.inc
     // FIXME: Go throws a fatal compile error when the `i` variable is not used (unused variables
     // can only use the blank identifier `_`, see https://go.dev/doc/effective_go#blank), so we have
@@ -311,8 +311,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, r: TranslatorResult): Unit =
     handleAssignmentRepeatEos(id, r)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
-    out.puts(s"for i := 1;; i++ {")
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
+    out.puts("{")
+    out.inc
+    out.puts("i := 0")
+    out.puts(s"for {")
     out.inc
   }
 
@@ -323,15 +326,17 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = append(${privateMemberName(id)}, $tempVar)")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
+  override def condRepeatUntilFooter(untilExpr: Ast.expr): Unit = {
     out.puts(s"if ${expression(untilExpr)} {")
     out.inc
     out.puts("break")
     out.dec
     out.puts("}")
+    out.puts("i++;")
     out.dec
-    out.puts("}")
+    out.puts("}") // close for
+    out.dec
+    out.puts("}") // close scope of i variable
   }
 
   private def castToType(r: TranslatorResult, dataType: DataType): TranslatorResult = {

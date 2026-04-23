@@ -166,7 +166,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = {}")
   }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("local i = 0")
     out.puts(s"while not $io:is_eof() do")
     out.inc
@@ -177,8 +177,8 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"for i = 0, ${expression(repeatExpr)} - 1 do")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"for i = 0, ${expression(countExpr)} - 1 do")
     out.inc
   }
   override def condRepeatExprFooter: Unit = {
@@ -186,13 +186,13 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("end")
   }
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
+    // Lua allows shadowing of variables, no need a scope to isolate them
     out.puts("local i = 0")
     out.puts("while true do")
     out.inc
   }
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
+  override def condRepeatUntilFooter(untilExpr: Ast.expr): Unit = {
     out.puts(s"if ${expression(untilExpr)} then")
     out.inc
     out.puts("break")
