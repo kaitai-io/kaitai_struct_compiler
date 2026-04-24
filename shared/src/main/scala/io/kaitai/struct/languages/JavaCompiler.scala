@@ -966,7 +966,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"public void _invalidate${idToSetterStr(instName)}() { ${privateMemberName(instName)} = null; }")
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, String)]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(BigInt, String)], enumSpec: EnumSpec): Unit = {
     val enumClass = type2class(enumName)
     val enumIface = enum2iface(enumName)
 
@@ -1004,8 +1004,8 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
     out.puts("}") // close interface
 
-    if (!doc.isEmpty)
-      universalDoc(doc)
+    if (!enumSpec.doc.isEmpty)
+      universalDoc(enumSpec.doc)
     // public enum <enum> implements I<enum> { ... }
     out.puts(s"public enum $enumClass implements $enumIface {")
     out.inc

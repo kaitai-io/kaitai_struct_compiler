@@ -487,7 +487,7 @@ class ClassCompiler(
   }
 
   def compileEnum(curClass: ClassSpec, enumColl: EnumSpec): Unit =
-    lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.doc, enumColl.map.toSeq)
+    lang.enumDeclaration(curClass.name, enumColl.name.last, enumColl.map.toSeq, enumColl)
 
   def compileClassDoc(curClass: ClassSpec): Unit = {
     if (!curClass.doc.isEmpty)

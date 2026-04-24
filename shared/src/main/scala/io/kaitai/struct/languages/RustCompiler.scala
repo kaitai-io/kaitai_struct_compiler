@@ -554,13 +554,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"Ok(${privateMemberName(instName)})")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)], enumSpec: EnumSpec): Unit = {
 
     val enumClass = types2class(curClass ::: List(enumName))
 
     // Set up the actual enum definition
-    if (!doc.isEmpty)
-      universalDoc(doc)
+    if (!enumSpec.doc.isEmpty)
+      universalDoc(enumSpec.doc)
     out.puts(s"#[derive(Debug, PartialEq, Clone)]")
     out.puts(s"pub enum $enumClass {")
     out.inc
