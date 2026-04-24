@@ -436,10 +436,10 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return ${privateMemberName(instName)};")
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)], enumSpec: EnumSpec): Unit = {
     val name = curClass ::: List(enumName)
-    if (!doc.isEmpty)
-      universalDoc(doc)
+    if (!enumSpec.doc.isEmpty)
+      universalDoc(enumSpec.doc)
     classHeader(name, None)
     enumColl.foreach { case (id, label) =>
       universalDoc(label.doc)

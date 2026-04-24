@@ -547,12 +547,12 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   def flagForInstName(ksName: Identifier) = s"f_${idToStr(ksName)}"
 
-  override def enumDeclaration(curClass: String, enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, String)]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(BigInt, String)], enumSpec: EnumSpec): Unit = {
     val enumClass = type2class(enumName)
 
     out.puts
-    if (!doc.isEmpty)
-      universalDoc(doc)
+    if (!enumSpec.doc.isEmpty)
+      universalDoc(enumSpec.doc)
     out.puts(s"public enum $enumClass")
     out.puts(s"{")
     out.inc

@@ -757,14 +757,14 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.dec
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, doc: DocSpec, enumColl: Seq[(BigInt, String)]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(BigInt, String)], enumSpec: EnumSpec): Unit = {
     importList.add("from enum import IntEnum")
 
     out.puts
     out.puts(s"class ${type2class(enumName)}(IntEnum):")
     out.inc
-    if (!doc.isEmpty)
-      universalDoc(doc)
+    if (!enumSpec.doc.isEmpty)
+      universalDoc(enumSpec.doc)
     enumColl.foreach { case (id, label) =>
       out.puts(s"$label = ${translator.doIntLiteral(id)}")
     }
