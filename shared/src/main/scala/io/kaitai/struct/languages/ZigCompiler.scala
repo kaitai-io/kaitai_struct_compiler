@@ -632,7 +632,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     if (!enumSpec.doc.isEmpty)
       universalDoc(enumSpec.doc)
-    out.puts(s"pub const $enumClass = enum(i32) {")
+    out.puts(s"pub const $enumClass = enum(${kaitaiType2NativeType(enumSpec.intType)}) {")
     out.inc
 
     enumColl.foreach { case (id, label) =>
