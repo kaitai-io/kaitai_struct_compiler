@@ -498,7 +498,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     if (!enumSpec.doc.isEmpty)
       universalDoc(enumSpec.doc)
-    out.puts(s"type $fullEnumNameStr int")
+    out.puts(s"type $fullEnumNameStr ${kaitaiType2NativeType(enumSpec.intType)}")
     out.puts("const (")
     out.inc
 

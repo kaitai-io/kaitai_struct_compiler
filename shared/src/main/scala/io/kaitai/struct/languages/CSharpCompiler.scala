@@ -553,7 +553,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts
     if (!enumSpec.doc.isEmpty)
       universalDoc(enumSpec.doc)
-    out.puts(s"public enum $enumClass")
+    out.puts(s"public enum $enumClass : ${kaitaiType2NativeType(enumSpec.intType)}")
     out.puts(s"{")
     out.inc
 
