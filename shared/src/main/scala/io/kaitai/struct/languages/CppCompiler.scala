@@ -891,7 +891,11 @@ class CppCompiler(
     outHdr.puts
     if (!enumSpec.doc.isEmpty)
       universalDoc(enumSpec.doc)
-    outHdr.puts(s"enum $enumClass {")
+    if (config.cppConfig.enumsFixedUnderlyingType) {
+      outHdr.puts(s"enum $enumClass : ${kaitaiType2NativeType(enumSpec.intType)} {")
+    } else {
+      outHdr.puts(s"enum $enumClass {")
+    }
     outHdr.inc
 
     if (enumColl.size > 1) {
