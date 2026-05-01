@@ -116,7 +116,7 @@ object MetaSpec {
         )
       }
       if (ver > KSVersion.current)
-        throw KSYParseError.incompatibleVersion(ver, KSVersion.current, path ++ List("ks-version"))
+        throw KSYParseError.incompatibleVersion(ver, KSVersion.current, path :+ "ks-version")
     }
 
     val endian: Option[Endianness] = Endianness.fromYaml(srcMap.get("endian"), path)

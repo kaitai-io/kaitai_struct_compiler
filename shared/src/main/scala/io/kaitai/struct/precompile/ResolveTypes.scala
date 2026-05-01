@@ -41,27 +41,49 @@ class ResolveTypes(specs: ClassSpecs, topClass: ClassSpec, opaqueTypes: Boolean)
   }
 
   def resolveUserTypeForMember(curClass: ClassSpec, attr: MemberSpec): Iterable[CompilationProblem] =
-    resolveUserType(curClass, attr.dataType, attr.path)
+    resolveUserType(curClass, attr.dataType, attr.path, None)
 
-  def resolveUserType(curClass: ClassSpec, dataType: DataType, path: List[String]): Iterable[CompilationProblem] = {
+  /**
+    * Resolves the `dataType` (thing referenced in the `type` property in YAML) of some attribute
+    * defined in `curClass`.
+    *
+    * @param curClass The user-defined type (= class) with attribute whose type is being resolved
+    * @param dataType The type of the attribute being resolved
+    * @param path YAML path to the attribute where diagnostics should be reported
+    * @param caseExpr Contains the specific case name (actually an expresion) if the attribute type
+    *        is switchable type (defined by `switch-on`)
+    */
+  def resolveUserType(
+    curClass: ClassSpec,
+    dataType: DataType,
+    path: List[String],
+    caseExpr: Option[String],
+  ): Iterable[CompilationProblem] = {
     dataType match {
       case ut: UserType =>
-        val (resClassSpec, problems) = resolveUserType(curClass, ut.name, path ++ List("type"))
+        val (resClassSpec, problems) = resolveUserType(
+          curClass,
+          ut.name,
+          caseExpr match {
+            case Some(case_) => path ++ List("type", "cases", case_)
+            case None => path :+ "type"
+          }
+        )
         ut.classSpec = resClassSpec
         problems
       case et: EnumType =>
         et.enumSpec = resolveEnumSpec(curClass, et.name)
         if (et.enumSpec.isEmpty) {
-          Some(EnumNotFoundErr(et.name, curClass, path ++ List("enum")))
+          Some(EnumNotFoundErr(et.name, curClass, path :+ "enum"))
         } else {
           None
         }
       case st: SwitchType =>
         st.cases.flatMap { case (caseName, ut) =>
-          resolveUserType(curClass, ut, path ++ List("type", "cases", caseName.toString))
+          resolveUserType(curClass, ut, path, Some(caseName.toString))
         }
       case at: ArrayType =>
-        resolveUserType(curClass, at.elType, path)
+        resolveUserType(curClass, at.elType, path, caseExpr)
       case _ =>
         // not a user type, nothing to resolve
         None
