@@ -44,11 +44,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts(s"// $headerComment")
     outHeader.puts
 
-    outHeader.puts("#![allow(unused_imports)]")
-    outHeader.puts("#![allow(non_snake_case)]")
-    outHeader.puts("#![allow(non_camel_case_types)]")
-    outHeader.puts("#![allow(irrefutable_let_patterns)]")
-    outHeader.puts("#![allow(unused_comparisons)]")
+    outHeader.puts("#![allow(warnings)]")
     outHeader.puts
     outHeader.puts("extern crate kaitai;")
 
