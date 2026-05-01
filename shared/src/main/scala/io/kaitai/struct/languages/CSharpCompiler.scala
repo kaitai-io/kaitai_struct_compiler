@@ -708,7 +708,7 @@ object CSharpCompiler extends LanguageCompilerStatic
       case KaitaiStreamType | OwnedKaitaiStreamType => kstreamName
 
       case t: UserType => types2class(t.name)
-      case EnumType(name, _) => types2class(name)
+      case EnumType(ref, _) => types2class(ref.fullName)
 
       case at: ArrayType => {
         importList.add("System.Collections.Generic")
