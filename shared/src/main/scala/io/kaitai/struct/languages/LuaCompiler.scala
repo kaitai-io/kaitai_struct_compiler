@@ -446,10 +446,9 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     err: ValidationNotInEnumError,
     useIo: Boolean
   ): Unit = {
-    // NOTE: this condition works for now because we haven't implemented
-    // https://github.com/kaitai-io/kaitai_struct/issues/778 for Lua yet, but
-    // it will need to be changed when we do.
-    attrValidate(attr, s"${translator.translate(valueExpr)} == nil", err, useIo, valueExpr, None)
+    importList.add("local enum = require(\"enum\")")
+
+    attrValidate(attr, s"not enum.is_defined(${translator.translate(valueExpr)})", err, useIo, valueExpr, None)
   }
 
   private def attrValidate(

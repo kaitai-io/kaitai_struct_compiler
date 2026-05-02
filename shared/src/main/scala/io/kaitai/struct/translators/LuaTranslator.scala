@@ -123,8 +123,11 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     }
     s"tonumber(${translate(s)}$add)"
   }
-  override def enumToInt(v: Ast.expr, et: EnumType): String =
-    s"${translate(v)}.value"
+  override def enumToInt(v: Ast.expr, et: EnumType): String = {
+    importList.add("local enum = require(\"enum\")")
+
+    s"enum.to_int(${translate(v)})"
+  }
   override def boolToInt(v: Ast.expr): String =
     s"(${translate(v)} and 1 or 0)"
   override def floatToInt(v: Ast.expr): String =
