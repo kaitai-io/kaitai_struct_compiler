@@ -491,12 +491,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceSetCalculated(instName: InstanceIdentifier): Unit =
     out.puts(s"this.${calculatedFlagForName(instName)} = true")
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)], enumSpec: EnumSpec): Unit = {
     val fullEnumName: List[String] = curClass ++ List(enumName)
     val fullEnumNameStr = types2class(fullEnumName)
 
     out.puts
-    out.puts(s"type $fullEnumNameStr int")
+    if (!enumSpec.doc.isEmpty)
+      universalDoc(enumSpec.doc)
+    out.puts(s"type $fullEnumNameStr ${kaitaiType2NativeType(enumSpec.intType)}")
     out.puts("const (")
     out.inc
 

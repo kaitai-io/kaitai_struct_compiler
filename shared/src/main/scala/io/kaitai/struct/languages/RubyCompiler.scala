@@ -460,10 +460,12 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(privateMemberName(instName))
   }
 
-  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(BigInt, String)]): Unit = {
+  override def enumDeclaration(curClass: String, enumName: String, enumColl: Seq[(BigInt, String)], enumSpec: EnumSpec): Unit = {
     val enumConst = value2Const(enumName)
 
     out.puts
+    if (!enumSpec.doc.isEmpty)
+      universalDoc(enumSpec.doc)
     out.puts(s"$enumConst = {")
     out.inc
     enumColl.foreach { case (id, label) =>
