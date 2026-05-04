@@ -1,12 +1,12 @@
 package io.kaitai.struct.translators
 
-import io.kaitai.struct.{ClassTypeProvider, ImportList, RuntimeConfig, Utils}
-import io.kaitai.struct.exprlang.Ast
-import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
+import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.JavaCompiler
+import io.kaitai.struct.{ImportList, RuntimeConfig, Utils}
 
 class JavaTranslator(provider: TypeProvider, importList: ImportList, config: RuntimeConfig) extends BaseTranslator(provider) {
   override def doIntLiteral(n: BigInt): String = {
@@ -114,8 +114,14 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
     s"Long.parseLong(${translate(s)}, ${translate(base)})"
+
   override def enumToInt(v: expr, et: EnumType): String =
     s"${translate(v)}.id()"
+  override def enumToStr(v: Ast.expr, et: EnumType): String = {
+    importList.add("java.util.Locale");
+    s"${translate(v, METHOD_PRECEDENCE)}.toString().toLowerCase(Locale.ROOT)"
+  }
+
   override def floatToInt(v: expr): String =
     doCast(v, CalcIntType)
   override def intToStr(i: expr): String =
