@@ -35,5 +35,16 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: sbt/setup-sbt@v1
-      - name: Run tests
+      - name: build-compiler
+        run: |
+          cat /dev/null | sbt \
+            compile \
+            compilerJVM/stage \
+            fastOptJS \
+            buildNpmJsFile \
+            buildNpmPackage
+      - name: Run Scala tests
         run: sbt test
+      - name: Run CLI invocation tests
+        run: tests-cli/run-tests
+        if: always()
