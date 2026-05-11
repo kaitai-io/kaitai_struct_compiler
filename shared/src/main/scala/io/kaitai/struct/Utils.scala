@@ -78,6 +78,14 @@ object Utils {
     }
   }
 
+  def lowerKebabCase(s: String): String  = {
+    if (s.startsWith("_")) {
+      "_" + lowerKebabCase(s.substring(1))
+    } else {
+      s.replaceAll("_", "-")
+    }
+  }
+
   /**
     * Converts string to `lowerCamelCase`.
     * @param s original string in `lower_under_score` case.
