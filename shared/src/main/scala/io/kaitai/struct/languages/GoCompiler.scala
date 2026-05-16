@@ -460,12 +460,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"func (this *${types2class(className)}) ${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
     out.inc
-    translator.returnRes = Some(dataType match {
-      case _: NumericType => "0"
-      case _: BooleanType => "false"
-      case _: StrType => "\"\""
-      case _ => "nil"
-    })
+    translator.returnRes = Some(defaultTypeValue(dataType))
   }
 
   override def instanceCalculate(instName: Identifier, dataType: DataType, value: Ast.expr): Unit = {
@@ -679,6 +674,13 @@ object GoCompiler extends LanguageCompilerStatic
 
   def enumToStr(typeName: List[String], enumName: String): String =
     types2class(typeName) + "__" + type2class(enumName)
+
+  def defaultTypeValue(dataType: DataType): String = dataType match {
+    case _: NumericType => "0"
+    case _: BooleanType => "false"
+    case _: StrType => "\"\""
+    case _ => "nil"
+  }
 
   override def kstreamName: String = "kaitai.Stream"
   override def kstructName: String = "kaitai.Struct"
