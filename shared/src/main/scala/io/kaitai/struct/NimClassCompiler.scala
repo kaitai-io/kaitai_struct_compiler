@@ -1,7 +1,6 @@
 package io.kaitai.struct
 
 import io.kaitai.struct.CompileLog.FileSuccess
-import io.kaitai.struct.datatype.DataType.{KaitaiStreamType, UserTypeInstream, CalcUserType}
 import io.kaitai.struct.datatype.{Endianness, FixedEndian, InheritedEndian, LittleEndian, BigEndian, CalcEndian}
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.NimCompiler

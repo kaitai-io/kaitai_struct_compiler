@@ -169,6 +169,7 @@ abstract trait CommonMethods[T] extends TypeDetector {
       case KaitaiStructType | CalcKaitaiStructType(_) =>
         attr.name match {
           case Identifier.PARENT | Identifier.IO => kaitaiStructField(value, attr.name)
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
@@ -177,16 +178,17 @@ abstract trait CommonMethods[T] extends TypeDetector {
           case "size" => kaitaiStreamSize(value)
           case "eof" => kaitaiStreamEof(value)
           case "pos" => kaitaiStreamPos(value)
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case et: EnumType =>
         attr.name match {
           case "to_i" => enumToInt(value, et)
-          case _ => throw new TypeMismatchError(s"called invalid attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _ =>
         MethodArgType.byDataType(valType) match {
           case Some(argType) => invokeMethod(argType, attr.name, value)
-          case _ => throw new TypeMismatchError(s"internal compiler error: tried to call attribute '${attr.name}' on expression of type $valType")
+          case _ => throw new MethodNotFoundError(attr.name, valType)
         }
     }
   }
