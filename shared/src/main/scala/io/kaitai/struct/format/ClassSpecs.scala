@@ -61,4 +61,5 @@ abstract class ClassSpecs(val firstSpec: ClassSpec) extends mutable.HashMap[Stri
 
   def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]]
   def importAbsolute(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]]
+  def importUrl(url: String, inFile: Option[String]): Future[Option[ClassSpec]]
 }

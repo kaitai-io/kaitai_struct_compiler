@@ -55,6 +55,8 @@ class LoadImports(specs: ClassSpecs) {
         specs.importRelative(p.mkString("/"), path, inFile)
       case AbsoluteImportPath(p) =>
         specs.importAbsolute(p.mkString("/"), path, inFile)
+      case URLImportPath(url) =>
+        specs.importUrl(if (url.endsWith(".ksy")) url else s"$url.ksy", inFile)
     }
 
     futureSpec.flatMap { case optSpec =>
@@ -115,17 +117,43 @@ object LoadImports {
   case class AbsoluteImportPath(path: List[String]) extends ImportPath {
     override def baseDir: ImportPath = AbsoluteImportPath(path.init)
   }
+  case class URLImportPath(url: String) extends ImportPath {
+    override def baseDir: ImportPath = {
+      val lastSlash = url.lastIndexOf('/')
+      if (lastSlash > url.indexOf("://") + 2) {
+        URLImportPath(url.substring(0, lastSlash))
+      } else {
+        this
+      }
+    }
+  }
   val BasePath = RelativeImportPath(List())
 
   object ImportPath {
     def fromString(s: String): ImportPath = if (s.startsWith("/")) {
       AbsoluteImportPath(s.substring(1).split("/", -1).toList)
-    } else {
+    } else if (s.startsWith("http://") || s.startsWith("https://")) {
+      URLImportPath(s)
+    } else{
       RelativeImportPath(s.split("/", -1).toList)
     }
 
     def add(curWorkDir: ImportPath, newPath: ImportPath): ImportPath = {
       (curWorkDir, newPath) match {
+        case (_, url: URLImportPath) =>
+          url
+        case (URLImportPath(baseUrl), AbsoluteImportPath(newPathAbs)) =>
+          // For GitHub raw URLs, extract the repository root
+          val github = """(https://raw\.githubusercontent\.com/[^/]+/[^/]+/[^/]+)/.*""".r
+          val githubRef = """(https://raw\.githubusercontent\.com/[^/]+/[^/]+/refs/[^/]+/[^/]+)/.*""".r
+          val repoRoot = baseUrl match {
+            case githubRef(root) => root
+            case github(root) => root
+            case _ => baseUrl
+          }
+          URLImportPath(repoRoot + "/" + newPathAbs.mkString("/"))
+        case (URLImportPath(baseUrl), RelativeImportPath(newPathRel)) =>
+          URLImportPath(baseUrl + "/" + newPathRel.mkString("/"))
         case (_, AbsoluteImportPath(newPathAbs)) =>
           AbsoluteImportPath(newPathAbs)
         case (RelativeImportPath(curDir), RelativeImportPath(newPathRel)) =>
