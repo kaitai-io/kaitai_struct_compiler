@@ -221,7 +221,7 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = s"io_$privateVarName"
 
     val args = rep match {
-      case RepeatUntil(_) => translator.doName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.doName(Identifier.THIS_RAW)
       case _ => getRawIdExpr(varName, rep)
     }
 
@@ -314,9 +314,9 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier, expr: String, isRaw: Boolean): Unit = {
     val (typeDecl, tempVar) = if (isRaw) {
-      ("byte[] ", translator.doName(Identifier.ITERATOR2))
+      ("byte[] ", translator.doName(Identifier.THIS_RAW))
     } else {
-      ("", translator.doName(Identifier.ITERATOR))
+      ("", translator.doName(Identifier.THIS))
     }
     out.puts(s"$typeDecl$tempVar = $expr;")
     out.puts(s"${privateMemberName(id)}.Add($tempVar);")

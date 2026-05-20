@@ -335,7 +335,7 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     val t = localTemporaryName(id)
     out.puts(s"let $t = ${privateMemberName(id)};")
-    out.puts(s"let ${translator.doLocalName(Identifier.ITERATOR)} = $copy_type$t.last().unwrap();")
+    out.puts(s"let ${translator.doLocalName(Identifier.THIS)} = $copy_type$t.last().unwrap();")
   }
 
   override def condRepeatUntilFooter(id: Identifier,

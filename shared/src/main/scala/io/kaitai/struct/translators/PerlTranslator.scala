@@ -80,15 +80,15 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
   override def doLocalName(s: String) = {
     s match {
       case Identifier.SWITCH_ON => "$_on"
-      case Identifier.ITERATOR | Identifier.INDEX => doName(s)
+      case Identifier.THIS | Identifier.INDEX => doName(s)
       case _ => s"$$self->${doName(s)}"
     }
   }
 
   override def doName(s: String) = {
     s match {
-      case Identifier.ITERATOR => "$_it"
-      case Identifier.ITERATOR2 => "$_buf"
+      case Identifier.THIS => "$_it"
+      case Identifier.THIS_RAW => "$_buf"
       case Identifier.INDEX => "$i"
       case _ => s"$s()"
     }

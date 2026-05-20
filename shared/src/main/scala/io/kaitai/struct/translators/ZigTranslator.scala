@@ -75,8 +75,8 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
 
   override def doLocalName(s: String) =
     s match {
-      case Identifier.ITERATOR => "_it"
-      case Identifier.ITERATOR2 => "_buf"
+      case Identifier.THIS => "_it"
+      case Identifier.THIS_RAW => "_buf"
       case Identifier.SWITCH_ON => "_on"
       case Identifier.INDEX => "i"
       case Identifier.ROOT | Identifier.PARENT =>

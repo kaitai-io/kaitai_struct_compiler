@@ -64,7 +64,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = s"${idToStr(id)}Io"
     val arg = rep match {
       case NoRepeat => idToStr(id) + "Expr"
-      case _ => translator.doName(Identifier.ITERATOR2)
+      case _ => translator.doName(Identifier.THIS_RAW)
     }
     out.puts(s"let $ioName = newKaitaiStream($arg)")
     ioName
@@ -363,8 +363,8 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   def handleAssignmentIterative(id: Identifier, expr: String): Unit = {
     // Need better design for this XXX
     val exprName = id match {
-      case _: RawIdentifier => translator.doName(Identifier.ITERATOR2)
-      case _ => translator.doName(Identifier.ITERATOR)
+      case _: RawIdentifier => translator.doName(Identifier.THIS_RAW)
+      case _ => translator.doName(Identifier.THIS)
     }
     out.puts(s"let $exprName = $expr")
     out.puts(s"${privateMemberName(id)}.add($exprName)")

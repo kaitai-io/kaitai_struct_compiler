@@ -45,8 +45,8 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Identifier.ROOT => "root"
       case Identifier.PARENT => "parent"
       case Identifier.IO => "io"
-      case Identifier.ITERATOR => "it"
-      case Identifier.ITERATOR2 => "buf"
+      case Identifier.THIS => "it"
+      case Identifier.THIS_RAW => "buf"
       case Identifier.INDEX => "i"
       case Identifier.SWITCH_ON => "on"
       case Identifier.IS_LE => "isLe"
@@ -55,7 +55,7 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
     }
   override def doLocalName(s: String): String =
     s match {
-      case Identifier.ITERATOR => doName(s)
+      case Identifier.THIS => doName(s)
       case Identifier.INDEX => doName(s)
       case Identifier.ROOT => s"${ksToNim(provider.determineType(Identifier.ROOT))}(this.${doName(s)})"
       case _ => s"this.${doName(s)}"
