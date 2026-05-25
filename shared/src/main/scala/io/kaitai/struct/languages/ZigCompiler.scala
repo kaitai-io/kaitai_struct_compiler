@@ -798,7 +798,7 @@ object ZigCompiler extends LanguageCompilerStatic
       case _: StrType => "[]const u8"
       case _: BytesType => "[]const u8"
 
-      case KaitaiStreamType | OwnedKaitaiStreamType => s"*$kstreamName"
+      case _: StreamType => s"*$kstreamName"
       case AnyType | KaitaiStructType | CalcKaitaiStructType(_) => "*anyopaque"
 
       case ut: UserType => {

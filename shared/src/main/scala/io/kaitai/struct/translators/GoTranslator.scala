@@ -300,7 +300,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       // These data types are represented as pointer types (`*T`) in the generated Go
       // code, so they have to be wrapped into parentheses, otherwise Go will attempt to
       // apply `*` to the result of `T(...)` instead of the desired `(*T)(...)`.
-      case KaitaiStreamType | OwnedKaitaiStreamType | _: UserType =>
+      case _: StreamType | _: UserType =>
         ResultString(s"(${GoCompiler.kaitaiType2NativeType(typeName)})(${translate(value)})")
       case _ =>
         // Type conversion - for everything else that is not an interface

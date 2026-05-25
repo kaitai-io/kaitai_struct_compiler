@@ -26,6 +26,9 @@ object MethodArgType {
   case object ArrayArg extends MethodArgType {
     override def toString = "array"
   }
+  case object StreamArg extends MethodArgType {
+    override def toString = "io stream"
+  }
 
   def byDataType(dataType: DataType): Option[MethodArgType] = {
     dataType match {
@@ -35,6 +38,7 @@ object MethodArgType {
       case _: BooleanType => Some(BooleanArg)
       case _: BytesType => Some(BytesArg)
       case _: ArrayType => Some(ArrayArg)
+      case _: StreamType => Some(StreamArg)
       case _ => None
     }
   }
@@ -135,6 +139,12 @@ abstract trait CommonMethods[T] extends TypeDetector {
       MethodSig0("min", AnyType, arrayMin),
       MethodSig0("max", AnyType, arrayMax),
     ),
+
+    StreamArg -> List(
+      MethodSig0("eof", CalcBooleanType, kaitaiStreamEof),
+      MethodSig0("pos", CalcIntType, kaitaiStreamPos),
+      MethodSig0("size", CalcIntType, kaitaiStreamSize),
+    ),
   )
 
   /**
@@ -172,12 +182,6 @@ abstract trait CommonMethods[T] extends TypeDetector {
         }
       case ut: UserType =>
         userTypeField(ut, value, attr.name)
-      case KaitaiStreamType | OwnedKaitaiStreamType =>
-        attr.name match {
-          case "size" => kaitaiStreamSize(value)
-          case "eof" => kaitaiStreamEof(value)
-          case "pos" => kaitaiStreamPos(value)
-        }
       case et: EnumType =>
         attr.name match {
           case "to_i" => enumToInt(value, et)
