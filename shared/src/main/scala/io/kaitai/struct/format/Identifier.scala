@@ -1,6 +1,7 @@
 package io.kaitai.struct.format
 
 import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.precompile.InvalidIdentifier
 import io.kaitai.struct.problems.KSYParseError
 
 /**
@@ -36,10 +37,6 @@ case class NamedIdentifier(name: String) extends Identifier {
 
   override def humanReadable: String = name
 }
-
-case class InvalidIdentifier(id: String) extends RuntimeException(
-  s"invalid ID: '$id', expected /${Identifier.ReIdentifier.toString}/"
-)
 
 object Identifier {
   val ReIdentifier = "^[a-z][a-z0-9_]*$".r
