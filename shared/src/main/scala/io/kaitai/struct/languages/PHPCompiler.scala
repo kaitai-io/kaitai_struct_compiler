@@ -274,7 +274,7 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = [];")
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("$i = 0;")
     out.puts(s"while (!$io->isEof()) {")
     out.inc
@@ -289,8 +289,8 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     super.condRepeatEosFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: Ast.expr): Unit = {
-    out.puts(s"$$n = ${expression(repeatExpr)};")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"$$n = ${expression(countExpr)};")
     out.puts("for ($i = 0; $i < $n; $i++) {")
     out.inc
   }
@@ -298,9 +298,9 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts("$i = 0;")
-    out.puts("do {")
+    out.puts("while (1) {")
     out.inc
   }
 
@@ -310,11 +310,17 @@ class PHPCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}[] = $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
+  override def condRepeatUntilFooter(untilExpr: Ast.expr): Unit = {
+    out.puts(s"if ${expression(untilExpr)} {")
+    out.inc
+    out.puts("break;")
+    out.dec
+    out.puts("}")
     out.puts("$i++;")
     out.dec
-    out.puts(s"} while (!(${expression(untilExpr)}));")
+    out.puts("}") // close while (1)
+    out.dec
+    out.puts("}") // close scope of i variable
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {

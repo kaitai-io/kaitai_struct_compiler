@@ -300,7 +300,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _ => expr
     }
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i: usize = 0;")
@@ -319,8 +319,8 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for (0..${expression(repeatExpr)}) |i| {")
+  override def condRepeatExprHeader(countExpr: expr): Unit = {
+    out.puts(s"for (0..${expression(countExpr)}) |i| {")
     out.inc
     // NOTE: Zig would refuse to compile the code with an "error: unused capture" if the `i`
     // variable wasn't used in any way. In hand-written code, it's easy to deal with that by
@@ -341,7 +341,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts("{")
     out.inc
     out.puts("var i: usize = 0;")
@@ -355,8 +355,7 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"try ${privateMemberName(id)}.append(self._allocator(), $tmpName);")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
+  override def condRepeatUntilFooter(untilExpr: expr): Unit = {
     out.puts(s"if (${expression(untilExpr)}) {")
     out.inc
     out.puts("break;")

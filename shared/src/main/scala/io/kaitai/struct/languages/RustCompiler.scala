@@ -272,19 +272,14 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
-    // this line required for handleAssignmentRepeatUntil
-    typeProvider._currentIteratorType = Some(dataType)
+  override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit = {
     out.puts(s"*${RustCompiler.privateMemberName(id, writeAccess = true)} = Vec::new();")
   }
 
-  override def condRepeatEosHeader(id: Identifier,
-                                   io: String,
-                                   dataType: DataType): Unit = {
-    out.puts("{")
-    out.inc
+  override def condRepeatEosHeader(io: String): Unit = {
+    // Rust allows shadowing of variables, no need a scope to isolate them
     out.puts(s"let mut _i = 0;")
-    out.puts(s"while !_io.is_eof() {")
+    out.puts(s"while !$io.is_eof() {")
     out.inc
   }
 
@@ -296,28 +291,18 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("_i += 1;")
     out.dec
     out.puts("}")
-    out.dec
-    out.puts("}")
   }
 
-  override def condRepeatExprHeader(id: Identifier,
-                                    io: String,
-                                    dataType: DataType,
-                                    repeatExpr: Ast.expr): Unit = {
-    val lenVar = s"l_${idToStr(id)}"
-    out.puts(s"let $lenVar = ${expression(repeatExpr)};")
-    out.puts(s"for _i in 0..$lenVar {")
+  override def condRepeatExprHeader(countExpr: Ast.expr): Unit = {
+    out.puts(s"let _end = ${expression(countExpr)};")
+    out.puts(s"for _i in 0.._end {")
     out.inc
   }
 
-  override def condRepeatUntilHeader(id: Identifier,
-                                     io: String,
-                                     dataType: DataType,
-                                     repeatExpr: Ast.expr): Unit = {
-    out.puts("{")
-    out.inc
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
+    // Rust allows shadowing of variables, no need a scope to isolate them
     out.puts("let mut _i = 0;")
-    out.puts("while {")
+    out.puts("loop {")
     out.inc
   }
 
@@ -330,7 +315,8 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
                                            isRaw: Boolean): Unit = {
     out.puts(s"${RustCompiler.privateMemberName(id, writeAccess = true)}.push($expr);")
     var copy_type = ""
-    if (typeProvider._currentIteratorType.isDefined && translator.is_copy_type(typeProvider._currentIteratorType.get)) {
+    // typeProvider._typeOfUnderscore is set in CommonReads.attrParse0
+    if (translator.is_copy_type(typeProvider._typeOfUnderscore.get)) {
       copy_type = "*"
     }
     val t = localTemporaryName(id)
@@ -338,19 +324,15 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let ${translator.doLocalName(Identifier.ITERATOR)} = $copy_type$t.last().unwrap();")
   }
 
-  override def condRepeatUntilFooter(id: Identifier,
-                                     io: String,
-                                     dataType: DataType,
-                                     repeatExpr: Ast.expr): Unit = {
-    // this line required by kaitai code
-    typeProvider._currentIteratorType = Some(dataType)
-    out.puts("_i += 1;")
-    out.puts(s"let x = !(${expression(repeatExpr)});")
-    out.puts("x")
-    out.dec
-    out.puts("} {}")
+  override def condRepeatUntilFooter(untilExpr: Ast.expr): Unit = {
+    out.puts(s"if ${expression(untilExpr)} {")
+    out.inc
+    out.puts("break")
     out.dec
     out.puts("}")
+    out.puts("_i += 1;")
+    out.dec
+    out.puts("}") // close loop
   }
 
   def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {

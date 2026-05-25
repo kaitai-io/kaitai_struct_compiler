@@ -237,7 +237,9 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = [];")
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
+    // Perl allows shadowing of variables, no need a scope to isolate them
+    out.puts("my $i = 0;")
     out.puts(s"while (!$io->is_eof()) {")
     out.inc
   }
@@ -245,20 +247,24 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatEos(id: Identifier, expr: String): Unit =
     out.puts(s"push @{${privateMemberName(id)}}, $expr;")
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    val nVar = s"$$n_${idToStr(id)}"
-    out.puts(s"my $nVar = ${expression(repeatExpr)};")
-    out.puts(s"for (my $$i = 0; $$i < $nVar; $$i++) {")
+  override def condRepeatEosFooter: Unit = {
+    out.puts("$i++;")
+    out.dec
+    out.puts("}")
+  }
+
+  override def condRepeatExprHeader(countExpr: expr): Unit = {
+    out.puts(s"for (my $$i = 0, $$_end = ${expression(countExpr)}; $$i < $$_end; ++$$i) {")
     out.inc
   }
 
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    blockScopeHeader
-    out.puts(s"my ${translator.doName("_")};")
-    out.puts("do {")
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
+    // Perl allows shadowing of variables, no need a scope to isolate them
+    out.puts("my $i = 0;")
+    out.puts("while (1) {")
     out.inc
   }
 
@@ -272,11 +278,11 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"push @{${privateMemberName(id)}}, $tmpName;")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
+  override def condRepeatUntilFooter(untilExpr: expr): Unit = {
+    out.puts(s"last if (${expression(untilExpr)});")
+    out.puts("$i++;")
     out.dec
-    out.puts(s"} until (${expression(untilExpr)});")
-    blockScopeFooter
+    out.puts("}") // close while (1)
   }
 
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit =
@@ -379,7 +385,6 @@ class PerlCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def switchRequiresIfs(onType: DataType): Boolean = true
 
   override def switchIfStart(id: Identifier, on: Ast.expr, onType: DataType): Unit = {
-    typeProvider._currentSwitchType = Some(translator.detectType(on))
     out.puts(s"my $$_on = ${expression(on)};")
   }
 
