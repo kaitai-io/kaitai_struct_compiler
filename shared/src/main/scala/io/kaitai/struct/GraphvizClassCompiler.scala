@@ -182,8 +182,8 @@ class GraphvizClassCompiler(classSpecs: ClassSpecs, topClass: ClassSpec) extends
     val text = valid match {
       case Some(v) =>
         v match {
-          case ValidationEq(expected) =>
-            s"must be equal to ${expression(expected, fullPortName, STYLE_EDGE_VALID)}"
+          case expected: ValidationEquals =>
+            s"must be equal to ${expression(expected.value, fullPortName, STYLE_EDGE_VALID)}"
           case ValidationMin(min) =>
             s"must be at least ${expression(min, fullPortName, STYLE_EDGE_VALID)}"
           case ValidationMax(max) =>
@@ -519,12 +519,17 @@ object GraphvizClassCompiler extends LanguageCompilerStatic {
 
   private def fixedBytes(blt: BytesLimitType, valid: Option[ValidationSpec]): Option[String] = {
     valid match {
-      case Some(ValidationEq(Ast.expr.List(contents)))
-          if blt.size == Ast.expr.IntNum(contents.length) =>
-        Some(contents.map(_ match {
-          case Ast.expr.IntNum(byteVal) if byteVal >= 0x00 && byteVal <= 0xff => "%02X".format(byteVal)
-          case _ => return None
-        }).mkString(" "))
+      case Some(expected: ValidationEquals) => {
+        expected.value match {
+          case Ast.expr.List(contents) if blt.size == Ast.expr.IntNum(contents.length) => {
+            Some(contents.map(_ match {
+              case Ast.expr.IntNum(byteVal) if byteVal >= 0x00 && byteVal <= 0xff => "%02X".format(byteVal)
+              case _ => return None
+            }).mkString(" "))
+          }
+          case _ => None
+        }
+      }
       case _ => None
     }
   }
