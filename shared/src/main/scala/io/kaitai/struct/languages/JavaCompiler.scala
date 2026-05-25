@@ -234,7 +234,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
   }
 
-  override def fetchInstancesFooter: Unit = universalFooter
+  override def fetchInstancesFooter(): Unit = universalFooter
 
   override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
     val expr = castIfNeeded(expression(baseExpr), exprType, dataType)
