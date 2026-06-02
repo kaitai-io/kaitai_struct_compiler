@@ -130,6 +130,7 @@ object ConstEvaluator {
         case _ => value.NonConst
       }
 
+    case expr.Group(expr) => evaluate(expr)
     case _ => value.NonConst
   }
 
