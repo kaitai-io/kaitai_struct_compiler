@@ -27,7 +27,7 @@ object Endianness {
       case None => None
       case Some("be") => Some(BigEndian)
       case Some("le") => Some(LittleEndian)
-      case Some(srcMap: Map[Any, Any]) =>
+      case Some(srcMap: Map[_, _]) =>
         val endianMap = ParseUtils.asMapStr(srcMap, path)
         Some(fromMap(endianMap, path))
       case _ =>
