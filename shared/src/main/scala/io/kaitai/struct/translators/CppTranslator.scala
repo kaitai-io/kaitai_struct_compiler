@@ -153,16 +153,16 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
   override def doInternalName(id: Identifier): String =
     CppCompiler.privateMemberName(id)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String = {
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String = {
     val isExternal = enumSpec.isExternal(provider.nowClass)
     if (isExternal) {
       importListHdr.addLocal(CppCompiler.outFileNameHeader(enumSpec.name.head))
     }
     CppCompiler.types2class(enumSpec.name.dropRight(1)) + "::" +
-      Utils.upperUnderscoreCase(enumSpec.name.last + "_" + label)
+      Utils.upperUnderscoreCase(enumSpec.name.last + "_" + variant)
   }
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    s"static_cast<${CppCompiler.types2class(enumSpec.name)}>($id)"
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
+    s"static_cast<${CppCompiler.types2class(enumSpec.name)}>($value)"
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int) = {
     if (op == Ast.cmpop.Eq || op == Ast.cmpop.NotEq) {

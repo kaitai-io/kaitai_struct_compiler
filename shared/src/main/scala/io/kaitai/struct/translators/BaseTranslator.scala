@@ -63,12 +63,12 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doInterpolatedStringLiteral(s)
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
-      case Ast.expr.EnumById(enumType, id, inType) =>
+      case Ast.expr.EnumCast(enumType, value, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumById(enumSpec, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
+        doEnumCast(enumSpec, translate(value))
+      case Ast.expr.EnumVariant(enumType, variant, inType) =>
         val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumByLabel(enumSpec, label.name)
+        doEnumVariant(enumSpec, variant.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
           byteSizeOfClassSpec(provider.nowClass)
@@ -190,8 +190,24 @@ abstract class BaseTranslator(val provider: TypeProvider)
   def kaitaiStructField(value: Ast.expr, name: String): String =
     anyField(value, name)
 
-  def doEnumByLabel(enumSpec: EnumSpec, label: String): String
-  def doEnumById(enumSpec: EnumSpec, id: String): String
+  /**
+    * Translates reference to the enum variant into target language
+    *
+    * @param enumSpec An enum definition
+    * @param variant Enum variant
+    *
+    * @return String in the target language with reference to the enum variant
+    */
+  def doEnumVariant(enumSpec: EnumSpec, variant: String): String
+  /**
+    * Translates cast of expression to the enumeration type.
+    *
+    * @param enumSpec An enum definition
+    * @param value Translated expression which should have enum type
+    *
+    * @return String in the target language that transforms of the expression result into the enumeration type
+    */
+  def doEnumCast(enumSpec: EnumSpec, value: String): String
 
   // Predefined methods of various types
   def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int) =

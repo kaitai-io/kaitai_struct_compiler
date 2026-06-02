@@ -77,10 +77,10 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
   override def doInternalName(id: Identifier): String =
     CSharpCompiler.privateMemberName(id)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    s"${enumClass(enumSpec.name)}.${Utils.upperCamelCase(label)}"
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    s"((${enumClass(enumSpec.name)}) $id)"
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String =
+    s"${enumClass(enumSpec.name)}.${Utils.upperCamelCase(variant)}"
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
+    s"((${enumClass(enumSpec.name)}) $value)"
 
   def enumClass(enumTypeAbs: List[String]): String = {
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
