@@ -61,6 +61,17 @@ object Ast {
       case ConstEvaluator.value.Str(x) => Some(x)
       case _ => None
     }
+    /**
+      * Evaluates the expression, if it's possible to get a static boolean
+      * constant as the result of evaluation (i.e. if it does not involve any
+      * variables or anything like that). Expect no complex logic or symbolic
+      * simplification of expressions here: something like "x and !x", which is
+      * known to be always `false`, will still report it as "None".
+      *
+      * @return boolean result of evaluation if it's constant or None, if it's
+      *         variable
+      */
+    def evaluateBoolConst: Option[Boolean] = ConstEvaluator.evaluateBoolConst(this)
   }
 
   object expr{
