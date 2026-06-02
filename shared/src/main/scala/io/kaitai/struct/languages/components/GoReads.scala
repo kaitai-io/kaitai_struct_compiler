@@ -137,9 +137,9 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
 
         this match {
           case thisStore: AllocateAndStoreIO =>
-            thisStore.allocateIO(rawId, rep)
+            thisStore.allocateIO(rawId, rep, io)
           case thisLocal: AllocateIOLocalVar =>
-            thisLocal.allocateIO(rawId, rep)
+            thisLocal.allocateIO(rawId, rep, io)
         }
       case _: UserTypeInstream =>
         // no fixed buffer, just use regular IO

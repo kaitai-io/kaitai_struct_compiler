@@ -28,7 +28,7 @@ trait CommonReads extends LanguageCompiler {
     val needsArrayDebug = attrDebugNeeded(id) && attr.cond.repeat != NoRepeat
 
     if (needsArrayDebug) {
-      attrDebugStart(id, attr.dataType, Some(io), NoRepeat)
+      attrDebugStart(id, attr.dataType, attr.cond.repeat, Some(io), NoRepeat)
       attrDebugArrInit(id, attr.dataType)
     }
 
@@ -45,7 +45,7 @@ trait CommonReads extends LanguageCompiler {
     }
 
     if (needsArrayDebug)
-      attrDebugEnd(id, attr.dataType, io, NoRepeat)
+      attrDebugEnd(id, attr.dataType, attr.cond.repeat, io, NoRepeat)
 
     // More position management + set calculated flag after parsing for ParseInstanceSpecs
     attr match {
@@ -74,12 +74,12 @@ trait CommonReads extends LanguageCompiler {
 
     val needsDebug = attrDebugNeeded(id)
     if (needsDebug)
-      attrDebugStart(id, attr.dataType, Some(io), attr.cond.repeat)
+      attrDebugStart(id, attr.dataType, attr.cond.repeat, Some(io), attr.cond.repeat)
 
     attrParse2(id, attr.dataType, io, attr.cond.repeat, false, defEndian)
 
     if (needsDebug)
-      attrDebugEnd(id, attr.dataType, io, attr.cond.repeat)
+      attrDebugEnd(id, attr.dataType, attr.cond.repeat, io, attr.cond.repeat)
 
     attrValidateAll(attr)
     attr.cond.repeat match {
@@ -95,9 +95,9 @@ trait CommonReads extends LanguageCompiler {
 
   def attrParse2(id: Identifier, dataType: DataType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], assignType: Option[DataType] = None): Unit
 
-  def attrDebugStart(attrId: Identifier, attrType: DataType, io: Option[String], repeat: RepeatSpec): Unit = {}
+  def attrDebugStart(attrName: Identifier, attrType: DataType, attrRep: RepeatSpec, io: Option[String], repeat: RepeatSpec): Unit = {}
   def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit = {}
-  def attrDebugEnd(attrName: Identifier, attrType: DataType, io: String, repeat: RepeatSpec): Unit = {}
+  def attrDebugEnd(attrName: Identifier, attrType: DataType, attrRep: RepeatSpec, io: String, repeat: RepeatSpec): Unit = {}
 
   def attrDebugNeeded(attrId: Identifier): Boolean = {
     if (!config.readStoresPos)

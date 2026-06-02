@@ -60,7 +60,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def universalFooter: Unit = {
     out.dec
   }
-  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(id: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val ioName = s"${idToStr(id)}Io"
     val arg = rep match {
       case NoRepeat => idToStr(id) + "Expr"
