@@ -63,11 +63,11 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doInterpolatedStringLiteral(s)
       case Ast.expr.Bool(n) =>
         doBoolLiteral(n)
-      case Ast.expr.EnumById(enumType, id, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
-        doEnumById(enumSpec, translate(id))
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
+      case Ast.expr.EnumById(ref, expr) =>
+        val enumSpec = provider.resolveEnum(ref)
+        doEnumById(enumSpec, translate(expr))
+      case Ast.expr.EnumByLabel(ref, label) =>
+        val enumSpec = provider.resolveEnum(ref)
         doEnumByLabel(enumSpec, label.name)
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {

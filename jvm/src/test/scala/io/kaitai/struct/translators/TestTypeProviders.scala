@@ -15,7 +15,7 @@ object TestTypeProviders {
   abstract class FakeTypeProvider extends TypeProvider {
     val nowClass = ClassSpec.opaquePlaceholder(List("top_class"))
 
-    override def resolveEnum(inType: Ast.typeId, enumName: String) =
+    override def resolveEnum(ref: Ast.EnumRef) =
       throw new NotImplementedError
 
     override def resolveType(typeName: Ast.typeId): DataType = {
