@@ -235,25 +235,22 @@ class TypeDetector(provider: TypeProvider) {
   /**
     * Detects resulting data type of a given function call expression. Typical function
     * call expression in KSY is `foo.bar(arg1, arg2)`, which is represented in AST as
-    * `Call(Attribute(foo, bar), Seq(arg1, arg2))`.
+    * `Call(foo, bar, Seq(arg1, arg2))`.
     * @note Must be kept in sync with [[CommonMethods.translateCall]]
     * @param call function call expression
     * @return data type
     */
   def detectCallType(call: Ast.expr.Call): DataType = {
-    call.func match {
-      case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
-        val objType = detectType(obj)
-        // TODO: check number and type of arguments in `call.args`
-        (objType, methodName.name) match {
-          case (_: StrType, "substring") => CalcStrType
-          case (_: StrType, "to_i") => CalcIntType
-          case (_: StrType, "to_b") => CalcBytesType
-          case (_: BytesType, "to_s") => CalcStrType
-          case (_: BytesType, "index_of") => CalcIntType
-          case _ =>
-            throw new MethodNotFoundError(methodName.name, objType)
-        }
+    val objType = detectType(call.obj)
+    // TODO: check number and type of arguments in `call.args`
+    (objType, call.methodName.name) match {
+      case (_: StrType, "substring") => CalcStrType
+      case (_: StrType, "to_i") => CalcIntType
+      case (_: StrType, "to_b") => CalcBytesType
+      case (_: BytesType, "to_s") => CalcStrType
+      case (_: BytesType, "index_of") => CalcIntType
+      case _ =>
+        throw new MethodNotFoundError(call.methodName.name, objType)
     }
   }
 
