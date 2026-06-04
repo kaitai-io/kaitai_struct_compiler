@@ -213,8 +213,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"kaitai.ProcessRotateLeft($srcExpr, int($expr))"
       case ProcessCustom(name, args) =>
-        // TODO(jchw): This hack is necessary because Go tests fail catastrophically otherwise...
-        s"$srcExpr"
+        val procClass = GoCompiler.types2class(name)
+        val argsStr   = args.map(expression).mkString(", ")
+        translator.resToStr(translator.outVarCheckRes(
+          s"kaitai.ProcessCustom(New$procClass($argsStr), $srcExpr)"))
     }
   }
 
