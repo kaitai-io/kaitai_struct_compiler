@@ -650,7 +650,16 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     enumColl.foreach { case (id, label) =>
       out.puts(s"$label = ${translator.doIntLiteral(id)},")
     }
-    out.puts("_,")
+    // This is exactly the condition that Zig 0.16.0 uses to determine whether
+    // to emit `error: non-exhaustive enum specifies every value`:
+    // https://codeberg.org/ziglang/zig/src/commit/24fdd5b7a4c1c8b5deb5b56756b9dbc8e08c86a8/src/Sema/type_resolution.zig#L1395
+    val isExhaustive = enumColl.length >= 1 && {
+      val numEntriesLog2 = 31 - Integer.numberOfLeadingZeros(enumColl.length)
+      numEntriesLog2 == enumSpec.intType.bitWidth
+    }
+    if (!isExhaustive) {
+      out.puts("_,")
+    }
 
     out.dec
     out.puts("};")
