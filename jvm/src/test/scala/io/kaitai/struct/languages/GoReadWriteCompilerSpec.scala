@@ -245,4 +245,52 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     val check = method(code, "GoRwDynamic", "Check", "\\(\\s*\\)" + errorResult)
     contains(check, "uint64\\(len\\(this\\._m_Payload\\)\\)\\s*!=\\s*uint64\\(this\\._m_Count\\)", "non-narrowing dynamic length comparison")
   }
+
+  test("object array parameters compare element identity instead of pointed-to contents") {
+    val code = compileContents(
+      """meta:
+        |  id: go_rw_identity
+        |seq:
+        |  - id: items
+        |    type: item
+        |    repeat: expr
+        |    repeat-expr: 2
+        |  - id: holder
+        |    type: holder(items)
+        |types:
+        |  item:
+        |    seq:
+        |      - id: value
+        |        type: u1
+        |  holder:
+        |    params:
+        |      - id: expected_items
+        |        type: item[]
+        |""".stripMargin)
+    val check = method(code, "GoRwIdentity", "Check", "\\(\\s*\\)" + errorResult)
+    assert(!check.contains("reflect.DeepEqual"), "Distinct object pointers must not compare equal through deep reflection")
+    contains(check, "a\\[i\\]\\s*==\\s*b\\[i\\]", "identity comparison for object array elements")
+  }
+
+  test("dynamic parameter equality preserves pointers through nested collections") {
+    val code = compileContents(
+      """meta:
+        |  id: go_rw_dynamic_identity
+        |params:
+        |  - id: input
+        |    type: any
+        |seq:
+        |  - id: holder
+        |    type: holder(input)
+        |types:
+        |  holder:
+        |    params:
+        |      - id: expected
+        |        type: any
+        |""".stripMargin)
+    val check = method(code, "GoRwDynamicIdentity", "Check", "\\(\\s*\\)" + errorResult)
+    assert(!check.contains("reflect.DeepEqual"), "Dynamic values must not erase generated-object identity")
+    contains(check, "reflect\\.Slice", "recursive collection comparison for dynamic values")
+    contains(check, "Comparable\\(\\)", "identity-safe comparison for dynamic pointers")
+  }
 }

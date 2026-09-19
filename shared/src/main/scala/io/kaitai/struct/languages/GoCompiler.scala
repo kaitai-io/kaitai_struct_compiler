@@ -406,15 +406,70 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val actualStr = expression(actual)
     val expectedStr = expression(expected)
     val failCond = translator.detectType(actual) match {
-      case _: ArrayType | AnyType =>
-        importList.add("reflect")
-        s"!reflect.DeepEqual($actualStr, $expectedStr)"
+      case t: ArrayType => s"!(${consistencyEquals(actualStr, expectedStr, t)})"
+      case AnyType => s"!(${consistencyEquals(actualStr, expectedStr, AnyType)})"
       case _ => s"$actualStr != $expectedStr"
     }
-    out.puts(s"if $failCond {")
+    out.putsLines("", s"if $failCond {")
     out.inc
     out.puts(s"return kaitai.NewConsistencyError(${expression(Ast.expr.Str(msg))}, $expectedStr, $actualStr)")
     universalFooter
+  }
+
+  private def consistencyEquals(actual: String, expected: String, dataType: DataType): String = dataType match {
+    case t: ArrayType =>
+      val nativeType = kaitaiType2NativeType(t)
+      val elementEquals = consistencyEquals("a[i]", "b[i]", t.elType).replace("\n", "\n\t\t")
+      s"""func(a, b $nativeType) bool {
+         |\tif (a == nil) != (b == nil) || len(a) != len(b) {
+         |\t\treturn false
+         |\t}
+         |\tfor i := range a {
+         |\t\tif !($elementEquals) {
+         |\t\t\treturn false
+         |\t\t}
+         |\t}
+         |\treturn true
+         |}($actual, $expected)""".stripMargin
+    case _: BytesType =>
+      importList.add("bytes")
+      s"bytes.Equal($actual, $expected)"
+    case AnyType =>
+      // Only Any needs runtime type inspection. Recurse through collections,
+      // but use Go equality for pointer leaves, preserving object identity.
+      importList.add("reflect")
+      s"""func(a, b interface{}) bool {
+         |\tvar equal func(reflect.Value, reflect.Value) bool
+         |\tequal = func(a, b reflect.Value) bool {
+         |\t\tif !a.IsValid() || !b.IsValid() {
+         |\t\t\treturn a.IsValid() == b.IsValid()
+         |\t\t}
+         |\t\tif a.Type() != b.Type() {
+         |\t\t\treturn false
+         |\t\t}
+         |\t\tswitch a.Kind() {
+         |\t\tcase reflect.Interface:
+         |\t\t\treturn equal(a.Elem(), b.Elem())
+         |\t\tcase reflect.Slice, reflect.Array:
+         |\t\t\tif a.Kind() == reflect.Slice && a.IsNil() != b.IsNil() {
+         |\t\t\t\treturn false
+         |\t\t\t}
+         |\t\t\tif a.Len() != b.Len() {
+         |\t\t\t\treturn false
+         |\t\t\t}
+         |\t\t\tfor i := 0; i < a.Len(); i++ {
+         |\t\t\t\tif !equal(a.Index(i), b.Index(i)) {
+         |\t\t\t\t\treturn false
+         |\t\t\t\t}
+         |\t\t\t}
+         |\t\t\treturn true
+         |\t\tdefault:
+         |\t\t\treturn a.Comparable() && b.Comparable() && a.Interface() == b.Interface()
+         |\t\t}
+         |\t}
+         |\treturn equal(reflect.ValueOf(a), reflect.ValueOf(b))
+         |}($actual, $expected)""".stripMargin
+    case _ => s"$actual == $expected"
   }
 
   override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit =
