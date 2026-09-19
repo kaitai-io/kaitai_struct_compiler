@@ -16,6 +16,16 @@ class GoNumericCompilerSpec extends AnyFunSuite {
 
   private val fixtures = Seq("numeric_widths", "numeric_mixed_division", "numeric_unary", "numeric_short_circuit")
 
+  test("read-write rejects integer arrays without a lossless native representation") {
+    Seq("unsigned_array_unrepresentable", "unsigned_array_unrepresentable_literal").foreach { fixture =>
+      val error = intercept[io.kaitai.struct.precompile.TypeMismatchError] {
+        compile(fixture, readWrite = true)
+      }
+      assert(error.getMessage == "Go read-write cannot represent an integer array containing both negative values and values above 9223372036854775807 without loss")
+      assert(compile(fixture, readWrite = false).nonEmpty)
+    }
+  }
+
   test("read-write unsigned constants expose a representable native API") {
     val code = compile("unsigned_constants", readWrite = true)
     assert(code.contains("type UnsignedConstants_Values uint64"))
@@ -45,7 +55,7 @@ class GoNumericCompilerSpec extends AnyFunSuite {
         def write(name: String, text: String): Unit = Files.write(dir.resolve(name), text.getBytes(StandardCharsets.UTF_8))
         val runtime = new File(runtimePath).getCanonicalPath
         write("go.mod", s"module contract\n\ngo 1.24.0\nrequire github.com/kaitai-io/kaitai_struct_go_runtime v0.0.0\nreplace github.com/kaitai-io/kaitai_struct_go_runtime => $runtime\n")
-        (fixtures ++ (if (readWrite) Seq("unsigned_constants") else Seq.empty)).foreach { fixture =>
+        (fixtures ++ (if (readWrite) Seq("unsigned_constants", "unsigned_array_compositions") else Seq.empty)).foreach { fixture =>
           write(s"$fixture.go", compile(fixture, readWrite))
           val source = scala.io.Source.fromURL(getClass.getResource(s"/go-read-write/${fixture}_test.go"))
           try write(s"${fixture}_test.go", source.mkString) finally source.close()

@@ -34,10 +34,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case ut: UserType => unsignedValueInstance(ut.classSpec.get, name.name)
               .getOrElse(super.numericType(value))
             case et: EnumType if name.name == "to_i" && unsignedEnum(et.enumSpec.get.map.keys) => "uint64"
-            case _: ArrayType if Set("first", "last", "min", "max").contains(name.name) && unsignedArrayType(owner).isDefined => "uint64"
+            case _: ArrayType if Set("first", "last", "min", "max").contains(name.name) =>
+              unsignedArrayType(owner).map(_.stripPrefix("[]")).getOrElse(super.numericType(value))
             case _ => super.numericType(value)
           }
-        case Ast.expr.Subscript(container, _) if unsignedArrayType(container).isDefined => "uint64"
+        case Ast.expr.Subscript(container, _) =>
+          unsignedArrayType(container).map(_.stripPrefix("[]")).getOrElse(super.numericType(value))
         case _ => super.numericType(value)
       }
     }
@@ -82,8 +84,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): ResultString =
       if (writing && isIoType(t))
         ResultString(s"[]${writerParamType(t)}{${value.map(translate).mkString(", ")}}")
-      else if (config.readWrite && t == CalcIntType && value.exists(numericType(_) == "uint64"))
-        ResultString(s"[]uint64{${value.map(translateNumericAs(_, "uint64")).mkString(", ")}}")
+      else if (config.readWrite && calculatedIntegerArrayElement(t)) {
+        val native = unsignedArrayType(Ast.expr.List(value)).get
+        ResultString(s"$native{${value.map(translateArrayElementAs(_, native.stripPrefix("[]"))).mkString(", ")}}")
+      }
       else super.doArrayLiteral(t, value)
 
     override def doCast(value: Ast.expr, typeName: DataType): TranslatorResult =
@@ -107,11 +111,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts(s"var ${localVarName(result)} ${native.get}")
       out.puts(s"if (${translate(condition)}) {")
       out.inc
-      out.puts(s"${localVarName(result)} = ${translate(ifTrue)}")
+      out.puts(s"${localVarName(result)} = ${if (isIoType(dataType)) translate(ifTrue) else translateArrayElementAs(ifTrue, native.get)}")
       out.dec
       out.puts("} else {")
       out.inc
-      out.puts(s"${localVarName(result)} = ${translate(ifFalse)}")
+      out.puts(s"${localVarName(result)} = ${if (isIoType(dataType)) translate(ifFalse) else translateArrayElementAs(ifFalse, native.get)}")
       out.dec
       out.puts("}")
       ResultLocalVar(result)
@@ -143,24 +147,127 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   private def unsignedEnum(values: Iterable[BigInt]): Boolean =
     values.exists(_ > Long.MaxValue) && values.forall(n => n >= 0 && n <= Utils.MAX_UINT64)
 
+  private def calculatedIntegerArrayElement(t: DataType): Boolean = t match {
+    case CalcIntType => true
+    case array: ArrayType => calculatedIntegerArrayElement(array.elType)
+    case _ => false
+  }
+
+  private def expressionNativeType(value: Ast.expr): String = translator.detectType(value) match {
+    case _: ArrayType => unsignedArrayType(value).getOrElse(kaitaiType2NativeType(translator.detectType(value)))
+    case _: IntType => translator.numericType(value)
+    case t => kaitaiType2NativeType(t)
+  }
+
+  private def inInstance[A](owner: ClassSpec, name: String)(f: Ast.expr => A): Option[A] =
+    owner.instances.collectFirst { case (id, inst: ValueInstanceSpec) if id.humanReadable == name => inst }.map { inst =>
+      val previous = typeProvider.nowClass
+      typeProvider.nowClass = owner
+      try f(inst.value) finally typeProvider.nowClass = previous
+    }
+
+  /** Conservative mathematical bounds for homogeneous array representation.
+    * Literals and +0 retain exact/primitive bounds; other arithmetic falls
+    * back to the whole range of the concrete Go expression type.
+    */
+  private def integerArrayBounds(value: Ast.expr): (BigInt, BigInt) = {
+    def combine(values: Seq[Ast.expr]): (BigInt, BigInt) = {
+      val ranges = values.map(integerArrayBounds)
+      (ranges.map(_._1).min, ranges.map(_._2).max)
+    }
+    value.evaluateIntConst.map(n => (n, n)).getOrElse(value match {
+      case Ast.expr.List(elements) => combine(elements)
+      case Ast.expr.Name(name) =>
+        inInstance(typeProvider.nowClass, name.name)(integerArrayBounds).getOrElse(nativeIntegerBounds(expressionNativeType(value)))
+      case Ast.expr.Attribute(owner, name) => translator.detectType(owner) match {
+        case ut: UserType => inInstance(ut.classSpec.get, name.name)(integerArrayBounds)
+          .getOrElse(nativeIntegerBounds(expressionNativeType(value)))
+        case _: ArrayType if Set("first", "last", "min", "max").contains(name.name) => integerArrayBounds(owner)
+        case _ => nativeIntegerBounds(expressionNativeType(value))
+      }
+      case Ast.expr.Subscript(owner, _) => integerArrayBounds(owner)
+      case Ast.expr.IfExp(_, left, right) => combine(Seq(left, right))
+      case Ast.expr.CastToType(inner, _) =>
+        val target = nativeIntegerBounds(expressionNativeType(value))
+        if (!translator.detectType(inner).isInstanceOf[IntType]) target
+        else {
+          val source = integerArrayBounds(inner)
+          if (target._1 <= source._1 && source._2 <= target._2) source else target
+        }
+      case Ast.expr.BinOp(left, Ast.operator.Add, Ast.expr.IntNum(n)) if n == 0 => integerArrayBounds(left)
+      case Ast.expr.BinOp(Ast.expr.IntNum(n), Ast.operator.Add, right) if n == 0 => integerArrayBounds(right)
+      case _ => nativeIntegerBounds(expressionNativeType(value))
+    })
+  }
+
+  private def nativeIntegerBounds(native: String): (BigInt, BigInt) = {
+    if (native.startsWith("[]")) return nativeIntegerBounds(native.stripPrefix("[]"))
+    val unsigned = native.startsWith("uint")
+    val width = if (native == "int") 64 else native.drop(if (unsigned) 4 else 3).toInt
+    if (unsigned) (BigInt(0), (BigInt(1) << width) - 1)
+    else (-(BigInt(1) << (width - 1)), (BigInt(1) << (width - 1)) - 1)
+  }
+
+  private def commonArrayNative(types: Seq[String], values: Seq[Ast.expr]): String = {
+    if (types.forall(_.startsWith("[]"))) return "[]" + commonArrayNative(types.map(_.stripPrefix("[]")), values)
+    if (types.contains("uint64")) {
+      val bounds = values.map(integerArrayBounds)
+      val minimum = bounds.map(_._1).min
+      val maximum = bounds.map(_._2).max
+      if (minimum < 0 && maximum > Long.MaxValue)
+        throw new io.kaitai.struct.precompile.TypeMismatchError("Go read-write cannot represent an integer array containing both negative values and values above 9223372036854775807 without loss")
+      if (minimum < 0) "int64" else "uint64"
+    } else "int"
+  }
+
   private def unsignedArrayType(value: Ast.expr): Option[String] = {
     if (!config.readWrite) return None
-    val arrayType = translator.detectType(value) match {
-      case t: ArrayType => t
+    translator.detectType(value) match {
+      case t: ArrayType if calculatedIntegerArrayElement(t.elType) =>
       case _ => return None
     }
     value match {
-      case Ast.expr.List(elements) if arrayType.elType == CalcIntType &&
-        elements.exists(translator.numericType(_) == "uint64") => Some("[]uint64")
+      case Ast.expr.List(elements) => Some("[]" + commonArrayNative(elements.map(expressionNativeType), elements))
       case Ast.expr.Name(name) => unsignedValueInstance(typeProvider.nowClass, name.name)
       case Ast.expr.Attribute(owner, name) => translator.detectType(owner) match {
         case ut: UserType => unsignedValueInstance(ut.classSpec.get, name.name)
+        case _: ArrayType if Set("first", "last", "min", "max").contains(name.name) =>
+          unsignedArrayType(owner).map(_.stripPrefix("[]"))
         case _ => None
       }
+      case Ast.expr.Subscript(owner, _) => unsignedArrayType(owner).map(_.stripPrefix("[]"))
       case Ast.expr.IfExp(_, ifTrue, ifFalse) =>
-        val native = unsignedArrayType(ifTrue)
-        native.filter(_ => native == unsignedArrayType(ifFalse))
+        val values = Seq(ifTrue, ifFalse)
+        Some(commonArrayNative(values.map(expressionNativeType), values))
       case _ => None
+    }
+  }
+
+  /** Go cannot convert slices element-wise with a cast. Literal branches can
+    * use the common type directly; other branches need a recursive copy.
+    */
+  private def translateArrayElementAs(value: Ast.expr, target: String): String = {
+    if (!target.startsWith("[]")) return translator.translateNumericAs(value, target)
+    value match {
+      case Ast.expr.List(elements) =>
+        s"$target{${elements.map(translateArrayElementAs(_, target.stripPrefix("[]"))).mkString(", ")}}"
+      case _ =>
+        def convert(source: String, sourceType: String, targetType: String): String = {
+          if (sourceType == targetType) return source
+          if (!targetType.startsWith("[]")) return s"$targetType($source)"
+          val result = translator.localVarName(translator.allocateLocalVar())
+          val index = translator.localVarName(translator.allocateLocalVar())
+          out.puts(s"$result := make($targetType, len($source))")
+          out.puts(s"for $index := range $source {")
+          out.inc
+          val element = convert(s"$source[$index]", sourceType.stripPrefix("[]"), targetType.stripPrefix("[]"))
+          out.puts(s"$result[$index] = $element")
+          out.dec
+          out.puts("}")
+          result
+        }
+        val source = translator.translate(value)
+        convert(source, expressionNativeType(value), target)
     }
   }
 
@@ -178,7 +285,17 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       typeProvider.nowClass = owner
       try {
         if (inst.dataType.isInstanceOf[ArrayType]) unsignedArrayType(inst.value)
-        else if (translator.numericType(inst.value) == "uint64") Some("uint64") else None
+        else translator.numericType(inst.value) match {
+          case "uint64" => Some("uint64")
+          case "int64" => inst.value match {
+            case Ast.expr.Subscript(container, _) => unsignedArrayType(container).map(_.stripPrefix("[]"))
+            case Ast.expr.Attribute(container, _) if translator.detectType(container).isInstanceOf[ArrayType] =>
+              unsignedArrayType(container).map(_.stripPrefix("[]"))
+            case Ast.expr.Name(name) => unsignedValueInstance(typeProvider.nowClass, name.name)
+            case _ => None
+          }
+          case _ => None
+        }
       } finally typeProvider.nowClass = previous
     }
   }
