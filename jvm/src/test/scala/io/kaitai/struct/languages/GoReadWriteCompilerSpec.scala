@@ -320,6 +320,7 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
       val runtime = new File(runtimePath).getCanonicalPath
       write("go.mod", s"module contract\n\ngo 1.24.0\n\nrequire github.com/kaitai-io/kaitai_struct_go_runtime v0.0.0\nreplace github.com/kaitai-io/kaitai_struct_go_runtime => $runtime\n")
       nestedFixtures.foreach(name => write(s"$name.go", compile(name)))
+      write("params_pass_array_io.go", compileFile(new File("../tests/formats/params_pass_array_io.ksy"), readWrite = true))
       for (name <- Seq("nested_test.go", "nested_external_test.go")) {
         val tests = scala.io.Source.fromURL(getClass.getResource(s"/go-read-write/$name"))
         try write(name, tests.mkString) finally tests.close()
@@ -350,7 +351,7 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     }
   }
 
-  private val nestedFixtures = Seq("write_nested", "write_processed", "write_custom", "write_processed_child", "write_zlib_child", "write_child_formats", "write_io_param", "write_switch_child", "write_position_child", "write_optional_child", "write_optional_included", "write_optional_peek", "write_optional_included_peek")
+  private val nestedFixtures = Seq("write_nested", "write_processed", "write_custom", "write_processed_child", "write_zlib_child", "write_child_formats", "write_io_param", "write_switch_child", "write_position_child", "write_optional_child", "write_optional_included", "write_optional_peek", "write_optional_included_peek", "write_user_switch")
   for (name <- nestedFixtures) {
     test(s"$name supports nested and reverse processing generation") {
       val code = compile(name)

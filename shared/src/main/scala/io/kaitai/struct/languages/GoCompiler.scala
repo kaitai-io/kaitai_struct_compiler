@@ -49,6 +49,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       else if (config.readWrite) ResultString(GoCompiler.this.privateMemberName(id))
       else super.trInternalName(id)
 
+    override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): ResultString =
+      if (writing && (t == KaitaiStreamType || t == OwnedKaitaiStreamType))
+        ResultString(s"[]*kaitai.Writer{${value.map(translate).mkString(", ")}}")
+      else super.doArrayLiteral(t, value)
+
     override def kaitaiStreamSize(value: Ast.expr): TranslatorResult =
       if (writing) ResultString(writerSize(translate(value))) else super.kaitaiStreamSize(value)
 
@@ -318,7 +323,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
     val raw = expression(baseExpr)
-    val value = if (config.readWrite && exprType.asCombined == AnyType)
+    val value = if (config.readWrite && !exprType.asCombined.isInstanceOf[UserType])
       s"$raw.(${kaitaiType2NativeType(dataType)})" else raw
     out.puts(s"err = $value.FetchInstances()")
     translator.outAddErrCheck()
@@ -614,6 +619,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case b: BytesEosType => attrBytesLimitWrite2("output", encoded, b, outer, b.padRight, b.terminator, b.include, None)
           case b: BytesTerminatedType =>
             attrPrimitiveWrite("output", encoded, bt, None, None)
+            if (b.include && !b.eosError) {
+              // Missing included terminators are valid only at the end of the
+              // parent reservation's stream, not merely the encoder's buffer.
+              condIfHeader(Ast.expr.Compare(exprByteArrayIndexOf(encoded, b.terminator.head & 0xff), Ast.cmpop.Eq, Ast.expr.IntNum(-1)))
+              attrIsEofCheck(id, true, io)
+              condIfFooter
+            }
             if (extraTerm != "false") {
               out.puts(s"if $extraTerm {")
               out.inc

@@ -11,6 +11,96 @@ import (
 
 var codecFailure = errors.New("codec failure")
 
+func TestOutputStreamArrayParameters(t *testing.T) {
+	v := NewParamsPassArrayIo()
+	input := []byte{17, 42}
+	if err := v.Read(kaitai.NewStream(bytes.NewReader(input)), nil, v); err != nil {
+		t.Fatal(err)
+	}
+	out := kaitai.NewFixedSeekableBuffer(2)
+	writer := kaitai.NewWriter(out)
+	if err := v.Write(writer); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), input) {
+		t.Fatalf("IO array: %x", out.Bytes())
+	}
+	streams := v.GetOne().ArgStreamsWriter_()
+	if len(streams) != 2 || streams[0] != v.GetFirst()._writer || streams[1] != writer {
+		t.Fatal("IO array identities")
+	}
+	for _, streams := range [][]*kaitai.Writer{{nil, writer}, {writer, nil}} {
+		v.GetOne().SetArgStreamsWriter_(streams)
+		if err := v.GetOne().Check(); err != nil {
+			t.Fatal(err)
+		}
+		if err := v.GetOne().Write(writer); !errors.Is(err, kaitai.ErrWriterNotSeekable) {
+			t.Fatalf("nil IO array element: %v", err)
+		}
+	}
+}
+
+func TestUserOnlySwitchFetchAndWrite(t *testing.T) {
+	for _, input := range [][]byte{{1, 42}, {2, 0x34, 0x12}} {
+		v := NewWriteUserSwitch()
+		if err := v.Read(kaitai.NewStream(bytes.NewReader(input)), nil, v); err != nil {
+			t.Fatal(err)
+		}
+		if err := v.FetchInstances(); err != nil {
+			t.Fatal(err)
+		}
+		if err := v.Check(); err != nil {
+			t.Fatal(err)
+		}
+		out := kaitai.NewSeekableBuffer(nil)
+		if err := v.Write(kaitai.NewWriter(out)); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(out.Bytes(), input) {
+			t.Fatalf("user-only switch: %x", out.Bytes())
+		}
+	}
+}
+
+func TestOptionalIncludedChildRequiresParentEof(t *testing.T) {
+	for _, input := range [][]byte{{1, 2}, {1, 2, 0}, {}} {
+		for _, extra := range []int{0, 1} {
+			for mode := 0; mode < 2; mode++ {
+				var obj interface{ Write(*kaitai.Writer) error }
+				if mode == 0 {
+					v := NewWriteOptionalIncluded()
+					if err := v.Read(kaitai.NewStream(bytes.NewReader(input)), nil, v); err != nil {
+						t.Fatal(err)
+					}
+					obj = v
+				} else {
+					v := NewWriteOptionalIncludedPeek()
+					if err := v.Read(kaitai.NewStream(bytes.NewReader(input)), nil, v); err != nil {
+						t.Fatal(err)
+					}
+					obj = v
+				}
+				out := kaitai.NewFixedSeekableBuffer(len(input) + extra)
+				err := obj.Write(kaitai.NewWriter(out))
+				absent := len(input) == 0 || input[len(input)-1] != 0
+				if absent && extra != 0 {
+					var consistency kaitai.ConsistencyError
+					if !errors.As(err, &consistency) {
+						t.Fatalf("mode %d: accepted absent terminator before parent EOF; bytes %x, error %v", mode, out.Bytes(), err)
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(out.Bytes()[:len(input)], input) {
+						t.Fatalf("mode %d: %x", mode, out.Bytes())
+					}
+				}
+			}
+		}
+	}
+}
+
 type TestCodec struct{ key byte }
 
 func NewTestCodec(key byte) *TestCodec { return &TestCodec{key} }
