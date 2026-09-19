@@ -383,6 +383,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   private var writeMain = false
   private var writingInstance: Option[InstanceIdentifier] = None
   private var capturedChildSize: Option[(Ast.expr, String)] = None
+  private var capturedRawRemainingSize: Option[(String, String)] = None
 
   private def optionalPeek(t: DataType): Boolean = t match {
     case u: UserTypeFromBytes => u.bytes match {
@@ -1045,6 +1046,138 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def attrBytesTypeWrite(id: Identifier, t: BytesType, io: String, rep: RepeatSpec, isRaw: Boolean, checksShouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType]): Unit = {
+    val observesIo = t.process.exists {
+      case ProcessXor(key) => userExprDependsOnIo(key)
+      case ProcessRotate(_, count) => userExprDependsOnIo(count)
+      case ProcessCustom(_, args) => args.exists(userExprDependsOnIo)
+      case ProcessZlib => false
+    }
+    if (!observesIo) {
+      super.attrBytesTypeWrite(id, t, io, rep, isRaw, checksShouldDependOnIo, exprTypeOpt)
+      return
+    }
+    t match {
+      case _: BytesTerminatedType if t.process.get.isInstanceOf[ProcessCustom] =>
+        unsupportedSerialization("IO-dependent terminated custom processing with circular encoded layout; use a fixed size")
+        return
+      case b: BytesTerminatedType if b.include && !b.consume && !b.eosError =>
+        unsupportedSerialization("IO-dependent optional included non-consuming processing with circular encoded layout; use a fixed size")
+        return
+      case _ =>
+    }
+
+    // Reading consumes the encoded region before evaluating processor arguments.
+    // Commit the ordinary byte boundary first: Writer.Seek must never flush an
+    // existing partial byte at the temporary observation position.
+    writerCall(s"$io.AlignToByte()")
+    val start = translator.resToStr(translator.outVarCheckRes(s"$io.Pos()"))
+    val span = translator.localVarName(translator.allocateLocalVar())
+    t match {
+      case b: BytesLimitType => out.puts(s"$span := int64(${expression(b.size)})")
+      case _: BytesEosType => out.puts(s"var $span int64")
+      case _: BytesTerminatedType =>
+        val raw = expression(Identifier.itemExpr(id, rep))
+        val data = if (exprTypeOpt.exists(!_.isInstanceOf[BytesType])) s"$raw.([]byte)" else raw
+        out.puts(s"$span := int64(len($data))")
+    }
+    val extraTerm = t match {
+      case b: BytesTerminatedType if !b.include =>
+        val present = translator.localVarName(translator.allocateLocalVar())
+        out.puts(s"var $present bool")
+        Some(present)
+      case _ => None
+    }
+    importList.add("errors")
+    importList.add("io")
+    importList.add("math")
+    out.puts("err = func() (err error) {")
+    out.inc
+    // Install this before even the first seek: a seeker may move and then fail.
+    out.puts("defer func() {")
+    out.inc
+    out.puts(s"_, restoreErr := $io.Seek($start, io.SeekStart)")
+    out.puts("if restoreErr != nil { err = errors.Join(err, restoreErr) }")
+    out.dec
+    out.puts("}()")
+    t match {
+      case _: BytesEosType =>
+        val end = translator.resToStr(translator.outVarCheckRes(s"$io.Seek(0, io.SeekEnd)"))
+        out.puts(s"$span = $end - $start")
+      case b: BytesTerminatedType if !b.include =>
+        val present = extraTerm.get
+        if (b.eosError) out.puts(s"$present = true")
+        else {
+          val end = translator.resToStr(translator.outVarCheckRes(s"$io.Seek(0, io.SeekEnd)"))
+          out.puts(s"$present = $start >= 0 && $span <= math.MaxInt64 - $start && $start + $span < $end")
+        }
+        if (b.consume) out.puts(s"if $present { $span += ${b.terminator.size} }")
+      case b: BytesTerminatedType if b.include && !b.consume => out.puts(s"$span -= ${b.terminator.size}")
+      case _ =>
+    }
+    out.puts(s"if $start < 0 || $span < 0 || $span > math.MaxInt64 - $start {")
+    out.inc
+    out.puts(s"return kaitai.NewConsistencyError(\"encoded layout\", \"nonnegative representable span\", $span)")
+    universalFooter
+    out.puts(s"_, err = $io.Seek($start + $span, io.SeekStart)")
+    translator.outAddErrCheck()
+    attrUnprocess(t.process.get, id, RawIdentifier(id), rep, t, exprTypeOpt)
+    out.puts("return nil")
+    out.dec
+    out.puts("}()")
+    translator.outAddErrCheck()
+
+    // Reuse the exact pre-consumption size for checks and padding even if the
+    // processor constructor mutates an object used in the original expression.
+    val previousSize = capturedChildSize
+    val previousRemaining = capturedRawRemainingSize
+    capturedChildSize = t match {
+      case b: BytesLimitType => Some((b.size, span))
+      case _ => previousSize
+    }
+    capturedRawRemainingSize = t match {
+      case _: BytesEosType => Some((io, span))
+      case _ => previousRemaining
+    }
+    try {
+      val item = Identifier.itemExpr(RawIdentifier(id), rep)
+      t match {
+        case b: BytesEosType if b.padRight.isEmpty && b.terminator.isEmpty =>
+          val data = expression(item)
+          out.puts(s"if int64(len($data)) != $span { return kaitai.NewConsistencyError(\"encoded layout\", $span, len($data)) }")
+          attrBytesTypeWrite2(id, io, item, t, checksShouldDependOnIo, None)
+        case b: BytesTerminatedType if !b.include =>
+          attrBytesCheck(id, item, t, checksShouldDependOnIo)
+          attrPrimitiveWrite(io, item, t, None, None)
+          out.puts(s"if ${extraTerm.get} {")
+          out.inc
+          attrPrimitiveWrite(io, Ast.expr.IntNum(b.terminator.head & 0xff), Int1Type(false), None, None)
+          if (!b.consume) {
+            out.puts(s"_, err = $io.Seek(-${b.terminator.size}, io.SeekCurrent)")
+            translator.outAddErrCheck()
+          }
+          if (!b.eosError) {
+            out.dec
+            out.puts("} else {")
+            out.inc
+            attrIsEofCheck(id, true, io)
+          }
+          universalFooter
+        case _ =>
+          attrBytesTypeWrite2(id, io, item, t, checksShouldDependOnIo, None)
+          t match {
+            case b: BytesTerminatedType if b.include && !b.consume =>
+              out.puts(s"_, err = $io.Seek(-${b.terminator.size}, io.SeekCurrent)")
+              translator.outAddErrCheck()
+            case _ =>
+          }
+      }
+    } finally {
+      capturedChildSize = previousSize
+      capturedRawRemainingSize = previousRemaining
+    }
+  }
+
   override def attrBytesTypeWrite2(id: Identifier, io: String, expr: Ast.expr, t: BytesType, checksShouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType]): Unit = t match {
     // Size translation can emit statements in Go. Plain writes need the size
     // only for the consistency check; do not evaluate it a second time as an
@@ -1097,6 +1230,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   private def writerEof(io: String): String = writerQuery(io, eof = true)
 
   override def exprIORemainingSize(io: String): String = {
+    capturedRawRemainingSize.foreach { case (writer, size) => if (writer == io) return size }
     val pos = translator.resToStr(translator.outVarCheckRes(s"$io.Pos()"))
     s"(${writerSize(io)} - $pos)"
   }

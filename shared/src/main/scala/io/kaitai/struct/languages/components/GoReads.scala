@@ -22,7 +22,13 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
     }
 
     val expr = parseExprBytes(translator.outVarCheckRes(parseExpr(dataType, io, None)), dataType)
-    handleAssignment(rawId, expr, rep, isRaw)
+    // Only the decoded value is the repeat-until iterator. Declaring the raw
+    // iterator too would redeclare _it in the same Go block.
+    val rawRepeat = rep match {
+      case _: RepeatUntil if config.readWrite && dataType.process.isDefined && !isRaw => RepeatEos
+      case _ => rep
+    }
+    handleAssignment(rawId, expr, rawRepeat, isRaw)
 
     // apply post-processing
     dataType.process.foreach { (proc) =>
