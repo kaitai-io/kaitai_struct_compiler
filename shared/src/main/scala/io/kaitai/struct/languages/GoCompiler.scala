@@ -56,9 +56,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       else super.trInternalName(id)
 
     override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): ResultString =
-      if (writing && (t == KaitaiStreamType || t == OwnedKaitaiStreamType))
-        ResultString(s"[]*kaitai.Writer{${value.map(translate).mkString(", ")}}")
+      if (writing && isIoType(t))
+        ResultString(s"[]${writerParamType(t)}{${value.map(translate).mkString(", ")}}")
       else super.doArrayLiteral(t, value)
+
+    override def doCast(value: Ast.expr, typeName: DataType): TranslatorResult =
+      if (writing && isIoType(typeName)) {
+        val nativeType = writerParamType(typeName)
+        detectType(value) match {
+          case KaitaiStructType | CalcKaitaiStructType(_) | AnyType =>
+            ResultString(s"(${translate(value)}).($nativeType)")
+          case _ =>
+            ResultString(s"($nativeType)(${translate(value)})")
+        }
+      } else super.doCast(value, typeName)
 
     override def kaitaiStreamSize(value: Ast.expr): TranslatorResult =
       if (writing) ResultString(writerSize(translate(value))) else super.kaitaiStreamSize(value)

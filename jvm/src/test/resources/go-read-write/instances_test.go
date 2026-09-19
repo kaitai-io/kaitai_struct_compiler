@@ -118,6 +118,72 @@ func TestIOValueInstancesKeepReadAndWriteContextsSeparate(t *testing.T) {
 	}
 }
 
+func TestNestedIOArrayLiteralsAndCastsUseWriterTypes(t *testing.T) {
+	input := kaitai.NewStream(bytes.NewReader([]byte{0xaa}))
+	v := NewWriteInstanceIoNestedValues()
+	if err := v.Read(input, nil, v); err != nil {
+		t.Fatal(err)
+	}
+	matrix, err := v.Matrix()
+	if err != nil || len(matrix) != 2 || len(matrix[0]) != 1 || matrix[0][0] != input || matrix[1][0] != input {
+		t.Fatalf("read matrix %v %v", matrix, err)
+	}
+	cube, err := v.Cube()
+	if err != nil || len(cube) != 1 || len(cube[0]) != 1 || len(cube[0][0]) != 1 || cube[0][0][0] != input {
+		t.Fatalf("read cube %v %v", cube, err)
+	}
+	cast, err := v.CastOutputs()
+	if err != nil || len(cast) != 1 || cast[0] != input {
+		t.Fatalf("read cast array %v %v", cast, err)
+	}
+	scalar, err := v.CastOutput()
+	if err != nil || scalar != input {
+		t.Fatalf("read cast scalar %v %v", scalar, err)
+	}
+	v.SetFromMatrix(2)
+	v.SetFromCube(3)
+	v.SetFromCastOutputs(4)
+	v.SetFromCastOutput(5)
+	if err := v.Check(); err != nil {
+		t.Fatal(err)
+	}
+	first := kaitai.NewSeekableBuffer(nil)
+	w := kaitai.NewWriter(first)
+	if err := v.Write(w); err != nil {
+		t.Fatal(err)
+	}
+	want := []byte{0xaa, 0, 2, 0, 3, 0, 4, 0, 5}
+	if !bytes.Equal(first.Bytes(), want) {
+		t.Fatalf("nested writer values %x", first.Bytes())
+	}
+	if p, err := w.Pos(); err != nil || p != 1 {
+		t.Fatalf("nested writer position %d %v", p, err)
+	}
+	v.SetFromCube(9)
+	if err := v.Check(); err != nil {
+		t.Fatal(err)
+	}
+	second := kaitai.NewSeekableBuffer(nil)
+	if err := v.Write(kaitai.NewWriter(second)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first.Bytes(), want) {
+		t.Fatalf("stale nested writer cache %x", first.Bytes())
+	}
+	if !bytes.Equal(second.Bytes(), []byte{0xaa, 0, 2, 0, 9, 0, 4, 0, 5}) {
+		t.Fatalf("second nested writer values %x", second.Bytes())
+	}
+	if got, err := v.Matrix(); err != nil || got[0][0] != input || got[1][0] != input {
+		t.Fatalf("reader matrix changed %v %v", got, err)
+	}
+	if got, err := v.Cube(); err != nil || got[0][0][0] != input {
+		t.Fatalf("reader cube changed %v %v", got, err)
+	}
+	if got, err := v.CastOutputs(); err != nil || got[0] != input {
+		t.Fatalf("reader cast changed %v %v", got, err)
+	}
+}
+
 type instanceWriteHook struct {
 	*kaitai.SeekableBuffer
 	calls  int
