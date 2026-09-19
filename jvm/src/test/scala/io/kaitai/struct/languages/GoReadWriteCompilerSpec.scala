@@ -293,4 +293,26 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     contains(check, "reflect\\.Slice", "recursive collection comparison for dynamic values")
     contains(check, "Comparable\\(\\)", "identity-safe comparison for dynamic pointers")
   }
+
+  test("dynamic parameter checks remember visited slice pairs before following cycles") {
+    val code = compileContents(
+      """meta:
+        |  id: go_rw_cyclic_identity
+        |params:
+        |  - id: input
+        |    type: any
+        |seq:
+        |  - id: holder
+        |    type: holder(input)
+        |types:
+        |  holder:
+        |    params:
+        |      - id: expected
+        |        type: any
+        |""".stripMargin)
+    val check = method(code, "GoRwCyclicIdentity", "Check", "\\(\\s*\\)" + errorResult)
+    contains(check, "visited\\[pair\\]", "pair memoization for cyclic dynamic collections")
+    assert(check.indexOf("visited[pair] = true") < check.indexOf("equal(a.Index(i), b.Index(i))"),
+      "Remember a pair before descending into its elements")
+  }
 }

@@ -439,6 +439,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       // but use Go equality for pointer leaves, preserving object identity.
       importList.add("reflect")
       s"""func(a, b interface{}) bool {
+         |\ttype slicePair struct {
+         |\t\ta, b uintptr
+         |\t\tlength int
+         |\t\ttyp reflect.Type
+         |\t}
+         |\tvisited := make(map[slicePair]bool)
          |\tvar equal func(reflect.Value, reflect.Value) bool
          |\tequal = func(a, b reflect.Value) bool {
          |\t\tif !a.IsValid() || !b.IsValid() {
@@ -456,6 +462,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
          |\t\t\t}
          |\t\t\tif a.Len() != b.Len() {
          |\t\t\t\treturn false
+         |\t\t\t}
+         |\t\t\tif a.Kind() == reflect.Slice {
+         |\t\t\t\tpair := slicePair{a.Pointer(), b.Pointer(), a.Len(), a.Type()}
+         |\t\t\t\tif visited[pair] {
+         |\t\t\t\t\treturn true
+         |\t\t\t\t}
+         |\t\t\t\tvisited[pair] = true
          |\t\t\t}
          |\t\t\tfor i := 0; i < a.Len(); i++ {
          |\t\t\t\tif !equal(a.Index(i), b.Index(i)) {
