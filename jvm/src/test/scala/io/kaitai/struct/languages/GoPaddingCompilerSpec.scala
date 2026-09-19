@@ -43,7 +43,12 @@ ${if (eos) "  - id: prefix\n    type: u1\n" else ""}  - id: value
       else
         """{"trailing", "ab...", "ab", "ab..."}, {"all", ".....", "", "....."}, {"interior", "a.xyz", "a", "a...."}, {"last", "abcd.", "abcd", "abcd."}, {"absent", "abcde", "abcde", "abcde"}, {"empty", "", "", ""},"""
       case "high" => if (include) """{"unsigned", "a\xff\xff", "a\xff", "a\xff\xff"},""" else """{"unsigned", "a\xff\xff", "a", "a\xff\xff"},"""
-      case "unequal" => if (include) """{"unequal", "ab.++", "ab.", "ab.++"},""" else """{"unequal", "ab.++", "ab", "ab.++"},"""
+      case "unequal" => if (include && eos)
+        """{"unequal", "ab.++", "ab.", "ab.++"}, {"short-no-term", "ab+++", "ab", "ab+++"}, {"empty", "+++++", "", "+++++"}, {"full-no-term", "abcde", "abcde", "abcde"},"""
+      else if (include)
+        """{"unequal", "ab.++", "ab.", "ab.++"},"""
+      else
+        """{"unequal", "ab.++", "ab", "ab.++"},"""
       case "pad" => """{"padding", "ab+++", "ab", "ab+++"},"""
       case "term" => if (include) """{"terminator", "ab...", "ab.", "ab.\x00\x00"},""" else """{"terminator", "ab...", "ab", "ab.\x00\x00"},"""
     }
@@ -71,12 +76,12 @@ ${if (eos) "  - id: prefix\n    type: u1\n" else ""}  - id: value
         if err := again.Read(kaitai.NewStream(bytes.NewReader(output.Bytes())), nil, again); err != nil { t.Fatal(err) }
         if string(${value("again")}) != tc.want { t.Fatalf("reparse %q want %q", ${value("again")}, tc.want) }
 """
-      val invalid = if (!rw || (!eos && kind != "equal") || (eos && kind == "unequal" && include)) "" else {
+      val invalid = if (!rw || (!eos && kind != "equal")) "" else {
         val badValues = (kind, include) match {
           case ("pad", _) => s"{\"abcd+\", true}, {\"abcdef\", ${!eos}}"
           case ("high", true) => s"{\"ab\", true}, {\"a\\xffb\", true}, {\"abcdef\", ${!eos}}, {\"\", true}"
           case ("high", false) => s"{\"a\\xff\", true}, {\"ab\\xffcd\", true}, {\"abcdef\", ${!eos}}"
-          case (_, true) if kind == "unequal" => s"{\"ab\", true}, {\"a.b\", true}, {\"abcd+\", true}, {\"abcdef\", ${!eos}}, {\"\", true}"
+          case (_, true) if kind == "unequal" => s"{\"a.b\", true}, {\"abcd+\", true}, {\"abcdef\", ${!eos}}"
           case (_, true) => s"{\"ab\", true}, {\"a.b\", true}, {\"abcdef\", ${!eos}}, {\"\", true}"
           case ("unequal", false) => s"{\"a.\", true}, {\"ab.cd\", true}, {\"abcd+\", true}, {\"abcdef\", ${!eos}}"
           case (_, false) => s"{\"a.\", true}, {\"ab.cd\", true}, {\"abcdef\", ${!eos}}"
@@ -97,9 +102,12 @@ ${if (eos) "  - id: prefix\n    type: u1\n" else ""}  - id: value
     var err error
     ${if (repr == "child") "err = p.GetValue().Check()" else ""}
     if err == nil { err = p.Check() }
-    if err == nil { err = p.Write(kaitai.NewWriter(kaitai.NewFixedSeekableBuffer(${if (eos) "len(input)" else "5"}))) }
+    output := kaitai.NewFixedSeekableBuffer(${if (eos) "len(input)" else "5"})
+    writer := kaitai.NewWriter(output)
+    if err == nil { err = p.Write(writer) }
     if err == nil { t.Fatalf("accepted invalid value %q", bad) }
     ${if (eos) "var consistency kaitai.ConsistencyError\n    if errors.As(err, &consistency) != tc.consistency { t.Fatalf(\"invalid value %q consistency=%t: %v\", bad, tc.consistency, err) }" else ""}
+    ${if (eos && repr != "child") "pos, posErr := writer.Pos()\n    if posErr != nil { t.Fatal(posErr) }\n    if pos != 1 { t.Fatalf(\"invalid value %q output position %d, want prefix position 1\", bad, pos) }" else ""}
   }
 """
       }
