@@ -340,6 +340,112 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
         s"Generated Go in $dir failed:\n$output")
       info(s"Generated Go in $dir:\n$output")
     }
+    test("failed instance operations cache only rejected materialized values") {
+      val dir = Files.createTempDirectory("kaitai-go-instance-validation-")
+      def write(name: String, text: String): Unit =
+        Files.write(dir.resolve(name), text.getBytes(StandardCharsets.UTF_8))
+      val runtime = new File(runtimePath).getCanonicalPath
+      write("go.mod", s"module contract\n\ngo 1.24.0\n\nrequire github.com/kaitai-io/kaitai_struct_go_runtime v0.0.0\nreplace github.com/kaitai-io/kaitai_struct_go_runtime => $runtime\n")
+      Seq(
+        "instance_state_scalar" -> """meta:
+          |  id: instance_state_scalar
+          |instances:
+          |  inst:
+          |    pos: 0
+          |    type: u1
+          |    valid: 80
+          |""".stripMargin,
+        "instance_state_expr" -> """meta:
+          |  id: instance_state_expr
+          |instances:
+          |  items:
+          |    pos: 0
+          |    type: u1
+          |    repeat: expr
+          |    repeat-expr: 3
+          |    valid:
+          |      max: 255
+          |""".stripMargin,
+        "instance_state_eos" -> """meta:
+          |  id: instance_state_eos
+          |instances:
+          |  items:
+          |    pos: 0
+          |    type: item
+          |    repeat: eos
+          |    valid:
+          |      expr: _.value >= 0
+          |types:
+          |  item:
+          |    seq:
+          |      - id: value
+          |        type: u2be
+          |""".stripMargin,
+        "instance_state_until" -> """meta:
+          |  id: instance_state_until
+          |instances:
+          |  items:
+          |    pos: 0
+          |    type: u1
+          |    repeat: until
+          |    repeat-until: stop == 1
+          |    valid:
+          |      max: 255
+          |  stop:
+          |    pos: 2
+          |    type: u1
+          |""".stripMargin,
+        "instance_state_dependency" -> """meta:
+          |  id: instance_state_dependency
+          |instances:
+          |  value:
+          |    pos: 0
+          |    type: u1
+          |    valid:
+          |      expr: gate == 1
+          |  gate:
+          |    pos: 1
+          |    type: u1
+          |""".stripMargin,
+        "instance_state_processor" -> """meta:
+          |  id: instance_state_processor
+          |instances:
+          |  value:
+          |    pos: 0
+          |    size: 1
+          |    process: failing_codec(0)
+          |    valid:
+          |      expr: _.size == 1
+          |""".stripMargin,
+        "instance_state_conditional" -> """meta:
+          |  id: instance_state_conditional
+          |instances:
+          |  maybe:
+          |    pos: 0
+          |    type: u1
+          |    if: false
+          |    valid: 1
+          |""".stripMargin,
+        "instance_state_empty" -> """meta:
+          |  id: instance_state_empty
+          |instances:
+          |  items:
+          |    pos: 0
+          |    type: u1
+          |    repeat: expr
+          |    repeat-expr: 0
+          |    valid: 1
+          |""".stripMargin
+      ).foreach { case (name, schema) => write(s"$name.go", compileContents(schema)) }
+      write("instance_validation_state_test.go", instanceValidationStateGoTests)
+      val output = new StringBuilder
+      def log(line: String): Unit = output.synchronized { output.append(line).append('\n'); () }
+      val logger = ProcessLogger(log, log)
+      assert(Process(Seq("gofmt", "-w", "."), dir.toFile).!(logger) == 0, output.toString)
+      assert(Process(Seq("go", "test", "-mod=mod", "-count=1", "-v", "./..."), dir.toFile).!(logger) == 0,
+        s"Generated Go in $dir failed:\n$output")
+      info(s"Generated Go in $dir:\n$output")
+    }
     test("generated nested and processed writers preserve bytes and failures") {
       val dir = Files.createTempDirectory("kaitai-go-children-")
       def write(name: String, text: String): Unit =
@@ -377,6 +483,60 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
       info(s"Generated Go in $dir:\n$output")
     }
   }
+
+  private val instanceValidationStateGoTests: String = """package contract
+    |import (
+    | "bytes"
+    | "errors"
+    | "testing"
+    | "github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
+    |)
+    |func stream(data []byte) *kaitai.Stream { return kaitai.NewStream(bytes.NewReader(data)) }
+    |type failingSeekReader struct { *bytes.Reader }
+    |func (r *failingSeekReader) Seek(int64,int)(int64,error) { return 0,errors.New("seek failure") }
+    |type FailingCodec struct{}
+    |func NewFailingCodec(int64) *FailingCodec { return &FailingCodec{} }
+    |func (c *FailingCodec) Decode([]byte)([]byte,error) { return nil,errors.New("codec failure") }
+    |func (c *FailingCodec) Encode([]byte)([]byte,error) { return nil,errors.New("codec failure") }
+    |func TestRejectedScalarIsRetained(t *testing.T) {
+    | v:=NewInstanceStateScalar();if err:=v.Read(stream([]byte{49}),nil,v);err!=nil{t.Fatal(err)}
+    | got,err:=v.Inst();var validation kaitai.ValidationNotEqualError
+    | if !errors.As(err,&validation)||got!=0||!v._f_inst||v.inst!=49 {t.Fatalf("got=%d err=%v flag=%v stored=%d",got,err,v._f_inst,v.inst)}
+    | var consistency kaitai.ConsistencyError
+    | if err:=v.Check();!errors.As(err,&consistency)||consistency.ID()!="inst" {t.Fatalf("check: %v",err)}
+    | cached,err:=v.Inst();if err!=nil||cached!=49 {t.Fatalf("cached=%d err=%v",cached,err)}
+    |}
+    |func TestRepeatExprReadFailureRemainsRetryable(t *testing.T) {
+    | v:=NewInstanceStateExpr();if err:=v.Read(stream([]byte{1}),nil,v);err!=nil{t.Fatal(err)}
+    | if _,err:=v.Items();err==nil||v._f_items||len(v.items)!=1 {t.Fatalf("err=%v flag=%v items=%v",err,v._f_items,v.items)}
+    |}
+    |func TestRepeatEosNestedFailureRemainsRetryable(t *testing.T) {
+    | v:=NewInstanceStateEos();if err:=v.Read(stream([]byte{0,1,2}),nil,v);err!=nil{t.Fatal(err)}
+    | if _,err:=v.Items();err==nil||v._f_items||len(v.items)!=1 {t.Fatalf("err=%v flag=%v count=%d",err,v._f_items,len(v.items))}
+    |}
+    |func TestRepeatUntilPredicateFailureRemainsRetryable(t *testing.T) {
+    | v:=NewInstanceStateUntil();if err:=v.Read(stream([]byte{1}),nil,v);err!=nil{t.Fatal(err)}
+    | if _,err:=v.Items();err==nil||v._f_items||v._f_stop||len(v.items)!=1 {t.Fatalf("err=%v itemsFlag=%v stopFlag=%v items=%v",err,v._f_items,v._f_stop,v.items)}
+    |}
+    |func TestValidationDependencyFailureRemainsRetryable(t *testing.T) {
+    | v:=NewInstanceStateDependency();if err:=v.Read(stream([]byte{1}),nil,v);err!=nil{t.Fatal(err)}
+    | if _,err:=v.Value();err==nil||v._f_value||v._f_gate||v.value!=1 {t.Fatalf("err=%v valueFlag=%v gateFlag=%v value=%d",err,v._f_value,v._f_gate,v.value)}
+    |}
+    |func TestSeekAndProcessorFailuresRemainRetryable(t *testing.T) {
+    | seek:=NewInstanceStateScalar();if err:=seek.Read(kaitai.NewStream(&failingSeekReader{bytes.NewReader([]byte{49})}),nil,seek);err!=nil{t.Fatal(err)}
+    | if _,err:=seek.Inst();err==nil||seek._f_inst {t.Fatalf("seek err=%v flag=%v",err,seek._f_inst)}
+    | processor:=NewInstanceStateProcessor();if err:=processor.Read(stream([]byte{1}),nil,processor);err!=nil{t.Fatal(err)}
+    | if _,err:=processor.Value();err==nil||processor._f_value {t.Fatalf("processor err=%v flag=%v",err,processor._f_value)}
+    |}
+    |func TestNormalEmptyAndConditionalInstancesCache(t *testing.T) {
+    | conditional:=NewInstanceStateConditional();if err:=conditional.Read(stream(nil),nil,conditional);err!=nil{t.Fatal(err)}
+    | if got,err:=conditional.Maybe();err!=nil||got!=0||!conditional._f_maybe {t.Fatalf("conditional got=%d err=%v flag=%v",got,err,conditional._f_maybe)}
+    | empty:=NewInstanceStateEmpty();if err:=empty.Read(stream(nil),nil,empty);err!=nil{t.Fatal(err)}
+    | if got,err:=empty.Items();err!=nil||len(got)!=0||!empty._f_items {t.Fatalf("empty=%v err=%v flag=%v",got,err,empty._f_items)}
+    | disabled:=NewInstanceStateScalar();disabled.SetInstEnabled_(false)
+    | if disabled._f_inst {t.Fatal("disabling must not materialize instance")};if err:=disabled.Check();err!=nil {t.Fatalf("disabled check: %v",err)}
+    |}
+    |""".stripMargin
 
   private val nestedFixtures = Seq("write_nested", "write_processed", "write_custom", "write_processed_child", "write_zlib_child", "write_child_formats", "write_io_param", "write_switch_child", "write_position_child", "write_optional_child", "write_optional_included", "write_optional_peek", "write_optional_included_peek", "write_user_switch", "write_nested_bits_be", "write_nested_bits_le", "write_repeat_bits_be", "write_repeat_bits_le", "write_sized_bits_be", "write_sized_bits_le")
   for (name <- nestedFixtures) {
@@ -641,6 +801,24 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     assert(!check.contains("._io"))
     assert(!check.contains("NewValidation"), "Check must report consistency errors, while Read retains validation errors")
     contains(code, "NewValidationNotEqualError", "read validation remains available")
+  }
+
+  test("failed parse-instance validation retains a materialized value for Check") {
+    val code = compileContents(
+      """meta:
+        |  id: go_rw_failed_instance
+        |instances:
+        |  inst:
+        |    pos: 0
+        |    type: u1
+        |    valid: 80
+        |""".stripMargin)
+    val instance = method(code, "GoRwFailedInstance", "Inst", "\\(\\s*\\)\\s*\\([^\\n]*\\)")
+    contains(
+      instance,
+      "(?s)ReadU1\\(\\).*?if err != nil.*?this\\.inst = tmp\\d+\\s+if .*?\\{\\s+this\\._f_inst = true\\s+return .*?NewValidationNotEqualError",
+      "retryable read followed by a retained rejected parse instance"
+    )
   }
 
   test("nested parent and root consistency use identity checks") {

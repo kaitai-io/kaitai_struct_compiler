@@ -2208,6 +2208,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     )
     out.puts(s"if $failCondExpr {")
     out.inc
+    if (config.readWrite && useIo) {
+      attr match {
+        // Only a rejected value is retained. Errors while evaluating the
+        // predicate return before this branch and leave the instance retryable.
+        case inst: ParseInstanceSpec => instanceSetCalculated(inst.id)
+        case _ =>
+      }
+    }
     val errInst = s"kaitai.New${err.name}(${errArgsStr.mkString(", ")})"
     val noValueAndErr = translator.returnRes match {
       case None => errInst
