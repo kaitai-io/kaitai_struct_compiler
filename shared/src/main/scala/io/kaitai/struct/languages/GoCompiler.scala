@@ -175,7 +175,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       val ranges = values.map(integerArrayBounds)
       (ranges.map(_._1).min, ranges.map(_._2).max)
     }
-    value.evaluateIntConst.map(n => (n, n)).getOrElse(value match {
+    value match {
+      // Do not use the shared constant evaluator here: its integer division
+      // truncates, whereas Go's mixed signed/unsigned division rounds down.
+      // Other expressions use conservative native bounds unless proven below.
+      case Ast.expr.IntNum(n) => (n, n)
+      case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(n)) => (-n, -n)
       case Ast.expr.List(elements) => combine(elements)
       case Ast.expr.Name(name) =>
         inInstance(typeProvider.nowClass, name.name)(integerArrayBounds).getOrElse(nativeIntegerBounds(expressionNativeType(value)))
@@ -197,7 +202,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case Ast.expr.BinOp(left, Ast.operator.Add, Ast.expr.IntNum(n)) if n == 0 => integerArrayBounds(left)
       case Ast.expr.BinOp(Ast.expr.IntNum(n), Ast.operator.Add, right) if n == 0 => integerArrayBounds(right)
       case _ => nativeIntegerBounds(expressionNativeType(value))
-    })
+    }
   }
 
   private def nativeIntegerBounds(native: String): (BigInt, BigInt) = {
@@ -247,14 +252,27 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     * use the common type directly; other branches need a recursive copy.
     */
   private def translateArrayElementAs(value: Ast.expr, target: String): String = {
-    if (!target.startsWith("[]")) return translator.translateNumericAs(value, target)
+    if (!target.startsWith("[]")) {
+      val sourceType = expressionNativeType(value)
+      val sourceBounds = nativeIntegerBounds(sourceType)
+      val targetBounds = nativeIntegerBounds(target)
+      val literal = value match {
+        case Ast.expr.IntNum(n) => Some(n)
+        case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(n)) => Some(-n)
+        case _ => None
+      }
+      if (literal.exists(n => targetBounds._1 <= n && n <= targetBounds._2) ||
+        (targetBounds._1 <= sourceBounds._1 && sourceBounds._2 <= targetBounds._2))
+        return translator.translateNumericAs(value, target)
+      return checkedArrayInteger(translator.translate(value), sourceType, target)
+    }
     value match {
       case Ast.expr.List(elements) =>
         s"$target{${elements.map(translateArrayElementAs(_, target.stripPrefix("[]"))).mkString(", ")}}"
       case _ =>
         def convert(source: String, sourceType: String, targetType: String): String = {
           if (sourceType == targetType) return source
-          if (!targetType.startsWith("[]")) return s"$targetType($source)"
+          if (!targetType.startsWith("[]")) return checkedArrayInteger(source, sourceType, targetType)
           val result = translator.localVarName(translator.allocateLocalVar())
           val index = translator.localVarName(translator.allocateLocalVar())
           out.puts(s"$result := make($targetType, len($source))")
@@ -269,6 +287,27 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val source = translator.translate(value)
         convert(source, expressionNativeType(value), target)
     }
+  }
+
+  /** Cached array getters expose mutable slices, so their initializer bounds
+    * cannot justify an unchecked conversion of values observed later.
+    */
+  private def checkedArrayInteger(source: String, sourceType: String, targetType: String): String = {
+    val sourceBounds = nativeIntegerBounds(sourceType)
+    val targetBounds = nativeIntegerBounds(targetType)
+    val guards = List(
+      if (sourceBounds._1 < targetBounds._1) Some(s"value < ${targetBounds._1}") else None,
+      if (sourceBounds._2 > targetBounds._2) Some(s"value > ${targetBounds._2}") else None
+    ).flatten
+    if (guards.isEmpty) return s"$targetType($source)"
+    importList.add("errors")
+    val error = s"Go read-write integer array element cannot be converted from $sourceType to $targetType without loss"
+    translator.resToStr(translator.outVarCheckRes(
+      s"""func(value $sourceType) ($targetType, error) {
+         |if ${guards.mkString(" || ")} { return 0, errors.New("$error") }
+         |return $targetType(value), nil
+         |}($sourceType($source))""".stripMargin
+    ))
   }
 
   /** CalcIntType normally maps to int. Preserve uint64 expressions and arrays

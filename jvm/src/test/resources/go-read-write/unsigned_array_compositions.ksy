@@ -17,6 +17,8 @@ instances:
     value: '[256]'
   named_choice:
     value: 'input > 0 ? values : small_values'
+  scalar_array:
+    value: '[small_values[0], calculated]'
   matrix:
     value: '[values]'
   mixed_matrix:
@@ -25,6 +27,10 @@ instances:
     value: matrix[0][0]
   bounded:
     value: input.as<u4> + 0
+  bounded_values:
+    value: '[bounded.as<u8>]'
+  signed_from_values:
+    value: '[bounded_values[0], -1]'
   signed_values:
     value: '[bounded.as<u8>, -1]'
   signed_positive:

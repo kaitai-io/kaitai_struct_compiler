@@ -78,3 +78,97 @@ func TestUnsignedArrayCompositions(t *testing.T) {
 		}
 	}
 }
+
+func TestUnsignedArrayMutationRanges(t *testing.T) {
+	newValue := func(input uint64) *UnsignedArrayCompositions {
+		data := make([]byte, 8)
+		binary.BigEndian.PutUint64(data, input)
+		p := NewUnsignedArrayCompositions()
+		if err := p.Read(kaitai.NewStream(bytes.NewReader(data)), nil, p); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	for _, writing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("writer=%v", writing), func(t *testing.T) {
+			for _, method := range []string{"choice", "matrix", "scalar"} {
+				t.Run(method, func(t *testing.T) {
+					p := newValue(0)
+					values, err := p.SmallValues()
+					if err != nil {
+						t.Fatal(err)
+					}
+					values[0] = -1
+					switch method {
+					case "choice":
+						if writing {
+							_, err = p._writeGetNamedChoice()
+						} else {
+							_, err = p.NamedChoice()
+						}
+					case "matrix":
+						if writing {
+							_, err = p._writeGetMixedMatrix()
+						} else {
+							_, err = p.MixedMatrix()
+						}
+					case "scalar":
+						if writing {
+							_, err = p._writeGetScalarArray()
+						} else {
+							_, err = p.ScalarArray()
+						}
+					}
+					want := "Go read-write integer array element cannot be converted from int to uint64 without loss"
+					if err == nil || err.Error() != want {
+						t.Fatalf("got %v, want %s", err, want)
+					}
+					if values[0] != -1 {
+						t.Fatal("source slice changed")
+					}
+				})
+			}
+			p := newValue(0)
+			values, err := p.BoundedValues()
+			if err != nil {
+				t.Fatal(err)
+			}
+			values[0] = math.MaxUint64
+			if writing {
+				_, err = p._writeGetSignedFromValues()
+			} else {
+				_, err = p.SignedFromValues()
+			}
+			want := "Go read-write integer array element cannot be converted from uint64 to int64 without loss"
+			if err == nil || err.Error() != want {
+				t.Fatalf("got %v, want %s", err, want)
+			}
+			values[0] = math.MaxInt64
+			var signed []int64
+			if writing {
+				signed, err = p._writeGetSignedFromValues()
+			} else {
+				signed, err = p.SignedFromValues()
+			}
+			if err != nil || len(signed) != 2 || signed[0] != math.MaxInt64 || signed[1] != -1 {
+				t.Fatalf("valid boundary after failed conversion: %v, %v", signed, err)
+			}
+
+			p = newValue(1)
+			small, err := p.SmallValues()
+			if err != nil {
+				t.Fatal(err)
+			}
+			small[0] = -1
+			var choice []uint64
+			if writing {
+				choice, err = p._writeGetNamedChoice()
+			} else {
+				choice, err = p.NamedChoice()
+			}
+			if err != nil || len(choice) != 1 || choice[0] != 1 {
+				t.Fatalf("skipped branch evaluated: %v, %v", choice, err)
+			}
+		})
+	}
+}

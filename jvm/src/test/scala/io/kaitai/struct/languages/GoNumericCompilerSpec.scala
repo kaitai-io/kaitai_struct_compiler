@@ -17,7 +17,7 @@ class GoNumericCompilerSpec extends AnyFunSuite {
   private val fixtures = Seq("numeric_widths", "numeric_mixed_division", "numeric_unary", "numeric_short_circuit")
 
   test("read-write rejects integer arrays without a lossless native representation") {
-    Seq("unsigned_array_unrepresentable", "unsigned_array_unrepresentable_literal").foreach { fixture =>
+    Seq("unsigned_array_unrepresentable", "unsigned_array_unrepresentable_literal", "unsigned_array_floor").foreach { fixture =>
       val error = intercept[io.kaitai.struct.precompile.TypeMismatchError] {
         compile(fixture, readWrite = true)
       }
