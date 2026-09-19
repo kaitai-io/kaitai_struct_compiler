@@ -1099,7 +1099,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case ProcessXor(xorValue) =>
         translator.detectType(xorValue) match {
           case _: IntType =>
-            s"kaitai.ProcessXOR($srcExpr, []byte{${expression(xorValue)}})"
+            s"kaitai.ProcessXOR($srcExpr, []byte{${translator.translateAs(xorValue, Int1Type(false))}})"
           case _: BytesType =>
             s"kaitai.ProcessXOR($srcExpr, ${expression(xorValue)})"
         }
@@ -1259,7 +1259,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   private def castToType(r: TranslatorResult, dataType: DataType): TranslatorResult = {
     dataType match {
-      case t @ (_: IntMultiType | _: FloatMultiType) =>
+      case t @ (_: IntMultiType | _: FloatMultiType | CalcIntType) =>
         ResultString(s"${kaitaiType2NativeType(t)}(${translator.resToStr(r)})")
       case _ =>
         r
@@ -1327,7 +1327,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val addParams = t.args.map((a) => expression(a)).mkString(", ")
+        val addParams = t.classSpec.get.params.lazyZip(t.args).map((p, a) => translator.translateAs(a, p.dataType)).mkString(", ")
         s"New${GoCompiler.types2class(t.classSpec.get.name)}($addParams)"
     }
   }

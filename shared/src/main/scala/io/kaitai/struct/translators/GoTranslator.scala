@@ -92,6 +92,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case (Ast.unaryop.Minus, Ast.expr.IntNum(n)) => translate(Ast.expr.IntNum(-n))
           case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
             s"$opStr${translate(inner)}"
+          case (Ast.unaryop.Minus | Ast.unaryop.Invert, _) if detectType(inner).isInstanceOf[IntType] =>
+            s"$opStr(${translateNumericAs(inner, numericType(v))})"
           case _ =>
             s"$opStr(${translate(inner)})"
         })
@@ -164,26 +166,145 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString(doBooleanOp(op, values))
 
   def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): TranslatorResult = {
+    val native = numericType(Ast.expr.BinOp(left, op, right))
+    val precedence = OPERATOR_PRECEDENCE(op)
+    val l = translateNumericAs(left, native, precedence)
+    // Unlike the other binary operators, Go shifts do not require matching
+    // operand types. The left operand determines the result's width.
+    val r = if (op == Ast.operator.LShift || op == Ast.operator.RShift)
+      translate(right, precedence) else translateNumericAs(right, native, precedence)
+    val expr = s"$l ${binOp(op)} $r"
     (detectType(left), detectType(right), op) match {
-      case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
+      case (_: IntType, _: IntType, Ast.operator.Mod) =>
         val v1 = allocateLocalVar()
-        out.puts(s"${localVarName(v1)} := ${genericBinOp(left, Ast.operator.Mod, right, 0)}")
-        out.puts(s"if ${localVarName(v1)} < 0 {")
-        out.inc
-        out.puts(s"${localVarName(v1)} += ${translate(right)}")
-        out.dec
-        out.puts("}")
+        out.puts(s"${localVarName(v1)} := $expr")
+        if (!native.startsWith("uint")) {
+          out.puts(s"if ${localVarName(v1)} < 0 {")
+          out.inc
+          out.puts(s"${localVarName(v1)} += $r")
+          out.dec
+          out.puts("}")
+        }
         ResultLocalVar(v1)
       case _ =>
-        ResultString(genericBinOp(left, op, right, extPrec))
+        ResultString(if (precedence <= extPrec) s"($expr)" else expr)
     }
+  }
+
+  private def integerLiteral(value: Ast.expr): Option[BigInt] = value match {
+    case Ast.expr.IntNum(n) => Some(n)
+    case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(n)) => Some(-n)
+    case _ => None
+  }
+
+  private def integerRange(native: String): (BigInt, BigInt) = {
+    val unsigned = native.startsWith("uint")
+    val width = if (native == "int") 64 else native.drop(if (unsigned) 4 else 3).toInt
+    if (unsigned) (BigInt(0), (BigInt(1) << width) - 1)
+    else (-(BigInt(1) << (width - 1)), (BigInt(1) << (width - 1)) - 1)
+  }
+
+  /** The abstract CalcIntType does not retain the widths of operands. Track
+    * the concrete Go expression type separately, without changing KSY types
+    * or public value-instance signatures. Constants can adopt the other
+    * operand's type when representable; typed values require conversions.
+    */
+  private def commonNumericType(left: Ast.expr, right: Ast.expr): String = {
+    val l = numericType(left)
+    val r = numericType(right)
+    if (l == r) return l
+    if (l.startsWith("float") || r.startsWith("float")) return "float64"
+    def fits(value: Ast.expr, native: String): Boolean = integerLiteral(value).exists { n =>
+      val (min, max) = integerRange(native)
+      min <= n && n <= max
+    }
+    if (fits(left, r)) return r
+    if (fits(right, l)) return l
+    val (lmin, lmax) = integerRange(l)
+    val (rmin, rmax) = integerRange(r)
+    val min = lmin.min(rmin)
+    val max = lmax.max(rmax)
+    Seq("int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64")
+      .find { n => val (lo, hi) = integerRange(n); lo <= min && max <= hi }
+      // No signed primitive can contain uint64's full range. Arithmetic is
+      // performed modulo 2^64; comparisons handle negative operands below.
+      .getOrElse("uint64")
+  }
+
+  private def arithmeticType(native: String): String = native match {
+    case "int8" | "uint8" | "int16" | "uint16" => "int"
+    case "int32" | "uint32" => "int64"
+    case "float32" => "float64"
+    case other => other
+  }
+
+  private def numericType(value: Ast.expr): String = value match {
+    case Ast.expr.IntNum(n) if n > Long.MaxValue => "uint64"
+    case Ast.expr.IntNum(n) if n > Utils.MAX_UINT32 || n < Int.MinValue => "int64"
+    case Ast.expr.IntNum(n) if n > Int.MaxValue => "uint32"
+    case Ast.expr.Attribute(owner, Ast.identifier("pos" | "size"))
+      if detectType(owner) == KaitaiStreamType || detectType(owner) == OwnedKaitaiStreamType => "int64"
+    case Ast.expr.UnaryOp(_, inner) if detectType(inner).isInstanceOf[IntType] => arithmeticType(numericType(inner))
+    case Ast.expr.BinOp(left, Ast.operator.LShift | Ast.operator.RShift, _) => arithmeticType(numericType(left))
+    case Ast.expr.BinOp(left, _, right) => arithmeticType(commonNumericType(left, right))
+    case Ast.expr.IfExp(_, ifTrue, ifFalse) => commonNumericType(ifTrue, ifFalse)
+    case _ => kaitaiType2NativeType(detectType(value))
+  }
+
+  private def isUntypedNumeric(value: Ast.expr): Boolean = value match {
+    case Ast.expr.IntNum(n) => n >= Int.MinValue && n <= Int.MaxValue
+    case Ast.expr.FloatNum(_) => true
+    case Ast.expr.UnaryOp(_, inner) => isUntypedNumeric(inner)
+    case Ast.expr.BinOp(left, op, right) if op != Ast.operator.Mod => isUntypedNumeric(left) && isUntypedNumeric(right)
+    case _ => false
+  }
+
+  def translateNumericAs(value: Ast.expr, native: String, precedence: Int = 0): String = {
+    if (!detectType(value).isInstanceOf[NumericType]) return translate(value, precedence)
+    integerLiteral(value) match {
+      case Some(n) => n.toString
+      case None if isUntypedNumeric(value) => translate(value, precedence)
+      case None if numericType(value) == native => translate(value, precedence)
+      case None => s"$native(${translate(value)})"
+    }
+  }
+
+  def translateAs(value: Ast.expr, target: DataType): String = target.asCombined match {
+    case t: NumericType => translateNumericAs(value, kaitaiType2NativeType(t))
+    case _ => translate(value)
   }
 
   def trStrConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): TranslatorResult =
     ResultString(genericBinOp(left, Ast.operator.Add, right, extPrec))
 
-  def trNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): TranslatorResult =
-    ResultString(doNumericCompareOp(left, op, right, extPrec))
+  def trNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): TranslatorResult = {
+    if (!detectType(left).isInstanceOf[NumericType] || !detectType(right).isInstanceOf[NumericType])
+      return ResultString(doNumericCompareOp(left, op, right, extPrec))
+    val native = commonNumericType(left, right)
+    def mayBeNegative(value: Ast.expr): Boolean =
+      numericType(value).startsWith("int") && integerLiteral(value).forall(_ < 0)
+    val signedLeft = mayBeNegative(left)
+    val signedRight = mayBeNegative(right)
+    if (native == "uint64" && (signedLeft || signedRight)) {
+      // Casting a negative signed value to uint64 before comparison reverses
+      // its order. Function parameters evaluate each operand exactly once.
+      val l = translate(left)
+      val r = translate(right)
+      val signed = if (signedLeft) "a" else "b"
+      val negativeResult = op match {
+        case Ast.cmpop.NotEq => true
+        case Ast.cmpop.Eq => false
+        case Ast.cmpop.Lt | Ast.cmpop.LtE => signedLeft
+        case Ast.cmpop.Gt | Ast.cmpop.GtE => signedRight
+      }
+      return ResultString(s"func(a ${numericType(left)}, b ${numericType(right)}) bool { if $signed < 0 { return $negativeResult }; return uint64(a) ${cmpOp(op)} uint64(b) }($l, $r)")
+    }
+    val precedence = OPERATOR_PRECEDENCE(op)
+    val l = translateNumericAs(left, native, precedence)
+    val r = translateNumericAs(right, native, precedence)
+    val expr = s"$l ${cmpOp(op)} $r"
+    ResultString(if (precedence <= extPrec) s"($expr)" else expr)
+  }
 
   def trStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): TranslatorResult =
     ResultString(doStrCompareOp(left, op, right, extPrec))
@@ -262,14 +383,18 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
     val v1 = allocateLocalVar()
     val typ = detectType(ifTrue)
-    out.puts(s"var ${localVarName(v1)} ${GoCompiler.kaitaiType2NativeType(typ)};")
+    val native = typ match {
+      case _: NumericType => commonNumericType(ifTrue, ifFalse)
+      case _ => GoCompiler.kaitaiType2NativeType(typ)
+    }
+    out.puts(s"var ${localVarName(v1)} $native;")
     out.puts(s"if (${translate(condition)}) {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifTrue)}")
+    out.puts(s"${localVarName(v1)} = ${translateNumericAs(ifTrue, native)}")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifFalse)}")
+    out.puts(s"${localVarName(v1)} = ${translateNumericAs(ifFalse, native)}")
     out.dec
     out.puts("}")
     ResultLocalVar(v1)
@@ -315,7 +440,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString("[]uint8{" + arr.map(_ & 0xff).mkString(", ") + "}")
 
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): TranslatorResult =
-    ResultString("[]uint8{" + elts.map(translate).mkString(", ") + "}")
+    ResultString("[]uint8{" + elts.map(translateNumericAs(_, "uint8")).mkString(", ") + "}")
 
   // Predefined methods of various types
 
