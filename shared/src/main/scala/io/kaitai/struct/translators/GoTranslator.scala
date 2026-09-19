@@ -90,6 +90,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
            * doesn't, the result is things like `-uint32(2147483648)` that will not compile in Go
            * (the error is "constant -2147483648 overflows uint32") */
           case (Ast.unaryop.Minus, Ast.expr.IntNum(n)) => translate(Ast.expr.IntNum(-n))
+          case (Ast.unaryop.Invert, Ast.expr.IntNum(_)) if !isUntypedNumeric(inner) && numericType(inner) != numericType(v) =>
+            s"$opStr${numericType(v)}(${translateNumericAs(inner, numericType(v))})"
           case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
             s"$opStr${translate(inner)}"
           case (Ast.unaryop.Minus | Ast.unaryop.Invert, _) if detectType(inner).isInstanceOf[IntType] =>
@@ -166,6 +168,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString(doBooleanOp(op, values))
 
   def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): TranslatorResult = {
+    if ((op == Ast.operator.Div || op == Ast.operator.Mod) && mixedSignedUnsigned(left, right))
+      return trMixedIntegerDivision(left, op, right)
     val native = numericType(Ast.expr.BinOp(left, op, right))
     val precedence = OPERATOR_PRECEDENCE(op)
     val l = translateNumericAs(left, native, precedence)
@@ -189,6 +193,55 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
       case _ =>
         ResultString(if (precedence <= extPrec) s"($expr)" else expr)
     }
+  }
+
+  private def mayBeNegative(value: Ast.expr): Boolean =
+    numericType(value).startsWith("int") && integerLiteral(value).forall(_ < 0)
+
+  private def mixedSignedUnsigned(left: Ast.expr, right: Ast.expr): Boolean =
+    detectType(left).isInstanceOf[IntType] && detectType(right).isInstanceOf[IntType] &&
+      commonNumericType(left, right) == "uint64" && (mayBeNegative(left) || mayBeNegative(right))
+
+  private def trMixedIntegerDivision(left: Ast.expr, op: Ast.operator, right: Ast.expr): ResultLocalVar = {
+    importList.add("errors")
+    val l = translate(left)
+    val r = translate(right)
+    val signedLeft = numericType(left).startsWith("int")
+    val signedRight = numericType(right).startsWith("int")
+    // -(MinInt64) is not representable as int64. Negate one less than its
+    // magnitude, then add the last unit in the unsigned domain instead.
+    def magnitude(name: String, signed: Boolean): String =
+      s"${name}Magnitude := uint64($name)\n" +
+        (if (signed) s"if $name < 0 { ${name}Magnitude = uint64(-(int64($name) + 1)) + 1 }\n" else "")
+    val resultType = if (op == Ast.operator.Div) "int64" else "uint64"
+    val body = if (op == Ast.operator.Div) {
+      val negative = if (signedLeft) "a < 0" else "b < 0"
+      magnitude("a", signedLeft) + magnitude("b", signedRight) +
+        s"""if bMagnitude == 0 { return 0, errors.New("integer division by zero") }
+           |quotient := aMagnitude / bMagnitude
+           |if $negative {
+           |  if aMagnitude % bMagnitude != 0 { quotient++ }
+           |  if quotient > uint64(1) << 63 { return 0, errors.New("integer division result is outside int64 range") }
+           |  if quotient == uint64(1) << 63 { return -9223372036854775808, nil }
+           |  return -int64(quotient), nil
+           |}
+           |if quotient > uint64(1) << 63 - 1 { return 0, errors.New("integer division result is outside int64 range") }
+           |return int64(quotient), nil
+           |""".stripMargin
+    } else {
+      val divisorCheck = if (signedRight) "b <= 0" else "b == 0"
+      s"if $divisorCheck { return 0, errors.New(\"mod divisor <= 0\") }\n" +
+        magnitude("a", signedLeft) +
+        "remainder := aMagnitude % uint64(b)\n" +
+        (if (signedLeft) "if a < 0 && remainder != 0 { remainder = uint64(b) - remainder }\n" else "") +
+        "return remainder, nil\n"
+    }
+    // Parameters make side-effecting source operands execute exactly once.
+    // Kaitai division rounds down (including negative non-exact quotients).
+    // Mixed division can be negative, so its concrete result is int64. A
+    // quotient outside that range returns an error, never a wrapped value;
+    // an explicitly unsigned KSY division can instead retain uint64 results.
+    outVarCheckRes(s"func(a ${numericType(left)}, b ${numericType(right)}) ($resultType, error) {\n$body}($l, $r)")
   }
 
   private def integerLiteral(value: Ast.expr): Option[BigInt] = value match {
@@ -226,8 +279,8 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     val max = lmax.max(rmax)
     Seq("int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64")
       .find { n => val (lo, hi) = integerRange(n); lo <= min && max <= hi }
-      // No signed primitive can contain uint64's full range. Arithmetic is
-      // performed modulo 2^64; comparisons handle negative operands below.
+      // No signed primitive can contain uint64's full range. Ring operations
+      // use modulo 2^64; division, modulo and comparisons handle signs below.
       .getOrElse("uint64")
   }
 
@@ -239,12 +292,16 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
 
   private def numericType(value: Ast.expr): String = value match {
+    // The positive magnitude of MinInt64 needs uint64, but its negated result
+    // is signed. This must agree with the whole-literal translation above.
+    case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(n)) => numericType(Ast.expr.IntNum(-n))
     case Ast.expr.IntNum(n) if n > Long.MaxValue => "uint64"
     case Ast.expr.IntNum(n) if n > Utils.MAX_UINT32 || n < Int.MinValue => "int64"
     case Ast.expr.IntNum(n) if n > Int.MaxValue => "uint32"
     case Ast.expr.Attribute(owner, Ast.identifier("pos" | "size"))
       if detectType(owner) == KaitaiStreamType || detectType(owner) == OwnedKaitaiStreamType => "int64"
     case Ast.expr.UnaryOp(_, inner) if detectType(inner).isInstanceOf[IntType] => arithmeticType(numericType(inner))
+    case Ast.expr.BinOp(left, Ast.operator.Div, right) if mixedSignedUnsigned(left, right) => "int64"
     case Ast.expr.BinOp(left, Ast.operator.LShift | Ast.operator.RShift, _) => arithmeticType(numericType(left))
     case Ast.expr.BinOp(left, _, right) => arithmeticType(commonNumericType(left, right))
     case Ast.expr.IfExp(_, ifTrue, ifFalse) => commonNumericType(ifTrue, ifFalse)
@@ -281,8 +338,6 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     if (!detectType(left).isInstanceOf[NumericType] || !detectType(right).isInstanceOf[NumericType])
       return ResultString(doNumericCompareOp(left, op, right, extPrec))
     val native = commonNumericType(left, right)
-    def mayBeNegative(value: Ast.expr): Boolean =
-      numericType(value).startsWith("int") && integerLiteral(value).forall(_ < 0)
     val signedLeft = mayBeNegative(left)
     val signedRight = mayBeNegative(right)
     if (native == "uint64" && (signedLeft || signedRight)) {
