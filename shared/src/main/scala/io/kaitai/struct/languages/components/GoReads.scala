@@ -94,8 +94,11 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
   def bytesPadTermExpr(id: ResultLocalVar, padRight: Option[Int], terminator: Option[Seq[Byte]], include: Boolean): String = {
     val expr0 = translator.resToStr(id)
     val expr1 = padRight match {
-      case Some(padByte) => s"kaitai.BytesStripRight($expr0, $padByte)"
-      case None => expr0
+      // Keep an included terminator even when its last byte is also padding.
+      // Terminators contain signed Bytes, while pad-right is an unsigned Int.
+      case Some(padByte) if terminator.map(term => padByte != (term.last & 0xff)).getOrElse(true) =>
+        s"kaitai.BytesStripRight($expr0, $padByte)"
+      case _ => expr0
     }
     val expr2 = terminator match {
       case Some(term) =>
