@@ -254,6 +254,21 @@ trait EveryWriteIsExpression
     include: Boolean,
     exprTypeOpt: Option[DataType]
   ): Unit = {
+    if (terminator.isEmpty && padRight.isEmpty && !include) {
+      // no terminator, no padding => just a regular output
+      // validation should check that expression's length matches size
+      attrPrimitiveWrite(io, expr, bt, None, exprTypeOpt)
+      return
+    }
+    val (termArg, padRightArg) = bytesLimitWriteArguments(terminator, padRight, include)
+    attrBytesLimitWrite(io, expr, sizeExpr, termArg, padRightArg)
+  }
+
+  def bytesLimitWriteArguments(
+    terminator: Option[Seq[Byte]],
+    padRight: Option[Int],
+    include: Boolean
+  ): (Int, Int) = {
     val term =
       terminator.map { (terminator) =>
         if (terminator.length == 1) {
@@ -262,12 +277,9 @@ trait EveryWriteIsExpression
           throw new NotImplementedError("multibyte terminators cannot be serialized yet")
         }
       }
-    val (termArg, padRightArg) = (term, padRight, include) match {
+    (term, padRight, include) match {
       case (None, None, false) =>
-        // no terminator, no padding => just a regular output
-        // validation should check that expression's length matches size
-        attrPrimitiveWrite(io, expr, bt, None, exprTypeOpt)
-        return
+        (-1, -1)
       case (_, None, true) =>
         // terminator included, no padding => pad with zeroes
         (0, 0)
@@ -285,7 +297,6 @@ trait EveryWriteIsExpression
         // both terminator and padding specified
         (t, p)
     }
-    attrBytesLimitWrite(io, expr, sizeExpr, termArg, padRightArg)
   }
 
   def attrUserTypeWrite(

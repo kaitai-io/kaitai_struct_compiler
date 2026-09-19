@@ -33,7 +33,7 @@ params:
   - id: width
     type: u4
 seq:
-  - id: value
+${if (eos) "  - id: prefix\n    type: u1\n" else ""}  - id: value
     $options
 """ + (if (repr == "child") "types:\n  child:\n    seq:\n      - id: data\n        size-eos: true\n" else "")
 
@@ -64,28 +64,42 @@ seq:
 """ else ""
       val write = if (!rw) "" else s"""
         if err := p.Check(); err != nil { t.Fatal(err) }
-        output := kaitai.NewFixedSeekableBuffer(len(tc.input))
+        output := kaitai.NewFixedSeekableBuffer(${if (eos) "len(input)" else "len(tc.input)"})
         if err := p.Write(kaitai.NewWriter(output)); err != nil { t.Fatal(err) }
-        if string(output.Bytes()) != tc.canonical { t.Fatalf("write %q want %q", output.Bytes(), tc.canonical) }
+        ${if (eos) "if output.Bytes()[0] != 0x7e || string(output.Bytes()[1:]) != tc.canonical { t.Fatalf(\"write %q want prefix+%q\", output.Bytes(), tc.canonical) }" else "if string(output.Bytes()) != tc.canonical { t.Fatalf(\"write %q want %q\", output.Bytes(), tc.canonical) }"}
         again := New$className(uint32(len(tc.input)))
         if err := again.Read(kaitai.NewStream(bytes.NewReader(output.Bytes())), nil, again); err != nil { t.Fatal(err) }
         if string(${value("again")}) != tc.want { t.Fatalf("reparse %q want %q", ${value("again")}, tc.want) }
 """
-      val invalid = if (!rw || eos || kind != "equal") "" else {
-        val badValues = if (include) "\"ab\", \"a.b\", \"abcdef\", \"\"" else "\"a.\", \"ab.cd\", \"abcdef\""
+      val invalid = if (!rw || (!eos && kind != "equal") || (eos && kind == "unequal" && include)) "" else {
+        val badValues = (kind, include) match {
+          case ("pad", _) => s"{\"abcd+\", true}, {\"abcdef\", ${!eos}}"
+          case ("high", true) => s"{\"ab\", true}, {\"a\\xffb\", true}, {\"abcdef\", ${!eos}}, {\"\", true}"
+          case ("high", false) => s"{\"a\\xff\", true}, {\"ab\\xffcd\", true}, {\"abcdef\", ${!eos}}"
+          case (_, true) if kind == "unequal" => s"{\"ab\", true}, {\"a.b\", true}, {\"abcd+\", true}, {\"abcdef\", ${!eos}}, {\"\", true}"
+          case (_, true) => s"{\"ab\", true}, {\"a.b\", true}, {\"abcdef\", ${!eos}}, {\"\", true}"
+          case ("unequal", false) => s"{\"a.\", true}, {\"ab.cd\", true}, {\"abcd+\", true}, {\"abcdef\", ${!eos}}"
+          case (_, false) => s"{\"a.\", true}, {\"ab.cd\", true}, {\"abcdef\", ${!eos}}"
+        }
         val setValue = repr match {
           case "string" => "p.SetValue(bad)"
           case "child" => "p.GetValue().SetData([]byte(bad))"
           case _ => "p.SetValue([]byte(bad))"
         }
         s"""
-  for _, bad := range []string{$badValues} {
+  for _, tc := range []struct { bad string; consistency bool }{$badValues} {
     p := New$className(5)
-    if err := p.Read(kaitai.NewStream(bytes.NewReader([]byte("abcde"))), nil, p); err != nil { t.Fatal(err) }
+    input := []byte("abcde")
+    ${if (eos) "input = append([]byte{0x7e}, input...)" else ""}
+    if err := p.Read(kaitai.NewStream(bytes.NewReader(input)), nil, p); err != nil { t.Fatal(err) }
+    bad := tc.bad
     $setValue
-    err := p.Check()
-    if err == nil { err = p.Write(kaitai.NewWriter(kaitai.NewFixedSeekableBuffer(5))) }
+    var err error
+    ${if (repr == "child") "err = p.GetValue().Check()" else ""}
+    if err == nil { err = p.Check() }
+    if err == nil { err = p.Write(kaitai.NewWriter(kaitai.NewFixedSeekableBuffer(${if (eos) "len(input)" else "5"}))) }
     if err == nil { t.Fatalf("accepted invalid value %q", bad) }
+    ${if (eos) "var consistency kaitai.ConsistencyError\n    if errors.As(err, &consistency) != tc.consistency { t.Fatalf(\"invalid value %q consistency=%t: %v\", bad, tc.consistency, err) }" else ""}
   }
 """
       }
@@ -95,12 +109,12 @@ func Test$className(t *testing.T) {
     t.Run(tc.name, func(t *testing.T) {
       p := New$className(uint32(len(tc.input)))
       input := []byte(tc.input)
-      ${if (eos) "" else "input = append(input, 0x7e)"}
+      ${if (eos) "input = append([]byte{0x7e}, input...)" else "input = append(input, 0x7e)"}
       stream := kaitai.NewStream(bytes.NewReader(input))
       if err := p.Read(stream, nil, p); err != nil { t.Fatal(err) }
       if string(${value("p")}) != tc.want { t.Fatalf("read %q want %q", ${value("p")}, tc.want) }
       pos, _ := stream.Pos()
-      if pos != int64(len(tc.input)) { t.Fatalf("outer position %d", pos) }
+      if pos != int64(${if (eos) "len(input)" else "len(tc.input)"}) { t.Fatalf("outer position %d", pos) }
       $childCheck
       $write
     })
@@ -133,7 +147,8 @@ func Test$className(t *testing.T) {
           val specs = specsOption.getOrElse(fail(problems.mkString(", ")))
           Main.compile(specs, specs.firstSpec, GoCompiler, config).files.foreach(f => write(new File(f.fileName).getName, f.contents))
         }
-        write("padding_test.go", "package contract\nimport (\"bytes\"; \"testing\"; \"github.com/kaitai-io/kaitai_struct_go_runtime/kaitai\")\n" + variants.map(_.goTest(readWrite)).mkString)
+        val errorsImport = if (readWrite) "\"errors\"; " else ""
+        write("padding_test.go", s"package contract\nimport (\"bytes\"; $errorsImport\"testing\"; \"github.com/kaitai-io/kaitai_struct_go_runtime/kaitai\")\n" + variants.map(_.goTest(readWrite)).mkString)
         val output = new StringBuilder
         def log(line: String): Unit = output.synchronized { output.append(line).append('\n'); () }
         val logger = ProcessLogger(log, log)

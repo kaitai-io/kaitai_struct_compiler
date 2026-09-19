@@ -1002,6 +1002,79 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit =
     writerCall(s"$io.WriteBytesLimit(${expression(expr)}, int($size), $term, $padRight)")
 
+  private def attrBytesEosLimitWrite(
+    id: Identifier,
+    io: String,
+    expr: Ast.expr,
+    b: BytesEosType,
+    reservedSize: Option[String] = None
+  ): Unit = {
+    val data = translator.localVarName(translator.allocateLocalVar())
+    val remaining = translator.localVarName(translator.allocateLocalVar())
+    out.puts(s"$data := ${expression(expr)}")
+    val size = reservedSize.map(s => s"int64($s)").getOrElse(exprIORemainingSize(io))
+    out.puts(s"$remaining := $size")
+
+    val actualSize = s"int64(len($data))"
+    val msg = expression(Ast.expr.Str(id.humanReadable))
+    def reject(condition: String, expected: String, actual: String): Unit = {
+      out.puts(s"if $condition {")
+      out.inc
+      out.puts(s"return kaitai.NewConsistencyError($msg, $expected, $actual)")
+      universalFooter
+    }
+    def rejectTrailingPad(pad: Int): Unit =
+      reject(s"len($data) != 0 && $data[len($data) - 1] == byte($pad)", pad.toString, s"$data[len($data) - 1]")
+
+    // Let the bounded writer report overlength data. Consistency checks only
+    // reject byte sequences whose bounded representation would be ambiguous.
+    out.puts(s"if $actualSize <= $remaining {")
+    out.inc
+    b.terminator match {
+      case Some(terminator) =>
+        val term =
+          if (terminator.length == 1) terminator.head & 0xff
+          else throw new NotImplementedError("multibyte terminators cannot be serialized yet")
+        importList.add("bytes")
+        val termIndex = translator.localVarName(translator.allocateLocalVar())
+        out.puts(s"$termIndex := bytes.IndexByte($data, byte($term))")
+        val lastIndex = s"len($data) - 1"
+        val hasDistinctPad = b.padRight.exists(_ != term)
+        if (!b.include) {
+          reject(s"$termIndex != -1", "-1", termIndex)
+          if (hasDistinctPad) {
+            out.puts(s"if $actualSize == $remaining {")
+            out.inc
+            rejectTrailingPad(b.padRight.get)
+            universalFooter
+          }
+        } else if (!hasDistinctPad) {
+          out.puts(s"if $actualSize < $remaining {")
+          out.inc
+          reject(s"len($data) == 0", "1", "len(" + data + ")")
+          reject(s"$termIndex != $lastIndex", lastIndex, termIndex)
+          out.dec
+          out.puts(s"} else if $actualSize == $remaining {")
+          out.inc
+          reject(s"$termIndex != -1 && $termIndex != $lastIndex", lastIndex, termIndex)
+          universalFooter
+        } else {
+          reject(s"$termIndex != -1 && $termIndex != $lastIndex", lastIndex, termIndex)
+          out.puts(s"if $termIndex == -1 {")
+          out.inc
+          rejectTrailingPad(b.padRight.get)
+          universalFooter
+        }
+      case None =>
+        b.padRight.foreach(rejectTrailingPad)
+    }
+    universalFooter
+
+    val (termArg, padRightArg) = bytesLimitWriteArguments(b.terminator, b.padRight, b.include)
+    writerCall(s"$io.WriteBytesLimit($data, int($remaining), $termArg, $padRightArg)")
+    attrIsEofCheck(id, true, io)
+  }
+
   override def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, DataType], io: String, rep: RepeatSpec, defEndian: Option[FixedEndian], isNullable: Boolean, assignType: SwitchType): Unit = {
     if (rep != NoRepeat && cases.get(SwitchType.ELSE_CONST).exists(_.isInstanceOf[BytesType])) {
       // Every branch contributes one logical element, including default bytes.
@@ -1185,6 +1258,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     case b: BytesLimitType if b.padRight.isEmpty && b.terminator.isEmpty =>
       attrBytesCheck(id, expr, t, checksShouldDependOnIo)
       attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
+    case b: BytesEosType if b.padRight.isDefined || b.terminator.isDefined =>
+      attrBytesEosLimitWrite(id, io, expr, b)
     case b: BytesEosType if b.padRight.isEmpty && b.terminator.isEmpty =>
       attrBytesCheck(id, expr, t, checksShouldDependOnIo)
       attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
@@ -1341,6 +1416,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         try attrBytesCheck(id, encoded, bt, None) finally capturedChildSize = None
         bt match {
           case b: BytesLimitType => attrBytesLimitWrite2("output", encoded, b, outer, b.padRight, b.terminator, b.include, None)
+          case b: BytesEosType if b.padRight.isDefined || b.terminator.isDefined =>
+            attrBytesEosLimitWrite(id, "output", encoded, b, Some(outer))
           case b: BytesEosType => attrBytesLimitWrite2("output", encoded, b, outer, b.padRight, b.terminator, b.include, None)
           case b: BytesTerminatedType =>
             attrPrimitiveWrite("output", encoded, bt, None, None)
