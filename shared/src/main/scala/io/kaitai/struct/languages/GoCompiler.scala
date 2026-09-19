@@ -1235,6 +1235,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     s"(${writerSize(io)} - $pos)"
   }
 
+  private def useOverlayChild(bt: BytesType): Boolean = {
+    val plainBytes = bt match {
+      case b: BytesLimitType => b.process.isEmpty && b.terminator.isEmpty && b.padRight.isEmpty && !b.include
+      case b: BytesEosType => b.process.isEmpty && b.terminator.isEmpty && b.padRight.isEmpty && !b.include
+      case _ => false
+    }
+    plainBytes && writingInstance.exists { instanceId =>
+      typeProvider.nowClass.instances.get(instanceId) match {
+        case Some(instance: ParseInstanceSpec) => instance.pos.isDefined
+        case _ => false
+      }
+    }
+  }
+
   override def attrUserTypeWrite(id: Identifier, t: UserType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], checksShouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType]): Unit = {
     val item = Identifier.itemExpr(id, rep)
     val expr = if (exprTypeOpt.exists(!_.isInstanceOf[UserType]))
@@ -1257,6 +1271,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case _: BytesTerminatedType => expression(Identifier.itemExpr(OuterSizeIdentifier(id), rep))
         })
         val inner = if (writeNeedsInnerSize(bt)) expression(Identifier.itemExpr(InnerSizeIdentifier(id), rep)) else outer
+        if (useOverlayChild(bt)) {
+          val child = translator.resToStr(translator.outVarCheckRes(s"$io.NewOverlayChild(int($outer))"))
+          out.puts(s"this._writeContext.RegisterChild($child)")
+          attrUserTypeInstreamWrite(s"$child.Writer", expr, t, t)
+          return
+        }
         val extraTerm = bt match {
           case b: BytesTerminatedType if !b.include =>
             if (b.eosError) "true" else {
