@@ -39,6 +39,7 @@ class GoRawPositionCompilerSpec extends AnyFunSuite {
       schema("raw_param", "params:\n  - id: output\n    type: io\nseq:\n  - id: data\n    size: 1\n    process: xor(output.pos)\n")
       schema("raw_capture", "params:\n  - id: widths\n    type: bytes\nseq:\n  - id: data\n    size: widths[0]\n    pad-right: 255\n    process: mutate_codec(_io.pos, widths)\n")
       schema("raw_bad_size", "params:\n  - id: width\n    type: s8\nseq:\n  - id: data\n    size: width\n    process: xor(_io.pos)\n")
+      schema("raw_bad_size_custom", "params:\n  - id: width\n    type: s8\nseq:\n  - id: data\n    size: width\n    process: failing_codec(_io.pos)\n")
       schema("raw_key_size", "seq:\n  - id: data\n    size: 1\n    process: xor(key)\ninstances:\n  key:\n    value: _io.size\n")
       schema("raw_switch", "params:\n  - id: tag\n    type: u1\nseq:\n  - id: data\n    size: 1\n    process: failing_codec(_io.pos)\n    type:\n      switch-on: tag\n      cases:\n        1: u1\n")
       schema("raw_term_static", "seq:\n  - id: data\n    terminator: 0\n    process: failing_codec(1)\n")

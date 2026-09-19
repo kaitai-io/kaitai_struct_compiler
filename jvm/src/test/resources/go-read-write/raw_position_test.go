@@ -521,8 +521,13 @@ func TestRawFaultRestoration(t *testing.T) {
 			t.Fatalf("end query/key error restoration: %v/%d", err, pos)
 		}
 	}
-	for _, width := range []int64{-1, 9223372036854775807} {
-		p := NewRawBadSize(width)
+	maxWidth := NewRawBadSize(9223372036854775807)
+	maxWidth.SetData(nil)
+	var consistency kaitai.ConsistencyError
+	if err := maxWidth.Check(); !errors.As(err, &consistency) {
+		t.Fatalf("length-preserving maximum width Check = %v; want consistency error", err)
+	}
+	for _, p := range []rawObject{NewRawBadSize(-1), NewRawBadSizeCustom(9223372036854775807)} {
 		p.SetData(nil)
 		if err := p.Check(); err != nil {
 			t.Fatal(err)

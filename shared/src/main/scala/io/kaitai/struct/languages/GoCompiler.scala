@@ -1251,6 +1251,38 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  override def attrBytesCheck(id: Identifier, bytes: Ast.expr, t: BytesType, shouldDependOnIo: Option[Boolean]): Unit = {
+    // XOR and bit rotation preserve byte length. For a fixed-width field, Check
+    // can therefore reject an impossible logical value without materializing a
+    // raw cache or invoking the processor. Other processors may resize their
+    // input, and user types need a child serialization, so those remain
+    // write-time checks on the encoded bytes.
+    def checkFixedLength(bt: BytesLimitType): Unit = {
+      // Capture the declared size once: its expression may invoke a value
+      // instance. Negative signed sizes remain a write-time encoded-layout
+      // error, as they cannot describe a meaningful logical length.
+      val expected = localValue(expression(bt.size))
+      val actual = expression(exprByteArraySize(bytes))
+      val wideType = translator.detectType(bt.size) match {
+        case Int1Type(false) | IntMultiType(false, _, _) | _: BitsType => "uint64"
+        case _ => "int64"
+      }
+      val nonnegative = if (wideType == "uint64") "" else s"$wideType($expected) >= 0 && "
+      val comparison = if (bt.terminator.isDefined || bt.padRight.isDefined) ">" else "!="
+      out.puts(s"if $nonnegative$wideType($actual) $comparison $wideType($expected) {")
+      out.inc
+      out.puts(s"return kaitai.NewConsistencyError(${expression(Ast.expr.Str(id.humanReadable))}, $expected, $actual)")
+      universalFooter
+    }
+    (t, t.process, shouldDependOnIo) match {
+      case (bt: BytesLimitType, Some(_: ProcessXor), Some(false)) if !userExprDependsOnIo(bt.size) =>
+        checkFixedLength(bt)
+      case (bt: BytesLimitType, Some(_: ProcessRotate), Some(false)) if !userExprDependsOnIo(bt.size) =>
+        checkFixedLength(bt)
+      case _ => super.attrBytesCheck(id, bytes, t, shouldDependOnIo)
+    }
+  }
+
   override def attrBytesTypeWrite2(id: Identifier, io: String, expr: Ast.expr, t: BytesType, checksShouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType]): Unit = t match {
     // Size translation can emit statements in Go. Plain writes need the size
     // only for the consistency check; do not evaluate it a second time as an
