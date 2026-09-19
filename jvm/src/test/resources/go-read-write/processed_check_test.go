@@ -3,6 +3,7 @@ package contract
 import (
 	"bytes"
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
@@ -71,6 +72,20 @@ func TestProcessedSwitchBytesCheck(t *testing.T) {
 	valid := NewProcessedXorSwitch(2)
 	valid.SetData([]byte{1, 2})
 	requireProcessedWrite(t, valid, 2)
+}
+
+func TestProcessedUnsignedWidthsDoNotNarrowOrBecomeNegative(t *testing.T) {
+	calculated := NewProcessedXorInstanceWidth()
+	calculated.SetData(nil)
+	requireConsistency(t, calculated.Check())
+
+	direct := NewProcessedXorU8Width(math.MaxUint64)
+	direct.SetData(make([]byte, math.MaxUint8))
+	requireConsistency(t, direct.Check())
+
+	enum := NewProcessedXorEnumWidth(ProcessedXorEnumWidth_Widths__Maximum)
+	enum.SetData(make([]byte, math.MaxUint8))
+	requireConsistency(t, enum.Check())
 }
 
 func TestProcessedPaddingChecksOnlyLogicalLength(t *testing.T) {

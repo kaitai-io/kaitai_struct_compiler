@@ -1263,10 +1263,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       // error, as they cannot describe a meaningful logical length.
       val expected = localValue(expression(bt.size))
       val actual = expression(exprByteArraySize(bytes))
-      val wideType = translator.detectType(bt.size) match {
-        case Int1Type(false) | IntMultiType(false, _, _) | _: BitsType => "uint64"
-        case _ => "int64"
-      }
+      // RW value instances and calculated expressions can recover uint64 even
+      // though the shared data type is CalcIntType. Use the emitted Go type so
+      // values above MaxInt64 cannot become negative in the signed guard.
+      val wideType = if (expressionNativeType(bt.size).startsWith("uint")) "uint64" else "int64"
       val nonnegative = if (wideType == "uint64") "" else s"$wideType($expected) >= 0 && "
       val comparison = if (bt.terminator.isDefined || bt.padRight.isDefined) ">" else "!="
       out.puts(s"if $nonnegative$wideType($actual) $comparison $wideType($expected) {")
