@@ -10,6 +10,7 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.regex.Pattern.quote
+import scala.sys.process._
 
 /** Contract tests for the output of the public parsing/precompilation/generation pipeline.
   * These intentionally use small structural assertions rather than full-file snapshots.
@@ -65,6 +66,382 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
   }
 
   private val errorResult = "\\s+(?:error|\\(\\s*\\w+\\s+error\\s*\\))"
+
+  private val scalarTypes = Seq("u1", "s1") ++
+    (for (endian <- Seq("be", "le"); kind <- Seq("u", "s"); width <- Seq(2, 4, 8)) yield s"$kind$width$endian") ++
+    (for (endian <- Seq("be", "le"); width <- Seq(4, 8)) yield s"f$width$endian")
+
+  private val writeFixtures: Seq[(String, String)] = Seq(
+    "write_scalars" -> ("meta:\n  id: write_scalars\nseq:\n" + scalarTypes.map(t => s"  - id: v_$t\n    type: $t\n").mkString),
+    "write_bytes" -> """meta:
+      |  id: write_bytes
+      |seq:
+      |  - id: fixed
+      |    size: 2
+      |  - id: padded
+      |    size: 4
+      |    pad-right: 255
+      |  - id: terminated
+      |    terminator: 0
+      |  - id: included
+      |    terminator: 0
+      |    include: true
+      |  - id: peeked
+      |    terminator: 0
+      |    consume: false
+      |  - id: marker
+      |    type: u1
+      |  - id: padded_term
+      |    size: 4
+      |    terminator: 0
+      |    pad-right: 255
+      |  - id: padded_included
+      |    size: 4
+      |    terminator: 0
+      |    include: true
+      |  - id: tail
+      |    size-eos: true
+      |""".stripMargin,
+    "write_strings" -> """meta:
+      |  id: write_strings
+      |seq:
+      |  - id: latin
+      |    type: str
+      |    size: 1
+      |    encoding: ISO-8859-1
+      |  - id: utf
+      |    type: str
+      |    size: 2
+      |    encoding: UTF-8
+      |  - id: wide
+      |    type: str
+      |    size: 2
+      |    encoding: UTF-16LE
+      |""".stripMargin,
+    "write_control" -> """meta:
+      |  id: write_control
+      |  endian: le
+      |seq:
+      |  - id: tag
+      |    type: u1
+      |    enum: tags
+      |  - id: conditional
+      |    type: u2
+      |    if: tag == tags::one
+      |  - id: switched
+      |    type:
+      |      switch-on: tag
+      |      cases:
+      |        'tags::one': u2
+      |        _: u4
+      |  - id: integer_switch
+      |    type:
+      |      switch-on: tag.to_i
+      |      cases:
+      |        1: u1
+      |        _: u2
+      |  - id: fixed
+      |    type: u1
+      |    repeat: expr
+      |    repeat-expr: 2
+      |  - id: until
+      |    type: u1
+      |    repeat: until
+      |    repeat-until: _ == 0
+      |  - id: eos
+      |    type: u1
+      |    repeat: eos
+      |enums:
+      |  tags:
+      |    1: one
+      |    2: two
+      |""".stripMargin,
+    "write_mixed_switch" -> """meta:
+      |  id: write_mixed_switch
+      |seq:
+      |  - id: tag
+      |    type: u1
+      |  - id: value
+      |    type:
+      |      switch-on: tag
+      |      cases:
+      |        1: u1
+      |    size: 2
+      |""".stripMargin,
+    "write_bits_be" -> """meta:
+      |  id: write_bits_be
+      |  bit-endian: be
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: bits
+      |    type: b3
+      |  - id: marker
+      |    type: u1
+      |  - id: tail
+      |    type: b3
+      |""".stripMargin,
+    "write_bits_le" -> """meta:
+      |  id: write_bits_le
+      |  bit-endian: le
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: bits
+      |    type: b3
+      |  - id: marker
+      |    type: u1
+      |  - id: tail
+      |    type: b3
+      |""".stripMargin,
+    "write_sized" -> """meta:
+      |  id: write_sized
+      |seq:
+      |  - id: data
+      |    size: _io.size
+      |""".stripMargin,
+    "write_root_sized" -> """meta:
+      |  id: write_root_sized
+      |seq:
+      |  - id: data
+      |    size: _root._io.size
+      |""".stripMargin,
+    "write_eos_term" -> """meta:
+      |  id: write_eos_term
+      |seq:
+      |  - id: data
+      |    terminator: 0
+      |    eos-error: false
+      |""".stripMargin,
+    "write_eos_padding" -> """meta:
+      |  id: write_eos_padding
+      |seq:
+      |  - id: header
+      |    type: u1
+      |  - id: data
+      |    size-eos: true
+      |    pad-right: 255
+      |""".stripMargin,
+    "write_included_optional" -> """meta:
+      |  id: write_included_optional
+      |seq:
+      |  - id: data
+      |    terminator: 0
+      |    include: true
+      |    eos-error: false
+      |""".stripMargin,
+    "write_bit_context" -> """meta:
+      |  id: write_bit_context
+      |seq:
+      |  - id: prefix
+      |    type: b3
+      |  - id: suffix
+      |    type: b5
+      |    if: _io.size == 1
+      |""".stripMargin,
+    "write_bit_eos" -> """meta:
+      |  id: write_bit_eos
+      |seq:
+      |  - id: values
+      |    type: b1
+      |    repeat: eos
+      |""".stripMargin,
+    "write_until_index" -> """meta:
+      |  id: write_until_index
+      |seq:
+      |  - id: values
+      |    type: u1
+      |    repeat: until
+      |    repeat-until: _index == 1
+      |""".stripMargin,
+    "write_until_io" -> """meta:
+      |  id: write_until_io
+      |seq:
+      |  - id: values
+      |    type: u1
+      |    repeat: until
+      |    repeat-until: _io.pos == 2
+      |""".stripMargin,
+    "write_endian" -> """meta:
+      |  id: write_endian
+      |  endian:
+      |    switch-on: mode
+      |    cases:
+      |      0: be
+      |      1: le
+      |params:
+      |  - id: mode
+      |    type: u1
+      |seq:
+      |  - id: value
+      |    type: u2
+      |  - id: unused_child
+      |    type: inherited
+      |    if: false
+      |types:
+      |  inherited:
+      |    seq:
+      |      - id: value
+      |        type: u2
+      |""".stripMargin
+  )
+
+  for ((name, schema) <- writeFixtures) {
+    test(s"$name emits field writes without deferred primitive or EOF operations") {
+      val code = compileContents(schema)
+      for (operation <- Seq("field writing", "padded byte writing", "end-of-stream checking", "end-of-stream condition"))
+        assert(!code.contains(s"$operation is not implemented"), s"$name still emits a $operation stub")
+      assert(code.contains(".AlignToByte()"), s"$name must finish pending bits")
+      val owner = io.kaitai.struct.Utils.upperCamelCase(name)
+      val write = method(code, owner, "Write", "\\([^\\n]*\\)" + errorResult)
+      assert(!write.contains("this._io"), "Write expressions must use the output stream")
+    }
+  }
+
+  // Runtime conformance can be run against a development runtime without making
+  // the compiler's ordinary Scala suite depend on a Go installation or network.
+  sys.env.get("KAITAI_GO_RUNTIME").foreach { runtimePath =>
+    test("generated field writers serialize exact bytes and preserve error causes") {
+      val dir = Files.createTempDirectory("kaitai-go-writes-")
+      val runtime = new File(runtimePath).getCanonicalPath
+      def write(name: String, text: String): Unit =
+        Files.write(dir.resolve(name), text.getBytes(StandardCharsets.UTF_8))
+      write("go.mod", s"module contract\n\ngo 1.24.0\n\nrequire github.com/kaitai-io/kaitai_struct_go_runtime v0.0.0\nreplace github.com/kaitai-io/kaitai_struct_go_runtime => $runtime\n")
+      writeFixtures.foreach { case (name, schema) => write(s"$name.go", compileContents(schema)) }
+      write("write_test.go", fieldWriterGoTests)
+      val output = new StringBuilder
+      def log(line: String): Unit = output.synchronized { output.append(line).append('\n'); () }
+      val logger = ProcessLogger(log, log)
+      assert(Process(Seq("gofmt", "-w", "."), dir.toFile).!(logger) == 0, output.toString)
+      assert(Process(Seq("go", "test", "-mod=mod", "-v", "./..."), dir.toFile).!(logger) == 0,
+        s"Generated Go in $dir failed:\n$output")
+      info(s"Generated Go in $dir:\n$output")
+    }
+  }
+
+  private def fieldWriterGoTests: String = """package contract
+    |import (
+    | "bytes"
+    | "errors"
+    | "io"
+    | "testing"
+    | "github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
+    |)
+    |type writable interface { Check() error; Write(*kaitai.Writer) error }
+    |func exact(t *testing.T, v writable, want []byte) {
+    | t.Helper()
+    | if err := v.Check(); err != nil { t.Fatal(err) }
+    | b := kaitai.NewFixedSeekableBuffer(len(want))
+    | if err := v.Write(kaitai.NewWriter(b)); err != nil { t.Fatal(err) }
+    | if !bytes.Equal(b.Bytes(), want) { t.Fatalf("got %x, want %x", b.Bytes(), want) }
+    | p, _ := b.Seek(0, io.SeekCurrent); if p != int64(len(want)) { t.Fatalf("position %d", p) }
+    | successful := &faultBuffer{SeekableBuffer:kaitai.NewFixedSeekableBuffer(len(want))}
+    | if err:=v.Write(kaitai.NewWriter(successful));err!=nil {t.Fatal(err)}
+    | for n:=1;n<=successful.calls;n++ {for _,short:=range []bool{false,true} {
+    |  w:=&faultBuffer{SeekableBuffer:kaitai.NewFixedSeekableBuffer(len(want)),fail:n,short:short}
+    |  err:=v.Write(kaitai.NewWriter(w));cause:=injected;if short {cause=io.ErrShortWrite}
+    |  if !errors.Is(err,cause)||w.calls!=n {t.Fatalf("%T write %d: %v, calls %d",v,n,err,w.calls)}
+    | }}
+    | for n:=1;n<=successful.seeks;n++ {
+    |  w:=&faultBuffer{SeekableBuffer:kaitai.NewFixedSeekableBuffer(len(want)),failSeek:n}
+    |  if err:=v.Write(kaitai.NewWriter(w));!errors.Is(err,injected) {t.Fatalf("%T seek %d: %v",v,n,err)}
+    | }
+    |}
+    |func TestScalars(t *testing.T) {
+    | v := NewWriteScalars()
+    | v.SetVU1(0xab); v.SetVS1(-2)
+    | v.SetVU2be(0x1234); v.SetVU4be(0x12345678); v.SetVU8be(0x123456789abcdef0)
+    | v.SetVS2be(-2); v.SetVS4be(-2); v.SetVS8be(-2)
+    | v.SetVU2le(0x1234); v.SetVU4le(0x12345678); v.SetVU8le(0x123456789abcdef0)
+    | v.SetVS2le(-2); v.SetVS4le(-2); v.SetVS8le(-2)
+    | v.SetVF4be(1); v.SetVF8be(1); v.SetVF4le(1); v.SetVF8le(1)
+    | exact(t,v,[]byte{0xab,0xfe, 0x12,0x34, 0x12,0x34,0x56,0x78, 0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0,
+    | 0xff,0xfe, 0xff,0xff,0xff,0xfe, 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xfe,
+    | 0x34,0x12, 0x78,0x56,0x34,0x12, 0xf0,0xde,0xbc,0x9a,0x78,0x56,0x34,0x12,
+    | 0xfe,0xff, 0xfe,0xff,0xff,0xff, 0xfe,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+    | 0x3f,0x80,0,0, 0x3f,0xf0,0,0,0,0,0,0, 0,0,0x80,0x3f, 0,0,0,0,0,0,0xf0,0x3f})
+    |}
+    |func TestBytes(t *testing.T) {
+    | v:=NewWriteBytes(); v.SetFixed([]byte{1,2}); v.SetPadded([]byte{3}); v.SetTerminated([]byte{4})
+    | v.SetIncluded([]byte{5,0}); v.SetPeeked([]byte{6}); v.SetMarker(0)
+    | v.SetPaddedTerm([]byte{7}); v.SetPaddedIncluded([]byte{8,0}); v.SetTail([]byte{9,10})
+    | want:=[]byte{1,2,3,255,255,255,4,0,5,0,6,0,7,0,255,255,8,0,0,0,9,10}
+    | exact(t,v,want)
+    | parsed:=NewWriteBytes(); if err:=parsed.Read(kaitai.NewStream(bytes.NewReader(want)),nil,parsed);err!=nil {t.Fatal(err)}
+    | if !bytes.Equal(parsed.GetPeeked(), []byte{6}) || !bytes.Equal(parsed.GetTail(),[]byte{9,10}) {t.Fatal("round trip")}
+    |}
+    |func TestStrings(t *testing.T) {
+    | v:=NewWriteStrings(); v.SetLatin("é");v.SetUtf("é");v.SetWide("é")
+    | exact(t,v,[]byte{0xe9,0xc3,0xa9,0xe9,0})
+    |}
+    |func TestControl(t *testing.T) {
+    | v:=NewWriteControl(); v.SetTag(WriteControl_Tags__One); v.SetConditional(0x1234);v.SetSwitched(0x5678);v.SetIntegerSwitch(9)
+    | v.SetFixed([]uint8{1,2});v.SetUntil([]uint8{3,0});v.SetEos([]uint8{4,5})
+    | exact(t,v,[]byte{1,0x34,0x12,0x78,0x56,9,1,2,3,0,4,5})
+    | v.SetTag(WriteControl_Tags__Two);v.SetSwitched(0x12345678);v.SetIntegerSwitch(0x1234)
+    | exact(t,v,[]byte{2,0x78,0x56,0x34,0x12,0x34,0x12,1,2,3,0,4,5})
+    | if err:=v.Write(kaitai.NewWriter(kaitai.NewFixedSeekableBuffer(12)));err==nil {t.Fatal("expected early EOF inconsistency")}
+    | if err:=v.Write(kaitai.NewWriter(kaitai.NewFixedSeekableBuffer(14)));err==nil {t.Fatal("expected missing EOF inconsistency")}
+    |}
+    |func TestMixedSwitch(t *testing.T) {
+    | v:=NewWriteMixedSwitch();v.SetTag(1);v.SetValue(uint8(9));exact(t,v,[]byte{1,9})
+    | v.SetTag(2);v.SetValue([]byte{7,8});exact(t,v,[]byte{2,7,8})
+    |}
+    |func TestBits(t *testing.T) {
+    | be:=NewWriteBitsBe();be.SetFlag(true);be.SetBits(5);be.SetMarker(0xab);be.SetTail(3)
+    | exact(t,be,[]byte{0xd0,0xab,0x60})
+    | le:=NewWriteBitsLe();le.SetFlag(true);le.SetBits(5);le.SetMarker(0xab);le.SetTail(3)
+    | exact(t,le,[]byte{0x0b,0xab,3})
+    |}
+    |func TestWriterSize(t *testing.T) {
+    | v:=NewWriteSized();v.SetData([]byte{1,2,3});exact(t,v,[]byte{1,2,3})
+    | root:=NewWriteRootSized();if err:=root.Read(kaitai.NewStream(bytes.NewReader([]byte{1,2})),nil,root);err!=nil {t.Fatal(err)}
+    | root.SetData([]byte{3,4,5});exact(t,root,[]byte{3,4,5})
+    |}
+    |func TestBitQueries(t *testing.T) {
+    | v:=NewWriteBitContext();v.SetPrefix(5);v.SetSuffix(3);exact(t,v,[]byte{0xa3})
+    | bits:=NewWriteBitEos();bits.SetValues([]bool{true,false,true,false,false,false,true,true});exact(t,bits,[]byte{0xa3})
+    |}
+    |func TestUntilContext(t *testing.T) {
+    | a:=NewWriteUntilIndex();a.SetValues([]uint8{1,2});exact(t,a,[]byte{1,2})
+    | parsed:=NewWriteUntilIndex();if err:=parsed.Read(kaitai.NewStream(bytes.NewReader([]byte{1,2})),nil,parsed);err!=nil {t.Fatal(err)}
+    | if len(parsed.GetValues())!=2 {t.Fatal("repeat-until _index must be zero-based")}
+    | b:=NewWriteUntilIo();b.SetValues([]uint8{3,4});exact(t,b,[]byte{3,4})
+    |}
+    |func TestOptionalTerminator(t *testing.T) {
+    | v:=NewWriteEosTerm();v.SetData([]byte{1,2});exact(t,v,[]byte{1,2});exact(t,v,[]byte{1,2,0})
+    | included:=NewWriteIncludedOptional();included.SetData([]byte{1,2});exact(t,included,[]byte{1,2})
+    | included.SetData([]byte{1,2,0});exact(t,included,[]byte{1,2,0})
+    | padded:=NewWriteEosPadding();padded.SetHeader(1);padded.SetData([]byte{2});exact(t,padded,[]byte{1,2,255,255})
+    |}
+    |func TestEndian(t *testing.T) {
+    | for mode:=uint8(0); mode<2; mode++ {
+    | v:=NewWriteEndian(mode);v.SetValue(0x1234)
+    | want:=[]byte{0x12,0x34};if mode==1 {want=[]byte{0x34,0x12}}
+    | exact(t,v,want)
+    | child:=NewWriteEndian_Inherited()
+    | if err:=child.Read(kaitai.NewStream(bytes.NewReader(want)),v,v);err!=nil {t.Fatal(err)}
+    | child.SetValue(0x1234);exact(t,child,want)
+    | }
+    |}
+    |var injected=errors.New("injected output error")
+    |type failingWriter struct { calls, fail int; short bool }
+    |func (w *failingWriter) Write(p []byte)(int,error) { w.calls++;if w.calls==w.fail {if w.short {return 0,nil};return 0,injected};return len(p),nil }
+    |type failingSeeker struct { *kaitai.SeekableBuffer; calls, fail int }
+    |func (w *failingSeeker) Seek(off int64,whence int)(int64,error) {w.calls++;if w.calls==w.fail{return 0,injected};return w.SeekableBuffer.Seek(off,whence)}
+    |type faultBuffer struct { *kaitai.SeekableBuffer; calls,fail,seeks,failSeek int;short bool }
+    |func (w *faultBuffer) Write(p []byte)(int,error) {w.calls++;if w.calls==w.fail {if w.short{return 0,nil};return 0,injected};return w.SeekableBuffer.Write(p)}
+    |func (w *faultBuffer) Seek(off int64,whence int)(int64,error) {w.seeks++;if w.seeks==w.failSeek{return 0,injected};return w.SeekableBuffer.Seek(off,whence)}
+    |func TestErrors(t *testing.T) {
+    | v:=NewWriteScalars();if err:=v.Check();err!=nil{t.Fatal(err)}
+    | for n:=1;n<=18;n++ {for _,short:=range []bool{false,true} {w:=&failingWriter{fail:n,short:short};err:=v.Write(kaitai.NewWriter(w));cause:=injected;if short {cause=io.ErrShortWrite};if !errors.Is(err,cause)||w.calls!=n {t.Fatalf("call %d: %v, calls %d",n,err,w.calls)}}}
+    | bits:=NewWriteBitsBe();bits.SetFlag(true);bits.SetBits(5);bits.SetMarker(1);bits.SetTail(3);if err:=bits.Check();err!=nil{t.Fatal(err)}
+    | for n:=1;n<=3;n++ {w:=&failingWriter{fail:n};if err:=bits.Write(kaitai.NewWriter(w));!errors.Is(err,injected)||w.calls!=n {t.Fatalf("bit call %d: %v",n,err)}}
+    | sized:=NewWriteSized();sized.SetData([]byte{1});if err:=sized.Check();err!=nil{t.Fatal(err)}
+    | for n:=1;n<=3;n++ {w:=&failingSeeker{SeekableBuffer:kaitai.NewFixedSeekableBuffer(1),fail:n};if err:=sized.Write(kaitai.NewWriter(w));!errors.Is(err,injected){t.Fatalf("seek %d: %v",n,err)}}
+    | nonseek:=&bytes.Buffer{};if err:=sized.Write(kaitai.NewWriter(nonseek));!errors.Is(err,kaitai.ErrWriterNotSeekable)||nonseek.Len()!=0 {t.Fatalf("nonseekable: %v",err)}
+    |}
+    |""".stripMargin
 
   private def accessor(code: String, owner: String, field: String, goType: String): Unit = {
     method(code, owner, s"Get$field", s"\\(\\s*\\)\\s+${quote(goType)}")

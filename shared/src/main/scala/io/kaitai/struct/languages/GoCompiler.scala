@@ -24,7 +24,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override val translator = new GoTranslator(out, typeProvider, importList) {
     override def trLocalName(name: String): TranslatorResult = {
-      if (config.readWrite) {
+      if (writing && name == Identifier.IO) {
+        ResultString(normalIO)
+      } else if (config.readWrite) {
         typeProvider.nowClass.seq.find(_.id.humanReadable == name) match {
           case Some(attr) => ResultString(GoCompiler.this.privateMemberName(attr.id))
           case None => super.trLocalName(name)
@@ -35,11 +37,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     override def trInternalName(id: Identifier): TranslatorResult =
-      if (config.readWrite) ResultString(GoCompiler.this.privateMemberName(id))
+      if (writing && id == IoIdentifier) ResultString(normalIO)
+      else if (config.readWrite) ResultString(GoCompiler.this.privateMemberName(id))
       else super.trInternalName(id)
 
+    override def kaitaiStreamSize(value: Ast.expr): TranslatorResult =
+      if (writing) ResultString(writerSize(translate(value))) else super.kaitaiStreamSize(value)
+
+    override def kaitaiStreamEof(value: Ast.expr): TranslatorResult =
+      if (writing) ResultString(writerEof(translate(value))) else super.kaitaiStreamEof(value)
+
     override def userTypeField(ut: UserType, value: Ast.expr, name: String): TranslatorResult =
-      if (config.readWrite && ut.classSpec.exists(_.seq.exists(_.id.humanReadable == name)))
+      if (writing && name == Identifier.IO)
+        ResultString(s"${translate(value)}._writer")
+      else if (config.readWrite && ut.classSpec.exists(_.seq.exists(_.id.humanReadable == name)))
         ResultString(s"${translate(value)}.Get${Utils.upperCamelCase(name)}()")
       else
         super.userTypeField(ut, value, name)
@@ -49,6 +60,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     config.readWrite && typeProvider.nowClass.seq.exists(_.id == id)
 
   private var writing = false
+  private var writeMain = false
 
   override def normalIO: String = if (writing) "this._writer" else super.normalIO
 
@@ -266,6 +278,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def writeHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
     writing = true
+    writeMain = endian.isEmpty
     endian match {
       case None =>
         errorMethodHeader("Write", "writer *kaitai.Writer")
@@ -279,12 +292,26 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def writeFooter(): Unit = {
+    if (writeMain) {
+      translator.outAddErrCheck()
+      writerCall(s"$normalIO.AlignToByte()")
+    }
     out.puts("return err")
     universalFooter
     writing = false
   }
 
   override def runWriteCalc(): Unit = {
+    typeProvider.nowClass.meta.endian match {
+      case Some(ce: CalcEndian) =>
+        out.puts("this._is_le = -1")
+        def render(e: FixedEndian): Unit =
+          out.puts(s"this._is_le = ${if (e == LittleEndian) 1 else 0}")
+        switchCases[FixedEndian](EndianIdentifier, ce.on, ce.cases, render, render)
+      case Some(InheritedEndian) =>
+        out.puts("this._is_le = this._parent._is_le")
+      case _ =>
+    }
     out.puts("switch this._is_le {")
     out.puts("case 0:")
     out.inc
@@ -353,11 +380,100 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean, exprType: DataType, assignType: DataType): Unit =
     handleAssignment(id, ResultString(expr), rep, isRaw)
 
-  override def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit =
-    unsupportedSerialization("field writing")
+  private def writerCall(call: String): Unit = {
+    out.puts(s"err = $call")
+    translator.outAddErrCheck()
+  }
+
+  override def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit = {
+    lazy val value = {
+      val raw = expression(expr)
+      if (translator.detectType(expr).asCombined == AnyType) s"$raw.(${kaitaiType2NativeType(dt)})" else raw
+    }
+    val call = dt match {
+      case t: ReadableType =>
+        s"$io.Write${Utils.capitalize(t.apiCall(defEndian))}(${kaitaiType2NativeType(t)}($value))"
+      case BitsType1(endian) =>
+        val asInt = translator.localVarName(translator.allocateLocalVar())
+        out.puts(s"$asInt := uint64(0)")
+        out.puts(s"if $value {")
+        out.inc
+        out.puts(s"$asInt = 1")
+        universalFooter
+        s"$io.WriteBitsInt${Utils.upperCamelCase(endian.toSuffix)}(1, $asInt)"
+      case BitsType(width, endian) =>
+        s"$io.WriteBitsInt${Utils.upperCamelCase(endian.toSuffix)}($width, uint64($value))"
+      case _: BytesType => s"$io.WriteBytes($value)"
+    }
+    writerCall(call)
+  }
 
   override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit =
-    unsupportedSerialization("padded byte writing")
+    writerCall(s"$io.WriteBytesLimit(${expression(expr)}, int($size), $term, $padRight)")
+
+  override def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, DataType], io: String, rep: RepeatSpec, defEndian: Option[FixedEndian], isNullable: Boolean, assignType: SwitchType): Unit = {
+    if (config.readWrite) {
+      // Read-write switches share one typed/interface field between Read and
+      // Write, including their default byte-array case.
+      def parse(t: DataType): Unit = attrParse2(id, t, io, rep, false, defEndian, Some(assignType))
+      switchCases[DataType](id, on, cases, parse, parse)
+    } else {
+      super.attrSwitchTypeParse(id, on, cases, io, rep, defEndian, isNullable, assignType)
+    }
+  }
+
+  override def attrBytesTypeWrite2(id: Identifier, io: String, expr: Ast.expr, t: BytesType, checksShouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType]): Unit = t match {
+    // Size translation can emit statements in Go. Plain writes need the size
+    // only for the consistency check; do not evaluate it a second time as an
+    // unused argument to the padding hook.
+    case b: BytesLimitType if b.padRight.isEmpty && b.terminator.isEmpty =>
+      attrBytesCheck(id, expr, t, checksShouldDependOnIo)
+      attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
+    case b: BytesEosType if b.padRight.isEmpty && b.terminator.isEmpty =>
+      attrBytesCheck(id, expr, t, checksShouldDependOnIo)
+      attrPrimitiveWrite(io, expr, t, None, exprTypeOpt)
+      attrIsEofCheck(id, true, io)
+    case _ => super.attrBytesTypeWrite2(id, io, expr, t, checksShouldDependOnIo, exprTypeOpt)
+  }
+
+  private def writerQuery(writer: String, eof: Boolean): String = {
+    importList.add("io")
+    importList.add("fmt")
+    val resultType = if (eof) "bool" else "int64"
+    val zero = if (eof) "false" else "0"
+    val result = if (eof) "pos >= size" else "size"
+    // Writer.Seek aligns pending bits. Query its underlying seeker instead so
+    // observing size/EOF cannot insert padding in the middle of a bit group.
+    val call = s"""func() ($resultType, error) {
+                  |\tseeker, ok := $writer.Writer.(io.Seeker)
+                  |\tif !ok {
+                  |\t\treturn $zero, fmt.Errorf("query output stream: %w", kaitai.ErrWriterNotSeekable)
+                  |\t}
+                  |\tpos, err := seeker.Seek(0, io.SeekCurrent)
+                  |\tif err != nil {
+                  |\t\treturn $zero, fmt.Errorf("query output position: %w", err)
+                  |\t}
+                  |\tsize, seekErr := seeker.Seek(0, io.SeekEnd)
+                  |\t_, restoreErr := seeker.Seek(pos, io.SeekStart)
+                  |\tif seekErr != nil {
+                  |\t\treturn $zero, fmt.Errorf("query output size: %w", seekErr)
+                  |\t}
+                  |\tif restoreErr != nil {
+                  |\t\treturn $zero, fmt.Errorf("restore output position: %w", restoreErr)
+                  |\t}
+                  |\treturn $result, nil
+                  |}()""".stripMargin
+    translator.resToStr(translator.outVarCheckRes(call))
+  }
+
+  private def writerSize(io: String): String = writerQuery(io, eof = false)
+
+  private def writerEof(io: String): String = writerQuery(io, eof = true)
+
+  override def exprIORemainingSize(io: String): String = {
+    val pos = translator.resToStr(translator.outVarCheckRes(s"$io.Pos()"))
+    s"(${writerSize(io)} - $pos)"
+  }
 
   override def attrUserTypeWrite(id: Identifier, t: UserType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], checksShouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType]): Unit =
     unsupportedSerialization("nested type writing")
@@ -375,8 +491,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     unsupportedSerialization("child writer reverse processing")
 
   override def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit = {
-    unsupportedSerialization("end-of-stream condition")
-    blockScopeHeader
+    val eof = writerEof(io)
+    out.puts(s"if ($eof) == $wantedIsEof {")
+    out.inc
   }
   override def condIfIsEofFooter: Unit = universalFooter
 
@@ -485,8 +602,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     case _ => s"$actual == $expected"
   }
 
-  override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit =
-    unsupportedSerialization("end-of-stream checking")
+  override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit = {
+    val eof = writerEof(io)
+    out.puts(s"if ($eof) != $expectedIsEof {")
+    out.inc
+    out.puts(s"return kaitai.NewConsistencyError(${expression(Ast.expr.Str(msg))}, $expectedIsEof, !$expectedIsEof)")
+    universalFooter
+  }
 
   override def attrUserTypeCheck(id: Identifier, utExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean]): Unit = {
     if (!shouldDependOnIo.contains(true)) {
@@ -673,7 +795,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentRepeatEos(id, r)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
-    out.puts(s"for i := 1;; i++ {")
+    // Read-write predicates use the same zero-based index as the slice loop
+    // in Check/Write. Keep the historical read-only output unchanged.
+    val initialIndex = if (config.readWrite) 0 else 1
+    out.puts(s"for i := $initialIndex;; i++ {")
     out.inc
   }
 
@@ -718,8 +843,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)} = $expr")
   }
 
-  def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+  def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = {
     out.puts(s"$id := $expr")
+    // A repeat-until predicate can depend solely on _index or _io.
+    if (config.readWrite && id == translator.specialName(Identifier.ITERATOR))
+      out.puts(s"_ = $id")
+  }
 
   override def blockScopeHeader: Unit = {
     out.puts("{")

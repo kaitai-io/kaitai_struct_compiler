@@ -362,6 +362,23 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def bytesToStr(value: Ast.expr, encoding: String): TranslatorResult =
     bytesToStr(translate(value), encoding)
 
+  override def strToBytes(value: Ast.expr, encoding: Ast.expr): TranslatorResult = encoding match {
+    case Ast.expr.Str("ASCII" | "UTF-8") => ResultString(s"[]byte(${translate(value)})")
+    case Ast.expr.Str(enc) =>
+      ENCODINGS.get(enc) match {
+        case Some((encoder, importName)) =>
+          importList.add(importName)
+          outVarCheckRes(s"$encoder.NewEncoder().Bytes([]byte(${translate(value)}))")
+        case None => throw new RuntimeException(s"encoding '$enc' is not supported in Go")
+      }
+    case _ => throw new RuntimeException("Go string serialization requires a literal encoding")
+  }
+
+  override def bytesIndexOf(value: Ast.expr, byte: Ast.expr): TranslatorResult = {
+    importList.add("bytes")
+    ResultString(s"bytes.IndexByte(${translate(value)}, byte(${translate(byte)}))")
+  }
+
   def bytesToStr(bytesExpr: String, encoding: String): TranslatorResult = {
     encoding match {
       case "ASCII" | "UTF-8" =>
@@ -458,10 +475,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def floatToInt(value: Ast.expr) =
     ResultString(s"int(${translate(value)})")
 
-  override def kaitaiStreamSize(value: Ast.expr) =
+  override def kaitaiStreamSize(value: Ast.expr): TranslatorResult =
     outVarCheckRes(s"${translate(value, METHOD_PRECEDENCE)}.Size()")
 
-  override def kaitaiStreamEof(value: Ast.expr) =
+  override def kaitaiStreamEof(value: Ast.expr): TranslatorResult =
     outVarCheckRes(s"${translate(value, METHOD_PRECEDENCE)}.EOF()")
 
   override def kaitaiStreamPos(value: Ast.expr) =
