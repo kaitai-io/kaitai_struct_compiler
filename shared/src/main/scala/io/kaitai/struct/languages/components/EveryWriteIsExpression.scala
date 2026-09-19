@@ -12,8 +12,10 @@ import io.kaitai.struct.datatype._
 trait EveryWriteIsExpression
   extends LanguageCompiler
     with ObjectOrientedLanguage
-    with EveryReadIsExpression
+    with CommonReads
     with GenericChecks {
+  def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean, exprType: DataType, assignType: DataType): Unit
+
   override def attrWrite(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
     val checksShouldDependOnIo: Option[Boolean] =
       if (userExprDependsOnIo(attr.cond.ifExpr)) {

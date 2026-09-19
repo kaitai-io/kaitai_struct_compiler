@@ -3,8 +3,13 @@ import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
+import io.kaitai.struct.translators.{AbstractTranslator, TypeDetector}
 
-trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
+trait GenericChecks extends LanguageCompiler with ObjectOrientedLanguage {
+  val translator: TypeDetector with AbstractTranslator
+
+  def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit
+
   override def attrCheck(attr: AttrLikeSpec, id: Identifier): Unit = {
     val bodyShouldDependOnIo: Option[Boolean] =
       if (userExprDependsOnIo(attr.cond.ifExpr)) {
@@ -521,7 +526,7 @@ trait GenericChecks extends LanguageCompiler with EveryReadIsExpression {
     blockScopeHeader
     handleAssignmentTempVar(
       dataType,
-      translator.doName(Identifier.ITERATOR),
+      translator.translate(Ast.expr.Name(Ast.identifier(Identifier.ITERATOR))),
       translator.translate(Identifier.itemExpr(id, repUntil))
     )
     attrAssertEqual(
