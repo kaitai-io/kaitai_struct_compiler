@@ -8,6 +8,298 @@ import (
 	"testing"
 )
 
+func TestParameterInstanceReferenceDoesNotActivateWriter(t *testing.T) {
+	descriptor := NewWriteInstanceParameter_DescriptorType()
+	descriptor.SetValue(0x11)
+	descriptor.SetCount(2)
+	parent := NewWriteInstanceParameter(descriptor)
+	parent.SetPayload([]byte{0xaa, 0xbb})
+	parent.SetSuffix(0xcc)
+	if err := parent.Check(); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := parent.Write(kaitai.NewWriter(&out)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), []byte{0xaa, 0xbb, 0xcc}) {
+		t.Fatalf("parameter output %x", out.Bytes())
+	}
+	if !descriptor._w_count {
+		t.Fatal("lookup consumed another object's pending write")
+	}
+	if err := descriptor.Check(); err != nil {
+		t.Fatal(err)
+	}
+	own := kaitai.NewSeekableBuffer(nil)
+	if err := descriptor.Write(kaitai.NewWriter(own)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(own.Bytes(), []byte{0x11, 0, 0, 0, 0, 2}) {
+		t.Fatalf("own write %x", own.Bytes())
+	}
+	descriptor.SetCount(1)
+	parent.SetPayload([]byte{0xdd})
+	if err := parent.Check(); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := parent.Write(kaitai.NewWriter(&out)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(own.Bytes(), []byte{0x11, 0, 0, 0, 0, 2}) {
+		t.Fatalf("lookup wrote stale output %x", own.Bytes())
+	}
+	if !bytes.Equal(out.Bytes(), []byte{0xdd, 0xcc}) {
+		t.Fatalf("mutated parameter %x", out.Bytes())
+	}
+}
+
+func TestIOValueInstancesKeepReadAndWriteContextsSeparate(t *testing.T) {
+	original := []byte{0xaa, 0xbb, 0, 3, 0, 4}
+	input := kaitai.NewStream(bytes.NewReader(original))
+	v := NewWriteInstanceIoValues()
+	if err := v.Read(input, nil, v); err != nil {
+		t.Fatal(err)
+	}
+	readIO, err := v.Output()
+	if err != nil || readIO != input {
+		t.Fatalf("read IO %v %v", readIO, err)
+	}
+	readIOs, err := v.Outputs()
+	if err != nil || len(readIOs) != 1 || readIOs[0] != input {
+		t.Fatalf("read IO array %v %v", readIOs, err)
+	}
+	if _, err := v.UnusedOutput(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := v.UnusedOutputs(); err != nil {
+		t.Fatal(err)
+	}
+	v.SetScalar(0x11)
+	v.SetArray(0x22)
+	if err := v.Check(); err != nil {
+		t.Fatal(err)
+	}
+	first := kaitai.NewSeekableBuffer(nil)
+	if err := v.Write(kaitai.NewWriter(first)); err != nil {
+		t.Fatal(err)
+	}
+	want := []byte{0xaa, 0xbb, 0, 0x11, 0, 0x22}
+	if !bytes.Equal(first.Bytes(), want) {
+		t.Fatalf("IO aliases %x", first.Bytes())
+	}
+	second := kaitai.NewSeekableBuffer(nil)
+	v.SetScalar(0x33)
+	if err := v.Check(); err != nil {
+		t.Fatal(err)
+	}
+	secondWriter := kaitai.NewWriter(second)
+	if err := v.Write(secondWriter); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first.Bytes(), want) {
+		t.Fatalf("stale cached output %x", first.Bytes())
+	}
+	if !bytes.Equal(second.Bytes(), []byte{0xaa, 0xbb, 0, 0x33, 0, 0x22}) {
+		t.Fatalf("second IO aliases %x", second.Bytes())
+	}
+	if p, err := secondWriter.Pos(); err != nil || p != 2 {
+		t.Fatalf("IO position %d %v", p, err)
+	}
+	if readIO, err := v.Output(); err != nil || readIO != input {
+		t.Fatalf("writer corrupted scalar reader cache %v %v", readIO, err)
+	}
+	if readIOs, err := v.Outputs(); err != nil || len(readIOs) != 1 || readIOs[0] != input {
+		t.Fatalf("writer corrupted array reader cache %v %v", readIOs, err)
+	}
+	if !bytes.Equal(original, []byte{0xaa, 0xbb, 0, 3, 0, 4}) {
+		t.Fatal("input modified")
+	}
+}
+
+type instanceWriteHook struct {
+	*kaitai.SeekableBuffer
+	calls  int
+	failOn int
+	hook   func() error
+}
+
+func (w *instanceWriteHook) Write(data []byte) (int, error) {
+	w.calls++
+	if w.calls == w.failOn {
+		return 0, io.ErrClosedPipe
+	}
+	if w.calls == 2 && w.hook != nil {
+		if err := w.hook(); err != nil {
+			return 0, err
+		}
+	}
+	return w.SeekableBuffer.Write(data)
+}
+
+func newIOValueInstance(t *testing.T) *WriteInstanceIoValues {
+	t.Helper()
+	v := NewWriteInstanceIoValues()
+	v.SetPrefix(0xaa)
+	v.SetSuffix(0xbb)
+	v.SetScalar(0x11)
+	v.SetArray(0x22)
+	if err := v.Check(); err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+func TestIOValueCachesAndActiveWriterClearOnFailure(t *testing.T) {
+	v := newIOValueInstance(t)
+	bad := &instanceWriteHook{SeekableBuffer: kaitai.NewSeekableBuffer(nil), failOn: 2}
+	if err := v.Write(kaitai.NewWriter(bad)); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("write error %v", err)
+	}
+	if !bytes.Equal(bad.Bytes(), []byte{0xaa}) {
+		t.Fatalf("failure bytes %x", bad.Bytes())
+	}
+	if v._activeWriter != nil || v._wf_output || v._wf_outputs || v._wv_output != nil || v._wv_outputs != nil {
+		t.Fatal("failed write retained active context/cache")
+	}
+	out := kaitai.NewSeekableBuffer(nil)
+	if err := v.Write(kaitai.NewWriter(out)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), []byte{0xaa, 0xbb, 0, 0x11, 0, 0x22}) {
+		t.Fatalf("retry alias %x", out.Bytes())
+	}
+	if v._activeWriter != nil || v._wf_output || v._wf_outputs {
+		t.Fatal("successful write retained active context/cache")
+	}
+}
+
+func TestReentrantWriteRestoresOuterInstanceContext(t *testing.T) {
+	for _, failInner := range []bool{false, true} {
+		v := newIOValueInstance(t)
+		inner := &instanceWriteHook{SeekableBuffer: kaitai.NewSeekableBuffer(nil)}
+		if failInner {
+			inner.failOn = 2
+		}
+		innerWriter := kaitai.NewWriter(inner)
+		outer := &instanceWriteHook{SeekableBuffer: kaitai.NewSeekableBuffer(nil)}
+		outerWriter := kaitai.NewWriter(outer)
+		outer.hook = func() error {
+			err := v.Write(innerWriter)
+			if failInner {
+				if !errors.Is(err, io.ErrClosedPipe) {
+					t.Fatalf("inner cause %v", err)
+				}
+			} else if err != nil {
+				return err
+			}
+			if v._activeWriter != outerWriter || v._writer != outerWriter || v._wv_output != outerWriter || v._wv_outputs[0] != outerWriter {
+				t.Fatal("inner write corrupted outer context")
+			}
+			return nil
+		}
+		if err := v.Write(outerWriter); err != nil {
+			t.Fatal(err)
+		}
+		want := []byte{0xaa, 0xbb, 0, 0x11, 0, 0x22}
+		if !bytes.Equal(outer.Bytes(), want) {
+			t.Fatalf("outer bytes %x", outer.Bytes())
+		}
+		if !failInner && !bytes.Equal(inner.Bytes(), want) {
+			t.Fatalf("inner bytes %x", inner.Bytes())
+		}
+		if v._activeWriter != nil {
+			t.Fatal("active writer leaked after reentry")
+		}
+	}
+}
+
+func TestChildInstanceReferenceBeforeChildUsesOnlyCachedState(t *testing.T) {
+	parent := NewWriteInstanceChildReference()
+	parent.SetRoot_(parent)
+	parent.SetPayload([]byte{0xaa, 0xbb})
+	parent.SetSuffix(0xee)
+	child := NewWriteInstanceChildReference_DescriptorType()
+	child.SetParent_(parent)
+	child.SetRoot_(parent)
+	child.SetValue(0x11)
+	child.SetCount(2)
+	if err := child.Check(); err != nil {
+		t.Fatal(err)
+	}
+	parent.SetChild(child)
+	if err := parent.Check(); err != nil {
+		t.Fatal(err)
+	}
+	first := kaitai.NewSeekableBuffer(nil)
+	writer := kaitai.NewWriter(first)
+	if err := parent.Write(writer); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first.Bytes(), []byte{0xaa, 0xbb, 0x11, 0xee, 0, 2}) {
+		t.Fatalf("child output %x", first.Bytes())
+	}
+	if p, err := writer.Pos(); err != nil || p != 4 {
+		t.Fatalf("position %d %v", p, err)
+	}
+	child.SetCount(1)
+	parent.SetPayload([]byte{0xdd})
+	if err := parent.Check(); err != nil {
+		t.Fatal(err)
+	}
+	failed := kaitai.NewSeekableBuffer(nil)
+	var dirty kaitai.ConsistencyNotCheckedError
+	if err := parent.Write(kaitai.NewWriter(failed)); !errors.As(err, &dirty) {
+		t.Fatalf("unchecked child %v", err)
+	}
+	if !bytes.Equal(failed.Bytes(), []byte{0xdd}) {
+		t.Fatalf("failure suffix %x", failed.Bytes())
+	}
+	if !bytes.Equal(first.Bytes(), []byte{0xaa, 0xbb, 0x11, 0xee, 0, 2}) {
+		t.Fatalf("stale child writer mutated %x", first.Bytes())
+	}
+	if err := child.Check(); err != nil {
+		t.Fatal(err)
+	}
+	second := kaitai.NewSeekableBuffer(nil)
+	if err := parent.Write(kaitai.NewWriter(second)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(second.Bytes(), []byte{0xdd, 0x11, 0xee, 0, 0, 1}) {
+		t.Fatalf("retry output %x", second.Bytes())
+	}
+}
+
+func TestFailedInstanceWriteDoesNotLeaveActiveWriter(t *testing.T) {
+	descriptor := NewWriteInstanceParameter_DescriptorType()
+	descriptor.SetValue(7)
+	descriptor.SetCount(2)
+	if err := descriptor.Check(); err != nil {
+		t.Fatal(err)
+	}
+	bad := &instanceSeekFailure{kaitai.NewSeekableBuffer(nil), true}
+	if err := descriptor.Write(kaitai.NewWriter(bad)); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("seek error %v", err)
+	}
+	parent := NewWriteInstanceParameter(descriptor)
+	parent.SetPayload([]byte{0xaa, 0xbb})
+	parent.SetSuffix(0xcc)
+	if err := parent.Check(); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := parent.Write(kaitai.NewWriter(&out)); err != nil {
+		t.Fatalf("stale failed writer reused: %v", err)
+	}
+	if !bytes.Equal(bad.Bytes(), []byte{7}) {
+		t.Fatalf("failed output mutated %x", bad.Bytes())
+	}
+	if !bytes.Equal(out.Bytes(), []byte{0xaa, 0xbb, 0xcc}) {
+		t.Fatalf("parent after failure %x", out.Bytes())
+	}
+}
+
 func TestPositionedInstancesSetWithoutRead(t *testing.T) {
 	v := NewWriteInstances()
 	v.SetPrefix(0xa1)

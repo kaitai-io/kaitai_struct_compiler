@@ -31,7 +31,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     override def trLocalName(name: String): TranslatorResult = {
       if (writing && name == Identifier.IO) {
-        ResultString(normalIO)
+        // Output metadata remains available when another object refers to this
+        // stream after its write scope has ended. Actual writes use active IO.
+        ResultString("this._writer")
       } else if (writing && writerParam(typeProvider.nowClass, name).isDefined) {
         ResultString(s"this._writer_${Utils.upperCamelCase(name)}")
       } else if (writing && typeProvider.nowClass.instances.keys.exists(_.humanReadable == name)) {
@@ -96,6 +98,25 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   private def parseInstances: Iterable[InstanceIdentifier] =
     typeProvider.nowClass.instances.collect { case (id, _: ParseInstanceSpec) => id }
 
+  private def isIoType(dataType: DataType): Boolean = getArrayItemType(dataType) match {
+    case KaitaiStreamType | OwnedKaitaiStreamType => true
+    case _ => false
+  }
+
+  private def ioValueInstances: Iterable[InstanceIdentifier] =
+    typeProvider.nowClass.instances.collect {
+      case (id, value: ValueInstanceSpec) if isIoType(value.dataTypeComposite) => id
+    }
+
+  private def writerValueInstance(id: Identifier): Boolean =
+    writing && ioValueInstances.exists(_ == id)
+
+  private def instanceValueName(id: Identifier): String =
+    if (writerValueInstance(id)) s"this._wv_${idToStr(id)}" else privateMemberName(id)
+
+  private def instanceCacheFlag(id: InstanceIdentifier): String =
+    if (writerValueInstance(id)) s"_wf_${idToStr(id)}" else calculatedFlagForName(id)
+
   private def writerParam(cls: ClassSpec, name: String): Option[ParamDefSpec] =
     cls.params.find(p => p.id.humanReadable == name && (getArrayItemType(p.dataType) match {
       case KaitaiStreamType | OwnedKaitaiStreamType => true
@@ -103,11 +124,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }))
 
   private def writerParamType(t: DataType): String = t match {
-    case _: ArrayType => "[]*kaitai.Writer"
+    case array: ArrayType => s"[]${writerParamType(array.elType)}"
     case _ => "*kaitai.Writer"
   }
 
-  override def normalIO: String = if (writing) "this._writer" else super.normalIO
+  override def normalIO: String = if (writing) "this._activeWriter" else super.normalIO
 
   override def innerClasses = false
 
@@ -157,6 +178,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       // The zero value is unchecked, including objects created without New.
       out.puts("_checked bool")
       out.puts("_writer *kaitai.Writer")
+      out.puts("_activeWriter *kaitai.Writer")
       typeProvider.nowClass.params.filter(p => writerParam(typeProvider.nowClass, p.id.humanReadable).isDefined)
         .foreach(p => out.puts(s"_writer_${idToStr(p.id)} ${writerParamType(p.dataType)}"))
     }
@@ -381,6 +403,38 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.inc
         out.puts("return kaitai.NewConsistencyNotCheckedError(this)")
         universalFooter
+        out.puts("previousWriter := this._activeWriter")
+        parseInstances.foreach { id =>
+          val name = idToStr(id)
+          out.puts(s"previousPending_$name := this._w_$name")
+        }
+        ioValueInstances.foreach { id =>
+          val name = idToStr(id)
+          out.puts(s"previousValue_$name, previousFlag_$name := this._wv_$name, this._wf_$name")
+          out.puts(s"this._wv_$name, this._wf_$name = nil, false")
+        }
+        out.puts("this._activeWriter = writer")
+        out.puts("defer func() {")
+        out.inc
+        out.puts("this._activeWriter = previousWriter")
+        ioValueInstances.foreach { id =>
+          val name = idToStr(id)
+          out.puts(s"this._wv_$name, this._wf_$name = nil, false")
+        }
+        out.puts("if previousWriter != nil {")
+        out.inc
+        out.puts("this._writer = previousWriter")
+        parseInstances.foreach { id =>
+          val name = idToStr(id)
+          out.puts(s"this._w_$name = previousPending_$name")
+        }
+        ioValueInstances.foreach { id =>
+          val name = idToStr(id)
+          out.puts(s"this._wv_$name, this._wf_$name = previousValue_$name, previousFlag_$name")
+        }
+        universalFooter
+        out.dec
+        out.puts("}()")
         out.puts("this._writer = writer")
         typeProvider.nowClass.params.filter(p => writerParam(typeProvider.nowClass, p.id.humanReadable).isDefined).foreach { p =>
           importList.add("fmt")
@@ -481,7 +535,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if this._w_${idToStr(instName)} {")
+    out.puts(s"if this._activeWriter != nil && this._w_${idToStr(instName)} {")
     out.inc
     writerCall(s"this._write${publicMemberName(instName)}()")
     universalFooter
@@ -541,6 +595,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Invalidate${publicMemberName(instName)}$suffix() {")
     out.inc
     out.puts(s"this.${calculatedFlagForName(instName)} = false")
+    if (ioValueInstances.exists(_ == instName)) {
+      val name = idToStr(instName)
+      out.puts(s"this._wv_$name, this._wf_$name = nil, false")
+    }
     if (suffix.nonEmpty) instanceClearWriteFlag(instName)
     out.puts("this._checked = false")
     universalFooter
@@ -1309,11 +1367,16 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${calculatedFlagForName(attrName)} bool")
     out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
+    if (config.readWrite && ioValueInstances.exists(_ == attrName)) {
+      out.puts(s"_wf_${idToStr(attrName)} bool")
+      out.puts(s"_wv_${idToStr(attrName)} ${writerParamType(attrType)}")
+    }
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     val prefix = if (writingInstance.contains(instName)) "_writeGet" else ""
-    out.puts(s"func (this *${types2class(className)}) $prefix${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
+    val nativeType = if (writerValueInstance(instName)) writerParamType(dataType) else kaitaiType2NativeType(dataType)
+    out.puts(s"func (this *${types2class(className)}) $prefix${publicMemberName(instName)}() (v $nativeType, err error) {")
     out.inc
     translator.returnRes = Some((if (config.readWrite) dataType.asCombined else dataType) match {
       case _: NumericType => "0"
@@ -1327,13 +1390,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val r = translator.translate(value)
     val converted = dataType match {
       case _: UserType => r
+      case t if config.readWrite && isIoType(t) => r
       case _ => s"${kaitaiType2NativeType(dataType)}($r)"
     }
-    out.puts(s"${privateMemberName(instName)} = $converted")
+    out.puts(s"${instanceValueName(instName)} = $converted")
   }
 
   override def instanceCheckCacheAndReturn(instName: InstanceIdentifier, dataType: DataType): Unit = {
-    out.puts(s"if (this.${calculatedFlagForName(instName)}) {")
+    out.puts(s"if (this.${instanceCacheFlag(instName)}) {")
     out.inc
     instanceReturn(instName, dataType, false)
     universalFooter
@@ -1353,11 +1417,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"return ${privateMemberName(instName)}, nil")
+    out.puts(s"return ${instanceValueName(instName)}, nil")
   }
 
-  override def instanceSetCalculated(instName: InstanceIdentifier): Unit =
-    out.puts(s"this.${calculatedFlagForName(instName)} = true")
+  override def instanceSetCalculated(instName: InstanceIdentifier): Unit = {
+    val cached = if (writerValueInstance(instName)) "this._activeWriter != nil" else "true"
+    out.puts(s"this.${instanceCacheFlag(instName)} = $cached")
+  }
 
   override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
     val fullEnumName: List[String] = curClass ++ List(enumName)

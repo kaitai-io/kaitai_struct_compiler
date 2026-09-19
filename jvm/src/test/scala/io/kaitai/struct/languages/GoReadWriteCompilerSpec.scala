@@ -312,7 +312,7 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
 
   // Runtime conformance can be run against a development runtime without making
   // the compiler's ordinary Scala suite depend on a Go installation or network.
-  private val instanceFixtures = Seq("write_instances", "write_instance_timing", "write_instance_nested", "write_instance_switch", "write_instance_unpositioned", "write_instance_io", "write_instance_nested_repeat")
+  private val instanceFixtures = Seq("write_instances", "write_instance_timing", "write_instance_nested", "write_instance_switch", "write_instance_unpositioned", "write_instance_io", "write_instance_nested_repeat", "write_instance_parameter", "write_instance_child_reference", "write_instance_io_values")
   for (name <- instanceFixtures) {
     test(s"$name generates positioned instance writers") {
       val code = compile(name)
