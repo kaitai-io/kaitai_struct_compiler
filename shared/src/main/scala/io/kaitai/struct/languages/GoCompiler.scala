@@ -23,6 +23,28 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   import GoCompiler._
 
   override val translator = new GoTranslator(out, typeProvider, importList) {
+    override def numericType(value: Ast.expr): String = {
+      if (!config.readWrite) return super.numericType(value)
+      value match {
+        case Ast.expr.Name(name) =>
+          unsignedValueInstance(typeProvider.nowClass, name.name)
+            .getOrElse(super.numericType(value))
+        case Ast.expr.Attribute(owner, name) =>
+          detectType(owner) match {
+            case ut: UserType => unsignedValueInstance(ut.classSpec.get, name.name)
+              .getOrElse(super.numericType(value))
+            case et: EnumType if name.name == "to_i" && unsignedEnum(et.enumSpec.get.map.keys) => "uint64"
+            case _ => super.numericType(value)
+          }
+        case _ => super.numericType(value)
+      }
+    }
+
+    override def enumToInt(value: Ast.expr, et: EnumType): TranslatorResult =
+      if (config.readWrite && unsignedEnum(et.enumSpec.get.map.keys))
+        ResultString(s"uint64(${translate(value)})")
+      else super.enumToInt(value, et)
+
     override def translateExpr(value: Ast.expr, precedence: Int): TranslatorResult =
       capturedChildSize match {
         case Some((expr, name)) if value == expr => ResultString(name)
@@ -111,6 +133,30 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       else
         super.userTypeField(ut, value, name)
   }
+
+  private def unsignedEnum(values: Iterable[BigInt]): Boolean =
+    values.exists(_ > Long.MaxValue) && values.forall(n => n >= 0 && n <= Utils.MAX_UINT64)
+
+  /** CalcIntType normally maps to int. Preserve uint64 expressions in RW
+    * instance storage and signatures when int cannot represent their range.
+    * Resolve in the instance owner's scope, including nested member access.
+    */
+  private def unsignedValueInstance(owner: ClassSpec, name: String): Option[String] = {
+    if (!config.readWrite) return None
+    owner.instances.collectFirst {
+      case (id, inst: ValueInstanceSpec) if id.humanReadable == name && inst.dataType == CalcIntType => inst
+    }.flatMap { inst =>
+      val previous = typeProvider.nowClass
+      typeProvider.nowClass = owner
+      try {
+        if (translator.numericType(inst.value) == "uint64") Some("uint64") else None
+      } finally typeProvider.nowClass = previous
+    }
+  }
+
+  private def instanceNativeType(id: Identifier, dataType: DataType): String =
+    unsignedValueInstance(typeProvider.nowClass, id.humanReadable)
+      .getOrElse(kaitaiType2NativeType(dataType))
 
   private def isPrivateSequenceField(id: Identifier): Boolean =
     config.readWrite && typeProvider.nowClass.seq.exists(_.id == id)
@@ -1395,7 +1441,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
     out.puts(s"${calculatedFlagForName(attrName)} bool")
-    out.puts(s"${idToStr(attrName)} ${kaitaiType2NativeType(attrType)}")
+    out.puts(s"${idToStr(attrName)} ${instanceNativeType(attrName, attrType)}")
     if (config.readWrite && ioValueInstances.exists(_ == attrName)) {
       out.puts(s"_wf_${idToStr(attrName)} bool")
       out.puts(s"_wv_${idToStr(attrName)} ${writerParamType(attrType)}")
@@ -1404,7 +1450,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
     val prefix = if (writingInstance.contains(instName)) "_writeGet" else ""
-    val nativeType = if (writerValueInstance(instName)) writerParamType(dataType) else kaitaiType2NativeType(dataType)
+    val nativeType = if (writerValueInstance(instName)) writerParamType(dataType) else instanceNativeType(instName, dataType)
     out.puts(s"func (this *${types2class(className)}) $prefix${publicMemberName(instName)}() (v $nativeType, err error) {")
     out.inc
     translator.returnRes = Some((if (config.readWrite) dataType.asCombined else dataType) match {
@@ -1420,7 +1466,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val converted = dataType match {
       case _: UserType => r
       case t if config.readWrite && isIoType(t) => r
-      case _ => s"${kaitaiType2NativeType(dataType)}($r)"
+      case _ => s"${instanceNativeType(instName, dataType)}($r)"
     }
     out.puts(s"${instanceValueName(instName)} = $converted")
   }
@@ -1459,7 +1505,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val fullEnumNameStr = types2class(fullEnumName)
 
     out.puts
-    out.puts(s"type $fullEnumNameStr int")
+    val nativeType = if (config.readWrite && unsignedEnum(enumColl.map(_._1))) "uint64" else "int"
+    out.puts(s"type $fullEnumNameStr $nativeType")
     out.puts("const (")
     out.inc
 

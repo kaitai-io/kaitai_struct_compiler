@@ -322,7 +322,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     case other => other
   }
 
-  private def numericType(value: Ast.expr): String = value match {
+  def numericType(value: Ast.expr): String = value match {
     // The positive magnitude of MinInt64 needs uint64, but its negated result
     // is signed. This must agree with the whole-literal translation above.
     case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(n)) => numericType(Ast.expr.IntNum(-n))

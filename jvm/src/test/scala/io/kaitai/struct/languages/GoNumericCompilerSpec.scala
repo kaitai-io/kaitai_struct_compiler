@@ -16,6 +16,17 @@ class GoNumericCompilerSpec extends AnyFunSuite {
 
   private val fixtures = Seq("numeric_widths", "numeric_mixed_division", "numeric_unary", "numeric_short_circuit")
 
+  test("read-write unsigned constants expose a representable native API") {
+    val code = compile("unsigned_constants", readWrite = true)
+    assert(code.contains("type UnsignedConstants_Values uint64"))
+    assert(code.contains("Decimal() (v uint64, err error)"))
+    assert(code.contains("SignedMax() (v int, err error)"))
+    assert(code.contains("type UnsignedConstants_Nested_Signed int"))
+    val readOnly = compile("unsigned_constants", readWrite = false)
+    assert(readOnly.contains("type UnsignedConstants_Values int"))
+    assert(readOnly.contains("Decimal() (v int, err error)"))
+  }
+
   private def compile(fixture: String, readWrite: Boolean): String = {
     val file = new File(getClass.getResource(s"/go-read-write/$fixture.ksy").toURI)
     val runtime = RuntimeConfig(readWrite = readWrite, goPackage = "contract")
@@ -34,7 +45,7 @@ class GoNumericCompilerSpec extends AnyFunSuite {
         def write(name: String, text: String): Unit = Files.write(dir.resolve(name), text.getBytes(StandardCharsets.UTF_8))
         val runtime = new File(runtimePath).getCanonicalPath
         write("go.mod", s"module contract\n\ngo 1.24.0\nrequire github.com/kaitai-io/kaitai_struct_go_runtime v0.0.0\nreplace github.com/kaitai-io/kaitai_struct_go_runtime => $runtime\n")
-        fixtures.foreach { fixture =>
+        (fixtures ++ (if (readWrite) Seq("unsigned_constants") else Seq.empty)).foreach { fixture =>
           write(s"$fixture.go", compile(fixture, readWrite))
           val source = scala.io.Source.fromURL(getClass.getResource(s"/go-read-write/${fixture}_test.go"))
           try write(s"${fixture}_test.go", source.mkString) finally source.close()
