@@ -212,6 +212,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
     if (isPrivateSequenceField(attrName)) {
       out.puts
+      attrType match {
+        case _: BytesType | _: ArrayType =>
+          out.puts("// The returned slice aliases the field; in-place mutations do not invalidate checks.")
+          out.puts("// Call Check() after mutating its contents and before Write().")
+        case _ =>
+      }
       out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Get${GoCompiler.idToStr(attrName)}() ${kaitaiType2NativeType(attrType)} {")
       out.inc
       out.puts(s"return ${privateMemberName(attrName)}")
@@ -377,17 +383,74 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit =
     unsupportedSerialization("nested property assignment")
 
-  override def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
-    unsupportedSerialization("consistency checking")
+  override def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
+    val failCond = checkExpr match {
+      case Ast.expr.Compare(left @ Ast.expr.Attribute(_, Ast.identifier("size")), op, right)
+        if !right.isInstanceOf[Ast.expr.IntNum] =>
+        // len returns int, whereas a declared length/count can be any integer
+        // width. Widen both operands so a large slice never wraps at uint8/16.
+        val wideType = translator.detectType(right) match {
+          case Int1Type(false) | IntMultiType(false, _, _) | _: BitsType => "uint64"
+          case _ => "int64"
+        }
+        s"$wideType(${expression(left)}) ${translator.cmpOp(op)} $wideType(${expression(right)})"
+      case _ => expression(checkExpr)
+    }
+    out.puts(s"if $failCond {")
+    out.inc
+    out.puts(s"return kaitai.NewConsistencyError(${expression(Ast.expr.Str(msg))}, ${expression(expected)}, ${expression(actual)})")
+    universalFooter
+  }
 
-  override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
-    unsupportedSerialization("object consistency checking")
+  override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
+    val actualStr = expression(actual)
+    val expectedStr = expression(expected)
+    val failCond = translator.detectType(actual) match {
+      case _: ArrayType | AnyType =>
+        importList.add("reflect")
+        s"!reflect.DeepEqual($actualStr, $expectedStr)"
+      case _ => s"$actualStr != $expectedStr"
+    }
+    out.puts(s"if $failCond {")
+    out.inc
+    out.puts(s"return kaitai.NewConsistencyError(${expression(Ast.expr.Str(msg))}, $expectedStr, $actualStr)")
+    universalFooter
+  }
 
   override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit =
     unsupportedSerialization("end-of-stream checking")
 
-  override def attrParentParamCheck(actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean], msg: String): Unit =
-    unsupportedSerialization("parent consistency checking")
+  override def attrUserTypeCheck(id: Identifier, utExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean]): Unit = {
+    if (!shouldDependOnIo.contains(true)) {
+      val value = expression(utExpr)
+      out.puts(s"if $value == nil {")
+      out.inc
+      out.puts(s"return kaitai.NewConsistencyError(${expression(Ast.expr.Str(id.humanReadable))}, \"non-nil value\", $value)")
+      universalFooter
+    }
+    super.attrUserTypeCheck(id, utExpr, ut, shouldDependOnIo)
+  }
+
+  override def attrParentParamCheck(actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean], msg: String): Unit = {
+    val dependsOnIo = ut.forcedParent match {
+      case Some(USER_TYPE_NO_PARENT) | None => false
+      case Some(fp) => userExprDependsOnIo(fp)
+    }
+    if (shouldDependOnIo.exists(_ != dependsOnIo))
+      return
+    // Go expression translation may emit statements, including IO calls.
+    // Classify the expression before translating a deferred check.
+    val expectedParent = ut.forcedParent match {
+      case Some(USER_TYPE_NO_PARENT) => "nil"
+      case Some(fp) => expression(fp)
+      case None => "this"
+    }
+    val actualParent = expression(actualParentExpr)
+    out.puts(s"if $actualParent != $expectedParent {")
+    out.inc
+    out.puts(s"return kaitai.NewConsistencyError(${expression(Ast.expr.Str(msg))}, $expectedParent, $actualParent)")
+    universalFooter
+  }
 
   override def universalDoc(doc: DocSpec): Unit = {
     out.puts
@@ -805,6 +868,18 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     actual: Ast.expr,
     expected: Option[Ast.expr]
   ): Unit = {
+    if (config.readWrite && !useIo) {
+      val field = expression(Ast.expr.Str(attr.id.humanReadable))
+      val expectedStr = expected.map(expression).getOrElse("true")
+      val actualStr = expression(actual)
+      val context = expression(Ast.expr.Str(attr.path.mkString("/", "/", "") + ": %w"))
+      importList.add("fmt")
+      out.puts(s"if $failCondExpr {")
+      out.inc
+      out.puts(s"return fmt.Errorf($context, kaitai.NewConsistencyError($field, $expectedStr, $actualStr))")
+      universalFooter
+      return
+    }
     val errArgsStr = expected.map(expression) ++ List(
       expression(actual),
       if (useIo) expression(Ast.expr.InternalName(IoIdentifier)) else "nil",

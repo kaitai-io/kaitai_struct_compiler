@@ -7,6 +7,8 @@ import io.kaitai.struct.formats.JavaKSYParser
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.util.regex.Pattern.quote
 
 /** Contract tests for the output of the public parsing/precompilation/generation pipeline.
@@ -19,18 +21,32 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
   private def compile(fixture: String, readWrite: Boolean = true): String = {
     val resource = Option(getClass.getResource(s"/go-read-write/$fixture.ksy"))
       .getOrElse(fail(s"Missing fixture: $fixture.ksy"))
+    compileFile(new File(resource.toURI), readWrite)
+  }
+
+  private def compileContents(contents: String): String = {
+    val file = Files.createTempFile("go-rw-contract-", ".ksy")
+    try {
+      Files.write(file, contents.getBytes(StandardCharsets.UTF_8))
+      compileFile(file.toFile, readWrite = true)
+    } finally {
+      Files.deleteIfExists(file)
+    }
+  }
+
+  private def compileFile(file: File, readWrite: Boolean): String = {
     val runtime = RuntimeConfig(readWrite = readWrite, goPackage = "contract")
     val (specsOption, problems) = JavaKSYParser.localFileToSpecs(
-      new File(resource.toURI).getPath, CLIConfig(runtime = runtime)
+      file.getPath, CLIConfig(runtime = runtime)
     )
-    val specs = specsOption.getOrElse(fail(s"Invalid fixture $fixture: ${problems.mkString(", ")}"))
+    val specs = specsOption.getOrElse(fail(s"Invalid fixture $file: ${problems.mkString(", ")}"))
     val files = try {
       Main.compile(specs, specs.firstSpec, GoCompiler, runtime).files
     } catch {
       case e: NotImplementedError if readWrite =>
-        fail(s"Missing generated behavior: Go read-write compiler hook for $fixture", e)
+        fail(s"Missing generated behavior: Go read-write compiler hook for $file", e)
     }
-    assert(files.size == 1, s"Expected one generated Go file for $fixture")
+    assert(files.size == 1, s"Expected one generated Go file for $file")
     files.head.contents
   }
 
@@ -117,5 +133,116 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     accessor(code, "GoRwBits", "Flag", "bool")
     accessor(code, "GoRwBits", "Count", "uint64")
     method(code, "GoRwBits", "Write", "\\(\\s*\\w+\\s+\\*kaitai\\.Writer\\s*\\)" + errorResult)
+  }
+
+  test("length and repeat consistency checks carry expected and actual values without IO") {
+    for ((fixture, owner, field, expected) <- Seq(
+      ("go_rw_simple", "GoRwSimple", "payload", 3),
+      ("go_rw_repeated", "GoRwRepeated", "values", 2)
+    )) {
+      val check = method(compile(fixture), owner, "Check", "\\(\\s*\\)" + errorResult)
+      contains(check, s"NewConsistencyError\\(\"$field\",\\s*$expected,\\s*len\\(", "typed length error with field context")
+      assert(!check.contains("._io"), "Independent checks must not touch the read stream")
+      assert(check.indexOf("_checked = false") < check.indexOf("NewConsistencyError"))
+      assert(check.indexOf("NewConsistencyError") < check.indexOf("_checked = true"))
+      assert(!check.contains("not implemented"))
+    }
+  }
+
+  test("fixed contents and explicit validations become typed consistency failures") {
+    val code = compileContents(
+      """meta:
+        |  id: go_rw_validated
+        |seq:
+        |  - id: magic
+        |    contents: [75, 83]
+        |  - id: version
+        |    type: u1
+        |    valid: 1
+        |  - id: values
+        |    type: u1
+        |    repeat: expr
+        |    repeat-expr: 2
+        |    valid:
+        |      max: 9
+        |""".stripMargin)
+    val check = method(code, "GoRwValidated", "Check", "\\(\\s*\\)" + errorResult)
+    for (field <- Seq("magic", "version", "values")) {
+      contains(check, s"NewConsistencyError\\(\"$field\",", s"typed $field consistency error")
+    }
+    contains(check, "bytes\\.Equal", "fixed contents comparison")
+    assert(!check.contains("._io"))
+    assert(!check.contains("NewValidation"), "Check must report consistency errors, while Read retains validation errors")
+    contains(code, "NewValidationNotEqualError", "read validation remains available")
+  }
+
+  test("nested parent and root consistency use identity checks") {
+    val check = method(compile("go_rw_nested"), "GoRwNested", "Check", "\\(\\s*\\)" + errorResult)
+    contains(check, "NewConsistencyError\\(\"child\",", "nested context error")
+    contains(check, "\\._root\\s*!=\\s*this\\._root", "root identity check")
+    contains(check, "\\._parent\\s*!=\\s*this", "parent identity check")
+    assert(!check.contains("not implemented"))
+    assert(!check.contains("._io"))
+  }
+
+  test("missing nested values fail consistency before dereferencing their metadata") {
+    val check = method(compile("go_rw_nested"), "GoRwNested", "Check", "\\(\\s*\\)" + errorResult)
+    contains(check, "if this\\._m_Child == nil", "nil nested value check")
+    assert(check.indexOf("== nil") < check.indexOf("._root"))
+  }
+
+  test("IO-dependent forced parent expressions are deferred without evaluating the IO") {
+    val code = compileContents(
+      """meta:
+        |  id: go_rw_parent_io
+        |seq:
+        |  - id: child
+        |    type: child_type
+        |    parent: '_io.pos == 0 ? _root : _root'
+        |types:
+        |  child_type:
+        |    seq:
+        |      - id: value
+        |        type: u1
+        |""".stripMargin)
+    val check = method(code, "GoRwParentIo", "Check", "\\(\\s*\\)" + errorResult)
+    assert(!check.contains("._io"), "Skipping an IO-dependent parent check must also skip expression evaluation")
+  }
+
+  test("every mutable setter dirties state and successful Read cleans only at the end") {
+    for ((fixture, owner, fields) <- Seq(
+      ("go_rw_simple", "GoRwSimple", Seq("Value" -> "uint32", "Payload" -> "[]byte")),
+      ("go_rw_repeated", "GoRwRepeated", Seq("Values" -> "[]uint16")),
+      ("go_rw_bits", "GoRwBits", Seq("Flag" -> "bool", "Count" -> "uint64")),
+      ("go_rw_nested", "GoRwNested", Seq("Child" -> "*GoRwNested_ChildType"))
+    )) {
+      val code = compile(fixture)
+      for ((field, goType) <- fields) {
+        val setter = method(code, owner, s"Set$field", s"\\(\\s*\\w+\\s+${quote(goType)}\\s*\\)")
+        contains(setter, "_checked\\s*=\\s*false", s"$field setter invalidation")
+      }
+      val read = method(code, owner, "Read", "\\([^\\n]*\\)" + errorResult)
+      assert(read.indexOf("_checked = false") < read.indexOf("this._io = io"))
+      assert(read.lastIndexOf("_checked = err == nil") > read.lastIndexOf("if err != nil"))
+    }
+  }
+
+  test("slice accessors explain how to recover from in-place mutation") {
+    val code = compile("go_rw_simple")
+    contains(code, "(?s)//[^\\n]*in-place.*Check\\(\\)", "slice mutation limitation and Check recovery")
+  }
+
+  test("dynamic lengths widen both operands without narrowing slice length") {
+    val code = compileContents(
+      """meta:
+        |  id: go_rw_dynamic
+        |seq:
+        |  - id: count
+        |    type: u1
+        |  - id: payload
+        |    size: count
+        |""".stripMargin)
+    val check = method(code, "GoRwDynamic", "Check", "\\(\\s*\\)" + errorResult)
+    contains(check, "uint64\\(len\\(this\\._m_Payload\\)\\)\\s*!=\\s*uint64\\(this\\._m_Count\\)", "non-narrowing dynamic length comparison")
   }
 }
