@@ -729,3 +729,101 @@ func TestIndependentSynchronousWriteRestoresNestedBindingsAndPendingBits(t *test
 		t.Fatalf("outer pending bits %x", out1.Bytes())
 	}
 }
+
+func TestSuspendedContextCompletionIsRejectedWithoutMutation(t *testing.T) {
+	for _, closeFirst := range []bool{false, true} {
+		for _, outcome := range []string{"success", "error", "panic"} {
+			t.Run(fmt.Sprintf("close-first=%v/%s", closeFirst, outcome), func(t *testing.T) {
+				p := sessionOrderPending(t)
+				one, two, three := kaitai.NewWriteContext(), kaitai.NewWriteContext(), kaitai.NewWriteContext()
+				defer one.Close()
+				out1, out2, out3 := kaitai.NewSeekableBuffer(nil), kaitai.NewSeekableBuffer(nil), kaitai.NewSeekableBuffer(nil)
+				w1, w2, w3 := kaitai.NewWriter(out1), kaitai.NewWriter(out2), kaitai.NewWriter(out3)
+				if err := p.WriteWithContext_(w1, one); err != nil {
+					t.Fatal(err)
+				}
+				reject := func(c *kaitai.WriteContext) {
+					operations := []func() error{c.Finish, c.Close}
+					if closeFirst {
+						operations[0], operations[1] = operations[1], operations[0]
+					}
+					for _, operation := range operations {
+						if err := operation(); !errors.Is(err, kaitai.ErrWriteContextSuspended) {
+							t.Fatalf("suspended completion: %v", err)
+						}
+					}
+				}
+				run := func() error {
+					return two.Run(func() error {
+						if err := p.WriteWithContext_(w2, two); err != nil {
+							return err
+						}
+						reject(one)
+						return three.Run(func() error {
+							if err := p.WriteWithContext_(w3, three); err != nil {
+								return err
+							}
+							reject(one)
+							reject(two)
+							if p._writeContext != three || p._activeWriter != w3 || !p._w_b {
+								t.Fatal("rejected completion mutated active binding")
+							}
+							for _, out := range []*kaitai.SeekableBuffer{out1, out2, out3} {
+								if !bytes.Equal(out.Bytes(), []byte{0}) {
+									t.Fatalf("premature instance output %x", out.Bytes())
+								}
+							}
+							if outcome == "error" {
+								return io.ErrClosedPipe
+							}
+							if outcome == "panic" {
+								panic("nested write failed")
+							}
+							return nil
+						})
+					})
+				}
+				if outcome == "panic" {
+					func() {
+						defer func() {
+							if recover() != "nested write failed" {
+								t.Fatal("missing nested panic")
+							}
+						}()
+						_ = run()
+					}()
+				} else {
+					err := run()
+					if outcome == "error" && !errors.Is(err, io.ErrClosedPipe) {
+						t.Fatalf("nested error: %v", err)
+					}
+					if outcome == "success" && err != nil {
+						t.Fatal(err)
+					}
+				}
+				if p._writeContext != one || p._activeWriter != w1 || !p._w_b {
+					t.Fatal("outer binding not restored")
+				}
+				if err := one.Finish(); err != nil {
+					t.Fatal(err)
+				}
+				if err := one.Close(); err != nil {
+					t.Fatal(err)
+				}
+				if p._writeContext != nil || p._activeWriter != nil {
+					t.Fatal("closed binding resurrected")
+				}
+				if !bytes.Equal(out1.Bytes(), []byte{0x22}) {
+					t.Fatalf("outer output %x", out1.Bytes())
+				}
+				want := byte(0)
+				if outcome == "success" {
+					want = 0x22
+				}
+				if !bytes.Equal(out2.Bytes(), []byte{want}) || !bytes.Equal(out3.Bytes(), []byte{want}) {
+					t.Fatalf("nested outputs %x/%x", out2.Bytes(), out3.Bytes())
+				}
+			})
+		}
+	}
+}

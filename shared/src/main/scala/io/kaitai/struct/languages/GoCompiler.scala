@@ -756,7 +756,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           val name = idToStr(id)
           out.puts(s"previousValue_$name, previousFlag_$name := this._wv_$name, this._wf_$name")
         }
-        out.puts("leave, err := context.Enter(this, func() {")
+        out.puts("leave, err := context.EnterFrom(this, previousContext, func() {")
         out.inc
         out.puts("this._activeWriter = previousWriter")
         out.puts("this._writeContext = previousContext")
