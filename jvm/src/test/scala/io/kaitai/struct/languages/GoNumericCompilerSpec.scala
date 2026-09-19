@@ -14,7 +14,7 @@ import scala.sys.process._
 class GoNumericCompilerSpec extends AnyFunSuite {
   KSVersion.current = Version.version
 
-  private val fixtures = Seq("numeric_widths", "numeric_mixed_division", "numeric_unary")
+  private val fixtures = Seq("numeric_widths", "numeric_mixed_division", "numeric_unary", "numeric_short_circuit")
 
   private def compile(fixture: String, readWrite: Boolean): String = {
     val file = new File(getClass.getResource(s"/go-read-write/$fixture.ksy").toURI)

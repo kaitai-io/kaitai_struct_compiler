@@ -164,8 +164,39 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def byteSizeOfClassSpec(cs: ClassSpec): TranslatorResult =
     trIntLiteral(CommonSizeOf.getByteSizeOfClassSpec(cs))
 
-  def trBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]) =
-    ResultString(doBooleanOp(op, values))
+  def trBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]): TranslatorResult = {
+    // Translating an operand can emit statements (including error returns).
+    // Keep those statements inside the operand's short-circuit branch, not
+    // before the logical expression. Capture through the original writer so
+    // compiler overrides and nested boolean expressions use the same scope.
+    val operands = values.zipWithIndex.map { case (value, index) =>
+      out.capture {
+        if (index > 0) out.inc
+        translate(value)
+      }
+    }
+    if (operands.tail.forall(_._2.result.isEmpty)) {
+      // No guarded prerequisites: retain the ordinary Go expression verbatim.
+      out.add(operands.head._2)
+      val expression = operands.map(_._1).mkString("(", s") ${booleanOp(op)} (", ")")
+      ResultString(s" ($expression) ")
+    } else {
+      val result = allocateLocalVar()
+      val name = localVarName(result)
+      out.add(operands.head._2)
+      out.puts(s"$name := ${operands.head._1}")
+      operands.tail.foreach { case (expression, statements) =>
+        val guard = if (op == Ast.boolop.And) name else s"!$name"
+        out.puts(s"if $guard {")
+        out.inc
+        out.add(statements)
+        out.puts(s"$name = $expression")
+        out.dec
+        out.puts("}")
+      }
+      ResultLocalVar(result)
+    }
+  }
 
   def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): TranslatorResult = {
     if ((op == Ast.operator.Div || op == Ast.operator.Mod) && mixedSignedUnsigned(left, right))
