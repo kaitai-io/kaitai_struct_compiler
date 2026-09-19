@@ -363,7 +363,28 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     bytesToStr(translate(value), encoding)
 
   override def strToBytes(value: Ast.expr, encoding: Ast.expr): TranslatorResult = encoding match {
-    case Ast.expr.Str("ASCII" | "UTF-8") => ResultString(s"[]byte(${translate(value)})")
+    case Ast.expr.Str("UTF-8") => ResultString(s"[]byte(${translate(value)})")
+    case Ast.expr.Str("ASCII") =>
+      importList.add("fmt")
+      def fieldName(expr: Ast.expr): String = expr match {
+        case Ast.expr.InternalName(id) => id.humanReadable
+        case Ast.expr.Name(id) => id.name
+        case Ast.expr.Subscript(container, _) => fieldName(container)
+        case Ast.expr.CastToType(inner, _) => fieldName(inner)
+        case _ => "string"
+      }
+      val context = doStringLiteral(fieldName(value))
+      // A Go string contains UTF-8 bytes, not necessarily ASCII. Validate before
+      // returning bytes so both consistency lengths and writes see the error.
+      outVarCheckRes(
+        s"""func(value string) ([]byte, error) {
+           |\tfor offset, codePoint := range value {
+           |\t\tif codePoint > 127 {
+           |\t\t\treturn nil, fmt.Errorf("encode ASCII field %s at byte offset %d: %w", $context, offset, kaitai.NewConsistencyError("ASCII", rune(127), codePoint))
+           |\t\t}
+           |\t}
+           |\treturn []byte(value), nil
+           |}(${translate(value)})""".stripMargin)
     case Ast.expr.Str(enc) =>
       ENCODINGS.get(enc) match {
         case Some((encoder, importName)) =>

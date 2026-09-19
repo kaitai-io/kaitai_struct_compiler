@@ -118,6 +118,18 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
       |    size: 2
       |    encoding: UTF-16LE
       |""".stripMargin,
+    "write_ascii" -> """meta:
+      |  id: write_ascii
+      |seq:
+      |  - id: prefix
+      |    type: u1
+      |  - id: text
+      |    type: str
+      |    size: 2
+      |    encoding: ASCII
+      |  - id: suffix
+      |    type: u1
+      |""".stripMargin,
     "write_control" -> """meta:
       |  id: write_control
       |  endian: le
@@ -324,6 +336,7 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     | "bytes"
     | "errors"
     | "io"
+    | "strings"
     | "testing"
     | "github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
     |)
@@ -373,6 +386,25 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     |func TestStrings(t *testing.T) {
     | v:=NewWriteStrings(); v.SetLatin("é");v.SetUtf("é");v.SetWide("é")
     | exact(t,v,[]byte{0xe9,0xc3,0xa9,0xe9,0})
+    |}
+    |func TestASCII(t *testing.T) {
+    | v:=NewWriteAscii();v.SetPrefix(0x42);v.SetSuffix(0x99);v.SetText("AZ")
+    | exact(t,v,[]byte{0x42,0x41,0x5a,0x99})
+    | v.SetText("\x00\x7f");exact(t,v,[]byte{0x42,0,0x7f,0x99})
+    | checkEncodingError:=func(err error,want rune) {
+    |  t.Helper();var cause kaitai.ConsistencyError
+    |  if !errors.As(err,&cause)||cause.ID()!="ASCII"||cause.Actual()!=want||errors.Unwrap(err)==nil {t.Fatalf("expected inspectable ASCII error for %U, got %v",want,err)}
+    |  if !strings.Contains(err.Error(),"text") {t.Fatalf("missing field context: %v",err)}
+    | }
+    | for _,tc:=range []struct{text string;bad rune}{{"é",'é'},{"Aé",'é'},{"界",'界'},{string([]byte{0xff}), '\ufffd'}} {
+    |  v.SetText(tc.text);checkEncodingError(v.Check(),tc.bad)
+    | }
+    | // The reader historically accepts arbitrary ASCII bytes and marks the
+    | // object checked. Write must still validate before writing this field.
+    | parsed:=NewWriteAscii()
+    | if err:=parsed.Read(kaitai.NewStream(bytes.NewReader([]byte{0x42,0xc3,0xa9,0x99})),nil,parsed);err!=nil {t.Fatal(err)}
+    | out:=&bytes.Buffer{};checkEncodingError(parsed.Write(kaitai.NewWriter(out)),'é')
+    | if !bytes.Equal(out.Bytes(),[]byte{0x42}) {t.Fatalf("affected field or following data written: %x",out.Bytes())}
     |}
     |func TestControl(t *testing.T) {
     | v:=NewWriteControl(); v.SetTag(WriteControl_Tags__One); v.SetConditional(0x1234);v.SetSwitched(0x5678);v.SetIntegerSwitch(9)
