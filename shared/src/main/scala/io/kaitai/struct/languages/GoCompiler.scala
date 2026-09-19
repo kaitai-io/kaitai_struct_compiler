@@ -1616,7 +1616,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType(width: Int, bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
       case t: UserType =>
-        val addParams = t.classSpec.get.params.lazyZip(t.args).map((p, a) => translator.translateAs(a, p.dataType)).mkString(", ")
+        // Opaque declarations describe the call site, not the external class's
+        // parameter types. Preserve its ABI arguments without inventing casts.
+        val addParams = (if (t.isOpaque) t.args.map(expression)
+          else t.classSpec.get.params.lazyZip(t.args).map((p, a) => translator.translateAs(a, p.dataType))).mkString(", ")
         s"New${GoCompiler.types2class(t.classSpec.get.name)}($addParams)"
     }
   }
@@ -1635,7 +1638,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def userTypeDebugRead(id: String, t: UserType, io: String): Unit = {
     val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
-      ("nil", "nil")
+      // A separately generated top-level object starts its own root graph.
+      // External nested types cannot use themselves as their top-level root.
+      ("nil", if (t.classSpec.get.name.size == 1) id else "nil")
     } else {
       val parent = t.forcedParent match {
         case Some(USER_TYPE_NO_PARENT) => "nil"
