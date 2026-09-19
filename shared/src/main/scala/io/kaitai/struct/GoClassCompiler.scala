@@ -39,6 +39,15 @@ class GoClassCompiler(
     // Constructor = Read() function
     compileReadFunction(curClass)
 
+    if (config.readWrite) {
+      val parsedAttrs = curClass.seq ++ curClass.instances.values.collect {
+        case inst: AttrLikeSpec => inst
+      }
+      compileFetchInstancesProc(parsedAttrs)
+      compileWrite(curClass.seq, curClass.instances, curClass.meta.endian)
+      compileCheck(curClass.seq, curClass.instances)
+    }
+
     curClass.toStringExpr.foreach(expr => lang.classToString(expr))
 
     compileInstances(curClass)
@@ -82,6 +91,15 @@ class GoClassCompiler(
 
     lang.instanceReturn(instName, dataType, instSpec.isNullable)
     lang.instanceFooter
+
+    if (config.readWrite) {
+      instSpec match {
+        case _: ParseInstanceSpec =>
+          lang.attributeSetter(instName, dataType, instSpec.isNullable)
+        case _: ValueInstanceSpec =>
+          lang.instanceInvalidate(instName)
+      }
+    }
   }
 
   override def compileCalcEndian(ce: CalcEndian): Unit = {

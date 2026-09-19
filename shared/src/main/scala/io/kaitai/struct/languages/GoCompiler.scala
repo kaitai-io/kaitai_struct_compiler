@@ -16,10 +16,41 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     with UniversalFooter
     with UniversalDoc
     with AllocateIOLocalVar
-    with GoReads {
+    with GoReads
+    with EveryWriteIsExpression
+    with GenericChecks
+    with FetchInstances {
   import GoCompiler._
 
-  override val translator = new GoTranslator(out, typeProvider, importList)
+  override val translator = new GoTranslator(out, typeProvider, importList) {
+    override def trLocalName(name: String): TranslatorResult = {
+      if (config.readWrite) {
+        typeProvider.nowClass.seq.find(_.id.humanReadable == name) match {
+          case Some(attr) => ResultString(GoCompiler.this.privateMemberName(attr.id))
+          case None => super.trLocalName(name)
+        }
+      } else {
+        super.trLocalName(name)
+      }
+    }
+
+    override def trInternalName(id: Identifier): TranslatorResult =
+      if (config.readWrite) ResultString(GoCompiler.this.privateMemberName(id))
+      else super.trInternalName(id)
+
+    override def userTypeField(ut: UserType, value: Ast.expr, name: String): TranslatorResult =
+      if (config.readWrite && ut.classSpec.exists(_.seq.exists(_.id.humanReadable == name)))
+        ResultString(s"${translate(value)}.Get${Utils.upperCamelCase(name)}()")
+      else
+        super.userTypeField(ut, value, name)
+  }
+
+  private def isPrivateSequenceField(id: Identifier): Boolean =
+    config.readWrite && typeProvider.nowClass.seq.exists(_.id == id)
+
+  private var writing = false
+
+  override def normalIO: String = if (writing) "this._writer" else super.normalIO
 
   override def innerClasses = false
 
@@ -65,6 +96,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classFooter(name: List[String]): Unit = {
+    if (config.readWrite) {
+      // The zero value is unchecked, including objects created without New.
+      out.puts("_checked bool")
+      out.puts("_writer *kaitai.Writer")
+    }
     // TODO(jchw): where should this attribute actually be generated at?
     typeProvider.nowClass.meta.endian match {
       case Some(_: CalcEndian) | Some(InheritedEndian) =>
@@ -83,6 +119,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return &${types2class(name)}{")
     out.inc
     params.foreach(p => out.puts(s"${idToStr(p.id)}: ${paramName(p.id)},"))
+    if (config.readWrite) {
+      out.puts("_checked: false,")
+      typeProvider.nowClass.meta.endian match {
+        case Some(_: CalcEndian) | Some(InheritedEndian) => out.puts("_is_le: -1,")
+        case _ =>
+      }
+    }
     out.dec
     out.puts("}")
     universalFooter
@@ -115,6 +158,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def readHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    if (config.readWrite) {
+      writing = false
+      translator.returnRes = None
+    }
     endian match {
       case None =>
         out.puts
@@ -125,6 +172,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             s"root *${types2class(typeProvider.topClass.name)}) (err error) {"
         )
         out.inc
+        if (config.readWrite)
+          out.puts("this._checked = false")
         out.puts(s"${privateMemberName(IoIdentifier)} = io")
         out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
         out.puts(s"${privateMemberName(RootIdentifier)} = root")
@@ -148,6 +197,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   }
   override def readFooter(): Unit = {
+    if (config.readWrite) {
+      out.puts("this._checked = err == nil")
+    }
     out.puts("return err")
     universalFooter
   }
@@ -157,7 +209,185 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     translator.returnRes = None
   }
 
-  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {}
+  override def attributeReader(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
+    if (isPrivateSequenceField(attrName)) {
+      out.puts
+      out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Get${GoCompiler.idToStr(attrName)}() ${kaitaiType2NativeType(attrType)} {")
+      out.inc
+      out.puts(s"return ${privateMemberName(attrName)}")
+      universalFooter
+    }
+  }
+
+  override def attributeSetter(attrName: Identifier, attrType: DataType, isNullable: Boolean): Unit = {
+    if (isPrivateSequenceField(attrName) || attrName.isInstanceOf[InstanceIdentifier]) {
+      val name = Utils.upperCamelCase(attrName.humanReadable)
+      out.puts
+      out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Set$name(v ${kaitaiType2NativeType(attrType)}) {")
+      out.inc
+      out.puts("this._checked = false")
+      out.puts(s"${privateMemberName(attrName)} = v")
+      attrName match {
+        case inst: InstanceIdentifier => instanceSetCalculated(inst)
+        case _ =>
+      }
+      universalFooter
+    }
+  }
+
+  private def errorMethodHeader(name: String, args: String = ""): Unit = {
+    translator.returnRes = None
+    out.puts
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) $name($args) (err error) {")
+    out.inc
+  }
+
+  override def fetchInstancesHeader(): Unit = errorMethodHeader("FetchInstances")
+  override def fetchInstancesFooter(): Unit = {
+    out.puts("return err")
+    universalFooter
+  }
+
+  override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
+    out.puts(s"err = ${expression(baseExpr)}.FetchInstances()")
+    translator.outAddErrCheck()
+  }
+
+  override def attrInvokeInstance(instName: InstanceIdentifier): Unit = {
+    out.puts(s"_, err = this.${publicMemberName(instName)}()")
+    translator.outAddErrCheck()
+  }
+
+  override def writeHeader(endian: Option[FixedEndian], isEmpty: Boolean): Unit = {
+    writing = true
+    endian match {
+      case None =>
+        errorMethodHeader("Write", "writer *kaitai.Writer")
+        out.puts("if !this._checked {")
+        out.inc
+        out.puts("return kaitai.NewConsistencyNotCheckedError(this)")
+        universalFooter
+        out.puts("this._writer = writer")
+      case Some(e) => errorMethodHeader(s"_write_${e.toSuffix}")
+    }
+  }
+
+  override def writeFooter(): Unit = {
+    out.puts("return err")
+    universalFooter
+    writing = false
+  }
+
+  override def runWriteCalc(): Unit = {
+    out.puts("switch this._is_le {")
+    out.puts("case 0:")
+    out.inc
+    out.puts("err = this._write_be()")
+    out.dec
+    out.puts("case 1:")
+    out.inc
+    out.puts("err = this._write_le()")
+    out.dec
+    out.puts("default:")
+    out.inc
+    out.puts(s"err = ${GoCompiler.ksErrorName(UndecidedEndiannessError)}{}")
+    out.dec
+    out.puts("}")
+  }
+
+  override def checkHeader(): Unit = {
+    errorMethodHeader("Check")
+    out.puts("this._checked = false")
+  }
+
+  override def checkFooter(): Unit = {
+    out.puts("this._checked = true")
+    out.puts("return err")
+    universalFooter
+  }
+
+  override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+    out.puts(s"for i := range ${privateMemberName(id)} {")
+    out.inc
+    out.puts("_ = i")
+  }
+
+  override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit =
+    out.puts(s"_w_${idToStr(attrName)} bool")
+
+  override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = {
+    out.puts(s"this._w_${idToStr(instName)} = true")
+    unsupportedSerialization("positioned instance writing")
+  }
+
+  override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if this.${calculatedFlagForName(instName)} {")
+    out.inc
+  }
+
+  override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
+    out.puts
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Invalidate${publicMemberName(instName)}() {")
+    out.inc
+    out.puts(s"this.${calculatedFlagForName(instName)} = false")
+    out.puts("this._checked = false")
+    universalFooter
+  }
+
+  // The lifecycle can be generated before the field-writing and consistency
+  // hooks are implemented. Never silently accept an unsupported operation.
+  private def unsupportedSerialization(feature: String): Unit = {
+    importList.add("errors")
+    out.puts(s"err = errors.New(\"Go serialization $feature is not implemented\")")
+    translator.outAddErrCheck()
+  }
+
+  override def internalEnumIntType(basedOn: IntType): DataType = basedOn
+
+  override def handleAssignment(id: Identifier, expr: String, rep: RepeatSpec, isRaw: Boolean, exprType: DataType, assignType: DataType): Unit =
+    handleAssignment(id, ResultString(expr), rep, isRaw)
+
+  override def attrPrimitiveWrite(io: String, expr: Ast.expr, dt: DataType, defEndian: Option[FixedEndian], exprTypeOpt: Option[DataType]): Unit =
+    unsupportedSerialization("field writing")
+
+  override def attrBytesLimitWrite(io: String, expr: Ast.expr, size: String, term: Int, padRight: Int): Unit =
+    unsupportedSerialization("padded byte writing")
+
+  override def attrUserTypeWrite(id: Identifier, t: UserType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], checksShouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType]): Unit =
+    unsupportedSerialization("nested type writing")
+
+  override def attrUserTypeInstreamWrite(io: String, expr: Ast.expr, t: DataType, exprType: DataType): Unit =
+    unsupportedSerialization("nested type writing")
+
+  override def exprStreamToByteArray(ioFixed: String): String =
+    throw new NotImplementedError("Go serialization child writer extraction")
+
+  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit =
+    unsupportedSerialization("reverse processing")
+
+  override def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit =
+    unsupportedSerialization("child writer reverse processing")
+
+  override def condIfIsEofHeader(io: String, wantedIsEof: Boolean): Unit = {
+    unsupportedSerialization("end-of-stream condition")
+    blockScopeHeader
+  }
+  override def condIfIsEofFooter: Unit = universalFooter
+
+  override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit =
+    unsupportedSerialization("nested property assignment")
+
+  override def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
+    unsupportedSerialization("consistency checking")
+
+  override def attrObjectsEqualCheck(actual: Ast.expr, expected: Ast.expr, msg: String): Unit =
+    unsupportedSerialization("object consistency checking")
+
+  override def attrIsEofCheck(io: String, expectedIsEof: Boolean, msg: String): Unit =
+    unsupportedSerialization("end-of-stream checking")
+
+  override def attrParentParamCheck(actualParentExpr: Ast.expr, ut: UserType, shouldDependOnIo: Option[Boolean], msg: String): Unit =
+    unsupportedSerialization("parent consistency checking")
 
   override def universalDoc(doc: DocSpec): Unit = {
     out.puts
@@ -526,7 +756,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("}")
   }
 
-  override def idToStr(id: Identifier): String = GoCompiler.idToStr(id)
+  override def idToStr(id: Identifier): String =
+    if (isPrivateSequenceField(id)) s"_m_${GoCompiler.idToStr(id)}" else GoCompiler.idToStr(id)
 
   override def publicMemberName(id: Identifier): String =
     id match {
@@ -534,10 +765,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case RootIdentifier => "_Root"
       case ParentIdentifier => "_Parent"
       case InstanceIdentifier(name) => Utils.upperCamelCase(name)
-      case _ => idToStr(id)
+      case _ => GoCompiler.idToStr(id)
     }
 
-  override def privateMemberName(id: Identifier): String = GoCompiler.privateMemberName(id)
+  override def privateMemberName(id: Identifier): String = s"this.${idToStr(id)}"
 
   override def localTemporaryName(id: Identifier): String = s"_t_${idToStr(id)}"
 
