@@ -102,7 +102,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       } else super.doCast(value, typeName)
 
     override def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
-      val dataType = detectType(ifTrue)
+      val dataType = detectType(Ast.expr.IfExp(condition, ifTrue, ifFalse))
       val native = if (writing && isIoType(dataType)) Some(writerParamType(dataType))
         else if (config.readWrite) unsignedArrayType(Ast.expr.IfExp(condition, ifTrue, ifFalse))
         else None
@@ -126,6 +126,26 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     override def kaitaiStreamEof(value: Ast.expr): TranslatorResult =
       if (writing) ResultString(writerEof(translate(value))) else super.kaitaiStreamEof(value)
+
+    override def kaitaiStructField(value: Ast.expr, name: String): TranslatorResult = {
+      if (!writing || name != Identifier.IO) return super.kaitaiStructField(value, name)
+      val owner = translate(value)
+      importList.add("fmt")
+      importList.add("reflect")
+      // Keep runtime Struct's read-only contract intact. Writer metadata is an
+      // optional capability, including when the selected value is opaque.
+      outVarCheckRes(
+        s"""func(value kaitai.Struct) (*kaitai.Writer, error) {
+           |  if value == nil || (reflect.ValueOf(value).Kind() == reflect.Ptr && reflect.ValueOf(value).IsNil()) {
+           |    return nil, fmt.Errorf("cannot access output stream of %T: object is nil", value)
+           |  }
+           |  provider, ok := value.(interface { Writer_() *kaitai.Writer })
+           |  if !ok { return nil, fmt.Errorf("cannot access output stream of %T: missing Writer_ capability", value) }
+           |  writer := provider.Writer_()
+           |  if writer == nil { return nil, fmt.Errorf("cannot access output stream of %T: writer is nil", value) }
+           |  return writer, nil
+           |}($owner)""".stripMargin)
+    }
 
     override def userTypeField(ut: UserType, value: Ast.expr, name: String): TranslatorResult =
       if (writing && name == Identifier.IO)
@@ -1651,7 +1671,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val r = translator.translate(value)
     val converted = dataType match {
       case _: UserType => r
-      case t if config.readWrite && isIoType(t) => r
+      case t if isIoType(t) => r
       case _ => s"${instanceNativeType(instName, dataType)}($r)"
     }
     out.puts(s"${instanceValueName(instName)} = $converted")
@@ -1811,6 +1831,17 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"return this._io")
     out.dec
     out.puts("}")
+    if (config.readWrite) {
+      out.puts
+      // Retain the writer after a child scope ends so output metadata remains
+      // available to other objects. Never substitute the input Stream here.
+      out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Writer_() *kaitai.Writer {")
+      out.inc
+      out.puts("if this == nil { return nil }")
+      out.puts("return this._writer")
+      out.dec
+      out.puts("}")
+    }
   }
 
   def parentAccessor(): Unit = {

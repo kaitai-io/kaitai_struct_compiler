@@ -468,7 +468,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
     val v1 = allocateLocalVar()
-    val typ = detectType(ifTrue)
+    val typ = detectType(Ast.expr.IfExp(condition, ifTrue, ifFalse))
     val native = typ match {
       case _: NumericType => commonNumericType(ifTrue, ifFalse)
       case _ => GoCompiler.kaitaiType2NativeType(typ)
@@ -667,6 +667,22 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   }
   def kaitaiStructField(value: Ast.expr, name: String): TranslatorResult = {
     val valueStr = translate(value)
+
+    if (name == Identifier.IO) {
+      // A heterogeneous conditional is represented by the Struct interface,
+      // whose read stream is available through IO_(), not a concrete field.
+      importList.add("fmt")
+      importList.add("reflect")
+      return outVarCheckRes(
+        s"""func(value kaitai.Struct) (*kaitai.Stream, error) {
+           |  if value == nil || (reflect.ValueOf(value).Kind() == reflect.Ptr && reflect.ValueOf(value).IsNil()) {
+           |    return nil, fmt.Errorf("cannot access input stream of %T: object is nil", value)
+           |  }
+           |  stream := value.IO_()
+           |  if stream == nil { return nil, fmt.Errorf("cannot access input stream of %T: stream is nil", value) }
+           |  return stream, nil
+           |}($valueStr)""".stripMargin)
+    }
 
     if (name == Identifier.PARENT) {
       // Struct intentionally requires only IO_(), so handwritten/opaque types
