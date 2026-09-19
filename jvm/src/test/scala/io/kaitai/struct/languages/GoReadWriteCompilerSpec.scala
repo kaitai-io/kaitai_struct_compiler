@@ -313,6 +313,25 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
   // Runtime conformance can be run against a development runtime without making
   // the compiler's ordinary Scala suite depend on a Go installation or network.
   sys.env.get("KAITAI_GO_RUNTIME").foreach { runtimePath =>
+    test("generated nested and processed writers preserve bytes and failures") {
+      val dir = Files.createTempDirectory("kaitai-go-children-")
+      def write(name: String, text: String): Unit =
+        Files.write(dir.resolve(name), text.getBytes(StandardCharsets.UTF_8))
+      val runtime = new File(runtimePath).getCanonicalPath
+      write("go.mod", s"module contract\n\ngo 1.24.0\n\nrequire github.com/kaitai-io/kaitai_struct_go_runtime v0.0.0\nreplace github.com/kaitai-io/kaitai_struct_go_runtime => $runtime\n")
+      nestedFixtures.foreach(name => write(s"$name.go", compile(name)))
+      for (name <- Seq("nested_test.go", "nested_external_test.go")) {
+        val tests = scala.io.Source.fromURL(getClass.getResource(s"/go-read-write/$name"))
+        try write(name, tests.mkString) finally tests.close()
+      }
+      val output = new StringBuilder
+      def log(line: String): Unit = output.synchronized { output.append(line).append('\n'); () }
+      val logger = ProcessLogger(log, log)
+      assert(Process(Seq("gofmt", "-w", "."), dir.toFile).!(logger) == 0, output.toString)
+      assert(Process(Seq("go", "test", "-mod=mod", "-v", "./..."), dir.toFile).!(logger) == 0,
+        s"Generated Go in $dir failed:\n$output")
+      info(s"Generated Go in $dir:\n$output")
+    }
     test("generated field writers serialize exact bytes and preserve error causes") {
       val dir = Files.createTempDirectory("kaitai-go-writes-")
       val runtime = new File(runtimePath).getCanonicalPath
@@ -328,6 +347,15 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
       assert(Process(Seq("go", "test", "-mod=mod", "-v", "./..."), dir.toFile).!(logger) == 0,
         s"Generated Go in $dir failed:\n$output")
       info(s"Generated Go in $dir:\n$output")
+    }
+  }
+
+  private val nestedFixtures = Seq("write_nested", "write_processed", "write_custom", "write_processed_child", "write_zlib_child", "write_child_formats", "write_io_param", "write_switch_child", "write_position_child", "write_optional_child", "write_optional_included", "write_optional_peek", "write_optional_included_peek")
+  for (name <- nestedFixtures) {
+    test(s"$name supports nested and reverse processing generation") {
+      val code = compile(name)
+      for (feature <- Seq("nested type writing", "reverse processing", "child writer"))
+        assert(!code.contains(s"$feature is not implemented"), s"$name contains deferred $feature")
     }
   }
 

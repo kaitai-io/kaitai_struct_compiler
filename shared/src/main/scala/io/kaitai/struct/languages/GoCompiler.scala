@@ -23,9 +23,17 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   import GoCompiler._
 
   override val translator = new GoTranslator(out, typeProvider, importList) {
+    override def translateExpr(value: Ast.expr, precedence: Int): TranslatorResult =
+      capturedChildSize match {
+        case Some((expr, name)) if value == expr => ResultString(name)
+        case _ => super.translateExpr(value, precedence)
+      }
+
     override def trLocalName(name: String): TranslatorResult = {
       if (writing && name == Identifier.IO) {
         ResultString(normalIO)
+      } else if (writing && writerParam(typeProvider.nowClass, name).isDefined) {
+        ResultString(s"this._writer_${Utils.upperCamelCase(name)}")
       } else if (config.readWrite) {
         typeProvider.nowClass.seq.find(_.id.humanReadable == name) match {
           case Some(attr) => ResultString(GoCompiler.this.privateMemberName(attr.id))
@@ -50,6 +58,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     override def userTypeField(ut: UserType, value: Ast.expr, name: String): TranslatorResult =
       if (writing && name == Identifier.IO)
         ResultString(s"${translate(value)}._writer")
+      else if (writing && ut.classSpec.exists(writerParam(_, name).isDefined))
+        ResultString(s"${translate(value)}._writer_${Utils.upperCamelCase(name)}")
       else if (config.readWrite && ut.classSpec.exists(_.seq.exists(_.id.humanReadable == name)))
         ResultString(s"${translate(value)}.Get${Utils.upperCamelCase(name)}()")
       else
@@ -61,6 +71,18 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   private var writing = false
   private var writeMain = false
+  private var capturedChildSize: Option[(Ast.expr, String)] = None
+
+  private def writerParam(cls: ClassSpec, name: String): Option[ParamDefSpec] =
+    cls.params.find(p => p.id.humanReadable == name && (getArrayItemType(p.dataType) match {
+      case KaitaiStreamType | OwnedKaitaiStreamType => true
+      case _ => false
+    }))
+
+  private def writerParamType(t: DataType): String = t match {
+    case _: ArrayType => "[]*kaitai.Writer"
+    case _ => "*kaitai.Writer"
+  }
 
   override def normalIO: String = if (writing) "this._writer" else super.normalIO
 
@@ -112,6 +134,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       // The zero value is unchecked, including objects created without New.
       out.puts("_checked bool")
       out.puts("_writer *kaitai.Writer")
+      typeProvider.nowClass.params.filter(p => writerParam(typeProvider.nowClass, p.id.humanReadable).isDefined)
+        .foreach(p => out.puts(s"_writer_${idToStr(p.id)} ${writerParamType(p.dataType)}"))
     }
     // TODO(jchw): where should this attribute actually be generated at?
     typeProvider.nowClass.meta.endian match {
@@ -143,6 +167,32 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
 
     ioAccessor()
+    if (config.readWrite) {
+      // A trailing underscore cannot collide with a KSY-derived field setter.
+      // These let callers assemble nested graphs without first parsing bytes.
+      Seq(("Parent", "_parent", kaitaiType2NativeType(parentType)),
+        ("Root", "_root", s"*${types2class(rootClassName)}")).foreach { case (property, field, native) =>
+        out.puts(s"func (this *${types2class(name)}) Set${property}_(v $native) {")
+        out.inc
+        out.puts(s"this.$field = v")
+        out.puts("this._checked = false")
+        universalFooter
+      }
+      typeProvider.nowClass.params.filter(p => writerParam(typeProvider.nowClass, p.id.humanReadable).isDefined).foreach { p =>
+        val name = idToStr(p.id)
+        val owner = types2class(typeProvider.nowClass.name)
+        val native = writerParamType(p.dataType)
+        out.puts(s"func (this *$owner) ${name}Writer_() $native {")
+        out.inc
+        out.puts(s"return this._writer_$name")
+        universalFooter
+        out.puts(s"func (this *$owner) Set${name}Writer_(v $native) {")
+        out.inc
+        out.puts(s"this._writer_$name = v")
+        out.puts("this._checked = false")
+        universalFooter
+      }
+    }
   }
 
   override def classConstructorFooter: Unit = {}
@@ -267,7 +317,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrInvokeFetchInstances(baseExpr: Ast.expr, exprType: DataType, dataType: DataType): Unit = {
-    out.puts(s"err = ${expression(baseExpr)}.FetchInstances()")
+    val raw = expression(baseExpr)
+    val value = if (config.readWrite && exprType.asCombined == AnyType)
+      s"$raw.(${kaitaiType2NativeType(dataType)})" else raw
+    out.puts(s"err = $value.FetchInstances()")
     translator.outAddErrCheck()
   }
 
@@ -287,6 +340,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.puts("return kaitai.NewConsistencyNotCheckedError(this)")
         universalFooter
         out.puts("this._writer = writer")
+        typeProvider.nowClass.params.filter(p => writerParam(typeProvider.nowClass, p.id.humanReadable).isDefined).foreach { p =>
+          importList.add("fmt")
+          val field = s"this._writer_${idToStr(p.id)}"
+          val isArray = p.dataType.isInstanceOf[ArrayType]
+          if (isArray) {
+            out.puts(s"for _, output := range $field {")
+            out.inc
+          }
+          out.puts(s"if ${if (isArray) "output" else field} == nil {")
+          out.inc
+          out.puts(s"return fmt.Errorf(\"missing output stream parameter ${p.id.humanReadable}: %w\", kaitai.ErrWriterNotSeekable)")
+          universalFooter
+          if (isArray) universalFooter
+        }
       case Some(e) => errorMethodHeader(s"_write_${e.toSuffix}")
     }
   }
@@ -445,6 +512,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // Writer.Seek aligns pending bits. Query its underlying seeker instead so
     // observing size/EOF cannot insert padding in the middle of a bit group.
     val call = s"""func() ($resultType, error) {
+                  |\tif $writer == nil {
+                  |\t\treturn $zero, fmt.Errorf("query missing output stream: %w", kaitai.ErrWriterNotSeekable)
+                  |\t}
                   |\tseeker, ok := $writer.Writer.(io.Seeker)
                   |\tif !ok {
                   |\t\treturn $zero, fmt.Errorf("query output stream: %w", kaitai.ErrWriterNotSeekable)
@@ -475,17 +545,158 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     s"(${writerSize(io)} - $pos)"
   }
 
-  override def attrUserTypeWrite(id: Identifier, t: UserType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], checksShouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType]): Unit =
-    unsupportedSerialization("nested type writing")
+  override def attrUserTypeWrite(id: Identifier, t: UserType, io: String, rep: RepeatSpec, isRaw: Boolean, defEndian: Option[FixedEndian], checksShouldDependOnIo: Option[Boolean], exprTypeOpt: Option[DataType]): Unit = {
+    val item = Identifier.itemExpr(id, rep)
+    val expr = if (exprTypeOpt.exists(!_.isInstanceOf[UserType]))
+      Ast.expr.CastToType(item, Ast.typeId(true, t.classSpec.get.name)) else item
+    attrUserTypeCheck(id, expr, t, checksShouldDependOnIo)
+    t.classSpec.get.params.lazyZip(t.args).foreach { (param, arg) =>
+      getArrayItemType(param.dataType) match {
+        case KaitaiStreamType | OwnedKaitaiStreamType => attrSetProperty(expr, param.id, expression(arg))
+        case _ =>
+      }
+    }
+    t match {
+      case _: UserTypeInstream => attrUserTypeInstreamWrite(io, expr, t, t)
+      case ut: UserTypeFromBytes =>
+        val bt = ut.bytes
+        val outer = localValue(bt match {
+          case b: BytesLimitType => s"int(${expression(b.size)})"
+          case _: BytesEosType => s"int(${exprIORemainingSize(io)})"
+          case _: BytesTerminatedType => expression(Identifier.itemExpr(OuterSizeIdentifier(id), rep))
+        })
+        val inner = if (writeNeedsInnerSize(bt)) expression(Identifier.itemExpr(InnerSizeIdentifier(id), rep)) else outer
+        val extraTerm = bt match {
+          case b: BytesTerminatedType if !b.include =>
+            if (b.eosError) "true" else {
+              val pos = translator.resToStr(translator.outVarCheckRes(s"$io.Pos()"))
+              localValue(s"$pos + int64($outer) < ${writerSize(io)}")
+            }
+          case _ => "false"
+        }
+        val reserved = if (extraTerm == "false") outer else {
+          val size = localValue(outer)
+          out.puts(s"if $extraTerm {")
+          out.inc
+          out.puts(s"$size++")
+          universalFooter
+          size
+        }
+        val encoder = translator.localVarName(translator.allocateLocalVar())
+        val rawId = RawIdentifier(id)
+        importList.add("bytes")
+        out.puts(s"$encoder := kaitai.ByteEncoderFunc(func(data []byte) ([]byte, error) {")
+        out.inc
+        out.puts("buffer := kaitai.NewSeekableBuffer(nil)")
+        out.puts("output := kaitai.NewWriter(buffer)")
+        // The inner error-only closure permits the ordinary checks/writes to
+        // retain their early-return contract inside a ByteEncoder.
+        out.puts("err := func() (err error) {")
+        out.inc
+        assignWrittenBytes(rawId, rep, "bytes.Clone(data)")
+        val encodedId = bt.process match {
+          case Some(proc) =>
+            val dest = RawIdentifier(rawId)
+            attrUnprocess(proc, rawId, dest, rep, bt, None)
+            dest
+          case None => rawId
+        }
+        val encoded = Identifier.itemExpr(encodedId, rep)
+        // A reservation advances the parent. Its size expression must be
+        // checked against the value evaluated before that advancement.
+        capturedChildSize = bt match {
+          case b: BytesLimitType if userExprDependsOnIo(b.size) => Some((b.size, outer))
+          case _ => None
+        }
+        try attrBytesCheck(id, encoded, bt, None) finally capturedChildSize = None
+        bt match {
+          case b: BytesLimitType => attrBytesLimitWrite2("output", encoded, b, outer, b.padRight, b.terminator, b.include, None)
+          case b: BytesEosType => attrBytesLimitWrite2("output", encoded, b, outer, b.padRight, b.terminator, b.include, None)
+          case b: BytesTerminatedType =>
+            attrPrimitiveWrite("output", encoded, bt, None, None)
+            if (extraTerm != "false") {
+              out.puts(s"if $extraTerm {")
+              out.inc
+              attrPrimitiveWrite("output", Ast.expr.IntNum(b.terminator.head & 0xff), Int1Type(false), None, None)
+              universalFooter
+            }
+        }
+        out.puts("return nil")
+        out.dec
+        out.puts("}()")
+        out.puts("return buffer.Bytes(), err")
+        out.dec
+        out.puts("})")
+        val child = translator.resToStr(translator.outVarCheckRes(s"$io.NewChild(int($inner), $reserved, $encoder)"))
+        attrUserTypeInstreamWrite(s"$child.Writer", expr, t, t)
+        writerCall(s"$child.WriteBack()")
+        bt match {
+          case b: BytesTerminatedType if !b.consume =>
+            val hasTerm = if (!b.include) extraTerm else {
+              val data = expression(Identifier.itemExpr(encodedId, rep))
+              s"len($data) > 0 && $data[len($data) - 1] == ${b.terminator.head & 0xff}"
+            }
+            out.puts(s"if $hasTerm {")
+            out.inc
+            importList.add("io")
+            out.puts(s"_, err = $io.Seek(-1, io.SeekCurrent)")
+            translator.outAddErrCheck()
+            universalFooter
+          case _ =>
+        }
+    }
+  }
 
   override def attrUserTypeInstreamWrite(io: String, expr: Ast.expr, t: DataType, exprType: DataType): Unit =
-    unsupportedSerialization("nested type writing")
+    writerCall(s"${expression(expr)}.Write($io)")
 
   override def exprStreamToByteArray(ioFixed: String): String =
     throw new NotImplementedError("Go serialization child writer extraction")
 
-  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit =
-    unsupportedSerialization("reverse processing")
+  private def localValue(value: String): String = {
+    val name = translator.localVarName(translator.allocateLocalVar())
+    out.puts(s"$name := $value")
+    name
+  }
+
+  private def assignWrittenBytes(id: Identifier, rep: RepeatSpec, value: String): Unit = {
+    val dest = privateMemberName(id)
+    rep match {
+      case NoRepeat => out.puts(s"$dest = $value")
+      case _ =>
+        out.puts(s"for len($dest) <= i {")
+        out.inc
+        out.puts(s"$dest = append($dest, nil)")
+        universalFooter
+        out.puts(s"$dest[i] = $value")
+    }
+  }
+
+  private def customProcessor(name: List[String], args: Seq[Ast.expr]): String = {
+    val namespace = name.init.mkString(".")
+    if (namespace.nonEmpty) importList.add(name.init.mkString("/"))
+    s"${if (namespace.nonEmpty) name(name.size - 2) + "." else ""}New${type2class(name.last)}(${args.map(expression).mkString(", ")})"
+  }
+
+  override def attrUnprocess(proc: ProcessExpr, varSrc: Identifier, varDest: Identifier, rep: RepeatSpec, dataType: BytesType, exprTypeOpt: Option[DataType]): Unit = {
+    val raw = expression(Identifier.itemExpr(varSrc, rep))
+    val src = if (exprTypeOpt.exists(!_.isInstanceOf[BytesType])) s"$raw.([]byte)" else raw
+    val value = proc match {
+      case ProcessXor(key) =>
+        val arg = translator.detectType(key) match {
+          case _: IntType => s"[]byte{byte(${expression(key)})}"
+          case _ => expression(key)
+        }
+        s"kaitai.ProcessXOR($src, $arg)"
+      case ProcessRotate(left, count) =>
+        s"kaitai.ProcessRotate${if (left) "Right" else "Left"}($src, int(${expression(count)}))"
+      case ProcessZlib => translator.resToStr(translator.outVarCheckRes(s"kaitai.UnprocessZlib($src)"))
+      case ProcessCustom(name, args) =>
+        importList.add("bytes")
+        translator.resToStr(translator.outVarCheckRes(s"${customProcessor(name, args)}.Encode(bytes.Clone($src))"))
+    }
+    assignWrittenBytes(varDest, rep, value)
+  }
 
   override def attrUnprocessPrepareBeforeSubIOHandler(proc: ProcessExpr, varSrc: Identifier): Unit =
     unsupportedSerialization("child writer reverse processing")
@@ -498,7 +709,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condIfIsEofFooter: Unit = universalFooter
 
   override def attrSetProperty(base: Ast.expr, propName: Identifier, value: String): Unit =
-    unsupportedSerialization("nested property assignment")
+    out.puts(s"${expression(base)}._writer_${idToStr(propName)} = $value")
 
   override def attrBasicCheck(checkExpr: Ast.expr, actual: Ast.expr, expected: Ast.expr, msg: String): Unit = {
     val failCond = checkExpr match {
@@ -696,8 +907,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         s"kaitai.ProcessRotateLeft($srcExpr, int($expr))"
       case ProcessCustom(name, args) =>
-        // TODO(jchw): This hack is necessary because Go tests fail catastrophically otherwise...
-        s"$srcExpr"
+        if (config.readWrite) {
+          importList.add("bytes")
+          translator.resToStr(translator.outVarCheckRes(s"${customProcessor(name, args)}.Decode(bytes.Clone($srcExpr))"))
+        } else {
+          // Preserve the historical read-only custom processor behavior.
+          s"$srcExpr"
+        }
     }
   }
 
@@ -715,6 +931,21 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"$ioName := kaitai.NewStream(bytes.NewReader($args))")
     ioName
+  }
+
+  override def attrUserTypeParse(id: Identifier, dataType: UserType, io: String, rep: RepeatSpec, defEndian: Option[FixedEndian]): Unit = {
+    super.attrUserTypeParse(id, dataType, io, rep, defEndian)
+    if (config.readWrite) dataType match {
+      case t: UserTypeFromBytes =>
+        val rawId = RawIdentifier(id)
+        def storeSize(sizeId: Identifier, raw: Identifier): Unit = {
+          val value = ResultString(s"len(${getRawIdExpr(raw, rep)})")
+          if (rep == NoRepeat) handleAssignmentSimple(sizeId, value) else handleAssignmentRepeatEos(sizeId, value)
+        }
+        if (writeNeedsOuterSize(t.bytes)) storeSize(OuterSizeIdentifier(id), if (t.bytes.process.isDefined) RawIdentifier(rawId) else rawId)
+        if (writeNeedsInnerSize(t.bytes)) storeSize(InnerSizeIdentifier(id), rawId)
+      case _ =>
+    }
   }
 
   def getRawIdExpr(varName: Identifier, rep: RepeatSpec): String = {
@@ -865,7 +1096,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case _: BytesEosType =>
         s"$io.ReadBytesFull()"
       case BytesTerminatedType(terminator, include, consume, eosError, _) =>
-        if (terminator.length == 1) {
+        // The single-byte runtime reader drops the last byte (and panics on
+        // empty input) at optional EOF. Multi preserves all bytes and position.
+        // Keep the established read-only output unchanged.
+        if (terminator.length == 1 && !(config.readWrite && !eosError)) {
           val term = terminator.head & 0xff
           s"$io.ReadBytesTerm($term, $include, $consume, $eosError)"
         } else {
@@ -1017,7 +1251,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def idToStr(id: Identifier): String =
-    if (isPrivateSequenceField(id)) s"_m_${GoCompiler.idToStr(id)}" else GoCompiler.idToStr(id)
+    id match {
+      case InnerSizeIdentifier(inner) if config.readWrite => s"${GoCompiler.idToStr(inner)}_InnerSize"
+      case OuterSizeIdentifier(inner) if config.readWrite => s"${GoCompiler.idToStr(inner)}_OuterSize"
+      case _ => if (isPrivateSequenceField(id)) s"_m_${GoCompiler.idToStr(id)}" else GoCompiler.idToStr(id)
+    }
 
   override def publicMemberName(id: Identifier): String =
     id match {
