@@ -668,6 +668,26 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def kaitaiStructField(value: Ast.expr, name: String): TranslatorResult = {
     val valueStr = translate(value)
 
+    if (name == Identifier.PARENT) {
+      // Struct intentionally requires only IO_(), so handwritten/opaque types
+      // remain compatible. Generated types expose parent traversal separately.
+      importList.add("fmt")
+      importList.add("reflect")
+      return outVarCheckRes(
+        s"""func(value kaitai.Struct) (kaitai.Struct, error) {
+           |  if value == nil || (reflect.ValueOf(value).Kind() == reflect.Ptr && reflect.ValueOf(value).IsNil()) {
+           |    return nil, fmt.Errorf("cannot access parent of %T: object is nil", value)
+           |  }
+           |  parentProvider, ok := value.(interface { Parent_() kaitai.Struct })
+           |  if !ok { return nil, fmt.Errorf("cannot access parent of %T: missing Parent_ capability", value) }
+           |  parent := parentProvider.Parent_()
+           |  if parent == nil || (reflect.ValueOf(parent).Kind() == reflect.Ptr && reflect.ValueOf(parent).IsNil()) {
+           |    return nil, fmt.Errorf("cannot access parent of %T: parent is nil", value)
+           |  }
+           |  return parent, nil
+           |}($valueStr)""".stripMargin)
+    }
+
     val (call, twoOuts) = name match {
       case Identifier.ROOT |
            Identifier.PARENT |

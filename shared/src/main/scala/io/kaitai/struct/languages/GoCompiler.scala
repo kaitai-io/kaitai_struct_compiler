@@ -473,6 +473,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
 
     ioAccessor()
+    parentAccessor()
     if (config.readWrite) {
       // A trailing underscore cannot collide with a KSY-derived field setter.
       // These let callers assemble nested graphs without first parsing bytes.
@@ -1808,6 +1809,23 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"func (this ${types2class(typeProvider.nowClass.name)}) IO_() *$kstreamName {")
     out.inc
     out.puts(s"return this._io")
+    out.dec
+    out.puts("}")
+  }
+
+  def parentAccessor(): Unit = {
+    out.puts
+    // The trailing underscore cannot collide with KSY-derived public names.
+    // Preserve the actual parent pointer and normalize nil concrete parents
+    // before converting them to the optional generic capability's result.
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Parent_() kaitai.Struct {")
+    out.inc
+    out.puts("if this == nil || this._parent == nil {")
+    out.inc
+    out.puts("return nil")
+    out.dec
+    out.puts("}")
+    out.puts("return this._parent")
     out.dec
     out.puts("}")
   }
