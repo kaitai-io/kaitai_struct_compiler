@@ -5,7 +5,7 @@ import io.kaitai.struct.datatype._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.languages.components._
-import io.kaitai.struct.translators.{GoTranslator, ResultString, TranslatorResult}
+import io.kaitai.struct.translators.{GoTranslator, ResultLocalVar, ResultString, TranslatorResult}
 import io.kaitai.struct.{ClassTypeProvider, RuntimeConfig, Utils}
 
 class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
@@ -70,6 +70,24 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             ResultString(s"($nativeType)(${translate(value)})")
         }
       } else super.doCast(value, typeName)
+
+    override def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
+      val dataType = detectType(ifTrue)
+      if (!writing || !isIoType(dataType))
+        return super.trIfExp(condition, ifTrue, ifFalse)
+      val result = allocateLocalVar()
+      out.puts(s"var ${localVarName(result)} ${writerParamType(dataType)}")
+      out.puts(s"if (${translate(condition)}) {")
+      out.inc
+      out.puts(s"${localVarName(result)} = ${translate(ifTrue)}")
+      out.dec
+      out.puts("} else {")
+      out.inc
+      out.puts(s"${localVarName(result)} = ${translate(ifFalse)}")
+      out.dec
+      out.puts("}")
+      ResultLocalVar(result)
+    }
 
     override def kaitaiStreamSize(value: Ast.expr): TranslatorResult =
       if (writing) ResultString(writerSize(translate(value))) else super.kaitaiStreamSize(value)

@@ -184,6 +184,75 @@ func TestNestedIOArrayLiteralsAndCastsUseWriterTypes(t *testing.T) {
 	}
 }
 
+func TestConditionalIOValuesSelectWriterBranchesAndPreserveReadCaches(t *testing.T) {
+	for _, initialFlag := range []uint8{1, 2} {
+		mainInput := kaitai.NewStream(bytes.NewReader([]byte{initialFlag, 0xaa}))
+		otherInput := kaitai.NewStream(bytes.NewReader(nil))
+		v := NewWriteInstanceIoConditional(otherInput)
+		if err := v.Read(mainInput, nil, v); err != nil {
+			t.Fatal(err)
+		}
+		wantRead := mainInput
+		if initialFlag == 2 {
+			wantRead = otherInput
+		}
+		scalar, err := v.Scalar()
+		if err != nil || scalar != wantRead {
+			t.Fatalf("read scalar branch %v %v", scalar, err)
+		}
+		array, err := v.Array()
+		if err != nil || len(array) != 1 || array[0] != wantRead {
+			t.Fatalf("read array branch %v %v", array, err)
+		}
+		matrix, err := v.Matrix()
+		if err != nil || len(matrix) != 1 || len(matrix[0]) != 1 || matrix[0][0] != wantRead {
+			t.Fatalf("read matrix branch %v %v", matrix, err)
+		}
+		v.SetFromScalar(0x11)
+		v.SetFromArray(0x22)
+		v.SetFromMatrix(0x33)
+		for _, flag := range []uint8{1, 2, 1} {
+			mainOut := kaitai.NewSeekableBuffer(nil)
+			otherOut := kaitai.NewSeekableBuffer(nil)
+			mainWriter := kaitai.NewWriter(mainOut)
+			otherWriter := kaitai.NewWriter(otherOut)
+			v.SetFlag(flag)
+			v.SetOtherWriter_(otherWriter)
+			if err := v.Check(); err != nil {
+				t.Fatal(err)
+			}
+			if err := v.Write(mainWriter); err != nil {
+				t.Fatal(err)
+			}
+			wantMain := []byte{flag, 0xaa}
+			var wantOther []byte
+			if flag == 1 {
+				wantMain = []byte{1, 0xaa, 0, 0, 0x11, 0, 0x22, 0, 0x33}
+			} else {
+				wantOther = []byte{0, 0, 0, 0, 0x11, 0, 0x22, 0, 0x33}
+			}
+			if !bytes.Equal(mainOut.Bytes(), wantMain) || !bytes.Equal(otherOut.Bytes(), wantOther) {
+				t.Fatalf("flag %d: main=%x other=%x", flag, mainOut.Bytes(), otherOut.Bytes())
+			}
+			if p, err := mainWriter.Pos(); err != nil || p != 2 {
+				t.Fatalf("main position %d %v", p, err)
+			}
+			if p, err := otherWriter.Pos(); err != nil || p != 0 {
+				t.Fatalf("other position %d %v", p, err)
+			}
+			if got, err := v.Scalar(); err != nil || got != wantRead {
+				t.Fatalf("read scalar cache changed %v %v", got, err)
+			}
+			if got, err := v.Array(); err != nil || got[0] != wantRead {
+				t.Fatalf("read array cache changed %v %v", got, err)
+			}
+			if got, err := v.Matrix(); err != nil || got[0][0] != wantRead {
+				t.Fatalf("read matrix cache changed %v %v", got, err)
+			}
+		}
+	}
+}
+
 type instanceWriteHook struct {
 	*kaitai.SeekableBuffer
 	calls  int
