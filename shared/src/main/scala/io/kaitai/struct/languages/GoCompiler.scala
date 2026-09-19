@@ -729,16 +729,23 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         errorMethodHeader("WriteNoAlign_", "writer *kaitai.Writer")
         out.puts("if !this._checked { return kaitai.NewConsistencyNotCheckedError(this) }")
         out.puts("context := kaitai.NewWriteContext()")
-        out.puts("defer context.Close()")
-        writerCall("this.WriteWithContext_(writer, context)")
-        out.puts("return context.Finish()")
+        out.puts("return context.Run(func() error {")
+        out.inc
+        out.puts("return this.WriteWithContext_(writer, context)")
+        out.dec
+        out.puts("})")
         universalFooter
         out.puts
         out.puts("// WriteWithContext_ participates in a caller-owned output session.")
+        out.puts("// An outstanding binding permits reentry only within context.Run's bounded scope.")
         errorMethodHeader("WriteWithContext_", "writer *kaitai.Writer, context *kaitai.WriteContext")
         out.puts("if !this._checked {")
         out.inc
         out.puts("return kaitai.NewConsistencyNotCheckedError(this)")
+        universalFooter
+        out.puts("if this._writeContext != nil && !context.IsScoped() {")
+        out.inc
+        out.puts("return kaitai.NewConsistencyError(\"output binding\", \"object without an outstanding session\", \"object already bound to a write context\")")
         universalFooter
         out.puts("previousWriter, previousContext := this._activeWriter, this._writeContext")
         parseInstances.foreach { id =>

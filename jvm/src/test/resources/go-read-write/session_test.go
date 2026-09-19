@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
 	"io"
 	"testing"
@@ -546,4 +547,185 @@ func TestSessionNestedPendingOperationPrecedesFollowingOverlap(t *testing.T) {
 	// must finish before root instance b overwrites the same byte. A FIFO of
 	// object callbacks would incorrectly produce 0x11 instead of 0x22.
 	sessionBytes(t, p, []byte{0x22})
+}
+
+type sessionFailureBuffer struct {
+	*kaitai.SeekableBuffer
+	fail bool
+}
+
+func (b *sessionFailureBuffer) Write(data []byte) (int, error) {
+	if b.fail {
+		return 0, io.ErrClosedPipe
+	}
+	return b.SeekableBuffer.Write(data)
+}
+
+func sessionOrderPending(t *testing.T) *SessionOrder {
+	t.Helper()
+	p := NewSessionOrder()
+	p.SetRoot_(p)
+	p.SetValue(0)
+	p.SetB(0x22)
+	if err := p.Check(); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestOutstandingSessionsRejectSecondBindingForEveryFinishAndCloseOrder(t *testing.T) {
+	for _, secondFinishesFirst := range []bool{false, true} {
+		for _, secondClosesFirst := range []bool{false, true} {
+			for _, failFirst := range []bool{false, true} {
+				t.Run(fmt.Sprintf("finishSecondFirst=%v/closeSecondFirst=%v/failFirst=%v", secondFinishesFirst, secondClosesFirst, failFirst), func(t *testing.T) {
+					p := sessionOrderPending(t)
+					one, two := kaitai.NewWriteContext(), kaitai.NewWriteContext()
+					defer one.Close()
+					defer two.Close()
+					out1 := &sessionFailureBuffer{SeekableBuffer: kaitai.NewSeekableBuffer(nil)}
+					out2 := kaitai.NewSeekableBuffer(nil)
+					writer1, writer2 := kaitai.NewWriter(out1), kaitai.NewWriter(out2)
+					if err := p.WriteWithContext_(writer1, one); err != nil {
+						t.Fatal(err)
+					}
+					var consistency kaitai.ConsistencyError
+					if err := p.WriteWithContext_(writer2, two); !errors.As(err, &consistency) {
+						t.Fatalf("second outstanding binding must be rejected: %v", err)
+					}
+					if p._writeContext != one || p._activeWriter != writer1 || p.Writer_() != writer1 || !p._w_b {
+						t.Fatal("rejected binding changed first session state")
+					}
+					finishFirst := func() {
+						out1.fail = failFirst
+						err := one.Finish()
+						if failFirst {
+							if !errors.Is(err, io.ErrClosedPipe) {
+								t.Fatalf("first failure: %v", err)
+							}
+						} else if err != nil {
+							t.Fatal(err)
+						}
+					}
+					finishSecond := func() {
+						if err := two.Finish(); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if secondFinishesFirst {
+						finishSecond()
+						finishFirst()
+					} else {
+						finishFirst()
+						finishSecond()
+					}
+					want := []byte{0x22}
+					if failFirst {
+						want[0] = 0
+					}
+					if !bytes.Equal(out1.Bytes(), want) || len(out2.Bytes()) != 0 {
+						t.Fatalf("crossed outputs first=%x second=%x", out1.Bytes(), out2.Bytes())
+					}
+					if secondClosesFirst {
+						two.Close()
+						one.Close()
+					} else {
+						one.Close()
+						two.Close()
+					}
+					if p._writeContext != nil || p._activeWriter != nil {
+						t.Fatal("close resurrected a context")
+					}
+					if _, err := p.WriterForContext_(one); err == nil {
+						t.Fatal("closed context still owns receiver")
+					}
+					sessionBytes(t, p, []byte{0x22})
+					if !bytes.Equal(out1.Bytes(), want) || len(out2.Bytes()) != 0 {
+						t.Fatal("fresh retry changed old output")
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestIndependentSynchronousWriteRestoresOutstandingSession(t *testing.T) {
+	for _, failInner := range []bool{false, true} {
+		p := sessionOrderPending(t)
+		one := kaitai.NewWriteContext()
+		defer one.Close()
+		out1 := kaitai.NewSeekableBuffer(nil)
+		writer1 := kaitai.NewWriter(out1)
+		if err := p.WriteWithContext_(writer1, one); err != nil {
+			t.Fatal(err)
+		}
+		out2 := &sessionFailureBuffer{SeekableBuffer: kaitai.NewSeekableBuffer(nil), fail: failInner}
+		err := p.Write(kaitai.NewWriter(out2))
+		if failInner {
+			if !errors.Is(err, io.ErrClosedPipe) {
+				t.Fatalf("inner failure: %v", err)
+			}
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		if p._writeContext != one || p._activeWriter != writer1 || p.Writer_() != writer1 || !p._w_b {
+			t.Fatal("synchronous write lost suspended binding")
+		}
+		if err := one.Finish(); err != nil {
+			t.Fatal(err)
+		}
+		one.Close()
+		if !bytes.Equal(out1.Bytes(), []byte{0x22}) {
+			t.Fatalf("first output %x", out1.Bytes())
+		}
+		if !failInner && !bytes.Equal(out2.Bytes(), []byte{0x22}) {
+			t.Fatalf("second output %x", out2.Bytes())
+		}
+		if p._writeContext != nil || p._activeWriter != nil {
+			t.Fatal("active binding remained after close")
+		}
+	}
+}
+
+func TestIndependentSynchronousWriteRestoresNestedBindingsAndPendingBits(t *testing.T) {
+	p := NewSessionBits()
+	p.SetRoot_(p)
+	p.SetTail(5)
+	child := NewSessionBits_Body()
+	child.SetRoot_(p)
+	child.SetParent_(p)
+	child.SetValue(0x42)
+	p.SetChild(child)
+	if err := child.Check(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Check(); err != nil {
+		t.Fatal(err)
+	}
+	one := kaitai.NewWriteContext()
+	defer one.Close()
+	out1, out2 := kaitai.NewSeekableBuffer(nil), kaitai.NewSeekableBuffer(nil)
+	writer1 := kaitai.NewWriter(out1)
+	if err := p.WriteWithContext_(writer1, one); err != nil {
+		t.Fatal(err)
+	}
+	childWriter1 := child.Writer_()
+	if err := p.Write(kaitai.NewWriter(out2)); err != nil {
+		t.Fatal(err)
+	}
+	if p._writeContext != one || p._activeWriter != writer1 || child._writeContext != one || child._activeWriter != childWriter1 {
+		t.Fatal("independent nested write did not restore suspended graph")
+	}
+	if err := one.Finish(); err != nil {
+		t.Fatal(err)
+	}
+	one.Close()
+	if !bytes.Equal(out1.Bytes(), []byte{0x42}) || !bytes.Equal(out2.Bytes(), []byte{0x42, 0xa0}) {
+		t.Fatalf("nested outputs %x/%x", out1.Bytes(), out2.Bytes())
+	}
+	if err := writer1.WriteBitsIntBe(5, 19); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out1.Bytes(), []byte{0x42, 0xb3}) {
+		t.Fatalf("outer pending bits %x", out1.Bytes())
+	}
 }
