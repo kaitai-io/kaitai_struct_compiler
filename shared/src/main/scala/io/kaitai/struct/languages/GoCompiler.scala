@@ -34,8 +34,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             case ut: UserType => unsignedValueInstance(ut.classSpec.get, name.name)
               .getOrElse(super.numericType(value))
             case et: EnumType if name.name == "to_i" && unsignedEnum(et.enumSpec.get.map.keys) => "uint64"
+            case _: ArrayType if Set("first", "last", "min", "max").contains(name.name) && unsignedArrayType(owner).isDefined => "uint64"
             case _ => super.numericType(value)
           }
+        case Ast.expr.Subscript(container, _) if unsignedArrayType(container).isDefined => "uint64"
         case _ => super.numericType(value)
       }
     }
@@ -80,6 +82,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     override def doArrayLiteral(t: DataType, value: Seq[Ast.expr]): ResultString =
       if (writing && isIoType(t))
         ResultString(s"[]${writerParamType(t)}{${value.map(translate).mkString(", ")}}")
+      else if (config.readWrite && t == CalcIntType && value.exists(numericType(_) == "uint64"))
+        ResultString(s"[]uint64{${value.map(translateNumericAs(_, "uint64")).mkString(", ")}}")
       else super.doArrayLiteral(t, value)
 
     override def doCast(value: Ast.expr, typeName: DataType): TranslatorResult =
@@ -95,10 +99,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     override def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
       val dataType = detectType(ifTrue)
-      if (!writing || !isIoType(dataType))
-        return super.trIfExp(condition, ifTrue, ifFalse)
+      val native = if (writing && isIoType(dataType)) Some(writerParamType(dataType))
+        else if (config.readWrite) unsignedArrayType(Ast.expr.IfExp(condition, ifTrue, ifFalse))
+        else None
+      if (native.isEmpty) return super.trIfExp(condition, ifTrue, ifFalse)
       val result = allocateLocalVar()
-      out.puts(s"var ${localVarName(result)} ${writerParamType(dataType)}")
+      out.puts(s"var ${localVarName(result)} ${native.get}")
       out.puts(s"if (${translate(condition)}) {")
       out.inc
       out.puts(s"${localVarName(result)} = ${translate(ifTrue)}")
@@ -137,19 +143,42 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   private def unsignedEnum(values: Iterable[BigInt]): Boolean =
     values.exists(_ > Long.MaxValue) && values.forall(n => n >= 0 && n <= Utils.MAX_UINT64)
 
-  /** CalcIntType normally maps to int. Preserve uint64 expressions in RW
-    * instance storage and signatures when int cannot represent their range.
+  private def unsignedArrayType(value: Ast.expr): Option[String] = {
+    if (!config.readWrite) return None
+    val arrayType = translator.detectType(value) match {
+      case t: ArrayType => t
+      case _ => return None
+    }
+    value match {
+      case Ast.expr.List(elements) if arrayType.elType == CalcIntType &&
+        elements.exists(translator.numericType(_) == "uint64") => Some("[]uint64")
+      case Ast.expr.Name(name) => unsignedValueInstance(typeProvider.nowClass, name.name)
+      case Ast.expr.Attribute(owner, name) => translator.detectType(owner) match {
+        case ut: UserType => unsignedValueInstance(ut.classSpec.get, name.name)
+        case _ => None
+      }
+      case Ast.expr.IfExp(_, ifTrue, ifFalse) =>
+        val native = unsignedArrayType(ifTrue)
+        native.filter(_ => native == unsignedArrayType(ifFalse))
+      case _ => None
+    }
+  }
+
+  /** CalcIntType normally maps to int. Preserve uint64 expressions and arrays
+    * in RW instance storage and signatures when int cannot represent their range.
     * Resolve in the instance owner's scope, including nested member access.
     */
   private def unsignedValueInstance(owner: ClassSpec, name: String): Option[String] = {
     if (!config.readWrite) return None
     owner.instances.collectFirst {
-      case (id, inst: ValueInstanceSpec) if id.humanReadable == name && inst.dataType == CalcIntType => inst
+      case (id, inst: ValueInstanceSpec) if id.humanReadable == name &&
+        (inst.dataType == CalcIntType || inst.dataType.isInstanceOf[ArrayType]) => inst
     }.flatMap { inst =>
       val previous = typeProvider.nowClass
       typeProvider.nowClass = owner
       try {
-        if (translator.numericType(inst.value) == "uint64") Some("uint64") else None
+        if (inst.dataType.isInstanceOf[ArrayType]) unsignedArrayType(inst.value)
+        else if (translator.numericType(inst.value) == "uint64") Some("uint64") else None
       } finally typeProvider.nowClass = previous
     }
   }

@@ -26,6 +26,8 @@ func TestUnsignedConstants(t *testing.T) {
 			{p.Difference, math.MaxInt64}, {p.EnumInteger, value},
 			{p.ChildMax, math.MaxUint64}, {p.GetChild().ParentMax, math.MaxUint64},
 			{p.Choice, math.MaxUint64},
+			{p.ArrayElement, value}, {p.ArrayFirst, value},
+			{p.ArrayLast, 0}, {p.ArrayMax, math.MaxUint64}, {p.ArrayMin, 0},
 		} {
 			for i := 0; i < 2; i++ { // Exercise both computation and cached return.
 				if got, err := tc.get(); err != nil || got != tc.want {
@@ -35,6 +37,19 @@ func TestUnsignedConstants(t *testing.T) {
 		}
 		if got, err := p.SignedMax(); err != nil || got != math.MaxInt64 {
 			t.Fatalf("signed boundary: %d, %v", got, err)
+		}
+		for _, get := range []func() ([]uint64, error){p.Array, p.ArrayAlias, p.ArrayChoice} {
+			for i := 0; i < 2; i++ {
+				got, err := get()
+				if err != nil || len(got) != 3 || got[0] != value || got[1] != math.MaxUint64 || got[2] != 0 {
+					t.Fatalf("unsigned array: %v, %v", got, err)
+				}
+			}
+		}
+		for _, get := range []func() ([]uint64, error){p.LiteralArray, p.ChildArray} {
+			if got, err := get(); err != nil || len(got) != 1 || got[0] != math.MaxUint64 {
+				t.Fatalf("literal/nested unsigned array: %v, %v", got, err)
+			}
 		}
 		if got, err := p.Less(); err != nil || !got {
 			t.Fatalf("unsigned compared with negative: %v, %v", got, err)

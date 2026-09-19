@@ -34,6 +34,28 @@ instances:
     value: child.maximum
   choice:
     value: 'value == values::zero ? decimal : child.maximum'
+  calculated:
+    value: value.to_i + 0
+  array:
+    value: '[calculated, decimal, 0]'
+  array_alias:
+    value: array
+  array_choice:
+    value: 'value == values::zero ? array : array_alias'
+  literal_array:
+    value: '[18446744073709551615]'
+  child_array:
+    value: child.array
+  array_element:
+    value: array_alias[0]
+  array_first:
+    value: array.first
+  array_last:
+    value: array.last
+  array_max:
+    value: array.max
+  array_min:
+    value: array.min
 types:
   nested:
     enums:
@@ -43,5 +65,7 @@ types:
     instances:
       maximum:
         value: 18446744073709551615
+      array:
+        value: '[maximum]'
       parent_max:
         value: _root.decimal
