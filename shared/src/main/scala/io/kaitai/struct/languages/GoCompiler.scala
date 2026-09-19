@@ -139,21 +139,33 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
            |  if value == nil || (reflect.ValueOf(value).Kind() == reflect.Ptr && reflect.ValueOf(value).IsNil()) {
            |    return nil, fmt.Errorf("cannot access output stream of %T: object is nil", value)
            |  }
-           |  provider, ok := value.(interface { Writer_() *kaitai.Writer })
-           |  if !ok { return nil, fmt.Errorf("cannot access output stream of %T: missing Writer_ capability", value) }
-           |  writer := provider.Writer_()
-           |  if writer == nil { return nil, fmt.Errorf("cannot access output stream of %T: writer is nil", value) }
-           |  return writer, nil
+           |  if this._writeContext == nil {
+           |    provider, ok := value.(interface { Writer_() *kaitai.Writer })
+           |    if !ok { return nil, fmt.Errorf("cannot access output stream of %T: missing Writer_ capability", value) }
+           |    writer := provider.Writer_()
+           |    if writer == nil { return nil, fmt.Errorf("cannot access output stream of %T: writer is nil", value) }
+           |    return writer, nil
+           |  }
+           |  provider, ok := value.(interface { WriterForContext_(*kaitai.WriteContext) (*kaitai.Writer, error) })
+           |  if !ok { return nil, fmt.Errorf("cannot access output stream of %T: missing WriterForContext_ capability", value) }
+           |  return provider.WriterForContext_(this._writeContext)
            |}($owner)""".stripMargin)
     }
 
     override def userTypeField(ut: UserType, value: Ast.expr, name: String): TranslatorResult =
       if (writing && name == Identifier.IO)
-        ResultString(s"${translate(value)}._writer")
+        kaitaiStructField(value, name)
       else if (writing && ut.classSpec.exists(writerParam(_, name).isDefined))
         ResultString(s"${translate(value)}._writer_${Utils.upperCamelCase(name)}")
-      else if (writing && ut.classSpec.exists(_.instances.keys.exists(_.humanReadable == name)))
-        outVarCheckRes(s"${translate(value)}._writeGet${Utils.upperCamelCase(name)}()")
+      else if (writing && ut.classSpec.exists(_.instances.keys.exists(_.humanReadable == name))) {
+        val owner = localValue(translate(value))
+        out.puts(s"if $owner != nil && $owner._writeContext != nil && $owner._writeContext != this._writeContext {")
+        out.inc
+        out.puts("err = kaitai.NewConsistencyError(\"instance output binding\", \"current write context\", \"foreign active context\")")
+        outAddErrCheck()
+        universalFooter
+        outVarCheckRes(s"$owner._writeGet${Utils.upperCamelCase(name)}()")
+      }
       else if (checking && ut.classSpec.exists(parseInstance(_, name))) {
         val owner = translate(value)
         ResultString(s"$owner.${Utils.lowerCamelCase(name)}")
@@ -372,6 +384,22 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   private var writingInstance: Option[InstanceIdentifier] = None
   private var capturedChildSize: Option[(Ast.expr, String)] = None
 
+  private def optionalPeek(t: DataType): Boolean = t match {
+    case u: UserTypeFromBytes => u.bytes match {
+      case b: BytesTerminatedType => b.include && !b.consume && !b.eosError
+      case _ => false
+    }
+    case s: SwitchType => s.cases.values.exists(optionalPeek)
+    case _ => false
+  }
+
+  private def optionalPeekAttrs: Iterable[AttrLikeSpec] =
+    (typeProvider.nowClass.seq ++ typeProvider.nowClass.instances.values.collect {
+      case p: ParseInstanceSpec => p
+    }).filter(a => optionalPeek(a.dataType))
+
+  private def terminatorMetadata(id: Identifier): String = s"this._term_${idToStr(id)}"
+
   private def parseInstance(cls: ClassSpec, name: String): Boolean =
     cls.instances.exists { case (id, spec) => id.humanReadable == name && spec.isInstanceOf[ParseInstanceSpec] }
 
@@ -459,6 +487,8 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("_checked bool")
       out.puts("_writer *kaitai.Writer")
       out.puts("_activeWriter *kaitai.Writer")
+      out.puts("_writeContext *kaitai.WriteContext")
+      optionalPeekAttrs.foreach(a => out.puts(s"_term_${idToStr(a.id)} ${if (a.isArray) "[]" else ""}*bool"))
       typeProvider.nowClass.params.filter(p => writerParam(typeProvider.nowClass, p.id.humanReadable).isDefined)
         .foreach(p => out.puts(s"_writer_${idToStr(p.id)} ${writerParamType(p.dataType)}"))
     }
@@ -495,6 +525,22 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     ioAccessor()
     parentAccessor()
     if (config.readWrite) {
+      optionalPeekAttrs.foreach { a =>
+        val owner = types2class(name)
+        out.puts(s"// Set${publicMemberName(a.id)}TerminatorPresent_ declares optional included peek layout.")
+        out.puts(s"func (this *$owner) Set${publicMemberName(a.id)}TerminatorPresent_(v ${if (a.isArray) "[]" else ""}bool) {")
+        out.inc
+        if (a.isArray) {
+          out.puts(s"${terminatorMetadata(a.id)} = make([]*bool, len(v))")
+          out.puts("for i, present := range v {")
+          out.inc
+          out.puts("present := present")
+          out.puts(s"${terminatorMetadata(a.id)}[i] = &present")
+          universalFooter
+        } else out.puts(s"${terminatorMetadata(a.id)} = &v")
+        out.puts("this._checked = false")
+        universalFooter
+      }
       // A trailing underscore cannot collide with a KSY-derived field setter.
       // These let callers assemble nested graphs without first parsing bytes.
       Seq(("Parent", "_parent", kaitaiType2NativeType(parentType)),
@@ -563,6 +609,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.inc
         if (config.readWrite) {
           out.puts("this._checked = false")
+          optionalPeekAttrs.foreach(a => out.puts(s"${terminatorMetadata(a.id)} = nil"))
           typeProvider.nowClass.instances.keys.foreach(id =>
             out.puts(s"this.${calculatedFlagForName(id)} = false"))
           parseInstances.foreach { id =>
@@ -677,14 +724,23 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         universalFooter
         out.puts
         out.puts("// WriteNoAlign_ serializes into a shared writer without final byte alignment.")
-        out.puts("// Generated parents use this method for nested objects; callers finishing")
-        out.puts("// an independent stream should use Write or finalize the writer themselves.")
+        out.puts("// It finishes an independent output session; callers may append more bits.")
+        out.puts("// Generated parents share their session through WriteWithContext_.")
         errorMethodHeader("WriteNoAlign_", "writer *kaitai.Writer")
+        out.puts("if !this._checked { return kaitai.NewConsistencyNotCheckedError(this) }")
+        out.puts("context := kaitai.NewWriteContext()")
+        out.puts("defer context.Close()")
+        writerCall("this.WriteWithContext_(writer, context)")
+        out.puts("return context.Finish()")
+        universalFooter
+        out.puts
+        out.puts("// WriteWithContext_ participates in a caller-owned output session.")
+        errorMethodHeader("WriteWithContext_", "writer *kaitai.Writer, context *kaitai.WriteContext")
         out.puts("if !this._checked {")
         out.inc
         out.puts("return kaitai.NewConsistencyNotCheckedError(this)")
         universalFooter
-        out.puts("previousWriter := this._activeWriter")
+        out.puts("previousWriter, previousContext := this._activeWriter, this._writeContext")
         parseInstances.foreach { id =>
           val name = idToStr(id)
           out.puts(s"previousPending_$name := this._w_$name")
@@ -692,16 +748,11 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         ioValueInstances.foreach { id =>
           val name = idToStr(id)
           out.puts(s"previousValue_$name, previousFlag_$name := this._wv_$name, this._wf_$name")
-          out.puts(s"this._wv_$name, this._wf_$name = nil, false")
         }
-        out.puts("this._activeWriter = writer")
-        out.puts("defer func() {")
+        out.puts("leave, err := context.Enter(this, func() {")
         out.inc
         out.puts("this._activeWriter = previousWriter")
-        ioValueInstances.foreach { id =>
-          val name = idToStr(id)
-          out.puts(s"this._wv_$name, this._wf_$name = nil, false")
-        }
+        out.puts("this._writeContext = previousContext")
         out.puts("if previousWriter != nil {")
         out.inc
         out.puts("this._writer = previousWriter")
@@ -709,13 +760,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           val name = idToStr(id)
           out.puts(s"this._w_$name = previousPending_$name")
         }
+        universalFooter
         ioValueInstances.foreach { id =>
           val name = idToStr(id)
           out.puts(s"this._wv_$name, this._wf_$name = previousValue_$name, previousFlag_$name")
         }
-        universalFooter
         out.dec
-        out.puts("}()")
+        out.puts("})")
+        translator.outAddErrCheck()
+        out.puts("defer leave()")
+        out.puts("this._activeWriter, this._writeContext = writer, context")
+        ioValueInstances.foreach { id =>
+          val name = idToStr(id)
+          out.puts(s"this._wv_$name, this._wf_$name = nil, false")
+        }
         out.puts("this._writer = writer")
         typeProvider.nowClass.params.filter(p => writerParam(typeProvider.nowClass, p.id.humanReadable).isDefined).foreach { p =>
           importList.add("fmt")
@@ -739,7 +797,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (writeMain) {
       translator.outAddErrCheck()
     }
-    parseInstances.foreach(instanceCheckWriteFlagAndWrite)
+    if (writeMain) parseInstances.foreach { id =>
+      out.puts("this._writeContext.Defer(func() (err error) {")
+      out.inc
+      instanceCheckWriteFlagAndWrite(id)
+      out.puts("return err")
+      out.dec
+      out.puts("})")
+    }
     out.puts("return err")
     universalFooter
     writing = false
@@ -1043,6 +1108,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     t match {
       case _: UserTypeInstream => attrUserTypeInstreamWrite(io, expr, t, t)
       case ut: UserTypeFromBytes =>
+        if (rep != NoRepeat) out.puts("i := i // freeze this reservation's occurrence for deferred encoding")
         val bt = ut.bytes
         val outer = localValue(bt match {
           case b: BytesLimitType => s"int(${expression(b.size)})"
@@ -1067,6 +1133,23 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           size
         }
         val encoder = translator.localVarName(translator.allocateLocalVar())
+        val processor = translator.localVarName(translator.allocateLocalVar())
+        if (bt.process.isDefined) out.puts(s"var $processor kaitai.ByteEncoder")
+        val present = if (optionalPeek(ut)) {
+          val metadata = terminatorMetadata(id)
+          val elem = if (rep == NoRepeat) metadata else s"$metadata[i]"
+          val missing = if (rep == NoRepeat) s"$elem == nil" else s"i >= len($metadata) || $elem == nil"
+          out.puts(s"if $missing {")
+          out.inc
+          out.puts(s"return kaitai.NewConsistencyError(\"optional terminator layout\", \"Set${publicMemberName(id)}TerminatorPresent_\", \"unset\")")
+          universalFooter
+          Some(localValue(s"*$elem"))
+        } else None
+        val reservationEof = translator.localVarName(translator.allocateLocalVar())
+        bt match {
+          case b: BytesTerminatedType if b.include && !b.eosError => out.puts(s"var $reservationEof bool")
+          case _ =>
+        }
         val rawId = RawIdentifier(id)
         importList.add("bytes")
         out.puts(s"$encoder := kaitai.ByteEncoderFunc(func(data []byte) ([]byte, error) {")
@@ -1081,7 +1164,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         val encodedId = bt.process match {
           case Some(proc) =>
             val dest = RawIdentifier(rawId)
-            attrUnprocess(proc, rawId, dest, rep, bt, None)
+            val raw = expression(Identifier.itemExpr(rawId, rep))
+            val result = translator.resToStr(translator.outVarCheckRes(s"$processor.Encode(bytes.Clone($raw))"))
+            assignWrittenBytes(dest, rep, result)
             dest
           case None => rawId
         }
@@ -1102,8 +1187,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
               // Missing included terminators are valid only at the end of the
               // parent reservation's stream, not merely the encoder's buffer.
               condIfHeader(Ast.expr.Compare(exprByteArrayIndexOf(encoded, b.terminator.head & 0xff), Ast.cmpop.Eq, Ast.expr.IntNum(-1)))
-              attrIsEofCheck(id, true, io)
+              out.puts(s"if !$reservationEof { return kaitai.NewConsistencyError(\"optional terminator\", \"end of stream\", \"unterminated before EOF\") }")
               condIfFooter
+            }
+            present.foreach { expected =>
+              val data = expression(encoded)
+              out.puts(s"if (len($data) > 0 && $data[len($data)-1] == ${b.terminator.head & 0xff}) != $expected {")
+              out.inc
+              out.puts(s"return kaitai.NewConsistencyError(\"optional terminator layout\", $expected, \"final bytes disagree\")")
+              universalFooter
             }
             if (extraTerm != "false") {
               out.puts(s"if $extraTerm {")
@@ -1119,14 +1211,29 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         out.dec
         out.puts("})")
         val child = translator.resToStr(translator.outVarCheckRes(s"$io.NewChild(int($inner), $reserved, $encoder)"))
+        out.puts(s"this._writeContext.RegisterChild($child)")
+        bt match {
+          case b: BytesTerminatedType if b.include && !b.eosError => out.puts(s"$reservationEof = ${writerEof(io)}")
+          case _ =>
+        }
+        bt.process.foreach {
+          case ProcessXor(key) =>
+            val arg = translator.detectType(key) match {
+              case _: IntType => s"[]byte{byte(${expression(key)})}"
+              case _ => s"bytes.Clone(${expression(key)})"
+            }
+            val captured = localValue(arg)
+            out.puts(s"$processor = kaitai.ByteEncoderFunc(func(data []byte) ([]byte, error) { return kaitai.ProcessXOR(data, $captured), nil })")
+          case ProcessRotate(left, count) =>
+            val captured = localValue(s"int(${expression(count)})")
+            out.puts(s"$processor = kaitai.ByteEncoderFunc(func(data []byte) ([]byte, error) { return kaitai.ProcessRotate${if (left) "Right" else "Left"}(data, $captured), nil })")
+          case ProcessZlib => out.puts(s"$processor = kaitai.ByteEncoderFunc(kaitai.UnprocessZlib)")
+          case ProcessCustom(name, args) => out.puts(s"$processor = ${customProcessor(name, args)}")
+        }
         attrUserTypeInstreamWrite(s"$child.Writer", expr, t, t)
-        writerCall(s"$child.WriteBack()")
         bt match {
           case b: BytesTerminatedType if !b.consume =>
-            val hasTerm = if (!b.include) extraTerm else {
-              val data = expression(Identifier.itemExpr(encodedId, rep))
-              s"len($data) > 0 && $data[len($data) - 1] == ${b.terminator.head & 0xff}"
-            }
+            val hasTerm = if (!b.include) extraTerm else present.getOrElse("true")
             out.puts(s"if $hasTerm {")
             out.inc
             importList.add("io")
@@ -1139,7 +1246,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrUserTypeInstreamWrite(io: String, expr: Ast.expr, t: DataType, exprType: DataType): Unit =
-    writerCall(s"${expression(expr)}.WriteNoAlign_($io)")
+    writerCall(s"${expression(expr)}.WriteWithContext_($io, this._writeContext)")
 
   override def exprStreamToByteArray(ioFixed: String): String =
     throw new NotImplementedError("Go serialization child writer extraction")
@@ -1435,6 +1542,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
         if (writeNeedsOuterSize(t.bytes)) storeSize(OuterSizeIdentifier(id), if (t.bytes.process.isDefined) RawIdentifier(rawId) else rawId)
         if (writeNeedsInnerSize(t.bytes)) storeSize(InnerSizeIdentifier(id), rawId)
+        if (optionalPeek(t)) {
+          val b = t.bytes.asInstanceOf[BytesTerminatedType]
+          val raw = getRawIdExpr(if (t.bytes.process.isDefined) RawIdentifier(rawId) else rawId, rep)
+          val present = localValue(s"len($raw) > 0 && $raw[len($raw)-1] == ${b.terminator.head & 0xff}")
+          if (rep == NoRepeat) out.puts(s"${terminatorMetadata(id)} = &$present")
+          else out.puts(s"${terminatorMetadata(id)} = append(${terminatorMetadata(id)}, &$present)")
+        }
       case _ =>
     }
   }
@@ -1883,6 +1997,14 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("return this._writer")
       out.dec
       out.puts("}")
+      out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) WriterForContext_(context *kaitai.WriteContext) (*kaitai.Writer, error) {")
+      out.inc
+      out.puts("if this == nil || context == nil || this._writeContext != context || this._activeWriter == nil {")
+      out.inc
+      out.puts("return nil, kaitai.NewConsistencyError(\"output binding\", \"object participating in current write\", \"missing or foreign output context\")")
+      universalFooter
+      out.puts("return this._activeWriter, nil")
+      universalFooter
     }
   }
 

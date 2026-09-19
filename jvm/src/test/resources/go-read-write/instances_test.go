@@ -55,6 +55,39 @@ func TestParameterInstanceReferenceDoesNotActivateWriter(t *testing.T) {
 	}
 }
 
+func TestParameterInstanceReferenceRejectsForeignActiveSession(t *testing.T) {
+	descriptor := NewWriteInstanceParameter_DescriptorType()
+	descriptor.SetValue(0x11)
+	descriptor.SetCount(2)
+	if err := descriptor.Check(); err != nil {
+		t.Fatal(err)
+	}
+	context := kaitai.NewWriteContext()
+	defer context.Close()
+	own := kaitai.NewSeekableBuffer(nil)
+	if err := descriptor.WriteWithContext_(kaitai.NewWriter(own), context); err != nil {
+		t.Fatal(err)
+	}
+	parent := NewWriteInstanceParameter(descriptor)
+	parent.SetPayload([]byte{0xaa, 0xbb})
+	parent.SetSuffix(0xcc)
+	if err := parent.Check(); err != nil {
+		t.Fatal(err)
+	}
+	if err := parent.Write(kaitai.NewWriter(kaitai.NewSeekableBuffer(nil))); err == nil {
+		t.Fatal("foreign session silently consumed descriptor's pending instance")
+	}
+	if !bytes.Equal(own.Bytes(), []byte{0x11}) {
+		t.Fatalf("foreign write patched %x", own.Bytes())
+	}
+	if err := context.Finish(); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(own.Bytes(), []byte{0x11, 0, 0, 0, 0, 2}) {
+		t.Fatalf("own completion %x", own.Bytes())
+	}
+}
+
 func TestIOValueInstancesKeepReadAndWriteContextsSeparate(t *testing.T) {
 	original := []byte{0xaa, 0xbb, 0, 3, 0, 4}
 	input := kaitai.NewStream(bytes.NewReader(original))

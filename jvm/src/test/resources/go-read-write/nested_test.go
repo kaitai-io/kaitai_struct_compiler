@@ -345,8 +345,12 @@ func TestChildFailures(t *testing.T) {
 		} else if !errors.Is(err, tc.cause) {
 			t.Fatalf("cause %v", err)
 		}
-		if len(out.Bytes()) != 0 {
-			t.Fatalf("failure wrote parent %x", out.Bytes())
+		// Encoders now run after the complete sequence and pending instances.
+		// The tail has been written, but the failed child must not propagate.
+		want := make([]byte, int(tc.size)+1)
+		want[len(want)-1] = 99
+		if !bytes.Equal(out.Bytes(), want) {
+			t.Fatalf("failed encoder modified its reservation: %x", out.Bytes())
 		}
 	}
 	v := customChild(t, []byte{1, 2}, 2)
