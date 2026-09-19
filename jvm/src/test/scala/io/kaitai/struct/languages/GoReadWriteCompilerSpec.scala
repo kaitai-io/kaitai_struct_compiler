@@ -305,7 +305,7 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
         assert(!code.contains(s"$operation is not implemented"), s"$name still emits a $operation stub")
       assert(code.contains(".AlignToByte()"), s"$name must finish pending bits")
       val owner = io.kaitai.struct.Utils.upperCamelCase(name)
-      val write = method(code, owner, "Write", "\\([^\\n]*\\)" + errorResult)
+      val write = method(code, owner, "WriteNoAlign_", "\\([^\\n]*\\)" + errorResult)
       assert(!write.contains("this._io"), "Write expressions must use the output stream")
     }
   }
@@ -351,7 +351,7 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     }
   }
 
-  private val nestedFixtures = Seq("write_nested", "write_processed", "write_custom", "write_processed_child", "write_zlib_child", "write_child_formats", "write_io_param", "write_switch_child", "write_position_child", "write_optional_child", "write_optional_included", "write_optional_peek", "write_optional_included_peek", "write_user_switch")
+  private val nestedFixtures = Seq("write_nested", "write_processed", "write_custom", "write_processed_child", "write_zlib_child", "write_child_formats", "write_io_param", "write_switch_child", "write_position_child", "write_optional_child", "write_optional_included", "write_optional_peek", "write_optional_included_peek", "write_user_switch", "write_nested_bits_be", "write_nested_bits_le", "write_repeat_bits_be", "write_repeat_bits_le", "write_sized_bits_be", "write_sized_bits_le")
   for (name <- nestedFixtures) {
     test(s"$name supports nested and reverse processing generation") {
       val code = compile(name)
@@ -544,7 +544,9 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
   test("Write accepts the separate Writer and rejects unchecked objects") {
     val code = compile("go_rw_simple")
     val write = method(code, "GoRwSimple", "Write", "\\(\\s*\\w+\\s+\\*kaitai\\.Writer\\s*\\)" + errorResult)
-    contains(write, "ConsistencyNotCheckedError", "Write consistency guard")
+    contains(write, "WriteNoAlign_", "Write delegates to the checked serialization core")
+    val core = method(code, "GoRwSimple", "WriteNoAlign_", "\\(\\s*\\w+\\s+\\*kaitai\\.Writer\\s*\\)" + errorResult)
+    contains(core, "ConsistencyNotCheckedError", "serialization core consistency guard")
   }
 
   test("repeated fields expose slice accessors") {

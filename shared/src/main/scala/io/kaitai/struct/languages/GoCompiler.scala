@@ -340,6 +340,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     endian match {
       case None =>
         errorMethodHeader("Write", "writer *kaitai.Writer")
+        writerCall("this.WriteNoAlign_(writer)")
+        writerCall("writer.AlignToByte()")
+        out.puts("return err")
+        universalFooter
+        out.puts
+        out.puts("// WriteNoAlign_ serializes into a shared writer without final byte alignment.")
+        out.puts("// Generated parents use this method for nested objects; callers finishing")
+        out.puts("// an independent stream should use Write or finalize the writer themselves.")
+        errorMethodHeader("WriteNoAlign_", "writer *kaitai.Writer")
         out.puts("if !this._checked {")
         out.inc
         out.puts("return kaitai.NewConsistencyNotCheckedError(this)")
@@ -366,7 +375,6 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def writeFooter(): Unit = {
     if (writeMain) {
       translator.outAddErrCheck()
-      writerCall(s"$normalIO.AlignToByte()")
     }
     out.puts("return err")
     universalFooter
@@ -660,7 +668,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def attrUserTypeInstreamWrite(io: String, expr: Ast.expr, t: DataType, exprType: DataType): Unit =
-    writerCall(s"${expression(expr)}.Write($io)")
+    writerCall(s"${expression(expr)}.WriteNoAlign_($io)")
 
   override def exprStreamToByteArray(ioFixed: String): String =
     throw new NotImplementedError("Go serialization child writer extraction")

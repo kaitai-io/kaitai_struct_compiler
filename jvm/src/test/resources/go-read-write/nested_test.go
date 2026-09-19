@@ -11,6 +11,99 @@ import (
 
 var codecFailure = errors.New("codec failure")
 
+func TestUnsizedNestedBitsShareByte(t *testing.T) {
+	be := NewWriteNestedBitsBe()
+	inputBe := []byte{0xb3}
+	if err := be.Read(kaitai.NewStream(bytes.NewReader(inputBe)), nil, be); err != nil {
+		t.Fatal(err)
+	}
+	if be.GetChild().GetValue() != 5 || be.GetTail() != 19 {
+		t.Fatal("BE read fixture")
+	}
+	out := kaitai.NewSeekableBuffer(nil)
+	if err := be.Write(kaitai.NewWriter(out)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), inputBe) {
+		t.Errorf("BE child padded: %x", out.Bytes())
+	}
+	le := NewWriteNestedBitsLe()
+	inputLe := []byte{0x9d}
+	if err := le.Read(kaitai.NewStream(bytes.NewReader(inputLe)), nil, le); err != nil {
+		t.Fatal(err)
+	}
+	if le.GetChild().GetValue() != 5 || le.GetTail() != 19 {
+		t.Fatal("LE read fixture")
+	}
+	out = kaitai.NewSeekableBuffer(nil)
+	if err := le.Write(kaitai.NewWriter(out)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), inputLe) {
+		t.Fatalf("LE child padded: %x", out.Bytes())
+	}
+}
+
+func TestRepeatedUnsizedBitsShareByte(t *testing.T) {
+	be := NewWriteRepeatBitsBe()
+	inputBe := []byte{0xae}
+	if err := be.Read(kaitai.NewStream(bytes.NewReader(inputBe)), nil, be); err != nil {
+		t.Fatal(err)
+	}
+	if be.GetChildren()[0].GetValue() != 5 || be.GetChildren()[1].GetValue() != 3 || be.GetTail() != 2 {
+		t.Fatal("BE repeat fixture")
+	}
+	out := kaitai.NewSeekableBuffer(nil)
+	if err := be.Write(kaitai.NewWriter(out)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), inputBe) {
+		t.Errorf("BE repeated padding: %x", out.Bytes())
+	}
+	le := NewWriteRepeatBitsLe()
+	inputLe := []byte{0x9d}
+	if err := le.Read(kaitai.NewStream(bytes.NewReader(inputLe)), nil, le); err != nil {
+		t.Fatal(err)
+	}
+	if le.GetChildren()[0].GetValue() != 5 || le.GetChildren()[1].GetValue() != 3 || le.GetTail() != 2 {
+		t.Fatal("LE repeat fixture")
+	}
+	out = kaitai.NewSeekableBuffer(nil)
+	if err := le.Write(kaitai.NewWriter(out)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), inputLe) {
+		t.Fatalf("LE repeated padding: %x", out.Bytes())
+	}
+}
+
+func TestSizedNestedBitsFinalizeIndependentStreams(t *testing.T) {
+	be := NewWriteSizedBitsBe()
+	inputBe := []byte{0xa0, 0x98}
+	if err := be.Read(kaitai.NewStream(bytes.NewReader(inputBe)), nil, be); err != nil {
+		t.Fatal(err)
+	}
+	out := kaitai.NewSeekableBuffer(nil)
+	if err := be.Write(kaitai.NewWriter(out)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), inputBe) {
+		t.Fatalf("BE sized child: %x", out.Bytes())
+	}
+	le := NewWriteSizedBitsLe()
+	inputLe := []byte{5, 19}
+	if err := le.Read(kaitai.NewStream(bytes.NewReader(inputLe)), nil, le); err != nil {
+		t.Fatal(err)
+	}
+	out = kaitai.NewSeekableBuffer(nil)
+	if err := le.Write(kaitai.NewWriter(out)); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), inputLe) {
+		t.Fatalf("LE sized child: %x", out.Bytes())
+	}
+}
+
 func TestOutputStreamArrayParameters(t *testing.T) {
 	v := NewParamsPassArrayIo()
 	input := []byte{17, 42}
