@@ -312,7 +312,34 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
 
   // Runtime conformance can be run against a development runtime without making
   // the compiler's ordinary Scala suite depend on a Go installation or network.
+  private val instanceFixtures = Seq("write_instances", "write_instance_timing", "write_instance_nested", "write_instance_switch", "write_instance_unpositioned", "write_instance_io", "write_instance_nested_repeat")
+  for (name <- instanceFixtures) {
+    test(s"$name generates positioned instance writers") {
+      val code = compile(name)
+      assert(!code.contains("positioned instance writing is not implemented"))
+      assert(code.contains("Enabled_(v bool)"))
+      assert(code.contains("_writeGet"))
+    }
+  }
   sys.env.get("KAITAI_GO_RUNTIME").foreach { runtimePath =>
+    test("generated positioned instances preserve lazy state, exact bytes and seek errors") {
+      val dir = Files.createTempDirectory("kaitai-go-instances-")
+      def write(name: String, text: String): Unit =
+        Files.write(dir.resolve(name), text.getBytes(StandardCharsets.UTF_8))
+      val runtime = new File(runtimePath).getCanonicalPath
+      write("go.mod", s"module contract\n\ngo 1.24.0\n\nrequire github.com/kaitai-io/kaitai_struct_go_runtime v0.0.0\nreplace github.com/kaitai-io/kaitai_struct_go_runtime => $runtime\n")
+      for (name <- instanceFixtures)
+        write(s"$name.go", compile(name))
+      val tests = scala.io.Source.fromURL(getClass.getResource("/go-read-write/instances_test.go"))
+      try write("instances_test.go", tests.mkString) finally tests.close()
+      val output = new StringBuilder
+      def log(line: String): Unit = output.synchronized { output.append(line).append('\n'); () }
+      val logger = ProcessLogger(log, log)
+      assert(Process(Seq("gofmt", "-w", "."), dir.toFile).!(logger) == 0, output.toString)
+      assert(Process(Seq("go", "test", "-mod=mod", "-v", "./..."), dir.toFile).!(logger) == 0,
+        s"Generated Go in $dir failed:\n$output")
+      info(s"Generated Go in $dir:\n$output")
+    }
     test("generated nested and processed writers preserve bytes and failures") {
       val dir = Files.createTempDirectory("kaitai-go-children-")
       def write(name: String, text: String): Unit =

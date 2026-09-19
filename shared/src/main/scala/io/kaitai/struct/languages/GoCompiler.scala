@@ -34,6 +34,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         ResultString(normalIO)
       } else if (writing && writerParam(typeProvider.nowClass, name).isDefined) {
         ResultString(s"this._writer_${Utils.upperCamelCase(name)}")
+      } else if (writing && typeProvider.nowClass.instances.keys.exists(_.humanReadable == name)) {
+        outVarCheckRes(s"this._writeGet${Utils.upperCamelCase(name)}()")
+      } else if (checking && parseInstance(typeProvider.nowClass, name)) {
+        ResultString(s"this.${Utils.lowerCamelCase(name)}")
       } else if (config.readWrite) {
         typeProvider.nowClass.seq.find(_.id.humanReadable == name) match {
           case Some(attr) => ResultString(GoCompiler.this.privateMemberName(attr.id))
@@ -65,6 +69,12 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         ResultString(s"${translate(value)}._writer")
       else if (writing && ut.classSpec.exists(writerParam(_, name).isDefined))
         ResultString(s"${translate(value)}._writer_${Utils.upperCamelCase(name)}")
+      else if (writing && ut.classSpec.exists(_.instances.keys.exists(_.humanReadable == name)))
+        outVarCheckRes(s"${translate(value)}._writeGet${Utils.upperCamelCase(name)}()")
+      else if (checking && ut.classSpec.exists(parseInstance(_, name))) {
+        val owner = translate(value)
+        ResultString(s"$owner.${Utils.lowerCamelCase(name)}")
+      }
       else if (config.readWrite && ut.classSpec.exists(_.seq.exists(_.id.humanReadable == name)))
         ResultString(s"${translate(value)}.Get${Utils.upperCamelCase(name)}()")
       else
@@ -75,8 +85,16 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     config.readWrite && typeProvider.nowClass.seq.exists(_.id == id)
 
   private var writing = false
+  private var checking = false
   private var writeMain = false
+  private var writingInstance: Option[InstanceIdentifier] = None
   private var capturedChildSize: Option[(Ast.expr, String)] = None
+
+  private def parseInstance(cls: ClassSpec, name: String): Boolean =
+    cls.instances.exists { case (id, spec) => id.humanReadable == name && spec.isInstanceOf[ParseInstanceSpec] }
+
+  private def parseInstances: Iterable[InstanceIdentifier] =
+    typeProvider.nowClass.instances.collect { case (id, _: ParseInstanceSpec) => id }
 
   private def writerParam(cls: ClassSpec, name: String): Option[ParamDefSpec] =
     cls.params.find(p => p.id.humanReadable == name && (getArrayItemType(p.dataType) match {
@@ -162,6 +180,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     params.foreach(p => out.puts(s"${idToStr(p.id)}: ${paramName(p.id)},"))
     if (config.readWrite) {
       out.puts("_checked: false,")
+      parseInstances.foreach(id => out.puts(s"_enabled_${idToStr(id)}: true,"))
       typeProvider.nowClass.meta.endian match {
         case Some(_: CalcEndian) | Some(InheritedEndian) => out.puts("_is_le: -1,")
         case _ =>
@@ -239,8 +258,15 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
             s"root *${types2class(typeProvider.topClass.name)}) (err error) {"
         )
         out.inc
-        if (config.readWrite)
+        if (config.readWrite) {
           out.puts("this._checked = false")
+          typeProvider.nowClass.instances.keys.foreach(id =>
+            out.puts(s"this.${calculatedFlagForName(id)} = false"))
+          parseInstances.foreach { id =>
+            instanceWriteFlagInit(id)
+            out.puts(s"this._enabled_${idToStr(id)} = true")
+          }
+        }
         out.puts(s"${privateMemberName(IoIdentifier)} = io")
         out.puts(s"${privateMemberName(ParentIdentifier)} = parent")
         out.puts(s"${privateMemberName(RootIdentifier)} = root")
@@ -301,7 +327,9 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       out.puts("this._checked = false")
       out.puts(s"${privateMemberName(attrName)} = v")
       attrName match {
-        case inst: InstanceIdentifier => instanceSetCalculated(inst)
+        case inst: InstanceIdentifier =>
+          instanceSetCalculated(inst)
+          instanceSetWriteFlag(inst)
         case _ =>
       }
       universalFooter
@@ -376,6 +404,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     if (writeMain) {
       translator.outAddErrCheck()
     }
+    parseInstances.foreach(instanceCheckWriteFlagAndWrite)
     out.puts("return err")
     universalFooter
     writing = false
@@ -409,6 +438,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def checkHeader(): Unit = {
+    checking = true
     errorMethodHeader("Check")
     out.puts("this._checked = false")
   }
@@ -417,6 +447,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("this._checked = true")
     out.puts("return err")
     universalFooter
+    checking = false
   }
 
   override def condRepeatCommonHeader(id: Identifier, io: String, dataType: DataType): Unit = {
@@ -425,24 +456,92 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts("_ = i")
   }
 
-  override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit =
+  override def instanceWriteFlagDeclaration(attrName: InstanceIdentifier): Unit = {
     out.puts(s"_w_${idToStr(attrName)} bool")
+    out.puts(s"_enabled_${idToStr(attrName)} bool")
+  }
+
+  override def instanceWriteFlagInit(instName: InstanceIdentifier): Unit =
+    instanceClearWriteFlag(instName)
 
   override def instanceSetWriteFlag(instName: InstanceIdentifier): Unit = {
-    out.puts(s"this._w_${idToStr(instName)} = true")
-    unsupportedSerialization("positioned instance writing")
+    out.puts(s"this._w_${idToStr(instName)} = this._enabled_${idToStr(instName)} && this.${calculatedFlagForName(instName)}")
+  }
+
+  override def instanceClearWriteFlag(instName: InstanceIdentifier): Unit =
+    out.puts(s"this._w_${idToStr(instName)} = false")
+
+  override def instanceEnabledSetter(instName: InstanceIdentifier): Unit = {
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Set${publicMemberName(instName)}Enabled_(v bool) {")
+    out.inc
+    out.puts(s"this._enabled_${idToStr(instName)} = v")
+    instanceSetWriteFlag(instName)
+    out.puts("this._checked = false")
+    universalFooter
+  }
+
+  override def instanceCheckWriteFlagAndWrite(instName: InstanceIdentifier): Unit = {
+    out.puts(s"if this._w_${idToStr(instName)} {")
+    out.inc
+    writerCall(s"this._write${publicMemberName(instName)}()")
+    universalFooter
+  }
+
+  override def writeInstanceHeader(instName: InstanceIdentifier): Unit = {
+    writing = true
+    writingInstance = Some(instName)
+    val dataType = typeProvider.nowClass.instances(instName).dataTypeComposite
+    instanceHeader(typeProvider.nowClass.name, instName, dataType, false)
+    if (!parseInstance(typeProvider.nowClass, instName.humanReadable)) {
+      instanceCheckCacheAndReturn(instName, dataType)
+      return
+    }
+    out.puts(s"if !this.${calculatedFlagForName(instName)} {")
+    out.inc
+    out.puts(s"return v, kaitai.NewConsistencyError(${expression(Ast.expr.Str(instName.humanReadable))}, \"materialized instance\", \"unset instance\")")
+    universalFooter
+    instanceCheckWriteFlagAndWrite(instName)
+    instanceReturn(instName, dataType, false)
+    universalFooter
+    errorMethodHeader(s"_write${publicMemberName(instName)}")
+    // Clear before evaluating expressions to avoid recursive writes when an
+    // instance refers to its own cached value; retry failed writes next time.
+    instanceClearWriteFlag(instName)
+    out.puts("defer func() {")
+    out.inc
+    out.puts("if err != nil {")
+    out.inc
+    instanceSetWriteFlag(instName)
+    universalFooter
+    out.dec
+    out.puts("}()")
+  }
+
+  override def writeInstanceFooter(): Unit = {
+    val instName = writingInstance.get
+    if (parseInstance(typeProvider.nowClass, instName.humanReadable)) {
+      out.puts("return err")
+    } else {
+      instanceSetCalculated(instName)
+      instanceReturn(instName, typeProvider.nowClass.instances(instName).dataTypeComposite, false)
+    }
+    universalFooter
+    writingInstance = None
+    writing = false
   }
 
   override def checkInstanceHeader(instName: InstanceIdentifier): Unit = {
-    out.puts(s"if this.${calculatedFlagForName(instName)} {")
+    out.puts(s"if this._enabled_${idToStr(instName)} && this.${calculatedFlagForName(instName)} {")
     out.inc
   }
 
   override def instanceInvalidate(instName: InstanceIdentifier): Unit = {
     out.puts
-    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Invalidate${publicMemberName(instName)}() {")
+    val suffix = if (parseInstance(typeProvider.nowClass, instName.humanReadable)) "_" else ""
+    out.puts(s"func (this *${types2class(typeProvider.nowClass.name)}) Invalidate${publicMemberName(instName)}$suffix() {")
     out.inc
     out.puts(s"this.${calculatedFlagForName(instName)} = false")
+    if (suffix.nonEmpty) instanceClearWriteFlag(instName)
     out.puts("this._checked = false")
     universalFooter
   }
@@ -1027,7 +1126,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatEos(id: Identifier, r: TranslatorResult): Unit = {
     val name = privateMemberName(id)
-    val expr = translator.resToStr(r)
+    val expr = translator.resToStr(castInstanceElement(id, r))
     out.puts(s"$name = append($name, $expr)")
   }
 
@@ -1054,7 +1153,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def handleAssignmentRepeatUntil(id: Identifier, r: TranslatorResult, isRaw: Boolean): Unit = {
-    val expr = translator.resToStr(r)
+    val expr = translator.resToStr(castInstanceElement(id, r))
     val tempVar = translator.specialName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
     out.puts(s"$tempVar := $expr")
     out.puts(s"${privateMemberName(id)} = append(${privateMemberName(id)}, $tempVar)")
@@ -1080,9 +1179,20 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
+  private def castInstanceElement(id: Identifier, r: TranslatorResult): TranslatorResult = id match {
+    case InstanceIdentifier(name) if config.readWrite =>
+      typeProvider.determineType(name) match {
+        case array: ArrayType => castToType(r, array.elType.asCombined)
+        case _ => r
+      }
+    case _ => r
+  }
+
   private def handleCompositeTypeCast(id: Identifier, r: TranslatorResult): TranslatorResult = {
     id match {
       case NamedIdentifier(name) =>
+        castToType(r, typeProvider.determineType(name).asCombined)
+      case InstanceIdentifier(name) if config.readWrite =>
         castToType(r, typeProvider.determineType(name).asCombined)
       case _ =>
         r
@@ -1202,9 +1312,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def instanceHeader(className: List[String], instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"func (this *${types2class(className)}) ${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
+    val prefix = if (writingInstance.contains(instName)) "_writeGet" else ""
+    out.puts(s"func (this *${types2class(className)}) $prefix${publicMemberName(instName)}() (v ${kaitaiType2NativeType(dataType)}, err error) {")
     out.inc
-    translator.returnRes = Some(dataType match {
+    translator.returnRes = Some((if (config.readWrite) dataType.asCombined else dataType) match {
       case _: NumericType => "0"
       case _: BooleanType => "false"
       case _: StrType => "\"\""
@@ -1226,6 +1337,19 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.inc
     instanceReturn(instName, dataType, false)
     universalFooter
+    if (config.readWrite && !writing && parseInstance(typeProvider.nowClass, instName.humanReadable)) {
+      // Re-reading an invalidated repeated instance must replace its old slice,
+      // including the raw/size arrays maintained for processed child streams.
+      val inst = typeProvider.nowClass.instances(instName).asInstanceOf[ParseInstanceSpec]
+      val attrs = List(AttrSpec(List(), instName, dataType)) ++ ExtraAttrs.forAttr(inst, this)
+      attrs.foreach { attr =>
+        out.puts("{")
+        out.inc
+        out.puts(s"var zero ${kaitaiType2NativeType(attr.dataTypeComposite)}")
+        out.puts(s"${privateMemberName(attr.id)} = zero")
+        universalFooter
+      }
+    }
   }
 
   override def instanceReturn(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {

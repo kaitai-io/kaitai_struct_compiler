@@ -79,7 +79,8 @@ class GoClassCompiler(
     lang.instanceHeader(className, instName, dataType, instSpec.isNullable)
     lang.instanceCheckCacheAndReturn(instName, dataType)
 
-    lang.instanceSetCalculated(instName)
+    if (!config.readWrite)
+      lang.instanceSetCalculated(instName)
     instSpec match {
       case vi: ValueInstanceSpec =>
         lang.attrParseIfHeader(instName, vi.dataTypeComposite, vi.ifExpr)
@@ -89,15 +90,27 @@ class GoClassCompiler(
         lang.attrParse(pi, instName, endian)
     }
 
+    if (config.readWrite)
+      lang.instanceSetCalculated(instName)
     lang.instanceReturn(instName, dataType, instSpec.isNullable)
     lang.instanceFooter
 
     if (config.readWrite) {
       instSpec match {
-        case _: ParseInstanceSpec =>
+        case pi: ParseInstanceSpec =>
           lang.attributeSetter(instName, dataType, instSpec.isNullable)
-        case _: ValueInstanceSpec =>
+          lang.instanceEnabledSetter(instName)
           lang.instanceInvalidate(instName)
+          lang.writeInstanceHeader(instName)
+          lang.attrWrite(pi, instName, endian)
+          lang.writeInstanceFooter()
+        case vi: ValueInstanceSpec =>
+          lang.instanceInvalidate(instName)
+          lang.writeInstanceHeader(instName)
+          lang.attrParseIfHeader(instName, dataType, vi.ifExpr)
+          lang.instanceCalculate(instName, dataType, vi.value)
+          lang.attrParseIfFooter(vi.ifExpr)
+          lang.writeInstanceFooter()
       }
     }
   }
