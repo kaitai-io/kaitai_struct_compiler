@@ -930,7 +930,40 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     writerCall(s"$io.WriteBytesLimit(${expression(expr)}, int($size), $term, $padRight)")
 
   override def attrSwitchTypeParse(id: Identifier, on: Ast.expr, cases: Map[Ast.expr, DataType], io: String, rep: RepeatSpec, defEndian: Option[FixedEndian], isNullable: Boolean, assignType: SwitchType): Unit = {
-    if (config.readWrite) {
+    if (rep != NoRepeat && cases.get(SwitchType.ELSE_CONST).exists(_.isInstanceOf[BytesType])) {
+      // Every branch contributes one logical element, including default bytes.
+      // Auxiliary raw/size arrays are sparse across branches, but their indices
+      // must still agree with the main array (and with Check/Write's index).
+      // Use ordinary appends inside a repeat-until switch: branch-local _it
+      // declarations cannot supply the predicate outside the switch, and a
+      // processed child would otherwise declare _it twice in the same scope.
+      val branchRepeat = rep match {
+        case RepeatUntil(_) => RepeatEos
+        case _ => rep
+      }
+      def parse(t: DataType): Unit = attrParse2(id, t, io, branchRepeat, false, defEndian, Some(assignType))
+      switchCases[DataType](id, on, cases, parse, parse)
+      val extraAttrs = extraAttrsForAttribute(id, assignType, ConditionalSpec(None, rep)).toSeq.groupBy(_.id).values.map(_.head).toSeq.sortBy(a => idToStr(a.id))
+      extraAttrs.foreach { attr =>
+        val dest = privateMemberName(attr.id)
+        val zero = attr.dataType match {
+          case _: IntType => "0"
+          case _ => "nil"
+        }
+        out.puts(s"for len($dest) < len(${privateMemberName(id)}) {")
+        out.inc
+        out.puts(s"$dest = append($dest, $zero)")
+        universalFooter
+      }
+      rep match {
+        case RepeatUntil(_) =>
+          val it = translator.specialName(Identifier.ITERATOR)
+          val member = privateMemberName(id)
+          out.puts(s"$it := $member[len($member) - 1]")
+          out.puts(s"_ = $it")
+        case _ =>
+      }
+    } else if (config.readWrite) {
       // Read-write switches share one typed/interface field between Read and
       // Write, including their default byte-array case.
       def parse(t: DataType): Unit = attrParse2(id, t, io, rep, false, defEndian, Some(assignType))
@@ -1484,9 +1517,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     handleAssignmentRepeatEos(id, r)
 
   override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: Ast.expr): Unit = {
-    // Read-write predicates use the same zero-based index as the slice loop
-    // in Check/Write. Keep the historical read-only output unchanged.
-    val initialIndex = if (config.readWrite) 0 else 1
+    // Read-write predicates and mixed typed/raw switches use the same
+    // zero-based index as their logical slices.
+    val mixedSwitch = dataType match {
+      case st: SwitchType => st.cases.get(SwitchType.ELSE_CONST).exists(_.isInstanceOf[BytesType])
+      case _ => false
+    }
+    val initialIndex = if (config.readWrite || mixedSwitch) 0 else 1
     out.puts(s"for i := $initialIndex;; i++ {")
     out.inc
   }
