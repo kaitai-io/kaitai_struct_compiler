@@ -275,6 +275,29 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
       |    type: b1
       |    repeat: eos
       |""".stripMargin,
+    "write_bit_eos_b4" -> """meta:
+      |  id: write_bit_eos_b4
+      |seq:
+      |  - id: values
+      |    type: b4
+      |    repeat: eos
+      |""".stripMargin,
+    "write_bit_eof_boundary" -> """meta:
+      |  id: write_bit_eof_boundary
+      |  bit-endian: be
+      |seq:
+      |  - id: foo
+      |    type: b20
+      |  - id: bar
+      |    type: b4
+      |    if: not _io.eof
+      |  - id: baz
+      |    type: b16
+      |    if: not _io.eof
+      |  - id: qux
+      |    type: b16
+      |    if: not _io.eof
+      |""".stripMargin,
     "write_bit_query_eof_be" -> """meta:
       |  id: write_bit_query_eof_be
       |  bit-endian: be
@@ -364,7 +387,7 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
       |seq:
       |  - id: child
       |    type: body
-      |    size: 1
+      |    size: 2
       |types:
       |  body:
       |    seq:
@@ -764,7 +787,9 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     |}
     |func TestBitQueries(t *testing.T) {
     | v:=NewWriteBitContext();v.SetPrefix(5);v.SetSuffix(3);exact(t,v,[]byte{0xa3})
-    | bits:=NewWriteBitEos();bits.SetValues([]bool{true});exact(t,bits,[]byte{0x80})
+    | bits:=NewWriteBitEos();bits.SetValues([]bool{true,false,true,false,false,false,true,true});exact(t,bits,[]byte{0xa3})
+    | nibbles:=NewWriteBitEosB4();nibbles.SetValues([]uint64{0xa,0xb});exact(t,nibbles,[]byte{0xab})
+    | boundary:=NewWriteBitEofBoundary();boundary.SetFoo(0x142f);boundary.SetBar(0xf);exact(t,boundary,[]byte{0x01,0x42,0xff})
     |}
     |func writeBitQuery(t *testing.T,v writable,out *kaitai.SeekableBuffer,want []byte) {
     | t.Helper()
@@ -775,8 +800,8 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     |func TestPartialBitQueriesUseLogicalPositionAndExtent(t *testing.T) {
     | for _,fixed:=range []bool{false,true} {
     |  makeOut:=func(size int)*kaitai.SeekableBuffer {if fixed{return kaitai.NewFixedSeekableBuffer(size)};return kaitai.NewSeekableBuffer(nil)}
-    |  eofBe:=NewWriteBitQueryEofBe();eofBe.SetFlag(true);eofBe.SetTrailing(0x11);writeBitQuery(t,eofBe,makeOut(1),[]byte{0x80})
-    |  eofLe:=NewWriteBitQueryEofLe();eofLe.SetFlag(true);eofLe.SetTrailing(0x11);writeBitQuery(t,eofLe,makeOut(1),[]byte{0x01})
+    |  eofBe:=NewWriteBitQueryEofBe();eofBe.SetFlag(true);eofBe.SetTrailing(0x11);writeBitQuery(t,eofBe,makeOut(2),[]byte{0x80,0x11})
+    |  eofLe:=NewWriteBitQueryEofLe();eofLe.SetFlag(true);eofLe.SetTrailing(0x11);writeBitQuery(t,eofLe,makeOut(2),[]byte{0x01,0x11})
     |  posBe:=NewWriteBitQueryPosBe();posBe.SetFlag(true);posBe.SetTrailing(0x11);writeBitQuery(t,posBe,makeOut(2),[]byte{0x80,0x11})
     |  posLe:=NewWriteBitQueryPosLe();posLe.SetFlag(true);posLe.SetTrailing(0x11);writeBitQuery(t,posLe,makeOut(2),[]byte{0x01,0x11})
     |  expectedSize:=uint8(1);if fixed {expectedSize=2}
@@ -789,10 +814,10 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     |func TestPartialBitQueryUsesChildWriterContext(t *testing.T) {
     | v:=NewWriteBitQueryChild()
     | v.SetRoot_(v)
-    | child:=NewWriteBitQueryChild_Body();child.SetParent_(v);child.SetRoot_(v);child.SetFlag(true)
+    | child:=NewWriteBitQueryChild_Body();child.SetParent_(v);child.SetRoot_(v);child.SetFlag(true);child.SetTrailing(0x11)
     | v.SetChild(child)
     | if err:=child.Check();err!=nil {t.Fatal(err)}
-    | exact(t,v,[]byte{0x80})
+    | exact(t,v,[]byte{0x80,0x11})
     |}
     |func TestUntilContext(t *testing.T) {
     | a:=NewWriteUntilIndex();a.SetValues([]uint8{1,2});exact(t,a,[]byte{1,2})

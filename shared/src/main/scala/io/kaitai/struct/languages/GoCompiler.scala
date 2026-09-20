@@ -1304,7 +1304,10 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     importList.add("fmt")
     val resultType = if (eof) "bool" else "int64"
     val zero = if (eof) "false" else "0"
-    val result = if (eof) "pos >= size" else "size"
+    // A pending output byte is the writer-side equivalent of unread bits in a
+    // parser: EOF remains false until that byte is complete. Ask the writer so
+    // reserved pending bits are handled as well as unreserved pending bits.
+    val result = if (eof) "!output.HasPendingBits() && pos >= size" else "size"
     // Writer.Pos reports the logical position without aligning pending bits.
     // Query the underlying seeker only for its physical extent and restore its
     // physical cursor afterwards, so observing size/EOF cannot mutate output.
