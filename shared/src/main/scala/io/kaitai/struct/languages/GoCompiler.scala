@@ -1305,27 +1305,36 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val resultType = if (eof) "bool" else "int64"
     val zero = if (eof) "false" else "0"
     val result = if (eof) "pos >= size" else "size"
-    // Writer.Seek aligns pending bits. Query its underlying seeker instead so
-    // observing size/EOF cannot insert padding in the middle of a bit group.
+    // Writer.Pos reports the logical position without aligning pending bits.
+    // Query the underlying seeker only for its physical extent and restore its
+    // physical cursor afterwards, so observing size/EOF cannot mutate output.
     val call = s"""func() ($resultType, error) {
-                  |\tif $writer == nil {
+                  |\toutput := $writer
+                  |\tif output == nil {
                   |\t\treturn $zero, fmt.Errorf("query missing output stream: %w", kaitai.ErrWriterNotSeekable)
                   |\t}
-                  |\tseeker, ok := $writer.Writer.(io.Seeker)
-                  |\tif !ok {
-                  |\t\treturn $zero, fmt.Errorf("query output stream: %w", kaitai.ErrWriterNotSeekable)
-                  |\t}
-                  |\tpos, err := seeker.Seek(0, io.SeekCurrent)
+                  |\tpos, err := output.Pos()
                   |\tif err != nil {
                   |\t\treturn $zero, fmt.Errorf("query output position: %w", err)
                   |\t}
+                  |\tseeker, ok := output.Writer.(io.Seeker)
+                  |\tif !ok {
+                  |\t\treturn $zero, fmt.Errorf("query output stream: %w", kaitai.ErrWriterNotSeekable)
+                  |\t}
+                  |\tphysicalPos, err := seeker.Seek(0, io.SeekCurrent)
+                  |\tif err != nil {
+                  |\t\treturn $zero, fmt.Errorf("query physical output position: %w", err)
+                  |\t}
                   |\tsize, seekErr := seeker.Seek(0, io.SeekEnd)
-                  |\t_, restoreErr := seeker.Seek(pos, io.SeekStart)
+                  |\t_, restoreErr := seeker.Seek(physicalPos, io.SeekStart)
                   |\tif seekErr != nil {
                   |\t\treturn $zero, fmt.Errorf("query output size: %w", seekErr)
                   |\t}
                   |\tif restoreErr != nil {
                   |\t\treturn $zero, fmt.Errorf("restore output position: %w", restoreErr)
+                  |\t}
+                  |\tif pos > size {
+                  |\t\tsize = pos
                   |\t}
                   |\treturn $result, nil
                   |}()""".stripMargin

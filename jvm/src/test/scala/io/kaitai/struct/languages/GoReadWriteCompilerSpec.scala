@@ -1,12 +1,12 @@
 package io.kaitai.struct.languages
 
 import io.kaitai.struct.JavaMain.CLIConfig
-import io.kaitai.struct.{Main, RuntimeConfig, Version}
+import io.kaitai.struct.{JavaMain, Main, RuntimeConfig, Version}
 import io.kaitai.struct.format.KSVersion
 import io.kaitai.struct.formats.JavaKSYParser
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.io.File
+import java.io.{ByteArrayOutputStream, File, PrintStream}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.regex.Pattern.quote
@@ -18,6 +18,23 @@ import scala.sys.process._
   */
 class GoReadWriteCompilerSpec extends AnyFunSuite {
   KSVersion.current = Version.version
+
+  test("read-write help lists every supported target") {
+    val output = new ByteArrayOutputStream()
+    val stream = new PrintStream(output, true, StandardCharsets.UTF_8.name())
+    val result = Console.withOut(stream) {
+      Console.withErr(stream) {
+        // An invalid target prints the same usage text without the --help
+        // action terminating the forked test JVM.
+        JavaMain.parseCommandLine(Array("--target", "not-a-language"))
+      }
+    }
+    stream.close()
+
+    assert(result.isEmpty)
+    val help = output.toString(StandardCharsets.UTF_8.name())
+    assert(help.contains("Java, Python and Go"), s"read-write targets missing from help:\n$help")
+  }
 
   private def compile(fixture: String, readWrite: Boolean = true): String = {
     val resource = Option(getClass.getResource(s"/go-read-write/$fixture.ksy"))
@@ -257,6 +274,105 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
       |  - id: values
       |    type: b1
       |    repeat: eos
+      |""".stripMargin,
+    "write_bit_query_eof_be" -> """meta:
+      |  id: write_bit_query_eof_be
+      |  bit-endian: be
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: trailing
+      |    type: u1
+      |    if: not _io.eof
+      |""".stripMargin,
+    "write_bit_query_eof_le" -> """meta:
+      |  id: write_bit_query_eof_le
+      |  bit-endian: le
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: trailing
+      |    type: u1
+      |    if: not _io.eof
+      |""".stripMargin,
+    "write_bit_query_pos_be" -> """meta:
+      |  id: write_bit_query_pos_be
+      |  bit-endian: be
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: trailing
+      |    type: u1
+      |    if: _io.pos == 1
+      |""".stripMargin,
+    "write_bit_query_pos_le" -> """meta:
+      |  id: write_bit_query_pos_le
+      |  bit-endian: le
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: trailing
+      |    type: u1
+      |    if: _io.pos == 1
+      |""".stripMargin,
+    "write_bit_query_size_be" -> """meta:
+      |  id: write_bit_query_size_be
+      |  bit-endian: be
+      |params:
+      |  - id: expected_size
+      |    type: u1
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: trailing
+      |    type: u1
+      |    if: _io.size == expected_size
+      |""".stripMargin,
+    "write_bit_query_size_le" -> """meta:
+      |  id: write_bit_query_size_le
+      |  bit-endian: le
+      |params:
+      |  - id: expected_size
+      |    type: u1
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: trailing
+      |    type: u1
+      |    if: _io.size == expected_size
+      |""".stripMargin,
+    "write_bit_query_size_eos_be" -> """meta:
+      |  id: write_bit_query_size_eos_be
+      |  bit-endian: be
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: trailing
+      |    size-eos: true
+      |""".stripMargin,
+    "write_bit_query_size_eos_le" -> """meta:
+      |  id: write_bit_query_size_eos_le
+      |  bit-endian: le
+      |seq:
+      |  - id: flag
+      |    type: b1
+      |  - id: trailing
+      |    size-eos: true
+      |""".stripMargin,
+    "write_bit_query_child" -> """meta:
+      |  id: write_bit_query_child
+      |seq:
+      |  - id: child
+      |    type: body
+      |    size: 1
+      |types:
+      |  body:
+      |    seq:
+      |      - id: flag
+      |        type: b1
+      |      - id: trailing
+      |        type: u1
+      |        if: not _io.eof
       |""".stripMargin,
     "write_until_index" -> """meta:
       |  id: write_until_index
@@ -648,7 +764,35 @@ class GoReadWriteCompilerSpec extends AnyFunSuite {
     |}
     |func TestBitQueries(t *testing.T) {
     | v:=NewWriteBitContext();v.SetPrefix(5);v.SetSuffix(3);exact(t,v,[]byte{0xa3})
-    | bits:=NewWriteBitEos();bits.SetValues([]bool{true,false,true,false,false,false,true,true});exact(t,bits,[]byte{0xa3})
+    | bits:=NewWriteBitEos();bits.SetValues([]bool{true});exact(t,bits,[]byte{0x80})
+    |}
+    |func writeBitQuery(t *testing.T,v writable,out *kaitai.SeekableBuffer,want []byte) {
+    | t.Helper()
+    | if err:=v.Check();err!=nil {t.Fatal(err)}
+    | if err:=v.Write(kaitai.NewWriter(out));err!=nil {t.Fatal(err)}
+    | if !bytes.Equal(out.Bytes(),want) {t.Fatalf("got %x, want %x",out.Bytes(),want)}
+    |}
+    |func TestPartialBitQueriesUseLogicalPositionAndExtent(t *testing.T) {
+    | for _,fixed:=range []bool{false,true} {
+    |  makeOut:=func(size int)*kaitai.SeekableBuffer {if fixed{return kaitai.NewFixedSeekableBuffer(size)};return kaitai.NewSeekableBuffer(nil)}
+    |  eofBe:=NewWriteBitQueryEofBe();eofBe.SetFlag(true);eofBe.SetTrailing(0x11);writeBitQuery(t,eofBe,makeOut(1),[]byte{0x80})
+    |  eofLe:=NewWriteBitQueryEofLe();eofLe.SetFlag(true);eofLe.SetTrailing(0x11);writeBitQuery(t,eofLe,makeOut(1),[]byte{0x01})
+    |  posBe:=NewWriteBitQueryPosBe();posBe.SetFlag(true);posBe.SetTrailing(0x11);writeBitQuery(t,posBe,makeOut(2),[]byte{0x80,0x11})
+    |  posLe:=NewWriteBitQueryPosLe();posLe.SetFlag(true);posLe.SetTrailing(0x11);writeBitQuery(t,posLe,makeOut(2),[]byte{0x01,0x11})
+    |  expectedSize:=uint8(1);if fixed {expectedSize=2}
+    |  sizeBe:=NewWriteBitQuerySizeBe(expectedSize);sizeBe.SetFlag(true);sizeBe.SetTrailing(0x11);writeBitQuery(t,sizeBe,makeOut(2),[]byte{0x80,0x11})
+    |  sizeLe:=NewWriteBitQuerySizeLe(expectedSize);sizeLe.SetFlag(true);sizeLe.SetTrailing(0x11);writeBitQuery(t,sizeLe,makeOut(2),[]byte{0x01,0x11})
+    |  eosBe:=NewWriteBitQuerySizeEosBe();eosBe.SetFlag(true);eosBe.SetTrailing([]byte{0x11});writeBitQuery(t,eosBe,makeOut(2),[]byte{0x80,0x11})
+    |  eosLe:=NewWriteBitQuerySizeEosLe();eosLe.SetFlag(true);eosLe.SetTrailing([]byte{0x11});writeBitQuery(t,eosLe,makeOut(2),[]byte{0x01,0x11})
+    | }
+    |}
+    |func TestPartialBitQueryUsesChildWriterContext(t *testing.T) {
+    | v:=NewWriteBitQueryChild()
+    | v.SetRoot_(v)
+    | child:=NewWriteBitQueryChild_Body();child.SetParent_(v);child.SetRoot_(v);child.SetFlag(true)
+    | v.SetChild(child)
+    | if err:=child.Check();err!=nil {t.Fatal(err)}
+    | exact(t,v,[]byte{0x80})
     |}
     |func TestUntilContext(t *testing.T) {
     | a:=NewWriteUntilIndex();a.SetValues([]uint8{1,2});exact(t,a,[]byte{1,2})
