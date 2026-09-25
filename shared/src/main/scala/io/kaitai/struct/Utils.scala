@@ -70,26 +70,42 @@ object Utils {
     * @param s original string in `lower_under_score` case.
     * @return same string in `UpperCamelCase`.
     */
-  def upperCamelCase(s: String): String = {
-    if (s.startsWith("_")) {
-      "_" + upperCamelCase(s.substring(1))
-    } else {
-      s.split("_").map(capitalize).mkString
-    }
-  }
+  def upperCamelCase(s: String): String = camelCase(s, true)
 
   /**
     * Converts string to `lowerCamelCase`.
     * @param s original string in `lower_under_score` case.
     * @return same string in `lowerCamelCase`.
     */
-  def lowerCamelCase(s: String): String = {
-    if (s.startsWith("_")) {
-      "_" + lowerCamelCase(s.substring(1))
-    } else {
-      val firstWord :: restWords = s.split("_").toList
-      (firstWord :: restWords.map(capitalize)).mkString
+  def lowerCamelCase(s: String): String = camelCase(s, false)
+
+  /**
+    * Single-pass implementation of [[upperCamelCase]] and [[lowerCamelCase]]:
+    * keeps leading underscores, drops all other underscores and capitalizes
+    * the character following each of them.
+    * @param s original string in `lower_under_score` case.
+    * @param capitalizeFirst whether to capitalize the first word
+    */
+  private def camelCase(s: String, capitalizeFirst: Boolean): String = {
+    val len = s.length
+    val sb = new java.lang.StringBuilder(len)
+    var i = 0
+    while (i < len && s.charAt(i) == '_') {
+      sb.append('_')
+      i += 1
     }
+    var capitalizeNext = capitalizeFirst
+    while (i < len) {
+      val c = s.charAt(i)
+      if (c == '_') {
+        capitalizeNext = true
+      } else {
+        sb.append(if (capitalizeNext) c.toUpper else c)
+        capitalizeNext = false
+      }
+      i += 1
+    }
+    sb.toString
   }
 
   def capitalize(s: String): String = {
