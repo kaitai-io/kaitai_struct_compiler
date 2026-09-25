@@ -3,9 +3,18 @@ package io.kaitai.struct
 abstract class LanguageOutputWriter(indentStr: String) {
   var indentLevel = 0
 
+  /** Indent strings by level, built on demand, so that `puts` doesn't rebuild them on every line. */
+  private val indents = scala.collection.mutable.ArrayBuffer("")
+
   def inc: Unit = indentLevel += 1
   def dec: Unit = indentLevel -= 1
-  def indentNow: String = indentStr * indentLevel
+  def indentNow: String = {
+    if (indentLevel <= 0)
+      return ""
+    while (indents.length <= indentLevel)
+      indents += indents.last + indentStr
+    indents(indentLevel)
+  }
 
   def add(other: StringLanguageOutputWriter): Unit
   def puts(s: String): Unit
