@@ -125,7 +125,7 @@ object MetaSpec {
 
     ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS, path)
 
-    val id = ParseUtils.getOptValueStr(srcMap, "id", path)
+    val id = srcMap.get("id").map(ParseUtils.asIdentifier(_, path ++ List("id")))
     id.foreach((idStr) =>
       Identifier.checkIdentifierSource(idStr, "meta", path ++ List("id"))
     )
