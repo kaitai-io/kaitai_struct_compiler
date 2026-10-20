@@ -94,12 +94,12 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts(s"function ${type2class(name.last)}(_io, _parent, _root$endianSuffix$paramsList) {")
     out.inc
-    out.puts("this._io = _io;")
-    out.puts("this._parent = _parent;")
+    out.puts("Object.defineProperty(this, '_io', { value: _io, writable: true, enumerable: false });")
+    out.puts("Object.defineProperty(this, '_parent', { value: _parent, writable: true, enumerable: false });")
     if (name == rootClassName) {
-      out.puts("this._root = _root || this;")
+      out.puts("Object.defineProperty(this, '_root', { value: _root || this, writable: true, enumerable: false });")
     } else {
-      out.puts("this._root = _root;")
+      out.puts("Object.defineProperty(this, '_root', { value: _root, writable: true, enumerable: false });")
     }
 
     if (isHybrid)
