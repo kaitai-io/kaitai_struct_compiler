@@ -18,15 +18,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
       - name: Set up JDK 25
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '25'
-      - uses: sbt/setup-sbt@v1
+      - uses: sbt/setup-sbt@6158cb0903b8ceeae04f830055f3155e1b6a5ad7 # v1.5.11
       - name: Prepare source files into the npm package directory
         run: |
           . ./setup_env.sh
@@ -35,7 +35,7 @@ jobs:
             buildNpmJsFile \
             buildNpmPackage
       - name: Store the npm package directory
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: npm-package-dir
           path: js/npm/
@@ -49,11 +49,11 @@ jobs:
       id-token: write  # Required for OIDC (see https://docs.npmjs.com/trusted-publishers)
     steps:
       - name: Download the npm package directory
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: npm-package-dir
           path: js/npm/
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           package-manager-cache: false  # IMPORTANT: prevents potential [cache poisoning](https://docs.zizmor.sh/audits/#cache-poisoning) attacks
           node-version: '24'
