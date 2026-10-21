@@ -173,7 +173,7 @@ case class ParamMismatchError(idx: Int, argType: DataType, paramName: String, pa
 case class TypeNotFoundErr(name: List[String], curClass: ClassSpec, path: List[String], fileName: Option[String] = None)
   extends CompilationProblem {
 
-  override def text = s"unable to find type '${name.mkString("::")}', searching from ${curClass.nameAsStr}"
+  override def text = s"unable to find type '${name.mkString("::")}', searching from '${curClass.nameAsStr}'"
   override val coords: ProblemCoords = ProblemCoords(fileName, Some(path))
   override def localizedInFile(fileName: String): CompilationProblem =
     copy(fileName = Some(fileName))
@@ -183,7 +183,7 @@ case class TypeNotFoundErr(name: List[String], curClass: ClassSpec, path: List[S
 case class EnumNotFoundErr(name: List[String], curClass: ClassSpec, path: List[String], fileName: Option[String] = None)
   extends CompilationProblem {
 
-  override def text = s"unable to find enum '${name.mkString("::")}', searching from ${curClass.nameAsStr}"
+  override def text = s"unable to find enum '${name.mkString("::")}', searching from '${curClass.nameAsStr}'"
   override val coords: ProblemCoords = ProblemCoords(fileName, Some(path))
   override def localizedInFile(fileName: String): CompilationProblem =
     copy(fileName = Some(fileName))
