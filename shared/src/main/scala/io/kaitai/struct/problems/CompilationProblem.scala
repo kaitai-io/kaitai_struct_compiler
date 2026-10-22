@@ -190,6 +190,28 @@ case class EnumNotFoundErr(name: List[String], curClass: ClassSpec, path: List[S
   override def severity: ProblemSeverity = ProblemSeverity.Error
 }
 
+case class EnumUnderlyingTypeMismatchError(
+  enumName: List[String],
+  attrType: DataType.IntType,
+  enumType: DataType.IntType,
+  path: List[String],
+  fileName: Option[String] = None
+) extends CompilationProblem {
+  override def text = {
+    val attrTypeStr = attrType.toPureTypeString
+    val enumTypeStr = enumType.toPureTypeString
+    s"unable to convert type `${attrTypeStr}` " +
+      s"to enum `${enumName.mkString("::")}` " +
+      s"with underlying type `${enumTypeStr}` " +
+      s"(range ${attrType.min}..${attrType.max} of `${attrTypeStr}` is not fully contained in " +
+      s"range ${enumType.min}..${enumType.max} of `${enumTypeStr}`)"
+  }
+  override val coords: ProblemCoords = ProblemCoords(fileName, Some(path))
+  override def localizedInFile(fileName: String): CompilationProblem =
+    copy(fileName = Some(fileName))
+  override def severity: ProblemSeverity = ProblemSeverity.Error
+}
+
 abstract class StyleWarning(val coords: ProblemCoords) extends CompilationProblem {
   /**
     * @return main warning text, without references to the style guide

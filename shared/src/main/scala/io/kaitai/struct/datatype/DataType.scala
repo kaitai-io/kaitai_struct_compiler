@@ -45,12 +45,76 @@ object DataType {
   abstract sealed class NumericType extends DataType
   abstract sealed class BooleanType extends DataType
 
-  abstract sealed class IntType extends NumericType
-  case object CalcIntType extends IntType
+  abstract sealed class IntType extends NumericType {
+    /**
+      * The smallest value of the given integer type
+      */
+    def min: BigInt
+    /**
+      * The largest value of the given integer type
+      */
+    def max: BigInt
+    /**
+      * Render the integer type as a KSY-style "pure" type string (e.g. `u4`,
+      * `s1`, `b3`) without any serialization details, such as endianness.
+      * Intended for use in error messages.
+      */
+    def toPureTypeString: String
+
+    final def subsetOf(other: IntType): Boolean = {
+      // This implementation might be slightly inefficient (compared to pattern
+      // matching with a few simple comparisons) because it involves calculating
+      // large `BigInt` values, but it's guaranteed to give the correct result.
+      // That's because it directly tests the "subset of" relationship by
+      // comparing the `min` and `max` bounds.
+      min >= other.min && max <= other.max
+    }
+  }
+  object IntType {
+    final val NUM_BITS_IN_BYTE = 8
+  }
+  /**
+    * In statically typed languages, [[CalcIntType]] is often a signed 32-bit
+    * integer, but from the compiler's perspective, it represents an unspecified
+    * integer type. Therefore, we deliberately don't implement the [[min]] and
+    * [[max]] methods.
+    */
+  case object CalcIntType extends IntType {
+    override final def min: BigInt = ???
+    override final def max: BigInt = ???
+    override def toPureTypeString: String = "<calc>"
+  }
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
+    override final def min: BigInt =
+      if (signed) {
+        Byte.MinValue
+      } else {
+        0
+      }
+    override final def max: BigInt =
+      if (signed) {
+        Byte.MaxValue
+      } else {
+        0xff
+      }
+    override def toPureTypeString: String = if (signed) "s1" else "u1"
     override def apiCall(defEndian: Option[FixedEndian]): String = if (signed) "s1" else "u1"
   }
   case class IntMultiType(signed: Boolean, width: IntWidth, endian: Option[FixedEndian]) extends IntType with ReadableType {
+    private final def bitWidth: Int =
+      IntType.NUM_BITS_IN_BYTE * width.width
+
+    override final def min: BigInt =
+      if (signed) {
+        -(BigInt(1) << (bitWidth - 1))
+      } else {
+        0
+      }
+    override final def max: BigInt =
+      (BigInt(1) << (bitWidth - (if (signed) 1 else 0))) - 1
+    override def toPureTypeString: String =
+      s"${if (signed) 's' else 'u'}${width.width}"
+
     override def apiCall(defEndian: Option[FixedEndian]): String = {
       val ch1 = if (signed) 's' else 'u'
       val finalEnd = endian.orElse(defEndian)
@@ -58,7 +122,13 @@ object DataType {
     }
   }
   case class BitsType1(bitEndian: BitEndianness) extends BooleanType
-  case class BitsType(width: Int, bitEndian: BitEndianness) extends IntType
+  case class BitsType(width: Int, bitEndian: BitEndianness) extends IntType {
+    override final def min: BigInt = 0
+    override final def max: BigInt =
+      (BigInt(1) << width) - 1
+    override def toPureTypeString: String =
+      s"b$width"
+  }
 
   abstract class FloatType extends NumericType
   case object CalcFloatType extends FloatType

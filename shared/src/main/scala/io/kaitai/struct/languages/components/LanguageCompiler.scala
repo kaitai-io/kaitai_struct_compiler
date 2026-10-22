@@ -201,7 +201,7 @@ abstract class LanguageCompiler(
   def instanceHasValueIfHeader(instName: InstanceIdentifier): Unit = {}
   def instanceHasValueIfFooter(): Unit = {}
 
-  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit
+  def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)], enumSpec: EnumSpec): Unit
 
   /**
     * Outputs class' attributes sequence identifiers as some sort of an ordered sequence,

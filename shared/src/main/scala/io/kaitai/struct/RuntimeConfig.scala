@@ -10,6 +10,14 @@ package io.kaitai.struct
   * @param useListInitializers If true, allows use of list initializers for
   *                            `std::vector` and `std::set`. Otherwise, throw a fatal
   *                            "not implemented" error.
+  * @param enumsFixedUnderlyingType If true, enums will be declared with fixed
+  * underlying type (see https://github.com/kaitai-io/kaitai_struct/issues/1288).
+  * If false, enums will be declared without a fixed underlying type. Enums without
+  * a fixed underlying type are best avoided, because casting an integer that falls
+  * outside the range of the enum values to the enum type is undefined behavior (see
+  * https://github.com/kaitai-io/kaitai_struct/issues/959). However, in C++98, this
+  * is the only supported option (see
+  * https://cppreference.com/cpp/language/enum#Unscoped_enumerations).
   * @param pointers Choose which style of pointers to use.
   */
 case class CppRuntimeConfig(
@@ -17,6 +25,7 @@ case class CppRuntimeConfig(
   usePragmaOnce: Boolean = false,
   stdStringFrontBack: Boolean = false,
   useListInitializers: Boolean = false,
+  enumsFixedUnderlyingType: Boolean = false,
   pointers: CppRuntimeConfig.Pointers = CppRuntimeConfig.RawPointers
 ) {
   /**
@@ -27,6 +36,7 @@ case class CppRuntimeConfig(
     usePragmaOnce = false,
     stdStringFrontBack = false,
     useListInitializers = false,
+    enumsFixedUnderlyingType = false,
     pointers = CppRuntimeConfig.RawPointers
   )
 
@@ -38,6 +48,7 @@ case class CppRuntimeConfig(
     usePragmaOnce = true,
     stdStringFrontBack = true,
     useListInitializers = true,
+    enumsFixedUnderlyingType = true,
     pointers = CppRuntimeConfig.UniqueAndRawPointers
   )
 }
