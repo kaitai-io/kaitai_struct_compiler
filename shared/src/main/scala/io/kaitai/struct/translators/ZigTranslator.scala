@@ -31,6 +31,16 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
     Ast.cmpop.NotEq -> 90
   )
 
+  override def translateUnaryOperand(operand: Ast.expr, unaryExpr: Ast.expr): String = {
+    val targetType = detectType(unaryExpr)
+    if (ZigCompiler.kaitaiType2NativeType(detectType(operand), importList, provider.nowClass) ==
+        ZigCompiler.kaitaiType2NativeType(targetType, importList, provider.nowClass)) {
+      translate(operand)
+    } else {
+      doCast(operand, targetType)
+    }
+  }
+
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val nativeType = ZigCompiler.kaitaiType2NativeType(t, importList, provider.nowClass)
     val commaStr = value.map((v) => translate(v)).mkString(", ")

@@ -85,7 +85,7 @@ abstract class BaseTranslator(val provider: TypeProvider)
           case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
             s"$opStr${translate(inner)}"
           case _ =>
-            s"$opStr(${translate(inner)})"
+            s"$opStr(${translateUnaryOperand(inner, v)})"
         }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
@@ -155,6 +155,15 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doBitSizeOfType(typeName)
     }
   }
+
+  /**
+    * Translates the operand of the unary operator expression `unaryExpr`.
+    *
+    * Languages that evaluate unary operators in the type of their operand
+    * (instead of implicitly promoting it like C) should override this method to
+    * convert the operand to the result type of `unaryExpr`.
+    */
+  def translateUnaryOperand(operand: Ast.expr, unaryExpr: Ast.expr): String = translate(operand)
 
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: DataType): String = translate(value, METHOD_PRECEDENCE)
