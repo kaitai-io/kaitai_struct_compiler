@@ -172,9 +172,34 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
         val unionFieldName = ZigCompiler.dataTypeToUnionFieldName(typeName)
         s"${translate(value, METHOD_PRECEDENCE)}.$unionFieldName"
       case _ =>
-        s"@as(${ZigCompiler.kaitaiType2NativeType(typeName, importList, provider.nowClass)}, ${translate(value)})"
+        val valueStr = if (needsIntCast(value, valueType, typeName)) {
+          s"@intCast(${translate(value)})"
+        } else {
+          translate(value)
+        }
+        s"@as(${ZigCompiler.kaitaiType2NativeType(typeName, importList, provider.nowClass)}, $valueStr)"
     }
   }
+
+  /**
+    * Returns whether converting `value` of type `valueType` to `targetType`
+    * requires `@intCast`.
+    *
+    * `@as` only allows integer conversions to types that can represent every
+    * value of the source type (see
+    * https://ziglang.org/documentation/0.16.0/#Type-Coercion-Integer-and-Float-Widening),
+    * so for example converting `u64` to `i64` needs `@intCast`. Integer
+    * literals coerce to any type that can represent them (see
+    * https://ziglang.org/documentation/0.16.0/#Type-Coercion-Compile-Time-Known-Numbers).
+    */
+  private def needsIntCast(value: Ast.expr, valueType: DataType, targetType: DataType): Boolean =
+    (value, valueType, targetType) match {
+      case (_: Ast.expr.IntNum, _, _) => false
+      // `CalcIntType` has no defined range, so we can't tell
+      case (_, CalcIntType, _) | (_, _, CalcIntType) => false
+      case (_, srcType: IntType, dstType: IntType) => !srcType.subsetOf(dstType)
+      case _ => false
+    }
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
