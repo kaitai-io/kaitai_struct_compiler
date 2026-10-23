@@ -397,6 +397,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"($id as i64).try_into()?"
 
+  override def unaryOp(op: Ast.unaryop): String = op match {
+    // See https://doc.rust-lang.org/1.99.0/reference/expressions/operator-expr.html#r-expr.negate.results
+    case Ast.unaryop.Invert => "!"
+    case Ast.unaryop.Minus => "-"
+    case Ast.unaryop.Not => "!"
+  }
+
   override def arraySubscript(container: expr, idx: expr): String =
     s"${remove_deref(translate(container))}[${translate(idx)} as usize]"
 
