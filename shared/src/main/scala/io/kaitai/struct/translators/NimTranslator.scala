@@ -34,6 +34,14 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   )
 
   // Members declared in io.kaitai.struct.translators.BaseTranslator
+  override def translateUnaryOperand(operand: Ast.expr, unaryExpr: Ast.expr): String = {
+    val targetType = detectType(unaryExpr)
+    if (ksToNim(detectType(operand)) == ksToNim(targetType)) {
+      translate(operand)
+    } else {
+      doCast(operand, targetType)
+    }
+  }
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     s"""encode($bytesExpr, ${doStringLiteral(encoding)})"""
   }
