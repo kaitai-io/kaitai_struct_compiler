@@ -60,8 +60,27 @@ class TypeDetector(provider: TypeProvider) {
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
         (t, op) match {
-          case (IntMultiType(_, w, _), Ast.unaryop.Minus | Ast.unaryop.Invert) if w.width > 4 => t
-          case (_: IntType, Ast.unaryop.Minus | Ast.unaryop.Invert) => CalcIntType
+          case (it: IntType, Ast.unaryop.Minus) =>
+            if (it == CalcIntType) {
+              CalcIntType
+            } else if (it.bitWidth < 32 || (it.bitWidth == 32 && it.signed)) {
+              IntMultiType(true, Width4, None)
+            } else if (it.bitWidth == 64 && it.signed) {
+              IntMultiType(true, Width8, None)
+            } else {
+              val hint = if (it.bitWidth < 64) " (if you want the result as `s8`, use `-val.as<s8>`)" else ""
+              throw new TypeMismatchError(s"unable to apply unary operator $op to $t$hint")
+            }
+          case (it: IntType, Ast.unaryop.Invert) =>
+            if (it == CalcIntType) {
+              CalcIntType
+            } else if (it.bitWidth < 32) {
+              IntMultiType(true, Width4, None)
+            } else if (it.bitWidth == 32) {
+              IntMultiType(it.signed, Width4, None)
+            } else {
+              IntMultiType(it.signed, Width8, None)
+            }
           case (_: FloatType, Ast.unaryop.Minus) => t
           case (_: BooleanType, Ast.unaryop.Not) => t
           case _ => throw new TypeMismatchError(s"unable to apply unary operator $op to $t")

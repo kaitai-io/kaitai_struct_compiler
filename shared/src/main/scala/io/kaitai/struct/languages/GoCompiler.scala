@@ -646,7 +646,16 @@ object GoCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float32"
       case FloatMultiType(Width8, _) => "float64"
 
-      case BitsType(_, _) => "uint64"
+      case BitsType(width, _) =>
+        if (width <= 8) {
+          "uint8"
+        } else if (width <= 16) {
+          "uint16"
+        } else if (width <= 32) {
+          "uint32"
+        } else {
+          "uint64"
+        }
 
       case _: BooleanType => "bool"
       case CalcIntType => "int"
