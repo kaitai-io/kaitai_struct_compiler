@@ -1,5 +1,6 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
@@ -34,15 +35,29 @@ class TypeDetector(provider: TypeProvider) {
   def detectTypeRaw(v: Ast.expr): DataType = {
     v match {
       case Ast.expr.IntNum(x) =>
-        if (x < 0 || x > 255) {
-          CalcIntType
-        } else if (x <= 127) {
+        if (x >= 0 && x <= 127) {
           // [0..127] => signed 1-byte integer
           Int1Type(true)
-        } else {
+        } else if (x >= 128 && x <= 255) {
           // [128..255] => unsigned 1-byte integer
           Int1Type(false)
+        } else if (x >= Int.MinValue && x <= Int.MaxValue) {
+          IntMultiType(true, Width4, None)
+        } else if (x >= 0 && x <= Utils.MAX_UINT32) {
+          IntMultiType(false, Width4, None)
+        } else if (x >= Long.MinValue && x <= Long.MaxValue) {
+          IntMultiType(true, Width8, None)
+        } else if (x >= 0 && x <= Utils.MAX_UINT64) {
+          IntMultiType(false, Width8, None)
+        } else {
+          throw new TypeMismatchError(s"integer literal $x is out of the 64-bit integer range")
         }
+      case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(x)) =>
+        // Negative integer literals are parsed as the unary minus applied to a
+        // non-negative literal, but they must be typed based on their actual
+        // value (otherwise `-2147483648` would be rejected as `-` applied to
+        // `u4`, which is not allowed)
+        detectTypeRaw(Ast.expr.IntNum(-x))
       case Ast.expr.FloatNum(_) => CalcFloatType
       case Ast.expr.Str(_) => CalcStrType
       case Ast.expr.InterpolatedStr(_) => CalcStrType

@@ -18,61 +18,61 @@ class TranslatorSpec extends AnyFunSpec {
     describe("simple") {
       everybody("123", "123", Int1Type(true))
       everybody("223", "223", Int1Type(false))
-      everybody("1234", "1234")
-      everybody("-456", "-456")
-      everybody("0x1234", "4660")
+      everybody("1234", "1234", IntMultiType(true, Width4, None))
+      everybody("-456", "-456", IntMultiType(true, Width4, None))
+      everybody("0x1234", "4660", IntMultiType(true, Width4, None))
       // less and more than 32 Bit signed int
-      everybody("1000000000", "1000000000")
+      everybody("1000000000", "1000000000", IntMultiType(true, Width4, None))
       everybodyExcept("100000000000", "100000000000", ResultMap(
         CppCompiler -> "100000000000LL",
         GoCompiler -> "int64(100000000000)",
         JavaCompiler -> "100000000000L"
-      ))
+      ), IntMultiType(true, Width8, None))
     }
 
     describe("extreme") {
       // 0x7fff_ffff
-      everybody("2147483647", "2147483647")
+      everybody("2147483647", "2147483647", IntMultiType(true, Width4, None))
       // 0x8000_0000
       everybodyExcept("2147483648", "2147483648", ResultMap(
         CppCompiler -> "2147483648UL",
         GoCompiler -> "uint32(2147483648)",
         JavaCompiler -> "2147483648L",
-      ))
+      ), IntMultiType(false, Width4, None))
       // 0xffff_ffff
       everybodyExcept("4294967295", "4294967295", ResultMap(
         CppCompiler -> "4294967295UL",
         GoCompiler -> "uint32(4294967295)",
         JavaCompiler -> "4294967295L",
-      ))
+      ), IntMultiType(false, Width4, None))
       // 0x1_0000_0000
       everybodyExcept("4294967296", "4294967296", ResultMap(
         CppCompiler -> "4294967296LL",
         GoCompiler -> "int64(4294967296)",
         JavaCompiler -> "4294967296L",
-      ))
+      ), IntMultiType(true, Width8, None))
 
       // -0x7fff_ffff
-      everybody("-2147483647", "-2147483647")
+      everybody("-2147483647", "-2147483647", IntMultiType(true, Width4, None))
       // -0x8000_0000
       everybodyExcept("-2147483648", "-2147483648", ResultMap(
         CppCompiler -> "(-2147483647 - 1)",
         LuaCompiler -> "(-2147483647 - 1)",
         PHPCompiler -> "(-2147483647 - 1)",
-      ))
+      ), IntMultiType(true, Width4, None))
       // -0x8000_0001
       everybodyExcept("-2147483649", "-2147483649", ResultMap(
         CppCompiler -> "-2147483649LL",
         GoCompiler -> "int64(-2147483649)",
         JavaCompiler -> "-2147483649L",
-      ))
+      ), IntMultiType(true, Width8, None))
 
       // 0x7fff_ffff_ffff_ffff
       everybodyExcept("9223372036854775807", "9223372036854775807", ResultMap(
         CppCompiler -> "9223372036854775807LL",
         GoCompiler -> "int64(9223372036854775807)",
         JavaCompiler -> "9223372036854775807L",
-      ))
+      ), IntMultiType(true, Width8, None))
       // 0x8000_0000_0000_0000
       everybodyExcept("9223372036854775808", "9223372036854775808", ResultMap(
         CppCompiler -> "9223372036854775808ULL",
@@ -80,7 +80,7 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "0x8000000000000000L",
         LuaCompiler -> "0x8000000000000000",
         PHPCompiler -> "(-9223372036854775807 - 1)",
-      ))
+      ), IntMultiType(false, Width8, None))
       // 0xffff_ffff_ffff_ffff
       everybodyExcept("18446744073709551615", "18446744073709551615", ResultMap(
         CppCompiler -> "18446744073709551615ULL",
@@ -88,13 +88,13 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "0xffffffffffffffffL",
         LuaCompiler -> "0xffffffffffffffff",
         PHPCompiler -> "-1",
-      ))
+      ), IntMultiType(false, Width8, None))
       // -0x7fff_ffff_ffff_ffff
       everybodyExcept("-9223372036854775807", "-9223372036854775807", ResultMap(
         CppCompiler -> "-9223372036854775807LL",
         GoCompiler -> "int64(-9223372036854775807)",
         JavaCompiler -> "-9223372036854775807L",
-      ))
+      ), IntMultiType(true, Width8, None))
       // -0x8000_0000_0000_0000
       everybodyExcept("-9223372036854775808", "-9223372036854775808", ResultMap(
         CppCompiler -> "(-9223372036854775807LL - 1)",
@@ -102,7 +102,7 @@ class TranslatorSpec extends AnyFunSpec {
         JavaCompiler -> "-9223372036854775808L",
         LuaCompiler -> "(-9223372036854775807 - 1)",
         PHPCompiler -> "(-9223372036854775807 - 1)",
-      ))
+      ), IntMultiType(true, Width8, None))
     }
   }
 
@@ -174,7 +174,7 @@ class TranslatorSpec extends AnyFunSpec {
     everybodyExcept("~777", "~777", ResultMap(
       GoCompiler -> "^777",
       PerlCompiler -> "(-1 - (777))"
-    ))
+    ), IntMultiType(true, Width4, None))
     everybodyExcept("~(7+3)", "~(7 + 3)", ResultMap(
       GoCompiler -> "^(7 + 3)",
       PerlCompiler -> "(-1 - (7 + 3))"
@@ -414,9 +414,9 @@ class TranslatorSpec extends AnyFunSpec {
 
   describe("arrays") {
     describe("literals") {
-      full("[0, 1, 100500]", CalcIntType, ArrayTypeInStream(CalcIntType), ResultMap(
+      full("[0, 1, 100500]", CalcIntType, ArrayTypeInStream(IntMultiType(true, Width4, None)), ResultMap(
         CSharpCompiler -> "new List<int> { 0, 1, 100500 }",
-        GoCompiler -> "[]int{0, 1, 100500}",
+        GoCompiler -> "[]int32{0, 1, 100500}",
         JavaCompiler -> "new ArrayList<Integer>(Arrays.asList(0, 1, 100500))",
         JavaScriptCompiler -> "[0, 1, 100500]",
         LuaCompiler -> "{0, 1, 100500}",
