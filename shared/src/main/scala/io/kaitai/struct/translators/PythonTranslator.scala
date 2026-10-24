@@ -124,6 +124,10 @@ class PythonTranslator(provider: TypeProvider, importList: ImportList, config: R
     case _ => super.unaryOp(op)
   }
 
+  // Integers have arbitrary precision
+  override def truncateToUnsigned(expr: String, t: IntType): String =
+    s"($expr & 0x${t.max.toString(16)})"
+
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String =
