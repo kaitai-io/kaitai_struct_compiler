@@ -652,7 +652,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
-        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
+        val bitsInt = s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
+        if (width < 32) {
+          s"(${kaitaiType2JavaTypePrim(dataType)})$bitsInt"
+        } else {
+          bitsInt
+        }
       case t: UserType =>
         val addArgs = if (t.isExternal(typeProvider.nowClass)) {
           ""
@@ -1359,7 +1364,12 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType(_, _) => "long"
+      case BitsType(width, _) =>
+        if (width < 32) {
+          "int"
+        } else {
+          "long"
+        }
 
       case _: BooleanType => "boolean"
       case CalcIntType => "int"
@@ -1403,7 +1413,12 @@ object JavaCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "Float"
       case FloatMultiType(Width8, _) => "Double"
 
-      case BitsType(_, _) => "Long"
+      case BitsType(width, _) =>
+        if (width < 32) {
+          "Integer"
+        } else {
+          "Long"
+        }
 
       case _: BooleanType => "Boolean"
       case CalcIntType => "Integer"

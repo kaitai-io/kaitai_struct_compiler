@@ -770,7 +770,13 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         s"$io.read_bytes_term($term, $include, $consume, $eosError)?.into()"
       case b: BytesLimitType => s"$io.read_bytes(${expression(b.size)} as usize)?.into()"
       case BitsType1(bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}(1)? != 0"
-      case BitsType(width: Int, bitEndian) => s"$io.read_bits_int_${bitEndian.toSuffix}($width)?"
+      case BitsType(width: Int, bitEndian) =>
+        val bitsInt = s"$io.read_bits_int_${bitEndian.toSuffix}($width)?"
+        if (width <= 32) {
+          s"$bitsInt as ${kaitaiPrimitiveToNativeType(dataType)}"
+        } else {
+          bitsInt
+        }
       case t: UserType =>
         addParams = translate_args(t.args, into = true)
         val userType = t match {
@@ -1365,7 +1371,16 @@ object RustCompiler
     case FloatMultiType(Width4, _) => "f32"
     case FloatMultiType(Width8, _) => "f64"
 
-    case BitsType(_,_) => "u64"
+    case BitsType(width, _) =>
+      if (width <= 8) {
+        "u8"
+      } else if (width <= 16) {
+        "u16"
+      } else if (width <= 32) {
+        "u32"
+      } else {
+        "u64"
+      }
 
     case _: BooleanType => "bool"
     case CalcIntType => "i32"

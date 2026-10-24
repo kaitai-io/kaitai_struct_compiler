@@ -93,7 +93,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
           case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
             s"$opStr${translate(inner)}"
           case _ =>
-            s"$opStr(${translate(inner)})"
+            s"$opStr(${translateAndConvert(inner, detectType(v))})"
         })
       case Ast.expr.Compare(left, op, right) =>
         (detectType(left), detectType(right)) match {
@@ -137,6 +137,18 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         doByteSizeOfType(typeName)
       case Ast.expr.BitSizeOfType(typeName) =>
         doBitSizeOfType(typeName)
+    }
+  }
+
+  /**
+   * Translates `v` and converts it to `targetType` if it would otherwise have a
+   * different Go type.
+   */
+  def translateAndConvert(v: Ast.expr, targetType: DataType): String = {
+    if (GoCompiler.kaitaiType2NativeType(detectType(v)) == GoCompiler.kaitaiType2NativeType(targetType)) {
+      translate(v)
+    } else {
+      resToStr(doCast(v, targetType))
     }
   }
 

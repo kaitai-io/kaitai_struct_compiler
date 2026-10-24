@@ -397,6 +397,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"($id as i64).try_into()?"
 
+  override def unaryOp(op: Ast.unaryop): String = op match {
+    // See https://doc.rust-lang.org/1.99.0/reference/expressions/operator-expr.html#r-expr.negate.results
+    case Ast.unaryop.Invert => "!"
+    case Ast.unaryop.Minus => "-"
+    case Ast.unaryop.Not => "!"
+  }
+
   override def arraySubscript(container: expr, idx: expr): String =
     s"${remove_deref(translate(container))}[${translate(idx)} as usize]"
 
@@ -422,7 +429,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     if(castTypeName == value_type)
       return translate(value)
 
-    val ct = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, castTypeName, excludeOptionWrapper = true)
+    val ct = rustNativeType(castTypeName)
     var into = false
     castTypeName match {
       case _: UserType => into = true;
@@ -435,6 +442,18 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       s"(${translate(value)} as $ct)"
     }
   }
+
+  override def translateUnaryOperand(operand: Ast.expr, unaryExpr: Ast.expr): String = {
+    val targetType = detectType(unaryExpr)
+    if (rustNativeType(detectType(operand)) == rustNativeType(targetType)) {
+      translate(operand)
+    } else {
+      doCast(operand, targetType)
+    }
+  }
+
+  private def rustNativeType(t: DataType): String =
+    RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, t, excludeOptionWrapper = true)
 
   override def translate(v: Ast.expr): String = {
     v match {

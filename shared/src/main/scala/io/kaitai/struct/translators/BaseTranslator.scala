@@ -84,8 +84,14 @@ abstract class BaseTranslator(val provider: TypeProvider)
           case (Ast.unaryop.Minus, Ast.expr.IntNum(n)) => translate(Ast.expr.IntNum(-n))
           case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
             s"$opStr${translate(inner)}"
+          case (Ast.unaryop.Invert, _) =>
+            val inverted = s"$opStr(${translateUnaryOperand(inner, v)})"
+            detectType(v) match {
+              case it: IntType if !it.signed => truncateToUnsigned(inverted, it)
+              case _ => inverted
+            }
           case _ =>
-            s"$opStr(${translate(inner)})"
+            s"$opStr(${translateUnaryOperand(inner, v)})"
         }
       case Ast.expr.Compare(left: Ast.expr, op: Ast.cmpop, right: Ast.expr) =>
         (detectType(left), detectType(right)) match {
@@ -155,6 +161,25 @@ abstract class BaseTranslator(val provider: TypeProvider)
         doBitSizeOfType(typeName)
     }
   }
+
+  /**
+    * Translates the operand of the unary operator expression `unaryExpr`.
+    *
+    * Languages that evaluate unary operators in the type of their operand
+    * (instead of implicitly promoting it like C) should override this method to
+    * convert the operand to the result type of `unaryExpr`.
+    */
+  def translateUnaryOperand(operand: Ast.expr, unaryExpr: Ast.expr): String = translate(operand)
+
+  /**
+    * Truncates the integer value of `expr` to the width of the unsigned integer
+    * type `t`, i.e. calculates `expr` modulo `2 ** t.bitWidth`.
+    *
+    * Languages that store unsigned integers in a type wider than `t` (or with
+    * arbitrary precision) should override this method, because some bitwise
+    * operations (such as the bitwise NOT `~`) may set bits beyond `t.bitWidth`.
+    */
+  def truncateToUnsigned(expr: String, t: IntType): String = expr
 
   def doIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): String
   def doCast(value: Ast.expr, typeName: DataType): String = translate(value, METHOD_PRECEDENCE)
