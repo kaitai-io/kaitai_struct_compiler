@@ -172,10 +172,12 @@ class TranslatorSpec extends AnyFunSpec {
     ))
 
     everybodyExcept("~777", "~777", ResultMap(
-      GoCompiler -> "^777"
+      GoCompiler -> "^777",
+      PerlCompiler -> "(-1 - (777))"
     ))
     everybodyExcept("~(7+3)", "~(7 + 3)", ResultMap(
-      GoCompiler -> "^(7 + 3)"
+      GoCompiler -> "^(7 + 3)",
+      PerlCompiler -> "(-1 - (7 + 3))"
     ))
 
     everybody("(0b01 & 0b11) << 1", "(1 & 3) << 1")
