@@ -4,7 +4,9 @@ import io.kaitai.struct.Log
 import io.kaitai.struct.format.{ClassSpec, ClassSpecs}
 import io.kaitai.struct.problems.ErrorInInput
 
-import java.io.{File, FileNotFoundException}
+import java.io.{File, FileNotFoundException, InputStream, InputStreamReader, BufferedReader, IOException}
+import java.net.{URI, HttpURLConnection}
+import java.nio.charset.StandardCharsets
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -26,6 +28,7 @@ class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpe
   // https://github.com/kaitai-io/kaitai_struct/issues/951
   private val relFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
   private val absFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
+  private val urlFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
 
   override def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] = Future {
     Log.importOps.info(() => s".. importing relative $name")
@@ -37,6 +40,11 @@ class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpe
   override def importAbsolute(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] = Future {
     Log.importOps.info(() => s".. importing absolute $name")
     JavaClassSpecs.cached(path, inFile, absFiles, name, tryAbsolutePaths)
+  }
+
+  override def importUrl(url: String, inFile: Option[String]): Future[Option[ClassSpec]] = Future {
+    Log.importOps.info(() => s".. importing URL $url")
+    JavaClassSpecs.cached(List(url), inFile, urlFiles, url, downloadFromUrl)
   }
 
   def tryAbsolutePaths(name: String): ClassSpec = {
@@ -56,6 +64,37 @@ class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpe
       }
     }
     throw new FileNotFoundException(s"unable to find '$name.ksy' in import search paths, using: $absPaths")
+  }
+
+  def downloadFromUrl(url: String): ClassSpec = {
+    Log.importOps.info(() => s".... downloading from $url")
+    val connection = new URI(url).toURL().openConnection().asInstanceOf[HttpURLConnection]
+    try {
+      connection.setRequestMethod("GET")
+      connection.setConnectTimeout(10000)
+      connection.setReadTimeout(30000)
+      connection.connect()
+
+      val responseCode = connection.getResponseCode
+      if (responseCode != 200) {
+        throw new IOException(s"HTTP error $responseCode for URL: $url")
+      }
+
+      val inputStream: InputStream = connection.getInputStream
+      try {
+        val reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))
+        try {
+          val scalaSrc = JavaKSYParser.readerToYaml(reader)
+          ClassSpec.fromYaml(scalaSrc, Some(url))
+        } finally {
+          reader.close()
+        }
+      } finally {
+        inputStream.close()
+      }
+    } finally {
+      connection.disconnect()
+    }
   }
 }
 
