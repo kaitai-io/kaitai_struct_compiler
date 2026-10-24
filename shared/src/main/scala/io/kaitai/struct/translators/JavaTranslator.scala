@@ -76,6 +76,10 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
     enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
   }
 
+  // Unsigned 32-bit integers are stored in the 64-bit `long` type
+  override def truncateToUnsigned(expr: String, t: IntType): String =
+    if (t.bitWidth == 32) s"($expr & 0xffffffffL)" else expr
+
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = op match {
     case Ast.cmpop.Eq =>
       s"${translate(left, METHOD_PRECEDENCE)}.equals(${translate(right)})"
