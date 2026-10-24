@@ -113,6 +113,10 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"${LuaCompiler.types2class(enumSpec.name)}($id)"
 
+  // Integers are signed 64-bit, so only unsigned 32-bit values need truncating
+  override def truncateToUnsigned(expr: String, t: IntType): String =
+    if (t.bitWidth == 32) s"($expr & 0xffffffff)" else expr
+
   override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =
     s"${translate(left)} .. ${translate(right)}"
   override def strToInt(s: Ast.expr, base: Ast.expr): String = {
