@@ -174,6 +174,47 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         out.dec
         out.puts("}")
         ResultLocalVar(v1)
+      case (_: IntType, _: IntType, Ast.operator.LShift | Ast.operator.RShift |
+            Ast.operator.BitAnd | Ast.operator.BitOr | Ast.operator.BitXor |
+            Ast.operator.Add | Ast.operator.Sub | Ast.operator.Mult | Ast.operator.Div) =>
+        // Go is strict about integer types: operations on `uint8` / `int8` etc produce the same
+        // narrow type, and you can't assign them to `int` without an explicit conversion.
+        //
+        // TypeDetector infers CalcIntType for any integer binop, and Go backend represents it as
+        // `int`, so we cast *typed* operands (e.g. `this.Bytes[i]`) to `int` where needed, while
+        // keeping integer literals untyped (to preserve nicer output and not break TranslatorSpec).
+        def isUntypedIntConst(e: Ast.expr): Boolean = e match {
+          case Ast.expr.IntNum(_) => true
+          case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(_)) => true
+          case _ => false
+        }
+
+        val thisPrec = OPERATOR_PRECEDENCE(op)
+
+        def maybeCastToInt(e: Ast.expr): String = {
+          if (isUntypedIntConst(e)) {
+            // Keep literals untyped to preserve concise code like `1 + 2`.
+            translate(e, thisPrec)
+          } else {
+            detectType(e) match {
+              case CalcIntType =>
+                // Already represented as `int` in Go backend; just parenthesize as needed.
+                translate(e, thisPrec)
+              case _ =>
+                // Cast runtime/narrow integer types (uint8/int16/etc) to `int` so the whole
+                // expression is `int`-typed and can be assigned to CalcIntType variables.
+                s"int(${translate(e)})"
+            }
+          }
+        }
+
+        val leftStr = maybeCastToInt(left)
+        val rightStr = maybeCastToInt(right)
+        val opStr = binOp(op)
+        val exprStr =
+          if (thisPrec <= extPrec) s"($leftStr $opStr $rightStr)"
+          else s"$leftStr $opStr $rightStr"
+        ResultString(exprStr)
       case _ =>
         ResultString(genericBinOp(left, op, right, extPrec))
     }
@@ -261,15 +302,22 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
     val v1 = allocateLocalVar()
-    val typ = detectType(ifTrue)
+    // Important: the resulting type of an `if` expression is the combined type of both branches.
+    // If we use only `ifTrue` type here, Go code can fail to compile when the other branch yields
+    // a different numeric type (e.g. `uint8` vs `int`), which Go won't implicitly convert.
+    val typ = detectType(Ast.expr.IfExp(condition, ifTrue, ifFalse))
     out.puts(s"var ${localVarName(v1)} ${GoCompiler.kaitaiType2NativeType(typ)};")
     out.puts(s"if (${translate(condition)}) {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifTrue)}")
+    val ifTrueExpr =
+      if (detectType(ifTrue) == typ) translate(ifTrue) else resToStr(doCast(ifTrue, typ))
+    out.puts(s"${localVarName(v1)} = $ifTrueExpr")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifFalse)}")
+    val ifFalseExpr =
+      if (detectType(ifFalse) == typ) translate(ifFalse) else resToStr(doCast(ifFalse, typ))
+    out.puts(s"${localVarName(v1)} = $ifFalseExpr")
     out.dec
     out.puts("}")
     ResultLocalVar(v1)
