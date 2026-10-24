@@ -1,7 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.Utils
-import io.kaitai.struct.datatype.DataType.EnumType
+import io.kaitai.struct.datatype.DataType.{EnumType, IntType}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.RubyCompiler
@@ -107,6 +107,10 @@ class RubyTranslator(provider: TypeProvider) extends BaseTranslator(provider) {
 
     enumDirectMap.replace(enumNameDirect, enumNameInverse)
   }
+
+  // Integers have arbitrary precision
+  override def truncateToUnsigned(expr: String, t: IntType): String =
+    s"($expr & 0x${t.max.toString(16)})"
 
   override def arraySubscript(container: Ast.expr, idx: Ast.expr): String =
     s"${translate(container, METHOD_PRECEDENCE)}[${translate(idx)}]"
