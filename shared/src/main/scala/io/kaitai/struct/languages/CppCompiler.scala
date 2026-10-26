@@ -1222,11 +1222,13 @@ object CppCompiler extends LanguageCompilerStatic
     * @return
     */
   def combineSwitchType(st: SwitchType): DataType = {
+    // Iterate instead of calling `filterNot` on `st.cases`: that would rebuild the
+    // `SortedMap`, whose key ordering stringifies both expressions on every comparison
     val ct1 = TypeDetector.combineTypes(
-      st.cases.filterNot {
+      st.cases.iterator.filterNot {
         case (caseExpr, _: BytesType) => caseExpr == SwitchType.ELSE_CONST
         case _ => false
-      }.values
+      }.map(_._2).toList
     )
     if (st.isOwning) {
       ct1
