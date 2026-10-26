@@ -90,8 +90,12 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
            * doesn't, the result is things like `-uint32(2147483648)` that will not compile in Go
            * (the error is "constant -2147483648 overflows uint32") */
           case (Ast.unaryop.Minus, Ast.expr.IntNum(n)) => translate(Ast.expr.IntNum(-n))
+          case (Ast.unaryop.Invert, Ast.expr.IntNum(_)) if !isUntypedNumeric(inner) && numericType(inner) != numericType(v) =>
+            s"$opStr${numericType(v)}(${translateNumericAs(inner, numericType(v))})"
           case (_, Ast.expr.IntNum(_) | Ast.expr.FloatNum(_)) =>
             s"$opStr${translate(inner)}"
+          case (Ast.unaryop.Minus | Ast.unaryop.Invert, _) if detectType(inner).isInstanceOf[IntType] =>
+            s"$opStr(${translateNumericAs(inner, numericType(v))})"
           case _ =>
             s"$opStr(${translate(inner)})"
         })
@@ -160,30 +164,233 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def byteSizeOfClassSpec(cs: ClassSpec): TranslatorResult =
     trIntLiteral(CommonSizeOf.getByteSizeOfClassSpec(cs))
 
-  def trBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]) =
-    ResultString(doBooleanOp(op, values))
-
-  def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): TranslatorResult = {
-    (detectType(left), detectType(right), op) match {
-      case (t1: IntType, t2: IntType, Ast.operator.Mod) =>
-        val v1 = allocateLocalVar()
-        out.puts(s"${localVarName(v1)} := ${genericBinOp(left, Ast.operator.Mod, right, 0)}")
-        out.puts(s"if ${localVarName(v1)} < 0 {")
+  def trBooleanOp(op: Ast.boolop, values: Seq[Ast.expr]): TranslatorResult = {
+    // Translating an operand can emit statements (including error returns).
+    // Keep those statements inside the operand's short-circuit branch, not
+    // before the logical expression. Capture through the original writer so
+    // compiler overrides and nested boolean expressions use the same scope.
+    val operands = values.zipWithIndex.map { case (value, index) =>
+      out.capture {
+        if (index > 0) out.inc
+        translate(value)
+      }
+    }
+    if (operands.tail.forall(_._2.result.isEmpty)) {
+      // No guarded prerequisites: retain the ordinary Go expression verbatim.
+      out.add(operands.head._2)
+      val expression = operands.map(_._1).mkString("(", s") ${booleanOp(op)} (", ")")
+      ResultString(s" ($expression) ")
+    } else {
+      val result = allocateLocalVar()
+      val name = localVarName(result)
+      out.add(operands.head._2)
+      out.puts(s"$name := ${operands.head._1}")
+      operands.tail.foreach { case (expression, statements) =>
+        val guard = if (op == Ast.boolop.And) name else s"!$name"
+        out.puts(s"if $guard {")
         out.inc
-        out.puts(s"${localVarName(v1)} += ${translate(right)}")
+        out.add(statements)
+        out.puts(s"$name = $expression")
         out.dec
         out.puts("}")
+      }
+      ResultLocalVar(result)
+    }
+  }
+
+  def trNumericBinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr, extPrec: Int): TranslatorResult = {
+    if ((op == Ast.operator.Div || op == Ast.operator.Mod) && mixedSignedUnsigned(left, right))
+      return trMixedIntegerDivision(left, op, right)
+    val native = numericType(Ast.expr.BinOp(left, op, right))
+    val precedence = OPERATOR_PRECEDENCE(op)
+    val l = translateNumericAs(left, native, precedence)
+    // Unlike the other binary operators, Go shifts do not require matching
+    // operand types. The left operand determines the result's width.
+    val r = if (op == Ast.operator.LShift || op == Ast.operator.RShift)
+      translate(right, precedence) else translateNumericAs(right, native, precedence)
+    val expr = s"$l ${binOp(op)} $r"
+    (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Mod) =>
+        val v1 = allocateLocalVar()
+        out.puts(s"${localVarName(v1)} := $expr")
+        if (!native.startsWith("uint")) {
+          out.puts(s"if ${localVarName(v1)} < 0 {")
+          out.inc
+          out.puts(s"${localVarName(v1)} += $r")
+          out.dec
+          out.puts("}")
+        }
         ResultLocalVar(v1)
       case _ =>
-        ResultString(genericBinOp(left, op, right, extPrec))
+        ResultString(if (precedence <= extPrec) s"($expr)" else expr)
     }
+  }
+
+  private def mayBeNegative(value: Ast.expr): Boolean =
+    numericType(value).startsWith("int") && integerLiteral(value).forall(_ < 0)
+
+  private def mixedSignedUnsigned(left: Ast.expr, right: Ast.expr): Boolean =
+    detectType(left).isInstanceOf[IntType] && detectType(right).isInstanceOf[IntType] &&
+      commonNumericType(left, right) == "uint64" && (mayBeNegative(left) || mayBeNegative(right))
+
+  private def trMixedIntegerDivision(left: Ast.expr, op: Ast.operator, right: Ast.expr): ResultLocalVar = {
+    importList.add("errors")
+    val l = translate(left)
+    val r = translate(right)
+    val signedLeft = numericType(left).startsWith("int")
+    val signedRight = numericType(right).startsWith("int")
+    // -(MinInt64) is not representable as int64. Negate one less than its
+    // magnitude, then add the last unit in the unsigned domain instead.
+    def magnitude(name: String, signed: Boolean): String =
+      s"${name}Magnitude := uint64($name)\n" +
+        (if (signed) s"if $name < 0 { ${name}Magnitude = uint64(-(int64($name) + 1)) + 1 }\n" else "")
+    val resultType = if (op == Ast.operator.Div) "int64" else "uint64"
+    val body = if (op == Ast.operator.Div) {
+      val negative = if (signedLeft) "a < 0" else "b < 0"
+      magnitude("a", signedLeft) + magnitude("b", signedRight) +
+        s"""if bMagnitude == 0 { return 0, errors.New("integer division by zero") }
+           |quotient := aMagnitude / bMagnitude
+           |if $negative {
+           |  if aMagnitude % bMagnitude != 0 { quotient++ }
+           |  if quotient > uint64(1) << 63 { return 0, errors.New("integer division result is outside int64 range") }
+           |  if quotient == uint64(1) << 63 { return -9223372036854775808, nil }
+           |  return -int64(quotient), nil
+           |}
+           |if quotient > uint64(1) << 63 - 1 { return 0, errors.New("integer division result is outside int64 range") }
+           |return int64(quotient), nil
+           |""".stripMargin
+    } else {
+      val divisorCheck = if (signedRight) "b <= 0" else "b == 0"
+      s"if $divisorCheck { return 0, errors.New(\"mod divisor <= 0\") }\n" +
+        magnitude("a", signedLeft) +
+        "remainder := aMagnitude % uint64(b)\n" +
+        (if (signedLeft) "if a < 0 && remainder != 0 { remainder = uint64(b) - remainder }\n" else "") +
+        "return remainder, nil\n"
+    }
+    // Parameters make side-effecting source operands execute exactly once.
+    // Kaitai division rounds down (including negative non-exact quotients).
+    // Mixed division can be negative, so its concrete result is int64. A
+    // quotient outside that range returns an error, never a wrapped value;
+    // an explicitly unsigned KSY division can instead retain uint64 results.
+    outVarCheckRes(s"func(a ${numericType(left)}, b ${numericType(right)}) ($resultType, error) {\n$body}($l, $r)")
+  }
+
+  private def integerLiteral(value: Ast.expr): Option[BigInt] = value match {
+    case Ast.expr.IntNum(n) => Some(n)
+    case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(n)) => Some(-n)
+    case _ => None
+  }
+
+  private def integerRange(native: String): (BigInt, BigInt) = {
+    val unsigned = native.startsWith("uint")
+    val width = if (native == "int") 64 else native.drop(if (unsigned) 4 else 3).toInt
+    if (unsigned) (BigInt(0), (BigInt(1) << width) - 1)
+    else (-(BigInt(1) << (width - 1)), (BigInt(1) << (width - 1)) - 1)
+  }
+
+  /** The abstract CalcIntType does not retain the widths of operands. Track
+    * the concrete Go expression type separately, without changing KSY types
+    * or public value-instance signatures. Constants can adopt the other
+    * operand's type when representable; typed values require conversions.
+    */
+  private def commonNumericType(left: Ast.expr, right: Ast.expr): String = {
+    val l = numericType(left)
+    val r = numericType(right)
+    if (l == r) return l
+    if (l.startsWith("float") || r.startsWith("float")) return "float64"
+    def fits(value: Ast.expr, native: String): Boolean = integerLiteral(value).exists { n =>
+      val (min, max) = integerRange(native)
+      min <= n && n <= max
+    }
+    if (fits(left, r)) return r
+    if (fits(right, l)) return l
+    val (lmin, lmax) = integerRange(l)
+    val (rmin, rmax) = integerRange(r)
+    val min = lmin.min(rmin)
+    val max = lmax.max(rmax)
+    Seq("int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64")
+      .find { n => val (lo, hi) = integerRange(n); lo <= min && max <= hi }
+      // No signed primitive can contain uint64's full range. Ring operations
+      // use modulo 2^64; division, modulo and comparisons handle signs below.
+      .getOrElse("uint64")
+  }
+
+  private def arithmeticType(native: String): String = native match {
+    case "int8" | "uint8" | "int16" | "uint16" => "int"
+    case "int32" | "uint32" => "int64"
+    case "float32" => "float64"
+    case other => other
+  }
+
+  def numericType(value: Ast.expr): String = value match {
+    // The positive magnitude of MinInt64 needs uint64, but its negated result
+    // is signed. This must agree with the whole-literal translation above.
+    case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(n)) => numericType(Ast.expr.IntNum(-n))
+    case Ast.expr.IntNum(n) if n > Long.MaxValue => "uint64"
+    case Ast.expr.IntNum(n) if n > Utils.MAX_UINT32 || n < Int.MinValue => "int64"
+    case Ast.expr.IntNum(n) if n > Int.MaxValue => "uint32"
+    case Ast.expr.Attribute(owner, Ast.identifier("pos" | "size"))
+      if detectType(owner) == KaitaiStreamType || detectType(owner) == OwnedKaitaiStreamType => "int64"
+    case Ast.expr.UnaryOp(_, inner) if detectType(inner).isInstanceOf[IntType] => arithmeticType(numericType(inner))
+    case Ast.expr.BinOp(left, Ast.operator.Div, right) if mixedSignedUnsigned(left, right) => "int64"
+    case Ast.expr.BinOp(left, Ast.operator.LShift | Ast.operator.RShift, _) => arithmeticType(numericType(left))
+    case Ast.expr.BinOp(left, _, right) => arithmeticType(commonNumericType(left, right))
+    case Ast.expr.IfExp(_, ifTrue, ifFalse) => commonNumericType(ifTrue, ifFalse)
+    case _ => kaitaiType2NativeType(detectType(value))
+  }
+
+  private def isUntypedNumeric(value: Ast.expr): Boolean = value match {
+    case Ast.expr.IntNum(n) => n >= Int.MinValue && n <= Int.MaxValue
+    case Ast.expr.FloatNum(_) => true
+    case Ast.expr.UnaryOp(_, inner) => isUntypedNumeric(inner)
+    case Ast.expr.BinOp(left, op, right) if op != Ast.operator.Mod => isUntypedNumeric(left) && isUntypedNumeric(right)
+    case _ => false
+  }
+
+  def translateNumericAs(value: Ast.expr, native: String, precedence: Int = 0): String = {
+    if (!detectType(value).isInstanceOf[NumericType]) return translate(value, precedence)
+    integerLiteral(value) match {
+      case Some(n) => n.toString
+      case None if isUntypedNumeric(value) => translate(value, precedence)
+      case None if numericType(value) == native => translate(value, precedence)
+      case None => s"$native(${translate(value)})"
+    }
+  }
+
+  def translateAs(value: Ast.expr, target: DataType): String = target.asCombined match {
+    case t: NumericType => translateNumericAs(value, kaitaiType2NativeType(t))
+    case _ => translate(value)
   }
 
   def trStrConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): TranslatorResult =
     ResultString(genericBinOp(left, Ast.operator.Add, right, extPrec))
 
-  def trNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): TranslatorResult =
-    ResultString(doNumericCompareOp(left, op, right, extPrec))
+  def trNumericCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): TranslatorResult = {
+    if (!detectType(left).isInstanceOf[NumericType] || !detectType(right).isInstanceOf[NumericType])
+      return ResultString(doNumericCompareOp(left, op, right, extPrec))
+    val native = commonNumericType(left, right)
+    val signedLeft = mayBeNegative(left)
+    val signedRight = mayBeNegative(right)
+    if (native == "uint64" && (signedLeft || signedRight)) {
+      // Casting a negative signed value to uint64 before comparison reverses
+      // its order. Function parameters evaluate each operand exactly once.
+      val l = translate(left)
+      val r = translate(right)
+      val signed = if (signedLeft) "a" else "b"
+      val negativeResult = op match {
+        case Ast.cmpop.NotEq => true
+        case Ast.cmpop.Eq => false
+        case Ast.cmpop.Lt | Ast.cmpop.LtE => signedLeft
+        case Ast.cmpop.Gt | Ast.cmpop.GtE => signedRight
+      }
+      return ResultString(s"func(a ${numericType(left)}, b ${numericType(right)}) bool { if $signed < 0 { return $negativeResult }; return uint64(a) ${cmpOp(op)} uint64(b) }($l, $r)")
+    }
+    val precedence = OPERATOR_PRECEDENCE(op)
+    val l = translateNumericAs(left, native, precedence)
+    val r = translateNumericAs(right, native, precedence)
+    val expr = s"$l ${cmpOp(op)} $r"
+    ResultString(if (precedence <= extPrec) s"($expr)" else expr)
+  }
 
   def trStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): TranslatorResult =
     ResultString(doStrCompareOp(left, op, right, extPrec))
@@ -261,15 +468,19 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   def trIfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr): ResultLocalVar = {
     val v1 = allocateLocalVar()
-    val typ = detectType(ifTrue)
-    out.puts(s"var ${localVarName(v1)} ${GoCompiler.kaitaiType2NativeType(typ)};")
+    val typ = detectType(Ast.expr.IfExp(condition, ifTrue, ifFalse))
+    val native = typ match {
+      case _: NumericType => commonNumericType(ifTrue, ifFalse)
+      case _ => GoCompiler.kaitaiType2NativeType(typ)
+    }
+    out.puts(s"var ${localVarName(v1)} $native;")
     out.puts(s"if (${translate(condition)}) {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifTrue)}")
+    out.puts(s"${localVarName(v1)} = ${translateNumericAs(ifTrue, native)}")
     out.dec
     out.puts("} else {")
     out.inc
-    out.puts(s"${localVarName(v1)} = ${translate(ifFalse)}")
+    out.puts(s"${localVarName(v1)} = ${translateNumericAs(ifFalse, native)}")
     out.dec
     out.puts("}")
     ResultLocalVar(v1)
@@ -315,7 +526,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultString("[]uint8{" + arr.map(_ & 0xff).mkString(", ") + "}")
 
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): TranslatorResult =
-    ResultString("[]uint8{" + elts.map(translate).mkString(", ") + "}")
+    ResultString("[]uint8{" + elts.map(translateNumericAs(_, "uint8")).mkString(", ") + "}")
 
   // Predefined methods of various types
 
@@ -361,6 +572,44 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
 
   override def bytesToStr(value: Ast.expr, encoding: String): TranslatorResult =
     bytesToStr(translate(value), encoding)
+
+  override def strToBytes(value: Ast.expr, encoding: Ast.expr): TranslatorResult = encoding match {
+    case Ast.expr.Str("UTF-8") => ResultString(s"[]byte(${translate(value)})")
+    case Ast.expr.Str("ASCII") =>
+      importList.add("fmt")
+      def fieldName(expr: Ast.expr): String = expr match {
+        case Ast.expr.InternalName(id) => id.humanReadable
+        case Ast.expr.Name(id) => id.name
+        case Ast.expr.Subscript(container, _) => fieldName(container)
+        case Ast.expr.CastToType(inner, _) => fieldName(inner)
+        case _ => "string"
+      }
+      val context = doStringLiteral(fieldName(value))
+      // A Go string contains UTF-8 bytes, not necessarily ASCII. Validate before
+      // returning bytes so both consistency lengths and writes see the error.
+      outVarCheckRes(
+        s"""func(value string) ([]byte, error) {
+           |\tfor offset, codePoint := range value {
+           |\t\tif codePoint > 127 {
+           |\t\t\treturn nil, fmt.Errorf("encode ASCII field %s at byte offset %d: %w", $context, offset, kaitai.NewConsistencyError("ASCII", rune(127), codePoint))
+           |\t\t}
+           |\t}
+           |\treturn []byte(value), nil
+           |}(${translate(value)})""".stripMargin)
+    case Ast.expr.Str(enc) =>
+      ENCODINGS.get(enc) match {
+        case Some((encoder, importName)) =>
+          importList.add(importName)
+          outVarCheckRes(s"$encoder.NewEncoder().Bytes([]byte(${translate(value)}))")
+        case None => throw new RuntimeException(s"encoding '$enc' is not supported in Go")
+      }
+    case _ => throw new RuntimeException("Go string serialization requires a literal encoding")
+  }
+
+  override def bytesIndexOf(value: Ast.expr, byte: Ast.expr): TranslatorResult = {
+    importList.add("bytes")
+    ResultString(s"bytes.IndexByte(${translate(value)}, byte(${translate(byte)}))")
+  }
 
   def bytesToStr(bytesExpr: String, encoding: String): TranslatorResult = {
     encoding match {
@@ -419,6 +668,42 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   def kaitaiStructField(value: Ast.expr, name: String): TranslatorResult = {
     val valueStr = translate(value)
 
+    if (name == Identifier.IO) {
+      // A heterogeneous conditional is represented by the Struct interface,
+      // whose read stream is available through IO_(), not a concrete field.
+      importList.add("fmt")
+      importList.add("reflect")
+      return outVarCheckRes(
+        s"""func(value kaitai.Struct) (*kaitai.Stream, error) {
+           |  if value == nil || (reflect.ValueOf(value).Kind() == reflect.Ptr && reflect.ValueOf(value).IsNil()) {
+           |    return nil, fmt.Errorf("cannot access input stream of %T: object is nil", value)
+           |  }
+           |  stream := value.IO_()
+           |  if stream == nil { return nil, fmt.Errorf("cannot access input stream of %T: stream is nil", value) }
+           |  return stream, nil
+           |}($valueStr)""".stripMargin)
+    }
+
+    if (name == Identifier.PARENT) {
+      // Struct intentionally requires only IO_(), so handwritten/opaque types
+      // remain compatible. Generated types expose parent traversal separately.
+      importList.add("fmt")
+      importList.add("reflect")
+      return outVarCheckRes(
+        s"""func(value kaitai.Struct) (kaitai.Struct, error) {
+           |  if value == nil || (reflect.ValueOf(value).Kind() == reflect.Ptr && reflect.ValueOf(value).IsNil()) {
+           |    return nil, fmt.Errorf("cannot access parent of %T: object is nil", value)
+           |  }
+           |  parentProvider, ok := value.(interface { Parent_() kaitai.Struct })
+           |  if !ok { return nil, fmt.Errorf("cannot access parent of %T: missing Parent_ capability", value) }
+           |  parent := parentProvider.Parent_()
+           |  if parent == nil || (reflect.ValueOf(parent).Kind() == reflect.Ptr && reflect.ValueOf(parent).IsNil()) {
+           |    return nil, fmt.Errorf("cannot access parent of %T: parent is nil", value)
+           |  }
+           |  return parent, nil
+           |}($valueStr)""".stripMargin)
+    }
+
     val (call, twoOuts) = name match {
       case Identifier.ROOT |
            Identifier.PARENT |
@@ -458,10 +743,10 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
   override def floatToInt(value: Ast.expr) =
     ResultString(s"int(${translate(value)})")
 
-  override def kaitaiStreamSize(value: Ast.expr) =
+  override def kaitaiStreamSize(value: Ast.expr): TranslatorResult =
     outVarCheckRes(s"${translate(value, METHOD_PRECEDENCE)}.Size()")
 
-  override def kaitaiStreamEof(value: Ast.expr) =
+  override def kaitaiStreamEof(value: Ast.expr): TranslatorResult =
     outVarCheckRes(s"${translate(value, METHOD_PRECEDENCE)}.EOF()")
 
   override def kaitaiStreamPos(value: Ast.expr) =
