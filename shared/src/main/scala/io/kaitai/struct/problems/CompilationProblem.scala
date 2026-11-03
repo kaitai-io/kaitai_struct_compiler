@@ -2,7 +2,7 @@ package io.kaitai.struct.problems
 
 import io.kaitai.struct.{JSON, Jsonable, Utils, problems}
 import io.kaitai.struct.datatype.DataType
-import io.kaitai.struct.exprlang.Expressions
+import io.kaitai.struct.exprlang.{Ast, Expressions}
 import io.kaitai.struct.format.{ClassSpec, Identifier, KSVersion}
 import fastparse.Parsed.Failure
 
@@ -170,20 +170,20 @@ case class ParamMismatchError(idx: Int, argType: DataType, paramName: String, pa
   override def severity: ProblemSeverity = ProblemSeverity.Error
 }
 
-case class TypeNotFoundErr(name: List[String], curClass: ClassSpec, path: List[String], fileName: Option[String] = None)
+case class TypeNotFoundErr(name: Seq[String], curClass: ClassSpec, path: List[String], fileName: Option[String] = None)
   extends CompilationProblem {
 
-  override def text = s"unable to find type '${name.mkString("::")}', searching from ${curClass.nameAsStr}"
+  override def text = s"unable to find type '${name.mkString("::")}', searching from '${curClass.nameAsStr}'"
   override val coords: ProblemCoords = ProblemCoords(fileName, Some(path))
   override def localizedInFile(fileName: String): CompilationProblem =
     copy(fileName = Some(fileName))
   override def severity: ProblemSeverity = ProblemSeverity.Error
 }
 
-case class EnumNotFoundErr(name: List[String], curClass: ClassSpec, path: List[String], fileName: Option[String] = None)
+case class EnumNotFoundErr(ref: Ast.EnumRef, curClass: ClassSpec, path: List[String], fileName: Option[String] = None)
   extends CompilationProblem {
 
-  override def text = s"unable to find enum '${name.mkString("::")}', searching from ${curClass.nameAsStr}"
+  override def text = s"unable to find enum '${ref.asStr}', searching from '${curClass.nameAsStr}'"
   override val coords: ProblemCoords = ProblemCoords(fileName, Some(path))
   override def localizedInFile(fileName: String): CompilationProblem =
     copy(fileName = Some(fileName))

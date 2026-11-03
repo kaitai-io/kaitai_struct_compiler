@@ -744,12 +744,12 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     val onType = typeProvider._currentSwitchType.get
     onType match {
-      case EnumType(name, owner, _) => {
-        val enumClass = types2class(owner :+ name)
+      case EnumType(ref, _) => {
+        val enumClass = types2class(ref.fullName)
         // Open a block scope to isolate the "on" variable
         out.puts("{")
         out.inc
-        out.puts(s"final ${enum2iface(name, owner)} on = ${expression(on)};")
+        out.puts(s"final ${enum2iface(ref)} on = ${expression(on)};")
         out.puts(s"if (on instanceof $enumClass) {")
         out.inc
         out.puts(s"switch (($enumClass)on) {")
@@ -1248,7 +1248,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     err: ValidationNotInEnumError,
     useIo: Boolean
   ): Unit = {
-    val enumClass = types2class(et.owner :+ et.name)
+    val enumClass = types2class(et.ref.fullName)
     attrValidate(attr, s"!(${translator.translate(valueExpr)} instanceof $enumClass)", err, useIo, valueExpr, None)
   }
 
@@ -1371,7 +1371,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull(config)
 
       case t: UserType => types2class(t.name)
-      case EnumType(name, owner, _) => enum2iface(name, owner)
+      case EnumType(ref, _) => enum2iface(ref)
 
       case _: ArrayType => kaitaiType2JavaTypeBoxed(attrType, importList, config)
 
@@ -1415,7 +1415,7 @@ object JavaCompiler extends LanguageCompilerStatic
       case KaitaiStructType | CalcKaitaiStructType(_) => kstructNameFull(config)
 
       case t: UserType => types2class(t.name)
-      case EnumType(name, owner, _) => enum2iface(name, owner)
+      case EnumType(ref, _) => enum2iface(ref)
 
       case at: ArrayType => {
         importList.add("java.util.List")
@@ -1429,8 +1429,8 @@ object JavaCompiler extends LanguageCompilerStatic
   def types2class(names: Iterable[String]) = names.map(x => type2class(x)).mkString(".")
 
   def enum2iface(name: String) = s"I${type2class(name)}"
-  def enum2iface(name: String, owner: List[String]): String =
-    (owner.map(type2class) :+ enum2iface(name)).mkString(".")
+  def enum2iface(ref: Ast.EnumRef): String =
+    (ref.typePath.map(type2class) :+ enum2iface(ref.name)).mkString(".")
 
   override def kstreamName: String = "KaitaiStream"
   override def kstructName: String = "KaitaiStruct"

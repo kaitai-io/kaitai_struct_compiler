@@ -438,10 +438,10 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   override def translate(v: Ast.expr): String = {
     v match {
-      case Ast.expr.EnumById(enumType, id, inType) =>
-        id match {
+      case Ast.expr.EnumById(ref, expr) =>
+        expr match {
           case ifExp: Ast.expr.IfExp =>
-            val enumSpec = provider.resolveEnum(inType, enumType.name)
+            val enumSpec = provider.resolveEnum(ref)
             val enumName = RustCompiler.types2class(enumSpec.name)
             def toStr(ex: Ast.expr) = ex match {
               case Ast.expr.IntNum(n) => s"$enumName::try_from($n)?"
