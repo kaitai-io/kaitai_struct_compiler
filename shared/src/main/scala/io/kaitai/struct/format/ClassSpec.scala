@@ -263,9 +263,10 @@ object ClassSpec {
   }
 
   def typesFromYaml(src: Any, fileName: Option[String], path: List[String], metaDef: MetaSpec): SortedMap[String, ClassSpec] = {
-    val srcMap = ParseUtils.asMapStr(src, path)
+    val srcMap = ParseUtils.asMap(src, path)
     SortedMap.from(
-      srcMap.map { case (typeName, body) =>
+      srcMap.map { case (key, body) =>
+        val typeName = ParseUtils.asIdentifier(key, path)
         Identifier.checkIdentifierSource(typeName, "type", path ++ List(typeName))
         typeName -> ClassSpec.fromYaml(body, fileName, path ++ List(typeName), metaDef)
       }
@@ -276,7 +277,7 @@ object ClassSpec {
     val srcMap = ParseUtils.asMap(src, path)
     SortedMap.from(
       srcMap.map { case (key, body) =>
-        val instName = ParseUtils.asStr(key, path)
+        val instName = ParseUtils.asIdentifier(key, path)
         Identifier.checkIdentifierSource(instName, "instance", path ++ List(instName))
         val id = InstanceIdentifier(instName)
         id -> InstanceSpec.fromYaml(body, path ++ List(instName), metaDef, id)
@@ -288,7 +289,7 @@ object ClassSpec {
     val srcMap = ParseUtils.asMap(src, path)
     SortedMap.from(
       srcMap.map { case (key, body) =>
-        val enumName = ParseUtils.asStr(key, path)
+        val enumName = ParseUtils.asIdentifier(key, path)
         Identifier.checkIdentifierSource(enumName, "enum", path ++ List(enumName))
         enumName -> EnumSpec.fromYaml(body, path ++ List(enumName))
       }
