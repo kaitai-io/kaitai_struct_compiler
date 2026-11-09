@@ -135,6 +135,8 @@ class TypeDetector(provider: TypeProvider) {
         detectCastType(typeName)
       case Ast.expr.ByteSizeOfType(_) | Ast.expr.BitSizeOfType(_) =>
         CalcIntType
+      case Ast.expr.Group(expr) =>
+        detectType(expr)
     }
   }
 
@@ -242,6 +244,12 @@ class TypeDetector(provider: TypeProvider) {
     */
   def detectCallType(call: Ast.expr.Call): DataType = {
     call.func match {
+      case Ast.expr.Group(nested) => detectCallTypeImpl(nested)
+      case func => detectCallTypeImpl(func)
+    }
+  }
+  def detectCallTypeImpl(func: Ast.expr): DataType = {
+    func match {
       case Ast.expr.Attribute(obj: Ast.expr, methodName: Ast.identifier) =>
         val objType = detectType(obj)
         // TODO: check number and type of arguments in `call.args`

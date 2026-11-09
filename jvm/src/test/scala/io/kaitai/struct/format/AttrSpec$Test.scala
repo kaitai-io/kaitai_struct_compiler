@@ -112,7 +112,7 @@ class AttrSpec$Test extends AnyFunSpec {
       spec.id should be(NamedIdentifier("foo"))
       val dataType = spec.dataType.asInstanceOf[UserType]
       dataType.name should be(List("bar"))
-      dataType.args should be(Seq(Ast.expr.IntNum(5)))
+      dataType.args should be(Seq(Ast.expr.Group(Ast.expr.IntNum(5))))
     }
   }
 }
