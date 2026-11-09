@@ -99,7 +99,7 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
     "string.char(" + values.map(translate).mkString(", ") + ")"
 
   override def doLocalName(s: String) = s match {
-    case Identifier.ITERATOR => "_"
+    case Identifier.THIS => "_"
     case Identifier.INDEX => "i"
     case _ => s"self.${doName(s)}"
   }

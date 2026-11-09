@@ -229,7 +229,7 @@ trait EveryReadIsExpression
         val item = Identifier.itemExpr(rawRawId, rep)
         val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
         /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
-         * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
+         * always tries to assign the value to the [[Identifier.THIS]] variable */
         if (rep == NoRepeat) {
           handleAssignmentSimple(OuterSizeIdentifier(id), itemSizeExprStr)
         } else {
@@ -240,7 +240,7 @@ trait EveryReadIsExpression
         val item = Identifier.itemExpr(rawId, rep)
         val itemSizeExprStr = expression(Ast.expr.Attribute(item, Ast.identifier("size")))
         /** FIXME: cannot use [[handleAssignment]] because [[handleAssignmentRepeatUntil]]
-         * always tries to assign the value to the [[Identifier.ITERATOR]] variable */
+         * always tries to assign the value to the [[Identifier.THIS]] variable */
         if (rep == NoRepeat) {
           handleAssignmentSimple(InnerSizeIdentifier(id), itemSizeExprStr)
         } else {

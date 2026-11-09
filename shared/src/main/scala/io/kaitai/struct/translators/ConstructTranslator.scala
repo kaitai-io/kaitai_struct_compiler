@@ -8,7 +8,7 @@ import io.kaitai.struct.ConstructClassCompiler
 class ConstructTranslator(provider: TypeProvider, importList: ImportList) extends PythonTranslator(provider, importList, RuntimeConfig()) {
   override def doLocalName(s: String) = {
     s match {
-      case Identifier.ITERATOR => "obj_"
+      case Identifier.THIS => "obj_"
       case Identifier.INDEX => "i"
       case Identifier.ROOT => "this._root"
       case Identifier.IO => "_io"

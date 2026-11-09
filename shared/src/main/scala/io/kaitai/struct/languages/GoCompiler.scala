@@ -224,7 +224,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
-      case RepeatUntil(_) => translator.specialName(Identifier.ITERATOR2)
+      case RepeatUntil(_) => translator.specialName(Identifier.THIS_RAW)
       case _ => getRawIdExpr(varName, rep)
     }
 
@@ -318,7 +318,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   override def handleAssignmentRepeatUntil(id: Identifier, r: TranslatorResult, isRaw: Boolean): Unit = {
     val expr = translator.resToStr(r)
-    val tempVar = translator.specialName(if (isRaw) Identifier.ITERATOR2 else Identifier.ITERATOR)
+    val tempVar = translator.specialName(if (isRaw) Identifier.THIS_RAW else Identifier.THIS)
     out.puts(s"$tempVar := $expr")
     out.puts(s"${privateMemberName(id)} = append(${privateMemberName(id)}, $tempVar)")
   }
