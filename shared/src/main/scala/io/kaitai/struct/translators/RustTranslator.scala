@@ -60,6 +60,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def strLiteralGenericCC(code: Char): String =
     strLiteralUnicode(code)
 
+  /**
+    * Hex escapes in form `\xHH` in Rust allows only codes in the range 0x00 - 0x7f.
+    *
+    * @see https://doc.rust-lang.org/reference/tokens.html#examples
+    * @param code character code to represent
+    * @return string literal representation of given code
+    */
   override def strLiteralUnicode(code: Char): String =
     "\\u{%x}".format(code.toInt)
 
