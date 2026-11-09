@@ -148,7 +148,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       }
     }
 
-  def updateLastFoundMemberClass(dt: DataType) {
+  def updateLastFoundMemberClass(dt: DataType): Unit = {
     if (dt.isInstanceOf[UserType]) {
       val s = dt.asInstanceOf[UserType]
       if (s.classSpec.isDefined) {
@@ -157,7 +157,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     }
   }
 
-  def resetLastFoundMemberClass() {
+  def resetLastFoundMemberClass(): Unit = {
     lastFoundMemberClass = provider.nowClass
   }
 
