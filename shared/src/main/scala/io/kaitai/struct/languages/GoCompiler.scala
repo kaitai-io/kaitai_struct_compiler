@@ -495,8 +495,13 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     val fullEnumName: List[String] = curClass ++ List(enumName)
     val fullEnumNameStr = types2class(fullEnumName)
 
+    var enumType = "int"
+    if (enumColl.last._1 > Int.MaxValue) {
+        enumType = "int64"
+    }
+
     out.puts
-    out.puts(s"type $fullEnumNameStr int")
+    out.puts(s"type $fullEnumNameStr $enumType")
     out.puts("const (")
     out.inc
 
