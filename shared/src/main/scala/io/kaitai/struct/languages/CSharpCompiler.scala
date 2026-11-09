@@ -509,9 +509,9 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   //</editor-fold>
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"private bool ${flagForInstName(attrName)};")
-    out.puts(s"private ${kaitaiType2NativeTypeNullable(attrType, isNullable)} ${privateMemberName(attrName)};")
+  override def instanceDeclaration(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"private bool ${flagForInstName(instName)};")
+    out.puts(s"private ${kaitaiType2NativeTypeNullable(attrType, isNullable)} ${privateMemberName(instName)};")
   }
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {

@@ -579,8 +579,8 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
   //</editor-fold>
 
-  override def instanceDeclaration(attrName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
-    out.puts(s"${idToStr(attrName)}: ?${kaitaiType2NativeType(attrType, isNullable)} = null,")
+  override def instanceDeclaration(instName: InstanceIdentifier, attrType: DataType, isNullable: Boolean): Unit = {
+    out.puts(s"${idToStr(instName)}: ?${kaitaiType2NativeType(attrType, isNullable)} = null,")
   }
 
   override def instanceHeader(className: String, instName: InstanceIdentifier, dataType: DataType, isNullable: Boolean): Unit = {
