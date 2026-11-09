@@ -34,6 +34,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - uses: sbt/setup-sbt@6158cb0903b8ceeae04f830055f3155e1b6a5ad7 # v1.5.11
+      - uses: sbt/setup-sbt@b113b960ba361e87e08ce02a390d51871b7ee459 # v1.5.13
       - name: Run tests
         run: sbt test
