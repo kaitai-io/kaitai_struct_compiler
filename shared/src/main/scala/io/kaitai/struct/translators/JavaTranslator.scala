@@ -45,6 +45,21 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
+  /**
+    * Java does not support two-digit hex escape sequences, so use octal, as they are shorter.
+    *
+    * Note that we use strictly 3 octal digits to work around potential
+    * problems with following decimal digits, i.e. "\0" + "2" that would be
+    * parsed as single character "\02" = "\x02", instead of two characters
+    * "\x00\x32".
+    *
+    * @see https://docs.oracle.com/javase/specs/jls/se24/html/jls-3.html#jls-3.10.7
+    * @param code character code to represent
+    * @return string literal representation of given code
+    */
+  override def strLiteralGenericCC(code: Char): String =
+    "\\%03o".format(code.toInt)
+
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
