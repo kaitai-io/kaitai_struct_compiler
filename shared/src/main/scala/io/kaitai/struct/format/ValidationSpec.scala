@@ -105,7 +105,7 @@ object ValidationSpec {
         fromString(x.toString, path)
       case x: Long =>
         fromString(x.toString, path)
-      case srcMap: Map[Any, Any] =>
+      case srcMap: Map[_, _] =>
         fromMap(ParseUtils.anyMapToStrMap(srcMap, path), path)
       case _ =>
         throw KSYParseError.badType("string or map", src, path)
