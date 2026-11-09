@@ -4,18 +4,20 @@ import io.kaitai.struct.{ClassTypeProvider, Log}
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType.{ArrayTypeInStream, SwitchType, UserType}
 import io.kaitai.struct.format._
+import io.kaitai.struct.problems.CompilationProblem
 import io.kaitai.struct.translators.TypeDetector
 
 /**
   * Precompile step that calculates actual parent types of KSY-defined types
   * (the type of the `_parent` built-in property).
   */
-class ParentTypes(classSpecs: ClassSpecs) {
-  def run(): Unit = {
+class ParentTypes(classSpecs: ClassSpecs) extends PrecompileStep {
+  override def run(): Iterable[CompilationProblem] = {
     classSpecs.foreach { case (_, curClass) => markup(curClass) }
     classSpecs.forEachTopLevel((_, spec) => {
       spec.parentClass = GenericStructClassSpec
     })
+    None
   }
 
   def markup(curClass: ClassSpec): Unit = {

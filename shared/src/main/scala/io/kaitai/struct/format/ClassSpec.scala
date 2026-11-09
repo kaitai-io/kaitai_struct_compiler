@@ -58,6 +58,8 @@ case class ClassSpec(
     * Full absolute name of the class (including all names of classes that
     * it's nested into, as a namespace). Derived either from `meta`/`id`
     * (for top-level classes), or from keys in `types` (for nested classes).
+    *
+    * This name is calculated by the `CalculateFullNamesAndSetSurroundingType` pass.
     */
   var name = List[String]()
 
@@ -76,6 +78,8 @@ case class ClassSpec(
   /**
     * The class specification that this class is nested into, if it exists.
     * For top-level classes, it's None.
+    *
+    * This class is calculated by the `CalculateFullNamesAndSetSurroundingType` pass.
     */
   var upClass: Option[ClassSpec] = None
 

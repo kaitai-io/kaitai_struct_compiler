@@ -105,6 +105,10 @@ class TypeValidator(specs: ClassSpecs) extends PrecompileStep {
 
   def validateValueInstance(vis: ValueInstanceSpec): Option[CompilationProblem] = {
     try {
+      // detectType performs some additional checks that validate does not (for example,
+      // applicability of operators to types, like `Not` to numbers).
+      // TODO: probably implement those checks in validate too?
+      detector.detectType(vis.value)
       detector.validate(vis.value)
       None
     } catch {

@@ -39,7 +39,7 @@ object Main {
     * @return a list of compilation problems encountered during precompilation steps
     */
   def precompile(specs: ClassSpecs, conf: RuntimeConfig): Iterable[CompilationProblem] = {
-    new MarkupClassNames(specs).run()
+    new CalculateFullNamesAndSetSurroundingType(specs).run()
     val resolveTypeProblems = specs.flatMap { case (_, topClass) =>
       val config = updateConfigFromMeta(conf, topClass.meta)
       new ResolveTypes(specs, topClass, config.opaqueTypes).run()
@@ -51,16 +51,17 @@ object Main {
       return resolveTypeProblems
     }
 
-    new ParentTypes(specs).run()
-    new SpecsValueTypeDerive(specs).run()
-    new CalculateSeqSizes(specs).run()
-    val typeValidatorProblems = new TypeValidator(specs).run()
+    var passes = Seq(
+      new ParentTypes(specs),
+      new DeriveValueInstanceTypes(specs),
+      new CalculateSeqSizes(specs),
+      new TypeValidator(specs),
+      // Warnings
+      new StyleCheckIds(specs),
+      new CanonicalizeEncodingNames(specs),
+    )
 
-    // Warnings
-    val styleWarnings = new StyleCheckIds(specs).run()
-    val encodingProblems = new CanonicalizeEncodingNames(specs).run()
-
-    resolveTypeProblems ++ typeValidatorProblems ++ styleWarnings ++ encodingProblems
+    resolveTypeProblems ++ passes.flatMap(_.run())
   }
 
   /**
