@@ -520,7 +520,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def condRepeatInitAttr(id: Identifier, dataType: DataType): Unit =
     out.puts(s"${privateMemberName(id)} = []")
 
-  override def condRepeatEosHeader(id: Identifier, io: String, dataType: DataType): Unit = {
+  override def condRepeatEosHeader(io: String): Unit = {
     out.puts("i = 0")
     out.puts(s"while not $io.is_eof():")
     out.inc
@@ -533,8 +533,8 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     universalFooter
   }
 
-  override def condRepeatExprHeader(id: Identifier, io: String, dataType: DataType, repeatExpr: expr): Unit = {
-    out.puts(s"for i in range(${expression(repeatExpr)}):")
+  override def condRepeatExprHeader(countExpr: expr): Unit = {
+    out.puts(s"for i in range(${expression(countExpr)}):")
     out.inc
   }
 
@@ -550,7 +550,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def handleAssignmentRepeatExpr(id: Identifier, expr: String): Unit =
     handleAssignmentRepeatEos(id, expr)
 
-  override def condRepeatUntilHeader(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
+  override def condRepeatUntilHeader(itemType: DataType): Unit = {
     out.puts("i = 0")
     out.puts("while True:")
     out.inc
@@ -562,8 +562,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${privateMemberName(id)}.append($tmpName)")
   }
 
-  override def condRepeatUntilFooter(id: Identifier, io: String, dataType: DataType, untilExpr: expr): Unit = {
-    typeProvider._currentIteratorType = Some(dataType)
+  override def condRepeatUntilFooter(untilExpr: expr): Unit = {
     out.puts(s"if ${expression(untilExpr)}:")
     out.inc
     out.puts("break")
