@@ -342,7 +342,7 @@ trait EveryWriteIsExpression
 
         this match {
           //      case thisStore: AllocateAndStoreIO =>
-          //        val ourIO = thisStore.allocateIO(rawId, rep)
+          //        val ourIO = thisStore.allocateIO(rawId, rep, io)
           //        Utils.addUniqueAttr(extraAttrs, AttrSpec(List(), ourIO, KaitaiStreamType))
           //        privateMemberName(ourIO)
           case thisLocal: AllocateIOLocalVar =>

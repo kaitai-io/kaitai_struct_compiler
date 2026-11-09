@@ -228,7 +228,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def allocateIO(id: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(id: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val memberName = privateMemberName(id)
     val ioName = s"_io_${idToStr(id)}"
 
@@ -261,7 +261,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos)")
 
-  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
       val name = idToStr(attrId)
       rep match {
@@ -278,7 +278,7 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def attrDebugArrInit(attrId: Identifier, attrType: DataType): Unit =
     out.puts(s"@_debug['${idToStr(attrId)}'][:arr] = []")
 
-  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, io: String, rep: RepeatSpec): Unit = {
     val name = idToStr(attrId)
     rep match {
       case NoRepeat =>

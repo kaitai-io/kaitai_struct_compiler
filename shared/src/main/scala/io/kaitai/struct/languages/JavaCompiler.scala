@@ -74,19 +74,26 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       ""
     }
 
+    val iface = if (config.readStoresPos) {
+      "implements PositionInfo "
+    } else {
+      ""
+    }
+
     out.puts(
       s"public ${staticStr}class ${type2class(name)} " +
-      s"extends ${JavaCompiler.kstructNameFull(config)} {"
+      s"extends ${JavaCompiler.kstructNameFull(config)} $iface{"
     )
     out.inc
 
     if (config.readStoresPos) {
-      out.puts("public Map<String, Integer> _attrStart = new HashMap<String, Integer>();")
-      out.puts("public Map<String, Integer> _attrEnd = new HashMap<String, Integer>();")
-      out.puts("public Map<String, List<Integer>> _arrStart = new HashMap<String, List<Integer>>();")
-      out.puts("public Map<String, List<Integer>> _arrEnd = new HashMap<String, List<Integer>>();")
+      out.puts("public final Map<String, Span> _spans = new HashMap<String, Span>();")
+      out.puts("@Override")
+      out.puts("public final Map<String, Span> _spans() { return this._spans; }")
       out.puts
 
+      importList.add("io.kaitai.struct.PositionInfo")
+      importList.add("io.kaitai.struct.Span")
       importList.add("java.util.HashMap")
       importList.add("java.util.List")
       importList.add("java.util.Map")
@@ -322,6 +329,14 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts( " */")
   }
 
+  override def attrParse(attr: AttrLikeSpec, id: Identifier, defEndian: Option[Endianness]): Unit = {
+    out.puts(s"{// ${idToStr(id)}")
+    out.inc
+    super.attrParse(attr, id, defEndian)
+    out.dec
+    out.puts("}")
+  }
+
   override def attrParseHybrid(leProc: () => Unit, beProc: () => Unit): Unit = {
     out.puts("if (_is_le) {")
     out.inc
@@ -420,7 +435,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
   }
 
-  override def allocateIO(varName: Identifier, rep: RepeatSpec): String = {
+  override def allocateIO(varName: Identifier, rep: RepeatSpec, currentIo: String): String = {
     val ioName = idToStr(IoStorageIdentifier(varName))
 
     val args = rep match {
@@ -429,7 +444,7 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
 
     importList.add("io.kaitai.struct.ByteBufferKaitaiStream")
-    out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args);")
+    out.puts(s"$kstreamName $ioName = new ByteBufferKaitaiStream($args, $currentIo.offset());")
     ioName
   }
 
@@ -507,14 +522,23 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def popPos(io: String): Unit =
     out.puts(s"$io.seek(_pos);")
 
-  override def attrDebugStart(attrId: Identifier, attrType: DataType, ios: Option[String], rep: RepeatSpec): Unit = {
+  override def attrDebugStart(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, ios: Option[String], rep: RepeatSpec): Unit = {
     ios.foreach { (io) =>
       val name = idToStr(attrId)
       rep match {
         case NoRepeat =>
-          out.puts("_attrStart.put(\"" + name + "\", " + io + ".pos());")
+          attrRep match {
+            case NoRepeat =>
+              out.puts(s"final Span _s = new Span(${io});")
+              out.puts(s"""this._spans.put("${name}", _s);""")
+              importList.add("io.kaitai.struct.Span")
+            case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
+              out.puts(s"final ArraySpan _as = new ArraySpan(${io});")
+              out.puts(s"""this._spans.put("${name}", _as);""")
+              importList.add("io.kaitai.struct.ArraySpan")
+          }
         case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-          getOrCreatePosList("_arrStart", name, io)
+          out.puts(s"final Span _is = _as.addItem(${io});")
       }
     }
   }
@@ -523,31 +547,19 @@ class JavaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     // no _debug[$name]['arr'] initialization needed in Java
   }
 
-  override def attrDebugEnd(attrId: Identifier, attrType: DataType, io: String, rep: RepeatSpec): Unit = {
+  override def attrDebugEnd(attrId: Identifier, attrType: DataType, attrRep: RepeatSpec, io: String, rep: RepeatSpec): Unit = {
     val name = idToStr(attrId)
     rep match {
       case NoRepeat =>
-        out.puts("_attrEnd.put(\"" + name + "\", " + io + ".pos());")
+        attrRep match {
+          case NoRepeat =>
+            out.puts(s"_s.end = ${io}.pos();")
+          case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
+            out.puts(s"_as.end = ${io}.pos();")
+        }
       case _: RepeatExpr | RepeatEos | _: RepeatUntil =>
-        getOrCreatePosList("_arrEnd", name, io)
+        out.puts(s"_is.end = ${io}.pos();")
     }
-  }
-
-  def getOrCreatePosList(listName: String, varName: String, io: String): Unit = {
-    importList.add("java.util.List")
-    importList.add("java.util.ArrayList")
-    out.puts("{")
-    out.inc
-    out.puts("List<Integer> _posList = " + listName + ".get(\"" + varName + "\");")
-    out.puts("if (_posList == null) {")
-    out.inc
-    out.puts("_posList = new ArrayList<Integer>();")
-    out.puts(listName + ".put(\"" + varName + "\", _posList);")
-    out.dec
-    out.puts("}")
-    out.puts(s"_posList.add($io.pos());")
-    out.dec
-    out.puts("}")
   }
 
   override def condIfHeader(expr: expr): Unit = {
