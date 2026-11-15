@@ -117,7 +117,7 @@ class TranslatorSpec extends AnyFunSpec {
   }
 
   describe("simple integer operations") {
-    everybody("1 + 2", "1 + 2")
+    everybody("1 + 2", "1 + 2", IntMultiType(true, Width4, None))
 
     everybodyExcept("3 / 2", "3 / 2", ResultMap(
       JavaScriptCompiler -> "Math.floor(3 / 2)",
@@ -125,23 +125,23 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "int(3 / 2)",
       PHPCompiler -> "intval(3 / 2)",
       PythonCompiler -> "3 // 2"
-    ))
+    ), IntMultiType(true, Width4, None))
 
-    everybody("1 + 2 + 5", "(1 + 2) + 5") // TODO: everybody("1 + 2 + 5", "1 + 2 + 5")
-    everybody("(1 + 2) + 5", "(1 + 2) + 5") // TODO: everybody("(1 + 2) + 5", "1 + 2 + 5")
-    everybody("1 + (2 + 5)", "1 + (2 + 5)") // TODO: everybody("1 + (2 + 5)", "1 + 2 + 5")
+    everybody("1 + 2 + 5", "(1 + 2) + 5", IntMultiType(true, Width4, None)) // TODO: everybody("1 + 2 + 5", "1 + 2 + 5")
+    everybody("(1 + 2) + 5", "(1 + 2) + 5", IntMultiType(true, Width4, None)) // TODO: everybody("(1 + 2) + 5", "1 + 2 + 5")
+    everybody("1 + (2 + 5)", "1 + (2 + 5)", IntMultiType(true, Width4, None)) // TODO: everybody("1 + (2 + 5)", "1 + 2 + 5")
 
-    everybody("1 - 2 + 5", "(1 - 2) + 5") // TODO: everybody("1 - 2 + 5", "1 - 2 + 5")
-    everybody("(1 - 2) + 5", "(1 - 2) + 5") // TODO: everybody("(1 - 2) + 5", "1 - 2 + 5")
-    everybody("1 - (2 + 5)", "1 - (2 + 5)")
+    everybody("1 - 2 + 5", "(1 - 2) + 5", IntMultiType(true, Width4, None)) // TODO: everybody("1 - 2 + 5", "1 - 2 + 5")
+    everybody("(1 - 2) + 5", "(1 - 2) + 5", IntMultiType(true, Width4, None)) // TODO: everybody("(1 - 2) + 5", "1 - 2 + 5")
+    everybody("1 - (2 + 5)", "1 - (2 + 5)", IntMultiType(true, Width4, None))
 
-    everybody("1 + 2 * 5", "1 + 2 * 5")
-    everybody("1 + (2 * 5)", "1 + 2 * 5")
-    everybody("(1 + 2) * 5", "(1 + 2) * 5")
+    everybody("1 + 2 * 5", "1 + 2 * 5", IntMultiType(true, Width4, None))
+    everybody("1 + (2 * 5)", "1 + 2 * 5", IntMultiType(true, Width4, None))
+    everybody("(1 + 2) * 5", "(1 + 2) * 5", IntMultiType(true, Width4, None))
 
-    everybody("1 * 2 + 5", "1 * 2 + 5")
-    everybody("1 * (2 + 5)", "1 * (2 + 5)")
-    everybody("(1 * 2) + 5", "1 * 2 + 5")
+    everybody("1 * 2 + 5", "1 * 2 + 5", IntMultiType(true, Width4, None))
+    everybody("1 * (2 + 5)", "1 * (2 + 5)", IntMultiType(true, Width4, None))
+    everybody("(1 * 2) + 5", "1 * 2 + 5", IntMultiType(true, Width4, None))
 
     everybodyExcept("(1 + 2) / (7 * 8)", "(1 + 2) / (7 * 8)", ResultMap(
       JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
@@ -149,7 +149,7 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "int((1 + 2) / (7 * 8))",
       PHPCompiler -> "intval((1 + 2) / (7 * 8))",
       PythonCompiler -> "(1 + 2) // (7 * 8)"
-    ))
+    ), IntMultiType(true, Width4, None))
 
     everybodyExcept("3 - ((1 + 2) / (7 * 8) + 5)", "3 - ((1 + 2) / (7 * 8) + 5)", ResultMap(
       JavaScriptCompiler -> "3 - (Math.floor((1 + 2) / (7 * 8)) + 5)",
@@ -157,19 +157,19 @@ class TranslatorSpec extends AnyFunSpec {
       PerlCompiler -> "3 - (int((1 + 2) / (7 * 8)) + 5)",
       PHPCompiler -> "3 - (intval((1 + 2) / (7 * 8)) + 5)",
       PythonCompiler -> "3 - ((1 + 2) // (7 * 8) + 5)"
-    ))
+    ), IntMultiType(true, Width4, None))
 
     everybodyExcept("1 + 2 << 5", "1 + 2 << 5", ResultMap(
       GoCompiler -> "(1 + 2) << 5"
-    ))
+    ), IntMultiType(true, Width4, None))
 
     everybodyExcept("(1 + 2) << 5", "1 + 2 << 5", ResultMap(
       GoCompiler -> "(1 + 2) << 5"
-    ))
+    ), IntMultiType(true, Width4, None))
 
     everybodyExcept("1 + (2 << 5)", "1 + (2 << 5)", ResultMap(
       GoCompiler -> "1 + 2 << 5"
-    ))
+    ), IntMultiType(true, Width4, None))
 
     everybodyExcept("~777", "~777", ResultMap(
       GoCompiler -> "^777",
@@ -178,20 +178,20 @@ class TranslatorSpec extends AnyFunSpec {
     everybodyExcept("~(7+3)", "~(7 + 3)", ResultMap(
       GoCompiler -> "^(7 + 3)",
       PerlCompiler -> "(-1 - (7 + 3))"
-    ))
+    ), IntMultiType(true, Width4, None))
 
-    everybody("(0b01 & 0b11) << 1", "(1 & 3) << 1")
+    everybody("(0b01 & 0b11) << 1", "(1 & 3) << 1", IntMultiType(true, Width4, None))
 
     everybodyExcept("(0b01 & 0b10) >> 1", "(1 & 2) >> 1", ResultMap(
       JavaScriptCompiler -> "(1 & 2) >>> 1"
-    ))
+    ), IntMultiType(true, Width4, None))
 
     everybodyExcept("3 | 1 ^ 2", "3 | 1 ^ 2", ResultMap(
       GoCompiler -> "3 | (1 ^ 2)",
       LuaCompiler -> "3 | 1 ~ 2",
       PerlCompiler -> "3 | (1 ^ 2)",
       RubyCompiler -> "3 | (1 ^ 2)"
-    ))
+    ), IntMultiType(true, Width4, None))
   }
 
   describe("integer comparisons") {
