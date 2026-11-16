@@ -144,11 +144,40 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
    * Translates `v` and converts it to `targetType` if it would otherwise have a
    * different Go type.
    */
-  def translateAndConvert(v: Ast.expr, targetType: DataType): String = {
+  def translateAndConvert(v: Ast.expr, targetType: DataType, extPrec: Int = 0): String = {
     if (GoCompiler.kaitaiType2NativeType(detectType(v)) == GoCompiler.kaitaiType2NativeType(targetType)) {
-      translate(v)
+      translate(v, extPrec)
     } else {
       resToStr(doCast(v, targetType))
+    }
+  }
+
+  // In Go, both operands of arithmetic and bitwise operators must have the same
+  // type (only the right operand of shift operators can be of any integer type)
+  override def translateBinaryOperand(operand: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String = {
+    detectType(binExpr) match {
+      case it: IntType =>
+        val isShift = binExpr.op == Ast.operator.LShift || binExpr.op == Ast.operator.RShift
+        val isNonConstShift = isShift && TypeDetector.intLiteralValue(binExpr.right).isEmpty
+        TypeDetector.intLiteralValue(operand) match {
+          // Go implicitly converts integer literals in this range (untyped
+          // constants) to the type of the other operand. If the literal is the
+          // left operand of a shift whose distance isn't a literal, it would
+          // take the type of its context instead (e.g. `uint8` in
+          // `uint8(5811 >> this.U1Val)`, which can't hold `5811`), so it's
+          // converted like the other operands.
+          case Some(n) if !isNonConstShift && n >= Int.MinValue && n <= Int.MaxValue =>
+            translate(operand, extPrec)
+          // Other integer literals are given the result type directly instead of
+          // the type that `doIntLiteral()` would give them (e.g. `uint32` for
+          // `0x8000_0000`), which would need another conversion
+          case Some(n) =>
+            s"${GoCompiler.kaitaiType2NativeType(it)}($n)"
+          case None =>
+            translateAndConvert(operand, it, extPrec)
+        }
+      case _ =>
+        translate(operand, extPrec)
     }
   }
 
@@ -182,7 +211,7 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
         out.puts(s"${localVarName(v1)} := ${genericBinOp(left, Ast.operator.Mod, right, 0)}")
         out.puts(s"if ${localVarName(v1)} < 0 {")
         out.inc
-        out.puts(s"${localVarName(v1)} += ${translate(right)}")
+        out.puts(s"${localVarName(v1)} += ${translateBinaryOperand(right, Ast.expr.BinOp(left, Ast.operator.Mod, right), 0)}")
         out.dec
         out.puts("}")
         ResultLocalVar(v1)
