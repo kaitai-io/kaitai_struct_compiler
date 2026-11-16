@@ -540,8 +540,11 @@ class GoTranslator(out: StringLanguageOutputWriter, provider: TypeProvider, impo
     ResultLocalVar(max)
   }
 
+  // Converts the enum value to its underlying integer type, so that it can be
+  // combined with other integers in arithmetic or bitwise operations (Go
+  // doesn't convert it implicitly)
   override def enumToInt(value: Ast.expr, et: EnumType) =
-    translateExpr(value)
+    ResultString(s"${GoCompiler.kaitaiType2NativeType(et.enumSpec.get.intType)}(${translate(value)})")
 
   override def boolToInt(value: Ast.expr): ResultLocalVar = {
     val v = allocateLocalVar()
