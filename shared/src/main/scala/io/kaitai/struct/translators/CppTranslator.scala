@@ -133,7 +133,13 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
 
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
-      case (_: IntType, _: IntType, Ast.operator.Mod) =>
+      // `kstream::mod()` implements Kaitai Struct's `%`, which gives a
+      // non-negative result for a positive divisor, while C++'s `%` can give a
+      // negative result for a negative dividend. If the result type is
+      // unsigned, C++ does the operation in an unsigned type, so the plain `%`
+      // can't give a negative result (`kstream::mod()` also takes `int`
+      // arguments, which can't hold all `u4` and `u8` values).
+      case (_: IntType, _: IntType, Ast.operator.Mod) if detectType(Ast.expr.BinOp(left, Ast.operator.Mod, right)).asInstanceOf[IntType].signed =>
         s"${CppCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
       case _ =>
         super.genericBinOp(left, op, right, extPrec)
