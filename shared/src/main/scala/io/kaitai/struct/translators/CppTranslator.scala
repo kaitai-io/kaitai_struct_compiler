@@ -133,14 +133,22 @@ class CppTranslator(provider: TypeProvider, importListSrc: CppImportList, import
 
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
-      // `kstream::mod()` implements Kaitai Struct's `%`, which gives a
-      // non-negative result for a positive divisor, while C++'s `%` can give a
-      // negative result for a negative dividend. If the result type is
-      // unsigned, C++ does the operation in an unsigned type, so the plain `%`
-      // can't give a negative result (`kstream::mod()` also takes `int`
-      // arguments, which can't hold all `u4` and `u8` values).
+      // `kstream::mod()` and `kstream::mod64()` implement Kaitai Struct's `%`,
+      // which gives a non-negative result for a positive divisor, while C++'s
+      // `%` can give a negative result for a negative dividend. If the result
+      // type is unsigned, C++ does the operation in an unsigned type, so the
+      // plain `%` can't give a negative result.
       case (_: IntType, _: IntType, Ast.operator.Mod) if detectType(Ast.expr.BinOp(left, Ast.operator.Mod, right)).asInstanceOf[IntType].signed =>
-        s"${CppCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
+        val modName = detectType(Ast.expr.BinOp(left, Ast.operator.Mod, right)) match {
+          // `s8` results need `kstream::mod64()`, because `kstream::mod()` takes
+          // and returns `int`. Other signed results use `kstream::mod()`, whose
+          // `int` result matches their `int32_t` type. If they used
+          // `kstream::mod64()` too, its `int64_t` result would need a narrowing
+          // conversion in C++11 array literals such as `[s4_val % 3, 5]`.
+          case IntMultiType(true, Width8, _) => "mod64"
+          case _ => "mod"
+        }
+        s"${CppCompiler.kstreamName}::$modName(${translate(left)}, ${translate(right)})"
       case _ =>
         super.genericBinOp(left, op, right, extPrec)
     }
