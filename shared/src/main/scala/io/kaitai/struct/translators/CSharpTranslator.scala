@@ -68,6 +68,18 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
     }
   }
 
+  override def translateBinaryOperand(operand: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String = {
+    (detectType(operand), detectType(binExpr)) match {
+      // `CalcIntType` operands have signed C# types (e.g. `long` for
+      // `_io.size`, `int` for `_index`), and C# doesn't implicitly convert
+      // between them and `ulong`
+      case (CalcIntType, resultType @ IntMultiType(false, Width8, _)) =>
+        doCast(operand, resultType)
+      case _ =>
+        translate(operand, extPrec)
+    }
+  }
+
   override def doName(s: String) =
     if (s.startsWith("_")) {
       s match {
