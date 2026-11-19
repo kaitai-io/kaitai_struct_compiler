@@ -121,7 +121,7 @@ class TranslatorSpec extends AnyFunSpec {
 
     everybodyExcept("3 / 2", "3 / 2", ResultMap(
       JavaScriptCompiler -> "Math.floor(3 / 2)",
-      LuaCompiler -> "math.floor(3 / 2)",
+      LuaCompiler -> "3 // 2",
       PerlCompiler -> "int(3 / 2)",
       PHPCompiler -> "intval(3 / 2)",
       PythonCompiler -> "3 // 2"
@@ -145,7 +145,7 @@ class TranslatorSpec extends AnyFunSpec {
 
     everybodyExcept("(1 + 2) / (7 * 8)", "(1 + 2) / (7 * 8)", ResultMap(
       JavaScriptCompiler -> "Math.floor((1 + 2) / (7 * 8))",
-      LuaCompiler -> "math.floor((1 + 2) / (7 * 8))",
+      LuaCompiler -> "(1 + 2) // (7 * 8)",
       PerlCompiler -> "int((1 + 2) / (7 * 8))",
       PHPCompiler -> "intval((1 + 2) / (7 * 8))",
       PythonCompiler -> "(1 + 2) // (7 * 8)"
@@ -153,7 +153,7 @@ class TranslatorSpec extends AnyFunSpec {
 
     everybodyExcept("3 - ((1 + 2) / (7 * 8) + 5)", "3 - ((1 + 2) / (7 * 8) + 5)", ResultMap(
       JavaScriptCompiler -> "3 - (Math.floor((1 + 2) / (7 * 8)) + 5)",
-      LuaCompiler -> "3 - (math.floor((1 + 2) / (7 * 8)) + 5)",
+      LuaCompiler -> "3 - ((1 + 2) // (7 * 8) + 5)",
       PerlCompiler -> "3 - (int((1 + 2) / (7 * 8)) + 5)",
       PHPCompiler -> "3 - (intval((1 + 2) / (7 * 8)) + 5)",
       PythonCompiler -> "3 - ((1 + 2) // (7 * 8) + 5)"

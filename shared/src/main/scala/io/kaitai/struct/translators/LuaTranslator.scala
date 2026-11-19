@@ -69,8 +69,11 @@ class LuaTranslator(provider: TypeProvider, importList: ImportList) extends Base
 
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
+      // The floor division `//` on two integers is computed in integer
+      // arithmetic, unlike `/`, which always converts its operands to
+      // floats and can lose precision on 64-bit values
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"math.floor(${super.genericBinOp(left, op, right, 0)})"
+        genericBinOpStr(left, op, "//", right, extPrec)
       case _ =>
         super.genericBinOp(left, op, right, extPrec)
     }
