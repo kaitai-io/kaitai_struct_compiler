@@ -122,6 +122,14 @@ abstract class BaseTranslator(val provider: TypeProvider)
         }
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
+          case (_: IntType, _: IntType, Ast.operator.LShift) =>
+            detectType(v) match {
+              // The bits shifted out of the result type must be discarded
+              case it: IntType if !it.signed =>
+                truncateToUnsigned(genericBinOp(left, op, right, extPrec), it)
+              case _ =>
+                genericBinOp(left, op, right, extPrec)
+            }
           case (_: NumericType, _: NumericType, _) =>
             genericBinOp(left, op, right, extPrec)
           case (_: StrType, _: StrType, Ast.operator.Add) =>
