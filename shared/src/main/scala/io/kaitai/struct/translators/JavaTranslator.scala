@@ -45,8 +45,18 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
+  // Unsigned 64-bit integers are stored in the signed `long` type, so some
+  // operators need their unsigned variants
+  private def isBinOpResultU8(left: Ast.expr, op: Ast.operator, right: Ast.expr): Boolean =
+    detectType(Ast.expr.BinOp(left, op, right)) match {
+      case IntMultiType(false, Width8, _) => true
+      case _ => false
+    }
+
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.RShift) if isBinOpResultU8(left, Ast.operator.RShift, right) =>
+        genericBinOpStr(left, op, ">>>", right, extPrec)
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${JavaCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
       case _ =>
