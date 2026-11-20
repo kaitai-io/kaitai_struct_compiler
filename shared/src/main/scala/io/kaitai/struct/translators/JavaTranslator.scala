@@ -55,6 +55,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
 
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Div) if isBinOpResultU8(left, Ast.operator.Div, right) =>
+        s"Long.divideUnsigned(${translate(left)}, ${translate(right)})"
       case (_: IntType, _: IntType, Ast.operator.RShift) if isBinOpResultU8(left, Ast.operator.RShift, right) =>
         genericBinOpStr(left, op, ">>>", right, extPrec)
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
