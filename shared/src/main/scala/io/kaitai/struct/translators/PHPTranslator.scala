@@ -48,6 +48,15 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
         s"intval(${super.genericBinOp(left, op, right, 0)})"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${PHPCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
+      // `u8` values need a logical shift, because they're stored in the signed
+      // 64-bit `int` type, where `>>` is an arithmetic shift
+      case (_: IntType, _: IntType, Ast.operator.RShift) =>
+        detectType(Ast.expr.BinOp(left, Ast.operator.RShift, right)) match {
+          case IntMultiType(false, Width8, _) =>
+            s"${PHPCompiler.kstreamName}::zeroFillRightShift(${translate(left)}, ${translate(right)})"
+          case _ =>
+            super.genericBinOp(left, op, right, extPrec)
+        }
       case _ =>
         super.genericBinOp(left, op, right, extPrec)
     }
