@@ -364,7 +364,12 @@ class CSharpCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1(bitEndian) =>
         s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
-        s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
+        val bitsInt = s"$io.ReadBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
+        if (width <= 32) {
+          s"(${kaitaiType2NativeType(dataType)})$bitsInt"
+        } else {
+          bitsInt
+        }
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isExternal(typeProvider.nowClass)) {
@@ -696,7 +701,16 @@ object CSharpCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType(_, _) => "ulong"
+      case BitsType(width, _) =>
+        if (width <= 8) {
+          "byte"
+        } else if (width <= 16) {
+          "ushort"
+        } else if (width <= 32) {
+          "uint"
+        } else {
+          "ulong"
+        }
 
       case CalcIntType => "int"
       case CalcFloatType => "double"

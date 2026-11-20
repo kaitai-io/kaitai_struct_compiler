@@ -56,10 +56,27 @@ class CSharpTranslator(provider: TypeProvider, importList: ImportList) extends B
 
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
-      case (_: IntType, _: IntType, Ast.operator.Mod) =>
+      // `KaitaiStream.Mod()` implements Kaitai Struct's `%`, which always gives
+      // a non-negative result, while C#'s `%` can give a negative result for a
+      // negative dividend. The dividend can only be negative if the result
+      // type is signed, so unsigned results use the plain `%`
+      // (`KaitaiStream.Mod()` also has no `ulong` overload).
+      case (_: IntType, _: IntType, Ast.operator.Mod) if detectType(Ast.expr.BinOp(left, Ast.operator.Mod, right)).asInstanceOf[IntType].signed =>
         s"${CSharpCompiler.kstreamName}.Mod(${translate(left)}, ${translate(right)})"
       case _ =>
         super.genericBinOp(left, op, right, extPrec)
+    }
+  }
+
+  override def translateBinaryOperand(operand: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String = {
+    (detectType(operand), detectType(binExpr)) match {
+      // `CalcIntType` operands have signed C# types (e.g. `long` for
+      // `_io.size`, `int` for `_index`), and C# doesn't implicitly convert
+      // between them and `ulong`
+      case (CalcIntType, resultType @ IntMultiType(false, Width8, _)) =>
+        doCast(operand, resultType)
+      case _ =>
+        translate(operand, extPrec)
     }
   }
 

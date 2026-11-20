@@ -72,6 +72,17 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
 
   def isAllDigits(x: String) = x forall Character.isDigit
 
+  // `CalcIntType` is `i32` in Rust. A literal without a suffix gets its type
+  // from the context, so in `(4294967280 as i32)`, it would be an `i32`, which
+  // can't hold it (`literal out of range for i32`). Such a literal therefore
+  // gets the `i64` suffix (a cast to `i32` then wraps it around, e.g.
+  // `0xffff_fff0` becomes `-16`).
+  private def translateCalcIntOperand(operand: Ast.expr, translated: String): String =
+    TypeDetector.intLiteralValue(operand) match {
+      case Some(n) if n < Int.MinValue || n > Int.MaxValue => s"${n}_i64"
+      case _ => translated
+    }
+
   override def genericBinOp(left: Ast.expr,
                             op: Ast.binaryop,
                             right: Ast.expr,
@@ -81,12 +92,28 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     val tl = translate(left)
     val tr = translate(right)
 
-    if (isSignedIntType(lt) && isSignedIntType(rt) && op == Ast.operator.Mod) {
-        s"modulo($tl as i64, $tr as i64)"
-    } else if (isSignedIntType(lt) && isSignedIntType(rt) && op == Ast.operator.RShift) {
-        // Arithmetic right shift on signed integer types, logical right shift on unsigned integer types
-        val ct = RustCompiler.kaitaiPrimitiveToNativeType(TypeDetector.combineTypes(lt, rt))
-        s"((($tl as u64) >> $tr) as $ct)"
+    if (lt.isInstanceOf[IntType] && rt.isInstanceOf[IntType] && op.isInstanceOf[Ast.operator]) {
+      // In Rust, both operands of arithmetic and bitwise operators must have
+      // the same type (only the right operand of shift operators can be of any
+      // integer type), so we convert them to the result type
+      val binExpr = Ast.expr.BinOp(left, op.asInstanceOf[Ast.operator], right)
+      val resultType = detectType(binExpr)
+      val ct = rustNativeType(resultType)
+      val (leftStr, rightStr) = if (resultType == CalcIntType) {
+        (translateCalcIntOperand(left, tl), translateCalcIntOperand(right, tr))
+      } else {
+        (tl, tr)
+      }
+      binExpr.op match {
+        // Rust's `%` truncates toward zero, but Kaitai Struct's `%` is floored,
+        // which only makes a difference for signed results
+        case Ast.operator.Mod if isSignedIntType(resultType) =>
+          s"modulo($leftStr as i64, $rightStr as i64)"
+        case Ast.operator.LShift | Ast.operator.RShift =>
+          s"(($leftStr as $ct) ${binOp(binExpr.op)} $rightStr)"
+        case _ =>
+          s"(($leftStr as $ct) ${binOp(binExpr.op)} ($rightStr as $ct))"
+      }
     } else {
       val opStr = op match {
         case op: Ast.operator => binOp(op)
@@ -397,6 +424,13 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     s"($id as i64).try_into()?"
 
+  override def unaryOp(op: Ast.unaryop): String = op match {
+    // See https://doc.rust-lang.org/1.99.0/reference/expressions/operator-expr.html#r-expr.negate.results
+    case Ast.unaryop.Invert => "!"
+    case Ast.unaryop.Minus => "-"
+    case Ast.unaryop.Not => "!"
+  }
+
   override def arraySubscript(container: expr, idx: expr): String =
     s"${remove_deref(translate(container))}[${translate(idx)} as usize]"
 
@@ -422,7 +456,7 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
     if(castTypeName == value_type)
       return translate(value)
 
-    val ct = RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, castTypeName, excludeOptionWrapper = true)
+    val ct = rustNativeType(castTypeName)
     var into = false
     castTypeName match {
       case _: UserType => into = true;
@@ -435,6 +469,18 @@ class RustTranslator(provider: TypeProvider, config: RuntimeConfig)
       s"(${translate(value)} as $ct)"
     }
   }
+
+  override def translateUnaryOperand(operand: Ast.expr, unaryExpr: Ast.expr): String = {
+    val targetType = detectType(unaryExpr)
+    if (rustNativeType(detectType(operand)) == rustNativeType(targetType)) {
+      translate(operand)
+    } else {
+      doCast(operand, targetType)
+    }
+  }
+
+  private def rustNativeType(t: DataType): String =
+    RustCompiler.kaitaiTypeToNativeType(None, provider.nowClass, t, excludeOptionWrapper = true)
 
   override def translate(v: Ast.expr): String = {
     v match {

@@ -5,6 +5,7 @@ import io.kaitai.struct.datatype.{DataType, FixedEndian}
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.format._
 import io.kaitai.struct.translators.{GoTranslator, ResultLocalVar, ResultString, TranslatorResult}
+import io.kaitai.struct.languages.GoCompiler
 
 trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
   val translator: GoTranslator
@@ -83,6 +84,15 @@ trait GoReads extends CommonReads with ObjectOrientedLanguage with GoSwitchOps {
         val expr = parseExpr(dataType, io, defEndian)
         val r1 = translator.outVarCheckRes(expr)
         val r2 = ResultString(s"${translator.resToStr(r1)} != 0")
+        handleAssignment(id, r2, rep, isRaw)
+      case BitsType(width, _) =>
+        val expr = parseExpr(dataType, io, defEndian)
+        val r1 = translator.outVarCheckRes(expr)
+        val r2 = if (width <= 32) {
+          ResultString(s"${GoCompiler.kaitaiType2NativeType(dataType)}(${translator.resToStr(r1)})")
+        } else {
+          r1
+        }
         handleAssignment(id, r2, rep, isRaw)
       case _ =>
         val expr = parseExpr(dataType, io, defEndian)

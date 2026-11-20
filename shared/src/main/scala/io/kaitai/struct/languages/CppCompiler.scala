@@ -680,7 +680,18 @@ class CppCompiler(
       case BitsType1(bitEndian) =>
         s"$io->read_bits_int_${bitEndian.toSuffix}(1)"
       case BitsType(width: Int, bitEndian) =>
-        s"$io->read_bits_int_${bitEndian.toSuffix}($width)"
+        val bitsInt = s"$io->read_bits_int_${bitEndian.toSuffix}($width)"
+        if (width <= 32) {
+          // NOTE: strictly speaking, this type cast is not necessary, because
+          // C++ allows implicit conversion from `uint64_t` (which our
+          // `read_bits_int_*()` methods return) to
+          // `uint8_t`/`uint16_t`/`uint32_t` without any warnings (by default).
+          // Nevertheless, it does issue warnings under `-Wconversion`. Besides,
+          // it's arguably clearer to perform the conversion explicitly.
+          s"static_cast<${kaitaiType2NativeType(dataType)}>($bitsInt)"
+        } else {
+          bitsInt
+        }
       case t: UserType =>
         val addParams = Utils.join(t.args.map((a) => translator.translate(a)), "", ", ", ", ")
         val addArgs = if (t.isExternal(typeProvider.nowClass)) {
@@ -1163,7 +1174,16 @@ object CppCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float"
       case FloatMultiType(Width8, _) => "double"
 
-      case BitsType(_, _) => "uint64_t"
+      case BitsType(width, _) =>
+        if (width <= 8) {
+          "uint8_t"
+        } else if (width <= 16) {
+          "uint16_t"
+        } else if (width <= 32) {
+          "uint32_t"
+        } else {
+          "uint64_t"
+        }
 
       case _: BooleanType => "bool"
       case CalcIntType => "int32_t"

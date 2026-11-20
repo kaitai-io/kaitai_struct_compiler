@@ -48,6 +48,15 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
         s"intval(${super.genericBinOp(left, op, right, 0)})"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${PHPCompiler.kstreamName}::mod(${translate(left)}, ${translate(right)})"
+      // `u8` values need a logical shift, because they're stored in the signed
+      // 64-bit `int` type, where `>>` is an arithmetic shift
+      case (_: IntType, _: IntType, Ast.operator.RShift) =>
+        detectType(Ast.expr.BinOp(left, Ast.operator.RShift, right)) match {
+          case IntMultiType(false, Width8, _) =>
+            s"${PHPCompiler.kstreamName}::zeroFillRightShift(${translate(left)}, ${translate(right)})"
+          case _ =>
+            super.genericBinOp(left, op, right, extPrec)
+        }
       case _ =>
         super.genericBinOp(left, op, right, extPrec)
     }
@@ -77,6 +86,10 @@ class PHPTranslator(provider: TypeProvider, config: RuntimeConfig) extends BaseT
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
     // Just an integer, without any casts / resolutions - one would have to look up constants manually
     id
+
+  // Integers are signed 64-bit, so only unsigned 32-bit values need truncating
+  override def truncateToUnsigned(expr: String, t: IntType): String =
+    if (t.bitWidth == 32) s"($expr & 0xffffffff)" else expr
 
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"

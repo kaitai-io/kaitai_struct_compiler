@@ -34,6 +34,50 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
   )
 
   // Members declared in io.kaitai.struct.translators.BaseTranslator
+  override def translateUnaryOperand(operand: Ast.expr, unaryExpr: Ast.expr): String = {
+    val targetType = detectType(unaryExpr)
+    if (ksToNim(detectType(operand)) == ksToNim(targetType)) {
+      translate(operand)
+    } else {
+      doCast(operand, targetType)
+    }
+  }
+  // In Nim, both operands of an arithmetic or bitwise operator must be signed
+  // or both unsigned (the shift distance can have any integer type), and the
+  // narrower one is implicitly converted to the type of the wider one.
+  // Converting both operands to the result type avoids mixed signedness and
+  // makes sure the operation is done in the result type (not e.g. in `uint8`
+  // for `u1_val + u1_val`, whose result type is `s4`).
+  override def translateBinaryOperand(operand: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String = {
+    detectType(binExpr) match {
+      case it: IntType =>
+        TypeDetector.intLiteralValue(operand) match {
+          // Nim implicitly converts integer literals in this range (translated
+          // without a type suffix) to the type of the other operand. If the
+          // literal is the left operand of a shift, it's `int` instead, which
+          // only matters if the shift overflows.
+          case Some(n) if n >= Int.MinValue && n <= Int.MaxValue =>
+            translate(operand, extPrec)
+          // `CalcIntType` (`int`) has no specific bit width for a suffix, so
+          // the literal keeps its `int64` type, to which Nim widens `int`
+          case Some(_) if it == CalcIntType =>
+            translate(operand, extPrec)
+          // Other integer literals get the suffix of the result type instead
+          // of the one that `doIntLiteral()` would give them (`'i64` or
+          // `'u64`), which may not match the other operand: e.g. in
+          // `0xffff_0000 & u4_val`, `'i64` would make the literal an `int64`,
+          // which can't be combined with `uint32`
+          case Some(n) =>
+            s"$n'${if (it.signed) "i" else "u"}${it.bitWidth}"
+          case None if ksToNim(detectType(operand)) == ksToNim(it) =>
+            translate(operand, extPrec)
+          case None =>
+            doCast(operand, it)
+        }
+      case _ =>
+        translate(operand, extPrec)
+    }
+  }
   override def bytesToStr(bytesExpr: String, encoding: String): String = {
     s"""encode($bytesExpr, ${doStringLiteral(encoding)})"""
   }

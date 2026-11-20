@@ -1,8 +1,9 @@
 package io.kaitai.struct.translators
 
+import io.kaitai.struct.Utils
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.exprlang.Ast
+import io.kaitai.struct.exprlang.{Ast, ConstEvaluator}
 import io.kaitai.struct.format.Identifier
 import io.kaitai.struct.precompile.{MethodNotFoundError, TypeMismatchError, TypeUndecidedError}
 
@@ -34,15 +35,29 @@ class TypeDetector(provider: TypeProvider) {
   def detectTypeRaw(v: Ast.expr): DataType = {
     v match {
       case Ast.expr.IntNum(x) =>
-        if (x < 0 || x > 255) {
-          CalcIntType
-        } else if (x <= 127) {
+        if (x >= 0 && x <= 127) {
           // [0..127] => signed 1-byte integer
           Int1Type(true)
-        } else {
+        } else if (x >= 128 && x <= 255) {
           // [128..255] => unsigned 1-byte integer
           Int1Type(false)
+        } else if (x >= Int.MinValue && x <= Int.MaxValue) {
+          IntMultiType(true, Width4, None)
+        } else if (x >= 0 && x <= Utils.MAX_UINT32) {
+          IntMultiType(false, Width4, None)
+        } else if (x >= Long.MinValue && x <= Long.MaxValue) {
+          IntMultiType(true, Width8, None)
+        } else if (x >= 0 && x <= Utils.MAX_UINT64) {
+          IntMultiType(false, Width8, None)
+        } else {
+          throw new TypeMismatchError(s"integer literal $x is out of the 64-bit integer range")
         }
+      case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(x)) =>
+        // Negative integer literals are parsed as the unary minus applied to a
+        // non-negative literal, but they must be typed based on their actual
+        // value (otherwise `-2147483648` would be rejected as `-` applied to
+        // `u4`, which is not allowed)
+        detectTypeRaw(Ast.expr.IntNum(-x))
       case Ast.expr.FloatNum(_) => CalcFloatType
       case Ast.expr.Str(_) => CalcStrType
       case Ast.expr.InterpolatedStr(_) => CalcStrType
@@ -60,8 +75,19 @@ class TypeDetector(provider: TypeProvider) {
       case Ast.expr.UnaryOp(op: Ast.unaryop, v: Ast.expr) =>
         val t = detectType(v)
         (t, op) match {
-          case (IntMultiType(_, w, _), Ast.unaryop.Minus | Ast.unaryop.Invert) if w.width > 4 => t
-          case (_: IntType, Ast.unaryop.Minus | Ast.unaryop.Invert) => CalcIntType
+          case (it: IntType, Ast.unaryop.Minus) =>
+            if (it == CalcIntType) {
+              CalcIntType
+            } else if (it.bitWidth < 32 || (it.bitWidth == 32 && it.signed)) {
+              IntMultiType(true, Width4, None)
+            } else if (it.bitWidth == 64 && it.signed) {
+              IntMultiType(true, Width8, None)
+            } else {
+              val hint = if (it.bitWidth < 64) " (if you want the result as `s8`, use `-val.as<s8>`)" else ""
+              throw new TypeMismatchError(s"unable to apply unary operator $op to $t$hint")
+            }
+          case (it: IntType, Ast.unaryop.Invert) =>
+            if (it == CalcIntType) CalcIntType else promoteIntType(it)
           case (_: FloatType, Ast.unaryop.Minus) => t
           case (_: BooleanType, Ast.unaryop.Not) => t
           case _ => throw new TypeMismatchError(s"unable to apply unary operator $op to $t")
@@ -73,7 +99,18 @@ class TypeDetector(provider: TypeProvider) {
         CalcBooleanType
       case Ast.expr.BinOp(left: Ast.expr, op: Ast.operator, right: Ast.expr) =>
         (detectType(left), detectType(right), op) match {
-          case (_: IntType, _: IntType, _) => CalcIntType
+          case (CalcIntType, _: IntType, Ast.operator.LShift | Ast.operator.RShift) =>
+            // `CalcIntType` has no specific bit width, so the result type stays
+            // `CalcIntType`, and the shift distance can't be checked
+            CalcIntType
+          case (lt: IntType, _: IntType, Ast.operator.LShift | Ast.operator.RShift) =>
+            shiftIntResultType(lt, right, op)
+          case (CalcIntType, rt: IntType, _) =>
+            binaryCalcIntResultType(rt)
+          case (lt: IntType, CalcIntType, _) =>
+            binaryCalcIntResultType(lt)
+          case (lt: IntType, rt: IntType, _) =>
+            binaryIntResultType(left, lt, right, rt, op)
           case (_: NumericType, _: NumericType, _) => CalcFloatType
           case (_: StrType, _: StrType, Ast.operator.Add) => CalcStrType
           case (ltype, rtype, _) =>
@@ -313,6 +350,126 @@ class TypeDetector(provider: TypeProvider) {
 }
 
 object TypeDetector {
+  /**
+    * Promotes an integer type to one of `s4`, `u4`, `s8` and `u8`. Types
+    * narrower than 32 bits (both signed and unsigned) are promoted to `s4`.
+    * @param t integer type (other than [[CalcIntType]])
+    * @return promoted type
+    */
+  def promoteIntType(t: IntType): IntMultiType = t match {
+    case _ if t.bitWidth < 32 => IntMultiType(true, Width4, None)
+    case _ if t.bitWidth == 32 => IntMultiType(t.signed, Width4, None)
+    case _ => IntMultiType(t.signed, Width8, None)
+  }
+
+  /**
+    * Returns the value of an integer literal (possibly negative).
+    * @param v expression
+    * @return value of the literal, or None if `v` isn't an integer literal
+    */
+  def intLiteralValue(v: Ast.expr): Option[BigInt] = v match {
+    case Ast.expr.IntNum(x) => Some(x)
+    case Ast.expr.UnaryOp(Ast.unaryop.Minus, Ast.expr.IntNum(x)) => Some(-x)
+    case _ => None
+  }
+
+  /**
+    * Derives the resulting type of an arithmetic (`+`, `-`, `*`, `/`, `%`) or
+    * bitwise (`&`, `|`, `^`) binary operator applied to integer operands.
+    *
+    * If all possible values of one operand fit into the promoted type of the
+    * other operand, that type is the result type. For example,
+    * `s8_val + u4_val` is `s8`, `u8_val + 1` is `u8`, and `u1_val + s1_val`
+    * is `s4` (`u1` doesn't fit into `s1`, but it fits into its promoted type
+    * `s4`). If neither operand fits into the promoted type of the other one
+    * (e.g. in `s4_val + u4_val`), the operator can't be applied.
+    * @param left left-hand operand
+    * @param ltype type of the left-hand operand (other than [[CalcIntType]])
+    * @param right right-hand operand
+    * @param rtype type of the right-hand operand (other than [[CalcIntType]])
+    * @param op binary operator
+    * @return resulting type
+    */
+  def binaryIntResultType(left: Ast.expr, ltype: IntType, right: Ast.expr, rtype: IntType, op: Ast.operator): IntMultiType = {
+    val lt = promoteIntType(ltype)
+    val rt = promoteIntType(rtype)
+    if (intOperandFitsInto(left, ltype, rt)) {
+      rt
+    } else if (intOperandFitsInto(right, rtype, lt)) {
+      lt
+    } else {
+      throw new TypeMismatchError(
+        s"unable to apply binary operator $op to ${ltype.toPureTypeString} and ${rtype.toPureTypeString} " +
+        "(signed integers can't be mixed with unsigned integers of the same or greater width, use a type cast `.as<>` on one of the operands)"
+      )
+    }
+  }
+
+  /**
+    * Derives the resulting type of an arithmetic or bitwise binary operator
+    * with a [[CalcIntType]] operand. Built-in integer properties and variables
+    * such as `_io.size` or `_index` have this type, because they don't have a
+    * specific integer type yet. If the promoted type of the other operand is
+    * 64-bit, the result has that type, e.g. `u8_val + _io.pos` is `u8`.
+    * Otherwise, the result is [[CalcIntType]].
+    * @param other type of the other operand
+    * @return resulting type
+    */
+  def binaryCalcIntResultType(other: IntType): IntType =
+    // `bitWidth` isn't defined for `CalcIntType`, so it's checked first
+    if (other != CalcIntType && other.bitWidth > 32) promoteIntType(other) else CalcIntType
+
+  /**
+    * Checks if all possible values of an integer operand fit into a given
+    * type. For an integer literal, that's just its value. For a type narrower
+    * than 32 bits, it's the range of that type, e.g. `u2` fits into `s4`. For
+    * wider types, it's the range of the promoted type, which makes
+    * `b33`..`b64` behave like `u8`.
+    * @param v operand
+    * @param t type of the operand (other than [[CalcIntType]])
+    * @param dst type that the values should fit into
+    * @return true if all possible values of the operand fit into `dst`
+    */
+  def intOperandFitsInto(v: Ast.expr, t: IntType, dst: IntType): Boolean = {
+    intLiteralValue(v) match {
+      case Some(x) =>
+        x >= dst.min && x <= dst.max
+      case None =>
+        val rangeType = if (t.bitWidth < 32) t else promoteIntType(t)
+        rangeType.subsetOf(dst)
+    }
+  }
+
+  /**
+    * Derives the resulting type of a bitwise shift operator (`<<`, `>>`)
+    * applied to integer operands. It depends only on the left-hand operand.
+    * If the shift distance is a constant, it must be non-negative and less
+    * than the bit width of the resulting type.
+    * @param ltype type of the left-hand operand (other than [[CalcIntType]])
+    * @param right right-hand operand (shift distance)
+    * @param op shift operator
+    * @return resulting type
+    */
+  def shiftIntResultType(ltype: IntType, right: Ast.expr, op: Ast.operator): IntMultiType = {
+    val t = promoteIntType(ltype)
+    ConstEvaluator.evaluateIntConst(right) match {
+      case Some(dist) if dist < 0 || dist >= t.bitWidth =>
+        val opStr = if (op == Ast.operator.LShift) "<<" else ">>"
+        // the hint only helps if the distance is valid for a 64-bit type
+        val hint = if (dist >= t.bitWidth && dist < 64) {
+          val castType = if (ltype.signed) "s8" else "u8"
+          s" (to get a 64-bit result, cast the left-hand operand first, e.g. `.as<$castType>`)"
+        } else {
+          ""
+        }
+        throw new TypeMismatchError(
+          s"shift distance $dist is out of range for `$opStr` on ${ltype.toPureTypeString}: " +
+          s"the result type is ${t.toPureTypeString}, so the distance must be in 0..${t.bitWidth - 1}$hint"
+        )
+      case _ => t
+    }
+  }
+
   /**
     * Checks is values of two types can be compared with a given comparison operator.
     * Throws exception in case of incompatibility.

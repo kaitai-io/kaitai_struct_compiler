@@ -45,8 +45,22 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
   override def doByteArrayNonLiteral(elts: Seq[expr]): String =
     s"new byte[] { ${elts.map(translate).mkString(", ")} }"
 
+  // Unsigned 64-bit integers are stored in the signed `long` type, so some
+  // operators need their unsigned variants
+  private def isBinOpResultU8(left: Ast.expr, op: Ast.operator, right: Ast.expr): Boolean =
+    detectType(Ast.expr.BinOp(left, op, right)) match {
+      case IntMultiType(false, Width8, _) => true
+      case _ => false
+    }
+
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
+      case (_: IntType, _: IntType, Ast.operator.Div) if isBinOpResultU8(left, Ast.operator.Div, right) =>
+        s"Long.divideUnsigned(${translate(left)}, ${translate(right)})"
+      case (_: IntType, _: IntType, Ast.operator.Mod) if isBinOpResultU8(left, Ast.operator.Mod, right) =>
+        s"Long.remainderUnsigned(${translate(left)}, ${translate(right)})"
+      case (_: IntType, _: IntType, Ast.operator.RShift) if isBinOpResultU8(left, Ast.operator.RShift, right) =>
+        genericBinOpStr(left, op, ">>>", right, extPrec)
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         s"${JavaCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
       case _ =>
@@ -75,6 +89,10 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
     enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
   }
+
+  // Unsigned 32-bit integers are stored in the 64-bit `long` type
+  override def truncateToUnsigned(expr: String, t: IntType): String =
+    if (t.bitWidth == 32) s"($expr & 0xffffffffL)" else expr
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String = op match {
     case Ast.cmpop.Eq =>

@@ -46,14 +46,22 @@ object DataType {
   abstract sealed class BooleanType extends DataType
 
   abstract sealed class IntType extends NumericType {
+    def signed: Boolean
+    def bitWidth: Int
     /**
       * The smallest value of the given integer type
       */
-    def min: BigInt
+    final def min: BigInt =
+      if (signed) {
+        -(BigInt(1) << (bitWidth - 1))
+      } else {
+        0
+      }
     /**
       * The largest value of the given integer type
       */
-    def max: BigInt
+    final def max: BigInt =
+      (BigInt(1) << (bitWidth - (if (signed) 1 else 0))) - 1
     /**
       * Render the integer type as a KSY-style "pure" type string (e.g. `u4`,
       * `s1`, `b3`) without any serialization details, such as endianness.
@@ -80,41 +88,19 @@ object DataType {
     * [[max]] methods.
     */
   case object CalcIntType extends IntType {
-    override final def min: BigInt = ???
-    override final def max: BigInt = ???
+    override final val signed: Boolean = true
+    override final def bitWidth: Int = ???
     override def toPureTypeString: String = "<calc>"
   }
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
-    override final def min: BigInt =
-      if (signed) {
-        Byte.MinValue
-      } else {
-        0
-      }
-    override final def max: BigInt =
-      if (signed) {
-        Byte.MaxValue
-      } else {
-        0xff
-      }
+    override final val bitWidth: Int = IntType.NUM_BITS_IN_BYTE * 1
     override def toPureTypeString: String = if (signed) "s1" else "u1"
     override def apiCall(defEndian: Option[FixedEndian]): String = if (signed) "s1" else "u1"
   }
   case class IntMultiType(signed: Boolean, width: IntWidth, endian: Option[FixedEndian]) extends IntType with ReadableType {
-    private final def bitWidth: Int =
-      IntType.NUM_BITS_IN_BYTE * width.width
-
-    override final def min: BigInt =
-      if (signed) {
-        -(BigInt(1) << (bitWidth - 1))
-      } else {
-        0
-      }
-    override final def max: BigInt =
-      (BigInt(1) << (bitWidth - (if (signed) 1 else 0))) - 1
+    override final val bitWidth: Int = IntType.NUM_BITS_IN_BYTE * width.width
     override def toPureTypeString: String =
       s"${if (signed) 's' else 'u'}${width.width}"
-
     override def apiCall(defEndian: Option[FixedEndian]): String = {
       val ch1 = if (signed) 's' else 'u'
       val finalEnd = endian.orElse(defEndian)
@@ -123,9 +109,8 @@ object DataType {
   }
   case class BitsType1(bitEndian: BitEndianness) extends BooleanType
   case class BitsType(width: Int, bitEndian: BitEndianness) extends IntType {
-    override final def min: BigInt = 0
-    override final def max: BigInt =
-      (BigInt(1) << width) - 1
+    override final val signed: Boolean = false
+    override final val bitWidth: Int = width
     override def toPureTypeString: String =
       s"b$width"
   }
