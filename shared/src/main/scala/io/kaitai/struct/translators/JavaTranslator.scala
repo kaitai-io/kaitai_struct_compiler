@@ -57,6 +57,8 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) if isBinOpResultU8(left, Ast.operator.Div, right) =>
         s"Long.divideUnsigned(${translate(left)}, ${translate(right)})"
+      case (_: IntType, _: IntType, Ast.operator.Mod) if isBinOpResultU8(left, Ast.operator.Mod, right) =>
+        s"Long.remainderUnsigned(${translate(left)}, ${translate(right)})"
       case (_: IntType, _: IntType, Ast.operator.RShift) if isBinOpResultU8(left, Ast.operator.RShift, right) =>
         genericBinOpStr(left, op, ">>>", right, extPrec)
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
