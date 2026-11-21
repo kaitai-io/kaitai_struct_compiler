@@ -400,7 +400,16 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case Some(InheritedEndian) => ", this._is_le"
           case _ => ""
         }
-        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
+        // The arguments must be represented like the values of their parameter
+        // types. Opaque types have no parameter definitions.
+        val args = if (t.isOpaque) {
+          t.args.map((a) => translator.translate(a))
+        } else {
+          t.args.zip(t.classSpec.get.params).map { case (arg, param) =>
+            translator.translateAsType(arg, param.dataType)
+          }
+        }
+        val addParams = Utils.join(args, ", ", ", ", "")
         s"new ${types2class(t.name, t.isExternal(typeProvider.nowClass))}($io, $parent, $root$addEndian$addParams)"
     }
   }

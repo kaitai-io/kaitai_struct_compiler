@@ -75,13 +75,22 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
       s"($expr >>> 0)"
     }
 
+  // e.g. `u4_val.as<u8>` must give a `bigint`
   override def doCast(value: Ast.expr, typeName: DataType): String =
-    (detectType(value), typeName) match {
-      // e.g. `u4_val.as<u8>` must give a `bigint`
-      case (_: IntType, it: IntType) => translateIntAs(value, JavaScriptTranslator.isBigIntType(it), METHOD_PRECEDENCE)
+    translateAsType(value, typeName, METHOD_PRECEDENCE)
+
+  /**
+    * Translates `v` in a place where a value of type `t` is expected (e.g. an
+    * argument for a parameter of type `t`). An integer is converted to a
+    * `bigint` or a `number` if values of `t` are represented differently.
+    * Other values are translated without a conversion.
+    */
+  def translateAsType(v: Ast.expr, t: DataType, extPrec: Int = 0): String =
+    (detectType(v), t) match {
+      case (_: IntType, it: IntType) => translateIntAs(v, JavaScriptTranslator.isBigIntType(it), extPrec)
       // floats are `number`
-      case (_: IntType, _: FloatType) => translateIntAs(value, false, METHOD_PRECEDENCE)
-      case _ => super.doCast(value, typeName)
+      case (_: IntType, _: FloatType) => translateIntAs(v, false, extPrec)
+      case _ => translate(v, extPrec)
     }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
