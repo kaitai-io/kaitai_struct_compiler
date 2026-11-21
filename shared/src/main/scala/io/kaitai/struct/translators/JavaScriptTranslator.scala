@@ -68,7 +68,16 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
       case (_: IntType, _: IntType, Ast.operator.Div) =>
-        s"Math.floor(${super.genericBinOp(left, op, right, 0)})"
+        val binExpr = Ast.expr.BinOp(left, Ast.operator.Div, right)
+        detectType(binExpr) match {
+          case it: IntType if JavaScriptTranslator.isBigIntType(it) =>
+            // `/` on `bigint` operands rounds toward zero, but KS rounds down
+            val leftStr = translateBinaryOperand(left, binExpr, 0)
+            val rightStr = translateBinaryOperand(right, binExpr, 0)
+            s"${JavaScriptCompiler.kstreamName}.divBigInt($leftStr, $rightStr)"
+          case _ =>
+            s"Math.floor(${super.genericBinOp(left, op, right, 0)})"
+        }
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
         val binExpr = Ast.expr.BinOp(left, Ast.operator.Mod, right)
         val leftStr = translateBinaryOperand(left, binExpr, 0)
