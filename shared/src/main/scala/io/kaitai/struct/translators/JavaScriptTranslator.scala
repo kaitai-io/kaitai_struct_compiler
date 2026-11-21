@@ -31,13 +31,19 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
       case it: IntType => JavaScriptTranslator.isBigIntType(it)
       case _ => false
     }
-    if (asBigInt && !isBigInt) {
-      TypeDetector.intLiteralValue(v) match {
-        case Some(n) => s"${n}n"
-        case None => s"BigInt(${translate(v)})"
-      }
-    } else {
-      translate(v, extPrec)
+    (isBigInt, asBigInt) match {
+      case (false, true) =>
+        TypeDetector.intLiteralValue(v) match {
+          case Some(n) => s"${n}n"
+          case None => s"BigInt(${translate(v)})"
+        }
+      case (true, false) =>
+        TypeDetector.intLiteralValue(v) match {
+          case Some(n) => n.toString
+          case None => s"Number(${translate(v)})"
+        }
+      case _ =>
+        translate(v, extPrec)
     }
   }
 
@@ -46,6 +52,14 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
       case it: IntType => translateIntAs(operand, JavaScriptTranslator.isBigIntType(it), extPrec)
       case _ => translate(operand, extPrec)
     }
+
+  /**
+    * A `bigint` can't be shifted by a `number` or vice versa (e.g. `1n << 3`
+    * throws a `TypeError`), so the shift distance is converted like the
+    * other operators' operands.
+    */
+  override def translateShiftDistance(distance: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String =
+    translateBinaryOperand(distance, binExpr, extPrec)
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new Uint8Array([${arr.map(_ & 0xff).mkString(", ")}])"
@@ -83,7 +97,9 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
         val leftStr = translateBinaryOperand(left, binExpr, 0)
         val rightStr = translateBinaryOperand(right, binExpr, 0)
         s"${JavaScriptCompiler.kstreamName}.mod($leftStr, $rightStr)"
-      case (_: IntType, _: IntType, Ast.operator.RShift) =>
+      // `>>>` throws a `TypeError` for `bigint` operands, so `bigint` uses `>>`,
+      // which behaves like a logical shift for non-negative values
+      case (lt: IntType, _: IntType, Ast.operator.RShift) if !JavaScriptTranslator.isBigIntType(lt) =>
         genericBinOpStr(left, op, ">>>", right, extPrec)
       case _ =>
         super.genericBinOp(left, op, right, extPrec)

@@ -52,7 +52,8 @@ trait CommonOps extends AbstractTranslator {
       case _ => translate(left, thisPrec)
     }
     val rightStr = op match {
-      case Ast.operator.LShift | Ast.operator.RShift => translateShiftDistance(right, thisPrec)
+      case op: Ast.operator if op == Ast.operator.LShift || op == Ast.operator.RShift =>
+        translateShiftDistance(right, Ast.expr.BinOp(left, op, right), thisPrec)
       case op: Ast.operator => translateBinaryOperand(right, Ast.expr.BinOp(left, op, right), thisPrec)
       case _ => translate(right, thisPrec)
     }
@@ -78,14 +79,14 @@ trait CommonOps extends AbstractTranslator {
     translate(operand, extPrec)
 
   /**
-   * Translates the shift distance `distance` (the right operand of `<<` or
-   * `>>`). The result type of a shift depends only on its left operand, so
-   * by default, the distance is translated as is.
+   * Translates the shift distance `distance` (the right operand of the `<<`
+   * or `>>` expression `binExpr`). The result type of a shift depends only on
+   * its left operand, so by default, the distance is translated as is.
    *
    * Languages that require a specific type for the shift distance should
    * override this method to convert it.
    */
-  def translateShiftDistance(distance: Ast.expr, extPrec: Int): String =
+  def translateShiftDistance(distance: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String =
     translate(distance, extPrec)
 
   def binOp(op: Ast.operator): String = {

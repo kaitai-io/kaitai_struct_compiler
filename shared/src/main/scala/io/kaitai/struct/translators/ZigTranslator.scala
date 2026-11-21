@@ -77,7 +77,7 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
   // needs no `@intCast`, because KSC rejects constant distances outside the
   // range of that type (0..31 for `i32`), except if the left operand is
   // `CalcIntType`.
-  override def translateShiftDistance(distance: Ast.expr, extPrec: Int): String =
+  override def translateShiftDistance(distance: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String =
     if (TypeDetector.intLiteralValue(distance).isDefined) {
       translate(distance, extPrec)
     } else {
