@@ -190,9 +190,7 @@ class TranslatorSpec extends AnyFunSpec {
 
     everybody("(0b01 & 0b11) << 1", "(1 & 3) << 1", IntMultiType(true, Width4, None))
 
-    everybodyExcept("(0b01 & 0b10) >> 1", "(1 & 2) >> 1", ResultMap(
-      JavaScriptCompiler -> "(1 & 2) >>> 1"
-    ), IntMultiType(true, Width4, None))
+    everybody("(0b01 & 0b10) >> 1", "(1 & 2) >> 1", IntMultiType(true, Width4, None))
 
     everybodyExcept("3 | 1 ^ 2", "3 | 1 ^ 2", ResultMap(
       GoCompiler -> "3 | (1 ^ 2)",

@@ -110,10 +110,18 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
         val leftStr = translateBinaryOperand(left, binExpr, 0)
         val rightStr = translateBinaryOperand(right, binExpr, 0)
         s"${JavaScriptCompiler.kstreamName}.mod($leftStr, $rightStr)"
-      // `>>>` throws a `TypeError` for `bigint` operands, so `bigint` uses `>>`,
-      // which behaves like a logical shift for non-negative values
-      case (lt: IntType, _: IntType, Ast.operator.RShift) if !JavaScriptTranslator.isBigIntType(lt) =>
-        genericBinOpStr(left, op, ">>>", right, extPrec)
+      case (_: IntType, _: IntType, Ast.operator.RShift) =>
+        detectType(Ast.expr.BinOp(left, Ast.operator.RShift, right)) match {
+          // `>>>` is a logical shift (for `number` only, `bigint` throws a
+          // `TypeError`). `CalcIntType` uses it too, because `>>` would make
+          // values from `0x8000_0000` to `0xffff_ffff` negative.
+          case CalcIntType | IntMultiType(false, Width4, _) =>
+            genericBinOpStr(left, op, ">>>", right, extPrec)
+          // `>>` is an arithmetic shift, and since `bigint` values of unsigned
+          // types are never negative, it behaves like a logical shift for them
+          case _ =>
+            super.genericBinOp(left, op, right, extPrec)
+        }
       case (_: IntType, _: IntType, bitOp: Ast.operator)
           if bitOp == Ast.operator.BitAnd || bitOp == Ast.operator.BitOr || bitOp == Ast.operator.BitXor =>
         detectType(Ast.expr.BinOp(left, bitOp, right)) match {
