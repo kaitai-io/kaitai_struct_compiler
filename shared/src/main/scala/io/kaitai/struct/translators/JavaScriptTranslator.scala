@@ -20,6 +20,33 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
       s"${n}n"
     }
 
+  /**
+    * Translates the integer expression `v` as a `bigint` if `asBigInt` is
+    * true, and as a `number` otherwise. JavaScript doesn't allow mixing
+    * `bigint` and `number` operands in arithmetic and bitwise operators (e.g.
+    * `1n + 1` throws a `TypeError`), so operands must be converted.
+    */
+  def translateIntAs(v: Ast.expr, asBigInt: Boolean, extPrec: Int): String = {
+    val isBigInt = detectType(v) match {
+      case it: IntType => JavaScriptTranslator.isBigIntType(it)
+      case _ => false
+    }
+    if (asBigInt && !isBigInt) {
+      TypeDetector.intLiteralValue(v) match {
+        case Some(n) => s"${n}n"
+        case None => s"BigInt(${translate(v)})"
+      }
+    } else {
+      translate(v, extPrec)
+    }
+  }
+
+  override def translateBinaryOperand(operand: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String =
+    detectType(binExpr) match {
+      case it: IntType => translateIntAs(operand, JavaScriptTranslator.isBigIntType(it), extPrec)
+      case _ => translate(operand, extPrec)
+    }
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new Uint8Array([${arr.map(_ & 0xff).mkString(", ")}])"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
