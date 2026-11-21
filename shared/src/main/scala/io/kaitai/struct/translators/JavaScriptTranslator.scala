@@ -114,6 +114,18 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
       // which behaves like a logical shift for non-negative values
       case (lt: IntType, _: IntType, Ast.operator.RShift) if !JavaScriptTranslator.isBigIntType(lt) =>
         genericBinOpStr(left, op, ">>>", right, extPrec)
+      case (_: IntType, _: IntType, bitOp: Ast.operator)
+          if bitOp == Ast.operator.BitAnd || bitOp == Ast.operator.BitOr || bitOp == Ast.operator.BitXor =>
+        detectType(Ast.expr.BinOp(left, bitOp, right)) match {
+          // `&`, `|` and `^` give a signed 32-bit result for `number` operands
+          // (e.g. `0x8000_0000 | 0` is `-0x8000_0000`). The operation must be
+          // parenthesized, because these operators have a lower precedence
+          // than `>>>` used by `truncateToUnsigned()`.
+          case it @ IntMultiType(false, Width4, _) =>
+            truncateToUnsigned(super.genericBinOp(left, op, right, OPERATOR_PRECEDENCE(Ast.operator.RShift)), it)
+          case _ =>
+            super.genericBinOp(left, op, right, extPrec)
+        }
       case _ =>
         super.genericBinOp(left, op, right, extPrec)
     }
