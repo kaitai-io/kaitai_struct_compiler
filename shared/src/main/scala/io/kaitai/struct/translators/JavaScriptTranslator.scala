@@ -186,7 +186,18 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def arraySubscript(container: expr, idx: expr): String =
     s"${translate(container)}[${translate(idx)}]"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
-    s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
+    detectType(Ast.expr.IfExp(condition, ifTrue, ifFalse)) match {
+      // both branches must be converted to the result type, otherwise the
+      // result could be a `number` or a `bigint` depending on the condition
+      case it: IntType =>
+        val asBigInt = JavaScriptTranslator.isBigIntType(it)
+        s"(${translate(condition)} ? ${translateIntAs(ifTrue, asBigInt, 0)} : ${translateIntAs(ifFalse, asBigInt, 0)})"
+      // integer branches of a float result must be `number`
+      case _: FloatType =>
+        s"(${translate(condition)} ? ${translateIntAs(ifTrue, false, 0)} : ${translateIntAs(ifFalse, false, 0)})"
+      case _ =>
+        s"(${translate(condition)} ? ${translate(ifTrue)} : ${translate(ifFalse)})"
+    }
 
   // Predefined methods of various types
   override def strToInt(s: expr, base: expr): String =
