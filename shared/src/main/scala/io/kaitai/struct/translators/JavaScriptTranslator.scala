@@ -258,8 +258,9 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def strReverse(s: expr): String =
     s"Array.from(${translate(s)}).reverse().join('')"
 
+  // `substring()` throws a `TypeError` for `bigint` arguments
   override def strSubstring(s: expr, from: expr, to: expr): String =
-    s"${translate(s, METHOD_PRECEDENCE)}.substring(${translate(from)}, ${translate(to)})"
+    s"${translate(s, METHOD_PRECEDENCE)}.substring(${translateIntAs(from, false, 0)}, ${translateIntAs(to, false, 0)})"
 
   override def arrayFirst(a: expr): String =
     s"${translate(a)}[0]"
