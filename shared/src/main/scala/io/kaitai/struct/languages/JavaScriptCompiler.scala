@@ -341,6 +341,19 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"} while (!(${expression(untilExpr)}));")
   }
 
+  /**
+    * Converts integers read as `number` to `bigint` if they're assigned to a
+    * field whose type is represented as `bigint`, e.g. if `type/cases`
+    * contains both `u4` and `u8`, the combined type is `u8`.
+    */
+  override def castIfNeeded(expr: String, exprType: DataType, targetType: DataType): String =
+    (exprType, targetType.asCombined) match {
+      case (et: IntType, tt: IntType) if !JavaScriptTranslator.isBigIntType(et) && JavaScriptTranslator.isBigIntType(tt) =>
+        s"BigInt($expr)"
+      case _ =>
+        expr
+    }
+
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
