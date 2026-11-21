@@ -70,7 +70,10 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
       case (_: IntType, _: IntType, Ast.operator.Div) =>
         s"Math.floor(${super.genericBinOp(left, op, right, 0)})"
       case (_: IntType, _: IntType, Ast.operator.Mod) =>
-        s"${JavaScriptCompiler.kstreamName}.mod(${translate(left)}, ${translate(right)})"
+        val binExpr = Ast.expr.BinOp(left, Ast.operator.Mod, right)
+        val leftStr = translateBinaryOperand(left, binExpr, 0)
+        val rightStr = translateBinaryOperand(right, binExpr, 0)
+        s"${JavaScriptCompiler.kstreamName}.mod($leftStr, $rightStr)"
       case (_: IntType, _: IntType, Ast.operator.RShift) =>
         genericBinOpStr(left, op, ">>>", right, extPrec)
       case _ =>
