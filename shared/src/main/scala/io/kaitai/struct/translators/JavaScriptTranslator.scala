@@ -61,6 +61,19 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def translateShiftDistance(distance: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String =
     translateBinaryOperand(distance, binExpr, extPrec)
 
+  /**
+    * `<<` and `~` give a signed 32-bit result for `number` operands (e.g.
+    * `~0` is `-1`), and a signed result of unlimited width for `bigint`
+    * operands (e.g. `~0n` is `-1n`), so unsigned results need to be
+    * truncated.
+    */
+  override def truncateToUnsigned(expr: String, t: IntType): String =
+    if (JavaScriptTranslator.isBigIntType(t)) {
+      s"BigInt.asUintN(${t.bitWidth}, $expr)"
+    } else {
+      s"($expr >>> 0)"
+    }
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new Uint8Array([${arr.map(_ & 0xff).mkString(", ")}])"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
