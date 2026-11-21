@@ -549,20 +549,20 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${type2class(curClass.last)}.${type2class(enumName)} = Object.freeze({")
     out.inc
 
-    // Name to ID mapping
+    // Name to ID mapping (the IDs of 64-bit enums are `bigint`)
+    val isBigInt = JavaScriptTranslator.isBigIntType(enumSpec.intType)
     enumColl.foreach { case (id, label) =>
-      out.puts(s"${enumValue(enumName, label.name)}: ${translator.doIntLiteral(id)},")
+      val idStr = if (isBigInt) s"${id}n" else translator.doIntLiteral(id)
+      out.puts(s"${enumValue(enumName, label.name)}: $idStr,")
     }
     out.puts
 
-    // ID to name mapping
+    // ID to name mapping. The keys are always quoted. A negative number
+    // can't be used as a key without quotes, and a large number may be
+    // rounded (for example, the object literal `{18446744073709551615: 1}`
+    // has the key `"18446744073709552000"` in JavaScript).
     enumColl.foreach { case (id, label) =>
-      val idStr = if (id < 0) {
-        "\"" + id.toString + "\""
-      } else {
-        id.toString
-      }
-      out.puts(s"""$idStr: "${enumValue(enumName, label.name)}",""")
+      out.puts(s"""\"$id\": "${enumValue(enumName, label.name)}",""")
     }
 
     out.dec

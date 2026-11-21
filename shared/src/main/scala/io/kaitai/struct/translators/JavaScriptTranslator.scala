@@ -177,8 +177,9 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
     s"${JavaScriptCompiler.types2class(enumSpec.name, isExternal)}.${Utils.upperUnderscoreCase(label)}"
   }
   override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    // Just an integer, without any casts / resolutions - one would have to look up constants manually
-    id
+    // Just an integer, not resolved to an enum constant. The IDs of 64-bit
+    // enums are `bigint` (`BigInt()` returns a `bigint` argument as is).
+    if (JavaScriptTranslator.isBigIntType(enumSpec.intType)) s"BigInt($id)" else id
 
   override def doBytesCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int): String =
     s"(${JavaScriptCompiler.kstreamName}.byteArrayCompare(${translate(left)}, ${translate(right)}) ${cmpOp(op)} 0)"
