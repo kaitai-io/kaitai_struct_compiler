@@ -351,7 +351,11 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
+        val suffix = t match {
+          case it: IntType if JavaScriptTranslator.isBigIntType(it) => "AsBigInt"
+          case _ => ""
+        }
+        s"$io.read${Utils.capitalize(t.apiCall(defEndian))}$suffix()"
       case blt: BytesLimitType =>
         s"$io.readBytes(${expression(blt.size)})"
       case _: BytesEosType =>
@@ -365,8 +369,9 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
-      case BitsType(width: Int, bitEndian) =>
-        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
+      case t @ BitsType(width: Int, bitEndian) =>
+        val suffix = if (JavaScriptTranslator.isBigIntType(t)) "AsBigInt" else ""
+        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}$suffix($width)"
       case t: UserType =>
         val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
           ("null", "null")

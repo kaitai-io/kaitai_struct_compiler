@@ -500,7 +500,7 @@ object TypeDetector {
     * @return resulting type
     */
   def binaryCalcIntResultType(other: IntType): IntType =
-    // `bitWidth` isn't defined for `CalcIntType`, so it's checked first
+    // `CalcIntType` is checked first, because its `bitWidth` isn't defined
     if (other != CalcIntType && other.bitWidth > 32) promoteIntType(other) else CalcIntType
 
   /**

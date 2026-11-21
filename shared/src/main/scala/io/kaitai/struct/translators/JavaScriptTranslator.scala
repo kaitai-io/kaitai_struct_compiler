@@ -144,3 +144,16 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def kaitaiStreamEof(value: Ast.expr): String =
     s"${translate(value, METHOD_PRECEDENCE)}.isEof()"
 }
+
+object JavaScriptTranslator {
+  /**
+    * Checks if values of the integer type `t` are represented as `bigint`
+    * instead of `number`. That's the case for 64-bit integers (`s8`, `u8`
+    * and `b33`..`b64`), because `number` can't represent all of their values
+    * exactly (and bitwise operators truncate `number` operands to 32-bit
+    * integers).
+    */
+  def isBigIntType(t: IntType): Boolean =
+    // `CalcIntType` is checked first, because its `bitWidth` isn't defined
+    t != CalcIntType && t.bitWidth > 32
+}
