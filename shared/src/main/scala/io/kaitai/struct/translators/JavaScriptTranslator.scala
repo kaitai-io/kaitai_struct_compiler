@@ -51,6 +51,8 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
   override def translateBinaryOperand(operand: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String =
     detectType(binExpr) match {
       case it: IntType => translateIntAs(operand, JavaScriptTranslator.isBigIntType(it), extPrec)
+      // floats are `number`, so integer operands must be `number` too
+      case _: FloatType => translateIntAs(operand, false, extPrec)
       case _ => translate(operand, extPrec)
     }
 
