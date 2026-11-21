@@ -129,9 +129,12 @@ class TypeDetector(provider: TypeProvider) {
       case Ast.expr.IfExp(condition: Ast.expr, ifTrue: Ast.expr, ifFalse: Ast.expr) =>
         detectType(condition) match {
           case _: BooleanType =>
-            val trueType = detectType(ifTrue)
-            val falseType = detectType(ifFalse)
-            combineTypesAndFail(trueType, falseType)
+            (detectType(ifTrue), detectType(ifFalse)) match {
+              case (tt: IntType, ft: IntType) =>
+                ternaryIntResultType(ifTrue, tt, ifFalse, ft)
+              case (tt, ft) =>
+                combineTypesAndFail(tt, ft)
+            }
           case other => throw new TypeMismatchError(s"unable to switch over $other")
         }
       case Ast.expr.Subscript(container: Ast.expr, idx: Ast.expr) =>
@@ -390,19 +393,100 @@ object TypeDetector {
     * @param op binary operator
     * @return resulting type
     */
-  def binaryIntResultType(left: Ast.expr, ltype: IntType, right: Ast.expr, rtype: IntType, op: Ast.operator): IntMultiType = {
-    val lt = promoteIntType(ltype)
-    val rt = promoteIntType(rtype)
-    if (intOperandFitsInto(left, ltype, rt)) {
-      rt
-    } else if (intOperandFitsInto(right, rtype, lt)) {
-      lt
-    } else {
+  def binaryIntResultType(left: Ast.expr, ltype: IntType, right: Ast.expr, rtype: IntType, op: Ast.operator): IntMultiType =
+    promotedIntResultType(left, ltype, right, rtype).getOrElse(
       throw new TypeMismatchError(
         s"unable to apply binary operator $op to ${ltype.toPureTypeString} and ${rtype.toPureTypeString} " +
         "(signed integers can't be mixed with unsigned integers of the same or greater width, use a type cast `.as<>` on one of the operands)"
       )
+    )
+
+  /**
+    * Returns the promoted type of one operand if all possible values of the
+    * other operand fit into it (see [[binaryIntResultType]]).
+    * @param left left-hand operand
+    * @param ltype type of the left-hand operand (other than [[CalcIntType]])
+    * @param right right-hand operand
+    * @param rtype type of the right-hand operand (other than [[CalcIntType]])
+    * @return resulting type, or None if neither operand fits into the
+    *         promoted type of the other one
+    */
+  def promotedIntResultType(left: Ast.expr, ltype: IntType, right: Ast.expr, rtype: IntType): Option[IntMultiType] = {
+    val lt = promoteIntType(ltype)
+    val rt = promoteIntType(rtype)
+    if (intOperandFitsInto(left, ltype, rt)) {
+      Some(rt)
+    } else if (intOperandFitsInto(right, rtype, lt)) {
+      Some(lt)
+    } else {
+      None
     }
+  }
+
+  /**
+    * Derives the resulting type of the ternary operator (`?:`) with integer
+    * branches. The result type is the same as for arithmetic binary
+    * operations (see [[binaryIntResultType]]), except that if both branches
+    * are at most 16 bits wide and have the same signedness, the wider of the
+    * two types is the result type (e.g. `c ? u1_val : u2_val` is `u2`).
+    * Here, bit-sized integers up to `b8` count as `u1`, and `b9`..`b16` as
+    * `u2` (e.g. `c ? b3_val : b5_val` is `u1`). An integer literal branch
+    * takes the type of the other branch if its value fits into it (e.g.
+    * `c ? u1_val : 5` is `u1`). A [[CalcIntType]] branch is handled as in
+    * [[binaryCalcIntResultType]].
+    * @param ifTrue branch for a true condition
+    * @param ttype type of `ifTrue`
+    * @param ifFalse branch for a false condition
+    * @param ftype type of `ifFalse`
+    * @return resulting type
+    */
+  def ternaryIntResultType(ifTrue: Ast.expr, ttype: IntType, ifFalse: Ast.expr, ftype: IntType): IntType = {
+    (ttype, ftype) match {
+      case (CalcIntType, _) => binaryCalcIntResultType(ftype)
+      case (_, CalcIntType) => binaryCalcIntResultType(ttype)
+      case _ =>
+        val tt = ternaryBranchIntType(ttype)
+        val ft = ternaryBranchIntType(ftype)
+        val trueLiteralFits = intLiteralValue(ifTrue).exists(x => x >= ft.min && x <= ft.max)
+        val falseLiteralFits = intLiteralValue(ifFalse).exists(x => x >= tt.min && x <= tt.max)
+        if (tt.bitWidth <= 16 && ft.bitWidth <= 16 && tt.signed == ft.signed) {
+          if (tt.bitWidth >= ft.bitWidth) tt else ft
+        } else if (trueLiteralFits && falseLiteralFits) {
+          // Both branches are literals that fit into the type of the other one
+          // (e.g. `-1` is `s4` and fits into `s1`, and `5` is `s1` and fits into
+          // `s4`). The narrower type is the result type, so that the result type
+          // doesn't depend on the branch order.
+          if (tt.bitWidth <= ft.bitWidth) tt else ft
+        } else if (trueLiteralFits) {
+          ft
+        } else if (falseLiteralFits) {
+          tt
+        } else {
+          // the original types are passed here, because all values of
+          // `b17`..`b31` fit into `u4`, but not all values of their normalized
+          // type `s4` do
+          promotedIntResultType(ifTrue, ttype, ifFalse, ftype).getOrElse(
+            throw new TypeMismatchError(
+              s"unable to combine ${ttype.toPureTypeString} and ${ftype.toPureTypeString} in the ternary operator " +
+              "(signed integers can't be mixed with unsigned integers of the same or greater width, use a type cast `.as<>` on one of the branches)"
+            )
+          )
+        }
+    }
+  }
+
+  /**
+    * Normalizes the type of an integer branch of the ternary operator:
+    * types at most 16 bits wide become `s1`, `s2`, `u1` or `u2` (e.g. `b3`
+    * becomes `u1`). Wider types are promoted like operands of binary
+    * operators.
+    * @param t integer type (other than [[CalcIntType]])
+    * @return normalized type
+    */
+  def ternaryBranchIntType(t: IntType): IntType = t match {
+    case _ if t.bitWidth <= 8 => Int1Type(t.signed)
+    case _ if t.bitWidth <= 16 => IntMultiType(t.signed, Width2, None)
+    case _ => promoteIntType(t)
   }
 
   /**
