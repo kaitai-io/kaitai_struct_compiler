@@ -8,6 +8,18 @@ import io.kaitai.struct.format.{EnumSpec, Identifier}
 import io.kaitai.struct.languages.JavaScriptCompiler
 
 class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+  /**
+    * Integer literals outside the `int32` and `uint32` ranges have a 64-bit
+    * type (see [[TypeDetector.detectType]]), so they're translated as
+    * `bigint` literals (e.g. `0x1_0000_0000` becomes `4294967296n`).
+    */
+  override def doIntLiteral(n: BigInt): String =
+    if (n >= Int.MinValue && n <= Utils.MAX_UINT32) {
+      n.toString
+    } else {
+      s"${n}n"
+    }
+
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
     s"new Uint8Array([${arr.map(_ & 0xff).mkString(", ")}])"
   override def doByteArrayNonLiteral(elts: Seq[Ast.expr]): String =
