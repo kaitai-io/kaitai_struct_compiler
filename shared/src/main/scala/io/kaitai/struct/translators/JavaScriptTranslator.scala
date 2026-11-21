@@ -1,6 +1,7 @@
 package io.kaitai.struct.translators
 
 import io.kaitai.struct.{ImportList, Utils}
+import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
 import io.kaitai.struct.exprlang.Ast
 import io.kaitai.struct.exprlang.Ast.expr
@@ -72,6 +73,15 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
       s"BigInt.asUintN(${t.bitWidth}, $expr)"
     } else {
       s"($expr >>> 0)"
+    }
+
+  override def doCast(value: Ast.expr, typeName: DataType): String =
+    (detectType(value), typeName) match {
+      // e.g. `u4_val.as<u8>` must give a `bigint`
+      case (_: IntType, it: IntType) => translateIntAs(value, JavaScriptTranslator.isBigIntType(it), METHOD_PRECEDENCE)
+      // floats are `number`
+      case (_: IntType, _: FloatType) => translateIntAs(value, false, METHOD_PRECEDENCE)
+      case _ => super.doCast(value, typeName)
     }
 
   override def doByteArrayLiteral(arr: Seq[Byte]): String =
