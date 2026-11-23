@@ -46,10 +46,10 @@ object EnumSpec {
 
   def fromYaml(src: Any, path: List[String]): EnumSpec = {
     val srcMap = ParseUtils.asMap(src, path)
-    // Check whether we're dealing with the old enum syntax used in KS 0.11 and
-    // earlier. Strictly speaking, this is not necessary (the old syntax would
-    // be rejected anyway), but we do this to make the error message as helpful
-    // as possible.
+    // Check whether we're dealing with the old enum syntax used before KS 2.0.
+    // Strictly speaking, this is not necessary (the old syntax would be
+    // rejected anyway), but we do this to make the error message as helpful as
+    // possible.
     if (srcMap.nonEmpty && !LEGAL_KEYS.exists(srcMap.contains) && srcMap.exists { case (key, _) =>
       try {
         ParseUtils.asBigInt(key, Nil)
@@ -59,14 +59,14 @@ object EnumSpec {
       }
     }) {
       throw KSYParseError.withText(
-        "legacy pre-v0.12 enum syntax; add `type: <int_type>` (e.g. `type: u4`) and indent entries under the `values` key",
+        "legacy pre-v2.0 enum syntax; add `type: <int_type>` (e.g. `type: u4`) and indent entries under the `values` key",
         path
       )
     }
 
     // At this point, either the map is empty or contains no integer keys (in
     // which case we will report missing mandatory properties of the new
-    // syntax), or an attempt was made to use the new KS 0.12+ syntax (see
+    // syntax), or an attempt was made to use the new KS 2.0+ syntax (see
     // https://github.com/kaitai-io/kaitai_struct/issues/1288), so we are
     // treating it as such
     val srcMapStr = ParseUtils.anyMapToStrMap(srcMap, path)
