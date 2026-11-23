@@ -4,6 +4,16 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers._
 
 class KSVersion$Test extends AnyFunSpec {
+  describe("KSVersion.fromStr") {
+    it("ignores the suffix of a snapshot version") {
+      KSVersion.fromStr("0.12-SNAPSHOT20251016.123456.d0bb32b8").nums should be(List(0, 12))
+    }
+
+    it("ignores the suffix of a pre-release version") {
+      KSVersion.fromStr("2.0.0-alpha.1").nums should be(List(2, 0, 0))
+    }
+  }
+
   describe("KSVersion.compareTo") {
     it("returns 0 for equal versions") {
       val v1 = KSVersion.fromStr("1.2.3")

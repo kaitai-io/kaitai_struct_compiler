@@ -97,8 +97,13 @@ object KSVersion {
 
   def current: KSVersion = _current.get
 
+  /**
+    * Parses a version string such as `0.11` or `1.2.3`. A pre-release suffix
+    * starting with `-` (e.g. `-SNAPSHOT...` or `-alpha.1`) is ignored, so
+    * `2.0.0-alpha.1` is treated as `2.0.0`.
+    */
   def fromStr(str: String): KSVersion =
-    new KSVersion(str.replaceAll("-SNAPSHOT.*$", "").split('.').map(_.toInt).toList)
+    new KSVersion(str.replaceAll("-.*$", "").split('.').map(_.toInt).toList)
 
   /**
     * Hardcoded minimal version of runtime API that this particular
