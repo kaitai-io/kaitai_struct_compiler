@@ -153,6 +153,11 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
 
     debianPackageDependencies := Seq("java8-runtime-headless"),
 
+    // Debian reads `2.0.0-alpha.1` as upstream version `2.0.0` with Debian
+    // revision `alpha.1`, which dpkg considers newer than the `2.0.0` release.
+    // `2.0.0~alpha.1` is considered older.
+    Debian / version := version.value.replaceFirst("-", "~"),
+
     Linux / packageSummary := s"compiler to generate binary data parsers in $TARGET_LANGS",
     Windows / packageSummary := "Kaitai Struct compiler",
     Linux / packageDescription :=
@@ -166,8 +171,9 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
        | formats description.""".stripMargin,
     Windows / packageDescription := s"Compiler to translate Kaitai Struct (.ksy) files into $TARGET_LANGS source code",
 
-    // Fix version for Windows: Wix doesn't allow stuff like "-SNAPSHOT" to appear in the version
-    Windows / version := VERSION.replace("-SNAPSHOT", ""),
+    // WiX only accepts numeric versions, so drop any suffix starting with `-`
+    // (e.g. `-SNAPSHOT` or `-alpha.1`)
+    Windows / version := VERSION.replaceAll("-.*$", ""),
 
     wixProductId := "ddcf06bc-fd48-434b-93db-1e97ba8d13a7",
     wixProductUpgradeId := "63e85f5f-7680-4b3e-9bb9-dea0f70e970a",
