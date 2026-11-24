@@ -40,20 +40,27 @@ class StyleCheckIds(specs: ClassSpecs) extends PrecompileStep {
   }
 
   def getSizeRefProblem(spec: ClassSpec, attr: MemberSpec): Option[CompilationProblem] = {
-    getSizeReference(spec, attr.dataType).flatMap(sizeRefAttr => {
-      val existingName = sizeRefAttr.id.humanReadable
-      val goodName = s"len_${attr.id.humanReadable}"
-      if (existingName != goodName) {
-        Some(StyleWarningSizeLen(
-          goodName,
-          existingName,
-          attr.id.humanReadable,
-          ProblemCoords(path = Some(sizeRefAttr.path ++ List("id")))
-        ))
-      } else {
-        None
-      }
-    })
+    try {
+      getSizeReference(spec, attr.dataType).flatMap(sizeRefAttr => {
+        val existingName = sizeRefAttr.id.humanReadable
+        val goodName = s"len_${attr.id.humanReadable}"
+        if (existingName != goodName) {
+          Some(StyleWarningSizeLen(
+            goodName,
+            existingName,
+            attr.id.humanReadable,
+            ProblemCoords(path = Some(sizeRefAttr.path ++ List("id")))
+          ))
+        } else {
+          None
+        }
+      })
+    } catch {
+      // This pass can be called on model with errors, in particular, types of
+      // value instances could not be calculated. In that case just ignore that
+      // instance
+      case _: ExpressionError => None
+    }
   }
 
   def getRepeatExprRefProblem(spec: ClassSpec, attr: AttrLikeSpec): Option[CompilationProblem] = {

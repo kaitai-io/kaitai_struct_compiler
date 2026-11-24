@@ -32,16 +32,23 @@ object CanonicalizeEncodingNames {
   }
 
   def canonicalizeMember(member: MemberSpec): Iterable[CompilationProblem] = {
-    (member.dataType match {
-      case strType: StrFromBytesType =>
-        val (newEncoding, problem1) = canonicalizeName(strType.encoding)
-        strType.encoding = newEncoding
-        // Do not report problem if encoding was derived from `meta/encoding` key
-        if (strType.isEncodingDerived) None else problem1
-      case _ =>
-        // not a string type = no problem
-        None
-    }).map(problem => problem.localizedInPath(member.path ++ List("encoding")))
+    try {
+      (member.dataType match {
+        case strType: StrFromBytesType =>
+          val (newEncoding, problem1) = canonicalizeName(strType.encoding)
+          strType.encoding = newEncoding
+          // Do not report problem if encoding was derived from `meta/encoding` key
+          if (strType.isEncodingDerived) None else problem1
+        case _ =>
+          // not a string type = no problem
+          None
+      }).map(problem => problem.localizedInPath(member.path ++ List("encoding")))
+    } catch {
+      // This pass can be called on model with errors, in particular, types of
+      // value instances could not be calculated. In that case just ignore that
+      // instance
+      case _: ExpressionError => None
+    }
   }
 
   def canonicalizeName(original: String): (String, Option[CompilationProblem with PathLocalizable]) = {
