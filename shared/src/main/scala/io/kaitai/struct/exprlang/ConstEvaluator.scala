@@ -30,6 +30,22 @@ object ConstEvaluator {
   }
 
   /**
+    * Evaluates the expression, if it's possible to get a boolean constant
+    * as the result of evaluation (i.e. if it does not involve any variables
+    * or anything like that).
+    *
+    * @param ex expression to evaluate.
+    * @return boolean result of evaluation if it's constant or None, if it's
+    *         variable or potentially variable.
+    */
+  def evaluateBoolConst(ex: Ast.expr): Option[Boolean] = {
+    evaluate(ex) match {
+      case value.Bool(x) => Some(x)
+      case _ => None
+    }
+  }
+
+  /**
     * Evaluates the expression, if it's possible to get a constant as the result
     * of evaluation (i.e. if it does not involve any variables or anything like
     * that).
@@ -72,17 +88,22 @@ object ConstEvaluator {
         case _ => value.NonConst
       }
 
-    case expr.BoolOp(op, values) =>
-      value.Bool(values.foldLeft(true)((acc, right) => {
-        val rightValue = evaluate(right) match {
-          case value.Bool(x) => x
-          case _ => return value.NonConst
-        }
-        op match {
-          case boolop.And => acc && rightValue
-          case boolop.Or => acc || rightValue
-        }
-      }))
+    case expr.BoolOp(boolop.And, values) => values.foldLeft[value](value.Bool(true))(
+      (acc, right) => evaluate(right) match {
+        // `... && false` always produce `false`, so do early return
+        case value.Bool(false) => return value.Bool(false)
+        case value.Bool(true)  => value.Bool(true)
+        case _ => value.NonConst
+      }
+    )
+    case expr.BoolOp(boolop.Or, values) => values.foldLeft[value](value.Bool(false))(
+      (acc, right) => evaluate(right) match {
+        // `... || true` always produce `false`, so do early return
+        case value.Bool(true)  => return value.Bool(true)
+        case value.Bool(false) => value.Bool(false)
+        case _ => value.NonConst
+      }
+    )
 
     case expr.Compare(left, op, right) =>
       val leftValue = evaluate(left)
