@@ -41,9 +41,14 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts
 
     importList.add("local class = require(\"class\")")
-    importList.add("require(\"kaitaistruct\")")
+    importList.add("local KaitaiStruct = require(\"kaitaistruct\")[1]")
+    importList.add("local KaitaiStream = require(\"kaitaistruct\")[2]")
 
     out.puts
+  }
+
+  override def fileFooter(name: String): Unit = {
+    out.puts(s"return ${types2class(name)}")
   }
 
   override def universalFooter: Unit =
@@ -73,7 +78,7 @@ class LuaCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   override def classHeader(name: List[String]): Unit = {
-    out.puts(s"${types2class(name)} = class.class($kstructName)")
+    out.puts(s"local ${types2class(name)} = class.class($kstructName)")
     out.puts
   }
   override def classFooter(name: List[String]): Unit =
