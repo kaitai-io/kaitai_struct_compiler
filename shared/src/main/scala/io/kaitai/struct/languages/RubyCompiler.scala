@@ -43,9 +43,11 @@ class RubyCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
 
     out.puts
 
-    // API compatibility check
+    // API compatibility check. `.release` drops a pre-release suffix such as
+    // `.alpha.1`, because RubyGems considers `2.0.0.alpha.1` older than `2.0`.
+    // TODO: remove `.release` before the stable 2.0 release.
     out.puts(
-      "unless Gem::Version.new(Kaitai::Struct::VERSION) >= Gem::Version.new('" +
+      "unless Gem::Version.new(Kaitai::Struct::VERSION).release >= Gem::Version.new('" +
       KSVersion.minimalRuntime +
       "')"
     )
