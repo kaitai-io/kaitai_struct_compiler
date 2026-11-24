@@ -82,7 +82,7 @@ object ParseUtils {
   }
 
   def getValueIdentifier(src: Map[String, Any], idx: Int, entityName: String, path: List[String]): Identifier = {
-    getOptValueStr(src, "id", path) match {
+    src.get("id").map(asIdentifier(_, path ++ List("id"))) match {
       case Some(idStr) =>
         try {
           NamedIdentifier(idStr)
@@ -175,6 +175,15 @@ object ParseUtils {
       case unknown =>
         throw KSYParseError.badType("string", unknown, path)
     }
+  }
+
+  // Unlike expressions, identifiers must not silently stringify YAML booleans:
+  // unquoted names such as `on` and `off` would become `true` and `false`.
+  def asIdentifier(src: Any, path: List[String]): String = src match {
+    case _: Boolean =>
+      throw KSYParseError.badType("string", src, path)
+    case _ =>
+      asStr(src, path)
   }
 
   def asBigInt(src: Any, path: List[String]): BigInt = {
