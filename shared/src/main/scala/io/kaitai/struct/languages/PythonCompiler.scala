@@ -39,7 +39,7 @@ class PythonCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def outFileName(topClassName: String): String = s"$topClassName.py"
 
   override def outImports(topClass: ClassSpec) =
-    importList.toList.mkString("", "\n", "\n")
+    PythonCompiler.formatImports(importList.toList)
 
   override def fileHeader(topClassName: String): Unit = {
     outHeader.puts(s"# $headerComment")
@@ -953,6 +953,26 @@ object PythonCompiler extends LanguageCompilerStatic
   with UpperCamelCaseClasses
   with StreamStructNames
   with ExceptionNames {
+  private[languages] val standardLibraryImports = Set(
+    "collections",
+    "enum",
+    "struct",
+    "zlib",
+  )
+
+  private[languages] def formatImports(imports: List[String]): String = {
+    val (standardLibrary, other) = imports.partition { importLine =>
+      standardLibraryImports.exists { module =>
+        importLine == s"import $module" || importLine.startsWith(s"from $module import ")
+      }
+    }
+
+    Seq(standardLibrary, other)
+      .filter(_.nonEmpty)
+      .map(_.mkString("\n"))
+      .mkString("", "\n\n", "\n")
+  }
+
   override def getCompiler(
     tp: ClassTypeProvider,
     config: RuntimeConfig
