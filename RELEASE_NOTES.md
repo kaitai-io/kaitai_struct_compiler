@@ -1,3 +1,50 @@
+# 2.0.0-alpha.1 (2026-11-25)
+
+This is a **pre-release** of Kaitai Struct 2.0 (see [#1293](https://github.com/kaitai-io/kaitai_struct/issues/1293)). It brings two **breaking changes** to the KSY language (a new `enums` syntax and stricter rules for integer types in expressions). All changes outside the "Breaking changes (2.x only)" group will also be part of the next 1.x release. The Python runtime library of this version is available on PyPI as [`2.0.0a1`](https://pypi.org/project/kaitaistruct/2.0.0a1/), which is how Python spells [pre-release versions](https://packaging.python.org/en/latest/specifications/version-specifiers/#pre-releases) such as `2.0.0-alpha.1`.
+
+* Breaking changes (2.x only):
+  * **New `enums` syntax**: each enum must declare its underlying integer type in `type` and list its entries under `values`; the old syntax is no longer accepted ([#1288](https://github.com/kaitai-io/kaitai_struct/issues/1288))
+    * enum values must fit into the underlying type
+    * a field can only use an enum if its integer type fits into the enum's underlying type (e.g. a `u1` field can use a `u2` enum, but not vice versa)
+    * enums can now be documented with `doc` and `doc-ref` ([#358](https://github.com/kaitai-io/kaitai_struct/issues/358))
+    * fixes unsigned enums in C# ([#92](https://github.com/kaitai-io/kaitai_struct/issues/92), [#862](https://github.com/kaitai-io/kaitai_struct/issues/862)) and undefined behavior of out-of-range enum values in C++11 ([#959](https://github.com/kaitai-io/kaitai_struct/issues/959))
+  * **Integer types in expressions** follow a consistent set of rules in all target languages ([#1333](https://github.com/kaitai-io/kaitai_struct/issues/1333), work in progress):
+    * integer literals 0..127 are `s1` and 128..255 are `u1` (as before), and all others get the first of `s4`, `u4`, `s8` and `u8` that can hold them (e.g. `0xffff_ffff` is `u4`)
+    * arithmetic, bitwise and shift operations and `?:` expressions have well-defined result types (operands narrower than 32 bits are promoted to `s4`, except in `?:`)
+    * mixing a signed operand with a `u4` or `u8` operand is a compile error, unless the signed one is `s8` and the unsigned one is `u4` (e.g. `s4_val + u4_val` and `s8_val + u8_val` are errors, `s8_val + u4_val` is fine); add a cast such as `s4_val.as<s8> + u4_val`
+    * only plain integer literals get their type from their value - expressions such as `~1` follow the normal rules and are `s4`, so `u4_val & ~1` is a compile error; use `~1.as<u4>`
+    * it's a compile error to negate a `u4` or `u8` value or to write an integer literal outside the 64-bit range
+    * a constant shift distance must be in 0..31 or 0..63, depending on the bit width of the promoted left operand
+    * bit-sized integers (`bX`) are stored in the smallest unsigned type that can hold them (e.g. `b12` as `u2`) instead of `u8`; if your spec relies on 64-bit arithmetic with `b2`..`b32` values (e.g. [`vlq_base128_be.ksy`](https://github.com/kaitai-io/kaitai_struct_formats/blob/f38fd7de89aa6cc171624ba08a0647e06e2ade47/common/vlq_base128_be.ksy#L48-L55)), cast them with `.as<u8>`
+    * JavaScript: `s8`, `u8` and `b33`..`b64` values are now `bigint`, so code generated for such fields requires `BigInt` support (ES2020) - **application code using them must be adapted** (e.g. for a `u8` field `foo`, `obj.foo + 1n` instead of `obj.foo + 1`)
+      * this adds support for `b33`..`b64` fields (they used to throw a `RangeError`, because bitwise operations on JavaScript's `number` only work with 32 bits)
+    * fixes wrong results of integer operations in many languages (e.g. `0xffff_ffff` is no longer `-1` in C++ and Java, `~` on unsigned values is no longer negative, and `>>` on signed values is now an arithmetic shift in JavaScript)
+    * not complete yet - some integer operations still give wrong results in Lua, Nim, Perl and PHP, and `?:` with branches of different integer types may fail to compile or give wrong results in C++, C#, Go, Nim, Rust and Zig (see [compiler#350](https://github.com/kaitai-io/kaitai_struct_compiler/pull/350) for details)
+  * **JavaScript runtime library targets ES6** instead of ES5, which drops support for ES5-only engines such as Rhino, Nashorn and Duktape ([javascript#37](https://github.com/kaitai-io/kaitai_struct_javascript_runtime/pull/37))
+* New target languages:
+  * Zig (requires Zig 0.16.0 or later); type-switched fields are exposed as tagged unions ([#1265](https://github.com/kaitai-io/kaitai_struct/issues/1265))
+* Notable improvements:
+  * Fix KSC rejecting enum values between `2**63` and `2**64 - 1` ([02c287f](https://github.com/kaitai-io/kaitai_struct_compiler/commit/02c287f1f1f21e6b109929fbcf0442a83be5da43))
+  * Python: zero-copy substreams (`--zero-copy-substream`, enabled by default) are now supported in Python too, so the generated code no longer has `_raw_*` fields unless you use `--zero-copy-substream false` ([#44](https://github.com/kaitai-io/kaitai_struct/issues/44))
+  * Python: fix a 0.11 regression that broke subclassing the generated classes in your own code - the generated code now calls `super()` without arguments ([#1262](https://github.com/kaitai-io/kaitai_struct/issues/1262))
+  * Lua: values not defined in an enum are now kept as integers instead of becoming `nil` ([lua#19](https://github.com/kaitai-io/kaitai_struct_lua_runtime/pull/19), [e95826f](https://github.com/kaitai-io/kaitai_struct_compiler/commit/e95826fe8a4e8f927febb01bef0d5458edc56931))
+  * C++98: fix segfault when parsing a type-switched field fails ([#1223](https://github.com/kaitai-io/kaitai_struct/issues/1223))
+  * C++11: fix compile error in type-switched fields with `--no-auto-read` ([6fc8a13](https://github.com/kaitai-io/kaitai_struct_compiler/commit/6fc8a13e5ef875970eaadb0dbaa4e03cb460fe1d))
+  * Ruby: repeated `type: b1` fields are now booleans ([#1229](https://github.com/kaitai-io/kaitai_struct/issues/1229))
+* Runtime API changes:
+  * Python: the generated code and the runtime library require Python 3.8 or later ([#821](https://github.com/kaitai-io/kaitai_struct/issues/821))
+  * Python: deprecate the runtime methods `int_from_byte()` and `byte_array_{index,min,max}()` ([python@115c3bd](https://github.com/kaitai-io/kaitai_struct_python_runtime/commit/115c3bd8823834f76ea4664f7c61de9bdefd42aa))
+  * Python: speed up `read_bits_int_{be,le}()` ([python@d810cf4](https://github.com/kaitai-io/kaitai_struct_python_runtime/commit/d810cf44393c711b2a8823fb18aa3394e318362b))
+  * Java: enum getters now return an interface (e.g. `IAnimal` for an enum `Animal`) instead of the enum type, so that values not defined in the enum are kept (e.g. as `IAnimal.Unknown`) instead of becoming `null` - **this is a breaking change** ([compiler#288](https://github.com/kaitai-io/kaitai_struct_compiler/pull/288))
+    * to adapt your code, declare variables that hold enum values as `IAnimal`; comparisons like `obj.animal() == Animal.CAT` still work
+  * Java: add `IKaitaiEnum`, a common interface for all generated enums ([java#42](https://github.com/kaitai-io/kaitai_struct_java_runtime/pull/42))
+  * JavaScript: add `*AsBigInt()` read methods and `divBigInt()` ([javascript#38](https://github.com/kaitai-io/kaitai_struct_javascript_runtime/pull/38))
+  * C++: add `mod64()` ([cpp_stl@c19168f](https://github.com/kaitai-io/kaitai_struct_cpp_stl_runtime/commit/c19168f27f207269b22992b969eee583e556a255))
+  * PHP: make `zeroFillRightShift()` public ([php@8187d54](https://github.com/kaitai-io/kaitai_struct_php_runtime/commit/8187d54eb6b9ec5c7fe50549350f830f4bded85f))
+  * Lua: support Lua 5.5 ([lua@9370999](https://github.com/kaitai-io/kaitai_struct_lua_runtime/commit/9370999b9661927cf58555f026527bdec876510d)), add `enum.is_defined()` and `enum.to_int()` ([lua@81e3c38](https://github.com/kaitai-io/kaitai_struct_lua_runtime/commit/81e3c385afb9a80edea85bbbbd85008d3f9fa155))
+  * In all runtime libraries, byte-aligned operations now call `alignToByte()` (as Java and Python already did in 0.11), and the compiler no longer inserts these calls ([#1070](https://github.com/kaitai-io/kaitai_struct/issues/1070), [#1282](https://github.com/kaitai-io/kaitai_struct/issues/1282))
+    * make sure you use an up-to-date runtime library - with an older one (such as 0.11, except in Java and Python), a bit-sized integer that follows a byte-aligned field may silently reuse bits left over from an earlier bit-sized integer
+
 # 0.11 (2025-09-07)
 
 This is the last version of Kaitai Struct that supports Python 2.7, Python 3.4 - 3.7 and Ruby 1.9.3 - 2.3. Future versions will require at least Python 3.8 (see [#821](https://github.com/kaitai-io/kaitai_struct/issues/821)) and Ruby 2.4 (unblocks [ruby#8](https://github.com/kaitai-io/kaitai_struct_ruby_runtime/issues/8)).
