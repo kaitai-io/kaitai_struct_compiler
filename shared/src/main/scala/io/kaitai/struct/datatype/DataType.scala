@@ -28,7 +28,7 @@ sealed trait DataType {
   * Kaitai Struct type system.
   */
 object DataType {
-  abstract class IntWidth(val width: Int)
+  abstract sealed class IntWidth(val width: Int)
   case object Width1 extends IntWidth(1)
   case object Width2 extends IntWidth(2)
   case object Width4 extends IntWidth(4)
@@ -42,14 +42,58 @@ object DataType {
     def apiCall(defEndian: Option[FixedEndian]): String
   }
 
+  /** A generic number type. */
   abstract sealed class NumericType extends DataType
+  /** A generic boolean type. */
   abstract sealed class BooleanType extends DataType
 
+  /** A generic integer type. */
   abstract sealed class IntType extends NumericType
+  /**
+    * An integer type that occupies undecided number of bytes in the stream.
+    *
+    * If it possible to determine, the more narrow `Int1Type` will be inferred
+    * for an expression instead of this type.
+    *
+    * Represents a type of the following constructions:
+    *
+    * - `sizeof<>` and `bitsizeof<>` built-in operators
+    * - `_sizeof` special property of fields and self object
+    * - `size` and `pos` properties of streams
+    * - `to_i` result when converting other types (strings, floats, enums, and booleans) to integers
+    * - `length` and `size` properties of arrays
+    * - `length` property of strings
+    * - `_index` context variable
+    */
   case object CalcIntType extends IntType
+  /**
+    * An integer type that fit into the byte and therefore can represent element
+    * of the byte array.
+    *
+    * Parameters have this type when it's declared with `type: u1` or `type: s1`.
+    *
+    * Represents a type of the following constructions:
+    *
+    * - `Int1Type(true)` -- a constant in the [0..127] range
+    * - `Int1Type(false)` -- a constant in the [128..255] range
+    * - element type of byte arrays
+    * - `first`, `last`, `min`, and `max` properties of byte arrays
+    * - result of the `[]` operator of byte arrays
+    *
+    * @param signed Determines if most significant bit of number contains sign
+    */
   case class Int1Type(signed: Boolean) extends IntType with ReadableType {
     override def apiCall(defEndian: Option[FixedEndian]): String = if (signed) "s1" else "u1"
   }
+  /**
+    * An integer type that occupies some predefined size in bytes in the stream.
+    *
+    * Parameters have this type when it's declared with `type: u<X>` or `type: s<X>`.
+    *
+    * @param signed Determines if most significant bit of number contains sign
+    * @param width Size of type in bytes
+    * @param endian Byte order used to represent the number
+    */
   case class IntMultiType(signed: Boolean, width: IntWidth, endian: Option[FixedEndian]) extends IntType with ReadableType {
     override def apiCall(defEndian: Option[FixedEndian]): String = {
       val ch1 = if (signed) 's' else 'u'
@@ -57,11 +101,34 @@ object DataType {
       s"$ch1${width.width}${finalEnd.map(_.toSuffix).getOrElse("")}"
     }
   }
+  /**
+    * A boolean type that occupies one bit in the stream.
+    *
+    * Parameters have this type when it's declared with `type: b1`.
+    */
   case class BitsType1(bitEndian: BitEndianness) extends BooleanType
+  /**
+    * An integer number type that occupies some predefined size in _bits_ in the stream.
+    *
+    * Parameters have this type when it's declared with `type: bX`.
+    *
+    * @param width Size of type in bits
+    * @param bitEndian Bit order inside of byte used to represent the number
+    */
   case class BitsType(width: Int, bitEndian: BitEndianness) extends IntType
 
-  abstract class FloatType extends NumericType
+  /** A generic floating-point number type. */
+  abstract sealed class FloatType extends NumericType
+  /** A floating-point number type that occupies undecided number of bytes in the stream. */
   case object CalcFloatType extends FloatType
+  /**
+    * A floating-point number type that occupies some predefined size in bytes in the stream.
+    *
+    * Parameters have this type when it's declared with `type: fX`.
+    *
+    * @param width Size of type in bytes
+    * @param endian Byte order used to represent the number
+    */
   case class FloatMultiType(width: IntWidth, endian: Option[FixedEndian]) extends FloatType with ReadableType {
     override def apiCall(defEndian: Option[FixedEndian]): String = {
       val finalEnd = endian.orElse(defEndian)
@@ -73,7 +140,13 @@ object DataType {
     def process: Option[ProcessExpr]
   }
 
-  abstract class BytesType extends DataType with Processing
+  /** A generic raw bytes type. */
+  abstract sealed class BytesType extends DataType with Processing
+  /**
+    * A raw bytes type that occupies undecided number of bytes in the stream.
+    *
+    * Parameters have this type when it's declared with `type: bytes`.
+    */
   case object CalcBytesType extends BytesType {
     override def process = None
   }
@@ -98,7 +171,13 @@ object DataType {
     override val process: Option[ProcessExpr]
   ) extends BytesType
 
-  abstract class StrType extends DataType
+  /** A generic string type. */
+  abstract sealed class StrType extends DataType
+  /**
+    * A pure string type that occupies undecided number of bytes in the stream.
+    *
+    * Parameters have this type when it's declared with `type: str`.
+    */
   case object CalcStrType extends StrType
   /**
     * A type that have the `str` and `strz` built-in Kaitai types.
@@ -119,6 +198,11 @@ object DataType {
     isEncodingDerived: Boolean,
   ) extends StrType
 
+  /**
+    * A boolean type that occupies undecided number of bytes in the stream.
+    *
+    * Parameters have this type when it's declared with `type: bool`.
+    */
   case object CalcBooleanType extends BooleanType
 
   /**
@@ -155,7 +239,7 @@ object DataType {
     def isOwningInExpr: Boolean = false
   }
 
-  abstract class StructType extends ComplexDataType
+  abstract sealed class StructType extends ComplexDataType
 
   /**
     * Common abstract ancestor for all types which can treated as "user types".
@@ -165,7 +249,7 @@ object DataType {
     * @param forcedParent optional parent enforcement expression
     * @param args parameters passed into this type as extra arguments
     */
-  abstract class UserType(
+  abstract sealed class UserType(
     val name: List[String],
     val forcedParent: Option[Ast.expr],
     var args: Seq[Ast.expr]
@@ -185,6 +269,7 @@ object DataType {
       cs.meta.isOpaque
     }
   }
+  /** User type which isn't restricted in size (i.e. without `size`, `terminator`, or `size-eos`). */
   case class UserTypeInstream(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
@@ -197,6 +282,7 @@ object DataType {
       r
     }
   }
+  /** User type which is restricted in size either via `size`, `terminator`, or `size-eos`. */
   case class UserTypeFromBytes(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
@@ -211,6 +297,12 @@ object DataType {
       r
     }
   }
+  /**
+    * Reference to the user type which isn't restricted in size (i.e. without
+    * `size`, `terminator`, or `size-eos`).
+    *
+    * Parameters have this type when it's declared with any non-built-in type.
+    */
   case class CalcUserType(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
@@ -219,6 +311,10 @@ object DataType {
   ) extends UserType(_name, _forcedParent, _args) {
     override def isOwning = false
   }
+  /**
+    * Reference to the user type which restricted in size either via `size`,
+    * `terminator`, or `size-eos`.
+    */
   case class CalcUserTypeFromBytes(
     _name: List[String],
     _forcedParent: Option[Ast.expr],
@@ -230,12 +326,46 @@ object DataType {
     override def isOwning = false
   }
 
-  abstract sealed class ArrayType(val elType: DataType) extends ComplexDataType
-
+  /**
+    * A generic collection type.
+    *
+    * @param elType Type of elements in the collection
+    */
+  abstract sealed class ArrayType(val elType: DataType) extends ComplexDataType {
+    /**
+      * Returns non-owning (reference) type of the array elements.
+      *
+      * This is type of getters of individual array elements:
+      * - [] (index)
+      * - min
+      * - max
+      * - first
+      * - last
+      */
+    def elementNonOwningType: DataType = elType.asNonOwning(
+      elType match {
+        case ct: ComplexDataType => ct.isOwning
+        case _ => false
+      }
+    )
+  }
+  /**
+    * An owned slice of array type. This type is used for holding data in attributes
+    * with `repeat` key. Number of elements in that type is unknown
+    *
+    * @param _elType Type of elements in the slice
+    */
   case class ArrayTypeInStream(_elType: DataType) extends ArrayType(_elType) {
     override def isOwning: Boolean = true
     override def asNonOwning(isOwningInExpr: Boolean = false): CalcArrayType = CalcArrayType(elType, isOwningInExpr)
   }
+  /**
+    * A borrowed slice of an array. This type is used when array is passed as a
+    * parameter to the user type (parameter have type `bytes` or haven't any
+    * explicitly defined type). Number of elements in that type is unknown
+    *
+    * @param _elType Type of elements in the slice
+    */
   case class CalcArrayType(_elType: DataType, override val isOwningInExpr: Boolean = false) extends ArrayType(_elType) {
     override def isOwning: Boolean = false
   }
@@ -243,18 +373,46 @@ object DataType {
   /** Represents `_parent: false` expression which means that type explicitly has no parent. */
   val USER_TYPE_NO_PARENT = Ast.expr.Bool(false)
 
+  /**
+    * A very generic type that can hold any other type. Used when type of expression
+    * is completely unknown to the compiler.
+    *
+    * Parameters have this type when it's declared with `type: any`.
+    */
   case object AnyType extends DataType
+
+  /**
+    * A type that can hold any Kaitai generated type. Can be used as common ancestor
+    * of `switch-on` types, when all alternative types is owned.
+    */
   case object KaitaiStructType extends StructType {
     def isOwning = true
     override def asNonOwning(isOwningInExpr: Boolean = false): DataType = CalcKaitaiStructType(isOwningInExpr)
   }
+  /**
+    * A type that can hold any Kaitai generated type. Can be used as common ancestor
+    * of `switch-on` types, when at least one of the alternative types is borrowed.
+    *
+    * Parameters have this type when it's declared with `type: struct`.
+    */
   case class CalcKaitaiStructType(override val isOwningInExpr: Boolean = false) extends StructType {
     def isOwning = false
   }
+  /**
+    * A type that hold and own Kaitai stream object. This type is used when a new IO object
+    * is allocated (i.e. when new sub-stream is created for types with `size`, `terminator`,
+    * or `size-eos: true` attributes).
+    */
   case object OwnedKaitaiStreamType extends ComplexDataType {
     def isOwning = true
     override def asNonOwning(isOwningInExpr: Boolean = false): DataType = KaitaiStreamType
   }
+  /**
+    * A type that hold and borrow Kaitai stream object. This type is used
+    * when an IO object is passed as parameter to the user type.
+    *
+    * Parameters have this type when it's declared with `type: io`.
+    */
   case object KaitaiStreamType extends ComplexDataType {
     def isOwning = false
   }
@@ -431,6 +589,8 @@ object DataType {
           StrFromBytesType(bat, enc, arg.encoding.isEmpty)
         case _ =>
           val typeWithArgs = Expressions.parseTypeRef(dt)
+          // if `size`, `terminator` and `size-eos: true` isn't defined,
+          // user type uses parent stream, otherwise creates an own stream
           if (arg.size.isEmpty && !arg.sizeEos && arg.terminator.isEmpty) {
             if (arg.process.isDefined)
               throw KSYParseError(s"user type '$dt': need 'size' / 'size-eos' / 'terminator' if 'process' is used", path).toException
