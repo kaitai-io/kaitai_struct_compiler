@@ -54,7 +54,7 @@ class GoCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     }
     outHeader.puts
 
-    importList.add("github.com/kaitai-io/kaitai_struct_go_runtime/kaitai")
+    importList.add("github.com/kaitai-io/kaitai_struct_go_runtime/v2/kaitai")
 
     out.puts
   }
