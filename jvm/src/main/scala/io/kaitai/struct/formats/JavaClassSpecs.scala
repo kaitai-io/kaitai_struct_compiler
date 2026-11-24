@@ -27,14 +27,14 @@ class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpe
   private val relFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
   private val absFiles: concurrent.Map[String, ClassSpec] = new ConcurrentHashMap[String, ClassSpec]().asScala
 
-  override def importRelative(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] = Future {
+  override def importRelative(name: String, path: List[String], inFile: String): Future[Option[ClassSpec]] = Future {
     Log.importOps.info(() => s".. importing relative $name")
     JavaClassSpecs.cached(path, inFile, relFiles, name, (_) =>
       JavaKSYParser.fileNameToSpec(s"$relPath/$name.ksy")
     )
   }
 
-  override def importAbsolute(name: String, path: List[String], inFile: Option[String]): Future[Option[ClassSpec]] = Future {
+  override def importAbsolute(name: String, path: List[String], inFile: String): Future[Option[ClassSpec]] = Future {
     Log.importOps.info(() => s".. importing absolute $name")
     JavaClassSpecs.cached(path, inFile, absFiles, name, tryAbsolutePaths)
   }
@@ -62,7 +62,7 @@ class JavaClassSpecs(relPath: String, absPaths: Seq[String], firstSpec: ClassSpe
 object JavaClassSpecs {
   def cached(
     path: List[String],
-    inFile: Option[String],
+    inFile: String,
     cacheMap: mutable.Map[String, ClassSpec],
     name: String,
     importOp: (String) => ClassSpec
@@ -80,7 +80,7 @@ object JavaClassSpecs {
           cacheMap(name) = spec
           Some(spec)
         } catch {
-          case err: Throwable => throw ErrorInInput(err, path, inFile).toException
+          case err: Throwable => throw ErrorInInput(err, path, Some(inFile)).toException
         }
     }
   }

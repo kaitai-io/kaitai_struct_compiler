@@ -16,7 +16,7 @@ trait TypeProvider {
   def determineType(attrId: Identifier): DataType
   def determineType(inClass: ClassSpec, attrName: String): DataType
   def determineType(inClass: ClassSpec, attrId: Identifier): DataType
-  def resolveEnum(typeName: Ast.typeId, enumName: String): EnumSpec
+  def resolveEnum(ref: Ast.EnumRef): EnumSpec
   def resolveType(typeName: Ast.typeId): DataType
   def isLazy(attrName: String): Boolean
   def isLazy(inClass: ClassSpec, attrName: String): Boolean

@@ -31,13 +31,13 @@ class ExpressionValidator(val provider: TypeProvider)
            _: Ast.expr.FloatNum |
            _: Ast.expr.Str |
            _: Ast.expr.Bool => // all simple literals are good and valid
-      case Ast.expr.EnumById(enumType, id, inType) =>
-        provider.resolveEnum(inType, enumType.name)
-        validate(id)
-      case Ast.expr.EnumByLabel(enumType, label, inType) =>
-        val enumSpec = provider.resolveEnum(inType, enumType.name)
+      case Ast.expr.EnumById(ref, expr) =>
+        provider.resolveEnum(ref)
+        validate(expr)
+      case Ast.expr.EnumByLabel(ref, label) =>
+        val enumSpec = provider.resolveEnum(ref)
         if (!enumSpec.map.values.exists(_.name == label.name)) {
-          throw new EnumMemberNotFoundError(label.name, enumType.name, enumSpec.path.mkString("/"))
+          throw new EnumMemberNotFoundError(label.name, ref.name, enumSpec.path.mkString("/"))
         }
       case Ast.expr.Name(name: Ast.identifier) =>
         if (name.name == Identifier.SIZEOF) {
