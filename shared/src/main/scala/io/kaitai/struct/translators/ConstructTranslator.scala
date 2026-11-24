@@ -23,8 +23,8 @@ class ConstructTranslator(provider: TypeProvider, importList: ImportList) extend
     }
   }
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    s"'$label'"
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String =
+    s"'$variant'"
 
   override def kaitaiStreamSize(value: Ast.expr): String =
     s"stream_size(${translate(value)})"

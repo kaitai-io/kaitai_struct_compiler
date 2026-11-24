@@ -56,12 +56,12 @@ object InstanceSpec {
         // value instance
         ParseUtils.ensureLegalKeys(srcMap, LEGAL_KEYS_VALUE_INST, path, Some("value instance"))
 
-        // Wrap everything in EnumById if "enum" is used
+        // Wrap everything in EnumCast if "enum" is used
         val value2 = ParseUtils.getOptValueStr(srcMap, "enum", path) match {
           case None =>
             value
           case Some(enumName) =>
-            Ast.expr.EnumById(Ast.identifier(enumName), value)
+            Ast.expr.EnumCast(Ast.identifier(enumName), value)
         }
 
         val ifExpr = ParseUtils.getOptValueExpression(srcMap, "if", path)

@@ -66,10 +66,10 @@ class JavaTranslator(provider: TypeProvider, importList: ImportList, config: Run
   override def doInternalName(id: Identifier): String =
     JavaCompiler.privateMemberName(id, inSubIOWriteBackHandler)
 
-  override def doEnumByLabel(enumSpec: EnumSpec, label: String): String =
-    s"${enumClass(enumSpec.name)}.${Utils.upperUnderscoreCase(label)}"
-  override def doEnumById(enumSpec: EnumSpec, id: String): String =
-    s"${enumClass(enumSpec.name)}.byId($id)"
+  override def doEnumVariant(enumSpec: EnumSpec, variant: String): String =
+    s"${enumClass(enumSpec.name)}.${Utils.upperUnderscoreCase(variant)}"
+  override def doEnumCast(enumSpec: EnumSpec, value: String): String =
+    s"${enumClass(enumSpec.name)}.byId($value)"
 
   def enumClass(enumTypeAbs: List[String]): String = {
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
