@@ -15,12 +15,20 @@ class WrongMethodCall(val dataType: MethodArgType, val methodName: String, val e
   extends ExpressionError(s"wrong arguments to method call `$methodName` on $dataType: expected ${expectedSigs.mkString(" or ")}, got $actualSig")
 
 sealed abstract class NotFoundError(msg: String) extends ExpressionError(msg)
-class TypeNotFoundError(val name: String, val curClass: ClassSpec)
-  extends NotFoundError(s"unable to find type '$name', searching from ${curClass.nameAsStr}")
+sealed abstract class TypeNotFoundError(msg: String) extends NotFoundError(msg)
+class TypeNotFoundInHierarchyError(val name: String, val curClass: ClassSpec)
+  extends TypeNotFoundError(s"unable to find type '$name', searching from '${curClass.nameAsStr}'")
+class TypeNotFoundInTypeError(val name: String, val curClass: ClassSpec)
+  extends TypeNotFoundError(s"unable to find type '$name' in '${curClass.nameAsStr}'")
 class FieldNotFoundError(val name: String, val curClass: ClassSpec)
-  extends NotFoundError(s"unable to access '$name' in ${curClass.nameAsStr} context")
-class EnumNotFoundError(val name: String, val curClass: ClassSpec)
-  extends NotFoundError(s"unable to find enum '$name', searching from ${curClass.nameAsStr}")
+  extends NotFoundError(s"unable to access '$name' in '${curClass.nameAsStr}' context")
+
+sealed abstract class EnumNotFoundError(msg: String) extends NotFoundError(msg)
+class EnumNotFoundInHierarchyError(val name: String, val curClass: ClassSpec)
+  extends EnumNotFoundError(s"unable to find enum '$name', searching from '${curClass.nameAsStr}'")
+class EnumNotFoundInTypeError(val name: String, val curClass: ClassSpec)
+  extends EnumNotFoundError(s"unable to find enum '$name' in '${curClass.nameAsStr}'")
+
 class EnumMemberNotFoundError(val label: String, val enumName: String, val enumDefPath: String)
   extends NotFoundError(s"unable to find enum member '$enumName::$label' (enum '$enumName' defined at /$enumDefPath)")
 

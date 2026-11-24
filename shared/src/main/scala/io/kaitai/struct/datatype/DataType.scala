@@ -259,7 +259,7 @@ object DataType {
     def isOwning = false
   }
 
-  case class EnumType(name: String, owner: List[String], basedOn: IntType) extends DataType {
+  case class EnumType(ref: Ast.EnumRef, basedOn: IntType) extends DataType {
     var enumSpec: Option[EnumSpec] = None
 
     /**
@@ -459,10 +459,7 @@ object DataType {
     enumRef match {
       case Some(enumName) =>
         r match {
-          case numType: IntType => {
-            val names = classNameToList(enumName)
-            EnumType(names.last, names.dropRight(1), numType)
-          }
+          case numType: IntType => EnumType(Expressions.parseEnumRef(enumName), numType)
           case _ =>
             throw KSYParseError(s"tried to resolve non-integer $r to enum", path).toException
         }
