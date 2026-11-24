@@ -64,6 +64,15 @@ class UtilsSpec extends AnyFunSpec with Matchers {
         Utils.upperCamelCase(allLetters) shouldEqual
           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       }
+
+      it("handles repeated, leading and trailing underscores") {
+        Utils.upperCamelCase("") shouldEqual ""
+        Utils.upperCamelCase("_") shouldEqual "_"
+        Utils.upperCamelCase("__foo_bar") shouldEqual "__FooBar"
+        Utils.upperCamelCase("foo__bar") shouldEqual "FooBar"
+        Utils.upperCamelCase("foo_bar_") shouldEqual "FooBar"
+        Utils.upperCamelCase("foo_1bar") shouldEqual "Foo1bar"
+      }
     }
 
     describe("lowerCamelCase") {
@@ -78,6 +87,15 @@ class UtilsSpec extends AnyFunSpec with Matchers {
       it("is locale-independent") {
         Utils.lowerCamelCase(allLetters) shouldEqual
           "aBCDEFGHIJKLMNOPQRSTUVWXYZ"
+      }
+
+      it("handles repeated, leading and trailing underscores") {
+        Utils.lowerCamelCase("") shouldEqual ""
+        Utils.lowerCamelCase("_") shouldEqual "_"
+        Utils.lowerCamelCase("__foo_bar") shouldEqual "__fooBar"
+        Utils.lowerCamelCase("foo__bar") shouldEqual "fooBar"
+        Utils.lowerCamelCase("foo_bar_") shouldEqual "fooBar"
+        Utils.lowerCamelCase("foo_1bar") shouldEqual "foo1bar"
       }
     }
   }
