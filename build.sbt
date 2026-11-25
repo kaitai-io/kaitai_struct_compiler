@@ -257,9 +257,12 @@ lazy val buildNpmPackageTask = Def.task {
   Files.copy(new File("js/README.md").toPath, readMeFile.toPath, StandardCopyOption.REPLACE_EXISTING)
 
   val packageJsonTmpl = IO.read(new File("js/package.json"), UTF8)
+  // npm versions need three components (`0.12-SNAPSHOT...` becomes
+  // `0.12.0-SNAPSHOT...`, `2.0.0-SNAPSHOT...` stays as it is)
+  val npmVersion = version.value.replaceFirst("""^(\d+\.\d+)-SNAPSHOT""", "$1.0-SNAPSHOT")
   val packageJsonContents = packageJsonTmpl.replaceFirst(
     "\"version\": \".*?\"",
-    "\"version\": \"" + version.value.replace("-SNAPSHOT", ".0-SNAPSHOT") + "\""
+    "\"version\": \"" + npmVersion + "\""
   )
 
   IO.write(packageJsonFile, packageJsonContents, UTF8)
