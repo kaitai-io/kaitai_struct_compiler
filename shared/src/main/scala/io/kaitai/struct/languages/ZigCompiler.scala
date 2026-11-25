@@ -398,7 +398,19 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
-        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
+        val bitsInt = s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
+        if (width < 64) {
+          // NOTE: `@as(<type>, ...)` is usually not necessary (because the
+          // return type of `@intCast` is inferred) unless it is nested within
+          // `@enumFromInt`. In that case, the type inference doesn't work (at
+          // least in Zig 0.15.2), so without `@as`, the generated Zig code
+          // would fail to compile with
+          // `error: @intCast must have a known result type` (accompanied by
+          // `note: use @as to provide explicit result type`).
+          return s"@as(${kaitaiType2NativeType(dataType)}, @intCast(try $bitsInt))"
+        } else {
+          bitsInt
+        }
       case t: UserType =>
         val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
           ("null", "null")
@@ -638,7 +650,16 @@ class ZigCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     enumColl.foreach { case (id, label) =>
       out.puts(s"$label = ${translator.doIntLiteral(id)},")
     }
-    out.puts("_,")
+    // This is exactly the condition that Zig 0.16.0 uses to determine whether
+    // to emit `error: non-exhaustive enum specifies every value`:
+    // https://codeberg.org/ziglang/zig/src/commit/24fdd5b7a4c1c8b5deb5b56756b9dbc8e08c86a8/src/Sema/type_resolution.zig#L1395
+    val isExhaustive = enumColl.length >= 1 && {
+      val numEntriesLog2 = 31 - Integer.numberOfLeadingZeros(enumColl.length)
+      numEntriesLog2 == enumSpec.intType.bitWidth
+    }
+    if (!isExhaustive) {
+      out.puts("_,")
+    }
 
     out.dec
     out.puts("};")
@@ -786,7 +807,7 @@ object ZigCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "f32"
       case FloatMultiType(Width8, _) => "f64"
 
-      case BitsType(_, _) => "u64"
+      case BitsType(width, _) => s"u$width"
 
       case CalcIntType => "i32"
       case CalcFloatType => "f64"

@@ -31,6 +31,59 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
     Ast.cmpop.NotEq -> 90
   )
 
+  override def translateUnaryOperand(operand: Ast.expr, unaryExpr: Ast.expr): String = {
+    val targetType = detectType(unaryExpr)
+    if (ZigCompiler.kaitaiType2NativeType(detectType(operand), importList, provider.nowClass) ==
+        ZigCompiler.kaitaiType2NativeType(targetType, importList, provider.nowClass)) {
+      translate(operand)
+    } else {
+      doCast(operand, targetType)
+    }
+  }
+
+  // Zig only implicitly converts an operand of an arithmetic or bitwise
+  // operator to the type of the other operand (peer type resolution), not to
+  // the result type
+  override def translateBinaryOperand(operand: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String = {
+    detectType(binExpr) match {
+      // `CalcIntType` is translated as `i32`, but most built-ins have other
+      // types (e.g. `_io.size` is `u64` and `_index` is `usize`), so the
+      // operands are left to Zig's peer type resolution
+      case CalcIntType =>
+        translate(operand, extPrec)
+      case it: IntType =>
+        val isShift = binExpr.op == Ast.operator.LShift || binExpr.op == Ast.operator.RShift
+        val isNonConstShift = isShift && TypeDetector.intLiteralValue(binExpr.right).isEmpty
+        TypeDetector.intLiteralValue(operand) match {
+          // `comptime_int` coerces to any integer type that can hold the
+          // value. But the left operand of a shift whose distance isn't a
+          // literal must have a fixed-width type (e.g. `@as(i32, 5811) >> ...`),
+          // so it's converted like the other operands.
+          case Some(_) if !isNonConstShift =>
+            translate(operand, extPrec)
+          case None if ZigCompiler.kaitaiType2NativeType(detectType(operand), importList, provider.nowClass) ==
+                       ZigCompiler.kaitaiType2NativeType(it, importList, provider.nowClass) =>
+            translate(operand, extPrec)
+          case _ =>
+            doCast(operand, it)
+        }
+      case _ =>
+        translate(operand, extPrec)
+    }
+  }
+
+  // In Zig, the shift distance must coerce to `std.math.Log2Int(T)`, where `T`
+  // is the type of the left operand (e.g. `u5` for `i32`). A literal distance
+  // needs no `@intCast`, because KSC rejects constant distances outside the
+  // range of that type (0..31 for `i32`), except if the left operand is
+  // `CalcIntType`.
+  override def translateShiftDistance(distance: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String =
+    if (TypeDetector.intLiteralValue(distance).isDefined) {
+      translate(distance, extPrec)
+    } else {
+      s"@intCast(${translate(distance)})"
+    }
+
   override def doArrayLiteral(t: DataType, value: Seq[expr]): String = {
     val nativeType = ZigCompiler.kaitaiType2NativeType(t, importList, provider.nowClass)
     val commaStr = value.map((v) => translate(v)).mkString(", ")
@@ -66,8 +119,14 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
 
   override def genericBinOp(left: Ast.expr, op: Ast.binaryop, right: Ast.expr, extPrec: Int) = {
     (detectType(left), detectType(right), op) match {
+      // Zig doesn't allow `/` on signed integers, and Kaitai Struct's integer
+      // division rounds toward negative infinity
+      case (_: IntType, _: IntType, Ast.operator.Div) if detectType(Ast.expr.BinOp(left, Ast.operator.Div, right)).asInstanceOf[IntType].signed =>
+        val binExpr = Ast.expr.BinOp(left, Ast.operator.Div, right)
+        s"@divFloor(${translateBinaryOperand(left, binExpr, 0)}, ${translateBinaryOperand(right, binExpr, 0)})"
       case (_: NumericType, _: NumericType, Ast.operator.Mod) =>
-        s"@mod(${translate(left)}, ${translate(right)})"
+        val binExpr = Ast.expr.BinOp(left, Ast.operator.Mod, right)
+        s"@mod(${translateBinaryOperand(left, binExpr, 0)}, ${translateBinaryOperand(right, binExpr, 0)})"
       case _ =>
         super.genericBinOp(left, op, right, extPrec)
     }
@@ -162,9 +221,34 @@ class ZigTranslator(provider: TypeProvider, importList: ImportList, config: Runt
         val unionFieldName = ZigCompiler.dataTypeToUnionFieldName(typeName)
         s"${translate(value, METHOD_PRECEDENCE)}.$unionFieldName"
       case _ =>
-        s"@as(${ZigCompiler.kaitaiType2NativeType(typeName, importList, provider.nowClass)}, ${translate(value)})"
+        val valueStr = if (needsIntCast(value, valueType, typeName)) {
+          s"@intCast(${translate(value)})"
+        } else {
+          translate(value)
+        }
+        s"@as(${ZigCompiler.kaitaiType2NativeType(typeName, importList, provider.nowClass)}, $valueStr)"
     }
   }
+
+  /**
+    * Returns whether converting `value` of type `valueType` to `targetType`
+    * requires `@intCast`.
+    *
+    * `@as` only allows integer conversions to types that can represent every
+    * value of the source type (see
+    * https://ziglang.org/documentation/0.16.0/#Type-Coercion-Integer-and-Float-Widening),
+    * so for example converting `u64` to `i64` needs `@intCast`. Integer
+    * literals coerce to any type that can represent them (see
+    * https://ziglang.org/documentation/0.16.0/#Type-Coercion-Compile-Time-Known-Numbers).
+    */
+  private def needsIntCast(value: Ast.expr, valueType: DataType, targetType: DataType): Boolean =
+    (value, valueType, targetType) match {
+      case (_: Ast.expr.IntNum, _, _) => false
+      // `CalcIntType` has no defined range, so we can't tell
+      case (_, CalcIntType, _) | (_, _, CalcIntType) => false
+      case (_, srcType: IntType, dstType: IntType) => !srcType.subsetOf(dstType)
+      case _ => false
+    }
 
   // Predefined methods of various types
   override def strConcat(left: Ast.expr, right: Ast.expr, extPrec: Int): String =

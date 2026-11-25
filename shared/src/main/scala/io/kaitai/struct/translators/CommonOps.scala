@@ -47,14 +47,47 @@ trait CommonOps extends AbstractTranslator {
 
   def genericBinOpStr(left: Ast.expr, op: Ast.binaryop, opStr: String, right: Ast.expr, extPrec: Int): String = {
     val thisPrec = OPERATOR_PRECEDENCE(op)
-    val leftStr = translate(left, thisPrec)
-    val rightStr = translate(right, thisPrec)
+    val leftStr = op match {
+      case op: Ast.operator => translateBinaryOperand(left, Ast.expr.BinOp(left, op, right), thisPrec)
+      case _ => translate(left, thisPrec)
+    }
+    val rightStr = op match {
+      case op: Ast.operator if op == Ast.operator.LShift || op == Ast.operator.RShift =>
+        translateShiftDistance(right, Ast.expr.BinOp(left, op, right), thisPrec)
+      case op: Ast.operator => translateBinaryOperand(right, Ast.expr.BinOp(left, op, right), thisPrec)
+      case _ => translate(right, thisPrec)
+    }
     if (thisPrec <= extPrec) {
       s"($leftStr $opStr $rightStr)"
     } else {
       s"$leftStr $opStr $rightStr"
     }
   }
+
+  /**
+   * Translates `operand` (either the left or the right one) of the binary
+   * operator expression `binExpr`. It isn't used for the shift distance
+   * (the right operand of `<<` and `>>`), which is handled by
+   * `translateShiftDistance()`.
+   *
+   * Languages that require both operands of an arithmetic or bitwise operator
+   * to have the same type (instead of implicitly converting them like C)
+   * should override this method to convert the operand to the result type of
+   * `binExpr`.
+   */
+  def translateBinaryOperand(operand: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String =
+    translate(operand, extPrec)
+
+  /**
+   * Translates the shift distance `distance` (the right operand of the `<<`
+   * or `>>` expression `binExpr`). The result type of a shift depends only on
+   * its left operand, so by default, the distance is translated as is.
+   *
+   * Languages that require a specific type for the shift distance should
+   * override this method to convert it.
+   */
+  def translateShiftDistance(distance: Ast.expr, binExpr: Ast.expr.BinOp, extPrec: Int): String =
+    translate(distance, extPrec)
 
   def binOp(op: Ast.operator): String = {
     op match {

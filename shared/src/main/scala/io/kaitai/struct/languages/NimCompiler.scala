@@ -405,7 +405,12 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}(1) != 0"
       case BitsType(width: Int, bitEndian) =>
-        s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}($width)"
+        val bitsInt = s"$io.readBitsInt${camelCase(bitEndian.toSuffix, true)}($width)"
+        if (width <= 32) {
+          s"${ksToNim(dataType)}($bitsInt)"
+        } else {
+          bitsInt
+        }
       case t: UserType =>
         val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
           ("nil", "nil")
@@ -582,7 +587,16 @@ object NimCompiler extends LanguageCompilerStatic
       case FloatMultiType(Width4, _) => "float32"
       case FloatMultiType(Width8, _) => "float64"
 
-      case BitsType(_, _) => "uint64"
+      case BitsType(width, _) =>
+        if (width <= 8) {
+          "uint8"
+        } else if (width <= 16) {
+          "uint16"
+        } else if (width <= 32) {
+          "uint32"
+        } else {
+          "uint64"
+        }
 
       case _: BooleanType => "bool"
       case CalcIntType => "int"

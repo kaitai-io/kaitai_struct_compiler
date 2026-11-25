@@ -29,6 +29,25 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     Ast.operator.BitXor -> 70,
     Ast.operator.BitOr -> 70
   )
+
+  override def translate(v: Ast.expr, extPrec: Int): String = {
+    v match {
+      case Ast.expr.UnaryOp(Ast.unaryop.Invert, inner) =>
+        detectType(v) match {
+          // The bitwise NOT operator `~` in Perl produces unsigned 64-bit
+          // integer results (unless `use integer;` is used, see
+          // https://perldoc.perl.org/5.44.0/integer), so for signed integers we
+          // use the identity `~x == -1 - x` instead
+          case it: IntType if it.signed =>
+            s"(-1 - (${translate(inner)}))"
+          case _ =>
+            super.translate(v, extPrec)
+        }
+      case _ =>
+        super.translate(v, extPrec)
+    }
+  }
+
   // https://perldoc.perl.org/perlrebackslash#Character-Escapes
   override val asciiCharQuoteMap: Map[Char, String] = Map(
     '\t' -> "\\t",
@@ -115,6 +134,10 @@ class PerlTranslator(provider: TypeProvider, importList: ImportList) extends Bas
     val enumTypeRel = Utils.relClass(enumTypeAbs, provider.nowClass.name)
     enumTypeRel.map((x) => Utils.upperCamelCase(x)).mkString(".")
   }
+
+  // Integers are 64-bit, so only unsigned 32-bit values need truncating
+  override def truncateToUnsigned(expr: String, t: IntType): String =
+    if (t.bitWidth == 32) s"($expr & 0xffffffff)" else expr
 
   override def doStrCompareOp(left: Ast.expr, op: Ast.cmpop, right: Ast.expr, extPrec: Int) = {
     val opStr = op match {

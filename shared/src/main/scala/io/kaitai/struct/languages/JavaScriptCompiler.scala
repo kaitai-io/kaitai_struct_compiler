@@ -341,6 +341,19 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"} while (!(${expression(untilExpr)}));")
   }
 
+  /**
+    * Converts integers read as `number` to `bigint` if they're assigned to a
+    * field whose type is represented as `bigint`, e.g. if `type/cases`
+    * contains both `u4` and `u8`, the combined type is `u8`.
+    */
+  override def castIfNeeded(expr: String, exprType: DataType, targetType: DataType): String =
+    (exprType, targetType.asCombined) match {
+      case (et: IntType, tt: IntType) if !JavaScriptTranslator.isBigIntType(et) && JavaScriptTranslator.isBigIntType(tt) =>
+        s"BigInt($expr)"
+      case _ =>
+        expr
+    }
+
   override def handleAssignmentSimple(id: Identifier, expr: String): Unit = {
     out.puts(s"${privateMemberName(id)} = $expr;")
   }
@@ -351,7 +364,11 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
-        s"$io.read${Utils.capitalize(t.apiCall(defEndian))}()"
+        val suffix = t match {
+          case it: IntType if JavaScriptTranslator.isBigIntType(it) => "AsBigInt"
+          case _ => ""
+        }
+        s"$io.read${Utils.capitalize(t.apiCall(defEndian))}$suffix()"
       case blt: BytesLimitType =>
         s"$io.readBytes(${expression(blt.size)})"
       case _: BytesEosType =>
@@ -365,8 +382,9 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
         }
       case BitsType1(bitEndian) =>
         s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}(1) != 0"
-      case BitsType(width: Int, bitEndian) =>
-        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}($width)"
+      case t @ BitsType(width: Int, bitEndian) =>
+        val suffix = if (JavaScriptTranslator.isBigIntType(t)) "AsBigInt" else ""
+        s"$io.readBitsInt${Utils.upperCamelCase(bitEndian.toSuffix)}$suffix($width)"
       case t: UserType =>
         val (parent, root) = if (t.isExternal(typeProvider.nowClass)) {
           ("null", "null")
@@ -382,7 +400,16 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
           case Some(InheritedEndian) => ", this._is_le"
           case _ => ""
         }
-        val addParams = Utils.join(t.args.map((a) => translator.translate(a)), ", ", ", ", "")
+        // The arguments must be represented like the values of their parameter
+        // types. Opaque types have no parameter definitions.
+        val args = if (t.isOpaque) {
+          t.args.map((a) => translator.translate(a))
+        } else {
+          t.args.zip(t.classSpec.get.params).map { case (arg, param) =>
+            translator.translateAsType(arg, param.dataType)
+          }
+        }
+        val addParams = Utils.join(args, ", ", ", ", "")
         s"new ${types2class(t.name, t.isExternal(typeProvider.nowClass))}($io, $parent, $root$addEndian$addParams)"
     }
   }
@@ -531,20 +558,20 @@ class JavaScriptCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"${type2class(curClass.last)}.${type2class(enumName)} = Object.freeze({")
     out.inc
 
-    // Name to ID mapping
+    // Name to ID mapping (the IDs of 64-bit enums are `bigint`)
+    val isBigInt = JavaScriptTranslator.isBigIntType(enumSpec.intType)
     enumColl.foreach { case (id, label) =>
-      out.puts(s"${enumValue(enumName, label.name)}: ${translator.doIntLiteral(id)},")
+      val idStr = if (isBigInt) s"${id}n" else translator.doIntLiteral(id)
+      out.puts(s"${enumValue(enumName, label.name)}: $idStr,")
     }
     out.puts
 
-    // ID to name mapping
+    // ID to name mapping. The keys are always quoted. A negative number
+    // can't be used as a key without quotes, and a large number may be
+    // rounded (for example, the object literal `{18446744073709551615: 1}`
+    // has the key `"18446744073709552000"` in JavaScript).
     enumColl.foreach { case (id, label) =>
-      val idStr = if (id < 0) {
-        "\"" + id.toString + "\""
-      } else {
-        id.toString
-      }
-      out.puts(s"""$idStr: "${enumValue(enumName, label.name)}",""")
+      out.puts(s"""\"$id\": "${enumValue(enumName, label.name)}",""")
     }
 
     out.dec
