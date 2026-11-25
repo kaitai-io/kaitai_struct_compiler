@@ -2,6 +2,8 @@
 
 This is a **pre-release** of Kaitai Struct 2.0 (see [#1293](https://github.com/kaitai-io/kaitai_struct/issues/1293)). It brings two **breaking changes** to the KSY language (a new `enums` syntax and stricter rules for integer types in expressions). All changes outside the "Breaking changes (2.x only)" group will also be part of the next 1.x release. The Python runtime library of this version is available on PyPI as [`2.0.0a1`](https://pypi.org/project/kaitaistruct/2.0.0a1/), which is how Python spells [pre-release versions](https://packaging.python.org/en/latest/specifications/version-specifiers/#pre-releases) such as `2.0.0-alpha.1`.
 
+From this version on, all version tags of the compiler and the runtime libraries start with `v` (e.g. `v2.0.0-alpha.1`). The compiler and the C++/STL, C#, Java, Lua, Perl, PHP and Ruby runtime libraries previously used tags without it (e.g. `0.11`). Download URLs of the compiler change accordingly, e.g. `https://github.com/kaitai-io/kaitai_struct_compiler/releases/download/v2.0.0-alpha.1/kaitai-struct-compiler-2.0.0-alpha.1.zip`.
+
 * Breaking changes (2.x only):
   * **New `enums` syntax**: each enum must declare its underlying integer type in `type` and list its entries under `values`; the old syntax is no longer accepted ([#1288](https://github.com/kaitai-io/kaitai_struct/issues/1288))
     * enum values must fit into the underlying type
