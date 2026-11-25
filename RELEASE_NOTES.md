@@ -2,6 +2,9 @@
 
 This is a **pre-release** of Kaitai Struct 2.0 (see [#1293](https://github.com/kaitai-io/kaitai_struct/issues/1293)). It brings two **breaking changes** to the KSY language (a new `enums` syntax and stricter rules for integer types in expressions). All changes outside the "Breaking changes (2.x only)" group will also be part of the next 1.x release. The Python runtime library of this version is available on PyPI as [`2.0.0a1`](https://pypi.org/project/kaitaistruct/2.0.0a1/), which is how Python spells [pre-release versions](https://packaging.python.org/en/latest/specifications/version-specifiers/#pre-releases) such as `2.0.0-alpha.1`.
 
+> [!WARNING]
+> The `.zip` and `.msi` packages of this version no longer include the [format library](https://github.com/kaitai-io/kaitai_struct_formats), because many of its .ksy specs aren't compatible with 2.0 yet (they use the old `enums` syntax or break the new rules for integer types). Absolute imports such as `/common/vlq_base128_le` therefore no longer work out of the box. Specs from the format library that are compatible with 2.0 (including everything they import) can still be imported if you pass the directory of a local copy of the format library with `-I` (`--import-path`).
+
 From this version on, all version tags of the compiler and the runtime libraries start with `v` (e.g. `v2.0.0-alpha.1`). The compiler and the C++/STL, C#, Java, Lua, Perl, PHP and Ruby runtime libraries previously used tags without it (e.g. `0.11`). Download URLs of the compiler change accordingly, e.g. `https://github.com/kaitai-io/kaitai_struct_compiler/releases/download/v2.0.0-alpha.1/kaitai-struct-compiler-2.0.0-alpha.1.zip`.
 
 * Breaking changes (2.x only):
