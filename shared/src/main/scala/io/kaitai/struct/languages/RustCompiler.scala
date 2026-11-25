@@ -50,9 +50,9 @@ class RustCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     outHeader.puts("#![allow(irrefutable_let_patterns)]")
     outHeader.puts("#![allow(unused_comparisons)]")
     outHeader.puts
-    outHeader.puts("extern crate kaitai;")
+    outHeader.puts("extern crate kaitai_struct;")
 
-    importList.add("use kaitai::*;")
+    importList.add("use kaitai_struct::*;")
     importList.add("use std::convert::{TryFrom, TryInto};")
     importList.add("use std::cell::{Ref, Cell, RefCell};")
     importList.add("use std::rc::{Rc, Weak};")
