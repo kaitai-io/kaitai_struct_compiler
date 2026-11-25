@@ -90,22 +90,6 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
     // Suppress all other notification events except failures so it is easy to see only failures
     Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oNCXELOPQRM"),
 
-    // Universal: add extra files (formats repo) for distribution, removing
-    // .git special files and various dirty/backup files that git normally
-    // ignores.
-    //
-    // NOTE: This requires formats repo to be checked out on the level higher
-    // that the compiler
-    Universal / mappings ++= NativePackagerHelper.directory("../formats").filterNot {
-      case (_, dst) =>
-        val dstFile = new File(dst)
-        val dstFileName = dstFile.getName
-        dst.startsWith(s"formats${File.separator}_") ||
-          dst.startsWith(s"formats${File.separator}.git") ||
-          dstFileName.endsWith("~") ||
-          dstFileName.endsWith("#")
-    },
-
     // Uncomment if ever need to debug Windows file lists
 //    mappings in Windows := (mappings in Universal).value.map { (x) =>
 //      System.err.println("WINDOWS MAPPING: " + x)
@@ -117,22 +101,6 @@ lazy val compiler = crossProject(JSPlatform, JVMPlatform).
 
     // Add symlink for ksy files library location for Linux packages
     linuxPackageSymlinks += LinuxSymlink(s"/usr/share/${name.value}/formats", "/usr/share/kaitai-struct"),
-
-    // Formats should be present in universal (for zips, etc), but
-    // should be filtered out from Linux package, as we'll pack them
-    // in separate package there
-    linuxPackageMappings := {
-      linuxPackageMappings.value.map { (lpm) =>
-//        System.err.println("== mapping start")
-        val r = lpm.copy(mappings = lpm.mappings.filterNot { case (src, dst) =>
-//          System.err.println(s"DEBIAN MAP FILTER: $src -> $dst")
-          val srcStr = src.toString
-          srcStr == "../formats" || srcStr.startsWith("../formats/")
-        })
-//        System.err.println(s"== mapping stop: $r")
-        r
-      }
-    },
 
     // We need /usr/share/kaitai-struct (the format directory) to be created as
     // empty dir and packaged in compiler package, to be filled in with actual
