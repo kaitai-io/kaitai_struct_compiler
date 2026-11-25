@@ -219,7 +219,7 @@ class TypeDetector(provider: TypeProvider) {
         }
       case et: EnumType =>
         attr.name match {
-          case "to_i" => CalcIntType
+          case "to_i" => et.enumSpec.get.intType
           case _ => throw new MethodNotFoundError(attr.name, valType)
         }
       case _: BooleanType =>

@@ -885,11 +885,17 @@ class CppCompiler(
     handleAssignmentSimple(instName, valExprConverted)
   }
 
-  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)]): Unit = {
+  override def enumDeclaration(curClass: List[String], enumName: String, enumColl: Seq[(BigInt, EnumValueSpec)], enumSpec: EnumSpec): Unit = {
     val enumClass = types2class(List(enumName))
 
     outHdr.puts
-    outHdr.puts(s"enum $enumClass {")
+    if (!enumSpec.doc.isEmpty)
+      universalDoc(enumSpec.doc)
+    if (config.cppConfig.enumsFixedUnderlyingType) {
+      outHdr.puts(s"enum $enumClass : ${kaitaiType2NativeType(enumSpec.intType)} {")
+    } else {
+      outHdr.puts(s"enum $enumClass {")
+    }
     outHdr.inc
 
     if (enumColl.size > 1) {
