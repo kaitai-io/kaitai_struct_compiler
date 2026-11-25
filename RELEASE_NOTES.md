@@ -1,4 +1,4 @@
-# 2.0.0-alpha.1 (2026-11-25)
+# 2.0.0-alpha.1 (2026-11-26)
 
 This is a **pre-release** of Kaitai Struct 2.0 (see [#1293](https://github.com/kaitai-io/kaitai_struct/issues/1293)). It brings two **breaking changes** to the KSY language (a new `enums` syntax and stricter rules for integer types in expressions). All changes outside the "Breaking changes (2.x only)" group will also be part of the next 1.x release. The Python runtime library of this version is available on PyPI as [`2.0.0a1`](https://pypi.org/project/kaitaistruct/2.0.0a1/), which is how Python spells [pre-release versions](https://packaging.python.org/en/latest/specifications/version-specifiers/#pre-releases) such as `2.0.0-alpha.1`.
 
