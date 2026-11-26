@@ -323,17 +323,7 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
   }
 
   // Members declared in io.kaitai.struct.languages.components.ObjectOrientedLanguage
-  override def idToStr(id: Identifier): String = {
-    id match {
-      case IoIdentifier => "io"
-      case NamedIdentifier(name) =>  camelCase(name, false)
-      case InstanceIdentifier(name) => camelCase(name, false) + "Inst"
-      case IoStorageIdentifier(innerId) => "io" + camelCase(idToStr(innerId), true)
-      case SpecialIdentifier(name) => camelCase(name, false)
-      case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE}$idx"
-      case RawIdentifier(innerId) => "raw" + camelCase(idToStr(innerId), true)
-    }
-  }
+  override def idToStr(id: Identifier): String = NimCompiler.idToStr(id)
   override def localTemporaryName(id: Identifier): String = idToStr(id)
   override def privateMemberName(id: Identifier): String = {
     val name = idToStr(id)
@@ -384,7 +374,31 @@ class NimCompiler(typeProvider: ClassTypeProvider, config: RuntimeConfig)
     out.puts(s"let $exprName = $expr")
     out.puts(s"${privateMemberName(id)} = $exprName")
   }
-  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit = {}
+  override def handleAssignmentTempVar(dataType: DataType, id: String, expr: String): Unit =
+    out.puts(s"let $id = $expr")
+  override def blockScopeHeader: Unit = {
+    out.puts("block:")
+    out.inc
+  }
+  override def blockScopeFooter: Unit = out.dec
+  override def attrValidateExpr(
+    attr: AttrLikeSpec,
+    checkExpr: Ast.expr,
+    err: KSError,
+    useIo: Boolean,
+    actual: Ast.expr,
+    expected: Option[Ast.expr] = None
+  ): Unit = {
+    val validationTranslator = attr.id match {
+      case id: InstanceIdentifier => new NimTranslator(typeProvider, importList, Some(id))
+      case _ => translator
+    }
+    out.puts(s"if not (${validationTranslator.translate(checkExpr)}):")
+    out.inc
+    val message = translator.doStringLiteral(attr.path.mkString("/", "/", ": validation failed"))
+    out.puts(s"raise newException(KaitaiError, $message)")
+    out.dec
+  }
   override def parseExpr(dataType: DataType, io: String, defEndian: Option[FixedEndian]): String = {
     dataType match {
       case t: ReadableType =>
@@ -564,6 +578,15 @@ object NimCompiler extends LanguageCompilerStatic
   }
 
   def namespaced(names: List[String]): String = names.map(n => camelCase(n, true)).mkString("_")
+  def idToStr(id: Identifier): String = id match {
+    case IoIdentifier => "io"
+    case NamedIdentifier(name) => camelCase(name, false)
+    case InstanceIdentifier(name) => camelCase(name, false) + "Inst"
+    case IoStorageIdentifier(innerId) => "io" + camelCase(idToStr(innerId), true)
+    case SpecialIdentifier(name) => camelCase(name, false)
+    case NumberedIdentifier(idx) => s"${NumberedIdentifier.TEMPLATE}$idx"
+    case RawIdentifier(innerId) => "raw" + camelCase(idToStr(innerId), true)
+  }
 
   def ksToNim(attrType: DataType): String = {
     attrType match {

@@ -6,10 +6,15 @@ import io.kaitai.struct.exprlang.Ast._
 import io.kaitai.struct.datatype._
 import io.kaitai.struct.datatype.DataType
 import io.kaitai.struct.datatype.DataType._
-import io.kaitai.struct.format.{EnumSpec, Identifier}
+import io.kaitai.struct.format.{EnumSpec, Identifier, InstanceIdentifier}
+import io.kaitai.struct.languages.NimCompiler
 import io.kaitai.struct.languages.NimCompiler.{ksToNim, namespaced, camelCase}
 
-class NimTranslator(provider: TypeProvider, importList: ImportList) extends BaseTranslator(provider) {
+class NimTranslator(
+  provider: TypeProvider,
+  importList: ImportList,
+  validationInstance: Option[InstanceIdentifier] = None
+) extends BaseTranslator(provider) {
   /**
   * @see https://nim-lang.org/docs/manual.html#syntax-precedence
   */
@@ -58,8 +63,13 @@ class NimTranslator(provider: TypeProvider, importList: ImportList) extends Base
       case Identifier.ITERATOR => doName(s)
       case Identifier.INDEX => doName(s)
       case Identifier.ROOT => s"${ksToNim(provider.determineType(Identifier.ROOT))}(this.${doName(s)})"
+      // The value is stored before validation, but its getter is not cached yet.
+      case name if validationInstance.exists(_.name == name) =>
+        doInternalName(InstanceIdentifier(name))
       case _ => s"this.${doName(s)}"
     }
+  override def doInternalName(id: Identifier): String =
+    s"this.${NimCompiler.idToStr(id)}"
   override def doIfExp(condition: expr, ifTrue: expr, ifFalse: expr): String =
     s"(if ${translate(condition)}: ${translate(ifTrue)} else: ${translate(ifFalse)})"
   override def arraySubscript(container: expr, idx: expr): String =
