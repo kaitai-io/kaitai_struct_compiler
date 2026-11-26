@@ -5,6 +5,7 @@
 
 [![npm@latest](https://img.shields.io/npm/v/kaitai-struct-compiler/latest)](https://www.npmjs.com/package/kaitai-struct-compiler/v/latest)
 [![npm@next](https://img.shields.io/npm/v/kaitai-struct-compiler/next)](https://www.npmjs.com/package/kaitai-struct-compiler/v/next)
+[![npm@alpha](https://img.shields.io/npm/v/kaitai-struct-compiler/alpha)](https://www.npmjs.com/package/kaitai-struct-compiler/v/alpha)
 [![npm downloads](https://img.shields.io/npm/dm/kaitai-struct-compiler?label=npm%20downloads)](https://www.npmtrends.com/kaitai-struct-compiler)
 
 This project is an official reference compiler for [Kaitai Struct](https://kaitai.io/) project.

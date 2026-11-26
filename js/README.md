@@ -38,14 +38,18 @@ the compiler). If you:
 
 ## Installation
 
-We publish two versions of the compiler to npm:
+We publish three versions of the compiler to npm:
  - A stable one, this includes the latest stable, released compiler. This is the default ("latest") version.
    ```
    npm install kaitai-struct-compiler
    ```
- - The other is the latest snapshot version which follows our master branch. This version is tagged as `@next`.
+ - The second one is the latest snapshot version, which follows our master branch. This version is tagged as `@next`.
    ```
    npm install kaitai-struct-compiler@next
+   ```
+ - The third one is the latest pre-release of version 2.0, which has breaking changes. This version is tagged as `@alpha`.
+   ```
+   npm install kaitai-struct-compiler@alpha
    ```
 
 ### Example project
