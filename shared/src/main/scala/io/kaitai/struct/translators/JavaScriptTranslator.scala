@@ -84,6 +84,12 @@ class JavaScriptTranslator(provider: TypeProvider, importList: ImportList) exten
 
   override def enumToInt(v: expr, et: EnumType): String =
     translate(v)
+  override def enumToStr(v: expr, et: EnumType): String = {
+    val enumSpec = et.enumSpec.get
+    val isExternal = enumSpec.isExternal(provider.nowClass)
+    val enumObjName = JavaScriptCompiler.types2class(enumSpec.name, isExternal)
+    s"$enumObjName[${translate(v)}].toLowerCase()"
+  }
 
   /**
     * Converts a boolean (true or false) to integer (1 or 0, respectively) in
