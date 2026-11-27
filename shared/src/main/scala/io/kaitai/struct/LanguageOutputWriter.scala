@@ -29,9 +29,26 @@ abstract class LanguageOutputWriter(indentStr: String) {
 }
 
 class StringLanguageOutputWriter(indentStr: String) extends LanguageOutputWriter(indentStr) {
-  private val sb = new StringBuilder
+  private var sb = new StringBuilder
 
   def result = sb.toString
+
+  /** Capture prerequisite statements without emitting them yet. The same writer
+    * remains in use by callers, including nested captures and compiler overrides.
+    * Captured lines retain their indentation; the caller chooses when to add them.
+    */
+  def capture[T](body: => T): (T, StringLanguageOutputWriter) = {
+    val previousBuffer = sb
+    val previousIndent = indentLevel
+    val captured = new StringLanguageOutputWriter(indentStr)
+    sb = captured.sb
+    try {
+      (body, captured)
+    } finally {
+      sb = previousBuffer
+      indentLevel = previousIndent
+    }
+  }
 
   override def add(other: StringLanguageOutputWriter) = sb.append(other.result)
   override def puts(s: String): Unit = {
